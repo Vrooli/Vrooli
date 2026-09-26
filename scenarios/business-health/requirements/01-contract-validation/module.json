@@ -1,0 +1,141 @@
+{
+  "_metadata": {
+    "description": "PRD + requirements contract checks: template shape, section content, OT↔requirement linkage in both directions, registry structure, validation-ref existence.",
+    "last_validated_at": "2026-07-02T05:26:48-04:00",
+    "module": "contract-validation",
+    "prd_ref": "OT-P0-001",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BH-VAL-001",
+      "title": "Template section conformance checks",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Missing required PRD template sections, unexpected sections, and placeholder/insufficient section content are each detected as distinct findings, using section definitions extracted by packages/intent-go (the single parser).",
+      "tags": [
+        "prd",
+        "template",
+        "intent-go"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/checks/template_test.go. Table-driven fixtures per finding code: missing section, unexpected section, placeholder content, conformant PRD."
+        }
+      ]
+    },
+    {
+      "id": "BH-VAL-002",
+      "title": "OT↔requirement linkage in both directions",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "api",
+      "criticality": "P0",
+      "description": "A requirement whose prd_ref matches no PRD operational target and an operational target with no requirement pointing at it are both detected (intent.prd_ref_unmatched, intent.ot_orphan) via intent-go checks.",
+      "tags": [
+        "intent-linkage",
+        "prd_ref",
+        "ot-orphan"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/checks/linkage_test.go. Fixtures for dangling prd_ref, orphaned OT, and fully linked contract; asserts finding codes and severities."
+        }
+      ]
+    },
+    {
+      "id": "BH-VAL-003",
+      "title": "Registry structural validation",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Duplicate requirement IDs, import cycles, orphaned imports, missing id/title/status, invalid status vocabulary, starter-template residue, and requirements with no validation are detected with the same finding codes the native test-genie business phase emits today.",
+      "tags": [
+        "registry",
+        "structure"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/checks/registry_test.go. One positive and one negative fixture per structural finding code."
+        }
+      ]
+    },
+    {
+      "id": "BH-VAL-004",
+      "title": "Validation-ref existence and mini-format handling",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "api",
+      "criticality": "P0",
+      "description": "validation[].ref entries are normalized through intent-go's Ref mini-format (#fragment, ::TestName, globs); refs to files that do not exist on disk emit intent.ref_missing; manual-typed validations are never path-checked.",
+      "tags": [
+        "validation-ref",
+        "mini-format"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/checks/refs_test.go. Covers path refs, ::TestName refs, globs, doc anchors, and manual prose refs."
+        }
+      ]
+    },
+    {
+      "id": "BH-VAL-005",
+      "title": "Parity with the native business phase",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "api",
+      "criticality": "P0",
+      "description": "On real scenarios, validate-scenario output is parity-or-explained against test-genie's native business phase findings before the delegation cutover: every difference is enumerated and justified line-by-line.",
+      "tags": [
+        "parity",
+        "migration"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/checks/parity_test.go. Golden assessment outputs for fixture scenarios mirroring native-phase behavior; the live parity report is produced during Phase 3/7 validation."
+        }
+      ]
+    },
+    {
+      "id": "BH-VAL-006",
+      "title": "All parsing lives in intent-go",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "api",
+      "criticality": "P0",
+      "description": "business-health contains no PRD.md or requirements/ parsing of its own; api/internal/extraction is a thin composition over packages/intent-go extractors, preserving the repo-wide single-parser ratchet.",
+      "tags": [
+        "ratchet",
+        "intent-go",
+        "architecture"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/extraction/extraction_test.go. Asserts extraction package only composes intent-go types; repo ratchet test in intent-go remains green."
+        }
+      ]
+    }
+  ]
+}

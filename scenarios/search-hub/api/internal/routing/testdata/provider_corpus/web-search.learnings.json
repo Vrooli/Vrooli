@@ -1,0 +1,28 @@
+{
+ "provider_id": "web-search.learnings",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
+  "provider_group": "web-search",
+  "bucket": "BUCKET_KNOW",
+  "type": "learning",
+  "description": "Cited research findings about the external world, distilled from prior web research and verified across sources: software release versions and feature lists (e.g. 'key features of Go 1.26', 'latest stable Rust version'), current events, third-party vendor and product facts, and other 'what is the latest X' answers. Route here for ANY external-world factual question — the store may already hold the verified, citation-backed answer (project-scope knowledge) without touching the live internet. Not for questions about this project's own code, scenarios, configuration, or how past work here was done.",
+  "endpoint": {
+    "http_json": {
+      "scenario_id": "web-search",
+      "path": "/vrooli.web_search.v1.findings.FindingsService/SearchFindings",
+      "method": "HTTP_METHOD_POST",
+      "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+      "headers": { "Content-Type": "application/json" }
+    }
+  },
+  "result_mapping": {
+    "results_path": "hits",
+    "id_field": "finding.id",
+    "title_field": "finding.claim",
+    "snippet_field": "finding.claim",
+    "score_field": "score",
+    "path_field": "finding.id",
+    "score_scale": "SCORE_SCALE_COSINE_0_1"
+  },
+  "scope": "SCOPE_PROJECT",
+  "state": "PROVIDER_STATE_ACTIVE"
+}

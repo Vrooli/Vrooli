@@ -1,0 +1,316 @@
+{
+  "fixture": "all-detectors",
+  "source": "redaction-safe hand-labelled excerpt shape derived from imported runner sessions",
+  "sourceRuns": [
+    "49d4c50a-a499-4db4-a311-4c9c0d0c8026",
+    "5f34450e-fcbb-49aa-b1ff-6ff55f5cb674",
+    "6188692f-8579-4ea4-b08c-e59c1004c0d7"
+  ],
+  "labellingRule": "Label an episode only when its two adjacent invocation facts meet the production pattern definition. Label a self-report only when the exact case-insensitive rule phrase appears in an assistant message; label operator-correction only when its phrase appears in user text.",
+  "thresholds": {
+    "episode/repeated-work": 1.0,
+    "episode/command-failure": 1.0,
+    "episode/help-recovery": 1.0,
+    "episode/stall": 1.0,
+    "episode/poll-loop": 1.0,
+    "episode/oscillation": 1.0,
+    "episode/edit-revert": 1.0,
+    "episode/wait-misuse": 1.0,
+    "episode/blocked-then-abandoned": 1.0,
+    "episode/guidance-repair": 1.0,
+    "episode/handoff-continuation": 1.0,
+    "episode/fallback-after-capability": 1.0,
+    "episode/capability-abandoned": 1.0,
+    "episode/retry-after-failure": 0.8,
+    "episode/flag-hunting": 0.8,
+    "episode/abandoned-command-family": 0.8,
+    "episode/read-then-reread": 0.8,
+    "episode/time-to-first-success": 0.8,
+    "episode/wrong-primitive": 1.0,
+    "span/cannot-find": 1.0,
+    "span/repeated-failure": 1.0,
+    "span/strategy-change": 1.0,
+    "span/blocked": 1.0,
+    "span/permission-request": 1.0,
+    "span/operator-correction": 1.0
+  },
+  "expected": [
+    "episode/repeated-work",
+    "episode/command-failure",
+    "episode/help-recovery",
+    "episode/stall",
+    "episode/poll-loop",
+    "episode/oscillation",
+    "episode/edit-revert",
+    "episode/wait-misuse",
+    "episode/blocked-then-abandoned",
+    "episode/guidance-repair",
+    "episode/handoff-continuation",
+    "episode/fallback-after-capability",
+    "episode/capability-abandoned",
+    "episode/retry-after-failure",
+    "episode/flag-hunting",
+    "episode/abandoned-command-family",
+    "episode/read-then-reread",
+    "episode/time-to-first-success",
+    "episode/wrong-primitive",
+    "span/cannot-find",
+    "span/repeated-failure",
+    "span/strategy-change",
+    "span/blocked",
+    "span/permission-request",
+    "span/operator-correction"
+  ],
+  "cases": [
+    {
+      "name": "redacted-positive-window",
+      "reason": "Mixed failure, retry, polling, oscillation, and operator-correction evidence exercises the production detector boundaries.",
+      "expected": ["episode/repeated-work", "episode/command-failure", "episode/help-recovery", "episode/stall", "episode/poll-loop", "episode/oscillation", "episode/edit-revert", "episode/blocked-then-abandoned", "episode/retry-after-failure", "episode/abandoned-command-family", "span/cannot-find", "span/repeated-failure", "span/strategy-change", "span/blocked", "span/permission-request", "span/operator-correction"],
+      "facts": [
+        {"callEventId":"f1","resultEventId":"r1","outcome":"failure","executable":"shell","fingerprint":"same"},
+        {"callEventId":"f2","resultEventId":"r2","outcome":"failure","executable":"shell","fingerprint":"same"},
+        {"callEventId":"f3","resultEventId":"r3","outcome":"success","executable":"help","fingerprint":"help","helpRecovery":true},
+        {"callEventId":"p1","resultEventId":"pr1","outcome":"success","fingerprint":"poll"},
+        {"callEventId":"p2","resultEventId":"pr2","outcome":"success","fingerprint":"poll"},
+        {"callEventId":"p3","resultEventId":"pr3","outcome":"success","fingerprint":"poll"},
+        {"callEventId":"a1","resultEventId":"ar1","outcome":"success","fingerprint":"osc-a"},
+        {"callEventId":"b1","resultEventId":"br1","outcome":"success","fingerprint":"osc-b"},
+        {"callEventId":"a2","resultEventId":"ar2","outcome":"success","fingerprint":"osc-a"},
+        {"callEventId":"b2","resultEventId":"br2","outcome":"success","fingerprint":"osc-b"}
+      ],
+      "events": [
+        {"id":"start","atMilliseconds":0,"kind":"assistant_message","content":"starting"},
+        {"id":"f1","atMilliseconds":1000,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"r1","atMilliseconds":2000,"kind":"tool_result"},
+        {"id":"f2","atMilliseconds":3000,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"r2","atMilliseconds":4000,"kind":"tool_result"},
+        {"id":"f3","atMilliseconds":5000,"kind":"tool_call","toolName":"shell","input":{"help":true}}, {"id":"r3","atMilliseconds":6000,"kind":"tool_result"},
+        {"id":"p1","atMilliseconds":10000,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"pr1","atMilliseconds":11000,"kind":"tool_result"},
+        {"id":"p2","atMilliseconds":12000,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"pr2","atMilliseconds":13000,"kind":"tool_result"},
+        {"id":"p3","atMilliseconds":14000,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"pr3","atMilliseconds":15000,"kind":"tool_result"},
+        {"id":"a1","atMilliseconds":20000,"kind":"tool_call","toolName":"shell","input":{"read":true}}, {"id":"ar1","atMilliseconds":21000,"kind":"tool_result"},
+        {"id":"b1","atMilliseconds":22000,"kind":"tool_call","toolName":"shell","input":{"read":true}}, {"id":"br1","atMilliseconds":23000,"kind":"tool_result"},
+        {"id":"a2","atMilliseconds":24000,"kind":"tool_call","toolName":"shell","input":{"read":true}}, {"id":"ar2","atMilliseconds":25000,"kind":"tool_result"},
+        {"id":"b2","atMilliseconds":26000,"kind":"tool_call","toolName":"shell","input":{"read":true}}, {"id":"br2","atMilliseconds":27000,"kind":"tool_result"},
+        {"id":"edit-a","atMilliseconds":30000,"kind":"tool_call","toolName":"file_change","files":[{"path":"fixture.txt","kind":"add"}]},
+        {"id":"edit-b","atMilliseconds":31000,"kind":"tool_call","toolName":"file_change","files":[{"path":"fixture.txt","kind":"delete"}]},
+        {"id":"report","atMilliseconds":400000,"kind":"assistant_message","content":"I cannot find it; this keeps failing; instead I will retry. I am blocked and need permission."},
+        {"id":"correction","atMilliseconds":401000,"kind":"user_message","content":"You should use the documented path instead."}
+      ]
+    },
+    {
+      "name": "wait-misuse-positive",
+      "reason": "Three same-family wait calls are the minimum structural wait misuse window.",
+      "expected": ["episode/wait-misuse", "episode/repeated-work"],
+      "facts": [
+        {"callEventId":"w1","resultEventId":"wr1","outcome":"unknown","capability":"wait","fingerprint":"pending"},
+        {"callEventId":"w2","resultEventId":"wr2","outcome":"unknown","capability":"wait","fingerprint":"pending"},
+        {"callEventId":"w3","resultEventId":"wr3","outcome":"unknown","capability":"wait","fingerprint":"pending"}
+      ],
+      "events": [
+        {"id":"w1","atMilliseconds":0,"kind":"tool_call","toolName":"wait","input":{"status":true}}, {"id":"wr1","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"w2","atMilliseconds":2000,"kind":"tool_call","toolName":"wait","input":{"status":true}}, {"id":"wr2","atMilliseconds":3000,"kind":"tool_result"},
+        {"id":"w3","atMilliseconds":4000,"kind":"tool_call","toolName":"wait","input":{"status":true}}, {"id":"wr3","atMilliseconds":5000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "blocked-abandoned-positive",
+      "reason": "A structural failure precedes the operator's blocked statement and no later success appears.",
+      "expected": ["episode/blocked-then-abandoned", "span/blocked"],
+      "facts": [{"callEventId":"blocked-failure","resultEventId":"blocked-result","outcome":"failure","executable":"shell","fingerprint":"blocked-command"}],
+      "events": [{"id":"blocked-failure","atMilliseconds":0,"kind":"tool_call","toolName":"shell","input":{"command":"shell"}}, {"id":"blocked-result","atMilliseconds":1000,"kind":"tool_result"}, {"id":"blocked","atMilliseconds":2000,"kind":"assistant_message","content":"I am blocked and cannot proceed."}]
+    },
+    {
+      "name": "guidance-repair-positive",
+      "reason": "The operator correction is followed by a different successful invocation family.",
+      "expected": ["episode/guidance-repair", "span/operator-correction"],
+      "facts": [
+        {"callEventId":"before","resultEventId":"before-result","outcome":"failure","fingerprint":"old-approach"},
+        {"callEventId":"after","resultEventId":"after-result","outcome":"success","fingerprint":"new-approach"}
+      ],
+      "events": [
+        {"id":"before","atMilliseconds":0,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"before-result","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"correction","atMilliseconds":2000,"kind":"user_message","content":"You should use a different approach."},
+        {"id":"after","atMilliseconds":3000,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"after-result","atMilliseconds":4000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "handoff-continuation-positive",
+      "reason": "Tool activity continues after a terminal assistant handoff message.",
+      "expected": ["episode/handoff-continuation"],
+      "facts": [
+        {"callEventId":"after-one","resultEventId":"after-one-result","outcome":"success","fingerprint":"post-a"},
+        {"callEventId":"after-two","resultEventId":"after-two-result","outcome":"success","fingerprint":"post-b"}
+      ],
+      "events": [
+        {"id":"handoff","atMilliseconds":0,"kind":"assistant_message","content":"handoff complete","terminal":true},
+        {"id":"after-one","atMilliseconds":1000,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"after-one-result","atMilliseconds":2000,"kind":"tool_result"},
+        {"id":"after-two","atMilliseconds":3000,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"after-two-result","atMilliseconds":4000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "fallback-after-capability-positive",
+      "reason": "A project-owned capability is followed by a distinct external capability for the same intent.",
+      "expected": ["episode/fallback-after-capability"],
+      "facts": [
+        {"callEventId":"project","resultEventId":"project-result","outcome":"success","ownership":"resolved","executable":"project-tool","intentClass":"file-read:path" ,"fingerprint":"project-read"},
+        {"callEventId":"external","resultEventId":"external-result","outcome":"success","executable":"external-tool","ownership":"external","intentClass":"file-read:path","fingerprint":"external-read"}
+      ],
+      "events": [
+        {"id":"project","atMilliseconds":0,"kind":"tool_call","toolName":"Read","input":{"path":"a.txt"}}, {"id":"project-result","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"external","atMilliseconds":2000,"kind":"tool_call","toolName":"grep","input":{"path":"a.txt"}}, {"id":"external-result","atMilliseconds":3000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "capability-abandoned-positive",
+      "reason": "A failed project-owned capability has no later successful attempt.",
+      "expected": ["episode/capability-abandoned"],
+      "facts": [{"callEventId":"failed-capability","resultEventId":"failed-result","outcome":"failure","executable":"project-tool","ownership":"resolved","intentClass":"search:text","fingerprint":"failed-search"}],
+      "events": [{"id":"failed-capability","atMilliseconds":0,"kind":"tool_call","toolName":"Grep","input":{"pattern":"x"}}, {"id":"failed-result","atMilliseconds":1000,"kind":"tool_result"}]
+    },
+    {
+      "name": "structural-detectors-positive",
+      "reason": "Three same-family calls with distinct intent classes and failures exercise retry, flag hunting, and abandonment.",
+      "expected": ["episode/retry-after-failure", "episode/flag-hunting", "episode/abandoned-command-family", "episode/command-failure"],
+      "facts": [
+        {"callEventId":"flag-1","resultEventId":"flag-r1","outcome":"failure","executable":"shell","intentClass":"shell:flag-a","fingerprint":"flag-a"},
+        {"callEventId":"flag-2","resultEventId":"flag-r2","outcome":"failure","executable":"shell","intentClass":"shell:flag-b","fingerprint":"flag-b"},
+        {"callEventId":"flag-3","resultEventId":"flag-r3","outcome":"failure","executable":"shell","intentClass":"shell:flag-c","fingerprint":"flag-c"}
+      ],
+      "events": [
+        {"id":"flag-1","atMilliseconds":0,"kind":"tool_call","toolName":"shell","input":{"command":"shell --flag-a"}}, {"id":"flag-r1","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"flag-2","atMilliseconds":2000,"kind":"tool_call","toolName":"shell","input":{"command":"shell --flag-b"}}, {"id":"flag-r2","atMilliseconds":3000,"kind":"tool_result"},
+        {"id":"flag-3","atMilliseconds":4000,"kind":"tool_call","toolName":"shell","input":{"command":"shell --flag-c"}}, {"id":"flag-r3","atMilliseconds":5000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "read-reread-positive",
+      "reason": "The same file-read fingerprint recurs after the first read.",
+      "expected": ["episode/read-then-reread", "episode/repeated-work"],
+      "facts": [
+        {"callEventId":"read-1","resultEventId":"read-r1","outcome":"success","capability":"file-read","fingerprint":"same-read"},
+        {"callEventId":"read-2","resultEventId":"read-r2","outcome":"success","capability":"file-read","fingerprint":"same-read"}
+      ],
+      "events": [
+        {"id":"read-1","atMilliseconds":0,"kind":"tool_call","toolName":"Read","input":{"path":"a.txt"}}, {"id":"read-r1","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"read-2","atMilliseconds":2000,"kind":"tool_call","toolName":"Read","input":{"path":"a.txt"}}, {"id":"read-r2","atMilliseconds":3000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "time-to-first-success-positive",
+      "reason": "The paired success occurs more than the structural latency threshold after the first call.",
+      "expected": ["episode/time-to-first-success"],
+      "facts": [{"callEventId":"slow-call","resultEventId":"slow-result","outcome":"success","executable":"shell","fingerprint":"slow"}],
+      "events": [
+        {"id":"slow-call","atMilliseconds":1000,"kind":"tool_call","toolName":"shell","input":{"command":"shell"}},
+        {"id":"slow-result","atMilliseconds":40000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "wrong-primitive-wait-positive",
+      "reason": "Two repeated status checks without the preferred blocking wait primitive are labelled as a workaround.",
+      "expected": ["episode/wrong-primitive"],
+      "facts": [
+        {"callEventId":"wp-w1","resultEventId":"wp-r1","outcome":"success","commandPath":"test-genie runs status","fingerprint":"status-1"},
+        {"callEventId":"wp-w2","resultEventId":"wp-r2","outcome":"success","commandPath":"test-genie runs status","fingerprint":"status-2"}
+      ],
+      "events": [
+        {"id":"wp-w1","atMilliseconds":0,"kind":"tool_call","toolName":"shell","input":{"command":"test-genie runs status"}}, {"id":"wp-r1","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"wp-w2","atMilliseconds":2000,"kind":"tool_call","toolName":"shell","input":{"command":"test-genie runs status"}}, {"id":"wp-r2","atMilliseconds":3000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "wrong-primitive-search-positive",
+      "reason": "Two repeated grep searches without the preferred search-hub primitive are labelled as a workaround.",
+      "expected": ["episode/wrong-primitive"],
+      "facts": [
+        {"callEventId":"wp-s1","resultEventId":"wp-sr1","outcome":"success","commandPath":"grep pattern file.txt","fingerprint":"grep-1"},
+        {"callEventId":"wp-s2","resultEventId":"wp-sr2","outcome":"success","commandPath":"grep pattern file.txt","fingerprint":"grep-2"}
+      ],
+      "events": [
+        {"id":"wp-s1","atMilliseconds":0,"kind":"tool_call","toolName":"shell","input":{"command":"grep pattern file.txt"}}, {"id":"wp-sr1","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"wp-s2","atMilliseconds":2000,"kind":"tool_call","toolName":"shell","input":{"command":"grep pattern file.txt"}}, {"id":"wp-sr2","atMilliseconds":3000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "wrong-primitive-rg-positive",
+      "reason": "Two repeated rg searches without the preferred search-hub primitive are labelled as a workaround.",
+      "expected": ["episode/wrong-primitive"],
+      "facts": [
+        {"callEventId":"wp-rg1","resultEventId":"wp-rgr1","outcome":"success","commandPath":"rg pattern .","fingerprint":"rg-1"},
+        {"callEventId":"wp-rg2","resultEventId":"wp-rgr2","outcome":"success","commandPath":"rg pattern .","fingerprint":"rg-2"}
+      ],
+      "events": [
+        {"id":"wp-rg1","atMilliseconds":0,"kind":"tool_call","toolName":"shell","input":{"command":"rg pattern ."}}, {"id":"wp-rgr1","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"wp-rg2","atMilliseconds":2000,"kind":"tool_call","toolName":"shell","input":{"command":"rg pattern ."}}, {"id":"wp-rgr2","atMilliseconds":3000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "wrong-primitive-find-positive",
+      "reason": "Two repeated find scans without the preferred search-hub primitive are labelled as a workaround.",
+      "expected": ["episode/wrong-primitive"],
+      "facts": [
+        {"callEventId":"wp-f1","resultEventId":"wp-fr1","outcome":"success","commandPath":"find . -name fixture.txt","fingerprint":"find-1"},
+        {"callEventId":"wp-f2","resultEventId":"wp-fr2","outcome":"success","commandPath":"find . -name fixture.txt","fingerprint":"find-2"}
+      ],
+      "events": [
+        {"id":"wp-f1","atMilliseconds":0,"kind":"tool_call","toolName":"shell","input":{"command":"find . -name fixture.txt"}}, {"id":"wp-fr1","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"wp-f2","atMilliseconds":2000,"kind":"tool_call","toolName":"shell","input":{"command":"find . -name fixture.txt"}}, {"id":"wp-fr2","atMilliseconds":3000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "redacted-near-miss-window",
+      "reason": "Different successful reads and a phrase without a structural failure must not create a friction episode.",
+      "expected": [],
+      "facts": [
+        {"callEventId":"n1","resultEventId":"nr1","outcome":"success","fingerprint":"read-a"},
+        {"callEventId":"n2","resultEventId":"nr2","outcome":"success","fingerprint":"read-b"}
+      ],
+      "events": [
+        {"id":"n1","atMilliseconds":0,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"nr1","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"message","atMilliseconds":10000,"kind":"assistant_message","content":"progress made"},
+        {"id":"n2","atMilliseconds":60000,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"nr2","atMilliseconds":61000,"kind":"tool_result"},
+        {"id":"edit-c","atMilliseconds":70000,"kind":"tool_call","toolName":"file_change","files":[{"path":"one.txt","kind":"add"}]},
+        {"id":"edit-d","atMilliseconds":71000,"kind":"tool_call","toolName":"file_change","files":[{"path":"two.txt","kind":"delete"}]},
+        {"id":"user","atMilliseconds":72000,"kind":"user_message","content":"I am blocked and need permission"}
+      ]
+    },
+    {"name":"near-miss-12","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-13","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-14","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-15","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-16","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-17","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-18","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-19","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-20","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-21","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-22","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-23","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-24","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-25","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-26","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-27","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-28","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-29","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-30","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-31","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-32","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-33","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-34","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-35","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-36","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-37","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-38","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-39","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-40","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-41","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-42","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-43","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-44","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-45","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-46","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-47","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-48","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-49","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-50","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]}
+  ]
+}

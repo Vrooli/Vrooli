@@ -25,6 +25,11 @@ src/__tests__/
 
 ## Running Tests
 
+`pnpm run build` emits the library and its exported testing helpers. It excludes
+both `src/__tests__` and colocated `*.test.ts` / `*.test.tsx` files; Vitest owns
+test discovery and execution. This prevents the distribution build from compiling
+or shipping the helpers' self-tests as public library modules.
+
 ### All Tests
 
 ```bash

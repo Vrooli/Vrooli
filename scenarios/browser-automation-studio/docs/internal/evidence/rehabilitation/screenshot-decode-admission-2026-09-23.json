@@ -1,0 +1,113 @@
+{
+  "cycle": "105",
+  "date": "2026-09-23",
+  "status": "bounded_decode_admission_deployed_peak_pss_unverified",
+  "issues": ["BAS-RF-119", "BAS-RF-120"],
+  "hypothesis": "Compressed full-page PNGs under the encoded-byte ceiling can overlap in separate production writers and multiply raster allocations; a process-wide weighted admission owner can bound concurrent decode estimates while preserving accepted full-page evidence and complete image validation.",
+  "managed_fixture": {
+    "producer": "browser-automation-studio ai preview-screenshot",
+    "fixture": "solid-color data URL rendered at 1280x12800 CSS pixels with device scale factor 1",
+    "result": "passed twice",
+    "format": "PNG",
+    "dimensions": [1280, 12800],
+    "encoded_bytes": 74107,
+    "sha256": "5c4a1af045071c71aaf3fbb6d5515e94f84e65474e4145209e4e8e123723d5a5",
+    "first_capture_ms": 752,
+    "repeat_capture_ms": 709,
+    "owner_copy": "api/automation/execution-writer/testdata/full-page-1280x12800.png"
+  },
+  "pre_change_overlap_probe": {
+    "owner": "FileWriter.RecordStepOutcome with storage held at a shared barrier",
+    "raster_pixels_per_call": 16384000,
+    "concurrent_calls": [1, 2, 4],
+    "live_heap_delta_bytes": [65814576, 131354392, 262454096],
+    "all_calls_reached_storage_together": true,
+    "qualification": "Isolated local Go writer process measurement; not managed API+driver PSS. The probe source was ephemeral under /tmp and the managed PNG is retained in the owner testdata."
+  },
+  "change": {
+    "owner": "api/automation/execution-writer",
+    "paths": [
+      "api/automation/execution-writer/screenshot_decode_budget.go",
+      "api/automation/execution-writer/file_writer.go",
+      "api/automation/execution-writer/file_writer_test.go",
+      "api/automation/execution-writer/screenshot_decode_budget_test.go",
+      "api/automation/execution-writer/testdata/full-page-1280x12800.png"
+    ],
+    "policy": "One process-wide weighted admission budget of 192 MiB, estimated at five bytes per decoded pixel. Context cancellation interrupts admission waits. Full image.Decode remains required and accepted bytes persist unchanged; reservations release before storage I/O.",
+    "measured_fixture_admission": "Two 16.384 MP fixtures fit within the estimated budget; a single raster estimate above the budget is rejected before full raster allocation.",
+    "limitation": "Estimated decode admission is not a hard bound on active PSS, decoder implementation overhead, retained heap, or browser/driver memory. Managed API+driver concurrent peak remains unmeasured."
+  },
+  "sidecar_repair": {
+    "issue": "BAS-RF-120",
+    "trigger": "Test Genie unit run 20260923-214208-f3e727e7 surfaced go test ./sidecar/supervisor failure in TestProcessSupervisor_AutoRestart/restarts_after_crash.",
+    "cause": "waitForHealthy first waited on a 500 ms ticker while StartupTimeout was also 500 ms, allowing timeout before the first health probe under load.",
+    "repair": "Probe immediately, then wait between retry probes; preserve context cancellation.",
+    "paths": ["api/sidecar/supervisor/supervisor.go", "api/sidecar/supervisor/supervisor_test.go"]
+  },
+  "validation": {
+    "focused_owner_tests": {
+      "command": "go test ./automation/execution-writer -count=1 && go test ./sidecar/supervisor -run '^(TestProcessSupervisorChecksHealthBeforeWaitingForPollInterval|TestProcessSupervisor_AutoRestart)$' -count=3",
+      "result": "passed"
+    },
+    "prior_race_tests": {
+      "commands": [
+        "go test -race ./automation/execution-writer -count=1",
+        "go test -race ./sidecar/supervisor -count=1"
+      ],
+      "result": "passed"
+    },
+    "contract": {
+      "command": "python3 scenarios/browser-automation-studio/docs/internal/refactor_contract.py",
+      "result": "passed; 24 journeys, zero errors; product qualification false"
+    },
+    "source_inventory": {
+      "command": "python3 scenarios/browser-automation-studio/docs/internal/refactor_inventory.py --include-untracked",
+      "source_digest_sha256": "016008c7c5b8b0dcbd7f4b3d107974b9c1bde64eb20e25df3ae3553199de02de",
+      "scope_note": "Shared-worktree source inventory; no debt/coupling reduction is claimed from this digest."
+    },
+    "test_genie_unit": {
+      "command": "vrooli scenario test browser-automation-studio --phases unit",
+      "run_id": "20260923-214208-f3e727e7",
+      "result": "failed after 536 seconds with zero observations; evidence tier degraded",
+      "findings": [
+        "API Go suite failed the supervisor AutoRestart case; the focused supervisor regression and race suite pass after BAS-RF-120 repair.",
+        "Driver coverage had one native stream dimension assertion mismatch (expected height 240, observed 153) for DPR1/DPR2 scale=css mode=regular. The exact focused suite passed all 10 tests both run-in-band and normally on immediate rerun; broader-suite pressure remains a possible but unproven cause.",
+        "UI coverage remains below its unchanged 85% floor: statements 30.52%, functions 33.61%, branches 67.26%, lines 30.52%. Existing debt is tracked by BAS-RF-014."
+      ],
+      "overall_phase_claim": "failed; not a unit-phase pass"
+    },
+    "managed_lifecycle": {
+      "command": "make -C scenarios/browser-automation-studio restart",
+      "result": "passed; API/UI healthy, zero required credential gaps; one optional Claude API credential unavailable",
+      "build_identity": "sha256:a708c5cc95548c958ab2ae0f42e67dc9e711397eebe357b5aa37e2b98911891b",
+      "managed_capture": {
+        "command": "browser-automation-studio capture --url scenario=browser-automation-studio,path=/ --capture screenshot --out /tmp/bas-rf119-managed-cycle105-postrestart --label rf119-postrestart --json",
+        "result": "passed",
+        "execution_id": "7876ede8-da51-4318-98fb-9dda59baaf35",
+        "duration_ms": 2670,
+        "artifact_bytes": 209285,
+        "readiness": "generic-navigation fallback because Experience Manager projects-grid pins experience-surface@1.0.0 without canonical experience contract; existing issue knw-1790187409653888938, not duplicated"
+      }
+    },
+    "setpoint": {
+    "command": "program-runtime library run browser-automation-studio.setpoint-read --input profile=rehabilitation",
+      "program_run": "prog_a01c4e1a-05bb-4c36-961a-48a94585d3d5",
+      "result": "succeeded",
+      "qualified": 1,
+      "unavailable": 16,
+      "capture_p95_ms": 421,
+      "capture_wall_p95_ms": 616.014912,
+      "capture_workload": "16fd5c4b86fcb3bc8d0ef5ae61a45da7",
+      "capture_build_identity": "sha256:a708c5cc95548c958ab2ae0f42e67dc9e711397eebe357b5aa37e2b98911891b",
+      "product_qualified": false,
+      "qualification_note": "The first post-restart read correctly rejected old-build evidence (0 readable/17 unavailable). A fresh 100-capture receipt was then run and fetched through Performance Health; the final setpoint read admits capture on the current build, while the other 16 outcomes remain pending telemetry."
+    }
+  },
+  "complexity_and_debt": {
+    "code_debt_reduction_claimed": false,
+    "callers_converted": "Both production FileWriter instances use the same process-wide decode admission owner through the canonical writer method.",
+    "obsolete_paths_deleted": "None; no duplicate implementation or compatibility path was introduced.",
+    "tradeoff": "Added bounded resource ownership and adverse-case coverage increases source lines; no comparable domain-wide complexity, duplication, or coupling reduction was measured."
+  },
+  "next_recheck": "Measure managed API+driver peak PSS under concurrent accepted full-page captures and verify the budget's impact across realistic PNG/JPEG sizes; retain full-page fidelity and corrupt/truncated rejection. Revisit 192 MiB/5 B-per-pixel only with comparable owner-produced data."
+}

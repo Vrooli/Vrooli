@@ -183,9 +183,9 @@ func TestMockRepository_ExecutionOperations(t *testing.T) {
 	})
 
 	t.Run("list executions by status", func(t *testing.T) {
-		executions, err := repo.ListExecutionsByStatus(ctx, database.ExecutionStatusCompleted, 10, 0)
+		executions, _, err := repo.ListExecutions(ctx, database.ExecutionQuery{Status: database.ExecutionStatusCompleted, Limit: 10})
 		if err != nil {
-			t.Fatalf("ListExecutionsByStatus failed: %v", err)
+			t.Fatalf("ListExecutions with status failed: %v", err)
 		}
 		if len(executions) != 1 {
 			t.Fatalf("Expected 1 execution, got %d", len(executions))

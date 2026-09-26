@@ -7,6 +7,8 @@
 package projects
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	api "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -22,39 +24,82 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// PresetKind selects an optional folder layout to materialize alongside the
+// new project.
+type PresetKind int32
+
+const (
+	PresetKind_PRESET_KIND_UNSPECIFIED PresetKind = 0
+	// EMPTY creates no extra folders beyond the project root.
+	PresetKind_PRESET_KIND_EMPTY PresetKind = 1
+	// RECOMMENDED seeds {actions, flows, cases, assets} subfolders.
+	PresetKind_PRESET_KIND_RECOMMENDED PresetKind = 2
+	// CUSTOM uses the caller-supplied preset_paths list.
+	PresetKind_PRESET_KIND_CUSTOM PresetKind = 3
+)
+
+// Enum value maps for PresetKind.
+var (
+	PresetKind_name = map[int32]string{
+		0: "PRESET_KIND_UNSPECIFIED",
+		1: "PRESET_KIND_EMPTY",
+		2: "PRESET_KIND_RECOMMENDED",
+		3: "PRESET_KIND_CUSTOM",
+	}
+	PresetKind_value = map[string]int32{
+		"PRESET_KIND_UNSPECIFIED": 0,
+		"PRESET_KIND_EMPTY":       1,
+		"PRESET_KIND_RECOMMENDED": 2,
+		"PRESET_KIND_CUSTOM":      3,
+	}
+)
+
+func (x PresetKind) Enum() *PresetKind {
+	p := new(PresetKind)
+	*p = x
+	return p
+}
+
+func (x PresetKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PresetKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_projects_project_proto_enumTypes[0].Descriptor()
+}
+
+func (PresetKind) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_projects_project_proto_enumTypes[0]
+}
+
+func (x PresetKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PresetKind.Descriptor instead.
+func (PresetKind) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_projects_project_proto_rawDescGZIP(), []int{0}
+}
+
 // Project represents a workspace for organizing related workflows.
 //
 // Projects map 1:1 with filesystem directories. When a project is created,
 // a corresponding folder is created on disk. Workflows within the project
 // are stored as JSON files in that folder and synced to the database.
-//
-// @usage Returned by GET /api/v1/projects/{id}, POST /api/v1/projects
-// @see WorkflowSummary.project_id for the foreign key relationship
 type Project struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique project identifier. Generated server-side on creation; immutable.
 	// @format uuid
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Human-readable project name.
-	// Used in UI displays and search. Must be non-empty.
-	// Example: "E2E Checkout Tests", "Admin Dashboard Flows"
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	// Optional longer description of the project's purpose.
-	// Supports multi-line text for detailed documentation.
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	// Absolute filesystem path where workflow files are stored.
-	// Must be a valid, writable directory path. The API validates:
-	//   - Path is absolute (starts with /)
-	//   - Path is within allowed base directories
-	//   - Directory can be created if it doesn't exist
-	//
-	// Example: "/home/user/projects/checkout-tests"
-	// @constraint Must be unique across all projects
 	FolderPath string `protobuf:"bytes,4,opt,name=folder_path,json=folderPath,proto3" json:"folder_path,omitempty"`
 	// When the project was created (immutable).
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the project was last modified.
-	// Updated on name/description changes, NOT on workflow changes.
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -133,26 +178,16 @@ func (x *Project) GetUpdatedAt() *timestamppb.Timestamp {
 }
 
 // ProjectStats captures computed metrics for a project.
-//
-// Statistics are calculated on-demand by aggregating workflow and execution
-// data. They are NOT stored in the database but computed via SQL aggregations.
-//
-// @usage Returned alongside Project in list/get responses
-// @see GetProjectStats repository method for computation logic
 type ProjectStats struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Project ID these stats belong to. Foreign key reference to Project.id.
+	// Project ID these stats belong to.
 	// @format uuid
 	ProjectId string `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	// Total number of workflows in this project.
-	// Computed as: COUNT(DISTINCT workflows.id) WHERE project_id = this.project_id
 	WorkflowCount int32 `protobuf:"varint,2,opt,name=workflow_count,json=workflowCount,proto3" json:"workflow_count,omitempty"`
 	// Total number of executions across all workflows in this project.
-	// Computed as: COUNT(DISTINCT executions.id) via workflow join
 	ExecutionCount int32 `protobuf:"varint,3,opt,name=execution_count,json=executionCount,proto3" json:"execution_count,omitempty"`
 	// Timestamp of the most recent execution in this project.
-	// Computed as: MAX(executions.started_at) via workflow join
-	// Null if no executions have occurred yet.
 	LastExecution *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_execution,json=lastExecution,proto3" json:"last_execution,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -217,19 +252,10 @@ func (x *ProjectStats) GetLastExecution() *timestamppb.Timestamp {
 }
 
 // ProjectWithStats bundles a project with its computed statistics.
-//
-// This is the standard response format for project endpoints, providing
-// both the core project data and aggregated metrics in a single payload.
-//
-// @usage Primary response type for GET /api/v1/projects/{id}
-// @usage Item type in ProjectList for GET /api/v1/projects
 type ProjectWithStats struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The project entity.
-	Project *Project `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
-	// Computed statistics for this project.
-	// May be null if stats computation fails or is disabled.
-	Stats         *ProjectStats `protobuf:"bytes,2,opt,name=stats,proto3" json:"stats,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Project       *Project               `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	Stats         *ProjectStats          `protobuf:"bytes,2,opt,name=stats,proto3" json:"stats,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -280,12 +306,10 @@ func (x *ProjectWithStats) GetStats() *ProjectStats {
 
 // ProjectList wraps a collection of projects with their statistics.
 //
-// @usage Response type for GET /api/v1/projects (list endpoint)
+// Kept for legacy ListProjects callers that pre-date ProjectsService.
 type ProjectList struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Ordered list of projects with stats.
-	// Default ordering is by created_at descending (newest first).
-	Projects      []*ProjectWithStats `protobuf:"bytes,1,rep,name=projects,proto3" json:"projects,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Projects      []*ProjectWithStats    `protobuf:"bytes,1,rep,name=projects,proto3" json:"projects,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -327,11 +351,881 @@ func (x *ProjectList) GetProjects() []*ProjectWithStats {
 	return nil
 }
 
+type CreateProjectRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	FolderPath    string                 `protobuf:"bytes,3,opt,name=folder_path,json=folderPath,proto3" json:"folder_path,omitempty"`
+	Preset        PresetKind             `protobuf:"varint,4,opt,name=preset,proto3,enum=browser_automation_studio.v1.projects.PresetKind" json:"preset,omitempty"`
+	PresetPaths   []string               `protobuf:"bytes,5,rep,name=preset_paths,json=presetPaths,proto3" json:"preset_paths,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateProjectRequest) Reset() {
+	*x = CreateProjectRequest{}
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateProjectRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateProjectRequest) ProtoMessage() {}
+
+func (x *CreateProjectRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateProjectRequest.ProtoReflect.Descriptor instead.
+func (*CreateProjectRequest) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_projects_project_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CreateProjectRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateProjectRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *CreateProjectRequest) GetFolderPath() string {
+	if x != nil {
+		return x.FolderPath
+	}
+	return ""
+}
+
+func (x *CreateProjectRequest) GetPreset() PresetKind {
+	if x != nil {
+		return x.Preset
+	}
+	return PresetKind_PRESET_KIND_UNSPECIFIED
+}
+
+func (x *CreateProjectRequest) GetPresetPaths() []string {
+	if x != nil {
+		return x.PresetPaths
+	}
+	return nil
+}
+
+type CreateProjectResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Project       *Project               `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	Stats         *ProjectStats          `protobuf:"bytes,2,opt,name=stats,proto3" json:"stats,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateProjectResponse) Reset() {
+	*x = CreateProjectResponse{}
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateProjectResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateProjectResponse) ProtoMessage() {}
+
+func (x *CreateProjectResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateProjectResponse.ProtoReflect.Descriptor instead.
+func (*CreateProjectResponse) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_projects_project_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *CreateProjectResponse) GetProject() *Project {
+	if x != nil {
+		return x.Project
+	}
+	return nil
+}
+
+func (x *CreateProjectResponse) GetStats() *ProjectStats {
+	if x != nil {
+		return x.Stats
+	}
+	return nil
+}
+
+type ListProjectsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 0 means use the server default. Clamped server-side to a safe maximum.
+	Limit         int32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset        int32 `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListProjectsRequest) Reset() {
+	*x = ListProjectsRequest{}
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListProjectsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListProjectsRequest) ProtoMessage() {}
+
+func (x *ListProjectsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListProjectsRequest.ProtoReflect.Descriptor instead.
+func (*ListProjectsRequest) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_projects_project_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ListProjectsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListProjectsRequest) GetOffset() int32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
+type ListProjectsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Projects      []*ProjectWithStats    `protobuf:"bytes,1,rep,name=projects,proto3" json:"projects,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListProjectsResponse) Reset() {
+	*x = ListProjectsResponse{}
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListProjectsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListProjectsResponse) ProtoMessage() {}
+
+func (x *ListProjectsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListProjectsResponse.ProtoReflect.Descriptor instead.
+func (*ListProjectsResponse) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_projects_project_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ListProjectsResponse) GetProjects() []*ProjectWithStats {
+	if x != nil {
+		return x.Projects
+	}
+	return nil
+}
+
+type GetProjectRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProjectRequest) Reset() {
+	*x = GetProjectRequest{}
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProjectRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProjectRequest) ProtoMessage() {}
+
+func (x *GetProjectRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProjectRequest.ProtoReflect.Descriptor instead.
+func (*GetProjectRequest) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_projects_project_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetProjectRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type GetProjectResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Project       *Project               `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	Stats         *ProjectStats          `protobuf:"bytes,2,opt,name=stats,proto3" json:"stats,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProjectResponse) Reset() {
+	*x = GetProjectResponse{}
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProjectResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProjectResponse) ProtoMessage() {}
+
+func (x *GetProjectResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProjectResponse.ProtoReflect.Descriptor instead.
+func (*GetProjectResponse) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_projects_project_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GetProjectResponse) GetProject() *Project {
+	if x != nil {
+		return x.Project
+	}
+	return nil
+}
+
+func (x *GetProjectResponse) GetStats() *ProjectStats {
+	if x != nil {
+		return x.Stats
+	}
+	return nil
+}
+
+type UpdateProjectRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Empty fields are ignored.
+	Name          string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	FolderPath    string `protobuf:"bytes,4,opt,name=folder_path,json=folderPath,proto3" json:"folder_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateProjectRequest) Reset() {
+	*x = UpdateProjectRequest{}
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateProjectRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateProjectRequest) ProtoMessage() {}
+
+func (x *UpdateProjectRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateProjectRequest.ProtoReflect.Descriptor instead.
+func (*UpdateProjectRequest) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_projects_project_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *UpdateProjectRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *UpdateProjectRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UpdateProjectRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *UpdateProjectRequest) GetFolderPath() string {
+	if x != nil {
+		return x.FolderPath
+	}
+	return ""
+}
+
+type UpdateProjectResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Project       *Project               `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateProjectResponse) Reset() {
+	*x = UpdateProjectResponse{}
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateProjectResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateProjectResponse) ProtoMessage() {}
+
+func (x *UpdateProjectResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateProjectResponse.ProtoReflect.Descriptor instead.
+func (*UpdateProjectResponse) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_projects_project_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *UpdateProjectResponse) GetProject() *Project {
+	if x != nil {
+		return x.Project
+	}
+	return nil
+}
+
+type DeleteProjectRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// When true the on-disk project folder is removed as well.
+	DeleteFiles   bool `protobuf:"varint,2,opt,name=delete_files,json=deleteFiles,proto3" json:"delete_files,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteProjectRequest) Reset() {
+	*x = DeleteProjectRequest{}
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteProjectRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteProjectRequest) ProtoMessage() {}
+
+func (x *DeleteProjectRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteProjectRequest.ProtoReflect.Descriptor instead.
+func (*DeleteProjectRequest) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_projects_project_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *DeleteProjectRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DeleteProjectRequest) GetDeleteFiles() bool {
+	if x != nil {
+		return x.DeleteFiles
+	}
+	return false
+}
+
+type DeleteProjectResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FilesDeleted  bool                   `protobuf:"varint,1,opt,name=files_deleted,json=filesDeleted,proto3" json:"files_deleted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteProjectResponse) Reset() {
+	*x = DeleteProjectResponse{}
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteProjectResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteProjectResponse) ProtoMessage() {}
+
+func (x *DeleteProjectResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteProjectResponse.ProtoReflect.Descriptor instead.
+func (*DeleteProjectResponse) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_projects_project_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *DeleteProjectResponse) GetFilesDeleted() bool {
+	if x != nil {
+		return x.FilesDeleted
+	}
+	return false
+}
+
+type ListProjectWorkflowsRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	// 0 means use the server default.
+	Limit         int32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset        int32 `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListProjectWorkflowsRequest) Reset() {
+	*x = ListProjectWorkflowsRequest{}
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListProjectWorkflowsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListProjectWorkflowsRequest) ProtoMessage() {}
+
+func (x *ListProjectWorkflowsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListProjectWorkflowsRequest.ProtoReflect.Descriptor instead.
+func (*ListProjectWorkflowsRequest) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_projects_project_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ListProjectWorkflowsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *ListProjectWorkflowsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListProjectWorkflowsRequest) GetOffset() int32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
+type BulkDeleteProjectWorkflowsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	WorkflowIds   []string               `protobuf:"bytes,2,rep,name=workflow_ids,json=workflowIds,proto3" json:"workflow_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BulkDeleteProjectWorkflowsRequest) Reset() {
+	*x = BulkDeleteProjectWorkflowsRequest{}
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BulkDeleteProjectWorkflowsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BulkDeleteProjectWorkflowsRequest) ProtoMessage() {}
+
+func (x *BulkDeleteProjectWorkflowsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BulkDeleteProjectWorkflowsRequest.ProtoReflect.Descriptor instead.
+func (*BulkDeleteProjectWorkflowsRequest) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_projects_project_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *BulkDeleteProjectWorkflowsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *BulkDeleteProjectWorkflowsRequest) GetWorkflowIds() []string {
+	if x != nil {
+		return x.WorkflowIds
+	}
+	return nil
+}
+
+type BulkDeleteProjectWorkflowsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DeletedCount  int32                  `protobuf:"varint,1,opt,name=deleted_count,json=deletedCount,proto3" json:"deleted_count,omitempty"`
+	DeletedIds    []string               `protobuf:"bytes,2,rep,name=deleted_ids,json=deletedIds,proto3" json:"deleted_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BulkDeleteProjectWorkflowsResponse) Reset() {
+	*x = BulkDeleteProjectWorkflowsResponse{}
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BulkDeleteProjectWorkflowsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BulkDeleteProjectWorkflowsResponse) ProtoMessage() {}
+
+func (x *BulkDeleteProjectWorkflowsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BulkDeleteProjectWorkflowsResponse.ProtoReflect.Descriptor instead.
+func (*BulkDeleteProjectWorkflowsResponse) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_projects_project_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *BulkDeleteProjectWorkflowsResponse) GetDeletedCount() int32 {
+	if x != nil {
+		return x.DeletedCount
+	}
+	return 0
+}
+
+func (x *BulkDeleteProjectWorkflowsResponse) GetDeletedIds() []string {
+	if x != nil {
+		return x.DeletedIds
+	}
+	return nil
+}
+
+type ExecuteAllProjectWorkflowsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExecuteAllProjectWorkflowsRequest) Reset() {
+	*x = ExecuteAllProjectWorkflowsRequest{}
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecuteAllProjectWorkflowsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecuteAllProjectWorkflowsRequest) ProtoMessage() {}
+
+func (x *ExecuteAllProjectWorkflowsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecuteAllProjectWorkflowsRequest.ProtoReflect.Descriptor instead.
+func (*ExecuteAllProjectWorkflowsRequest) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_projects_project_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ExecuteAllProjectWorkflowsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+// ProjectWorkflowExecutionResult is the per-workflow outcome of
+// ExecuteAllProjectWorkflows. status is one of "started" | "failed".
+type ProjectWorkflowExecutionResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkflowId    string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	WorkflowName  string                 `protobuf:"bytes,2,opt,name=workflow_name,json=workflowName,proto3" json:"workflow_name,omitempty"`
+	ExecutionId   string                 `protobuf:"bytes,3,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	Error         string                 `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProjectWorkflowExecutionResult) Reset() {
+	*x = ProjectWorkflowExecutionResult{}
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProjectWorkflowExecutionResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProjectWorkflowExecutionResult) ProtoMessage() {}
+
+func (x *ProjectWorkflowExecutionResult) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProjectWorkflowExecutionResult.ProtoReflect.Descriptor instead.
+func (*ProjectWorkflowExecutionResult) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_projects_project_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ProjectWorkflowExecutionResult) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *ProjectWorkflowExecutionResult) GetWorkflowName() string {
+	if x != nil {
+		return x.WorkflowName
+	}
+	return ""
+}
+
+func (x *ProjectWorkflowExecutionResult) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *ProjectWorkflowExecutionResult) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ProjectWorkflowExecutionResult) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+type ExecuteAllProjectWorkflowsResponse struct {
+	state         protoimpl.MessageState            `protogen:"open.v1"`
+	Message       string                            `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	Executions    []*ProjectWorkflowExecutionResult `protobuf:"bytes,2,rep,name=executions,proto3" json:"executions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExecuteAllProjectWorkflowsResponse) Reset() {
+	*x = ExecuteAllProjectWorkflowsResponse{}
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecuteAllProjectWorkflowsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecuteAllProjectWorkflowsResponse) ProtoMessage() {}
+
+func (x *ExecuteAllProjectWorkflowsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_projects_project_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecuteAllProjectWorkflowsResponse.ProtoReflect.Descriptor instead.
+func (*ExecuteAllProjectWorkflowsResponse) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_projects_project_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ExecuteAllProjectWorkflowsResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *ExecuteAllProjectWorkflowsResponse) GetExecutions() []*ProjectWorkflowExecutionResult {
+	if x != nil {
+		return x.Executions
+	}
+	return nil
+}
+
 var File_browser_automation_studio_v1_projects_project_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_projects_project_proto_rawDesc = "" +
 	"\n" +
-	"3browser-automation-studio/v1/projects/project.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe6\x01\n" +
+	"3browser-automation-studio/v1/projects/project.proto\x12%browser_automation_studio.v1.projects\x1a.browser-automation-studio/v1/api/service.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe6\x01\n" +
 	"\aProject\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -347,12 +1241,89 @@ const file_browser_automation_studio_v1_projects_project_proto_rawDesc = "" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12%\n" +
 	"\x0eworkflow_count\x18\x02 \x01(\x05R\rworkflowCount\x12'\n" +
 	"\x0fexecution_count\x18\x03 \x01(\x05R\x0eexecutionCount\x12A\n" +
-	"\x0elast_execution\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\rlastExecution\"\x95\x01\n" +
-	"\x10ProjectWithStats\x12?\n" +
-	"\aproject\x18\x01 \x01(\v2%.browser_automation_studio.v1.ProjectR\aproject\x12@\n" +
-	"\x05stats\x18\x02 \x01(\v2*.browser_automation_studio.v1.ProjectStatsR\x05stats\"Y\n" +
-	"\vProjectList\x12J\n" +
-	"\bprojects\x18\x01 \x03(\v2..browser_automation_studio.v1.ProjectWithStatsR\bprojectsB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects;projectsb\x06proto3"
+	"\x0elast_execution\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\rlastExecution\"\xa7\x01\n" +
+	"\x10ProjectWithStats\x12H\n" +
+	"\aproject\x18\x01 \x01(\v2..browser_automation_studio.v1.projects.ProjectR\aproject\x12I\n" +
+	"\x05stats\x18\x02 \x01(\v23.browser_automation_studio.v1.projects.ProjectStatsR\x05stats\"b\n" +
+	"\vProjectList\x12S\n" +
+	"\bprojects\x18\x01 \x03(\v27.browser_automation_studio.v1.projects.ProjectWithStatsR\bprojects\"\xed\x01\n" +
+	"\x14CreateProjectRequest\x12\x1b\n" +
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12(\n" +
+	"\vfolder_path\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
+	"folderPath\x12I\n" +
+	"\x06preset\x18\x04 \x01(\x0e21.browser_automation_studio.v1.projects.PresetKindR\x06preset\x12!\n" +
+	"\fpreset_paths\x18\x05 \x03(\tR\vpresetPaths\"\xac\x01\n" +
+	"\x15CreateProjectResponse\x12H\n" +
+	"\aproject\x18\x01 \x01(\v2..browser_automation_studio.v1.projects.ProjectR\aproject\x12I\n" +
+	"\x05stats\x18\x02 \x01(\v23.browser_automation_studio.v1.projects.ProjectStatsR\x05stats\"C\n" +
+	"\x13ListProjectsRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06offset\x18\x02 \x01(\x05R\x06offset\"k\n" +
+	"\x14ListProjectsResponse\x12S\n" +
+	"\bprojects\x18\x01 \x03(\v27.browser_automation_studio.v1.projects.ProjectWithStatsR\bprojects\"-\n" +
+	"\x11GetProjectRequest\x12\x18\n" +
+	"\x02id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x02id\"\xa9\x01\n" +
+	"\x12GetProjectResponse\x12H\n" +
+	"\aproject\x18\x01 \x01(\v2..browser_automation_studio.v1.projects.ProjectR\aproject\x12I\n" +
+	"\x05stats\x18\x02 \x01(\v23.browser_automation_studio.v1.projects.ProjectStatsR\x05stats\"\x87\x01\n" +
+	"\x14UpdateProjectRequest\x12\x18\n" +
+	"\x02id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1f\n" +
+	"\vfolder_path\x18\x04 \x01(\tR\n" +
+	"folderPath\"a\n" +
+	"\x15UpdateProjectResponse\x12H\n" +
+	"\aproject\x18\x01 \x01(\v2..browser_automation_studio.v1.projects.ProjectR\aproject\"S\n" +
+	"\x14DeleteProjectRequest\x12\x18\n" +
+	"\x02id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x02id\x12!\n" +
+	"\fdelete_files\x18\x02 \x01(\bR\vdeleteFiles\"<\n" +
+	"\x15DeleteProjectResponse\x12#\n" +
+	"\rfiles_deleted\x18\x01 \x01(\bR\ffilesDeleted\"t\n" +
+	"\x1bListProjectWorkflowsRequest\x12'\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tprojectId\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06offset\x18\x03 \x01(\x05R\x06offset\"y\n" +
+	"!BulkDeleteProjectWorkflowsRequest\x12'\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tprojectId\x12+\n" +
+	"\fworkflow_ids\x18\x02 \x03(\tB\b\xbaH\x05\x92\x01\x02\b\x01R\vworkflowIds\"j\n" +
+	"\"BulkDeleteProjectWorkflowsResponse\x12#\n" +
+	"\rdeleted_count\x18\x01 \x01(\x05R\fdeletedCount\x12\x1f\n" +
+	"\vdeleted_ids\x18\x02 \x03(\tR\n" +
+	"deletedIds\"L\n" +
+	"!ExecuteAllProjectWorkflowsRequest\x12'\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tprojectId\"\xb7\x01\n" +
+	"\x1eProjectWorkflowExecutionResult\x12\x1f\n" +
+	"\vworkflow_id\x18\x01 \x01(\tR\n" +
+	"workflowId\x12#\n" +
+	"\rworkflow_name\x18\x02 \x01(\tR\fworkflowName\x12!\n" +
+	"\fexecution_id\x18\x03 \x01(\tR\vexecutionId\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12\x14\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\"\xa5\x01\n" +
+	"\"ExecuteAllProjectWorkflowsResponse\x12\x18\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\x12e\n" +
+	"\n" +
+	"executions\x18\x02 \x03(\v2E.browser_automation_studio.v1.projects.ProjectWorkflowExecutionResultR\n" +
+	"executions*u\n" +
+	"\n" +
+	"PresetKind\x12\x1b\n" +
+	"\x17PRESET_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11PRESET_KIND_EMPTY\x10\x01\x12\x1b\n" +
+	"\x17PRESET_KIND_RECOMMENDED\x10\x02\x12\x16\n" +
+	"\x12PRESET_KIND_CUSTOM\x10\x032\xc0\t\n" +
+	"\x0fProjectsService\x12\x8a\x01\n" +
+	"\rCreateProject\x12;.browser_automation_studio.v1.projects.CreateProjectRequest\x1a<.browser_automation_studio.v1.projects.CreateProjectResponse\x12\x87\x01\n" +
+	"\fListProjects\x12:.browser_automation_studio.v1.projects.ListProjectsRequest\x1a;.browser_automation_studio.v1.projects.ListProjectsResponse\x12\x81\x01\n" +
+	"\n" +
+	"GetProject\x128.browser_automation_studio.v1.projects.GetProjectRequest\x1a9.browser_automation_studio.v1.projects.GetProjectResponse\x12\x8a\x01\n" +
+	"\rUpdateProject\x12;.browser_automation_studio.v1.projects.UpdateProjectRequest\x1a<.browser_automation_studio.v1.projects.UpdateProjectResponse\x12\x8a\x01\n" +
+	"\rDeleteProject\x12;.browser_automation_studio.v1.projects.DeleteProjectRequest\x1a<.browser_automation_studio.v1.projects.DeleteProjectResponse\x12\x8f\x01\n" +
+	"\x14ListProjectWorkflows\x12B.browser_automation_studio.v1.projects.ListProjectWorkflowsRequest\x1a3.browser_automation_studio.v1.ListWorkflowsResponse\x12\xb1\x01\n" +
+	"\x1aBulkDeleteProjectWorkflows\x12H.browser_automation_studio.v1.projects.BulkDeleteProjectWorkflowsRequest\x1aI.browser_automation_studio.v1.projects.BulkDeleteProjectWorkflowsResponse\x12\xb1\x01\n" +
+	"\x1aExecuteAllProjectWorkflows\x12H.browser_automation_studio.v1.projects.ExecuteAllProjectWorkflowsRequest\x1aI.browser_automation_studio.v1.projects.ExecuteAllProjectWorkflowsResponseB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects;projectsb\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_projects_project_proto_rawDescOnce sync.Once
@@ -366,26 +1337,69 @@ func file_browser_automation_studio_v1_projects_project_proto_rawDescGZIP() []by
 	return file_browser_automation_studio_v1_projects_project_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_projects_project_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_browser_automation_studio_v1_projects_project_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_browser_automation_studio_v1_projects_project_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_browser_automation_studio_v1_projects_project_proto_goTypes = []any{
-	(*Project)(nil),               // 0: browser_automation_studio.v1.Project
-	(*ProjectStats)(nil),          // 1: browser_automation_studio.v1.ProjectStats
-	(*ProjectWithStats)(nil),      // 2: browser_automation_studio.v1.ProjectWithStats
-	(*ProjectList)(nil),           // 3: browser_automation_studio.v1.ProjectList
-	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(PresetKind)(0),                            // 0: browser_automation_studio.v1.projects.PresetKind
+	(*Project)(nil),                            // 1: browser_automation_studio.v1.projects.Project
+	(*ProjectStats)(nil),                       // 2: browser_automation_studio.v1.projects.ProjectStats
+	(*ProjectWithStats)(nil),                   // 3: browser_automation_studio.v1.projects.ProjectWithStats
+	(*ProjectList)(nil),                        // 4: browser_automation_studio.v1.projects.ProjectList
+	(*CreateProjectRequest)(nil),               // 5: browser_automation_studio.v1.projects.CreateProjectRequest
+	(*CreateProjectResponse)(nil),              // 6: browser_automation_studio.v1.projects.CreateProjectResponse
+	(*ListProjectsRequest)(nil),                // 7: browser_automation_studio.v1.projects.ListProjectsRequest
+	(*ListProjectsResponse)(nil),               // 8: browser_automation_studio.v1.projects.ListProjectsResponse
+	(*GetProjectRequest)(nil),                  // 9: browser_automation_studio.v1.projects.GetProjectRequest
+	(*GetProjectResponse)(nil),                 // 10: browser_automation_studio.v1.projects.GetProjectResponse
+	(*UpdateProjectRequest)(nil),               // 11: browser_automation_studio.v1.projects.UpdateProjectRequest
+	(*UpdateProjectResponse)(nil),              // 12: browser_automation_studio.v1.projects.UpdateProjectResponse
+	(*DeleteProjectRequest)(nil),               // 13: browser_automation_studio.v1.projects.DeleteProjectRequest
+	(*DeleteProjectResponse)(nil),              // 14: browser_automation_studio.v1.projects.DeleteProjectResponse
+	(*ListProjectWorkflowsRequest)(nil),        // 15: browser_automation_studio.v1.projects.ListProjectWorkflowsRequest
+	(*BulkDeleteProjectWorkflowsRequest)(nil),  // 16: browser_automation_studio.v1.projects.BulkDeleteProjectWorkflowsRequest
+	(*BulkDeleteProjectWorkflowsResponse)(nil), // 17: browser_automation_studio.v1.projects.BulkDeleteProjectWorkflowsResponse
+	(*ExecuteAllProjectWorkflowsRequest)(nil),  // 18: browser_automation_studio.v1.projects.ExecuteAllProjectWorkflowsRequest
+	(*ProjectWorkflowExecutionResult)(nil),     // 19: browser_automation_studio.v1.projects.ProjectWorkflowExecutionResult
+	(*ExecuteAllProjectWorkflowsResponse)(nil), // 20: browser_automation_studio.v1.projects.ExecuteAllProjectWorkflowsResponse
+	(*timestamppb.Timestamp)(nil),              // 21: google.protobuf.Timestamp
+	(*api.ListWorkflowsResponse)(nil),          // 22: browser_automation_studio.v1.ListWorkflowsResponse
 }
 var file_browser_automation_studio_v1_projects_project_proto_depIdxs = []int32{
-	4, // 0: browser_automation_studio.v1.Project.created_at:type_name -> google.protobuf.Timestamp
-	4, // 1: browser_automation_studio.v1.Project.updated_at:type_name -> google.protobuf.Timestamp
-	4, // 2: browser_automation_studio.v1.ProjectStats.last_execution:type_name -> google.protobuf.Timestamp
-	0, // 3: browser_automation_studio.v1.ProjectWithStats.project:type_name -> browser_automation_studio.v1.Project
-	1, // 4: browser_automation_studio.v1.ProjectWithStats.stats:type_name -> browser_automation_studio.v1.ProjectStats
-	2, // 5: browser_automation_studio.v1.ProjectList.projects:type_name -> browser_automation_studio.v1.ProjectWithStats
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	21, // 0: browser_automation_studio.v1.projects.Project.created_at:type_name -> google.protobuf.Timestamp
+	21, // 1: browser_automation_studio.v1.projects.Project.updated_at:type_name -> google.protobuf.Timestamp
+	21, // 2: browser_automation_studio.v1.projects.ProjectStats.last_execution:type_name -> google.protobuf.Timestamp
+	1,  // 3: browser_automation_studio.v1.projects.ProjectWithStats.project:type_name -> browser_automation_studio.v1.projects.Project
+	2,  // 4: browser_automation_studio.v1.projects.ProjectWithStats.stats:type_name -> browser_automation_studio.v1.projects.ProjectStats
+	3,  // 5: browser_automation_studio.v1.projects.ProjectList.projects:type_name -> browser_automation_studio.v1.projects.ProjectWithStats
+	0,  // 6: browser_automation_studio.v1.projects.CreateProjectRequest.preset:type_name -> browser_automation_studio.v1.projects.PresetKind
+	1,  // 7: browser_automation_studio.v1.projects.CreateProjectResponse.project:type_name -> browser_automation_studio.v1.projects.Project
+	2,  // 8: browser_automation_studio.v1.projects.CreateProjectResponse.stats:type_name -> browser_automation_studio.v1.projects.ProjectStats
+	3,  // 9: browser_automation_studio.v1.projects.ListProjectsResponse.projects:type_name -> browser_automation_studio.v1.projects.ProjectWithStats
+	1,  // 10: browser_automation_studio.v1.projects.GetProjectResponse.project:type_name -> browser_automation_studio.v1.projects.Project
+	2,  // 11: browser_automation_studio.v1.projects.GetProjectResponse.stats:type_name -> browser_automation_studio.v1.projects.ProjectStats
+	1,  // 12: browser_automation_studio.v1.projects.UpdateProjectResponse.project:type_name -> browser_automation_studio.v1.projects.Project
+	19, // 13: browser_automation_studio.v1.projects.ExecuteAllProjectWorkflowsResponse.executions:type_name -> browser_automation_studio.v1.projects.ProjectWorkflowExecutionResult
+	5,  // 14: browser_automation_studio.v1.projects.ProjectsService.CreateProject:input_type -> browser_automation_studio.v1.projects.CreateProjectRequest
+	7,  // 15: browser_automation_studio.v1.projects.ProjectsService.ListProjects:input_type -> browser_automation_studio.v1.projects.ListProjectsRequest
+	9,  // 16: browser_automation_studio.v1.projects.ProjectsService.GetProject:input_type -> browser_automation_studio.v1.projects.GetProjectRequest
+	11, // 17: browser_automation_studio.v1.projects.ProjectsService.UpdateProject:input_type -> browser_automation_studio.v1.projects.UpdateProjectRequest
+	13, // 18: browser_automation_studio.v1.projects.ProjectsService.DeleteProject:input_type -> browser_automation_studio.v1.projects.DeleteProjectRequest
+	15, // 19: browser_automation_studio.v1.projects.ProjectsService.ListProjectWorkflows:input_type -> browser_automation_studio.v1.projects.ListProjectWorkflowsRequest
+	16, // 20: browser_automation_studio.v1.projects.ProjectsService.BulkDeleteProjectWorkflows:input_type -> browser_automation_studio.v1.projects.BulkDeleteProjectWorkflowsRequest
+	18, // 21: browser_automation_studio.v1.projects.ProjectsService.ExecuteAllProjectWorkflows:input_type -> browser_automation_studio.v1.projects.ExecuteAllProjectWorkflowsRequest
+	6,  // 22: browser_automation_studio.v1.projects.ProjectsService.CreateProject:output_type -> browser_automation_studio.v1.projects.CreateProjectResponse
+	8,  // 23: browser_automation_studio.v1.projects.ProjectsService.ListProjects:output_type -> browser_automation_studio.v1.projects.ListProjectsResponse
+	10, // 24: browser_automation_studio.v1.projects.ProjectsService.GetProject:output_type -> browser_automation_studio.v1.projects.GetProjectResponse
+	12, // 25: browser_automation_studio.v1.projects.ProjectsService.UpdateProject:output_type -> browser_automation_studio.v1.projects.UpdateProjectResponse
+	14, // 26: browser_automation_studio.v1.projects.ProjectsService.DeleteProject:output_type -> browser_automation_studio.v1.projects.DeleteProjectResponse
+	22, // 27: browser_automation_studio.v1.projects.ProjectsService.ListProjectWorkflows:output_type -> browser_automation_studio.v1.ListWorkflowsResponse
+	17, // 28: browser_automation_studio.v1.projects.ProjectsService.BulkDeleteProjectWorkflows:output_type -> browser_automation_studio.v1.projects.BulkDeleteProjectWorkflowsResponse
+	20, // 29: browser_automation_studio.v1.projects.ProjectsService.ExecuteAllProjectWorkflows:output_type -> browser_automation_studio.v1.projects.ExecuteAllProjectWorkflowsResponse
+	22, // [22:30] is the sub-list for method output_type
+	14, // [14:22] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_projects_project_proto_init() }
@@ -398,13 +1412,14 @@ func file_browser_automation_studio_v1_projects_project_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_projects_project_proto_rawDesc), len(file_browser_automation_studio_v1_projects_project_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   4,
+			NumEnums:      1,
+			NumMessages:   20,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_browser_automation_studio_v1_projects_project_proto_goTypes,
 		DependencyIndexes: file_browser_automation_studio_v1_projects_project_proto_depIdxs,
+		EnumInfos:         file_browser_automation_studio_v1_projects_project_proto_enumTypes,
 		MessageInfos:      file_browser_automation_studio_v1_projects_project_proto_msgTypes,
 	}.Build()
 	File_browser_automation_studio_v1_projects_project_proto = out.File

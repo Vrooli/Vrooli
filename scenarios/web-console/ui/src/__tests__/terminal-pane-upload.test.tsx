@@ -1,5 +1,7 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { render, screen, fireEvent, act, cleanup } from "@testing-library/react";
+import { createTerminalSessionStub } from "../test-utils";
+import { screen, fireEvent, act, cleanup } from "@testing-library/react";
 import { apiBaseMock, mockFetchSuccess } from "../test-utils";
 
 // Mock external dependencies
@@ -17,7 +19,7 @@ function makeTerminalMock() {
     rows: 24,
     options: {},
     buffer: { active: { viewportY: 0, baseY: 0 } },
-    loadAddon: vi.fn(),
+    loadAddon: vi.fn(), registerLinkProvider: vi.fn(() => ({ dispose: vi.fn() })), attachCustomWheelEventHandler: vi.fn(),
     selectAll: vi.fn(),
     clear: vi.fn(),
     getSelection: vi.fn().mockReturnValue(""),
@@ -42,12 +44,11 @@ vi.mock("@xterm/addon-web-links", () => ({
     dispose: vi.fn(),
   })),
 }));
-vi.mock("../hooks/useTerminalSocket", () => ({
-  useTerminalSocket: () => ({
-    sendInput: vi.fn().mockReturnValue(true),
-    sendResize: vi.fn(),
-  }),
-}));
+vi.mock("../hooks/terminal/useTerminalSession", () => {
+  // One stable session object: TerminalPane keys effects on these references.
+  const session = createTerminalSessionStub();
+  return { useTerminalSession: () => session };
+});
 vi.mock("../hooks/useTerminalTouch", () => ({
   useTerminalTouch: () => ({
     hasSelection: false,
@@ -67,10 +68,16 @@ vi.mock("../stores/useWorkspaceStore", () => {
     kokoroSpeed: 1,
     ttsBackendPreference: "auto" as const,
     autoTtsEnabled: false,
+    deviceFontSize: {},
+    setPendingInputBuffer: vi.fn(),
+    consumePendingInputBuffer: vi.fn(() => undefined),
+    setPendingInputDraft: vi.fn(),
+    consumePendingInputDraft: vi.fn(() => undefined),
   };
   return {
     useWorkspaceStore: (selector?: (s: typeof store) => unknown) =>
       selector ? selector(store) : store,
+    useEffectiveFontSize: () => 14,
   };
 });
 vi.mock("../hooks/useTextToSpeech", () => ({
@@ -113,6 +120,8 @@ describe("TerminalPane upload integration", () => {
 
     render(<TerminalPane sessionId="s1" />);
     const pane = screen.getByTestId("terminal-pane");
+    expect(pane).toHaveAttribute("role", "group");
+    expect(pane).toHaveAttribute("aria-label", "Terminal pane");
 
     const file = new File(["png data"], "pasted.png", { type: "image/png" });
     const clipboardData = {
@@ -176,8 +185,8 @@ describe("TerminalPane upload integration", () => {
     expect(globalThis.fetch).toHaveBeenCalled();
   });
 
-  it("drop event with non-image file is ignored", async () => {
-    mockFetchSuccess({ path: "/tmp/test.txt" });
+  it("drop event with a non-image file triggers upload", async () => {
+    mockFetchSuccess({ path: "/tmp/web-console-uploads/s4/readme.txt" });
 
     await act(async () => {
       render(<TerminalPane sessionId="s4" />);
@@ -189,10 +198,33 @@ describe("TerminalPane upload integration", () => {
       files: [file],
     };
 
+    await act(async () => {
+      fireEvent.drop(pane, { dataTransfer });
+    });
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/upload"),
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("drop event with an executable file is ignored", async () => {
+    mockFetchSuccess({ path: "/tmp/web-console-uploads/s5/evil.exe" });
+
+    await act(async () => {
+      render(<TerminalPane sessionId="s5" />);
+    });
+    const pane = screen.getByTestId("terminal-pane");
+
+    const file = new File(["MZ"], "evil.exe", { type: "application/octet-stream" });
+    const dataTransfer = {
+      files: [file],
+    };
+
     fireEvent.drop(pane, { dataTransfer });
 
     expect(globalThis.fetch).not.toHaveBeenCalledWith(
-      expect.stringContaining("/api/v1/upload/image"),
+      expect.stringContaining("/upload"),
       expect.anything(),
     );
   });

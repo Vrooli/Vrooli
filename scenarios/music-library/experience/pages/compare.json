@@ -1,0 +1,82 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "compare",
+    "title": "Compare",
+    "routes": ["/compare"],
+    "purpose": "Elicit preference efficiently by asking which of two candidates is preferred, and show the listener that their effort is moving the model.",
+    "prd_refs": ["OT-P0-005", "OT-P0-003"]
+  },
+  "priorities": [
+    { "statement": "Declining to choose is always available; a forced choice produces a false label." },
+    { "statement": "The listener can hear enough of each candidate to judge before being asked to decide." },
+    { "statement": "Effort is visibly rewarded — the listener can see that comparisons are reducing the model's uncertainty." }
+  ],
+  "states": [
+    { "id": "comparing-tracks", "example": "comparing", "description": "Two full tracks presented for comparison." },
+    { "id": "comparing-components", "example": "comparing-stems", "description": "Two isolated elements presented for comparison." },
+    { "id": "answered", "example": "answered", "description": "A judgement has been recorded." },
+    { "id": "no-candidates", "example": "empty", "description": "Not enough analysed material to form an informative pair." }
+  ],
+  "elements": [
+    { "id": "candidate-a", "role": "group", "description": "First candidate with its own playback control." },
+    { "id": "candidate-b", "role": "group", "description": "Second candidate with its own playback control." },
+    { "id": "no-preference", "role": "button", "description": "Decline to choose between the candidates." },
+    { "id": "progress-indicator", "role": "meter", "description": "How much the model's uncertainty has fallen." },
+    { "id": "scope-indicator", "role": "status", "description": "Whether the comparison is over whole tracks or isolated elements." }
+  ],
+  "claims": [
+    {
+      "id": "declining-is-always-available",
+      "type": "element-present",
+      "statement": "A no-preference option is present whenever a comparison is offered.",
+      "tier": "machine",
+      "elements": ["no-preference"],
+      "states": ["comparing-tracks", "comparing-components"]
+    },
+    {
+      "id": "both-candidates-are-audible",
+      "type": "element-present",
+      "statement": "Both candidates expose independent playback before a judgement is requested.",
+      "tier": "machine",
+      "elements": ["candidate-a", "candidate-b"],
+      "states": ["comparing-tracks", "comparing-components"]
+    },
+    {
+      "id": "comparison-scope-is-explicit",
+      "type": "element-present",
+      "statement": "The listener is told whether they are comparing whole tracks or isolated elements.",
+      "tier": "machine",
+      "elements": ["scope-indicator"],
+      "states": ["comparing-tracks", "comparing-components"]
+    },
+    {
+      "id": "effort-shows-progress",
+      "type": "element-present",
+      "statement": "The effect of accumulated comparisons on model uncertainty is visible.",
+      "tier": "machine",
+      "elements": ["progress-indicator"],
+      "states": ["answered"]
+    },
+    {
+      "id": "candidate-controls-size-parity",
+      "type": "size-parity",
+      "statement": "The two candidates are presented at equal visual weight so position does not bias the judgement.",
+      "tier": "machine",
+      "elements": ["candidate-a", "candidate-b"],
+      "states": ["comparing-tracks"],
+      "params": { "tolerance": 2 }
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "candidate-a": { "testid": "compare-candidate-a" },
+      "candidate-b": { "testid": "compare-candidate-b" },
+      "no-preference": { "testid": "compare-no-preference" },
+      "progress-indicator": { "testid": "compare-progress" },
+      "scope-indicator": { "testid": "compare-scope" }
+    }
+  }
+}

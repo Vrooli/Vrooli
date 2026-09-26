@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package vrooli.program_runtime.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shared;shared_v1";
+
+// LibraryProgram is the frozen, versioned representation of a reusable
+// program. It is shared by the library service and discovery because the
+// discovery result may carry the exact program selected for execution.
+message LibraryProgram {
+  string id = 1;
+  string name = 2;
+  int64 version = 3;
+  string source = 4;
+  string description = 5;
+  string origin = 6;
+  string created_at = 7;
+  string source_program_id = 8;
+  string promoted_by = 9;
+  string promotion_reason = 10;
+  bool current = 11;
+  repeated string called_binding_ids = 12;
+  // promoted is the only legal library tier. The former candidate tier is retired.
+  string tier = 13;
+  repeated string declared_inputs = 14;
+  repeated string declared_outputs = 15;
+  string coverage = 16;
+  string validated_at = 17;
+  string kind = 18;
+  string scenario = 19;
+  string purpose = 20;
+  string rung = 21;
+  string owner_skill = 22;
+  string validation_error = 23;
+  string path = 24;
+  double score = 25;
+  // SHA-256 of the declared contract bytes and sibling executable source.
+  string content_digest = 26;
+  repeated string verbs = 27;
+  bool memory_declared = 28;
+  int32 fixture_count = 29;
+  int32 live_fixture_count = 30;
+  int32 binding_count = 31;
+  int32 optional_binding_count = 32;
+  bool source_missing = 33;
+  bool output_schema_present = 34;
+  repeated string learning_verbs = 35;
+  bool learning_uses_memory = 36;
+  repeated string learning_note_kinds = 37;
+  bool learning_free_text_inputs_without_key = 38;
+}

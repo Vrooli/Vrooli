@@ -28,8 +28,6 @@ export {
   type Framework,
   TemplateTypeSchema,
   type TemplateType,
-  StatusSchema,
-  HealthResponseSchema,
   ApiErrorResponseSchema,
   PlatformSelectionSchema,
   ValidationErrorSchema,
@@ -60,13 +58,8 @@ export {
   DesktopRecordResponseSchema,
 } from "./build";
 
-// Export from misc (docs, wine, telemetry, ports, inline response types)
+// Export from misc (wine, telemetry, ports, inline response types)
 export {
-  DocsDocumentSchema,
-  DocsSectionSchema,
-  DocsNavigationSchema,
-  DocsManifestSchema,
-  DocsContentResponseSchema,
   ProxyHintSchema,
   ProxyHintsResponseSchema,
   BundleManifestResponseSchema,
@@ -131,31 +124,3 @@ export {
   ScenariosResponseSchema,
   TemplateListResponseSchema,
 } from "./scenarios";
-
-// Export from pipeline (excluding re-exports that would conflict with common)
-export {
-  PipelineConfigSchema,
-  type PipelineConfig,
-  PipelineStageResultSchema,
-  GenerateStageDetailsSchema,
-  BuildStageDetailsSchema,
-  BundleStageDetailsSchema,
-  SmokeTestStageDetailsSchema,
-  DeployArtifactResultSchema,
-  DeployStageDetailsSchema,
-  VerboseStageResultSchema,
-  PipelineStatusSchema,
-  type PipelineStatus,
-  VerbosePipelineStatusSchema,
-  type VerbosePipelineStatus,
-  PipelineRunResponseSchema,
-  type PipelineRunResponse,
-  PipelineResumeResponseSchema,
-  type PipelineResumeResponse,
-  PipelineCancelResponseSchema,
-  type PipelineCancelResponse,
-  PipelineListItemSchema,
-  type PipelineListItem,
-  PipelineListResponseSchema,
-  type PipelineListResponse,
-} from "./pipeline";

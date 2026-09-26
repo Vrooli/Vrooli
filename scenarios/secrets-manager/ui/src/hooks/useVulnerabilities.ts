@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchVulnerabilities } from "../lib/api";
 
-export const useVulnerabilities = (vaultData?: { resource_statuses?: Array<{ resource_name: string }> }) => {
+export const useVulnerabilities = (credentialData?: { resource_statuses?: Array<{ resource_name: string }> }) => {
   const [componentType, setComponentType] = useState("");
   const [componentFilter, setComponentFilter] = useState("");
   const [severityFilter, setSeverityFilter] = useState("");
@@ -20,10 +20,10 @@ export const useVulnerabilities = (vaultData?: { resource_statuses?: Array<{ res
 
   const componentOptions = useMemo(() => {
     const set = new Set<string>();
-    vaultData?.resource_statuses?.forEach((status) => set.add(status.resource_name));
+    credentialData?.resource_statuses?.forEach((status) => set.add(status.resource_name));
     vulnerabilityQuery.data?.vulnerabilities?.forEach((vuln) => set.add(vuln.component_name));
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [vaultData, vulnerabilityQuery.data]);
+  }, [credentialData, vulnerabilityQuery.data]);
 
   return {
     vulnerabilityQuery,

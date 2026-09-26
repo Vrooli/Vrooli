@@ -1,12 +1,15 @@
 // Package checks tests for mock implementations
 // [REQ:TEST-SEAM-001] Verify mock implementations work correctly
-package checks
+package checks_test
 
 import (
 	"context"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
 )
 
 // =============================================================================
@@ -15,10 +18,10 @@ import (
 
 // TestNewMockExecutor verifies mock executor initialization
 func TestNewMockExecutor(t *testing.T) {
-	exec := NewMockExecutor()
+	exec := testutil.NewMockExecutor()
 
 	if exec == nil {
-		t.Fatal("NewMockExecutor() returned nil")
+		t.Fatal("testutil.NewMockExecutor() returned nil")
 	}
 	if exec.Responses == nil {
 		t.Error("Responses map not initialized")
@@ -30,8 +33,8 @@ func TestNewMockExecutor(t *testing.T) {
 
 // TestMockExecutorOutput verifies Output method
 func TestMockExecutorOutput(t *testing.T) {
-	exec := NewMockExecutor()
-	exec.Responses["echo hello"] = MockResponse{
+	exec := testutil.NewMockExecutor()
+	exec.Responses["echo hello"] = testutil.MockResponse{
 		Output: []byte("hello\n"),
 		Error:  nil,
 	}
@@ -54,8 +57,8 @@ func TestMockExecutorOutput(t *testing.T) {
 
 // TestMockExecutorOutputDefault verifies default response
 func TestMockExecutorOutputDefault(t *testing.T) {
-	exec := NewMockExecutor()
-	exec.DefaultResponse = MockResponse{
+	exec := testutil.NewMockExecutor()
+	exec.DefaultResponse = testutil.MockResponse{
 		Output: []byte("default"),
 		Error:  nil,
 	}
@@ -72,24 +75,24 @@ func TestMockExecutorOutputDefault(t *testing.T) {
 
 // TestMockExecutorOutputError verifies error handling
 func TestMockExecutorOutputError(t *testing.T) {
-	exec := NewMockExecutor()
-	exec.Responses["fail cmd"] = MockResponse{
+	exec := testutil.NewMockExecutor()
+	exec.Responses["fail cmd"] = testutil.MockResponse{
 		Output: nil,
-		Error:  ErrCommandNotFound,
+		Error:  testutil.ErrCommandNotFound,
 	}
 
 	ctx := context.Background()
 	_, err := exec.Output(ctx, "fail", "cmd")
 
-	if err != ErrCommandNotFound {
-		t.Errorf("error = %v, want %v", err, ErrCommandNotFound)
+	if err != testutil.ErrCommandNotFound {
+		t.Errorf("error = %v, want %v", err, testutil.ErrCommandNotFound)
 	}
 }
 
 // TestMockExecutorCombinedOutput verifies CombinedOutput delegates to Output
 func TestMockExecutorCombinedOutput(t *testing.T) {
-	exec := NewMockExecutor()
-	exec.Responses["test cmd"] = MockResponse{
+	exec := testutil.NewMockExecutor()
+	exec.Responses["test cmd"] = testutil.MockResponse{
 		Output: []byte("combined"),
 		Error:  nil,
 	}
@@ -106,8 +109,8 @@ func TestMockExecutorCombinedOutput(t *testing.T) {
 
 // TestMockExecutorRun verifies Run method
 func TestMockExecutorRun(t *testing.T) {
-	exec := NewMockExecutor()
-	exec.Responses["run cmd"] = MockResponse{
+	exec := testutil.NewMockExecutor()
+	exec.Responses["run cmd"] = testutil.MockResponse{
 		Output: nil,
 		Error:  nil,
 	}
@@ -124,16 +127,16 @@ func TestMockExecutorRun(t *testing.T) {
 
 // TestMockExecutorRunError verifies Run error handling
 func TestMockExecutorRunError(t *testing.T) {
-	exec := NewMockExecutor()
-	exec.Responses["fail run"] = MockResponse{
-		Error: ErrPermissionDenied,
+	exec := testutil.NewMockExecutor()
+	exec.Responses["fail run"] = testutil.MockResponse{
+		Error: testutil.ErrPermissionDenied,
 	}
 
 	ctx := context.Background()
 	err := exec.Run(ctx, "fail", "run")
 
-	if err != ErrPermissionDenied {
-		t.Errorf("error = %v, want %v", err, ErrPermissionDenied)
+	if err != testutil.ErrPermissionDenied {
+		t.Errorf("error = %v, want %v", err, testutil.ErrPermissionDenied)
 	}
 }
 
@@ -152,24 +155,24 @@ func TestCommandKey(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := commandKey(tc.cmd, tc.args)
+			got := testutil.CommandKey(tc.cmd, tc.args)
 			if got != tc.want {
-				t.Errorf("commandKey(%q, %v) = %q, want %q", tc.cmd, tc.args, got, tc.want)
+				t.Errorf("testutil.CommandKey(%q, %v) = %q, want %q", tc.cmd, tc.args, got, tc.want)
 			}
 		})
 	}
 }
 
 // =============================================================================
-// MockHTTPClient Tests
+// testutil.MockHTTPClient Tests
 // =============================================================================
 
 // TestNewMockHTTPClient verifies mock HTTP client initialization
 func TestNewMockHTTPClient(t *testing.T) {
-	client := NewMockHTTPClient()
+	client := testutil.NewMockHTTPClient()
 
 	if client == nil {
-		t.Fatal("NewMockHTTPClient() returned nil")
+		t.Fatal("testutil.NewMockHTTPClient() returned nil")
 	}
 	if client.Responses == nil {
 		t.Error("Responses map not initialized")
@@ -181,8 +184,8 @@ func TestNewMockHTTPClient(t *testing.T) {
 
 // TestMockHTTPClientDo verifies Do method with configured response
 func TestMockHTTPClientDo(t *testing.T) {
-	client := NewMockHTTPClient()
-	client.Responses["http://example.com/api"] = MockHTTPResponse{
+	client := testutil.NewMockHTTPClient()
+	client.Responses["http://example.com/api"] = testutil.MockHTTPResponse{
 		StatusCode: 201,
 		Body:       `{"created":true}`,
 		Headers:    map[string]string{"Content-Type": "application/json"},
@@ -206,8 +209,8 @@ func TestMockHTTPClientDo(t *testing.T) {
 
 // TestMockHTTPClientDoDefault verifies default response
 func TestMockHTTPClientDoDefault(t *testing.T) {
-	client := NewMockHTTPClient()
-	client.DefaultResponse = MockHTTPResponse{
+	client := testutil.NewMockHTTPClient()
+	client.DefaultResponse = testutil.MockHTTPResponse{
 		StatusCode: 200,
 		Body:       "default",
 	}
@@ -224,29 +227,29 @@ func TestMockHTTPClientDoDefault(t *testing.T) {
 
 // TestMockHTTPClientDoError verifies error handling
 func TestMockHTTPClientDoError(t *testing.T) {
-	client := NewMockHTTPClient()
-	client.Responses["http://fail.com"] = MockHTTPResponse{
-		Error: ErrConnectionRefused,
+	client := testutil.NewMockHTTPClient()
+	client.Responses["http://fail.com"] = testutil.MockHTTPResponse{
+		Error: testutil.ErrConnectionRefused,
 	}
 
 	req, _ := http.NewRequest("GET", "http://fail.com", nil)
 	_, err := client.Do(req)
 
-	if err != ErrConnectionRefused {
-		t.Errorf("error = %v, want %v", err, ErrConnectionRefused)
+	if err != testutil.ErrConnectionRefused {
+		t.Errorf("error = %v, want %v", err, testutil.ErrConnectionRefused)
 	}
 }
 
 // =============================================================================
-// MockDialer Tests
+// testutil.MockDialer Tests
 // =============================================================================
 
 // TestNewMockDialer verifies mock dialer initialization
 func TestNewMockDialer(t *testing.T) {
-	dialer := NewMockDialer()
+	dialer := testutil.NewMockDialer()
 
 	if dialer == nil {
-		t.Fatal("NewMockDialer() returned nil")
+		t.Fatal("testutil.NewMockDialer() returned nil")
 	}
 	if dialer.Responses == nil {
 		t.Error("Responses map not initialized")
@@ -255,9 +258,9 @@ func TestNewMockDialer(t *testing.T) {
 
 // TestMockDialerDialTimeout verifies DialTimeout with configured response
 func TestMockDialerDialTimeout(t *testing.T) {
-	dialer := NewMockDialer()
-	mockConn := &MockConn{}
-	dialer.Responses["127.0.0.1:8080"] = MockDialResponse{
+	dialer := testutil.NewMockDialer()
+	mockConn := &testutil.MockConn{}
+	dialer.Responses["127.0.0.1:8080"] = testutil.MockDialResponse{
 		Conn:  mockConn,
 		Error: nil,
 	}
@@ -276,23 +279,23 @@ func TestMockDialerDialTimeout(t *testing.T) {
 
 // TestMockDialerDialTimeoutError verifies error handling
 func TestMockDialerDialTimeoutError(t *testing.T) {
-	dialer := NewMockDialer()
-	dialer.Responses["unreachable:80"] = MockDialResponse{
-		Error: ErrTimeout,
+	dialer := testutil.NewMockDialer()
+	dialer.Responses["unreachable:80"] = testutil.MockDialResponse{
+		Error: testutil.ErrTimeout,
 	}
 
 	_, err := dialer.DialTimeout("tcp", "unreachable:80", 5*time.Second)
 
-	if err != ErrTimeout {
-		t.Errorf("error = %v, want %v", err, ErrTimeout)
+	if err != testutil.ErrTimeout {
+		t.Errorf("error = %v, want %v", err, testutil.ErrTimeout)
 	}
 }
 
 // TestMockDialerDefault verifies default response
 func TestMockDialerDefault(t *testing.T) {
-	dialer := NewMockDialer()
-	mockConn := &MockConn{}
-	dialer.DefaultResponse = MockDialResponse{
+	dialer := testutil.NewMockDialer()
+	mockConn := &testutil.MockConn{}
+	dialer.DefaultResponse = testutil.MockDialResponse{
 		Conn: mockConn,
 	}
 
@@ -306,12 +309,12 @@ func TestMockDialerDefault(t *testing.T) {
 }
 
 // =============================================================================
-// MockConn Tests
+// testutil.MockConn Tests
 // =============================================================================
 
-// TestMockConnInterface verifies MockConn implements net.Conn
+// TestMockConnInterface verifies testutil.MockConn implements net.Conn
 func TestMockConnInterface(t *testing.T) {
-	conn := &MockConn{}
+	conn := &testutil.MockConn{}
 
 	// Test Read
 	buf := make([]byte, 10)
@@ -337,7 +340,7 @@ func TestMockConnInterface(t *testing.T) {
 	if err != nil {
 		t.Errorf("Close error = %v, want nil", err)
 	}
-	if !conn.closed {
+	if !conn.Closed() {
 		t.Error("Close should set closed = true")
 	}
 
@@ -363,15 +366,15 @@ func TestMockConnInterface(t *testing.T) {
 }
 
 // =============================================================================
-// MockFileSystemReader Tests
+// testutil.MockFileSystemReader Tests
 // =============================================================================
 
 // TestNewMockFileSystemReader verifies initialization
 func TestNewMockFileSystemReader(t *testing.T) {
-	reader := NewMockFileSystemReader()
+	reader := testutil.NewMockFileSystemReader()
 
 	if reader == nil {
-		t.Fatal("NewMockFileSystemReader() returned nil")
+		t.Fatal("testutil.NewMockFileSystemReader() returned nil")
 	}
 	if reader.Responses == nil {
 		t.Error("Responses map not initialized")
@@ -383,9 +386,9 @@ func TestNewMockFileSystemReader(t *testing.T) {
 
 // TestMockFileSystemReaderStatfs verifies Statfs method
 func TestMockFileSystemReaderStatfs(t *testing.T) {
-	reader := NewMockFileSystemReader()
-	reader.Responses["/custom/path"] = MockStatfsResponse{
-		Result: &StatfsResult{
+	reader := testutil.NewMockFileSystemReader()
+	reader.Responses["/custom/path"] = testutil.MockStatfsResponse{
+		Result: &checks.StatfsResult{
 			Blocks: 2000000,
 			Bfree:  1000000,
 		},
@@ -405,7 +408,7 @@ func TestMockFileSystemReaderStatfs(t *testing.T) {
 
 // TestMockFileSystemReaderStatfsDefault verifies default response
 func TestMockFileSystemReaderStatfsDefault(t *testing.T) {
-	reader := NewMockFileSystemReader()
+	reader := testutil.NewMockFileSystemReader()
 
 	result, err := reader.Statfs("/any/path")
 	if err != nil {
@@ -418,35 +421,35 @@ func TestMockFileSystemReaderStatfsDefault(t *testing.T) {
 
 // TestMockFileSystemReaderStatfsError verifies error handling
 func TestMockFileSystemReaderStatfsError(t *testing.T) {
-	reader := NewMockFileSystemReader()
-	reader.Responses["/error/path"] = MockStatfsResponse{
-		Error: ErrFileNotFound,
+	reader := testutil.NewMockFileSystemReader()
+	reader.Responses["/error/path"] = testutil.MockStatfsResponse{
+		Error: testutil.ErrFileNotFound,
 	}
 
 	_, err := reader.Statfs("/error/path")
 
-	if err != ErrFileNotFound {
-		t.Errorf("error = %v, want %v", err, ErrFileNotFound)
+	if err != testutil.ErrFileNotFound {
+		t.Errorf("error = %v, want %v", err, testutil.ErrFileNotFound)
 	}
 }
 
 // =============================================================================
-// MockProcReader Tests
+// testutil.MockProcReader Tests
 // =============================================================================
 
 // TestNewMockProcReader verifies initialization
 func TestNewMockProcReader(t *testing.T) {
-	reader := NewMockProcReader()
+	reader := testutil.NewMockProcReader()
 
 	if reader == nil {
-		t.Fatal("NewMockProcReader() returned nil")
+		t.Fatal("testutil.NewMockProcReader() returned nil")
 	}
 }
 
 // TestMockProcReaderReadMeminfo verifies ReadMeminfo method
 func TestMockProcReaderReadMeminfo(t *testing.T) {
-	reader := NewMockProcReader()
-	reader.MemInfo = &MemInfo{
+	reader := testutil.NewMockProcReader()
+	reader.MemInfo = &checks.MemInfo{
 		SwapTotal: 16000000,
 		SwapFree:  12000000,
 	}
@@ -465,7 +468,7 @@ func TestMockProcReaderReadMeminfo(t *testing.T) {
 
 // TestMockProcReaderReadMeminfoDefault verifies default response
 func TestMockProcReaderReadMeminfoDefault(t *testing.T) {
-	reader := NewMockProcReader()
+	reader := testutil.NewMockProcReader()
 
 	info, err := reader.ReadMeminfo()
 	if err != nil {
@@ -478,20 +481,20 @@ func TestMockProcReaderReadMeminfoDefault(t *testing.T) {
 
 // TestMockProcReaderReadMeminfoError verifies error handling
 func TestMockProcReaderReadMeminfoError(t *testing.T) {
-	reader := NewMockProcReader()
-	reader.MemInfoError = ErrFileNotFound
+	reader := testutil.NewMockProcReader()
+	reader.MemInfoError = testutil.ErrFileNotFound
 
 	_, err := reader.ReadMeminfo()
 
-	if err != ErrFileNotFound {
-		t.Errorf("error = %v, want %v", err, ErrFileNotFound)
+	if err != testutil.ErrFileNotFound {
+		t.Errorf("error = %v, want %v", err, testutil.ErrFileNotFound)
 	}
 }
 
 // TestMockProcReaderListProcesses verifies ListProcesses method
 func TestMockProcReaderListProcesses(t *testing.T) {
-	reader := NewMockProcReader()
-	reader.Processes = []ProcessInfo{
+	reader := testutil.NewMockProcReader()
+	reader.Processes = []checks.ProcessInfo{
 		{PID: 1, State: "S", Comm: "init"},
 		{PID: 2, State: "Z", Comm: "zombie"},
 	}
@@ -510,7 +513,7 @@ func TestMockProcReaderListProcesses(t *testing.T) {
 
 // TestMockProcReaderListProcessesDefault verifies default response
 func TestMockProcReaderListProcessesDefault(t *testing.T) {
-	reader := NewMockProcReader()
+	reader := testutil.NewMockProcReader()
 
 	procs, err := reader.ListProcesses()
 	if err != nil {
@@ -523,33 +526,33 @@ func TestMockProcReaderListProcessesDefault(t *testing.T) {
 
 // TestMockProcReaderListProcessesError verifies error handling
 func TestMockProcReaderListProcessesError(t *testing.T) {
-	reader := NewMockProcReader()
-	reader.ProcessesError = ErrPermissionDenied
+	reader := testutil.NewMockProcReader()
+	reader.ProcessesError = testutil.ErrPermissionDenied
 
 	_, err := reader.ListProcesses()
 
-	if err != ErrPermissionDenied {
-		t.Errorf("error = %v, want %v", err, ErrPermissionDenied)
+	if err != testutil.ErrPermissionDenied {
+		t.Errorf("error = %v, want %v", err, testutil.ErrPermissionDenied)
 	}
 }
 
 // =============================================================================
-// MockPortReader Tests
+// testutil.MockPortReader Tests
 // =============================================================================
 
 // TestNewMockPortReader verifies initialization
 func TestNewMockPortReader(t *testing.T) {
-	reader := NewMockPortReader()
+	reader := testutil.NewMockPortReader()
 
 	if reader == nil {
-		t.Fatal("NewMockPortReader() returned nil")
+		t.Fatal("testutil.NewMockPortReader() returned nil")
 	}
 }
 
 // TestMockPortReaderReadPortStats verifies ReadPortStats method
 func TestMockPortReaderReadPortStats(t *testing.T) {
-	reader := NewMockPortReader()
-	reader.PortInfo = &PortInfo{
+	reader := testutil.NewMockPortReader()
+	reader.PortInfo = &checks.PortInfo{
 		UsedPorts:   5000,
 		TotalPorts:  30000,
 		UsedPercent: 16,
@@ -570,7 +573,7 @@ func TestMockPortReaderReadPortStats(t *testing.T) {
 
 // TestMockPortReaderReadPortStatsDefault verifies default response
 func TestMockPortReaderReadPortStatsDefault(t *testing.T) {
-	reader := NewMockPortReader()
+	reader := testutil.NewMockPortReader()
 
 	info, err := reader.ReadPortStats()
 	if err != nil {
@@ -583,32 +586,32 @@ func TestMockPortReaderReadPortStatsDefault(t *testing.T) {
 
 // TestMockPortReaderReadPortStatsError verifies error handling
 func TestMockPortReaderReadPortStatsError(t *testing.T) {
-	reader := NewMockPortReader()
-	reader.Error = ErrFileNotFound
+	reader := testutil.NewMockPortReader()
+	reader.Error = testutil.ErrFileNotFound
 
 	_, err := reader.ReadPortStats()
 
-	if err != ErrFileNotFound {
-		t.Errorf("error = %v, want %v", err, ErrFileNotFound)
+	if err != testutil.ErrFileNotFound {
+		t.Errorf("error = %v, want %v", err, testutil.ErrFileNotFound)
 	}
 }
 
 // =============================================================================
-// MockCacheChecker Tests
+// testutil.MockCacheChecker Tests
 // =============================================================================
 
 // TestNewMockCacheChecker verifies initialization
 func TestNewMockCacheChecker(t *testing.T) {
-	checker := NewMockCacheChecker()
+	checker := testutil.NewMockCacheChecker()
 
 	if checker == nil {
-		t.Fatal("NewMockCacheChecker() returned nil")
+		t.Fatal("testutil.NewMockCacheChecker() returned nil")
 	}
 }
 
 // TestMockCacheCheckerGetCacheSize verifies GetCacheSize method
 func TestMockCacheCheckerGetCacheSize(t *testing.T) {
-	checker := NewMockCacheChecker()
+	checker := testutil.NewMockCacheChecker()
 	checker.Size = 1024 * 1024 // 1MB
 
 	size, err := checker.GetCacheSize("/path/to/cache")
@@ -625,19 +628,19 @@ func TestMockCacheCheckerGetCacheSize(t *testing.T) {
 
 // TestMockCacheCheckerGetCacheSizeError verifies error handling
 func TestMockCacheCheckerGetCacheSizeError(t *testing.T) {
-	checker := NewMockCacheChecker()
-	checker.SizeError = ErrPermissionDenied
+	checker := testutil.NewMockCacheChecker()
+	checker.SizeError = testutil.ErrPermissionDenied
 
 	_, err := checker.GetCacheSize("/path")
 
-	if err != ErrPermissionDenied {
-		t.Errorf("error = %v, want %v", err, ErrPermissionDenied)
+	if err != testutil.ErrPermissionDenied {
+		t.Errorf("error = %v, want %v", err, testutil.ErrPermissionDenied)
 	}
 }
 
 // TestMockCacheCheckerCleanCache verifies CleanCache method
 func TestMockCacheCheckerCleanCache(t *testing.T) {
-	checker := NewMockCacheChecker()
+	checker := testutil.NewMockCacheChecker()
 	checker.CleanCount = 10
 	checker.CleanSize = 5000
 
@@ -655,26 +658,26 @@ func TestMockCacheCheckerCleanCache(t *testing.T) {
 
 // TestMockCacheCheckerCleanCacheError verifies error handling
 func TestMockCacheCheckerCleanCacheError(t *testing.T) {
-	checker := NewMockCacheChecker()
-	checker.CleanError = ErrPermissionDenied
+	checker := testutil.NewMockCacheChecker()
+	checker.CleanError = testutil.ErrPermissionDenied
 
 	_, _, err := checker.CleanCache("/path", 30)
 
-	if err != ErrPermissionDenied {
-		t.Errorf("error = %v, want %v", err, ErrPermissionDenied)
+	if err != testutil.ErrPermissionDenied {
+		t.Errorf("error = %v, want %v", err, testutil.ErrPermissionDenied)
 	}
 }
 
 // =============================================================================
-// MockDNSResolver Tests
+// testutil.MockDNSResolver Tests
 // =============================================================================
 
 // TestNewMockDNSResolver verifies initialization
 func TestNewMockDNSResolver(t *testing.T) {
-	resolver := NewMockDNSResolver()
+	resolver := testutil.NewMockDNSResolver()
 
 	if resolver == nil {
-		t.Fatal("NewMockDNSResolver() returned nil")
+		t.Fatal("testutil.NewMockDNSResolver() returned nil")
 	}
 	if resolver.Responses == nil {
 		t.Error("Responses map not initialized")
@@ -686,7 +689,7 @@ func TestNewMockDNSResolver(t *testing.T) {
 
 // TestMockDNSResolverLookupHost verifies LookupHost method
 func TestMockDNSResolverLookupHost(t *testing.T) {
-	resolver := NewMockDNSResolver()
+	resolver := testutil.NewMockDNSResolver()
 	resolver.Responses["example.com"] = []string{"192.168.1.1", "192.168.1.2"}
 
 	addrs, err := resolver.LookupHost("example.com")
@@ -703,19 +706,19 @@ func TestMockDNSResolverLookupHost(t *testing.T) {
 
 // TestMockDNSResolverLookupHostError verifies error handling
 func TestMockDNSResolverLookupHostError(t *testing.T) {
-	resolver := NewMockDNSResolver()
-	resolver.Errors["bad.host"] = ErrDNSLookupFailed
+	resolver := testutil.NewMockDNSResolver()
+	resolver.Errors["bad.host"] = testutil.ErrDNSLookupFailed
 
 	_, err := resolver.LookupHost("bad.host")
 
-	if err != ErrDNSLookupFailed {
-		t.Errorf("error = %v, want %v", err, ErrDNSLookupFailed)
+	if err != testutil.ErrDNSLookupFailed {
+		t.Errorf("error = %v, want %v", err, testutil.ErrDNSLookupFailed)
 	}
 }
 
 // TestMockDNSResolverLookupHostDefault verifies default response
 func TestMockDNSResolverLookupHostDefault(t *testing.T) {
-	resolver := NewMockDNSResolver()
+	resolver := testutil.NewMockDNSResolver()
 	resolver.DefaultAddresses = []string{"8.8.8.8"}
 
 	addrs, err := resolver.LookupHost("any.host")
@@ -729,7 +732,7 @@ func TestMockDNSResolverLookupHostDefault(t *testing.T) {
 
 // TestMockDNSResolverLookupHostDefaultFallback verifies final fallback
 func TestMockDNSResolverLookupHostDefaultFallback(t *testing.T) {
-	resolver := NewMockDNSResolver()
+	resolver := testutil.NewMockDNSResolver()
 	// No configured response, no default addresses
 
 	addrs, err := resolver.LookupHost("any.host")
@@ -743,26 +746,26 @@ func TestMockDNSResolverLookupHostDefaultFallback(t *testing.T) {
 
 // TestMockDNSResolverLookupHostDefaultError verifies default error
 func TestMockDNSResolverLookupHostDefaultError(t *testing.T) {
-	resolver := NewMockDNSResolver()
-	resolver.DefaultError = ErrTimeout
+	resolver := testutil.NewMockDNSResolver()
+	resolver.DefaultError = testutil.ErrTimeout
 
 	_, err := resolver.LookupHost("any.host")
 
-	if err != ErrTimeout {
-		t.Errorf("error = %v, want %v", err, ErrTimeout)
+	if err != testutil.ErrTimeout {
+		t.Errorf("error = %v, want %v", err, testutil.ErrTimeout)
 	}
 }
 
 // =============================================================================
-// MockTLSDialer Tests
+// testutil.MockTLSDialer Tests
 // =============================================================================
 
 // TestNewMockTLSDialer verifies initialization
 func TestNewMockTLSDialer(t *testing.T) {
-	dialer := NewMockTLSDialer()
+	dialer := testutil.NewMockTLSDialer()
 
 	if dialer == nil {
-		t.Fatal("NewMockTLSDialer() returned nil")
+		t.Fatal("testutil.NewMockTLSDialer() returned nil")
 	}
 	if dialer.Responses == nil {
 		t.Error("Responses map not initialized")
@@ -774,8 +777,8 @@ func TestNewMockTLSDialer(t *testing.T) {
 
 // TestMockTLSDialerGetCertificate verifies GetCertificate method
 func TestMockTLSDialerGetCertificate(t *testing.T) {
-	dialer := NewMockTLSDialer()
-	dialer.Responses["example.com:443"] = &CertInfo{
+	dialer := testutil.NewMockTLSDialer()
+	dialer.Responses["example.com:443"] = &testutil.CertInfo{
 		Subject:   "example.com",
 		Issuer:    "Test CA",
 		IsValid:   true,
@@ -795,84 +798,3 @@ func TestMockTLSDialerGetCertificate(t *testing.T) {
 }
 
 // TestMockTLSDialerGetCertificateError verifies error handling
-func TestMockTLSDialerGetCertificateError(t *testing.T) {
-	dialer := NewMockTLSDialer()
-	dialer.Errors["bad.host:443"] = ErrConnectionRefused
-
-	_, err := dialer.GetCertificate("bad.host:443")
-
-	if err != ErrConnectionRefused {
-		t.Errorf("error = %v, want %v", err, ErrConnectionRefused)
-	}
-}
-
-// TestMockTLSDialerGetCertificateDefault verifies default response
-func TestMockTLSDialerGetCertificateDefault(t *testing.T) {
-	dialer := NewMockTLSDialer()
-	dialer.DefaultCert = &CertInfo{
-		Subject:   "default.com",
-		DaysUntil: 60,
-	}
-
-	cert, err := dialer.GetCertificate("any.host:443")
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if cert.Subject != "default.com" {
-		t.Errorf("Subject = %q, want %q", cert.Subject, "default.com")
-	}
-}
-
-// TestMockTLSDialerGetCertificateFallback verifies final fallback
-func TestMockTLSDialerGetCertificateFallback(t *testing.T) {
-	dialer := NewMockTLSDialer()
-	// No configured response, no default cert
-
-	cert, err := dialer.GetCertificate("any.host:443")
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if cert.Subject != "example.com" {
-		t.Errorf("Subject = %q, want %q (fallback)", cert.Subject, "example.com")
-	}
-	if cert.DaysUntil != 90 {
-		t.Errorf("DaysUntil = %d, want 90 (fallback)", cert.DaysUntil)
-	}
-}
-
-// TestMockTLSDialerGetCertificateDefaultError verifies default error
-func TestMockTLSDialerGetCertificateDefaultError(t *testing.T) {
-	dialer := NewMockTLSDialer()
-	dialer.DefaultError = ErrTimeout
-
-	_, err := dialer.GetCertificate("any.host:443")
-
-	if err != ErrTimeout {
-		t.Errorf("error = %v, want %v", err, ErrTimeout)
-	}
-}
-
-// =============================================================================
-// Common Error Variables Tests
-// =============================================================================
-
-// TestCommonErrors verifies error variables are defined
-func TestCommonErrors(t *testing.T) {
-	errors := map[string]error{
-		"ErrConnectionRefused": ErrConnectionRefused,
-		"ErrTimeout":           ErrTimeout,
-		"ErrCommandNotFound":   ErrCommandNotFound,
-		"ErrDNSLookupFailed":   ErrDNSLookupFailed,
-		"ErrFileNotFound":      ErrFileNotFound,
-		"ErrPermissionDenied":  ErrPermissionDenied,
-	}
-
-	for name, err := range errors {
-		if err == nil {
-			t.Errorf("%s should not be nil", name)
-		}
-		if err.Error() == "" {
-			t.Errorf("%s should have non-empty message", name)
-		}
-	}
-}

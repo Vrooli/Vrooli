@@ -1,0 +1,149 @@
+{
+  "description": "A React UI built on the `react-vite` template + `react-component-library` adoptions presents a validation-results view (per-scenario findings table) and a search view (free-text + provenance filter).",
+  "module_id": "MOD-P1-009",
+  "prd_ref": "OT-P1-004",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-002"
+      ],
+      "description": "A React UI application built on the `react-vite` template using `react-component-library` adoptions must provide a validation-results view. This view must display a per-scenario findings table showing scenario name, finding type, affected path, severity, and message for all Findings returned by `ui-health validate`.",
+      "id": "REQ-P1-005",
+      "prd_ref": "OT-P1-004",
+      "status": "draft",
+      "title": "UI Inspection Surface - Validation Results View",
+      "validation": [
+        {
+          "notes": "Findings table component renders a row for each Finding object in the input data",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Each row displays: scenario_name, finding_type, path, severity, message columns",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Empty findings state displays a success indicator",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Start the UI, trigger a validate action for a scenario with known Findings, and confirm all Findings appear in the table",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm the UI is built using the react-vite template and adopts components from react-component-library",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm table supports sorting by severity and scenario name",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Table renders 1000 findings without UI jank (frame rate stays above 30fps)",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Developers can visually inspect the health of all scenarios from a single dashboard without running CLI commands manually",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-003",
+        "REQ-P1-005"
+      ],
+      "description": "The React UI must provide a search view that allows free-text search across all indexed UI surfaces and supports filtering results by ComponentProvenance status (CUSTOM, ADOPTED_UNMODIFIED, ADOPTED_MODIFIED, UNKNOWN). Results must display component name, scenario, adoption status, library, library_version, and drift_hash.",
+      "id": "REQ-P1-006",
+      "prd_ref": "OT-P1-004",
+      "status": "draft",
+      "title": "UI Inspection Surface - Search View with Provenance Filter",
+      "validation": [
+        {
+          "notes": "Search input component debounces user input before triggering a query",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Provenance filter component renders all four adoption status options as selectable filters",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Search result card displays all required fields: component name, scenario, adoption_status, library, library_version, drift_hash",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Enter a search term in the UI and confirm results appear matching the indexed corpus",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Apply a provenance filter and confirm only results matching the selected adoption_status are displayed",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm the UI calls the `ui-health search query` API endpoint (or equivalent backend) for results",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Search results are displayed within 2 seconds of user input (after debounce) for a corpus of 10,000 records",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Developers can audit which components are custom vs. adopted and identify modified adoptions that may need review",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "UI inspection surface"
+}

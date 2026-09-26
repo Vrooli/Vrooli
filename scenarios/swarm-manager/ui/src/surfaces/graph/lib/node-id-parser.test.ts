@@ -68,10 +68,10 @@ describe("parseNodeId", () => {
     });
   });
 
-  it("parses initiative/{name}", () => {
-    const result = parseNodeId("initiative/graph-workspace");
+  it("parses goal/{name}", () => {
+    const result = parseNodeId("goal/graph-workspace");
     expect(result).toEqual({
-      entityType: "initiative",
+      entityType: "goal",
       identifier: "graph-workspace",
       name: "graph-workspace",
     });

@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": ["/settings"],
+    "purpose": "Expose the minimum configuration surface needed to understand and operate Source Ledger safely.",
+    "prd_refs": ["OT-P1-001"]
+  },
+  "states": [
+    {"id": "default", "description": "Safe operator settings are visible."},
+    {"id": "empty", "description": "No optional policy overrides have been configured."},
+    {"id": "loading", "description": "Settings are loading."},
+    {"id": "partial", "description": "Some policy settings are available while another source is pending."},
+    {"id": "request-error", "description": "Settings could not be loaded."},
+    {"id": "stale", "description": "The displayed settings are older than the current policy."}
+  ],
+  "elements": [
+    {"id": "settings-region", "role": "region", "name": "Source Ledger settings"}
+  ],
+  "claims": [
+    {"id": "settings-region-present", "type": "element-present", "statement": "Settings are exposed as a named operator region.", "tier": "machine", "elements": ["settings-region"], "states": ["default", "empty"]}
+  ],
+  "bindings": {"elements": {"settings-region": {"testid": "page-settings"}}}
+}

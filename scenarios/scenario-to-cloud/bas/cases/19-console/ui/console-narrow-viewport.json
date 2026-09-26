@@ -1,0 +1,35 @@
+{
+  "metadata": {
+    "name": "Deployment console keeps primary actions at 360px",
+    "description": "Observer journey at a 360px viewport: the identity header, the operation panel and the recovery panel render and the advanced disclosure toggle stays reachable; no primary action is clipped. Read-only navigation and assertions.",
+    "tags": ["e2e", "ui", "console", "responsive"],
+    "requirements": ["STC-P0-039"],
+    "labels": {
+      "safety": "observer",
+      "mutates_target": "false",
+      "mutates_repository": "false",
+      "requirements_json": "[\"STC-P0-039\"]"
+    },
+    "reset": "none",
+    "execution_mode": "observer",
+    "version": 1
+  },
+  "flow_definition": {
+  "settings": { "viewport_width": 360, "viewport_height": 780 },
+  "nodes": [
+    {"id":"open-console","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"scenario-to-cloud","scenario_path":"/#deployments/7e493e04-5297-47eb-9df9-74929f185956","wait_until":"NAVIGATE_WAIT_EVENT_LOAD","timeout_ms":30000},"metadata":{"label":"Open the deployment console at 360px"}}},
+    {"id":"identity","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.identity","mode":"ASSERTION_MODE_EXISTS","timeout_ms":30000,"failure_message":"Identity header must render at 360px"},"metadata":{"label":"Identity header present"}}},
+    {"id":"inspect","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.reviewOpen","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Review action must be reachable at 360px"},"metadata":{"label":"Inspect action reachable"}}},
+    {"id":"operation","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.operation","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Operation panel must render at 360px"},"metadata":{"label":"Operation panel present"}}},
+    {"id":"recovery","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.recovery","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Recovery panel must render at 360px"},"metadata":{"label":"Recovery panel present"}}},
+    {"id":"advanced","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.advancedToggle","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Advanced disclosure must render at 360px"},"metadata":{"label":"Advanced disclosure reachable"}}}
+  ],
+  "edges": [
+    { "id": "e1", "source": "open-console", "target": "identity" },
+    { "id": "e2", "source": "identity", "target": "inspect" },
+    { "id": "e3", "source": "inspect", "target": "operation" },
+    { "id": "e4", "source": "operation", "target": "recovery" },
+    { "id": "e5", "source": "recovery", "target": "advanced" }
+  ]
+  }
+}

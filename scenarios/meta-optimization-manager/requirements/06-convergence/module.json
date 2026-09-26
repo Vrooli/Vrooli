@@ -1,0 +1,50 @@
+{
+  "_metadata": {
+    "module": "convergence",
+    "description": "OT-P1-002 — template & reference-scenario convergence measurement.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MOM-CONVERGENCE-001",
+      "title": "per-template fitness counts (per-replica cost, drift surfaces, coordinated-edit count)",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "convergence",
+      "description": "Mechanizes the reference-pattern-fitness sub-lens counts for each registered template: per-replica line cost x replication factor, drift-surface count, comment-only-contract count, and the add/delete coordinated-edit walkthrough count. Surfaces numbers and flags candidates only; tiering/substrate decisions stay agentic.",
+      "tags": ["convergence", "template", "fitness"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "API: fitness counts are deterministic against a frozen template fixture; target api/internal/convergence." },
+        { "type": "automation", "phase": "integration", "status": "planned", "notes": "E2E: fitness scan over a registered template; target bas/cases/convergence." }
+      ]
+    },
+    {
+      "id": "MOM-CONVERGENCE-002",
+      "title": "gold-star reference health: stale-from-template, clean-on-all-tools, stability, breadth",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "convergence",
+      "description": "Computes reference-scenario eligibility/health: stale-from-template (Generated date vs template last-commit), clean-on-all-tools (read from test-genie/scenario-auditor), >=60d stability (git age), and coverage breadth. Reads existing toolchain results; never re-runs them.",
+      "tags": ["convergence", "reference", "health"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "API: stale-from-template date comparison + eligibility verdict; target api/internal/convergence." },
+        { "type": "automation", "phase": "integration", "status": "planned", "notes": "E2E: reference-health verdict over the gold-star reference." }
+      ]
+    },
+    {
+      "id": "MOM-CONVERGENCE-003",
+      "title": "convergence trend over dated fitness-audit records (the compounding proof)",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "convergence",
+      "description": "`convergence trend` returns per-replica-cost and coordinated-edit-count over the dated fitness-audit records for a template, showing whether template fitness is improving over time — the compounding proof that template investment pays off across replicas.",
+      "tags": ["convergence", "trend", "compounding"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "API: trend series assembled from the dated fitness-audit index; target api/internal/convergence." },
+        { "type": "automation", "phase": "integration", "status": "planned", "notes": "E2E: trend over >=2 dated audit points." }
+      ]
+    }
+  ]
+}

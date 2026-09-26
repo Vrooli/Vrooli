@@ -1,0 +1,131 @@
+syntax = "proto3";
+
+package vrooli.development_toolchain_validator.v1.manifest;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/manifest;manifest_v1";
+
+// =============================================================================
+// MANIFEST DOMAIN — Per-(skill, golden) expected-diff manifest (OT-P0-003)
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain manifest
+// @stability evolving
+//
+// A Manifest pins the expected outcome of running a skill against a given
+// golden scenario: which paths the skill is allowed to touch (path globs),
+// optional content rules (must_contain / must_not_contain string lists per
+// path), whether the manifest allows any change (wildcard_allowed), the
+// convergence target (EMPTY_DIFF means subsequent runs of the same skill
+// against the same golden must produce no further diff), and the pinned
+// template + skill versions that the manifest was authored against.
+//
+// Manifests are the input to the diff evaluator at validation time. The
+// evaluator is a pure policy function in internal/manifest/evaluator.go.
+// =============================================================================
+
+service ManifestService {
+  // ListManifests returns every stored manifest ordered by
+  // (skill_id, golden_slug).
+  rpc ListManifests(ListManifestsRequest) returns (ListManifestsResponse);
+
+  // GetManifest returns the manifest pinned for (skill_id, golden_slug).
+  rpc GetManifest(GetManifestRequest) returns (GetManifestResponse);
+
+  // UpsertManifest creates or replaces the manifest for the given
+  // (skill_id, golden_slug). All fields are required at the API edge.
+  rpc UpsertManifest(UpsertManifestRequest) returns (UpsertManifestResponse);
+
+  // ClearStale clears any manifest-staleness override flag for the
+  // (skill_id, golden_slug) tuple. The actual stale detection lives in
+  // the staleness domain; this RPC merely removes the manual-clear
+  // record so the staleness service can recompute fresh.
+  rpc ClearStale(ClearStaleRequest) returns (ClearStaleResponse);
+}
+
+// ConvergenceTarget describes what subsequent validation runs of the
+// same (skill, golden) must achieve in order to count as converged.
+enum ConvergenceTarget {
+  CONVERGENCE_TARGET_UNSPECIFIED = 0;
+
+  // NONE means a manifest may legitimately produce a non-empty diff on
+  // every run (idempotent re-runs are not required).
+  CONVERGENCE_TARGET_NONE = 1;
+
+  // EMPTY_DIFF means re-running the skill on an already-converged
+  // workspace must produce zero diff. P1 trend detection (OT-P1-004)
+  // depends on this enum.
+  CONVERGENCE_TARGET_EMPTY_DIFF = 2;
+}
+
+// ContentRule constrains the file body at any path matching path_glob.
+// Both must_contain and must_not_contain are AND-combined: every entry
+// must be satisfied for the rule to pass.
+message ContentRule {
+  string path_glob = 1;
+  repeated string must_contain = 2;
+  repeated string must_not_contain = 3;
+}
+
+// Manifest is the wire shape for a (skill_id, golden_slug) expectation.
+message Manifest {
+  string skill_id = 1;
+  string golden_slug = 2;
+
+  // allowed_paths is a list of glob patterns (e.g. "src/**/*.ts").
+  // Any path in a diff that does not match at least one entry is an
+  // unexpected mutation.
+  repeated string allowed_paths = 3;
+
+  // content_rules apply path-scoped body constraints.
+  repeated ContentRule content_rules = 4;
+
+  // wildcard_allowed = true means any path may appear (the manifest is
+  // a wildcard); allowed_paths is then advisory and content_rules still
+  // apply where they match.
+  bool wildcard_allowed = 5;
+
+  ConvergenceTarget convergence_target = 6;
+
+  // template_version_pinned + skill_version_pinned are recorded at
+  // upsert time so the staleness domain can detect drift.
+  string template_version_pinned = 7;
+  string skill_version_pinned = 8;
+
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message ListManifestsRequest {}
+
+message ListManifestsResponse {
+  repeated Manifest manifests = 1;
+}
+
+message GetManifestRequest {
+  string skill_id = 1;
+  string golden_slug = 2;
+}
+
+message GetManifestResponse {
+  Manifest manifest = 1;
+}
+
+message UpsertManifestRequest {
+  Manifest manifest = 1;
+}
+
+message UpsertManifestResponse {
+  Manifest manifest = 1;
+}
+
+message ClearStaleRequest {
+  string skill_id = 1;
+  string golden_slug = 2;
+}
+
+message ClearStaleResponse {
+  // cleared_at echoes the server time the override was recorded.
+  google.protobuf.Timestamp cleared_at = 1;
+}

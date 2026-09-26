@@ -11,15 +11,15 @@ type ListResponse struct {
 
 // ScenarioInfo represents information about a scenario.
 type ScenarioInfo struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Version     string   `json:"version,omitempty"`
-	Description string   `json:"description,omitempty"`
-	Path        string   `json:"path,omitempty"`
-	Resources   []string `json:"resources,omitempty"`
-	HasAPI      bool     `json:"has_api"`
-	HasUI       bool     `json:"has_ui"`
-	HasCLI      bool     `json:"has_cli"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Version      string   `json:"version,omitempty"`
+	Description  string   `json:"description,omitempty"`
+	Path         string   `json:"path,omitempty"`
+	Resources    []string `json:"resources,omitempty"`
+	HasAPI       bool     `json:"has_api"`
+	HasUI        bool     `json:"has_ui"`
+	CLIInstalled bool     `json:"cli_installed"`
 }
 
 // PortsResponse represents the response from listing scenario ports.

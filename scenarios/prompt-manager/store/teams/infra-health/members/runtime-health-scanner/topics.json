@@ -1,0 +1,18 @@
+{
+  "required_read": [
+    {
+      "prefix": "runtime-health-audit/YYYY-MM-DD"
+    }
+  ],
+  "evidence_consumed": [],
+  "output": [
+    {
+      "prefix": "runtime-health-audit/*",
+      "destination_kind": "knowledge"
+    }
+  ],
+  "raises_work_items": true,
+  "external_producers": [
+    "operator"
+  ]
+}

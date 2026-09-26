@@ -137,7 +137,7 @@ export const ResourceWorkbench = ({ resourceInsights, resourceStatuses, isLoadin
           <h2 className="text-2xl font-semibold text-white">Per-Resource Secret Management</h2>
           <HelpDialog title="Resource Workbench">
             <p>
-              Each resource (postgres, redis, vault, etc.) requires specific secrets to function. This workbench shows the configuration status per resource.
+              Each resource (postgres, redis, and other declared services) requires specific credentials to function. This workbench shows the configuration status per resource.
             </p>
             <div className="mt-3 space-y-2">
                 <p><strong className="text-white">Secret Classifications:</strong></p>

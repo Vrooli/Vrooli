@@ -15,12 +15,6 @@
     {
       "id": "e6",
       "source": "click-palette",
-      "target": "click-canvas",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e7",
-      "source": "click-canvas",
       "target": "wait2",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -45,11 +39,15 @@
   ],
   "metadata": {
     "description": "Validates undo button reverts the last canvas change",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "Toolbar Undo",
+    "version": "1"
   },
   "nodes": [
     {
@@ -84,30 +82,18 @@
     },
     {
       "action": {
-        "click": {
-          "selector": "@selector/nodePalette.cards.navigate"
+        "drag_drop": {
+          "source_selector": "@selector/nodePalette.cards.navigate",
+          "target_selector": "@selector/workflowBuilder.canvas.root",
+          "target_offset_x": 300,
+          "timeout_ms": 10000
         },
         "metadata": {
-          "label": "Click navigate node"
+          "label": "Drag navigate node onto the canvas"
         },
-        "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 500
+        "type": "ACTION_TYPE_DRAG_DROP"
       },
       "id": "click-palette"
-    },
-    {
-      "action": {
-        "click": {
-          "selector": ".react-flow__pane"
-        },
-        "metadata": {
-          "label": "Click canvas to add"
-        },
-        "type": "ACTION_TYPE_CLICK"
-      },
-      "id": "click-canvas"
     },
     {
       "action": {
@@ -143,9 +129,6 @@
           "label": "Click undo"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 1500
       },
       "id": "undo"
     },

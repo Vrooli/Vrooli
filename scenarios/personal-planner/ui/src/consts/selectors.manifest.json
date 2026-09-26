@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.navigation": {
+      "testId": "layout-shell-navigation",
+      "selector": "[data-testid=\"layout-shell-navigation\"]"
+    },
+    "layout.tabs": {
+      "testId": "layout-shell-tabs",
+      "selector": "[data-testid=\"layout-shell-tabs\"]"
+    },
+    "layout.main": {
+      "testId": "layout-shell-main",
+      "selector": "[data-testid=\"layout-shell-main\"]"
+    },
+    "layout.brand": {
+      "testId": "layout-shell-brand",
+      "selector": "[data-testid=\"layout-shell-brand\"]"
+    },
+    "layout.skip": {
+      "testId": "layout-shell-skip",
+      "selector": "[data-testid=\"layout-shell-skip\"]"
+    },
+    "settingsPage.themeSelect": {
+      "testId": "page-settings-theme",
+      "selector": "[data-testid=\"page-settings-theme\"]"
+    },
+    "settingsPage.localeSelect": {
+      "testId": "page-settings-locale",
+      "selector": "[data-testid=\"page-settings-locale\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-today",
+      "selector": "[data-testid=\"page-today\"]"
+    },
+    "pages.today": {
+      "testId": "page-today",
+      "selector": "[data-testid=\"page-today\"]"
+    },
+    "pages.plan": {
+      "testId": "page-plan",
+      "selector": "[data-testid=\"page-plan\"]"
+    },
+    "pages.goals": {
+      "testId": "page-goals",
+      "selector": "[data-testid=\"page-goals\"]"
+    },
+    "pages.focus": {
+      "testId": "page-focus",
+      "selector": "[data-testid=\"page-focus\"]"
+    },
+    "pages.review": {
+      "testId": "page-review",
+      "selector": "[data-testid=\"page-review\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "library.controls.icon-button.root": {
+      "testId": "controls.icon-button",
+      "selector": "[data-testid=\"controls.icon-button\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "layout.navLink": {
+      "description": "Primary navigation link by canonical nav key; the phone tab derives `-tab` from the same id",
+      "selectorPattern": "[data-testid=\"layout-nav-${key}\"]",
+      "testIdPattern": "layout-nav-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "plan",
+            "goals",
+            "focus",
+            "review",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.navTab": {
+      "description": "Phone tab-bar item by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-${key}-tab\"]",
+      "testIdPattern": "layout-nav-${key}-tab",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "plan",
+            "goals",
+            "focus",
+            "review",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Appearance choice by canonical theme value",
+      "selectorPattern": "[data-testid=\"page-settings-theme-option-${choice}\"]",
+      "testIdPattern": "page-settings-theme-option-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "auto",
+            "day",
+            "night"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "5415b9a9e81df05658f9050c658af2473bb26eb55ad8983df1e1f075db157dc7",
+    "ui/src/consts/selectors.ts": "1610a019f282d101d900103f7e87dc8aa3c0659f580d4c11b4685bb9d09e7b25"
+  }
+}

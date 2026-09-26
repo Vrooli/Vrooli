@@ -28,6 +28,33 @@
     "version": "1.0.0"
   },
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      },
+      "logs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "Scenario operational logs observed in the canonical logs directory.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -37,118 +64,10 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Test data generator UI port",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
-    "setup": {
-      "description": "Initialize Test Data Generator",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/test-data-generator-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "test-data-generator",
-            "targets": [
-              "test-data-generator"
-            ]
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "bash cli/install.sh",
-          "description": "Install CLI command globally",
-          "condition": {
-            "file_exists": "cli/install.sh"
-          }
-        },
-        {
-          "name": "install-api-deps",
-          "run": "cd api && npm install",
-          "description": "Install API dependencies"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o test-data-generator-api .",
-          "description": "Build Go API binary",
-          "condition": {
-            "file_exists": "api/go.mod"
-          }
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo 'Test Data Generator initialized - API: http://localhost:${API_PORT} - UI: http://localhost:${UI_PORT} - CLI: test-data-generator --help'",
-          "description": "Display service URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start test-data-generator services",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./test-data-generator-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/test-data-generator-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start UI server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo 'Test Data Generator running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop test-data-generator services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"test-data-generator-api\" || true; sleep 1; pkill -9 -f \"test-data-generator-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/test-data-generator.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/test-data-generator.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
-    },
     "health": {
       "description": "Test Data Generator health check configuration",
       "endpoints": {
@@ -177,50 +96,113 @@
       "interval": 30000,
       "startup_grace_period": 10000
     },
-    "version": "2.0.0",
-    "test": {
-      "description": "Comprehensive phased testing for test-data-generator",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute test-data-generator --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    }
+    "version": "2.0.0"
   },
   "dependencies": {
     "resources": {
-      "required": [],
-      "optional": [
-        {
-          "name": "redis",
-          "purpose": "Caching frequently generated patterns",
-          "fallback": "In-memory cache"
-        },
-        {
-          "name": "minio",
-          "purpose": "Store generated files for retrieval",
-          "fallback": "Temporary filesystem"
-        },
-        {
-          "name": "system-setup",
-          "type": "custom",
-          "description": "System dependencies and initialization scripts",
-          "required": false,
-          "initialization": [
-            {
-              "file": "initialization/startup.sh",
-              "type": "script"
+      "redis": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Caching frequently generated patterns",
+        "degraded_behavior": "Falls back to in-memory cache"
+      },
+      "minio": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Store generated files for retrieval",
+        "degraded_behavior": "Falls back to temporary filesystem storage"
+      }
+    }
+  },
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "cli": {
+    "enabled": true,
+    "command": "test-data-generator",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "test-data-generator"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "Optional accelerator that no Go code in this scenario currently opens. The declaration records intended caching, not a runtime requirement."
             },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "The scenario does not require Redis, so the desktop tier simply runs without it rather than shipping a server."
+            }
+          },
+          "swappable_with": [
             {
-              "file": "initialization/dependencies.json",
-              "type": "config"
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
             }
           ]
         }
-      ]
+      }
     }
   },
-  "$schema": "../../../.vrooli/schemas/service.schema.json"
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
+  }
 }

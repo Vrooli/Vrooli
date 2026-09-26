@@ -2,8 +2,29 @@ package compat
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
+
+func TestRejectLegacyWorkflowNodes(t *testing.T) {
+	err := RejectLegacyWorkflowNodes(map[string]any{
+		"nodes": []any{map[string]any{
+			"id":   "legacy-click",
+			"type": "click",
+			"data": map[string]any{"selector": "#submit"},
+		}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "legacy type/data shape") {
+		t.Fatalf("RejectLegacyWorkflowNodes() error = %v, want legacy shape rejection", err)
+	}
+}
+
+func TestNormalizeWorkflowDefinitionV2BytesRejectsLegacyNodes(t *testing.T) {
+	_, err := NormalizeWorkflowDefinitionV2Bytes([]byte(`{"nodes":[{"id":"legacy-click","type":"click","data":{"selector":"#submit"}}]}`))
+	if err == nil || !strings.Contains(err.Error(), "legacy type/data shape") {
+		t.Fatalf("NormalizeWorkflowDefinitionV2Bytes() error = %v, want legacy shape rejection", err)
+	}
+}
 
 func TestNormalizeNodeV1ToV2_ClickNode(t *testing.T) {
 	node := map[string]any{
@@ -121,8 +142,8 @@ func TestNormalizeNodeV1ToV2_NavigateNode(t *testing.T) {
 	if navigate["url"] != "http://example.com" {
 		t.Errorf("expected url 'http://example.com', got %v", navigate["url"])
 	}
-	if navigate["waitUntil"] != "networkidle" {
-		t.Errorf("expected waitUntil 'networkidle', got %v", navigate["waitUntil"])
+	if navigate["wait_until"] != "NAVIGATE_WAIT_EVENT_NETWORKIDLE" {
+		t.Errorf("expected normalized wait event, got %v", navigate["wait_until"])
 	}
 }
 
@@ -177,8 +198,8 @@ func TestNormalizeNodeV1ToV2_AssertNode(t *testing.T) {
 	if assertParams["selector"] != "[data-testid='dashboard']" {
 		t.Errorf("expected selector, got %v", assertParams["selector"])
 	}
-	if assertParams["assertMode"] != "exists" {
-		t.Errorf("expected assertMode 'exists', got %v", assertParams["assertMode"])
+	if assertParams["mode"] != "ASSERTION_MODE_EXISTS" {
+		t.Errorf("expected normalized assertion mode, got %v", assertParams["mode"])
 	}
 }
 
@@ -266,15 +287,17 @@ func TestNormalizeExecuteAdhocRequest_WithExecutionMode(t *testing.T) {
 	}
 }
 
-func TestNormalizeWorkflowDefinitionV2_MixedNodes(t *testing.T) {
-	// Workflow with both V1 and V2 nodes
+func TestNormalizeWorkflowDefinitionV2_TypedNodes(t *testing.T) {
+	// V2 workflows remain typed while their protojson details are normalized.
 	doc := map[string]any{
 		"nodes": []any{
 			map[string]any{
-				"id":   "node-1",
-				"type": "click",
-				"data": map[string]any{
-					"selector": "#btn1",
+				"id": "node-1",
+				"action": map[string]any{
+					"type": "ACTION_TYPE_CLICK",
+					"click": map[string]any{
+						"selector": "#btn1",
+					},
 				},
 			},
 			map[string]any{
@@ -293,11 +316,11 @@ func TestNormalizeWorkflowDefinitionV2_MixedNodes(t *testing.T) {
 
 	nodes := doc["nodes"].([]any)
 
-	// First node should be transformed
+	// First node remains typed.
 	node1 := nodes[0].(map[string]any)
 	action1, ok := node1["action"].(map[string]any)
 	if !ok {
-		t.Fatal("node1 should have action after normalization")
+		t.Fatal("node1 should have typed action")
 	}
 	if action1["type"] != "ACTION_TYPE_CLICK" {
 		t.Errorf("node1: expected ACTION_TYPE_CLICK, got %v", action1["type"])

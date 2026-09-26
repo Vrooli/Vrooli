@@ -12,14 +12,6 @@ const (
 	knowledgeSchemaVersion     = "ko.knowledge.v1"
 )
 
-func normalizeKnowledgeCollection(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return defaultKnowledgeCollection
-	}
-	return value
-}
-
 func normalizeVisibility(value string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {

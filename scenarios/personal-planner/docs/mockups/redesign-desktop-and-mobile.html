@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Personal Planner — full redesign mockups (desktop + mobile)</title>
+<style>
+  :root {
+    --tile-top:#15243c; --tile-bottom:#0b1728; --accent:#22d3ee; --accent-warm:#f5b971;
+    --ink:#e8eefc; --ink-dim:#93a4c4; --ink-faint:#5f7196;
+    --card:rgba(20,33,58,0.72); --card-2:rgba(30,45,74,0.5); --line:rgba(120,150,200,0.18);
+    --halo:0 0 9px rgba(34,211,238,0.35); --serif:"Iowan Old Style",Georgia,"Times New Roman",serif;
+    --ok:#4ade80; --warn:#f5b971; --bad:#f87171;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif; background:#060b16; color:var(--ink); padding:0 0 120px; }
+
+  /* top page nav */
+  .topbar { position:sticky; top:0; z-index:100; background:rgba(6,11,22,0.94); backdrop-filter:blur(12px); border-bottom:1px solid var(--line); padding:14px 24px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .topbar .brand { font-weight:700; letter-spacing:0.02em; margin-right:16px; }
+  .topbar .brand .dot { color:var(--accent); }
+  .topbar button { background:transparent; border:1px solid var(--line); color:var(--ink-dim); padding:8px 16px; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer; }
+  .topbar button.active { color:var(--accent); border-color:rgba(34,211,238,0.5); box-shadow:var(--halo); }
+  .topbar .spacer { flex:1; }
+  .topbar .legend { font-size:11px; color:var(--ink-faint); }
+
+  .page { display:none; padding:34px 24px; }
+  .page.active { display:block; }
+  .page > h1 { font-size:26px; font-weight:750; margin-bottom:4px; }
+  .page > .sub { color:var(--ink-dim); font-size:14px; max-width:900px; line-height:1.55; margin-bottom:8px; }
+  .page > .concept { color:var(--accent); font-size:13px; margin-bottom:26px; font-weight:600; }
+
+  .stage { display:flex; gap:48px; align-items:flex-start; flex-wrap:wrap; }
+  .frame-col { display:flex; flex-direction:column; gap:12px; }
+  .frame-col .label { font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-dim); font-weight:700; }
+  .frame-col .why { font-size:12px; color:var(--ink-faint); max-width:var(--whywidth,760px); line-height:1.55; }
+  .frame-col .why b { color:var(--ink-dim); }
+
+  /* desktop frame */
+  .desktop { width:760px; height:520px; border-radius:14px; overflow:hidden; border:1px solid #1c2740; box-shadow:0 24px 60px rgba(0,0,0,0.5); background:linear-gradient(180deg,var(--tile-top),var(--tile-bottom) 70%,#060d1a); position:relative; }
+  .desktop .winbar { height:30px; background:#0a1120; display:flex; align-items:center; gap:6px; padding:0 12px; border-bottom:1px solid var(--line); }
+  .winbar i { width:10px; height:10px; border-radius:50%; background:#33415c; display:block; }
+  .dbody { display:flex; height:calc(100% - 30px); }
+  .dside { width:150px; flex:none; border-right:1px solid var(--line); padding:16px 10px; display:flex; flex-direction:column; gap:4px; background:rgba(6,11,22,0.35); }
+  .dside .b { font-weight:700; font-size:13px; padding:4px 8px 12px; }
+  .dside .b .dot{color:var(--accent);}
+  .dside .nav { display:flex; align-items:center; gap:9px; padding:9px 10px; border-radius:9px; font-size:12.5px; color:var(--ink-dim); }
+  .dside .nav .ic { width:15px; height:15px; border:1.5px solid currentColor; border-radius:5px; flex:none; }
+  .dside .nav.on { background:rgba(34,211,238,0.1); color:var(--accent); }
+  .dmain { flex:1; overflow:hidden; position:relative; }
+
+  /* phone frame */
+  .phone { width:320px; height:660px; border-radius:40px; background:#000; padding:11px; box-shadow:0 24px 60px rgba(0,0,0,0.5),0 0 0 2px #1c2740; position:relative; }
+  .screen { position:relative; width:100%; height:100%; border-radius:30px; overflow:hidden; background:linear-gradient(180deg,var(--tile-top),var(--tile-bottom) 62%,#060d1a); display:flex; flex-direction:column; }
+  .notch { position:absolute; top:0; left:50%; transform:translateX(-50%); width:110px; height:22px; background:#000; border-radius:0 0 14px 14px; z-index:60; }
+  .tabs { position:absolute; left:0; right:0; bottom:0; height:58px; z-index:25; background:rgba(6,11,22,0.96); border-top:1px solid var(--line); display:flex; align-items:center; justify-content:space-around; padding-bottom:4px; }
+  .tab { display:flex; flex-direction:column; align-items:center; gap:3px; font-size:8.5px; letter-spacing:0.04em; color:var(--ink-faint); }
+  .tab.on { color:var(--accent); }
+  .tab .ic { width:18px; height:18px; border-radius:6px; border:1.5px solid currentColor; }
+  .tab.on .ic { box-shadow:var(--halo); }
+  .fab { position:absolute; z-index:35; right:16px; bottom:74px; width:52px; height:52px; border-radius:17px; background:var(--accent); color:#04121a; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:400; box-shadow:0 10px 26px rgba(34,211,238,0.4); }
+
+  /* shared bits */
+  .kick { font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--accent); font-weight:700; }
+  .kick.warm{color:var(--accent-warm);}
+  .serif { font-family:var(--serif); }
+  .tnum { font-variant-numeric:tabular-nums; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; }
+  .glow { border-color:rgba(34,211,238,0.5); box-shadow:var(--halo); }
+  .meter { height:7px; border-radius:5px; background:rgba(120,150,200,0.18); overflow:hidden; }
+  .meter > span { display:block; height:100%; background:linear-gradient(90deg,#22d3ee,#4ade80); }
+  .starsky{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
+  .star{position:absolute;width:2px;height:2px;border-radius:50%;background:#dbe6ff;}
+  .star.big{width:3px;height:3px;box-shadow:0 0 5px 1px rgba(219,230,255,0.6);}
+  .cline{position:absolute;height:1px;background:linear-gradient(90deg,transparent,rgba(34,211,238,0.5),transparent);transform-origin:left center;}
+
+  /* ============ TODAY ============ */
+  .obs { position:absolute; bottom:-1px; left:24px; width:96px; height:70px; }
+  .obs .dome{position:absolute;bottom:0;left:12px;width:64px;height:40px;background:#0e1b30;border:1px solid rgba(120,150,200,0.4);border-radius:40px 40px 5px 5px;}
+  .obs .slit{position:absolute;bottom:6px;left:40px;width:8px;height:30px;background:linear-gradient(180deg,rgba(34,211,238,0.5),transparent);border-radius:5px;}
+  .obs .base{position:absolute;bottom:0;left:2px;width:84px;height:11px;background:#0a1526;border-top:1px solid rgba(120,150,200,0.3);}
+  .greet{position:absolute;top:34px;right:18px;text-align:right;z-index:5;}
+  .greet .d{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);}
+  .greet .h{font-size:22px;font-weight:700;}
+  .tl{padding:14px 16px 130px;overflow-y:auto;flex:1;}
+  .tl h2,.sec-h{font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:12px;font-weight:700;}
+  .slot{display:flex;gap:11px;margin-bottom:5px;}
+  .slot .t{font-size:11px;color:var(--ink-dim);width:44px;flex:none;padding-top:11px;}
+  .slot .bd{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;}
+  .slot.now .bd{border-color:rgba(34,211,238,0.55);box-shadow:var(--halo);}
+  .slot .bd .ti{font-size:13px;font-weight:600;}
+  .slot .bd .m{font-size:10.5px;color:var(--ink-dim);margin-top:2px;}
+  .slot .rl{width:8px;flex:none;display:flex;justify-content:center;padding-top:13px;}
+  .rd{width:8px;height:8px;border-radius:50%;background:var(--ink-faint);}
+  .slot.now .rd{background:var(--accent);box-shadow:var(--halo);}
+  .nextbar{position:absolute;left:11px;right:11px;bottom:66px;z-index:30;background:rgba(13,23,40,0.94);backdrop-filter:blur(14px);border:1px solid rgba(34,211,238,0.4);border-radius:16px;box-shadow:0 12px 30px rgba(0,0,0,0.5),var(--halo);padding:11px 13px;display:flex;align-items:center;gap:10px;}
+  .nextbar .g{flex:1;min-width:0;}
+  .nextbar .g .ti{font-size:14px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .nextbar .g .m{font-size:10px;color:var(--ink-dim);margin-top:1px;}
+  .startbtn{flex:none;background:var(--accent);color:#04121a;border:none;font-weight:700;font-size:12px;border-radius:11px;padding:9px 14px;display:flex;align-items:center;gap:5px;}
+  .play{width:0;height:0;border-style:solid;border-width:4px 0 4px 7px;border-color:transparent transparent transparent #04121a;}
+
+  /* desktop today */
+  .today-d{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;height:100%;padding:18px;position:relative;}
+  .today-d .nextcard{grid-column:1;grid-row:1;}
+  .dcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;}
+  .dcard.hero{border-color:rgba(34,211,238,0.4);box-shadow:var(--halo);}
+  .dcard h2{font-size:20px;font-weight:700;margin:3px 0 4px;}
+  .dcard .desc{font-size:12.5px;color:var(--ink-dim);line-height:1.5;}
+  .dactions{display:flex;gap:8px;margin-top:14px;}
+  .dbtn{padding:9px 16px;border-radius:11px;font-size:12.5px;font-weight:650;border:1px solid var(--line);background:var(--card-2);color:var(--ink);display:flex;align-items:center;gap:6px;}
+  .dbtn.pri{background:var(--accent);color:#04121a;border-color:transparent;}
+  .dtl{grid-column:1;grid-row:2;overflow:auto;}
+  .dcap{grid-column:2;grid-row:1 / span 2;}
+
+  /* ============ FOCUS ============ */
+  .timer{font-family:var(--serif);font-variant-numeric:tabular-nums;letter-spacing:0.04em;}
+  .focus-m{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 18px 120px;text-align:center;position:relative;}
+  .ring{width:210px;height:210px;border-radius:50%;border:2px solid rgba(120,150,200,0.2);display:flex;align-items:center;justify-content:center;position:relative;margin-bottom:8px;background:radial-gradient(circle at 50% 45%,rgba(34,211,238,0.08),transparent 70%);}
+  .ring::before{content:"";position:absolute;inset:-2px;border-radius:50%;border:2px solid transparent;border-top-color:var(--accent);border-right-color:var(--accent);transform:rotate(58deg);box-shadow:var(--halo);}
+  .ctrl-row{display:flex;gap:12px;margin-top:22px;}
+  .cbtn{width:56px;height:56px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:18px;}
+  .cbtn.pri{background:var(--accent);color:#04121a;border-color:transparent;box-shadow:0 8px 22px rgba(34,211,238,0.4);}
+  .focus-d{display:grid;grid-template-columns:1fr 1fr;gap:16px;height:100%;padding:18px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">Personal Planner <span class="dot">✦</span></span>
+  <button class="active" onclick="show('today',this)">Today</button>
+  <button onclick="show('plan',this)">Plan</button>
+  <button onclick="show('goals',this)">Goals</button>
+  <button onclick="show('focus',this)">Focus</button>
+  <button onclick="show('review',this)">Review</button>
+  <button onclick="show('settings',this)">Settings</button>
+  <span class="spacer"></span>
+  <span class="legend">Desktop &amp; mobile shown side-by-side · static mockup</span>
+</div>
+
+<!-- ================= TODAY ================= -->
+<section class="page active" id="today">
+  <h1>Today</h1>
+  <p class="sub">The corrected version — now with an unmistakable <b>capture</b> affordance (the + FAB), separate from the "act on next step" bar. Two different intents, two different controls.</p>
+  <p class="sub" style="color:var(--accent-warm)"><b>New — frictionless capture:</b> the FAB (mobile) and <b>⌘K command palette</b> (desktop, from any page) open a <b>natural-language</b> box — type <i>"lunch with Sam tue 1pm 1h"</i> and it parses into a placed item. This is the single feature that most separates a delightful planner from a tedious one.</p>
+  <p class="concept">Concept: you're standing at the observatory, reading tonight's chart. Desktop shows the whole sky; mobile shows the path in front of you.</p>
+  <div class="stage">
+
+    <!-- desktop today -->
+    <div class="frame-col">
+      <span class="label">Desktop — compose in space</span>
+      <div class="desktop">
+        <div class="winbar"><i></i><i></i><i></i></div>
+        <div class="dbody">
+          <div class="dside">
+            <div class="b">Planner <span class="dot">✦</span></div>
+            <div class="nav on"><span class="ic"></span>Today</div>
+            <div class="nav"><span class="ic"></span>Plan</div>
+            <div class="nav"><span class="ic"></span>Goals</div>
+            <div class="nav"><span class="ic"></span>Focus</div>
+            <div class="nav"><span class="ic"></span>Review</div>
+            <div class="nav"><span class="ic"></span>Settings</div>
+          </div>
+          <div class="dmain">
+            <div class="starsky" id="tsky-d"></div>
+            <div class="today-d">
+              <div class="dcard hero nextcard">
+                <span class="kick">Up next · ready to place</span>
+                <h2>Review PR feedback</h2>
+                <div class="desc">from Command Center · 45 min. Address reviewer comments and re-request review before end of day.</div>
+                <div class="dactions">
+                  <span class="dbtn pri"><span class="play"></span>Start focus</span>
+                  <span class="dbtn">Open draft</span>
+                  <span class="dbtn">Reschedule</span>
+                </div>
+              </div>
+              <div class="dcard dcap">
+                <span class="kick">Today's capacity</span>
+                <div style="font-size:30px;font-weight:750;margin:8px 0 2px" class="serif tnum">3<span style="font-size:16px;color:var(--ink-dim)">h</span> 15<span style="font-size:16px;color:var(--ink-dim)">m</span></div>
+                <div style="font-size:11px;color:var(--ink-dim);margin-bottom:12px">planned of 5h available</div>
+                <div class="meter"><span style="width:64%"></span></div>
+                <div style="font-size:11px;color:var(--ink-dim);margin-top:8px">1h 45m breathing room</div>
+                <div style="border-top:1px solid var(--line);margin:14px 0"></div>
+                <span class="kick warm">Capture</span>
+                <div style="font-size:12px;color:var(--ink-dim);margin-top:6px;line-height:1.5">Add anything on your mind — place it later.</div>
+                <div class="dbtn" style="margin-top:10px;justify-content:center;border-style:dashed">+ Capture a task</div>
+              </div>
+              <div class="dcard dtl">
+                <span class="kick">Today's plan</span>
+                <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px">
+                  <div class="slot" style="margin:0"><div class="t">2:00</div><div class="rl"><div class="rd"></div></div><div class="bd"><div class="ti">Deep work — spec draft</div><div class="m">90 min · completed</div></div></div>
+                  <div class="slot now" style="margin:0"><div class="t">4:30</div><div class="rl"><div class="rd"></div></div><div class="bd"><div class="ti">Review PR feedback</div><div class="m">45 min · up next</div></div></div>
+                  <div class="slot" style="margin:0"><div class="t">6:00</div><div class="rl"><div class="rd"></div></div><div class="bd"><div class="ti">Evening walk</div><div class="m">30 min · routine</div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="why"><b>Why:</b> horizontal room is abundant, so the next step is a rich hero, capacity lives permanently in a side rail, and the timeline sits below — all visible at once. Capture is a labeled button because a mouse reaches the rail effortlessly.</p>
+    </div>
+
+    <!-- mobile today -->
+    <div class="frame-col">
+      <span class="label">Mobile — compose in sequence + reach</span>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen" id="tscreen">
+          <div style="position:relative;height:150px;flex:none;overflow:hidden" id="tsky-m">
+            <div class="greet"><div class="d">Sat · Sep 20</div><div class="h">Good evening</div></div>
+            <div class="obs"><div class="base"></div><div class="dome"></div><div class="slit"></div></div>
+          </div>
+          <div class="tl">
+            <h2>Today's plan</h2>
+            <div class="slot"><div class="t">2:00</div><div class="rl"><div class="rd"></div></div><div class="bd"><div class="ti">Deep work — spec draft</div><div class="m">90 min · completed</div></div></div>
+            <div class="slot now"><div class="t">4:30</div><div class="rl"><div class="rd"></div></div><div class="bd"><div class="ti">Review PR feedback</div><div class="m">45 min · up next</div></div></div>
+            <div class="slot"><div class="t">6:00</div><div class="rl"><div class="rd"></div></div><div class="bd"><div class="ti">Evening walk</div><div class="m">30 min · routine</div></div></div>
+            <div class="slot"><div class="t">7:30</div><div class="rl"><div class="rd"></div></div><div class="bd"><div class="ti">Reading — chapter 4</div><div class="m">40 min · flexible</div></div></div>
+          </div>
+          <div class="fab">+</div>
+          <div class="nextbar">
+            <div class="g"><span class="kick">Up next</span><div class="ti">Review PR feedback</div><div class="m">45 min · tap for options</div></div>
+            <button class="startbtn"><span class="play"></span>Start</button>
+          </div>
+          <div class="tabs">
+            <div class="tab on"><div class="ic"></div>Today</div>
+            <div class="tab"><div class="ic"></div>Plan</div>
+            <div class="tab"><div class="ic"></div>Goals</div>
+            <div class="tab"><div class="ic"></div>Focus</div>
+            <div class="tab"><div class="ic"></div>Review</div>
+          </div>
+        </div>
+      </div>
+      <p class="why"><b>Why:</b> the timeline (what you're here to see) owns the fold. The next step is a compact thumb-zone bar with the one common action inline; tap it for the full sheet. <b>Capture is its own FAB</b> — the fix for the buried "add task." Capacity moved into the Plan tab, where it belongs on mobile.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FOCUS ================= -->
+<section class="page" id="focus">
+  <h1>Focus</h1>
+  <p class="sub">Focus is the page that's <b>better on mobile than desktop</b> — a single, all-consuming task. The desktop wastes space with one small timer; mobile makes the timer the entire world, which is exactly right for a focus session.</p>
+  <p class="sub" style="color:var(--accent-warm)"><b>New:</b> the timer now has a <b>Countdown</b> mode (pre-filled from the task's planned duration) alongside Stopwatch. When the countdown hits 0 it <b>rolls into overtime</b> counting up in amber — so you both commit to a target and honestly capture the overrun (which feeds the learning loop, below).</p>
+  <p class="concept">Concept: holding a heading. One star, dead ahead, everything else dimmed.</p>
+  <div class="stage">
+
+    <div class="frame-col">
+      <span class="label">Desktop — timer + live ledger</span>
+      <div class="desktop">
+        <div class="winbar"><i></i><i></i><i></i></div>
+        <div class="dbody">
+          <div class="dside">
+            <div class="b">Planner <span class="dot">✦</span></div>
+            <div class="nav"><span class="ic"></span>Today</div><div class="nav"><span class="ic"></span>Plan</div>
+            <div class="nav"><span class="ic"></span>Goals</div><div class="nav on"><span class="ic"></span>Focus</div>
+            <div class="nav"><span class="ic"></span>Review</div><div class="nav"><span class="ic"></span>Settings</div>
+          </div>
+          <div class="dmain">
+            <div class="focus-d">
+              <div class="dcard" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
+                <span class="kick">In focus</span>
+                <div style="font-size:14px;color:var(--ink-dim);margin:6px 0 12px">Review PR feedback</div>
+                <div style="display:inline-flex;background:var(--card-2);border-radius:9px;padding:3px;margin-bottom:14px"><span style="padding:4px 11px;border-radius:7px;font-size:11px;font-weight:650;background:var(--accent);color:#04121a">Countdown</span><span style="padding:4px 11px;font-size:11px;color:var(--ink-dim)">Stopwatch</span></div>
+                <div class="ring" style="width:150px;height:150px"><div class="timer" style="font-size:36px">20:42</div></div>
+                <div class="ctrl-row" style="margin-top:18px"><div class="cbtn">⏸</div><div class="cbtn pri">■</div></div>
+                <dl style="display:grid;grid-template-columns:auto auto;gap:4px 18px;margin-top:20px;font-size:11.5px"><dt style="color:var(--ink-dim)">Target</dt><dd class="tnum">45 min</dd><dt style="color:var(--ink-dim)">At 0</dt><dd style="color:var(--accent-warm)">→ overtime</dd><dt style="color:var(--ink-dim)">Pauses</dt><dd>1</dd></dl>
+              </div>
+              <div class="dcard" style="overflow:auto">
+                <span class="kick">Today's actuals</span>
+                <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--card-2);border-radius:11px"><div><div style="font-size:13px;font-weight:600">Deep work — spec draft</div><div style="font-size:10.5px;color:var(--ink-dim)">90 min · logged</div></div><span style="font-size:11px;color:var(--accent)">Correct</span></div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--card-2);border-radius:11px"><div><div style="font-size:13px;font-weight:600">Standup</div><div style="font-size:10.5px;color:var(--ink-dim)">15 min · logged</div></div><span style="font-size:11px;color:var(--accent)">Correct</span></div>
+                </div>
+                <div style="border-top:1px solid var(--line);margin:14px 0"></div>
+                <span class="kick warm">Log past work</span>
+                <div style="display:grid;grid-template-columns:1fr 70px;gap:8px;margin-top:10px"><div class="dbtn" style="justify-content:flex-start;color:var(--ink-dim)">What did you do?</div><div class="dbtn" style="justify-content:center;color:var(--ink-dim)">min</div></div>
+                <div class="dbtn pri" style="margin-top:8px;justify-content:center">Record actual</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="why"><b>Why:</b> desktop can afford to show the live session <i>and</i> the running ledger of actuals side-by-side — you glance between doing and recording. The timer stays modest because it shares the stage.</p>
+    </div>
+
+    <div class="frame-col">
+      <span class="label">Mobile — the timer is the world</span>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div style="padding:44px 18px 8px;text-align:center;flex:none"><span class="kick">In focus</span><div style="font-size:15px;color:var(--ink-dim);margin-top:4px">Review PR feedback</div>
+            <div style="display:inline-flex;background:var(--card-2);border-radius:10px;padding:3px;margin-top:12px"><span style="padding:5px 12px;border-radius:8px;font-size:11.5px;font-weight:650;background:var(--accent);color:#04121a">Countdown</span><span style="padding:5px 12px;font-size:11.5px;color:var(--ink-dim)">Stopwatch</span></div>
+          </div>
+          <div class="focus-m" style="padding-top:0">
+            <div class="ring"><div class="timer" style="font-size:52px">20:42</div></div>
+            <div style="font-size:12px;color:var(--ink-dim);margin-top:14px">of 45 min · 1 pause · <span style="color:var(--accent-warm)">rolls into overtime at 0</span></div>
+            <div style="display:flex;gap:6px;margin-top:12px"><span class="dbtn" style="padding:5px 12px;font-size:11px;color:var(--ink-dim)">25</span><span class="dbtn" style="padding:5px 12px;font-size:11px;background:rgba(34,211,238,0.12);color:var(--accent);border-color:rgba(34,211,238,0.4)">45</span><span class="dbtn" style="padding:5px 12px;font-size:11px;color:var(--ink-dim)">90</span></div>
+            <div class="ctrl-row"><div class="cbtn">⏸</div><div class="cbtn pri">■</div></div>
+          </div>
+          <div style="position:absolute;left:0;right:0;bottom:0;padding:12px 16px 20px;background:linear-gradient(180deg,transparent,rgba(6,11,22,0.9) 30%);text-align:center"><div style="font-size:11px;color:var(--ink-faint)">▲ swipe up for today's actuals</div></div>
+        </div>
+      </div>
+      <p class="why"><b>Why:</b> no tab bar, no chrome — a focus session deserves a distraction-free surface. The timer fills the screen, controls sit in the thumb zone, and the actuals ledger is one swipe-up sheet away. This is <i>less</i> than desktop on screen, but <i>more</i> right for the moment.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PLAN ================= -->
+<section class="page" id="plan">
+  <h1>Plan</h1>
+  <p class="sub">The <b>worst desktop→mobile offender</b> in the current build: 8 view modes crammed into tabs. On desktop that richness is a strength (a full command chart); on mobile it's paralysis. Mobile collapses to Day/Week + a capacity read + one timeline, with placement, forecast, commitments and routines demoted to sheets.</p>
+  <p class="concept">Concept: the week as a star chart — capacity is the horizon, commitments are fixed stars, placement is plotting a new course.</p>
+  <div class="stage">
+
+    <div class="frame-col">
+      <span class="label">Desktop — the command chart</span>
+      <div class="desktop">
+        <div class="winbar"><i></i><i></i><i></i></div>
+        <div class="dbody">
+          <div class="dside">
+            <div class="b">Planner <span class="dot">✦</span></div>
+            <div class="nav"><span class="ic"></span>Today</div><div class="nav on"><span class="ic"></span>Plan</div>
+            <div class="nav"><span class="ic"></span>Goals</div><div class="nav"><span class="ic"></span>Focus</div>
+            <div class="nav"><span class="ic"></span>Review</div><div class="nav"><span class="ic"></span>Settings</div>
+          </div>
+          <div class="dmain">
+            <div style="padding:16px;height:100%;display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:center;gap:8px"><div style="display:flex;background:var(--card-2);border-radius:10px;padding:3px"><span style="padding:5px 12px;border-radius:8px;font-size:12px;font-weight:650;background:var(--accent);color:#04121a">Week</span><span style="padding:5px 12px;font-size:12px;color:var(--ink-dim)">Day</span><span style="padding:5px 12px;font-size:12px;color:var(--ink-dim)">Month</span></div><span class="spacer" style="flex:1"></span><span class="dbtn pri" style="padding:7px 14px">+ Place work</span></div>
+              <!-- capacity strip -->
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+                <div class="dcard" style="padding:12px 14px"><span class="kick">Planned</span><div class="serif tnum" style="font-size:22px;margin-top:4px">22h 30m</div></div>
+                <div class="dcard" style="padding:12px 14px"><span class="kick">Available</span><div class="serif tnum" style="font-size:22px;margin-top:4px">35h</div></div>
+                <div class="dcard" style="padding:12px 14px"><span class="kick warm">Breathing room</span><div class="serif tnum" style="font-size:22px;margin-top:4px;color:var(--accent-warm)">12h 30m</div></div>
+              </div>
+              <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:12px;flex:1;min-height:0">
+                <!-- week grid -->
+                <div class="dcard" style="padding:12px;overflow:hidden;display:flex;flex-direction:column">
+                  <span class="kick">This week</span>
+                  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:10px;flex:1">
+                    <!--days-->
+                    <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:9px;color:var(--ink-dim);text-align:center">M</div><div style="flex:1;background:var(--card-2);border-radius:6px;position:relative"><span style="position:absolute;top:8%;left:2px;right:2px;height:26%;background:rgba(34,211,238,0.35);border-radius:4px"></span><span style="position:absolute;top:40%;left:2px;right:2px;height:18%;background:rgba(74,222,128,0.3);border-radius:4px"></span></div></div>
+                    <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:9px;color:var(--ink-dim);text-align:center">T</div><div style="flex:1;background:var(--card-2);border-radius:6px;position:relative"><span style="position:absolute;top:14%;left:2px;right:2px;height:40%;background:rgba(34,211,238,0.35);border-radius:4px"></span></div></div>
+                    <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:9px;color:var(--ink-dim);text-align:center">W</div><div style="flex:1;background:var(--card-2);border-radius:6px;position:relative"><span style="position:absolute;top:6%;left:2px;right:2px;height:30%;background:rgba(34,211,238,0.35);border-radius:4px"></span><span style="position:absolute;top:44%;left:2px;right:2px;height:22%;background:rgba(245,185,113,0.35);border-radius:4px"></span></div></div>
+                    <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:9px;color:var(--accent);text-align:center;font-weight:700">T</div><div style="flex:1;background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.4);border-radius:6px;position:relative;box-shadow:var(--halo)"><span style="position:absolute;top:20%;left:2px;right:2px;height:22%;background:rgba(34,211,238,0.45);border-radius:4px"></span><span style="position:absolute;top:48%;left:2px;right:2px;height:14%;background:rgba(74,222,128,0.35);border-radius:4px"></span></div></div>
+                    <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:9px;color:var(--ink-dim);text-align:center">F</div><div style="flex:1;background:var(--card-2);border-radius:6px;position:relative"><span style="position:absolute;top:12%;left:2px;right:2px;height:34%;background:rgba(34,211,238,0.35);border-radius:4px"></span></div></div>
+                    <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:9px;color:var(--ink-dim);text-align:center">S</div><div style="flex:1;background:var(--card-2);border-radius:6px"></div></div>
+                    <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:9px;color:var(--ink-dim);text-align:center">S</div><div style="flex:1;background:var(--card-2);border-radius:6px;position:relative"><span style="position:absolute;top:60%;left:2px;right:2px;height:16%;background:rgba(245,185,113,0.3);border-radius:4px"></span></div></div>
+                  </div>
+                </div>
+                <!-- right rail: forecast + commitments -->
+                <div style="display:flex;flex-direction:column;gap:12px;min-height:0">
+                  <div class="dcard" style="padding:12px 14px"><span class="kick">Outlook</span><div style="font-size:12px;color:var(--ink-dim);margin-top:6px;line-height:1.5">On track for 4 of 5 commitments. <span style="color:var(--warn)">Friday is tight</span> — 40m over.</div></div>
+                  <div class="dcard" style="padding:12px 14px;flex:1;overflow:auto"><span class="kick">Commitments</span>
+                    <div style="margin-top:8px;display:flex;flex-direction:column;gap:7px">
+                      <div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="width:7px;height:7px;border-radius:50%;background:var(--ok)"></span>Ship mobile PR <span style="margin-left:auto;color:var(--ink-dim)">Thu</span></div>
+                      <div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="width:7px;height:7px;border-radius:50%;background:var(--warn)"></span>Design review <span style="margin-left:auto;color:var(--ink-dim)">Fri</span></div>
+                      <div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="width:7px;height:7px;border-radius:50%;background:var(--ok)"></span>Call with Sam <span style="margin-left:auto;color:var(--ink-dim)">Mon</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="why"><b>Why:</b> planning is inherently a <i>survey</i> task — you compare days, spot the tight spot, and slot work in. Desktop's width lets capacity, the week grid, outlook, and commitments coexist so the tradeoffs are visible at a glance. This is where "maximize the space" is correct.</p>
+    </div>
+
+    <div class="frame-col">
+      <span class="label">Mobile — one decision at a time</span>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div style="padding:38px 16px 10px;flex:none">
+            <div style="display:flex;background:var(--card-2);border-radius:11px;padding:3px"><span style="flex:1;text-align:center;padding:7px;border-radius:9px;font-size:13px;font-weight:650;background:var(--accent);color:#04121a">Day</span><span style="flex:1;text-align:center;padding:7px;font-size:13px;color:var(--ink-dim)">Week</span></div>
+          </div>
+          <!-- capacity summary strip -->
+          <div style="padding:0 16px 10px;flex:none">
+            <div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:12px">
+              <div style="flex:1"><span class="kick">Today's capacity</span><div class="serif tnum" style="font-size:20px;margin-top:2px">3h 15m <span style="font-size:12px;color:var(--ink-dim);font-family:system-ui">/ 5h</span></div></div>
+              <div style="width:52px;height:52px;border-radius:50%;background:conic-gradient(var(--accent) 64%,rgba(120,150,200,0.18) 0);display:flex;align-items:center;justify-content:center"><div style="width:38px;height:38px;border-radius:50%;background:var(--tile-bottom);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">64%</div></div>
+            </div>
+          </div>
+          <div style="flex:1;overflow:auto;padding:0 16px 130px">
+            <span class="sec-h">Today's schedule</span>
+            <div class="slot"><div class="t">9:00</div><div class="rl"><div class="rd"></div></div><div class="bd"><div class="ti">Deep work</div><div class="m">90 min</div></div></div>
+            <div class="slot now"><div class="t">11:00</div><div class="rl"><div class="rd"></div></div><div class="bd"><div class="ti">Review PR feedback</div><div class="m">45 min · up next</div></div></div>
+            <div class="slot"><div class="t">2:00</div><div class="rl"><div class="rd"></div></div><div class="bd"><div class="ti">Design review</div><div class="m">60 min · commitment</div></div></div>
+            <div class="slot"><div class="t">4:00</div><div class="rl"><div class="rd"></div></div><div class="bd"><div class="ti">Evening walk</div><div class="m">30 min · routine</div></div></div>
+          </div>
+          <!-- action bar: placement primary, others in overflow -->
+          <div style="position:absolute;left:11px;right:11px;bottom:66px;z-index:30;display:flex;gap:8px">
+            <button class="startbtn" style="flex:1;justify-content:center;padding:13px">+ Place work</button>
+            <button class="cbtn" style="width:46px;height:46px;font-size:16px;border-radius:14px">⋯</button>
+          </div>
+          <div class="tabs">
+            <div class="tab"><div class="ic"></div>Today</div><div class="tab on"><div class="ic"></div>Plan</div>
+            <div class="tab"><div class="ic"></div>Goals</div><div class="tab"><div class="ic"></div>Focus</div><div class="tab"><div class="ic"></div>Review</div>
+          </div>
+        </div>
+      </div>
+      <p class="why"><b>Why:</b> the 8 desktop views become a <b>Day/Week toggle</b>. Capacity compresses to a single glanceable ring+number strip. The schedule is the scroll body. <b>Place work</b> — the one action you open Plan to do — is the thumb-zone primary; forecast, commitments, and routines live behind the <b>⋯</b> overflow as sheets. Nothing removed, everything sequenced.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= GOALS ================= -->
+<section class="page" id="goals">
+  <h1>Goals</h1>
+  <p class="sub">Goals is a <b>list surface</b>, so mobile divergence is light — a vertical list is already the native shape. The lift here is <i>conceptual</i>: make goals feel like the fixed stars you steer by, not generic progress cards. Progress meters become the constellation you're completing.</p>
+  <p class="concept">Concept: each goal is a star; milestones are the points of light that form it. Completing milestones lights up the constellation.</p>
+  <div class="stage">
+
+    <div class="frame-col">
+      <span class="label">Desktop — the constellation board</span>
+      <div class="desktop">
+        <div class="winbar"><i></i><i></i><i></i></div>
+        <div class="dbody">
+          <div class="dside">
+            <div class="b">Planner <span class="dot">✦</span></div>
+            <div class="nav"><span class="ic"></span>Today</div><div class="nav"><span class="ic"></span>Plan</div>
+            <div class="nav on"><span class="ic"></span>Goals</div><div class="nav"><span class="ic"></span>Focus</div>
+            <div class="nav"><span class="ic"></span>Review</div><div class="nav"><span class="ic"></span>Settings</div>
+          </div>
+          <div class="dmain">
+            <div style="padding:16px;height:100%;display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:flex-end;gap:16px"><div><span class="kick">Steering by</span><div class="serif" style="font-size:22px;margin-top:2px">4 active goals</div></div><div style="display:flex;gap:18px;margin-left:auto;text-align:right"><div><div class="serif tnum" style="font-size:22px">3</div><div style="font-size:10px;color:var(--ink-dim)">on track</div></div><div><div class="serif tnum" style="font-size:22px;color:var(--warn)">1</div><div style="font-size:10px;color:var(--ink-dim)">drifting</div></div></div><span class="dbtn pri" style="padding:7px 14px">+ New goal</span></div>
+              <div style="display:flex;align-items:center;gap:8px"><div style="display:flex;background:var(--card-2);border-radius:9px;padding:3px"><span style="padding:4px 12px;font-size:11.5px;color:var(--ink-dim)">Active</span><span style="padding:4px 12px;border-radius:7px;font-size:11.5px;font-weight:650;background:var(--accent);color:#04121a">All</span><span style="padding:4px 12px;font-size:11.5px;color:var(--ink-dim)">Completed</span></div><span style="font-size:11px;color:var(--ink-faint)">— completed goals show how your estimate compared to reality</span></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;overflow:auto">
+                <!-- goal card A -->
+                <div class="dcard glow" style="padding:16px;display:flex;flex-direction:column;gap:10px">
+                  <div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">✦</span><div style="font-size:15px;font-weight:700">Ship v1.0 of the app</div></div>
+                  <div style="font-size:12px;color:var(--ink-dim);line-height:1.5">Because momentum compounds — a real launch changes everything downstream.</div>
+                  <div class="meter" style="margin-top:2px"><span style="width:70%"></span></div>
+                  <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-dim)"><span>7 of 10 milestones</span><span>70%</span></div>
+                  <div style="display:flex;gap:5px;margin-top:2px">
+                    <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:var(--halo)"></span><span style="width:8px;height:8px;border-radius:50%;background:var(--accent)"></span><span style="width:8px;height:8px;border-radius:50%;background:var(--accent)"></span><span style="width:8px;height:8px;border-radius:50%;background:var(--accent)"></span><span style="width:8px;height:8px;border-radius:50%;background:var(--accent)"></span><span style="width:8px;height:8px;border-radius:50%;background:var(--accent)"></span><span style="width:8px;height:8px;border-radius:50%;background:var(--accent)"></span><span style="width:8px;height:8px;border-radius:50%;background:var(--ink-faint)"></span><span style="width:8px;height:8px;border-radius:50%;background:var(--ink-faint)"></span><span style="width:8px;height:8px;border-radius:50%;background:var(--ink-faint)"></span>
+                  </div>
+                </div>
+                <!-- goal card B drifting -->
+                <div class="dcard" style="padding:16px;display:flex;flex-direction:column;gap:10px">
+                  <div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px;opacity:0.6">✦</span><div style="font-size:15px;font-weight:700">Read 24 books this year</div></div>
+                  <div style="font-size:12px;color:var(--ink-dim);line-height:1.5">A wider mind makes better decisions.</div>
+                  <div class="meter" style="margin-top:2px"><span style="width:38%;background:linear-gradient(90deg,var(--warn),var(--accent-warm))"></span></div>
+                  <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-dim)"><span>9 of 24 · <span style="color:var(--warn)">behind pace</span></span><span>38%</span></div>
+                </div>
+                <!-- goal card C -->
+                <div class="dcard" style="padding:16px;display:flex;flex-direction:column;gap:10px">
+                  <div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">✦</span><div style="font-size:15px;font-weight:700">Run a half marathon</div></div>
+                  <div class="meter" style="margin-top:2px"><span style="width:55%"></span></div>
+                  <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-dim)"><span>Week 7 of 12 training</span><span>55%</span></div>
+                </div>
+                <!-- completed goal: ahead of estimate (positive) -->
+                <div class="dcard" style="padding:16px;display:flex;flex-direction:column;gap:8px;opacity:0.92">
+                  <div style="display:flex;align-items:center;gap:10px"><span style="font-size:16px;color:var(--ok)">✔</span><div style="font-size:15px;font-weight:700">Launch personal site</div><span style="margin-left:auto;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:rgba(74,222,128,0.15);color:var(--ok);white-space:nowrap">▲ 9 days early</span></div>
+                  <div style="font-size:11px;color:var(--ink-dim)">Estimated 6 weeks · done in 4.5 · finished Aug 30</div>
+                  <div style="font-size:11px;color:var(--ink-faint);border-top:1px solid var(--line);padding-top:7px;margin-top:1px">Your estimate ran <b style="color:var(--ok)">conservative</b> — you tend to pad creative work.</div>
+                </div>
+                <!-- completed goal: over estimate (learning, not punishment) -->
+                <div class="dcard" style="padding:16px;display:flex;flex-direction:column;gap:8px;opacity:0.92">
+                  <div style="display:flex;align-items:center;gap:10px"><span style="font-size:16px;color:var(--accent-warm)">✔</span><div style="font-size:15px;font-weight:700">Learn to sail</div><span style="margin-left:auto;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:rgba(245,185,113,0.15);color:var(--accent-warm);white-space:nowrap">3 wks over</span></div>
+                  <div style="font-size:11px;color:var(--ink-dim)">Estimated 8 weeks · took 11 · slipped twice (weather, travel)</div>
+                  <div style="font-size:11px;color:var(--ink-faint);border-top:1px solid var(--line);padding-top:7px;margin-top:1px">External dependencies added ~40%. Worth padding weather-bound goals.</div>
+                </div>
+                <div class="dcard" style="padding:16px;display:flex;align-items:center;justify-content:center;border-style:dashed;color:var(--ink-dim);font-size:13px">+ Chart a new goal</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="why"><b>Why:</b> a 2-up grid lets you take in your whole "sky" of goals at once. The <b>All</b> filter brings back completed goals, each carrying a <b>variance badge</b> — green when you beat your estimate, warm (never red) when you ran over. The one-line note turns each finished goal into a lesson about <i>your own estimating</i>, positive and negative alike. No new tab — history lives inside the page you already use.</p>
+    </div>
+
+    <div class="frame-col">
+      <span class="label">Mobile — the same stars, stacked</span>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div style="padding:38px 16px 10px;flex:none"><span class="kick">Steering by</span><div class="serif" style="font-size:20px;margin-top:2px">4 active goals</div>
+            <div style="display:flex;background:var(--card-2);border-radius:10px;padding:3px;margin-top:10px"><span style="flex:1;text-align:center;padding:6px;font-size:12px;color:var(--ink-dim)">Active</span><span style="flex:1;text-align:center;padding:6px;border-radius:8px;font-size:12px;font-weight:650;background:var(--accent);color:#04121a">All</span><span style="flex:1;text-align:center;padding:6px;font-size:12px;color:var(--ink-dim)">Done</span></div>
+          </div>
+          <div style="flex:1;overflow:auto;padding:0 16px 130px;display:flex;flex-direction:column;gap:11px">
+            <div class="card glow" style="padding:14px;display:flex;flex-direction:column;gap:9px">
+              <div style="display:flex;align-items:center;gap:9px"><span>✦</span><div style="font-size:14px;font-weight:700">Ship v1.0 of the app</div></div>
+              <div class="meter"><span style="width:70%"></span></div>
+              <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-dim)"><span>7 of 10 milestones</span><span>70%</span></div>
+            </div>
+            <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:9px">
+              <div style="display:flex;align-items:center;gap:9px"><span style="opacity:0.6">✦</span><div style="font-size:14px;font-weight:700">Read 24 books this year</div></div>
+              <div class="meter"><span style="width:38%;background:linear-gradient(90deg,var(--warn),var(--accent-warm))"></span></div>
+              <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-dim)"><span>9 of 24 · <span style="color:var(--warn)">behind</span></span><span>38%</span></div>
+            </div>
+            <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:9px">
+              <div style="display:flex;align-items:center;gap:9px"><span>✦</span><div style="font-size:14px;font-weight:700">Run a half marathon</div></div>
+              <div class="meter"><span style="width:55%"></span></div>
+              <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-dim)"><span>Week 7 of 12</span><span>55%</span></div>
+            </div>
+            <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-faint);margin:4px 2px 0">Completed</div>
+            <div class="card" style="padding:13px 14px;display:flex;flex-direction:column;gap:6px;opacity:0.9">
+              <div style="display:flex;align-items:center;gap:9px"><span style="color:var(--ok)">✔</span><div style="font-size:13.5px;font-weight:650">Launch personal site</div><span style="margin-left:auto;font-size:9.5px;font-weight:700;padding:3px 7px;border-radius:20px;background:rgba(74,222,128,0.15);color:var(--ok)">▲ 9d early</span></div>
+              <div style="font-size:10.5px;color:var(--ink-faint)">Est. 6 wks · done in 4.5 — you pad creative work.</div>
+            </div>
+            <div class="card" style="padding:13px 14px;display:flex;flex-direction:column;gap:6px;opacity:0.9">
+              <div style="display:flex;align-items:center;gap:9px"><span style="color:var(--accent-warm)">✔</span><div style="font-size:13.5px;font-weight:650">Learn to sail</div><span style="margin-left:auto;font-size:9.5px;font-weight:700;padding:3px 7px;border-radius:20px;background:rgba(245,185,113,0.15);color:var(--accent-warm)">3 wks over</span></div>
+              <div style="font-size:10.5px;color:var(--ink-faint)">Est. 8 wks · took 11 — weather slips added ~40%.</div>
+            </div>
+          </div>
+          <div class="fab">+</div>
+          <div class="tabs">
+            <div class="tab"><div class="ic"></div>Today</div><div class="tab"><div class="ic"></div>Plan</div>
+            <div class="tab on"><div class="ic"></div>Goals</div><div class="tab"><div class="ic"></div>Focus</div><div class="tab"><div class="ic"></div>Review</div>
+          </div>
+        </div>
+      </div>
+      <p class="why"><b>Why:</b> the grid becomes a single column (already the natural mobile shape), stats compress to a one-line strip, and "new goal" is the FAB. This is the case where you <b>correctly do less</b> — forcing a bespoke mobile layout on a list would be over-engineering. Recognizing that is part of the skill.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= REVIEW ================= -->
+<section class="page" id="review">
+  <h1>Review</h1>
+  <p class="sub">Review mixes a <b>narrative showpiece</b> (the compass) with a <b>data table</b> (the week breakdown). Tables are the classic desktop→mobile trap: on mobile a table becomes a <b>card list</b>, never a horizontally-scrolling grid.</p>
+  <p class="sub" style="color:var(--accent-warm)"><b>New — the learning loop lives here:</b> the <b>Calibration</b> card is the aggregate home for "learning from planning." It reads your estimate-vs-actual history and tells you your <i>bias</i> (e.g. you underestimate deep work ~30%) and whether your estimating is <b>improving over time</b>. Per-goal variance badges (see Goals) are the detail; this is the summary. Same data an agent can read to plan better for you.</p>
+  <p class="concept">Concept: taking a reading. Where did you actually go this week vs. the course you set?</p>
+  <div class="stage">
+
+    <div class="frame-col">
+      <span class="label">Desktop — compass + ledger</span>
+      <div class="desktop">
+        <div class="winbar"><i></i><i></i><i></i></div>
+        <div class="dbody">
+          <div class="dside">
+            <div class="b">Planner <span class="dot">✦</span></div>
+            <div class="nav"><span class="ic"></span>Today</div><div class="nav"><span class="ic"></span>Plan</div>
+            <div class="nav"><span class="ic"></span>Goals</div><div class="nav"><span class="ic"></span>Focus</div>
+            <div class="nav on"><span class="ic"></span>Review</div><div class="nav"><span class="ic"></span>Settings</div>
+          </div>
+          <div class="dmain">
+            <div style="padding:16px;height:100%;display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:center;gap:8px"><div style="display:flex;background:var(--card-2);border-radius:10px;padding:3px"><span style="padding:5px 14px;border-radius:8px;font-size:12px;font-weight:650;background:var(--accent);color:#04121a">Week</span><span style="padding:5px 14px;font-size:12px;color:var(--ink-dim)">Day</span></div><span style="font-size:12px;color:var(--ink-dim);margin-left:8px">‹ Sep 14 – 20 ›</span></div>
+              <!-- compass hero -->
+              <div class="dcard" style="padding:18px 20px;display:flex;align-items:center;gap:20px">
+                <div style="flex:1"><span class="kick">This week's reading</span><div style="font-size:15px;line-height:1.55;margin-top:6px;max-width:380px">You held course on deep work — <b>18h recorded</b> against 20h planned. Mornings were your truest hours; Friday drifted.</div></div>
+                <div class="serif" style="font-size:64px;color:var(--accent);line-height:1;text-shadow:var(--halo)">90<span style="font-size:22px">%</span></div>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+                <div class="dcard" style="padding:12px 14px"><span class="kick">Planned</span><div class="serif tnum" style="font-size:20px;margin-top:3px">20h</div></div>
+                <div class="dcard" style="padding:12px 14px"><span class="kick">Recorded</span><div class="serif tnum" style="font-size:20px;margin-top:3px">18h</div></div>
+                <div class="dcard" style="padding:12px 14px"><span class="kick">Focus sessions</span><div class="serif tnum" style="font-size:20px;margin-top:3px">14</div></div>
+              </div>
+              <!-- calibration reading: the aggregate learning surface -->
+              <div class="dcard" style="padding:14px 16px;display:flex;align-items:center;gap:18px;border-color:rgba(245,185,113,0.3)">
+                <div style="flex:none;text-align:center"><span class="kick warm">Calibration</span><div class="serif" style="font-size:30px;color:var(--accent-warm);margin-top:2px">+22%</div><div style="font-size:9px;color:var(--ink-dim)">avg over-run</div></div>
+                <div style="flex:1;border-left:1px solid var(--line);padding-left:16px">
+                  <div style="font-size:12.5px;line-height:1.5">You <b>underestimate deep work by ~30%</b> but nail routines. Your estimates have gotten <b style="color:var(--ok)">15% more accurate</b> over 6 weeks.</div>
+                  <div style="display:flex;gap:4px;margin-top:8px;align-items:flex-end;height:22px">
+                    <span style="width:8px;background:rgba(245,185,113,0.5);height:80%;border-radius:2px"></span><span style="width:8px;background:rgba(245,185,113,0.5);height:70%;border-radius:2px"></span><span style="width:8px;background:rgba(245,185,113,0.45);height:62%;border-radius:2px"></span><span style="width:8px;background:rgba(34,211,238,0.5);height:50%;border-radius:2px"></span><span style="width:8px;background:rgba(34,211,238,0.5);height:44%;border-radius:2px"></span><span style="width:8px;background:rgba(74,222,128,0.6);height:36%;border-radius:2px"></span>
+                    <span style="font-size:9px;color:var(--ink-faint);margin-left:6px">estimation error, trending down ↓</span>
+                  </div>
+                </div>
+              </div>
+              <!-- week table -->
+              <div class="dcard" style="padding:12px 14px;flex:1;overflow:auto">
+                <div style="display:grid;grid-template-columns:1fr 70px 70px 60px;font-size:10px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:0.1em;padding-bottom:8px;border-bottom:1px solid var(--line)"><span>Day</span><span style="text-align:right">Planned</span><span style="text-align:right">Recorded</span><span style="text-align:right">Δ</span></div>
+                <div style="display:grid;grid-template-columns:1fr 70px 70px 60px;font-size:12.5px;padding:8px 0;border-bottom:1px solid var(--line)" class="tnum"><span>Mon</span><span style="text-align:right">4h</span><span style="text-align:right">4h</span><span style="text-align:right;color:var(--ok)">0</span></div>
+                <div style="display:grid;grid-template-columns:1fr 70px 70px 60px;font-size:12.5px;padding:8px 0;border-bottom:1px solid var(--line)" class="tnum"><span>Tue</span><span style="text-align:right">4h</span><span style="text-align:right">3h30</span><span style="text-align:right;color:var(--warn)">-30</span></div>
+                <div style="display:grid;grid-template-columns:1fr 70px 70px 60px;font-size:12.5px;padding:8px 0;border-bottom:1px solid var(--line)" class="tnum"><span>Wed</span><span style="text-align:right">4h</span><span style="text-align:right">4h30</span><span style="text-align:right;color:var(--ok)">+30</span></div>
+                <div style="display:grid;grid-template-columns:1fr 70px 70px 60px;font-size:12.5px;padding:8px 0" class="tnum"><span>Fri</span><span style="text-align:right">4h</span><span style="text-align:right">2h</span><span style="text-align:right;color:var(--bad)">-2h</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="why"><b>Why:</b> the compass reading (narrative + big % mark) is the emotional payoff and gets a wide hero; the table lets you scan day-by-day precisely. Both fit because desktop has the height and width to stack a story on top of a ledger.</p>
+    </div>
+
+    <div class="frame-col">
+      <span class="label">Mobile — reading, then the log</span>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div style="padding:38px 16px 10px;flex:none"><div style="display:flex;background:var(--card-2);border-radius:11px;padding:3px"><span style="flex:1;text-align:center;padding:7px;border-radius:9px;font-size:13px;font-weight:650;background:var(--accent);color:#04121a">Week</span><span style="flex:1;text-align:center;padding:7px;font-size:13px;color:var(--ink-dim)">Day</span></div></div>
+          <div style="flex:1;overflow:auto;padding:4px 16px 80px">
+            <!-- compass condensed -->
+            <div class="card" style="padding:16px;text-align:center;margin-bottom:12px">
+              <div class="serif" style="font-size:56px;color:var(--accent);line-height:1;text-shadow:var(--halo)">90<span style="font-size:20px">%</span></div>
+              <div style="font-size:13px;line-height:1.5;color:var(--ink-dim);margin-top:8px">You held course on deep work — <b style="color:var(--ink)">18h of 20h</b>. Mornings were your truest hours; Friday drifted.</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+              <div class="card" style="padding:10px;text-align:center"><div class="serif tnum" style="font-size:17px">20h</div><div style="font-size:9px;color:var(--ink-dim)">planned</div></div>
+              <div class="card" style="padding:10px;text-align:center"><div class="serif tnum" style="font-size:17px">18h</div><div style="font-size:9px;color:var(--ink-dim)">recorded</div></div>
+              <div class="card" style="padding:10px;text-align:center"><div class="serif tnum" style="font-size:17px">14</div><div style="font-size:9px;color:var(--ink-dim)">sessions</div></div>
+            </div>
+            <div class="card" style="padding:13px 14px;margin-bottom:14px;border-color:rgba(245,185,113,0.3);display:flex;align-items:center;gap:14px">
+              <div style="text-align:center;flex:none"><span class="kick warm">Calibration</span><div class="serif" style="font-size:24px;color:var(--accent-warm)">+22%</div></div>
+              <div style="font-size:11.5px;line-height:1.45;border-left:1px solid var(--line);padding-left:14px">You underestimate <b>deep work ~30%</b>, nail routines. <b style="color:var(--ok)">15% more accurate</b> over 6 wks ↓</div>
+            </div>
+            <span class="sec-h">Day by day</span>
+            <!-- table -> card rows -->
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div class="card" style="padding:11px 13px;display:flex;align-items:center"><div style="flex:1"><div style="font-size:13px;font-weight:600">Monday</div><div style="font-size:10.5px;color:var(--ink-dim)">4h planned · 4h recorded</div></div><span style="font-size:12px;color:var(--ok);font-weight:600">on target</span></div>
+              <div class="card" style="padding:11px 13px;display:flex;align-items:center"><div style="flex:1"><div style="font-size:13px;font-weight:600">Tuesday</div><div style="font-size:10.5px;color:var(--ink-dim)">4h planned · 3h30 recorded</div></div><span style="font-size:12px;color:var(--warn);font-weight:600">-30m</span></div>
+              <div class="card" style="padding:11px 13px;display:flex;align-items:center"><div style="flex:1"><div style="font-size:13px;font-weight:600">Friday</div><div style="font-size:10.5px;color:var(--ink-dim)">4h planned · 2h recorded</div></div><span style="font-size:12px;color:var(--bad);font-weight:600">-2h</span></div>
+            </div>
+          </div>
+          <div class="tabs">
+            <div class="tab"><div class="ic"></div>Today</div><div class="tab"><div class="ic"></div>Plan</div>
+            <div class="tab"><div class="ic"></div>Goals</div><div class="tab"><div class="ic"></div>Focus</div><div class="tab on"><div class="ic"></div>Review</div>
+          </div>
+        </div>
+      </div>
+      <p class="why"><b>Why:</b> the big % reading leads (it's the payoff, and it fits the fold). The 3 stats become a compact row. Crucially, the <b>week table becomes a card list</b> — each day a row with its delta surfaced as a colored badge. A 4-column table would force horizontal scroll, the cardinal mobile sin.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SETTINGS ================= -->
+<section class="page" id="settings">
+  <h1>Settings <span style="font-size:13px;color:var(--warn);font-weight:600;letter-spacing:0.02em">← the outlier — biggest redesign upside</span></h1>
+  <p class="sub">The audit flagged Settings as "functional but generic — infrastructure, not experience." The fix isn't just prettier forms; it's giving Settings the <b>same world</b> as the rest of the app. Reframed as <b>"Calibrate your instrument"</b>: theme is the sky you observe under, availability is when the observatory is open, integrations are your feeds.</p>
+  <p class="concept">Concept: tuning the observatory. Even the config screen belongs to the world.</p>
+  <div class="stage">
+
+    <div class="frame-col">
+      <span class="label">Desktop — instrument panel</span>
+      <div class="desktop">
+        <div class="winbar"><i></i><i></i><i></i></div>
+        <div class="dbody">
+          <div class="dside">
+            <div class="b">Planner <span class="dot">✦</span></div>
+            <div class="nav"><span class="ic"></span>Today</div><div class="nav"><span class="ic"></span>Plan</div>
+            <div class="nav"><span class="ic"></span>Goals</div><div class="nav"><span class="ic"></span>Focus</div>
+            <div class="nav"><span class="ic"></span>Review</div><div class="nav on"><span class="ic"></span>Settings</div>
+          </div>
+          <div class="dmain">
+            <div style="padding:16px;height:100%;overflow:auto;display:flex;flex-direction:column;gap:12px">
+              <div><span class="kick">Calibrate</span><div class="serif" style="font-size:22px;margin-top:2px">Your instrument</div></div>
+              <!-- sky / theme with live previews -->
+              <div class="dcard" style="padding:16px"><span class="kick">Observing sky</span>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px">
+                  <div style="border:1px solid rgba(34,211,238,0.5);box-shadow:var(--halo);border-radius:12px;overflow:hidden"><div style="height:54px;background:linear-gradient(180deg,#f0d9a8,#e8b978)"></div><div style="padding:8px;font-size:12px;font-weight:600;text-align:center">Day</div></div>
+                  <div style="border:1px solid var(--line);border-radius:12px;overflow:hidden"><div style="height:54px;background:linear-gradient(180deg,#15243c,#0b1728)"></div><div style="padding:8px;font-size:12px;color:var(--ink-dim);text-align:center">Night</div></div>
+                  <div style="border:1px solid var(--line);border-radius:12px;overflow:hidden"><div style="height:54px;background:linear-gradient(90deg,#f0d9a8 50%,#15243c 50%)"></div><div style="padding:8px;font-size:12px;color:var(--ink-dim);text-align:center">Auto</div></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div class="dcard" style="padding:16px"><span class="kick">Observatory hours</span>
+                  <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;font-size:12px">
+                    <div style="display:flex;align-items:center;gap:8px"><span style="width:34px;color:var(--ink-dim)">Mon</span><span class="dbtn" style="flex:1;padding:6px 10px;justify-content:space-between">9:00<span style="color:var(--ink-faint)">→</span>17:00</span></div>
+                    <div style="display:flex;align-items:center;gap:8px"><span style="width:34px;color:var(--ink-dim)">Tue</span><span class="dbtn" style="flex:1;padding:6px 10px;justify-content:space-between">9:00<span style="color:var(--ink-faint)">→</span>17:00</span></div>
+                    <div style="display:flex;align-items:center;gap:8px"><span style="width:34px;color:var(--ink-faint)">Sat</span><span class="dbtn" style="flex:1;padding:6px 10px;justify-content:center;color:var(--ink-faint)">closed</span></div>
+                  </div>
+                </div>
+                <div class="dcard" style="padding:16px"><span class="kick">Feeds</span>
+                  <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+                    <div style="display:flex;align-items:center;gap:9px;font-size:12.5px"><span style="width:8px;height:8px;border-radius:50%;background:var(--ok)"></span>Command Center<span style="margin-left:auto;color:var(--ink-dim);font-size:11px">synced 2m ago</span></div>
+                    <div style="display:flex;align-items:center;gap:9px;font-size:12.5px"><span style="width:8px;height:8px;border-radius:50%;background:var(--ok)"></span>Google Calendar<span style="margin-left:auto;color:var(--ink-dim);font-size:11px">synced 5m ago</span></div>
+                    <div class="dbtn" style="margin-top:4px;justify-content:center;border-style:dashed;color:var(--ink-dim)">+ Connect a feed</div>
+                  </div>
+                </div>
+              </div>
+              <div class="dcard" style="padding:16px"><span class="kick">Rhythm</span>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:10px;font-size:12px">
+                  <div><div style="color:var(--ink-dim);margin-bottom:4px">Daily capacity</div><span class="dbtn" style="justify-content:flex-start">5h 00m</span></div>
+                  <div><div style="color:var(--ink-dim);margin-bottom:4px">Reserve / breathing</div><span class="dbtn" style="justify-content:flex-start">1h 00m</span></div>
+                  <div><div style="color:var(--ink-dim);margin-bottom:4px">Focus block</div><span class="dbtn" style="justify-content:flex-start">45 min</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="why"><b>Why:</b> same card language, tokens, and serif kickers as every other page — Settings now reads as <i>part of the observatory</i>. Theme is a set of <b>live sky previews</b> (not radio buttons), availability is "observatory hours," integrations are "feeds." The personality the audit found missing comes from the framing, not decoration.</p>
+    </div>
+
+    <div class="frame-col">
+      <span class="label">Mobile — grouped, guided</span>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div style="padding:38px 16px 10px;flex:none"><span class="kick">Calibrate</span><div class="serif" style="font-size:20px;margin-top:2px">Your instrument</div></div>
+          <div style="flex:1;overflow:auto;padding:6px 16px 80px;display:flex;flex-direction:column;gap:12px">
+            <div class="card" style="padding:14px"><span class="kick">Observing sky</span>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px">
+                <div style="border:1px solid rgba(34,211,238,0.5);box-shadow:var(--halo);border-radius:10px;overflow:hidden"><div style="height:38px;background:linear-gradient(180deg,#f0d9a8,#e8b978)"></div><div style="padding:5px;font-size:10.5px;text-align:center">Day</div></div>
+                <div style="border:1px solid var(--line);border-radius:10px;overflow:hidden"><div style="height:38px;background:linear-gradient(180deg,#15243c,#0b1728)"></div><div style="padding:5px;font-size:10.5px;color:var(--ink-dim);text-align:center">Night</div></div>
+                <div style="border:1px solid var(--line);border-radius:10px;overflow:hidden"><div style="height:38px;background:linear-gradient(90deg,#f0d9a8 50%,#15243c 50%)"></div><div style="padding:5px;font-size:10.5px;color:var(--ink-dim);text-align:center">Auto</div></div>
+              </div>
+            </div>
+            <!-- collapsible group rows -->
+            <div class="card" style="padding:14px 15px;display:flex;align-items:center"><div style="flex:1"><div style="font-size:13.5px;font-weight:600">Observatory hours</div><div style="font-size:10.5px;color:var(--ink-dim)">Mon–Fri · 9:00–17:00</div></div><span style="color:var(--ink-faint)">›</span></div>
+            <div class="card" style="padding:14px 15px;display:flex;align-items:center"><div style="flex:1"><div style="font-size:13.5px;font-weight:600">Rhythm</div><div style="font-size:10.5px;color:var(--ink-dim)">5h capacity · 45m focus blocks</div></div><span style="color:var(--ink-faint)">›</span></div>
+            <div class="card" style="padding:14px 15px;display:flex;align-items:center"><div style="flex:1"><div style="font-size:13.5px;font-weight:600">Feeds</div><div style="font-size:10.5px;color:var(--ink-dim)"><span style="color:var(--ok)">●</span> 2 connected</div></div><span style="color:var(--ink-faint)">›</span></div>
+          </div>
+          <div class="tabs">
+            <div class="tab"><div class="ic"></div>Today</div><div class="tab"><div class="ic"></div>Plan</div>
+            <div class="tab"><div class="ic"></div>Goals</div><div class="tab"><div class="ic"></div>Focus</div><div class="tab"><div class="ic"></div>Review</div>
+          </div>
+        </div>
+      </div>
+      <p class="why"><b>Why:</b> the heavy availability grid and rhythm forms (which stack into an ugly wall on mobile) collapse to <b>summary rows that drill into their own sub-screens</b> — the iOS Settings pattern. Only the sky preview stays inline because it's a delight moment and fits. One-thing-at-a-time beats one-long-scroll-of-fields.</p>
+    </div>
+  </div>
+</section>
+
+<!-- pages injected below -->
+<div id="more"></div>
+
+<script>
+  function show(id,btn){
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.querySelectorAll('.topbar button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    window.scrollTo(0,0);
+  }
+  // starfields
+  function seedSky(el,n,withLine){
+    if(!el) return;
+    for(let i=0;i<n;i++){const s=document.createElement('div');s.className='star'+(i%6===0?' big':'');s.style.left=(6+(i*37)%(el.clientWidth||700))+'px';s.style.top=(5+(i*53)%((el.clientHeight||150)-10))+'px';s.style.opacity=(0.3+(i%5)*0.13).toFixed(2);el.appendChild(s);}
+    if(withLine){const pts=[[el.clientWidth*0.55,30],[el.clientWidth*0.62,60],[el.clientWidth*0.7,46],[el.clientWidth*0.74,84]];for(let i=0;i<pts.length-1;i++){const[x1,y1]=pts[i],[x2,y2]=pts[i+1];const len=Math.hypot(x2-x1,y2-y1),ang=Math.atan2(y2-y1,x2-x1)*180/Math.PI;const l=document.createElement('div');l.className='cline';l.style.left=x1+'px';l.style.top=y1+'px';l.style.width=len+'px';l.style.transform='rotate('+ang+'deg)';el.appendChild(l);const b=document.createElement('div');b.className='star big';b.style.left=x1+'px';b.style.top=y1+'px';el.appendChild(b);}}
+  }
+  window.addEventListener('load',()=>{
+    seedSky(document.getElementById('tsky-d'),50,true);
+    seedSky(document.getElementById('tsky-m'),34,true);
+    document.querySelectorAll('.starsky,[id^=sky-]').forEach(el=>{if(!el.children.length)seedSky(el,40,false);});
+  });
+</script>
+</body>
+</html>

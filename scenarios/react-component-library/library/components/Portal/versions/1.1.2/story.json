@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {},
+      "expect": [],
+      "rendersNothing": true,
+      "reason": "The portal has no visible host content until a caller supplies hydrated children and a layer container.",
+      "role": "anatomy"
+    },
+    {"id":"empty","name":"Empty portal","args":{"children":""},"expect":[],"rendersNothing":true,"reason":"The portal deliberately emits no visible content when its host receives no children.","role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long portal content","args":{"children":"A deliberately long portal message demonstrates that the host owns wrapping when content is supplied."},"expect":[],"rendersNothing":true,"reason":"The contract documents the portal host boundary; visible content is supplied by the caller rather than this primitive.","role":"boundary","mode":"pinned"}
+  ]
+}

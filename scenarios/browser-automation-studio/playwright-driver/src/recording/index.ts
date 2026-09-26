@@ -281,10 +281,11 @@ export type {
 
 export {
   initRecordingBuffer,
+  assertRecordingAcknowledged,
+  acknowledgeTimelineEntries,
   bufferTimelineEntry,
   getTimelineEntries,
   getTimelineEntryCount,
-  clearTimelineEntries,
   removeRecordingBuffer,
   isEntryBuffered,
   getBufferStats,

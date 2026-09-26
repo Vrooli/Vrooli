@@ -10,7 +10,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
 // mockHTTPHandler creates a test HTTP server that responds to session lifecycle requests.
@@ -150,8 +153,8 @@ func TestManager_ApplyDefaults_FrameStreaming(t *testing.T) {
 		ViewportWidth:  1280,
 		ViewportHeight: 720,
 		FrameStreaming: &FrameStreamingConfig{
-			Quality: 80,      // Should be preserved
-			FPS:     12,      // Should be preserved
+			Quality: 80,       // Should be preserved
+			FPS:     12,       // Should be preserved
 			Scale:   "device", // Should be preserved
 		},
 	}
@@ -284,6 +287,41 @@ func TestManager_Close_RemovesSession(t *testing.T) {
 	// Verify active count is 0
 	if m.ActiveCount() != 0 {
 		t.Errorf("expected 0 active sessions, got %d", m.ActiveCount())
+	}
+}
+
+func TestManager_DirectSessionCloseDeregistersSession(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/session/start", func(w http.ResponseWriter, r *http.Request) {
+		_ = r.Body.Close()
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"session_id":      "direct-close-session",
+			"actual_viewport": map[string]any{"width": 1280, "height": 720, "source": "requested"},
+		})
+	})
+	mux.HandleFunc("/session/direct-close-session/close", func(w http.ResponseWriter, r *http.Request) {
+		_ = r.Body.Close()
+		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
+	if err != nil {
+		t.Fatalf("create client: %v", err)
+	}
+	m := NewManagerWithClient(client)
+	sess, err := m.Create(context.Background(), Spec{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Mode: ModeExecution})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if err := sess.Close(context.Background()); err != nil {
+		t.Fatalf("direct session close: %v", err)
+	}
+	if got := m.ActiveCount(); got != 0 {
+		t.Fatalf("active sessions after direct close = %d, want 0", got)
 	}
 }
 
@@ -563,6 +601,18 @@ func TestManager_ReuseMode_Default(t *testing.T) {
 	if applied2.ReuseMode != "fresh" {
 		t.Errorf("expected ReuseMode 'fresh', got '%s'", applied2.ReuseMode)
 	}
+}
+
+func TestManager_BuildRequestCarriesSessionProfileVersion(t *testing.T) {
+	m := &Manager{}
+	request := m.buildRequest(Spec{
+		ExecutionID:           uuid.New(),
+		WorkflowID:            uuid.New(),
+		Mode:                  ModeExecution,
+		SessionProfileVersion: "opaque-profile-context-version",
+	})
+
+	require.Equal(t, "opaque-profile-context-version", request.SessionProfileVersion)
 }
 
 // =============================================================================
@@ -954,4 +1004,45 @@ func TestManager_WithExecutionArtifactsRoot_TrimsWhitespace(t *testing.T) {
 	if m.executionArtifactsRoot != "/artifacts/path" {
 		t.Errorf("expected whitespace to be trimmed, got '%s'", m.executionArtifactsRoot)
 	}
+}
+
+func TestRepeatedStartPreservesTransportSequenceAcrossLiveHandles(t *testing.T) {
+	var mu sync.Mutex
+	highWater := float64(17)
+	var sequences []float64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		if request.URL.Path == "/session/start" {
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"session_id": "same-session", "lease_id": "same-lease", "last_instruction_sequence": highWater}))
+			return
+		}
+		var body map[string]any
+		require.NoError(t, json.NewDecoder(request.Body).Decode(&body))
+		sequence, _ := body["operation_sequence"].(float64)
+		sequences = append(sequences, sequence)
+		if sequence > highWater {
+			highWater = sequence
+		}
+		_, _ = w.Write([]byte(`{"success":true}`))
+	}))
+	defer server.Close()
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	manager := NewManagerWithClient(client)
+	spec := Spec{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Mode: ModeExecution}
+	first, err := manager.Create(context.Background(), spec)
+	require.NoError(t, err)
+	instruction := contracts.CompiledInstruction{NodeID: "node", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_CLICK}}
+	_, err = first.Run(context.Background(), instruction)
+	require.NoError(t, err)
+	second, err := manager.Create(context.Background(), spec)
+	require.NoError(t, err)
+	_, err = first.Run(context.Background(), instruction)
+	require.NoError(t, err)
+	_, err = second.Run(context.Background(), instruction)
+	require.NoError(t, err)
+	mu.Lock()
+	defer mu.Unlock()
+	require.Equal(t, []float64{18, 19, 20}, sequences, "start retries cannot fork/reset transport ownership")
 }

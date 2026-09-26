@@ -10,11 +10,11 @@
  * - Keyboard shortcuts: Escape (close), Ctrl+S (save)
  */
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { Menu, X, Users, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2, PanelRightOpen, Eye, LayoutDashboard, Activity } from 'lucide-react'
+import { Menu, X, Users, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2, PanelRightOpen, Eye, LayoutDashboard, Activity, UserPlus, LayoutGrid, Code, Archive } from 'lucide-react'
 import { TabList, TabTrigger } from '../shared/TabTrigger'
-import { cn } from '@/lib/utils'
+import { cn, compactIdentityLabel } from '@/lib/utils'
 import type { TeamDetails, UpdateTeamRequest, TeamRole, TeamMember, AddMemberRequest, UpdateMemberRequest } from '@/types/team'
 import type { Agent } from '@/types/agent'
 import type { HighlightRequest } from '@/lib/highlight'
@@ -24,10 +24,14 @@ import { selectors } from '@/constants/selectors'
 import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel'
 import { useIsCompactHeader, useIsMobile } from '@/hooks/useMediaQuery'
 import { useTeamEditorStore } from '@/hooks/useTeamEditorStore'
+import { useGlobalKeydown } from '@/hooks/useGlobalKeydown'
+import { useTopicsGraph } from '@/hooks/useTopicsGraph'
 import * as orgChartService from '@/services/orgChartService'
 
 import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
 import { OrgChartPanel } from './OrgChartPanel'
+import { ManagedTeamsPanel } from './ManagedTeamsPanel'
+import { TopicsGraphPanel } from './TopicsGraphPanel'
 import { MemberDetailPanel } from './MemberDetailPanel'
 import type { MemberDetailSection } from './MemberDetailPanel'
 import { TeamCodeView } from './TeamCodeView'
@@ -35,6 +39,7 @@ import { MemberPickerModal } from './teamTabs/MembersTab'
 import { TeamDashboardTab, TeamFilesTab, TeamPromptMatrixTab } from './teamTabs'
 import { TeamActivityTab } from './teamTabs/TeamActivityTab'
 import { formatRelativePastTime } from '@/lib/timeUtils'
+import { useTeamContractors } from '@/services/effortService'
 
 // ============================================================================
 // Types
@@ -42,7 +47,46 @@ import { formatRelativePastTime } from '@/lib/timeUtils'
 
 export type MembersViewMode = 'graph' | 'code'
 
+/**
+ * Graph sub-mode: hierarchy (managerId edges) vs topics (topics.json edges).
+ * Auto-defaults from team.coordination.reportingMode:
+ *   - 'none' → topics
+ *   - anything else → hierarchy
+ * Operator override (any explicit click) wins and persists per team.
+ */
+export type GraphMode = 'hierarchy' | 'topics'
+
+export type LayoutDirection = 'TB' | 'LR'
+
 const MEMBERS_VIEW_STORAGE_KEY = 'pm.teamMembersViewMode'
+const GRAPH_MODE_STORAGE_PREFIX = 'pm.teamGraphMode.'
+const LAYOUT_DIRECTION_STORAGE_PREFIX = 'pm.teamLayoutDirection.'
+
+function readGraphMode(teamId: string): GraphMode | null {
+  if (typeof window === 'undefined') return null
+  const stored = localStorage.getItem(GRAPH_MODE_STORAGE_PREFIX + teamId)
+  return stored === 'hierarchy' || stored === 'topics' ? stored : null
+}
+
+function writeGraphMode(teamId: string, mode: GraphMode): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(GRAPH_MODE_STORAGE_PREFIX + teamId, mode)
+}
+
+function readLayoutDirection(teamId: string): LayoutDirection {
+  if (typeof window === 'undefined') return 'TB'
+  const stored = localStorage.getItem(LAYOUT_DIRECTION_STORAGE_PREFIX + teamId)
+  return stored === 'LR' ? 'LR' : 'TB'
+}
+
+function writeLayoutDirection(teamId: string, dir: LayoutDirection): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(LAYOUT_DIRECTION_STORAGE_PREFIX + teamId, dir)
+}
+
+function autoDefaultGraphMode(reportingMode: string | undefined): GraphMode {
+  return reportingMode === 'none' ? 'topics' : 'hierarchy'
+}
 
 interface TeamEditorPanelProps {
   /** Current team being edited */
@@ -73,10 +117,18 @@ interface TeamEditorPanelProps {
   initialTab?: string | null
   /** Externally-requested sub-tab (e.g. from URL deep-link) */
   initialSubTab?: string | null
+  /** Externally-requested member id (e.g. from URL deep-link) */
+  initialMemberId?: string | null
+  /** Externally-requested member section (e.g. from URL deep-link) */
+  initialMemberSection?: MemberDetailSection | null
   /** Called when the active tab changes */
   onTabChange?: (tab: string) => void
   /** Called when the active sub-tab changes */
   onSubTabChange?: (subTab: string | null) => void
+  /** Called when the selected member changes (for URL persistence) */
+  onMemberSelect?: (agentId: string | null) => void
+  /** Called when the active member-detail section changes (for URL persistence) */
+  onMemberSectionChange?: (section: MemberDetailSection | null) => void
   /** Cross-reference highlight request */
   highlightRequest?: HighlightRequest | null
   /** Called after highlight is applied (clears URL params) */
@@ -85,6 +137,12 @@ interface TeamEditorPanelProps {
   className?: string
 }
 
+/** Keep public deep-link names compatible with the internal tab values. */
+export function normalizeTeamEditorTab(value: string | null | undefined): string {
+  return value === 'dashboard' ? 'info' : value ?? 'info'
+}
+
+/** Preserve the full editable name while giving narrow headers a useful identity label. */
 /**
  * Team editor panel component.
  */
@@ -103,19 +161,27 @@ export function TeamEditorPanel({
   onNavigateToAgentFiles,
   initialTab,
   initialSubTab,
+  initialMemberId,
+  initialMemberSection,
   onTabChange,
   onSubTabChange,
+  onMemberSelect,
+  onMemberSectionChange,
   highlightRequest,
   onHighlightHandled,
   className,
 }: TeamEditorPanelProps) {
+  const teamId = team?.id
+  const teamReportingMode = team?.coordination.reportingMode
+  const { contractors } = useTeamContractors(team?.effortRefs)
+
   // Active tab state
   const [activeTab, setActiveTab] = useState('info')
 
   // Respond to external tab navigation requests (e.g. from URL deep-link)
   useEffect(() => {
     if (initialTab) {
-      setActiveTab(initialTab)
+      setActiveTab(normalizeTeamEditorTab(initialTab))
     }
   }, [initialTab])
 
@@ -138,9 +204,29 @@ export function TeamEditorPanel({
   // Member picker modal state
   const [showMemberPicker, setShowMemberPicker] = useState(false)
 
-  // Navigation request for MemberDetailPanel (set via Info tab heartbeat click).
-  // The nonce ensures repeated clicks always trigger the section switch.
-  const [memberSectionNav, setMemberSectionNav] = useState<{ section: MemberDetailSection; nonce: number } | null>(null)
+  // Active member-detail section (controlled via URL or programmatic nav).
+  const [memberSection, setMemberSection] = useState<MemberDetailSection>(
+    initialMemberSection ?? 'overview',
+  )
+
+  // Validation sidebar visibility (lifted from TopicsGraphPanel so it can be
+  // auto-collapsed when MemberDetailPanel opens).
+  const [showValidation, setShowValidation] = useState(true)
+  const userValidationPrefRef = useRef(true)
+  const handleValidationToggle = useCallback(() => {
+    setShowValidation((v) => {
+      const next = !v
+      userValidationPrefRef.current = next
+      return next
+    })
+  }, [])
+
+  // Topics graph (single source of truth — also feeds the Members-tab pill).
+  const { graph: topicsGraph } = useTopicsGraph(teamId)
+  const validationCount = useMemo(() => {
+    if (!topicsGraph) return 0
+    return topicsGraph.validation.errors + topicsGraph.validation.warnings
+  }, [topicsGraph])
 
   // Members view mode (graph vs code)
   const [membersViewMode, setMembersViewMode] = useState<MembersViewMode>(() => {
@@ -149,12 +235,46 @@ export function TeamEditorPanel({
     return stored === 'code' ? 'code' : 'graph'
   })
 
+  // Graph sub-mode (hierarchy vs topics) — per-team; auto-default derived
+  // from team.coordination.reportingMode unless an explicit pick is stored.
+  // Initialized to 'hierarchy' as a safe placeholder; the team-change effect
+  // immediately recomputes once `team` is known.
+  const [graphMode, setGraphMode] = useState<GraphMode>('hierarchy')
+
+  // Recompute graph-mode whenever the active team changes. Stored override
+  // (per-team) wins; otherwise auto-default from reportingMode.
+  useEffect(() => {
+    if (!teamId || !teamReportingMode) return
+    const stored = readGraphMode(teamId)
+    setGraphMode(stored ?? autoDefaultGraphMode(teamReportingMode))
+  }, [teamId, teamReportingMode])
+
+  // Hierarchy layout direction — per-team; default 'TB' (vertical).
+  const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>('TB')
+
+  // Recompute layout direction on team change.
+  useEffect(() => {
+    if (!teamId) return
+    setLayoutDirection(readLayoutDirection(teamId))
+  }, [teamId])
+
   // Persist view mode preference
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem(MEMBERS_VIEW_STORAGE_KEY, membersViewMode)
     }
   }, [membersViewMode])
+
+  // Operator override: persists per-team and updates state.
+  const handleSetGraphMode = useCallback((mode: GraphMode) => {
+    setGraphMode(mode)
+    if (teamId) writeGraphMode(teamId, mode)
+  }, [teamId])
+
+  const handleSetLayoutDirection = useCallback((dir: LayoutDirection) => {
+    setLayoutDirection(dir)
+    if (teamId) writeLayoutDirection(teamId, dir)
+  }, [teamId])
 
   // Team editor store
   const selectedMemberId = useTeamEditorStore((state) => state.selectedMemberId)
@@ -164,6 +284,62 @@ export function TeamEditorPanel({
   const updateEdge = useTeamEditorStore((state) => state.updateEdge)
   const reset = useTeamEditorStore((state) => state.reset)
   const memberCount = team?.memberCount ?? team?.members.length ?? 0
+
+  // URL → store: sync only when the URL value itself changes. We compare
+  // against the last value we applied (a ref) rather than against the store,
+  // so an in-component selection (which is mirrored TO the URL by the effect
+  // below) does not boomerang back and overwrite itself.
+  const lastAppliedUrlMemberIdRef = useRef<string | null | undefined>(undefined)
+  useEffect(() => {
+    if (initialMemberId === undefined) return
+    if (lastAppliedUrlMemberIdRef.current === initialMemberId) return
+    lastAppliedUrlMemberIdRef.current = initialMemberId
+    setSelectedMemberId(initialMemberId)
+  }, [initialMemberId, setSelectedMemberId])
+
+  // Store → URL: mirror selection out to the parent so it can update the URL.
+  const lastReportedMemberIdRef = useRef<string | null | undefined>(undefined)
+  useEffect(() => {
+    if (lastReportedMemberIdRef.current === selectedMemberId) return
+    lastReportedMemberIdRef.current = selectedMemberId
+    // Treat URL writes as "already applied" so the URL→store effect above
+    // skips the immediate echo back.
+    lastAppliedUrlMemberIdRef.current = selectedMemberId
+    onMemberSelect?.(selectedMemberId)
+  }, [selectedMemberId, onMemberSelect])
+
+  // URL → state: sync section only when URL value changes. Same ref-based
+  // pattern as memberId to avoid bounce-back loops.
+  const lastAppliedUrlSectionRef = useRef<MemberDetailSection | null | undefined>(undefined)
+  useEffect(() => {
+    if (initialMemberSection === undefined) return
+    if (lastAppliedUrlSectionRef.current === initialMemberSection) return
+    lastAppliedUrlSectionRef.current = initialMemberSection
+    if (initialMemberSection !== null) {
+      setMemberSection(initialMemberSection)
+    }
+  }, [initialMemberSection])
+
+  // State → URL: mirror section out (cleared when no member is selected).
+  const lastReportedSectionRef = useRef<MemberDetailSection | null | undefined>(undefined)
+  useEffect(() => {
+    const next = selectedMemberId ? memberSection : null
+    if (lastReportedSectionRef.current === next) return
+    lastReportedSectionRef.current = next
+    lastAppliedUrlSectionRef.current = next
+    onMemberSectionChange?.(next)
+  }, [memberSection, selectedMemberId, onMemberSectionChange])
+
+  // Auto-collapse validation sidebar when MemberDetailPanel opens; restore the
+  // user's previous preference when it closes. This avoids the right-side
+  // collision identified in the workshop without going to a 3-column layout.
+  useEffect(() => {
+    if (selectedMemberId) {
+      setShowValidation(false)
+    } else {
+      setShowValidation(userValidationPrefRef.current)
+    }
+  }, [selectedMemberId])
 
   // Split panel for members tab
   const { width, isResizing, isCollapsed, containerRef, handleResizeStart, expand, collapse } = useResizableSplitPanel({
@@ -177,22 +353,21 @@ export function TeamEditorPanel({
 
   // Load org chart edges when team changes
   useEffect(() => {
-    if (!team) {
+    if (!teamId) {
       reset()
       return
     }
 
     const loadEdges = async () => {
       try {
-        const orgEdges = await orgChartService.getEdges(team.id)
+        const orgEdges = await orgChartService.getEdges(teamId)
         setEdges(orgEdges)
       } catch (error) {
         console.error('[TeamEditorPanel] Failed to load org chart edges:', error)
       }
     }
     void loadEdges()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Only re-run when team ID changes
-  }, [team?.id, setEdges, reset])
+  }, [teamId, setEdges, reset])
 
   // Get selected member
   const selectedMember = useMemo(() => {
@@ -278,7 +453,13 @@ export function TeamEditorPanel({
 
   const handleToggleTeam = useCallback(async () => {
     if (!team) return
+    if (team.archived) return
     await onUpdate({ enabled: !team.enabled })
+  }, [team, onUpdate])
+
+  const handleToggleArchive = useCallback(async () => {
+    if (!team) return
+    await onUpdate({ archived: !team.archived, enabled: team.archived ? false : false })
   }, [team, onUpdate])
 
   // Handle edge update
@@ -306,7 +487,7 @@ export function TeamEditorPanel({
   // Navigate to a member's heartbeat tab (from Info tab upcoming heartbeats)
   const handleNavigateToMemberHeartbeat = useCallback(
     (agentId: string) => {
-      setMemberSectionNav((prev) => ({ section: 'heartbeat', nonce: (prev?.nonce ?? 0) + 1 }))
+      setMemberSection('heartbeat')
       setSelectedMemberId(agentId)
       setActiveTab('members')
     },
@@ -316,6 +497,7 @@ export function TeamEditorPanel({
   // Navigate to a member in the Members tab (from role member chips)
   const handleNavigateToMember = useCallback(
     (agentId: string) => {
+      setMemberSection('overview')
       setSelectedMemberId(agentId)
       setActiveTab('members')
     },
@@ -343,22 +525,14 @@ export function TeamEditorPanel({
   )
 
   // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Escape: deselect member or close editor
-      if (e.key === 'Escape') {
-        if (selectedMemberId) {
-          setSelectedMemberId(null)
-        } else {
-          onClose()
-        }
-        return
-      }
+  useGlobalKeydown((e) => {
+    if (e.key !== 'Escape') return
+    if (selectedMemberId) {
+      setSelectedMemberId(null)
+      return
     }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedMemberId, setSelectedMemberId, onClose])
+    onClose()
+  })
 
   // Empty state when no team selected
   if (!team) {
@@ -376,11 +550,11 @@ export function TeamEditorPanel({
   }
 
   return (
-    <div className={cn('h-full flex flex-col bg-card/50', className)}>
+    <div className={cn('h-full min-w-0 max-w-full flex flex-col bg-card/50 overflow-x-hidden', className)}>
       {/* Header */}
       {!showDetailOnly && (
         <div
-          className="flex-shrink-0 px-4 py-3 border-b border-border space-y-2"
+          className="flex-shrink-0 space-y-1.5 border-b border-border px-3 py-2 sm:space-y-2 sm:px-4 sm:py-3"
           data-testid={selectors.teamEditor.header}
         >
           {/* Row 1: Close, Icon, Name */}
@@ -389,7 +563,7 @@ export function TeamEditorPanel({
             <button
               type="button"
               onClick={onOpenSidebar ?? onClose}
-              className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+              className="min-h-11 min-w-11 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
               aria-label={isMobileSidebarToggle ? 'Open sidebar' : 'Close editor'}
               title={isMobileSidebarToggle ? 'Open sidebar' : 'Close (Esc)'}
             >
@@ -398,18 +572,18 @@ export function TeamEditorPanel({
 
             {/* Team icon with health dot */}
             <div className="flex-shrink-0 relative">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary/20">
-                <Users className="h-5 w-5 text-primary" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 sm:h-10 sm:w-10">
+                <Users className="h-4 w-4 text-primary sm:h-5 sm:w-5" />
               </div>
               <span
                 className={cn(
-                  'absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card',
+                'absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card sm:h-3 sm:w-3',
                   teamHealth === 'green' && 'bg-emerald-500',
                   teamHealth === 'yellow' && 'bg-amber-500',
                   teamHealth === 'red' && 'bg-red-500',
                   teamHealth === 'gray' && 'bg-slate-500',
                 )}
-                title={teamHealth === 'green' ? 'Healthy' : teamHealth === 'yellow' ? 'Some failures' : teamHealth === 'red' ? 'Failing' : 'Disabled'}
+                title={teamHealth === 'green' ? 'Latest recorded heartbeat completed; outcome acceptance is separate' : teamHealth === 'yellow' ? 'Some recorded heartbeat failures' : teamHealth === 'red' ? 'Latest recorded heartbeat failed' : 'Scheduling disabled or execution evidence unavailable'}
               />
             </div>
 
@@ -419,10 +593,11 @@ export function TeamEditorPanel({
                 value={team.displayName}
                 onChange={(value) => void handleNameChange(value)}
                 placeholder="Team name"
-                className="text-lg font-semibold"
+                displayValue={isMobile ? compactIdentityLabel(team.displayName) : team.displayName}
+                className="block max-w-[min(52vw,22rem)] overflow-hidden break-words text-base font-semibold leading-tight line-clamp-1 sm:max-w-none sm:text-lg sm:line-clamp-2"
               />
               {lastActiveAt && (
-                <p className="text-[11px] text-muted-foreground -mt-0.5">
+                <p className="-mt-0.5 hidden text-[11px] text-muted-foreground sm:block">
                   Last active: {formatRelativePastTime(new Date(lastActiveAt))}
                 </p>
               )}
@@ -432,14 +607,15 @@ export function TeamEditorPanel({
               <button
                 type="button"
                 onClick={() => void handleToggleTeam()}
+                disabled={team.archived}
                 className={cn(
                   'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border transition-colors max-[389px]:hidden',
                   team.enabled
                     ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/25'
                     : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
                 )}
-                title={team.enabled ? 'Turn team off' : 'Turn team on'}
-                aria-label={team.enabled ? 'Turn team off' : 'Turn team on'}
+                title={team.archived ? 'Restore the team before enabling it' : team.enabled ? 'Turn team off' : 'Turn team on'}
+                aria-label={team.archived ? 'Team archived' : team.enabled ? 'Turn team off' : 'Turn team on'}
                 aria-pressed={team.enabled}
               >
                 <Power className="h-3.5 w-3.5" />
@@ -450,7 +626,7 @@ export function TeamEditorPanel({
                 label="More actions"
                 showChevron={false}
                 align="right"
-                className="h-9 w-9 p-0 rounded-lg"
+                className="min-h-11 min-w-11 p-0 rounded-lg"
               >
                 {isCompactHeader && (
                   <DropdownItem
@@ -459,6 +635,11 @@ export function TeamEditorPanel({
                     label={team.enabled ? 'Turn team off' : 'Turn team on'}
                   />
                 )}
+                <DropdownItem
+                  onClick={() => void handleToggleArchive()}
+                  icon={<Archive className="h-4 w-4" />}
+                  label={team.archived ? 'Restore team' : 'Archive team'}
+                />
                 <DropdownItem
                   onClick={onDelete}
                   disabled={isDeleting}
@@ -469,12 +650,16 @@ export function TeamEditorPanel({
             </div>
           </div>
 
-          {/* Row 2: Expandable mission */}
-          <div className="flex items-start gap-2">
+          {/* Row 2: Expandable mission. The dashboard owns the mission hero; keep
+              this compact disclosure for the other tabs so the overview does not
+              repeat the same decision context twice. */}
+          {activeTab !== 'info' && <div className="flex min-w-0 items-center gap-1.5 sm:items-start sm:gap-2">
             <button
               type="button"
               onClick={() => setIsMissionExpanded(!isMissionExpanded)}
-              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              aria-expanded={isMissionExpanded}
+              aria-label={isMissionExpanded ? 'Hide mission' : 'Show full mission'}
+              className="flex min-h-11 shrink-0 items-center gap-1 rounded px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               {isMissionExpanded ? (
                 <ChevronUp className="h-4 w-4" />
@@ -489,12 +674,22 @@ export function TeamEditorPanel({
                 placeholder="Add a mission statement..."
                 className="flex-1"
               />
-            ) : (
-              <p className="flex-1 text-sm text-muted-foreground truncate">
-                {team.mission || 'No mission statement'}
-              </p>
+              ) : (
+              <>
+                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:hidden">Mission</span>
+                <p className="min-w-0 flex-1 break-words text-xs text-muted-foreground line-clamp-2 sm:text-sm sm:line-clamp-2" title={team.mission || undefined}>
+                  {team.mission || 'No mission statement'}
+                </p>
+              </>
             )}
-          </div>
+          </div>}
+          {activeTab !== 'info' && ((team.managedTeamIds?.length ?? 0) > 0 || (team.managedByTeamIds?.length ?? 0) > 0) ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs" data-testid="team-management-summary">
+              <span className="font-semibold uppercase tracking-wide text-muted-foreground">Team management</span>
+              {(team.managedTeamIds?.length ?? 0) > 0 && <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-violet-700 dark:text-violet-300">Manages {team.managedTeamIds?.length} team{team.managedTeamIds?.length === 1 ? '' : 's'}</span>}
+              {(team.managedByTeamIds?.length ?? 0) > 0 && <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-sky-700 dark:text-sky-300">Managed by {team.managedByTeamIds?.length} team{team.managedByTeamIds?.length === 1 ? '' : 's'}</span>}
+            </div>
+          ) : null}
         </div>
       )}
 
@@ -502,7 +697,7 @@ export function TeamEditorPanel({
       <Tabs.Root
         value={activeTab}
         onValueChange={handleTabChange}
-        className="flex-1 flex flex-col min-h-0 overflow-hidden"
+        className="flex-1 min-w-0 max-w-full flex flex-col min-h-0 overflow-hidden"
       >
         {/* Tab List */}
         {!showDetailOnly && (
@@ -511,7 +706,11 @@ export function TeamEditorPanel({
             <TabTrigger
               value="members"
               icon={<Users className="h-4 w-4" />}
-              label={`Members (${memberCount})`}
+              label={
+                validationCount > 0
+                  ? `Members (${memberCount}) • ${validationCount}`
+                  : `Members (${memberCount})`
+              }
             />
             <TabTrigger value="files" icon={<Folder className="h-4 w-4" />} label="Files" />
             <TabTrigger value="prompts" icon={<Eye className="h-4 w-4" />} label="Prompts" />
@@ -520,95 +719,204 @@ export function TeamEditorPanel({
         )}
 
         {/* Tab Content */}
-        <div className="flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-w-0 max-w-full min-h-0 flex flex-col">
           {/* Members tab - Split panel layout with view mode toggle */}
           <Tabs.Content
             value="members"
             className="flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden"
           >
             {/* Content area */}
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 flex flex-col">
+              <ManagedTeamsPanel team={team} />
+              {membersViewMode === 'code' && contractors.length > 0 && (
+                <div className="flex-shrink-0 border-b border-border bg-muted/20 px-3 py-2" data-testid="contractor-roster">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Contractors · {contractors.length} runtime worker{contractors.length === 1 ? '' : 's'}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{contractors.map((contractor) => `${contractor.displayName} (${contractor.role})`).join(' · ')}</p>
+                </div>
+              )}
               {membersViewMode === 'graph' ? (
-                <div
-                  ref={containerRef}
-                  className={cn('h-full flex relative', isResizing && 'select-none')}
-                >
-                  {/* Left panel: Org Chart */}
+                <>
+                  {/* Members-tab toolbar (graph mode toggle, layout direction, code view, add member) */}
                   {!showDetailOnly && (
-                    <div className="flex-1 min-w-0 h-full">
-                      <OrgChartPanel
-                        team={team}
-                        edges={edges}
-                        allAgents={allAgents}
-                        selectedMemberId={selectedMemberId}
-                      onSelectMember={setSelectedMemberId}
-                      onEdgeUpdate={(agentId, managerId) => void handleEdgeUpdate(agentId, managerId)}
-                      onAddMember={() => setShowMemberPicker(true)}
-                      onSwitchToCode={handleSwitchToCode}
-                      className="h-full"
-                    />
-                  </div>
-                )}
+                    <div className="flex-shrink-0 flex items-center gap-2 px-2 py-1 border-b border-border bg-card/50">
+                      <div className="flex items-center gap-1">
+                        <span
+                          className="text-[10px] uppercase tracking-wide text-muted-foreground mr-1 select-none"
+                          aria-hidden="true"
+                        >
+                          Graph
+                        </span>
+                        <span
+                          className="h-3 w-px bg-border mr-1"
+                          aria-hidden="true"
+                        />
+                        {(['hierarchy', 'topics'] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() => handleSetGraphMode(mode)}
+                            className={cn(
+                              'px-2 py-0.5 text-xs rounded transition-colors',
+                              graphMode === mode
+                                ? 'bg-primary text-primary-foreground'
+                                : 'text-muted-foreground hover:bg-muted',
+                            )}
+                            data-testid={`graph-mode-${mode}`}
+                            aria-pressed={graphMode === mode}
+                          >
+                            {mode === 'hierarchy' ? 'Hierarchy' : 'Topics'}
+                          </button>
+                        ))}
+                      </div>
 
-                  {/* Expand button when panel is collapsed */}
-                  {isCollapsed && selectedMember && !showDetailOnly && (
-                    <button
-                      type="button"
-                      onClick={expand}
-                      className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shadow-sm"
-                      title="Show member details"
-                      aria-label="Show member details"
-                    >
-                      <PanelRightOpen className="h-4 w-4" />
-                    </button>
+                      <div className="ml-auto flex items-center gap-2">
+                        {graphMode === 'hierarchy' && edges.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => handleSetLayoutDirection(layoutDirection === 'TB' ? 'LR' : 'TB')}
+                            className={cn(
+                              'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg',
+                              'bg-card border border-border text-foreground hover:bg-muted transition-colors',
+                            )}
+                            title={`Layout: ${layoutDirection === 'TB' ? 'Vertical' : 'Horizontal'}`}
+                            aria-label="Toggle layout direction"
+                            data-testid="hierarchy-layout-toggle"
+                          >
+                            <LayoutGrid className="h-3.5 w-3.5" />
+                            {!isMobile && (
+                              <span>{layoutDirection === 'TB' ? 'Layout: Vertical' : 'Layout: Horizontal'}</span>
+                            )}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleSwitchToCode}
+                          className={cn(
+                            'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg',
+                            'bg-card border border-border text-foreground hover:bg-muted transition-colors',
+                          )}
+                          title="Switch to code view"
+                          aria-label="Code View"
+                          data-testid="members-code-view"
+                        >
+                          <Code className="h-3.5 w-3.5" />
+                          {!isMobile && <span>Code View</span>}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowMemberPicker(true)}
+                          className={cn(
+                            'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg',
+                            'bg-primary text-primary-foreground hover:bg-primary/90 transition-colors',
+                          )}
+                          title="Add member"
+                          aria-label="Add Member"
+                          data-testid="members-add-member"
+                        >
+                          <UserPlus className="h-3.5 w-3.5" />
+                          {!isMobile && <span>Add Member</span>}
+                        </button>
+                      </div>
+                    </div>
                   )}
 
-                  {/* Resize handle + Right panel: Member detail (conditional) */}
-                  {selectedMember && !showDetailOnly && !isCollapsed && (
-                    <>
-                      {/* Resize handle */}
+                  <div
+                    ref={containerRef}
+                    className={cn('flex-1 min-h-0 flex relative', isResizing && 'select-none')}
+                  >
+                    {/* Left panel: graph (Hierarchy | Topics) */}
+                    {!showDetailOnly && (
+                      <div className="flex-1 min-w-0 h-full">
+                        {graphMode === 'topics' ? (
+                          <TopicsGraphPanel
+                            teamId={team.id}
+                            onSelectMember={(agentId) => {
+                              setMemberSection('overview')
+                              setSelectedMemberId(agentId)
+                            }}
+                            showValidation={showValidation}
+                            onValidationToggle={handleValidationToggle}
+                            onOpenMemberFile={(_team, _member, fileName) => {
+                              if (onNavigateToAgentFiles) {
+                                onNavigateToAgentFiles(_member, fileName)
+                              }
+                            }}
+                            className="h-full"
+                          />
+                        ) : (
+                          <OrgChartPanel
+                            team={team}
+                            contractors={contractors}
+                            edges={edges}
+                            allAgents={allAgents}
+                            selectedMemberId={selectedMemberId}
+                            onSelectMember={setSelectedMemberId}
+                            onEdgeUpdate={(agentId, managerId) => void handleEdgeUpdate(agentId, managerId)}
+                            onAddMember={() => setShowMemberPicker(true)}
+                            layoutDirection={layoutDirection}
+                            className="h-full"
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Expand button when panel is collapsed */}
+                    {isCollapsed && selectedMember && !showDetailOnly && (
+                      <button
+                        type="button"
+                        onClick={expand}
+                        className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shadow-sm"
+                        title="Show member details"
+                        aria-label="Show member details"
+                      >
+                        <PanelRightOpen className="h-4 w-4" />
+                      </button>
+                    )}
+
+                    {/* Resize handle + Right panel: Member detail (conditional) */}
+                    {selectedMember && !showDetailOnly && !isCollapsed && (
                       <div
                         onMouseDown={handleResizeStart}
                         className={cn(
                           'flex-shrink-0 w-1.5 cursor-col-resize relative group',
                           'hover:bg-primary/30 transition-colors',
-                          isResizing && 'bg-primary/50'
+                          isResizing && 'bg-primary/50',
                         )}
                       >
                         <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-4 flex items-center justify-center">
                           <GripVertical className="h-4 w-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                       </div>
-                    </>
-                  )}
+                    )}
 
-                  {/* Right panel: Member detail */}
-                  {selectedMember && !isCollapsed && (
-                    <div
-                      style={{ width: detailPanelWidth }}
-                      className={cn(
-                        'flex-shrink-0 h-full overflow-hidden',
-                        !showDetailOnly && 'border-l border-border'
-                      )}
-                    >
-                      <MemberDetailPanel
-                        team={team}
-                        member={selectedMember}
-                        appearance={selectedMemberAppearance}
-                        manager={selectedMemberManager}
-                        directReports={selectedMemberReports}
-                        initialSection={memberSectionNav?.section}
-                        initialSectionNonce={memberSectionNav?.nonce}
-                        onUpdateMember={onUpdateMember}
-                        onRemoveMember={handleRemoveMember}
-                        onClose={() => setSelectedMemberId(null)}
-                        onCollapse={collapse}
-                        onNavigateToAgentFiles={onNavigateToAgentFiles}
-                        className="h-full"
-                      />
-                    </div>
-                  )}
-                </div>
+                    {/* Right panel: Member detail */}
+                    {selectedMember && !isCollapsed && (
+                      <div
+                        style={{ width: detailPanelWidth }}
+                        className={cn(
+                          'flex-shrink-0 h-full overflow-hidden',
+                          !showDetailOnly && 'border-l border-border',
+                        )}
+                      >
+                        <MemberDetailPanel
+                          team={team}
+                          member={selectedMember}
+                          appearance={selectedMemberAppearance}
+                          manager={selectedMemberManager}
+                          directReports={selectedMemberReports}
+                          section={memberSection}
+                          onSectionChange={setMemberSection}
+                          onUpdateMember={onUpdateMember}
+                          onRemoveMember={handleRemoveMember}
+                          onClose={() => setSelectedMemberId(null)}
+                          onCollapse={collapse}
+                          onNavigateToAgentFiles={onNavigateToAgentFiles}
+                          className="h-full"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </>
               ) : (
                 <TeamCodeView
                   team={team}
@@ -623,7 +931,7 @@ export function TeamEditorPanel({
 
           <Tabs.Content
             value="info"
-            className="flex-1 min-h-0 overflow-y-auto p-4 data-[state=inactive]:hidden"
+            className="flex-1 min-h-0 min-w-0 max-w-full overflow-x-hidden overflow-y-auto p-4 data-[state=inactive]:hidden"
           >
             <TeamDashboardTab
               team={team}
@@ -638,10 +946,11 @@ export function TeamEditorPanel({
 
           <Tabs.Content
             value="files"
-            className="flex-1 min-h-0 data-[state=inactive]:hidden"
+            className="flex-1 min-h-0 min-w-0 max-w-full overflow-x-hidden data-[state=inactive]:hidden"
           >
             <TeamFilesTab
               teamId={team.id}
+              showEffortWorkspaces={team.purpose === 'delivery' && team.lifetime === 'finite'}
               highlightRequest={highlightRequest}
               onHighlightHandled={onHighlightHandled}
               className="h-full min-h-0"
@@ -666,7 +975,6 @@ export function TeamEditorPanel({
               teamId={team.id}
               members={team.members}
               allAgents={allAgents}
-              decisionMode={team.decisionMode}
               initialSubTab={initialSubTab}
               onSubTabChange={(subTab) => onSubTabChange?.(subTab)}
               className="h-full min-h-0"
@@ -686,4 +994,3 @@ export function TeamEditorPanel({
     </div>
   )
 }
-

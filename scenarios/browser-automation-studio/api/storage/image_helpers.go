@@ -3,8 +3,10 @@ package storage
 import (
 	"bytes"
 	"image"
+	"mime"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // decodeDimensions extracts image width/height from raw bytes.
@@ -29,4 +31,21 @@ func decodeDimensions(payload []byte) (int, int) {
 	}
 
 	return width, height
+}
+
+// screenshotExtension keeps durable screenshot object names aligned with their media type.
+func screenshotExtension(contentType string) string {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return ".png"
+	}
+
+	switch strings.ToLower(mediaType) {
+	case "image/jpeg":
+		return ".jpg"
+	case "image/gif":
+		return ".gif"
+	default:
+		return ".png"
+	}
 }

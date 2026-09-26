@@ -1,0 +1,7 @@
+syntax = "proto3";
+package vrooli.nutrition_planner.v1.eligibility;
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/eligibility;eligibility_v1";
+service EligibilityService { rpc Evaluate(EvaluateRequest) returns (EvaluateResponse); }
+message EvaluateRequest { string workspace_id=1; int64 profile_revision=2; int64 recipe_revision=3; repeated string excluded_groups=4; repeated string allergies=5; repeated string appliances=6; repeated string recipe_groups=7; repeated string required_appliances=8; map<string,string> allergen_evidence=9; repeated string method_ids=10; }
+message EligibilityReason { string code=1; string rule=2; string reference=3; string message=4; repeated string viable_method_ids=5; }
+message EvaluateResponse { string status=1; repeated EligibilityReason reasons=2; int64 profile_revision=3; int64 recipe_revision=4; string evaluator_version=5; }

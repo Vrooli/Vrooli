@@ -69,6 +69,7 @@ interface GraphFilters {
   showTeams: boolean
   showAgents: boolean
   showSkills: boolean
+  showActions?: boolean
   showCLIs: boolean
   collapseCLIs: boolean
   showLowSignalEdges: boolean
@@ -91,6 +92,7 @@ function getDefaultFilters(): GraphFilters {
     showTeams: true,
     showAgents: true,
     showSkills: true,
+    showActions: true,
     showCLIs: true,
     collapseCLIs: false,
     showLowSignalEdges: true,
@@ -128,6 +130,7 @@ function loadGraphViewSettings(): GraphViewSettingsSnapshot {
       showTeams: typeof filtersRaw.showTeams === 'boolean' ? filtersRaw.showTeams : defaultFilters.showTeams,
       showAgents: typeof filtersRaw.showAgents === 'boolean' ? filtersRaw.showAgents : defaultFilters.showAgents,
       showSkills: typeof filtersRaw.showSkills === 'boolean' ? filtersRaw.showSkills : defaultFilters.showSkills,
+      showActions: typeof filtersRaw.showActions === 'boolean' ? filtersRaw.showActions : defaultFilters.showActions,
       showCLIs: typeof filtersRaw.showCLIs === 'boolean' ? filtersRaw.showCLIs : defaultFilters.showCLIs,
       collapseCLIs: typeof filtersRaw.collapseCLIs === 'boolean' ? filtersRaw.collapseCLIs : defaultFilters.collapseCLIs,
       showLowSignalEdges: typeof filtersRaw.showLowSignalEdges === 'boolean' ? filtersRaw.showLowSignalEdges : defaultFilters.showLowSignalEdges,
@@ -345,6 +348,7 @@ export function selectFilteredNodes(state: GraphStore): GraphNode[] {
     if (node.type === 'team' && !filters.showTeams) return false
     if (node.type === 'agent' && !filters.showAgents) return false
     if (node.type === 'skill' && !filters.showSkills) return false
+    if (node.type === 'action' && filters.showActions === false) return false
     if (node.type === 'cli' && !filters.showCLIs) return false
 
     // Health threshold filter

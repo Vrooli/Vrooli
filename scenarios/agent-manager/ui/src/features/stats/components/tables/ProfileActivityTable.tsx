@@ -6,15 +6,19 @@ import { useProfileBreakdown } from "../../hooks/useProfileBreakdown";
 import {
   formatPercent,
   formatNumber,
+  formatTokens,
 } from "../../utils/formatters";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { formatUsdFixed } from "../../../../lib/currency";
+import { MeasureFrame } from "../measure/MeasureFrame";
+import { useMeasureDefinitions } from "../../hooks/useMeasureDefinitions";
 
-type SortField = "profileName" | "runCount" | "successRate" | "totalCostUsd";
+type SortField = "profileName" | "runCount" | "successRate" | "totalCostUsd" | "totalTokens";
 type SortDirection = "asc" | "desc";
 
 export function ProfileActivityTable() {
   const { data, isLoading, error } = useProfileBreakdown();
+  const definitions = useMeasureDefinitions();
   const [sortField, setSortField] = useState<SortField>("runCount");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
@@ -38,28 +42,6 @@ export function ProfileActivityTable() {
     );
   };
 
-  if (isLoading) {
-    return (
-      <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
-        <div className="mb-4 h-5 w-36 animate-pulse rounded bg-muted/30" />
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-10 animate-pulse rounded bg-muted/20" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 sm:p-6">
-        <h3 className="text-sm font-semibold">Profile Activity</h3>
-        <p className="mt-2 text-sm text-red-500">Failed to load: {error.message}</p>
-      </div>
-    );
-  }
-
   const profiles = data?.profiles ?? [];
 
   // Sort data
@@ -81,8 +63,8 @@ export function ProfileActivityTable() {
         bVal = b.totalCostUsd;
         break;
       default:
-        aVal = a[sortField];
-        bVal = b[sortField];
+        aVal = a[sortField] ?? 0;
+        bVal = b[sortField] ?? 0;
     }
 
     if (typeof aVal === "string" && typeof bVal === "string") {
@@ -96,6 +78,7 @@ export function ProfileActivityTable() {
   });
 
   return (
+    <MeasureFrame label="Profile activity" result={data?.measure} definition={definitions.data?.find((item) => item.id === "throughput.profile_breakdown")} loading={isLoading} error={error?.message}>
     <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6 overflow-hidden">
       <h3 className="mb-2 sm:mb-4 text-sm font-semibold text-muted-foreground">
         Profile Activity
@@ -139,6 +122,11 @@ export function ProfileActivityTable() {
                     Cost {getSortIcon("totalCostUsd")}
                   </button>
                 </th>
+                <th className="pb-2">
+                  <button onClick={() => handleSort("totalTokens")} className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
+                    Tokens {getSortIcon("totalTokens")}
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -178,6 +166,7 @@ export function ProfileActivityTable() {
                     <td className="py-2 tabular-nums">
                       {formatUsdFixed(profile.totalCostUsd, 2)}
                     </td>
+                    <td className="py-2 tabular-nums">{formatTokens(profile.totalTokens ?? 0)}</td>
                   </tr>
                 );
               })}
@@ -186,5 +175,6 @@ export function ProfileActivityTable() {
         </div>
       )}
     </div>
+    </MeasureFrame>
   );
 }

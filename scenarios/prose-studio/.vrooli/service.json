@@ -1,0 +1,167 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "prose-studio",
+    "displayName": "Prose Studio",
+    "description": "Governed natural-language generation: a query plus a named writing style becomes a measured set of candidate outputs, converged to one committed document",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-08-16T06:48:11Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "a03095c2f8c1ca51deeaa91182a4d7de08db6b7744aff3d0b58eaef9017de936",
+    "content_sha": "a8b2a3025441b1e658f96935a24e446e45a3524fa138824c99d642e5d51506e9"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "prose-studio",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "prose-studio"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "ai-gateway": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "The only inference path. Every candidate is produced through typed inference on the write.default (quality lane) and write.diverse (candidate-set lane) roles. This scenario names no model, holds no vendor credential, and speaks no vendor protocol, which is also what makes its metering Class A without implementing metering here.",
+        "degraded_behavior": "Generation refuses with a named error identifying the role. Styles, profiles, declarations, sessions, and every committed document stay fully readable. No direct-to-vendor fallback is ever attempted, and a partial candidate set is never presented as complete.",
+        "supervision_precedence": "required"
+      },
+      "search-hub": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Provider registration so styles and committed documents are reachable from federated query.",
+        "degraded_behavior": "Federated reach is lost; local retrieval and every generation path are unaffected."
+      },
+      "brand-manager": {
+        "type": "scenario",
+        "enabled": false,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Resolves an optional brand reference carried on a style record. That reference is the entire coupling: this scenario owns prose voice and never visual identity. Disabled until a style actually carries one.",
+        "degraded_behavior": "A style carrying an unresolved brand reference reports it unresolved; prose generation is unaffected."
+      },
+      "content-desk": {
+        "type": "scenario",
+        "enabled": false,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "First intended declaring consumer, listed for documentation rather than for calling. The dependency direction is inverted: content-desk calls this scenario and declares its own profiles under its own .vrooli/prose-studio/ folder. This scenario hardcodes nothing about it.",
+        "degraded_behavior": "Not applicable; this scenario never calls content-desk."
+      }
+    }
+  },
+  "credentials": {},
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

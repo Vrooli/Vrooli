@@ -1,0 +1,1 @@
+{ "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json", "kind": "experience-page", "schemaVersion": "1.0.0", "page": { "id": "network", "title": "Network Metrics", "routes": ["/metrics/network"], "purpose": "Inspect connection state and network history.", "prd_refs": ["OT-P0-001"] } }

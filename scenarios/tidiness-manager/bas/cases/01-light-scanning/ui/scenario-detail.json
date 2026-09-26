@@ -9,138 +9,136 @@
     "surface": "ui",
     "capability": "01-light-scanning",
     "reset": "none",
-    "version": 1,
+    "version": "1",
     "execution_mode": "observer"
   },
   "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
+    "viewport_width": 1440,
+    "viewport_height": 900
   },
   "nodes": [
     {
       "id": "navigate-detail",
-      "type": "navigate",
-      "data": {
-        "label": "Navigate to scenario detail page",
-        "destinationType": "url",
-        "url": "http://localhost:{{UI_PORT}}/scenario/tidiness-manager"
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "tidiness-manager",
+          "scenario_path": "/scenario/tidiness-manager",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to scenario detail page"
+        }
       }
     },
     {
       "id": "wait-for-table",
-      "type": "wait",
-      "data": {
-        "label": "Wait for file table to load",
-        "waitType": "duration",
-        "durationMs": 1000,
-        "timeoutMs": 5000
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/fileTable",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for file table"
+        }
       }
     },
     {
       "id": "assert-path-header",
-      "type": "assert",
-      "data": {
-        "label": "Verify file path column exists",
-        "selector": "@selector/fileTableHeader.path",
-        "assertMode": "exists",
-        "failureMessage": "File path column header should be visible"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/fileTableHeader.path",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "File path column header should be visible"
+        },
+        "metadata": {
+          "label": "Verify file path column exists"
+        }
       }
     },
     {
       "id": "assert-lines-header",
-      "type": "assert",
-      "data": {
-        "label": "Verify line count column exists",
-        "selector": "@selector/fileTableHeader.lines",
-        "assertMode": "exists",
-        "failureMessage": "Line count column header should be visible"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/fileTableHeader.lines",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Line count column header should be visible"
+        },
+        "metadata": {
+          "label": "Verify line count column exists"
+        }
       }
     },
     {
       "id": "assert-issues-header",
-      "type": "assert",
-      "data": {
-        "label": "Verify issue count column exists",
-        "selector": "@selector/fileTableHeader.issues",
-        "assertMode": "exists",
-        "failureMessage": "Issue count column header should be visible"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/fileTableHeader.issues",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Issue count column header should be visible"
+        },
+        "metadata": {
+          "label": "Verify issue count column exists"
+        }
       }
     },
     {
       "id": "click-sort-lines",
-      "type": "click",
-      "data": {
-        "label": "Click to sort by line count",
-        "selector": "@selector/fileTableHeader.lines",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/fileTableHeader.lines"
+        },
+        "metadata": {
+          "label": "Click to sort by line count"
+        }
       }
     },
     {
-      "id": "assert-rows-after-sort",
-      "type": "assert",
-      "data": {
-        "label": "Verify table rows exist after sort",
-        "selector": "@selector/fileTableRow",
-        "assertMode": "exists",
-        "failureMessage": "Table rows should remain visible after sorting"
+      "id": "assert-table-after-sort",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/fileTable",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "File table should remain visible after sorting, even when the current dataset is empty"
+        },
+        "metadata": {
+          "label": "Verify table remains visible after sort"
+        }
       }
     },
     {
       "id": "capture-detail",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture scenario detail state",
-        "fullPage": true,
-        "waitForMs": 500
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture scenario detail state"
+        }
       }
     }
   ],
   "edges": [
-    {
-      "id": "e1",
-      "source": "navigate-detail",
-      "target": "wait-for-table",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e2",
-      "source": "wait-for-table",
-      "target": "assert-path-header",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e3",
-      "source": "assert-path-header",
-      "target": "assert-lines-header",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e4",
-      "source": "assert-lines-header",
-      "target": "assert-issues-header",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e5",
-      "source": "assert-issues-header",
-      "target": "click-sort-lines",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6",
-      "source": "click-sort-lines",
-      "target": "assert-rows-after-sort",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e7",
-      "source": "assert-rows-after-sort",
-      "target": "capture-detail",
-      "type": "smoothstep"
-    }
+    { "id": "e1", "source": "navigate-detail", "target": "wait-for-table", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-for-table", "target": "assert-path-header", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "assert-path-header", "target": "assert-lines-header", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "assert-lines-header", "target": "assert-issues-header", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "assert-issues-header", "target": "click-sort-lines", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "click-sort-lines", "target": "assert-table-after-sort", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e7", "source": "assert-table-after-sort", "target": "capture-detail", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
   ]
 }

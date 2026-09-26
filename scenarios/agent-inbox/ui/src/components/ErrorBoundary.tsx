@@ -1,5 +1,6 @@
 import { Component, type ReactNode, type ErrorInfo } from "react";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
+import { Button } from "@vrooli/react-component-library/Button/2";
 
 /**
  * Props for the ErrorBoundary component.
@@ -125,20 +126,20 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               </div>
             )}
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button
+              <Button
                 onClick={this.handleRefresh}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
               >
                 <RefreshCw className="h-4 w-4" />
                 Refresh Page
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={this.handleGoHome}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors"
               >
                 <Home className="h-4 w-4" />
                 Go Home
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -163,13 +164,13 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               {error.message}
             </p>
           )}
-          <button
+          <Button
             onClick={this.handleRetry}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-800 hover:bg-slate-700 text-white rounded-md transition-colors"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             Try Again
-          </button>
+          </Button>
         </div>
       </div>
     );

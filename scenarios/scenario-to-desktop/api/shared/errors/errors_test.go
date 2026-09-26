@@ -304,6 +304,75 @@ func TestConvenienceConstructors(t *testing.T) {
 	})
 }
 
+func TestStageErrorConstructorsProvideActionableStructuredRecovery(t *testing.T) {
+	cause := errors.New("underlying failure")
+	context := map[string]string{"pipeline_id": "pipeline-1"}
+	constructors := []struct {
+		name string
+		err  *DomainError
+	}{
+		{"scenario unbundleable with alternatives", ErrScenarioUnbundleable("demo", "postgres", "not embeddable", []string{"sqlite"})},
+		{"scenario unbundleable without alternatives", ErrScenarioUnbundleable("demo", "postgres", "not embeddable", nil)},
+		{"template missing", ErrTemplateNotFound("react")},
+		{"pipeline not resumable", ErrPipelineNotResumable("pipeline-1", "terminal")},
+		{"pipeline orchestrator missing", ErrPipelineOrchestratorNotConfigured()},
+		{"pipeline stage invalid", ErrPipelineInvalidStage("ship")},
+		{"pipeline scenario required", ErrPipelineScenarioRequired()},
+		{"bundle manifest missing", ErrBundleManifestNotFound("/bundle.json")},
+		{"bundle manifest generation", ErrBundleManifestGeneration(cause)},
+		{"bundle packaging", ErrBundlePackagingFailed(cause, "/bundle")},
+		{"bundle service missing", ErrBundleServiceNotConfigured()},
+		{"preflight service missing", ErrPreflightServiceNotConfigured()},
+		{"preflight validation with findings", ErrPreflightValidationFailed(cause, []string{"port unavailable"})},
+		{"preflight validation without findings", ErrPreflightValidationFailed(cause, nil)},
+		{"preflight bundle missing", ErrPreflightBundleNotAvailable()},
+		{"preflight timeout", ErrPreflightTimeout("30s")},
+		{"analyzer missing", ErrGenerateAnalyzerNotConfigured()},
+		{"generation service missing", ErrGenerateServiceNotConfigured()},
+		{"scenario analysis", ErrScenarioAnalysisFailed(cause, "demo")},
+		{"scenario validation", ErrScenarioValidationFailed(cause, "demo")},
+		{"desktop config", ErrDesktopConfigFailed(cause)},
+		{"generation timeout", ErrGenerationTimeout("build-1", "30s")},
+		{"generation failure", ErrGenerationFailed(cause)},
+		{"build service missing", ErrBuildServiceNotConfigured()},
+		{"build store missing", ErrBuildStoreNotConfigured()},
+		{"build desktop path missing", ErrBuildDesktopPathMissing()},
+		{"build start", ErrBuildStartFailed(cause, "linux")},
+		{"build timeout", ErrBuildTimedOut("build-1", "30s")},
+		{"deploy failure", ErrDeployFailed(cause, "remote")},
+		{"deploy timeout", ErrDeployTimeout("deploy-1", "30s")},
+		{"smoke artifact missing", ErrSmokeTestArtifactNotFound("/app")},
+		{"smoke execution", ErrSmokeTestExecutionFailed(cause, context)},
+		{"smoke timeout", ErrSmokeTestTimeout("30s", context)},
+		{"smoke validation", ErrSmokeTestValidationFailed(context)},
+		{"smoke telemetry", ErrSmokeTestTelemetryFailed(cause, context)},
+		{"smoke storage", ErrSmokeTestStoreFailed(cause)},
+		{"smoke cancelled", ErrSmokeTestCancelled()},
+	}
+	for _, platform := range []string{"linux", "mac", "win", "other"} {
+		constructors = append(constructors,
+			struct {
+				name string
+				err  *DomainError
+			}{"build platform " + platform, ErrBuildPlatformFailed(cause, platform, "last output")},
+			struct {
+				name string
+				err  *DomainError
+			}{"smoke platform " + platform, ErrSmokeTestPlatformError(cause, platform)},
+		)
+	}
+	for _, tt := range constructors {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.err == nil || tt.err.Domain == "" || tt.err.Code == "" || tt.err.Message == "" {
+				t.Fatalf("constructor returned incomplete error: %#v", tt.err)
+			}
+			if tt.err.Recovery != "" && tt.err.RecoveryHint == "" {
+				t.Fatalf("constructor omitted recovery guidance: %#v", tt.err)
+			}
+		})
+	}
+}
+
 // assertDomainError is a helper that checks code, domain, detail key/value, and cause on a DomainError.
 func assertDomainError(t *testing.T, err *DomainError, wantCode ErrorCode, wantDomain string, detailKey string, detailVal interface{}, wantCause error) {
 	t.Helper()

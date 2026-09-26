@@ -1,0 +1,2815 @@
+{
+  "schema_version": 1,
+  "assessment": "REFRACTOR_ASSESSMENT.md",
+  "assembled_at": "2026-09-21T23:55:40.221942+00:00",
+  "observation_date": "2026-09-21",
+  "source_inventory": {
+    "schema_version": 1,
+    "observed_at": "2026-09-21T23:55:40.176157+00:00",
+    "head": "129da6b96062fad08f53b34228ae16801befdf79",
+    "scenario_worktree_status": [
+      " M scenarios/browser-automation-studio/docs/PROBLEMS.md",
+      " M scenarios/browser-automation-studio/docs/concepts/ARCHITECTURE.md",
+      " M scenarios/browser-automation-studio/playwright-driver/src/routes/session-audio.ts",
+      " M scenarios/browser-automation-studio/playwright-driver/src/routes/session-start.ts",
+      " M scenarios/browser-automation-studio/playwright-driver/src/server.ts",
+      " M scenarios/browser-automation-studio/playwright-driver/src/session/manager.ts",
+      " M scenarios/browser-automation-studio/playwright-driver/src/types/session.ts",
+      "?? scenarios/browser-automation-studio/docs/internal/REFRACTOR_ASSESSMENT.md",
+      "?? scenarios/browser-automation-studio/docs/internal/refactor_inventory.py"
+    ],
+    "source_digest_sha256": "2df361d5baaaf501715527e57993b6024ca63e798713f5d9e655a9682f584f43",
+    "method": {
+      "population": "Git-tracked Go/TS/TSX/JS/MJS/Python files; physical lines include blanks and comments.",
+      "excluded": [
+        "coverage",
+        "dist",
+        "gen",
+        "generated",
+        "node_modules",
+        "vendor",
+        "filenames containing .generated."
+      ],
+      "runtime": "api/cli Go and ui/driver src, excluding named tests, testutil/testing directories, testutil_* and test-setup* helpers.",
+      "limits": "Not AST complexity, coverage or code-quality score. Runtime recording/testing diagnostics are excluded from main-path count. Untracked and ignored generated desktop trees are excluded. Shared worktree can change during scan."
+    },
+    "surfaces": {
+      ".vrooli": {
+        "tracked_source_files": 9,
+        "tracked_source_lines": 2376,
+        "runtime_files": 0,
+        "runtime_lines": 0,
+        "runtime_over_500_lines": 0,
+        "runtime_over_1000_lines": 0
+      },
+      "api": {
+        "tracked_source_files": 634,
+        "tracked_source_lines": 157506,
+        "runtime_files": 422,
+        "runtime_lines": 94165,
+        "runtime_over_500_lines": 44,
+        "runtime_over_1000_lines": 10
+      },
+      "bas": {
+        "tracked_source_files": 2,
+        "tracked_source_lines": 546,
+        "runtime_files": 0,
+        "runtime_lines": 0,
+        "runtime_over_500_lines": 0,
+        "runtime_over_1000_lines": 0
+      },
+      "cli": {
+        "tracked_source_files": 74,
+        "tracked_source_lines": 5382,
+        "runtime_files": 43,
+        "runtime_lines": 3179,
+        "runtime_over_500_lines": 0,
+        "runtime_over_1000_lines": 0
+      },
+      "playwright-driver": {
+        "tracked_source_files": 354,
+        "tracked_source_lines": 90527,
+        "runtime_files": 210,
+        "runtime_lines": 55567,
+        "runtime_over_500_lines": 25,
+        "runtime_over_1000_lines": 4
+      },
+      "ui": {
+        "tracked_source_files": 794,
+        "tracked_source_lines": 150708,
+        "runtime_files": 685,
+        "runtime_lines": 131532,
+        "runtime_over_500_lines": 56,
+        "runtime_over_1000_lines": 11
+      }
+    },
+    "largest_runtime_files": [
+      {
+        "path": "api/automation/executor/simple_executor.go",
+        "lines": 1899,
+        "bytes": 63482,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "03ed4beba4c42c83cf64e47f3d7972ddbfdb8b9af00ca72d4bb1c59b55c2ce02"
+      },
+      {
+        "path": "playwright-driver/src/recording/capture/browser-scripts/recording-script.js",
+        "lines": 1626,
+        "bytes": 51138,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "9ce636040c0591341a82d4e1a17bec4a980bb42372cbb8fbe18ccf69eaa4e572"
+      },
+      {
+        "path": "ui/src/domains/recording/RecordingSession.tsx",
+        "lines": 1560,
+        "bytes": 61427,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "99ef04b56539e3cc8253d9351a0445f6476e9fab1cd1f81db961056ba18a49d3"
+      },
+      {
+        "path": "api/automation/execution-writer/file_writer.go",
+        "lines": 1510,
+        "bytes": 50326,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "61dd59786acee6d8d5ac3d5200b7ba6435c43c8da2d31ac35d1dc5a2b4e574ae"
+      },
+      {
+        "path": "api/automation/compiler/compiler.go",
+        "lines": 1337,
+        "bytes": 42287,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "e668f31261a9f85022a4fc15bb23ac2f7e7fa2e9a93e9cfa8f22b145ad2c9416"
+      },
+      {
+        "path": "playwright-driver/src/recording/orchestration/pipeline-manager.ts",
+        "lines": 1328,
+        "bytes": 42683,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "7a9b30e41189c7e06f5da7a91c1f518a311344cacbd655cbc2a6b60e09bd290f"
+      },
+      {
+        "path": "ui/src/domains/replay-style/catalog.tsx",
+        "lines": 1290,
+        "bytes": 48663,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "7b9e7f1a05735367464190b3af7e9455ba5e69e73622e317b751504bc4c35d29"
+      },
+      {
+        "path": "api/handlers/record_mode.go",
+        "lines": 1274,
+        "bytes": 43684,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "b7f35205756ba0f579fa403c8d82f40002713a08bc9784d0e6df5756c44d0d05"
+      },
+      {
+        "path": "ui/src/shared/onboarding/GuidedTour.tsx",
+        "lines": 1267,
+        "bytes": 42546,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "d0ec122ea66e29545b3c2bc8b7a7cfba99a1dbd596dd8ea5a91ed936b55319b9"
+      },
+      {
+        "path": "playwright-driver/src/session/manager.ts",
+        "lines": 1256,
+        "bytes": 47431,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "117350b730a64a73b90e29bf111735ee4f101aab8f6b222f5160ce09154c2acd"
+      },
+      {
+        "path": "api/main.go",
+        "lines": 1242,
+        "bytes": 54600,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "dc1bf80d65bf0970b9ac7244f6d7a92b5cf01654456fa5a76644e7b6e7ac6b6d"
+      },
+      {
+        "path": "api/services/credits/service.go",
+        "lines": 1215,
+        "bytes": 39751,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "384ff54a57fbdb7f255c3fe4bb4a260fbf848e56a736e381fbcedd74bd396aed"
+      },
+      {
+        "path": "api/automation/driver/client.go",
+        "lines": 1153,
+        "bytes": 40924,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "9cadae6081ea1f40c9f28a1bd980136763a61d7728f2069322b68daabb4beb14"
+      },
+      {
+        "path": "ui/src/domains/recording/timeline/TimelineFullView.tsx",
+        "lines": 1140,
+        "bytes": 54568,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "396cb1eaedaa5d238ad5469e91ad32fff516f0871874c40ce76cbad29b8169b5"
+      },
+      {
+        "path": "ui/src/export/ReplayExportPage.tsx",
+        "lines": 1136,
+        "bytes": 36761,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "b99f3be2d2ed69b4a28da89267a0e30f40047a750d1c06350459d4b8cbdc4873"
+      },
+      {
+        "path": "api/services/export/html_bundle.go",
+        "lines": 1133,
+        "bytes": 32603,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "aab7b22eab3373e45091d5d94b2129025db5d38fcd37c24c5a739c5c5322638d"
+      },
+      {
+        "path": "ui/src/shared/layout/Header.tsx",
+        "lines": 1126,
+        "bytes": 42976,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "3aca3f21ba2810aeb2e7585d7c9236c4b84ee80ed32c81c66e6a82389051d513"
+      },
+      {
+        "path": "api/internal/protoconv/driver_convert.go",
+        "lines": 1100,
+        "bytes": 27655,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "de11a02e41fd5f1635e4f42c5b5ea400c0ccb822957609f71fb5b7b3bba4473f"
+      },
+      {
+        "path": "ui/src/domains/workflows/builder/WorkflowBuilder.tsx",
+        "lines": 1077,
+        "bytes": 34593,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "ce872ff88c8ac0f4280f9ec2b613cbcd281819e9075e019db5322d7df62162a9"
+      },
+      {
+        "path": "ui/src/domains/executions/store.ts",
+        "lines": 1064,
+        "bytes": 39156,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "fc35a82d33bb9b38efabc90138d1f0d483f7471f9ce9e0b926e2603ee7ae66c6"
+      },
+      {
+        "path": "playwright-driver/src/ai/vision-agent/agent.ts",
+        "lines": 1063,
+        "bytes": 37782,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "b7c3780315b64b5d685b91d28dd56a679ffd89d474f57fc945e2979e016a87e7"
+      },
+      {
+        "path": "ui/src/domains/projects/ProjectFileTree.tsx",
+        "lines": 1046,
+        "bytes": 37022,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "07e972d7bd2cec928ce369f54fd5be1800ebe677c8539e681ce9ccca15c2dc08"
+      },
+      {
+        "path": "ui/src/domains/recording/timeline/ActionTimeline.tsx",
+        "lines": 1042,
+        "bytes": 51552,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "fd0b01dd72fb57703cabcfe00bdc7fd2801ff8f420f4de511eefb213475dc89c"
+      },
+      {
+        "path": "ui/src/utils/actionBuilder.ts",
+        "lines": 1026,
+        "bytes": 28021,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "38b30f957c7df59edc609401cc33576a186b158eeaa325edd469aba80cf30b61"
+      },
+      {
+        "path": "api/database/repository.go",
+        "lines": 1002,
+        "bytes": 39032,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "e7fa258ac9e666278362f09515eced7213425e6a9ded9192eda6b35338df8cb2"
+      },
+      {
+        "path": "api/config/config.go",
+        "lines": 983,
+        "bytes": 42099,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "17fb9afadbaec6578025ac9edbdf75dc7328822da154bea550845b2f02ccd537"
+      },
+      {
+        "path": "playwright-driver/src/config.ts",
+        "lines": 937,
+        "bytes": 44691,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "4e9908273e30b884b7ef697679c60a4f1145b9bc6d91c02e9b85e58120052895"
+      },
+      {
+        "path": "api/services/recording/service.go",
+        "lines": 882,
+        "bytes": 25353,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "ddcefb5637268f2b184c8fa2e9ee5bb898391f7f87946d5fd4b3e4ac54e453e8"
+      },
+      {
+        "path": "api/owner_cleanup.go",
+        "lines": 879,
+        "bytes": 30836,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "b7f50b41a39ddf5656a6dfd38c116f924d3c83342ab79b971db7cd3601bdc06d"
+      },
+      {
+        "path": "ui/src/domains/projects/ProjectDetailHeader.tsx",
+        "lines": 878,
+        "bytes": 31969,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "3749a75a24d54c313e604f4d60c887ad6dfafcb4be51e48cb274413da0771681"
+      }
+    ],
+    "source_extensions": {
+      ".py": 9,
+      ".go": 710,
+      ".js": 9,
+      ".ts": 759,
+      ".mjs": 9,
+      ".tsx": 371
+    }
+  },
+  "runtime_build_matches_source": "unknown",
+  "lifecycle": "Scenario: browser-automation-studio\nDisplay name: Vrooli Ascension\nStatus: running\nHealth: healthy\nDescription: Visual browser automation studio with AI-powered workflow builder and real-time debugging\nPath: /home/matthalloran8/Vrooli/scenarios/browser-automation-studio\nStarted at: 2026-09-21T03:14:06Z\nRuntime: registry\nPorts: API_PORT=17116, PLAYWRIGHT_DRIVER_FRAMES_PORT=24438, PLAYWRIGHT_DRIVER_METRICS_PORT=24478, PLAYWRIGHT_DRIVER_PORT=24485, UI_PORT=21794\n\nProcesses:\n  start-api pid=1647308 started=2026-09-21T03:14:18Z\n  start-ui pid=1647326 started=2026-09-21T03:14:18Z\n",
+  "sessions": {
+    "result": {
+      "sessions": [],
+      "summary": {
+        "active": 0,
+        "active_recordings": 0,
+        "capacity": 10,
+        "idle": 0,
+        "total": 0
+      },
+      "timestamp": "2026-09-21T23:41:42.394Z"
+    }
+  },
+  "driver_metrics": {
+    "result": {
+      "metrics": {
+        "playwright_driver_circuit_breaker_state_changes_total": {
+          "help": "Circuit breaker state changes for recording callbacks (opened, closed)",
+          "type": "counter",
+          "values": []
+        },
+        "playwright_driver_cleanup_failures_total": {
+          "help": "Total number of cleanup failures by operation type (page_close, context_close, tracing_stop, browser_close, recording_stop)",
+          "type": "counter",
+          "values": []
+        },
+        "playwright_driver_frame_capture_latency_ms": {
+          "help": "Time to capture screenshot from Playwright (page.screenshot()) in milliseconds",
+          "type": "histogram",
+          "values": []
+        },
+        "playwright_driver_frame_e2e_latency_ms": {
+          "help": "Driver-side end-to-end frame processing time (capture + compare + send) in milliseconds",
+          "type": "histogram",
+          "values": []
+        },
+        "playwright_driver_frame_skip_total": {
+          "help": "Total frames skipped (not sent to API) by reason",
+          "type": "counter",
+          "values": []
+        },
+        "playwright_driver_instruction_duration_ms": {
+          "help": "Instruction execution duration in milliseconds",
+          "type": "histogram",
+          "values": [
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10",
+                "success": "true",
+                "type": "navigate"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "50",
+                "success": "true",
+                "type": "navigate"
+              },
+              "value": 1306
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "100",
+                "success": "true",
+                "type": "navigate"
+              },
+              "value": 4285
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "250",
+                "success": "true",
+                "type": "navigate"
+              },
+              "value": 8112
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "500",
+                "success": "true",
+                "type": "navigate"
+              },
+              "value": 9340
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "1000",
+                "success": "true",
+                "type": "navigate"
+              },
+              "value": 9575
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "2500",
+                "success": "true",
+                "type": "navigate"
+              },
+              "value": 9689
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "5000",
+                "success": "true",
+                "type": "navigate"
+              },
+              "value": 9723
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10000",
+                "success": "true",
+                "type": "navigate"
+              },
+              "value": 9739
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "+Inf",
+                "success": "true",
+                "type": "navigate"
+              },
+              "value": 9739
+            },
+            {
+              "labels": {
+                "_suffix": "_sum",
+                "success": "true",
+                "type": "navigate"
+              },
+              "value": 1842902
+            },
+            {
+              "labels": {
+                "_suffix": "_count",
+                "success": "true",
+                "type": "navigate"
+              },
+              "value": 9739
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10",
+                "success": "false",
+                "type": "evaluate"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "50",
+                "success": "false",
+                "type": "evaluate"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "100",
+                "success": "false",
+                "type": "evaluate"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "250",
+                "success": "false",
+                "type": "evaluate"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "500",
+                "success": "false",
+                "type": "evaluate"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "1000",
+                "success": "false",
+                "type": "evaluate"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "2500",
+                "success": "false",
+                "type": "evaluate"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "5000",
+                "success": "false",
+                "type": "evaluate"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10000",
+                "success": "false",
+                "type": "evaluate"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "+Inf",
+                "success": "false",
+                "type": "evaluate"
+              },
+              "value": 181
+            },
+            {
+              "labels": {
+                "_suffix": "_sum",
+                "success": "false",
+                "type": "evaluate"
+              },
+              "value": 2716132
+            },
+            {
+              "labels": {
+                "_suffix": "_count",
+                "success": "false",
+                "type": "evaluate"
+              },
+              "value": 181
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10",
+                "success": "true",
+                "type": "evaluate"
+              },
+              "value": 5457
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "50",
+                "success": "true",
+                "type": "evaluate"
+              },
+              "value": 6263
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "100",
+                "success": "true",
+                "type": "evaluate"
+              },
+              "value": 7813
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "250",
+                "success": "true",
+                "type": "evaluate"
+              },
+              "value": 8861
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "500",
+                "success": "true",
+                "type": "evaluate"
+              },
+              "value": 8951
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "1000",
+                "success": "true",
+                "type": "evaluate"
+              },
+              "value": 8954
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "2500",
+                "success": "true",
+                "type": "evaluate"
+              },
+              "value": 8954
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "5000",
+                "success": "true",
+                "type": "evaluate"
+              },
+              "value": 8954
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10000",
+                "success": "true",
+                "type": "evaluate"
+              },
+              "value": 8954
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "+Inf",
+                "success": "true",
+                "type": "evaluate"
+              },
+              "value": 8954
+            },
+            {
+              "labels": {
+                "_suffix": "_sum",
+                "success": "true",
+                "type": "evaluate"
+              },
+              "value": 357570
+            },
+            {
+              "labels": {
+                "_suffix": "_count",
+                "success": "true",
+                "type": "evaluate"
+              },
+              "value": 8954
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10",
+                "success": "true",
+                "type": "screenshot"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "50",
+                "success": "true",
+                "type": "screenshot"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "100",
+                "success": "true",
+                "type": "screenshot"
+              },
+              "value": 33
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "250",
+                "success": "true",
+                "type": "screenshot"
+              },
+              "value": 3301
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "500",
+                "success": "true",
+                "type": "screenshot"
+              },
+              "value": 7262
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "1000",
+                "success": "true",
+                "type": "screenshot"
+              },
+              "value": 8348
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "2500",
+                "success": "true",
+                "type": "screenshot"
+              },
+              "value": 8373
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "5000",
+                "success": "true",
+                "type": "screenshot"
+              },
+              "value": 8373
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10000",
+                "success": "true",
+                "type": "screenshot"
+              },
+              "value": 8373
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "+Inf",
+                "success": "true",
+                "type": "screenshot"
+              },
+              "value": 8373
+            },
+            {
+              "labels": {
+                "_suffix": "_sum",
+                "success": "true",
+                "type": "screenshot"
+              },
+              "value": 2705085
+            },
+            {
+              "labels": {
+                "_suffix": "_count",
+                "success": "true",
+                "type": "screenshot"
+              },
+              "value": 8373
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10",
+                "success": "true",
+                "type": "wait"
+              },
+              "value": 2
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "50",
+                "success": "true",
+                "type": "wait"
+              },
+              "value": 2692
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "100",
+                "success": "true",
+                "type": "wait"
+              },
+              "value": 3633
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "250",
+                "success": "true",
+                "type": "wait"
+              },
+              "value": 5849
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "500",
+                "success": "true",
+                "type": "wait"
+              },
+              "value": 7045
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "1000",
+                "success": "true",
+                "type": "wait"
+              },
+              "value": 7736
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "2500",
+                "success": "true",
+                "type": "wait"
+              },
+              "value": 7900
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "5000",
+                "success": "true",
+                "type": "wait"
+              },
+              "value": 8038
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10000",
+                "success": "true",
+                "type": "wait"
+              },
+              "value": 8069
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "+Inf",
+                "success": "true",
+                "type": "wait"
+              },
+              "value": 8069
+            },
+            {
+              "labels": {
+                "_suffix": "_sum",
+                "success": "true",
+                "type": "wait"
+              },
+              "value": 2324344
+            },
+            {
+              "labels": {
+                "_suffix": "_count",
+                "success": "true",
+                "type": "wait"
+              },
+              "value": 8069
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10",
+                "success": "false",
+                "type": "navigate"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "50",
+                "success": "false",
+                "type": "navigate"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "100",
+                "success": "false",
+                "type": "navigate"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "250",
+                "success": "false",
+                "type": "navigate"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "500",
+                "success": "false",
+                "type": "navigate"
+              },
+              "value": 1
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "1000",
+                "success": "false",
+                "type": "navigate"
+              },
+              "value": 14
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "2500",
+                "success": "false",
+                "type": "navigate"
+              },
+              "value": 28
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "5000",
+                "success": "false",
+                "type": "navigate"
+              },
+              "value": 30
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10000",
+                "success": "false",
+                "type": "navigate"
+              },
+              "value": 34
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "+Inf",
+                "success": "false",
+                "type": "navigate"
+              },
+              "value": 166
+            },
+            {
+              "labels": {
+                "_suffix": "_sum",
+                "success": "false",
+                "type": "navigate"
+              },
+              "value": 5825650
+            },
+            {
+              "labels": {
+                "_suffix": "_count",
+                "success": "false",
+                "type": "navigate"
+              },
+              "value": 166
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10",
+                "success": "false",
+                "type": "screenshot"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "50",
+                "success": "false",
+                "type": "screenshot"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "100",
+                "success": "false",
+                "type": "screenshot"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "250",
+                "success": "false",
+                "type": "screenshot"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "500",
+                "success": "false",
+                "type": "screenshot"
+              },
+              "value": 82
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "1000",
+                "success": "false",
+                "type": "screenshot"
+              },
+              "value": 88
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "2500",
+                "success": "false",
+                "type": "screenshot"
+              },
+              "value": 88
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "5000",
+                "success": "false",
+                "type": "screenshot"
+              },
+              "value": 88
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10000",
+                "success": "false",
+                "type": "screenshot"
+              },
+              "value": 261
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "+Inf",
+                "success": "false",
+                "type": "screenshot"
+              },
+              "value": 261
+            },
+            {
+              "labels": {
+                "_suffix": "_sum",
+                "success": "false",
+                "type": "screenshot"
+              },
+              "value": 905148
+            },
+            {
+              "labels": {
+                "_suffix": "_count",
+                "success": "false",
+                "type": "screenshot"
+              },
+              "value": 261
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10",
+                "success": "false",
+                "type": "wait"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "50",
+                "success": "false",
+                "type": "wait"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "100",
+                "success": "false",
+                "type": "wait"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "250",
+                "success": "false",
+                "type": "wait"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "500",
+                "success": "false",
+                "type": "wait"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "1000",
+                "success": "false",
+                "type": "wait"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "2500",
+                "success": "false",
+                "type": "wait"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "5000",
+                "success": "false",
+                "type": "wait"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10000",
+                "success": "false",
+                "type": "wait"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "+Inf",
+                "success": "false",
+                "type": "wait"
+              },
+              "value": 824
+            },
+            {
+              "labels": {
+                "_suffix": "_sum",
+                "success": "false",
+                "type": "wait"
+              },
+              "value": 24720390
+            },
+            {
+              "labels": {
+                "_suffix": "_count",
+                "success": "false",
+                "type": "wait"
+              },
+              "value": 824
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10",
+                "success": "true",
+                "type": "assert"
+              },
+              "value": 6
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "50",
+                "success": "true",
+                "type": "assert"
+              },
+              "value": 167
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "100",
+                "success": "true",
+                "type": "assert"
+              },
+              "value": 195
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "250",
+                "success": "true",
+                "type": "assert"
+              },
+              "value": 222
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "500",
+                "success": "true",
+                "type": "assert"
+              },
+              "value": 226
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "1000",
+                "success": "true",
+                "type": "assert"
+              },
+              "value": 226
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "2500",
+                "success": "true",
+                "type": "assert"
+              },
+              "value": 226
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "5000",
+                "success": "true",
+                "type": "assert"
+              },
+              "value": 226
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10000",
+                "success": "true",
+                "type": "assert"
+              },
+              "value": 226
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "+Inf",
+                "success": "true",
+                "type": "assert"
+              },
+              "value": 226
+            },
+            {
+              "labels": {
+                "_suffix": "_sum",
+                "success": "true",
+                "type": "assert"
+              },
+              "value": 10234
+            },
+            {
+              "labels": {
+                "_suffix": "_count",
+                "success": "true",
+                "type": "assert"
+              },
+              "value": 226
+            }
+          ]
+        },
+        "playwright_driver_instruction_errors": {
+          "help": "",
+          "type": "",
+          "values": [
+            {
+              "labels": {
+                "_suffix": "_total",
+                "error_kind": "1",
+                "type": "evaluate"
+              },
+              "value": 181
+            },
+            {
+              "labels": {
+                "_suffix": "_total",
+                "error_kind": "5",
+                "type": "navigate"
+              },
+              "value": 71
+            },
+            {
+              "labels": {
+                "_suffix": "_total",
+                "error_kind": "engine",
+                "type": "screenshot"
+              },
+              "value": 261
+            },
+            {
+              "labels": {
+                "_suffix": "_total",
+                "error_kind": "5",
+                "type": "wait"
+              },
+              "value": 824
+            },
+            {
+              "labels": {
+                "_suffix": "_total",
+                "error_kind": "1",
+                "type": "navigate"
+              },
+              "value": 95
+            }
+          ]
+        },
+        "playwright_driver_instruction_errors_total": {
+          "help": "Total number of instruction errors by type and error kind",
+          "type": "counter",
+          "values": []
+        },
+        "playwright_driver_recording_actions": {
+          "help": "",
+          "type": "",
+          "values": [
+            {
+              "labels": {
+                "_suffix": "_total"
+              },
+              "value": 0
+            }
+          ]
+        },
+        "playwright_driver_recording_actions_total": {
+          "help": "Total number of user actions recorded across all sessions",
+          "type": "counter",
+          "values": []
+        },
+        "playwright_driver_recording_callback_failures_total": {
+          "help": "Total number of recording callback streaming failures by reason (network, timeout, http_error)",
+          "type": "counter",
+          "values": []
+        },
+        "playwright_driver_recording_sessions_active": {
+          "help": "Current number of sessions with active recording",
+          "type": "gauge",
+          "values": [
+            {
+              "labels": {
+                "_suffix": "_value"
+              },
+              "value": 0
+            }
+          ]
+        },
+        "playwright_driver_screenshot_size_bytes": {
+          "help": "Screenshot size in bytes",
+          "type": "histogram",
+          "values": [
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10000"
+              },
+              "value": 3867
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "50000"
+              },
+              "value": 20570
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "100000"
+              },
+              "value": 28504
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "250000"
+              },
+              "value": 34754
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "500000"
+              },
+              "value": 36723
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "1000000"
+              },
+              "value": 36732
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "+Inf"
+              },
+              "value": 36732
+            },
+            {
+              "labels": {
+                "_suffix": "_sum"
+              },
+              "value": 2699792642
+            },
+            {
+              "labels": {
+                "_suffix": "_count"
+              },
+              "value": 36732
+            }
+          ]
+        },
+        "playwright_driver_session_duration_ms": {
+          "help": "Session lifetime duration in milliseconds",
+          "type": "histogram",
+          "values": [
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "1000"
+              },
+              "value": 18676
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "5000"
+              },
+              "value": 19518
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "10000"
+              },
+              "value": 19532
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "30000"
+              },
+              "value": 19654
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "60000"
+              },
+              "value": 19654
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "300000"
+              },
+              "value": 19654
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "600000"
+              },
+              "value": 19654
+            },
+            {
+              "labels": {
+                "_suffix": "_bucket",
+                "le": "+Inf"
+              },
+              "value": 19654
+            },
+            {
+              "labels": {
+                "_suffix": "_sum"
+              },
+              "value": 5637351
+            },
+            {
+              "labels": {
+                "_suffix": "_count"
+              },
+              "value": 19654
+            }
+          ]
+        },
+        "playwright_driver_sessions": {
+          "help": "Current number of sessions by state (active, total, idle)",
+          "type": "gauge",
+          "values": [
+            {
+              "labels": {
+                "_suffix": "_value",
+                "state": "active"
+              },
+              "value": 0
+            },
+            {
+              "labels": {
+                "_suffix": "_value",
+                "state": "total"
+              },
+              "value": 0
+            }
+          ]
+        },
+        "playwright_driver_telemetry_failures": {
+          "help": "",
+          "type": "",
+          "values": [
+            {
+              "labels": {
+                "_suffix": "_total",
+                "type": "screenshot"
+              },
+              "value": 234
+            },
+            {
+              "labels": {
+                "_suffix": "_total",
+                "type": "dom"
+              },
+              "value": 65
+            }
+          ]
+        },
+        "playwright_driver_telemetry_failures_total": {
+          "help": "Total number of telemetry capture failures (screenshot, dom)",
+          "type": "counter",
+          "values": []
+        }
+      },
+      "summary": {
+        "config": {
+          "enabled": true,
+          "port": 24478
+        },
+        "timestamp": "2026-09-21T23:41:42.214Z",
+        "total_metrics": 17
+      }
+    }
+  },
+  "driver_metrics_limit": "Lifetime counters of running driver, not same population as SQL measures or fresh corpus; no interactive frame samples.",
+  "hand_measure_reads": [
+    {
+      "command": "browser-automation-studio measures pass-rate --window last_7d",
+      "output": "Summary:\n  0.8758\nMeasure:\n  0.8758\nRetrieval Hints:\n  (none)\n",
+      "method": "Hand read after governed board failure; scalar only, sample count unavailable."
+    },
+    {
+      "command": "browser-automation-studio measures p95-duration --window last_7d",
+      "output": "Summary:\n  32226 ms\nMeasure:\n  32226 ms\nRetrieval Hints:\n  (none)\n",
+      "method": "Hand read after governed board failure; scalar only, sample count unavailable."
+    },
+    {
+      "command": "browser-automation-studio measures selector-failure-rate --window last_7d",
+      "output": "Summary:\n  0.0000\nMeasure:\n  0.0000\nRetrieval Hints:\n  (none)\n",
+      "method": "Hand read after governed board failure; scalar only, sample count unavailable."
+    },
+    {
+      "command": "browser-automation-studio measures step-failure-rate --window last_7d",
+      "output": "Summary:\n  0.0000\nMeasure:\n  0.0000\nRetrieval Hints:\n  (none)\n",
+      "method": "Hand read after governed board failure; scalar only, sample count unavailable."
+    }
+  ],
+  "setpoint_read": {
+    "program_id": "prog_477aa08b-5a1b-490d-99fa-2572b2acaa5b",
+    "inputs": {
+      "window": 100,
+      "evidence_sample": 5
+    },
+    "status": "failed",
+    "reason": "FAILURE_CAUSE_KERNEL_RUNTIME: wall-clock budget exhausted: ceiling=1m0s consumed=1m0.004s",
+    "rows": null
+  },
+  "swarm_goal_discovery": {
+    "status": "unavailable",
+    "reason": "swarm-manager stopped; no inference that goals are absent"
+  },
+  "resources": {
+    "measured_at": "2026-09-21T23:45:18.442526+00:00",
+    "roots": [
+      1647308,
+      1647326
+    ],
+    "processes": [
+      {
+        "pid": 1647308,
+        "ppid": 1,
+        "name": "browser-automat",
+        "rss_kib": 2613292
+      },
+      {
+        "pid": 1647326,
+        "ppid": 1,
+        "name": "node",
+        "rss_kib": 30172
+      },
+      {
+        "pid": 1647431,
+        "ppid": 1647308,
+        "name": "node",
+        "rss_kib": 195248
+      },
+      {
+        "pid": 1647459,
+        "ppid": 1647431,
+        "name": "chrome",
+        "rss_kib": 28000
+      },
+      {
+        "pid": 1647468,
+        "ppid": 1647459,
+        "name": "chrome",
+        "rss_kib": 5972
+      },
+      {
+        "pid": 1647469,
+        "ppid": 1647459,
+        "name": "chrome",
+        "rss_kib": 6240
+      },
+      {
+        "pid": 1647491,
+        "ppid": 1647468,
+        "name": "chrome",
+        "rss_kib": 11616
+      },
+      {
+        "pid": 1647495,
+        "ppid": 1647459,
+        "name": "chrome",
+        "rss_kib": 18816
+      },
+      {
+        "pid": 1647505,
+        "ppid": 1647469,
+        "name": "chrome",
+        "rss_kib": 7192
+      },
+      {
+        "pid": 1661021,
+        "ppid": 1647468,
+        "name": "chrome",
+        "rss_kib": 14704
+      },
+      {
+        "pid": 1801644,
+        "ppid": 1647459,
+        "name": "chrome",
+        "rss_kib": 12156
+      },
+      {
+        "pid": 1801800,
+        "ppid": 1647431,
+        "name": "chrome",
+        "rss_kib": 124828
+      },
+      {
+        "pid": 1801839,
+        "ppid": 1801800,
+        "name": "chrome",
+        "rss_kib": 6860
+      },
+      {
+        "pid": 1801840,
+        "ppid": 1801800,
+        "name": "chrome",
+        "rss_kib": 7992
+      },
+      {
+        "pid": 1801877,
+        "ppid": 1801839,
+        "name": "chrome",
+        "rss_kib": 27816
+      },
+      {
+        "pid": 1801878,
+        "ppid": 1801800,
+        "name": "chrome",
+        "rss_kib": 31200
+      },
+      {
+        "pid": 1801880,
+        "ppid": 1801840,
+        "name": "chrome",
+        "rss_kib": 12100
+      },
+      {
+        "pid": 1815499,
+        "ppid": 1801839,
+        "name": "chrome",
+        "rss_kib": 15152
+      },
+      {
+        "pid": 1829696,
+        "ppid": 1801840,
+        "name": "chrome",
+        "rss_kib": 13996
+      },
+      {
+        "pid": 2203966,
+        "ppid": 1801800,
+        "name": "chrome",
+        "rss_kib": 12664
+      }
+    ],
+    "rss_sum_mib": 3121.109375,
+    "caveat": "Single process RSS snapshot; shared pages double-counted; no PSS or controlled idle guarantee; excludes operator browser UI client.",
+    "host": {
+      "platform": "Linux",
+      "machine": "x86_64",
+      "cpu_count": 32,
+      "loadavg": [
+        12.638671875,
+        10.86181640625,
+        9.2119140625
+      ]
+    }
+  },
+  "capture": {
+    "program_id": "prog_eef245c0-a676-4b1e-9fb3-4ca20d921737",
+    "result": {
+      "program": "browser-automation-studio.capture-surface",
+      "version": "1",
+      "status": "ok",
+      "phase": "report",
+      "inputs": {
+        "url": "http://127.0.0.1:21794/",
+        "viewport": "1280x720",
+        "theme": "light",
+        "direction": "ltr",
+        "wait_for": null,
+        "wait_until": "domcontentloaded",
+        "settle_ms": 500,
+        "device_scale_factor": 1
+      },
+      "signals": {
+        "artifact_id": "1454e614-3f08-439f-ba76-0dc2e26ef00a",
+        "screenshot_ref": "bas-capture://1454e614-3f08-439f-ba76-0dc2e26ef00a/screenshot",
+        "snapshot_ref": "bas-capture://1454e614-3f08-439f-ba76-0dc2e26ef00a/dom_tree",
+        "url": "http://127.0.0.1:21794/",
+        "viewport": "1280x720",
+        "theme": "light",
+        "direction": "ltr",
+        "captured_at": null,
+        "readiness": {
+          "durationMs": "2830",
+          "navigationDurationMs": "402",
+          "outcome": "ready",
+          "readinessWaitDurationMs": "881",
+          "requestedStrategy": "explicit-delay",
+          "selectedStrategy": "explicit-delay"
+        }
+      },
+      "errors": [],
+      "evidence": [
+        "execution:1454e614-3f08-439f-ba76-0dc2e26ef00a",
+        "screenshot:bas-capture://1454e614-3f08-439f-ba76-0dc2e26ef00a/screenshot",
+        "snapshot:bas-capture://1454e614-3f08-439f-ba76-0dc2e26ef00a/dom_tree"
+      ]
+    },
+    "step_screenshots": {
+      "execution_id": "1454e614-3f08-439f-ba76-0dc2e26ef00a",
+      "screenshots": [
+        {
+          "screenshot": {
+            "artifact_id": "26d108f6-8382-44bd-a86c-e35b11f48914",
+            "url": "/api/v1/screenshots/1454e614-3f08-439f-ba76-0dc2e26ef00a/artifacts/screenshots/00001--capture--d2448be4-1925-4ff3-a275-d4d23c6386d0--ACTION_TYPE_NAVIGATE.png",
+            "thumbnail_url": "/api/v1/screenshots/1454e614-3f08-439f-ba76-0dc2e26ef00a/artifacts/screenshots/00001--capture--d2448be4-1925-4ff3-a275-d4d23c6386d0--ACTION_TYPE_NAVIGATE.png",
+            "width": 2560,
+            "height": 1440,
+            "content_type": "image/png",
+            "size_bytes": "54622"
+          },
+          "node_id": "d2448be4-1925-4ff3-a275-d4d23c6386d0",
+          "timestamp": "2026-09-21T23:45:20.171548707Z"
+        },
+        {
+          "screenshot": {
+            "artifact_id": "f4737b4a-c9a4-4df5-af46-38850d719ed9",
+            "url": "/api/v1/screenshots/1454e614-3f08-439f-ba76-0dc2e26ef00a/artifacts/screenshots/00002--capture--c08c614f-883f-465a-a9c9-f9edbc411955--ACTION_TYPE_WAIT.png",
+            "thumbnail_url": "/api/v1/screenshots/1454e614-3f08-439f-ba76-0dc2e26ef00a/artifacts/screenshots/00002--capture--c08c614f-883f-465a-a9c9-f9edbc411955--ACTION_TYPE_WAIT.png",
+            "width": 2560,
+            "height": 1440,
+            "content_type": "image/png",
+            "size_bytes": "469252"
+          },
+          "step_index": 1,
+          "node_id": "c08c614f-883f-465a-a9c9-f9edbc411955",
+          "timestamp": "2026-09-21T23:45:20.615639087Z"
+        },
+        {
+          "screenshot": {
+            "artifact_id": "2fa5a61c-f7cd-481c-b3a8-af00554dc994",
+            "url": "/api/v1/screenshots/1454e614-3f08-439f-ba76-0dc2e26ef00a/artifacts/screenshots/00003--capture--17471726-32ec-4109-a632-9b534c3e940a--ACTION_TYPE_EVALUATE.png",
+            "thumbnail_url": "/api/v1/screenshots/1454e614-3f08-439f-ba76-0dc2e26ef00a/artifacts/screenshots/00003--capture--17471726-32ec-4109-a632-9b534c3e940a--ACTION_TYPE_EVALUATE.png",
+            "width": 2560,
+            "height": 1440,
+            "content_type": "image/png",
+            "size_bytes": "469167"
+          },
+          "step_index": 2,
+          "node_id": "17471726-32ec-4109-a632-9b534c3e940a",
+          "timestamp": "2026-09-21T23:45:21.527930129Z"
+        },
+        {
+          "screenshot": {
+            "artifact_id": "9399c811-8034-46e1-9da6-db6f4c945b42",
+            "url": "/api/v1/screenshots/1454e614-3f08-439f-ba76-0dc2e26ef00a/artifacts/screenshots/00004--capture--e31ae3e9-7342-4402-844f-0c5b1ed04e05--ACTION_TYPE_EVALUATE.png",
+            "thumbnail_url": "/api/v1/screenshots/1454e614-3f08-439f-ba76-0dc2e26ef00a/artifacts/screenshots/00004--capture--e31ae3e9-7342-4402-844f-0c5b1ed04e05--ACTION_TYPE_EVALUATE.png",
+            "width": 2560,
+            "height": 1440,
+            "content_type": "image/png",
+            "size_bytes": "469079"
+          },
+          "step_index": 3,
+          "node_id": "e31ae3e9-7342-4402-844f-0c5b1ed04e05",
+          "timestamp": "2026-09-21T23:45:21.946021281Z"
+        }
+      ],
+      "total": 4
+    },
+    "final_screenshot_sha256": "310676891db55ecab8a0924fe018aa2c635d96b5da831aa563c720f29d651ca4",
+    "visual_inspection": "BAS dashboard rendered; no interactive behavior qualified",
+    "requested_scale_factor": 1,
+    "screenshot_bytes_total": 1462120
+  },
+  "historical_validation": {
+    "run_id": "20260909-201227-1e8ed2e9",
+    "started_at": "2026-09-09T20:12:29Z",
+    "completed_at": "2026-09-09T20:34:02Z",
+    "git_sha": "e1dc26b6f9acf3ec8156a6b861bb95e5703cd5ee",
+    "git_dirty": true,
+    "tree_digest": "td:04bcc4dbe26ec33e29776e1f213d74099f56523f491fc3958b6af2629b7e12dc",
+    "status": "failed",
+    "phases": [
+      {
+        "name": "portability",
+        "status": "passed",
+        "duration_seconds": 1,
+        "findings_summary": {}
+      },
+      {
+        "name": "structure",
+        "status": "passed",
+        "duration_seconds": 1,
+        "findings_summary": {}
+      },
+      {
+        "name": "contracts",
+        "status": "failed",
+        "duration_seconds": 7,
+        "findings_summary": {
+          "errors": 4,
+          "warnings": 125,
+          "total": 129
+        }
+      },
+      {
+        "name": "code-facts",
+        "status": "passed",
+        "duration_seconds": 1,
+        "findings_summary": {}
+      },
+      {
+        "name": "go-code-graph",
+        "status": "passed",
+        "duration_seconds": 1,
+        "findings_summary": {}
+      },
+      {
+        "name": "typescript-code-graph",
+        "status": "passed",
+        "duration_seconds": 1,
+        "findings_summary": {}
+      },
+      {
+        "name": "ui-health",
+        "status": "failed",
+        "duration_seconds": 18,
+        "findings_summary": {
+          "errors": 1,
+          "warnings": 469,
+          "infos": 238,
+          "total": 708
+        }
+      },
+      {
+        "name": "api",
+        "status": "passed",
+        "duration_seconds": 1,
+        "findings_summary": {
+          "warnings": 95,
+          "total": 95
+        }
+      },
+      {
+        "name": "architecture",
+        "status": "skipped"
+      },
+      {
+        "name": "dependencies",
+        "status": "failed",
+        "duration_seconds": 69,
+        "findings_summary": {
+          "errors": 4,
+          "warnings": 5,
+          "infos": 3,
+          "total": 12
+        }
+      },
+      {
+        "name": "quality",
+        "status": "passed",
+        "duration_seconds": 2,
+        "findings_summary": {
+          "warnings": 2,
+          "infos": 1,
+          "total": 3
+        }
+      },
+      {
+        "name": "docs",
+        "status": "failed",
+        "duration_seconds": 9,
+        "findings_summary": {
+          "errors": 3,
+          "warnings": 255,
+          "infos": 17,
+          "total": 275
+        }
+      },
+      {
+        "name": "performance",
+        "status": "passed",
+        "duration_seconds": 75,
+        "findings_summary": {}
+      },
+      {
+        "name": "unit",
+        "status": "failed",
+        "duration_seconds": 110,
+        "findings_summary": {
+          "errors": 9,
+          "warnings": 82,
+          "total": 91
+        }
+      },
+      {
+        "name": "storage",
+        "status": "passed",
+        "duration_seconds": 2,
+        "findings_summary": {
+          "warnings": 106,
+          "total": 106
+        }
+      },
+      {
+        "name": "workflow",
+        "status": "failed",
+        "duration_seconds": 901,
+        "findings_summary": {
+          "blockers": 1,
+          "total": 1
+        }
+      },
+      {
+        "name": "business",
+        "status": "failed",
+        "duration_seconds": 1,
+        "findings_summary": {
+          "errors": 44,
+          "warnings": 5,
+          "infos": 56,
+          "total": 105
+        }
+      },
+      {
+        "name": "channel-conformance",
+        "status": "passed",
+        "duration_seconds": 1,
+        "findings_summary": {}
+      },
+      {
+        "name": "experience",
+        "status": "failed",
+        "duration_seconds": 11,
+        "findings_summary": {
+          "errors": 11,
+          "total": 11
+        }
+      },
+      {
+        "name": "tidiness",
+        "status": "failed",
+        "duration_seconds": 4,
+        "findings_summary": {
+          "errors": 1,
+          "warnings": 236,
+          "infos": 867,
+          "total": 1104
+        },
+        "finding_codes": [
+          {
+            "code": "DUPLICATED_BOILERPLATE",
+            "count": 290
+          },
+          {
+            "code": "DUPLICATED_CODE",
+            "count": 338
+          },
+          {
+            "code": "TIDINESS_BUDGET_EXCEEDED",
+            "count": 1
+          },
+          {
+            "code": "HIGH_COMPLEXITY",
+            "count": 381
+          },
+          {
+            "code": "HIGH_COUPLING",
+            "count": 12
+          },
+          {
+            "code": "LONG_FILE",
+            "count": 82
+          }
+        ]
+      },
+      {
+        "name": "security",
+        "status": "failed",
+        "duration_seconds": 57,
+        "findings_summary": {
+          "errors": 2,
+          "warnings": 374,
+          "infos": 403,
+          "total": 779
+        }
+      },
+      {
+        "name": "measures",
+        "status": "failed",
+        "duration_seconds": 1,
+        "findings_summary": {
+          "errors": 7,
+          "warnings": 13,
+          "total": 20
+        }
+      },
+      {
+        "name": "programs",
+        "status": "failed",
+        "duration_seconds": 4,
+        "advisory": true,
+        "findings_summary": {}
+      },
+      {
+        "name": "proto",
+        "status": "passed",
+        "duration_seconds": 1
+      },
+      {
+        "name": "branding",
+        "status": "skipped"
+      },
+      {
+        "name": "skill-set",
+        "status": "passed",
+        "duration_seconds": 1,
+        "advisory": true,
+        "findings_summary": {}
+      },
+      {
+        "name": "monetization-conformance",
+        "status": "passed",
+        "duration_seconds": 5,
+        "findings_summary": {}
+      },
+      {
+        "name": "agent-conformance",
+        "status": "passed",
+        "duration_seconds": 1,
+        "findings_summary": {}
+      },
+      {
+        "name": "templates",
+        "status": "passed",
+        "duration_seconds": 1,
+        "advisory": true,
+        "findings_summary": {
+          "warnings": 1,
+          "total": 1
+        }
+      }
+    ],
+    "artifacts": [
+      {
+        "id": "artifact_14344ef2e43b1b745bbeb7e6bf302dba",
+        "kind": "command.log",
+        "label": "performance.log",
+        "producing_phase": "performance",
+        "size_bytes": "748",
+        "created_at": "2026-09-09T20:15:35.199142172Z",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260909-201227-1e8ed2e9/artifacts/artifact_14344ef2e43b1b745bbeb7e6bf302dba",
+        "sha256": "852eaeffc723e15611c70eb4d09592113eb9cfc4d2a94f01441f44c200fd5278"
+      },
+      {
+        "id": "artifact_1c54b616ac99c0f6f945646da1afe3a0",
+        "kind": "command.log",
+        "label": "workflow.log",
+        "producing_phase": "workflow",
+        "size_bytes": "485",
+        "created_at": "2026-09-09T20:32:31.689354006Z",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260909-201227-1e8ed2e9/artifacts/artifact_1c54b616ac99c0f6f945646da1afe3a0",
+        "sha256": "4e5bd0504b8f1a8b57bdfd111ac19af23a0d60fc00a8caa6f6e9c89f74fbe433"
+      },
+      {
+        "id": "artifact_359f241761940ef705be1a6238489ca6",
+        "kind": "command.log",
+        "label": "unit.log",
+        "producing_phase": "unit",
+        "size_bytes": "31809",
+        "created_at": "2026-09-09T20:17:30.296608727Z",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260909-201227-1e8ed2e9/artifacts/artifact_359f241761940ef705be1a6238489ca6",
+        "sha256": "ee9d7ba817db299201622b0ae90f6fac67bab79381a8374bdd6bb1d4537e6ed8"
+      },
+      {
+        "id": "artifact_4437fb1f97f395ffaccfe9d9b1a1586c",
+        "kind": "command.log",
+        "label": "tidiness.log",
+        "producing_phase": "tidiness",
+        "size_bytes": "448646",
+        "created_at": "2026-09-09T20:32:51.303436429Z",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260909-201227-1e8ed2e9/artifacts/artifact_4437fb1f97f395ffaccfe9d9b1a1586c",
+        "sha256": "4bb1cafae7180b5aeb217db7ea4ac79a83774deb1850ea227d515288bf56060e"
+      },
+      {
+        "id": "artifact_e539c199d4e100217c65fad9b8942c61",
+        "kind": "command.log",
+        "label": "security.log",
+        "producing_phase": "security",
+        "size_bytes": "289641",
+        "created_at": "2026-09-09T20:33:47.692843909Z",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260909-201227-1e8ed2e9/artifacts/artifact_e539c199d4e100217c65fad9b8942c61",
+        "sha256": "ad467bf42c2f419a5e7403dcab42a9a38d77cacb8b124bed043401f5d305d904"
+      },
+      {
+        "id": "artifact_1e78505ac027f8a715fcbf2d8747724c",
+        "kind": "phase.result",
+        "label": "unit.json",
+        "producing_phase": "unit",
+        "size_bytes": "3129",
+        "created_at": "2026-09-09T20:17:30.296608727Z",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260909-201227-1e8ed2e9/artifacts/artifact_1e78505ac027f8a715fcbf2d8747724c",
+        "sha256": "14f5982dc2ede0dbcf31010e40ff392a2d3768676b9aeefbbb275212e3801d1a"
+      },
+      {
+        "id": "artifact_5d5f9999dba8874e2268b9e6b08f5bac",
+        "kind": "phase.result",
+        "label": "security.json",
+        "producing_phase": "security",
+        "size_bytes": "2713",
+        "created_at": "2026-09-09T20:33:47.69084389Z",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260909-201227-1e8ed2e9/artifacts/artifact_5d5f9999dba8874e2268b9e6b08f5bac",
+        "sha256": "ee709c0f89708ae76f3777d5b706c90338fa0a3d377d538f74bf3d975526acbc"
+      },
+      {
+        "id": "artifact_d1d7c2d326f0eea18e137b3840813590",
+        "kind": "phase.result",
+        "label": "tidiness.json",
+        "producing_phase": "tidiness",
+        "size_bytes": "2987",
+        "created_at": "2026-09-09T20:32:51.301436421Z",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260909-201227-1e8ed2e9/artifacts/artifact_d1d7c2d326f0eea18e137b3840813590",
+        "sha256": "c4079e840686f8ea4d72e0404d444f99838537f5bd4d3e670314852846de771b"
+      },
+      {
+        "id": "artifact_e45def732257506bc0e82245cbfcde86",
+        "kind": "phase.result",
+        "label": "workflow.json",
+        "producing_phase": "workflow",
+        "size_bytes": "806",
+        "created_at": "2026-09-09T20:32:31.689354006Z",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260909-201227-1e8ed2e9/artifacts/artifact_e45def732257506bc0e82245cbfcde86",
+        "sha256": "05e8f891f87e02162e265c78a82e4a42222f2ab9149b4f47d69a78a2aa443430"
+      },
+      {
+        "id": "artifact_ff4c32d59aaf5e7ea5a28009dcd699be",
+        "kind": "phase.result",
+        "label": "performance.json",
+        "producing_phase": "performance",
+        "size_bytes": "2159",
+        "created_at": "2026-09-09T20:15:35.199142172Z",
+        "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260909-201227-1e8ed2e9/artifacts/artifact_ff4c32d59aaf5e7ea5a28009dcd699be",
+        "sha256": "50409e26fb3cc3a41add7fa0a65225988a3eb93ef602f0cc6e98204a1026c479"
+      }
+    ],
+    "coverage_percent_reported": {
+      "api": 33.7,
+      "cli": 25.6,
+      "ui": 28.4
+    },
+    "coverage_limit": "Historical aggregate reports with execution/misconfiguration failures; not complete current coverage.",
+    "duplication_line_debt": 35603,
+    "recorded_duplication_baseline": 35303
+  },
+  "recent_runs": [
+    {
+      "run_id": "20260910-065713-c12e0a04",
+      "started_at": "2026-09-10T06:57:13Z",
+      "completed_at": "2026-09-10T07:02:49Z",
+      "status": "failed",
+      "phases": [
+        {
+          "name": "portability",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "structure",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "contracts",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "code-facts",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "go-code-graph",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "typescript-code-graph",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "ui-health",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "api",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "architecture",
+          "status": "skipped",
+          "comparable": true
+        },
+        {
+          "name": "dependencies",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "quality",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "docs",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "performance",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "unit",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "storage",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "workflow",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "business",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "channel-conformance",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "experience",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "tidiness",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "security",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "measures",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "programs",
+          "status": "provider_unavailable",
+          "comparable": true,
+          "advisory": true
+        },
+        {
+          "name": "proto",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "branding",
+          "status": "skipped",
+          "comparable": true
+        },
+        {
+          "name": "skill-set",
+          "status": "provider_unavailable",
+          "comparable": true,
+          "advisory": true
+        },
+        {
+          "name": "monetization-conformance",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "agent-conformance",
+          "status": "provider_unavailable",
+          "comparable": true
+        },
+        {
+          "name": "templates",
+          "status": "provider_unavailable",
+          "comparable": true,
+          "advisory": true
+        }
+      ],
+      "git_sha": "854cea6e425447d7cea9d59da2184198af78ebb7",
+      "git_dirty": true,
+      "evidence_tier": "degraded"
+    },
+    {
+      "run_id": "20260909-212651-1b782303",
+      "started_at": "2026-09-09T21:33:00Z",
+      "completed_at": "2026-09-09T21:33:51Z",
+      "status": "aborted",
+      "git_sha": "e1dc26b6f9acf3ec8156a6b861bb95e5703cd5ee",
+      "git_dirty": true,
+      "evidence_tier": "degraded"
+    },
+    {
+      "run_id": "20260909-210718-1b09cd01",
+      "started_at": "2026-09-09T21:24:23Z",
+      "completed_at": "2026-09-09T21:26:23Z",
+      "status": "failed",
+      "phases": [
+        {
+          "name": "unit",
+          "status": "failed",
+          "duration_seconds": 121,
+          "comparable": true
+        },
+        {
+          "name": "programs",
+          "status": "failed",
+          "duration_seconds": 120,
+          "comparable": true,
+          "advisory": true
+        }
+      ],
+      "git_sha": "e1dc26b6f9acf3ec8156a6b861bb95e5703cd5ee",
+      "git_dirty": true,
+      "evidence_tier": "degraded"
+    },
+    {
+      "run_id": "20260909-201227-1e8ed2e9",
+      "started_at": "2026-09-09T20:12:29Z",
+      "completed_at": "2026-09-09T20:34:02Z",
+      "status": "failed",
+      "phases": [
+        {
+          "name": "portability",
+          "status": "passed",
+          "duration_seconds": 1,
+          "comparable": true
+        },
+        {
+          "name": "structure",
+          "status": "passed",
+          "duration_seconds": 1,
+          "comparable": true
+        },
+        {
+          "name": "contracts",
+          "status": "failed",
+          "duration_seconds": 7,
+          "comparable": true
+        },
+        {
+          "name": "code-facts",
+          "status": "passed",
+          "duration_seconds": 1,
+          "comparable": true
+        },
+        {
+          "name": "go-code-graph",
+          "status": "passed",
+          "duration_seconds": 1,
+          "comparable": true
+        },
+        {
+          "name": "typescript-code-graph",
+          "status": "passed",
+          "duration_seconds": 1,
+          "comparable": true
+        },
+        {
+          "name": "ui-health",
+          "status": "failed",
+          "duration_seconds": 18,
+          "comparable": true
+        },
+        {
+          "name": "api",
+          "status": "passed",
+          "duration_seconds": 1,
+          "comparable": true
+        },
+        {
+          "name": "architecture",
+          "status": "skipped",
+          "comparable": true
+        },
+        {
+          "name": "dependencies",
+          "status": "failed",
+          "duration_seconds": 69,
+          "comparable": true
+        },
+        {
+          "name": "quality",
+          "status": "passed",
+          "duration_seconds": 2,
+          "comparable": true
+        },
+        {
+          "name": "docs",
+          "status": "failed",
+          "duration_seconds": 9,
+          "comparable": true
+        },
+        {
+          "name": "performance",
+          "status": "passed",
+          "duration_seconds": 75,
+          "comparable": true
+        },
+        {
+          "name": "unit",
+          "status": "failed",
+          "duration_seconds": 110,
+          "comparable": true
+        },
+        {
+          "name": "storage",
+          "status": "passed",
+          "duration_seconds": 2,
+          "comparable": true
+        },
+        {
+          "name": "workflow",
+          "status": "failed",
+          "duration_seconds": 901,
+          "comparable": true
+        },
+        {
+          "name": "business",
+          "status": "failed",
+          "duration_seconds": 1,
+          "comparable": true
+        },
+        {
+          "name": "channel-conformance",
+          "status": "passed",
+          "duration_seconds": 1,
+          "comparable": true
+        },
+        {
+          "name": "experience",
+          "status": "failed",
+          "duration_seconds": 11,
+          "comparable": true
+        },
+        {
+          "name": "tidiness",
+          "status": "failed",
+          "duration_seconds": 4,
+          "comparable": true
+        },
+        {
+          "name": "security",
+          "status": "failed",
+          "duration_seconds": 57,
+          "comparable": true
+        },
+        {
+          "name": "measures",
+          "status": "failed",
+          "duration_seconds": 1,
+          "comparable": true
+        },
+        {
+          "name": "programs",
+          "status": "failed",
+          "duration_seconds": 4,
+          "comparable": true,
+          "advisory": true
+        },
+        {
+          "name": "proto",
+          "status": "passed",
+          "duration_seconds": 1,
+          "comparable": true
+        },
+        {
+          "name": "branding",
+          "status": "skipped",
+          "comparable": true
+        },
+        {
+          "name": "skill-set",
+          "status": "passed",
+          "duration_seconds": 1,
+          "comparable": true,
+          "advisory": true
+        },
+        {
+          "name": "monetization-conformance",
+          "status": "passed",
+          "duration_seconds": 5,
+          "comparable": true
+        },
+        {
+          "name": "agent-conformance",
+          "status": "passed",
+          "duration_seconds": 1,
+          "comparable": true
+        },
+        {
+          "name": "templates",
+          "status": "passed",
+          "duration_seconds": 1,
+          "comparable": true,
+          "advisory": true
+        }
+      ],
+      "git_sha": "e1dc26b6f9acf3ec8156a6b861bb95e5703cd5ee",
+      "git_dirty": true,
+      "evidence_tier": "degraded"
+    },
+    {
+      "run_id": "20260909-192719-1b07872f",
+      "started_at": "2026-09-09T19:27:19Z",
+      "completed_at": "2026-09-09T19:29:29Z",
+      "status": "passed",
+      "phases": [
+        {
+          "name": "programs",
+          "status": "passed",
+          "duration_seconds": 121,
+          "comparable": true,
+          "advisory": true
+        }
+      ],
+      "git_sha": "e1dc26b6f9acf3ec8156a6b861bb95e5703cd5ee",
+      "git_dirty": true,
+      "evidence_tier": "degraded"
+    },
+    {
+      "run_id": "20260909-191449-474f07ae",
+      "started_at": "2026-09-09T19:14:49Z",
+      "completed_at": "2026-09-09T19:16:49Z",
+      "status": "failed",
+      "phases": [
+        {
+          "name": "unit",
+          "status": "failed",
+          "duration_seconds": 120,
+          "comparable": true
+        },
+        {
+          "name": "programs",
+          "status": "failed",
+          "duration_seconds": 110,
+          "comparable": true,
+          "advisory": true
+        }
+      ],
+      "git_sha": "e1dc26b6f9acf3ec8156a6b861bb95e5703cd5ee",
+      "git_dirty": true,
+      "evidence_tier": "degraded"
+    },
+    {
+      "run_id": "20260909-172143-57ecde41",
+      "started_at": "2026-09-09T17:21:48Z",
+      "completed_at": "2026-09-09T17:23:48Z",
+      "status": "passed",
+      "phases": [
+        {
+          "name": "programs",
+          "status": "passed",
+          "duration_seconds": 121,
+          "comparable": true,
+          "advisory": true
+        }
+      ],
+      "git_sha": "f487e447f86cda129ec314fd7a2db1e89b3e1cba",
+      "git_dirty": true,
+      "evidence_tier": "degraded"
+    },
+    {
+      "run_id": "20260909-153820-cc4eb7ff",
+      "started_at": "2026-09-09T15:38:20Z",
+      "completed_at": "2026-09-09T15:40:40Z",
+      "status": "failed",
+      "phases": [
+        {
+          "name": "programs",
+          "status": "failed",
+          "duration_seconds": 4,
+          "comparable": true,
+          "advisory": true
+        },
+        {
+          "name": "unit",
+          "status": "failed",
+          "duration_seconds": 141,
+          "comparable": true
+        }
+      ],
+      "git_sha": "f487e447f86cda129ec314fd7a2db1e89b3e1cba",
+      "git_dirty": true,
+      "evidence_tier": "degraded"
+    },
+    {
+      "run_id": "20260909-102448-4db65f95",
+      "started_at": "2026-09-09T10:24:53Z",
+      "completed_at": "2026-09-09T10:24:54Z",
+      "status": "passed",
+      "phases": [
+        {
+          "name": "programs",
+          "status": "failed",
+          "duration_seconds": 2,
+          "comparable": true,
+          "advisory": true
+        }
+      ],
+      "git_sha": "22f877f7dd6bbad78ca1586c2587983727a42444",
+      "git_dirty": true,
+      "evidence_tier": "degraded"
+    },
+    {
+      "run_id": "20260909-085024-c66936b9",
+      "started_at": "2026-09-09T08:50:24Z",
+      "completed_at": "2026-09-09T08:50:25Z",
+      "status": "passed",
+      "phases": [
+        {
+          "name": "programs",
+          "status": "failed",
+          "duration_seconds": 1,
+          "comparable": true,
+          "advisory": true
+        }
+      ],
+      "git_sha": "22f877f7dd6bbad78ca1586c2587983727a42444",
+      "git_dirty": true,
+      "evidence_tier": "degraded"
+    },
+    {
+      "run_id": "20260909-084728-4261cd55",
+      "started_at": "2026-09-09T08:47:28Z",
+      "completed_at": "2026-09-09T08:47:30Z",
+      "status": "passed",
+      "phases": [
+        {
+          "name": "storage",
+          "status": "passed",
+          "duration_seconds": 2,
+          "comparable": true
+        }
+      ],
+      "git_sha": "22f877f7dd6bbad78ca1586c2587983727a42444",
+      "git_dirty": true,
+      "evidence_tier": "degraded"
+    }
+  ],
+  "not_measured": [
+    "controlled input-to-paint latency",
+    "peak/PSS memory and heap attribution",
+    "eight-hour soak",
+    "passive recording fidelity corpus",
+    "real website authentication/challenge behavior",
+    "native Windows/macOS/Android hardware certification",
+    "current complete-suite coverage",
+    "current AST complexity/duplication"
+  ]
+}

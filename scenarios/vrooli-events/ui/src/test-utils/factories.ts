@@ -1,3 +1,4 @@
+// DOC: docs/internal/UNIT_TEST_ARCHITECTURE.md
 import type { HealthResponse, EventEnvelope } from "../lib/api";
 
 /**

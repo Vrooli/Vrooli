@@ -1,9 +1,29 @@
+---
+name: "deployment-coordinator"
+description: "Intelligent deployment routing and advisory for Vrooli scenarios. Determines deployment target, checks readiness, routes to the appropriate target-specific skill, and gracefully handles unavailable targets. Supports action mode (deploy now), advisory mode (what's possible), and graceful degradation (target not ready yet)."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","deployment","routing","coordination","methodology"]
+  icon: "rocket"
+  status: "active"
+  revision: 1
+  createdAt: "2026-03-20T00:00:00Z"
+  updatedAt: "2026-03-20T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Deployment Coordinator
 
 Intelligent deployment routing and advisory for Vrooli scenarios. Determines the deployment target, checks readiness, routes to the appropriate target-specific Tools skill, and gracefully handles unavailable targets. Adapts behavior based on whether the user wants to deploy now, learn about deployment options, or prepare for future deployment.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 ---
 
@@ -139,7 +159,7 @@ This is the canonical list of deployment targets and their current status. Updat
 #### Action mode → Route to target skill
 1. Load the target-specific Tools skill:
    ```bash
-   prompt-manager skill read <target-skill-id>
+   prompt-manager skill read "<target-skill-id>"
    ```
 2. For **first-time deployments** to a target, suggest cross-platform readiness first:
    ```

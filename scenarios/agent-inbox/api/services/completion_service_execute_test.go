@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"agent-inbox/domain"
-
-	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
 
 // =============================================================================
@@ -106,89 +104,6 @@ func (m *mockToolExecutor) GetExecuteCalls() []executeToolCall {
 }
 
 // =============================================================================
-// Mock Async Tracker
-// =============================================================================
-
-// mockAsyncTrackerForCompletion implements AsyncTrackerInterface for testing.
-type mockAsyncTrackerForCompletion struct {
-	mu sync.Mutex
-
-	operations map[string]*AsyncOperation
-
-	// Call tracking
-	startTrackingCalls []startTrackingCall
-
-	// Error injection
-	startTrackingError error
-}
-
-type startTrackingCall struct {
-	ToolCallID string
-	ChatID     string
-	ToolName   string
-	Scenario   string
-}
-
-func newMockAsyncTrackerForCompletion() *mockAsyncTrackerForCompletion {
-	return &mockAsyncTrackerForCompletion{
-		operations: make(map[string]*AsyncOperation),
-	}
-}
-
-func (m *mockAsyncTrackerForCompletion) GetActiveOperations(chatID string) []*AsyncOperation {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	var active []*AsyncOperation
-	for _, op := range m.operations {
-		if op.ChatID == chatID && op.CompletedAt == nil {
-			active = append(active, op)
-		}
-	}
-	return active
-}
-
-func (m *mockAsyncTrackerForCompletion) GetOperation(toolCallID string) *AsyncOperation {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.operations[toolCallID]
-}
-
-func (m *mockAsyncTrackerForCompletion) StartTracking(ctx context.Context, toolCallID, chatID, toolName, scenario string, toolResult interface{}, asyncBehavior *toolspb.AsyncBehavior) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.startTrackingCalls = append(m.startTrackingCalls, startTrackingCall{
-		ToolCallID: toolCallID,
-		ChatID:     chatID,
-		ToolName:   toolName,
-		Scenario:   scenario,
-	})
-
-	if m.startTrackingError != nil {
-		return m.startTrackingError
-	}
-
-	m.operations[toolCallID] = &AsyncOperation{
-		ToolCallID: toolCallID,
-		ChatID:     chatID,
-		ToolName:   toolName,
-		Scenario:   scenario,
-		Status:     "running",
-		StartedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
-	}
-	return nil
-}
-
-// AddOperation adds an operation for testing.
-func (m *mockAsyncTrackerForCompletion) AddOperation(op *AsyncOperation) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.operations[op.ToolCallID] = op
-}
-
-// =============================================================================
 // Test Helpers
 // =============================================================================
 
@@ -211,16 +126,10 @@ func makeToolCall(id, name, args string) domain.ToolCall {
 func TestExecuteToolCalls_SingleTool_Success(t *testing.T) {
 	repo := newMockCompletionRepository()
 	executor := newMockToolExecutor()
-	registry := newMockToolRegistry()
-
-	// Add a tool that doesn't require approval
-	registry.addTool("test-scenario", createSimpleTool("test_tool", "A test tool"))
-	registry.ApprovalRequirements["test_tool"] = false
 
 	svc := NewCompletionServiceWithDeps(CompletionServiceDeps{
 		Repo:     repo,
 		Executor: executor,
-		Registry: registry,
 	})
 
 	toolCalls := []domain.ToolCall{

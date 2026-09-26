@@ -5,7 +5,7 @@
  * This is the core recording lifecycle management.
  *
  * Other recording functionality has been split into:
- * - callback-streaming.ts: Callback streaming with circuit breaker
+ * - callback-streaming.ts: Acknowledged callback delivery
  * - page-events.ts: Multi-tab page event handling
  * - recording-diagnostics-routes.ts: Debug and test endpoints
  */
@@ -16,11 +16,9 @@ import type { Config } from '../../config';
 import { parseJsonBody, sendJson, sendError } from '../../middleware';
 import { logger, metrics, scopedLog, LogContext } from '../../utils';
 import {
-  initRecordingBuffer,
-  bufferTimelineEntry,
   getTimelineEntries,
   getTimelineEntryCount,
-  clearTimelineEntries,
+  acknowledgeTimelineEntries,
 } from '../../recording';
 import { timelineEntryToJson, type TimelineEntry, ActionType } from '../../proto/recording';
 import type {
@@ -28,19 +26,19 @@ import type {
   StartRecordingResponse,
   StopRecordingResponse,
   RecordingStatusResponse,
-  DriverPageEvent,
 } from './types';
 import {
   startFrameStreaming,
   stopFrameStreaming,
 } from '../../frame-streaming';
-import { streamEntryWithCircuitBreaker, callbackCircuitBreaker } from './callback-streaming';
-import { setupPageLifecycleListeners, sendPageEvent, pageEventCircuitBreaker } from './page-events';
-import { captureThumbnail, emitHistoryCallback } from './recording-pages';
+import { streamRecordingEntry } from './callback-streaming';
+import { setupPageLifecycleListeners, pageEventCircuitBreaker } from './page-events';
+import { recordingOwner } from './recording-ownership';
 
 // =============================================================================
 // Recording Lifecycle Handlers
 // =============================================================================
+
 
 /**
  * Start recording endpoint
@@ -65,9 +63,12 @@ export async function handleRecordStart(
   sessionManager: SessionManager,
   config: Config
 ): Promise<void> {
+  const superseded = new Error('Recording start was superseded by a stop or a newer recording');
   try {
-    const session = sessionManager.getSession(sessionId);
     const body = await parseJsonBody(req, config);
+    const ownedSession = recordingOwner(body, sessionId, sessionManager);
+    const session = ownedSession();
+    sessionManager.updateActivity(sessionId);
     const request = body as unknown as StartRecordingRequest;
 
     // Get pipeline manager (single source of truth for recording state)
@@ -80,7 +81,7 @@ export async function handleRecordStart(
     if (pipelineManager.isRecording()) {
       const currentRecordingId = pipelineManager.getRecordingId();
       // If the same recording_id is provided, this is an idempotent retry - return success
-      if (request.recording_id && currentRecordingId === request.recording_id) {
+      if (request.recording_id && currentRecordingId === request.recording_id && pipelineManager.getState().phase === 'capturing') {
         const recordingData = pipelineManager.getRecordingData();
         logger.info(scopedLog(LogContext.RECORDING, 'idempotent start - already recording'), {
           sessionId,
@@ -114,26 +115,19 @@ export async function handleRecordStart(
       return;
     }
 
-    // Initialize action buffer for this session
-    initRecordingBuffer(sessionId);
-
     logger.info(scopedLog(LogContext.RECORDING, 'starting'), {
       sessionId,
       hasCallback: !!request.callback_url,
       currentUrl: session.page?.url?.() || '(unknown)',
     });
 
+    const generation = pipelineManager.getGeneration() + 1;
     // Start recording with callback to buffer entries (using pipelineManager directly)
     const recordingId = await pipelineManager.startRecording({
       sessionId,
       recordingId: request.recording_id,
+      acknowledgeOnDelivery: !!request.callback_url,
       onEntry: async (entry: TimelineEntry) => {
-        // Buffer the entry (proto TimelineEntry)
-        bufferTimelineEntry(sessionId, entry);
-
-        // Track recording activity in metrics
-        metrics.recordingActionsTotal.inc();
-
         // Extract action type name for logging
         const actionTypeName = ActionType[entry.action?.type ?? ActionType.UNSPECIFIED] ?? 'UNKNOWN';
 
@@ -145,9 +139,9 @@ export async function handleRecordStart(
           confidence: entry.action?.metadata?.confidence,
         });
 
-        // If callback URL provided, stream to it (with circuit breaker protection)
+        // A callback acknowledges this entry only after the consumer commits it.
         if (request.callback_url) {
-          await streamEntryWithCircuitBreaker(sessionId, request.callback_url, entry);
+          await streamRecordingEntry(request.callback_url, entry, request.routed_test_mode === true);
         }
       },
       onError: (error: Error) => {
@@ -160,111 +154,39 @@ export async function handleRecordStart(
       },
     });
 
+    const recordingSession = () => {
+      const current = ownedSession();
+      if (current.pipelineManager !== pipelineManager || pipelineManager.getGeneration() !== generation ||
+          pipelineManager.getState().phase !== 'capturing') throw superseded;
+      return current;
+    };
+    recordingSession();
+
     // Update session phase
     sessionManager.setSessionPhase(sessionId, 'recording');
 
     // Update recording session metric
     metrics.recordingSessionsActive.inc();
 
-    // Start frame streaming if callback URL provided
-    // Wait for page content before streaming to avoid blank/loading frames
+    // The pipeline has already verified and activated capture. Admit preview
+    // now so Stop owns it; a second DOM wait can resurrect a stopped stream.
     if (request.frame_callback_url) {
-      // Wait for page to have content (non-blank URL and DOM loaded)
-      // This prevents flickering during initial navigation
-      const pageUrl = session.page.url();
-      const isBlankPage = !pageUrl || pageUrl === 'about:blank';
-
-      if (!isBlankPage) {
-        // Page has a URL - wait for DOM to be ready before streaming
-        try {
-          await session.page.waitForLoadState('domcontentloaded', { timeout: 5000 });
-        } catch {
-          // Timeout is acceptable - page may be slow or have long-running scripts
-          logger.debug(scopedLog(LogContext.RECORDING, 'page load wait timed out, starting stream anyway'), {
-            sessionId,
-            url: pageUrl,
-          });
-        }
-      }
-
-      startFrameStreaming(sessionId, sessionManager, {
+      startFrameStreaming(sessionId, { getSession: recordingSession }, {
         callbackUrl: request.frame_callback_url,
+        routedTestMode: request.routed_test_mode === true,
         quality: request.frame_quality,
         fps: request.frame_fps,
+        scale: session.spec.frame_scale ?? 'css',
       });
     }
 
-    // Set up page lifecycle listeners if page callback URL provided
     if (request.page_callback_url) {
-      // Set up listeners for new pages
-      session.pageLifecycleCleanup = setupPageLifecycleListeners(
-        sessionId,
-        session,
-        request.page_callback_url,
-        config
+      const pages = setupPageLifecycleListeners(
+        sessionId, session, request.page_callback_url, config, request.routed_test_mode === true
       );
-
-      // Send initial page's page_created event
-      const initialPageId = session.pageToIdMap.get(session.page);
-      if (initialPageId) {
-        const initialUrl = session.page.url();
-        const initialTitle = await session.page.title().catch(() => '');
-
-        const initialPageEvent: DriverPageEvent = {
-          sessionId,
-          driverPageId: initialPageId,
-          vrooliPageId: '',
-          eventType: 'initial',
-          url: initialUrl,
-          title: initialTitle,
-          timestamp: new Date().toISOString(),
-        };
-
-        await sendPageEvent(sessionId, request.page_callback_url, initialPageEvent);
-
-        logger.info(scopedLog(LogContext.RECORDING, 'initial page event sent'), {
-          sessionId,
-          pageId: initialPageId,
-          url: initialUrl,
-        });
-
-        // Set up navigation listener for the initial page
-        // (new pages get this in setupPageLifecycleListeners, but initial page needs it here)
-        const pageCallbackUrl = request.page_callback_url;
-        session.page.on('framenavigated', async (frame) => {
-          // Only track main frame navigations
-          if (frame !== session.page.mainFrame()) return;
-
-          const navUrl = session.page.url();
-          const navTitle = await session.page.title().catch(() => '');
-
-          logger.debug(scopedLog(LogContext.RECORDING, 'initial page navigated'), {
-            sessionId,
-            pageId: initialPageId,
-            url: navUrl,
-          });
-
-          const navEvent: DriverPageEvent = {
-            sessionId,
-            driverPageId: initialPageId,
-            vrooliPageId: '',
-            eventType: 'navigated',
-            url: navUrl,
-            title: navTitle,
-            timestamp: new Date().toISOString(),
-          };
-
-          await sendPageEvent(sessionId, pageCallbackUrl, navEvent);
-
-          // Emit history callback for session profile history tracking
-          const thumbnail = config.history.thumbnailEnabled
-            ? await captureThumbnail(session.page, config.history.thumbnailQuality)
-            : undefined;
-          emitHistoryCallback(config, sessionId, navUrl, navTitle, 'navigate', thumbnail).catch(() => {
-            // Error already logged in emitHistoryCallback
-          });
-        });
-      }
+      session.pageLifecycleCleanup = pages.cleanup;
+      await pages.ready;
+      recordingSession();
     }
 
     // Get verification info for response (helps diagnose "no events" issues)
@@ -295,7 +217,7 @@ export async function handleRecordStart(
     const response: StartRecordingResponse = {
       recording_id: recordingId,
       session_id: sessionId,
-      started_at: new Date().toISOString(),
+      started_at: pipelineManager.getRecordingData()?.startedAt ?? new Date().toISOString(),
       verification: verificationData
         ? {
             script_loaded: verificationData.scriptLoaded,
@@ -310,6 +232,10 @@ export async function handleRecordStart(
 
     sendJson(res, 200, response);
   } catch (error) {
+    if (error === superseded) {
+      sendJson(res, 409, { error: 'RECORDING_START_SUPERSEDED', message: superseded.message });
+      return;
+    }
     sendError(res, error as Error, `/session/${sessionId}/record/start`);
   }
 }
@@ -324,18 +250,22 @@ export async function handleRecordStart(
  * Session phase transitions: recording -> ready
  *
  * Idempotency behavior:
- * - If recording is not active, returns success with action_count: 0
+ * - If recording has stopped, returns the retained terminal count and timestamp
  * - This allows safe retries of recording stop requests
  * - Calling stop twice is safe and produces consistent results
  */
 export async function handleRecordStop(
-  _req: IncomingMessage,
+  req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
   sessionManager: SessionManager
 ): Promise<void> {
+  const superseded = new Error('Recording stop was superseded by a newer recording');
   try {
-    const session = sessionManager.getSession(sessionId);
+    const body = await parseJsonBody(req, {});
+    const ownedSession = recordingOwner(body, sessionId, sessionManager);
+    const session = ownedSession();
+    sessionManager.updateActivity(sessionId);
 
     // Get pipeline manager (single source of truth for recording state)
     const pipelineManager = session.pipelineManager;
@@ -343,34 +273,20 @@ export async function handleRecordStop(
       throw new Error('Pipeline manager not set on session');
     }
 
-    // Idempotency: If not recording, treat as successful no-op
-    // This handles retries where the first request succeeded but response was lost
-    if (!pipelineManager.isRecording()) {
-      // Get last known recording ID from pipeline state if available
-      const lastRecordingId = pipelineManager.getRecordingId();
-      logger.info(scopedLog(LogContext.RECORDING, 'idempotent stop - no active recording'), {
-        sessionId,
-        phase: session.phase,
-        hint: 'No recording active, treating as successful stop (idempotent)',
-      });
-
-      // Return success with zero action count
-      const response: StopRecordingResponse = {
-        recording_id: lastRecordingId || 'unknown',
-        session_id: sessionId,
-        action_count: 0,
-        stopped_at: new Date().toISOString(),
-      };
-
-      sendJson(res, 200, response);
-      return;
-    }
-
     const recordingId = pipelineManager.getRecordingId();
-    const result = await pipelineManager.stopRecording();
+    const generation = pipelineManager.getGeneration();
+    const stoppedSession = () => {
+      if (ownedSession().pipelineManager !== pipelineManager || pipelineManager.getGeneration() !== generation) throw superseded;
+    };
+    const prior = pipelineManager.getRecordingData();
+    const result = pipelineManager.isRecording()
+      ? await pipelineManager.stopRecording()
+      : { recordingId: recordingId || 'unknown', actionCount: prior?.actionCount ?? 0 };
 
+    stoppedSession();
     // Stop frame streaming if active
     await stopFrameStreaming(sessionId);
+    stoppedSession();
 
     // Clean up page lifecycle listeners if set up
     if (session.pageLifecycleCleanup) {
@@ -379,11 +295,10 @@ export async function handleRecordStop(
     }
 
     // Clean up circuit breaker state
-    callbackCircuitBreaker.cleanup(sessionId);
     pageEventCircuitBreaker.cleanup(sessionId);
 
     // Update recording session metric
-    metrics.recordingSessionsActive.dec();
+    if (session.phase === 'recording') metrics.recordingSessionsActive.dec();
 
     // Update session phase
     sessionManager.setSessionPhase(sessionId, 'ready');
@@ -400,11 +315,15 @@ export async function handleRecordStop(
       recording_id: recordingId || result.recordingId,
       session_id: sessionId,
       action_count: result.actionCount,
-      stopped_at: new Date().toISOString(),
+      stopped_at: pipelineManager.getRecordingData()?.stoppedAt ?? new Date().toISOString(),
     };
 
     sendJson(res, 200, response);
   } catch (error) {
+    if (error === superseded) {
+      sendJson(res, 409, { error: 'RECORDING_STOP_SUPERSEDED', message: superseded.message });
+      return;
+    }
     sendError(res, error as Error, `/session/${sessionId}/record/stop`);
   }
 }
@@ -450,7 +369,7 @@ export function handleRecordStatus(
  * GET /session/:id/record/actions
  *
  * Returns all buffered actions for the session as TimelineEntry format.
- * Optionally clears the buffer after retrieval.
+ * Retrieval never removes entries. The consumer acknowledges committed IDs separately.
  *
  * Wire format: Returns proto TimelineEntry JSON format for interoperability.
  */
@@ -472,7 +391,7 @@ export function handleRecordActions(
     const shouldClear = url.searchParams.get('clear') === 'true';
 
     if (shouldClear) {
-      clearTimelineEntries(sessionId);
+      throw new Error('Commit retrieved entries, then POST their entry_ids to /record/actions/ack');
     }
 
     // Convert to JSON wire format (snake_case)
@@ -485,5 +404,28 @@ export function handleRecordActions(
     });
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/record/actions`);
+  }
+}
+
+/** Acknowledge only entries the consumer has durably committed. */
+export async function handleRecordActionsAck(
+  req: IncomingMessage,
+  res: ServerResponse,
+  sessionId: string,
+  sessionManager: SessionManager,
+  config: Config
+): Promise<void> {
+  try {
+    const body = await parseJsonBody(req, config);
+    recordingOwner(body, sessionId, sessionManager)();
+    const ids = body.entry_ids;
+    if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string' || !id)) {
+      throw new Error('entry_ids must be an array of nonempty entry identities');
+    }
+    sessionManager.updateActivity(sessionId);
+    acknowledgeTimelineEntries(sessionId, ids, true);
+    sendJson(res, 200, { entry_ids: ids });
+  } catch (error) {
+    sendError(res, error as Error, `/session/${sessionId}/record/actions/ack`);
   }
 }

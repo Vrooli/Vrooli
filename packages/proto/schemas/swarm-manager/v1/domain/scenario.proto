@@ -1,8 +1,9 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.domain;
 
 import "buf/validate/validate.proto";
+import "swarm-manager/v1/shared/health.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
 
@@ -10,9 +11,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // SCENARIOS DOMAIN
 // =============================================================================
 //
-// @layer 1
-// @domain scenarios
-// @imports none (external only: buf.validate)
 // @stability beta
 //
 // Core scenario catalog types for Swarm Manager.
@@ -37,24 +35,32 @@ message Scenario {
 
   // Runtime state.
   // @constraint one of: running, stopped, error, unknown
-  string status = 4 [(buf.validate.field).string = { in: [
-    "running",
-    "stopped",
-    "error",
-    "unknown"
-  ] }];
+  string status = 4 [(buf.validate.field).string = {
+    in: [
+      "running",
+      "stopped",
+      "error",
+      "unknown"
+    ]
+  }];
 
   // Priority level (1 = highest, 10 = lowest).
-  int32 priority = 5 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+  int32 priority = 5 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 10
+  }];
 
   // Completeness score (0-100) if available.
-  optional int32 completeness_score = 6 [(buf.validate.field).int32 = { gte: 0, lte: 100 }];
+  optional int32 completeness_score = 6 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 100
+  }];
 
   // Whether this scenario is greenfield.
   bool is_greenfield = 7;
 
   // Categorization tags.
-  repeated string tags = 8 [(buf.validate.field).repeated = { unique: true }];
+  repeated string tags = 8 [(buf.validate.field).repeated = {unique: true}];
 
   // Classification from the most recent GCT review.
   // One of: ready, ready_with_notes, needs_work, not_assessable.
@@ -62,6 +68,55 @@ message Scenario {
 
   // RFC3339 timestamp of the most recent GCT review.
   optional string last_review_at = 10;
+
+  // Read-only projection of provider-owned Test Genie health evidence. Swarm
+  // never derives a verdict, phase order, or maturity standing from this data.
+  optional ScenarioHealthSnapshot health = 11;
+}
+
+// ScenarioHealthSnapshot is Swarm's bounded projection of one canonical Test
+// Genie evidence source. It is deliberately evidence-shaped rather than a
+// second findings store.
+message ScenarioHealthSnapshot {
+  // fresh, stale, degraded, unavailable, or no_evidence.
+  string evidence_state = 1 [(buf.validate.field).string = {
+    in: [
+      "fresh",
+      "stale",
+      "degraded",
+      "unavailable",
+      "no_evidence"
+    ]
+  }];
+  // A user-safe explanation for missing, stale, or degraded evidence.
+  optional string reason = 2;
+  // Provider run identity; omitted when no canonical run exists.
+  optional string source_run_id = 3;
+  // RFC3339 timestamp at which the provider observed the evidence.
+  optional string observed_at = 4;
+  // Provider-provided freshness presentation (for example, "fresh").
+  optional string freshness = 5;
+  // Provider verdict, preserved without interpretation.
+  optional string verdict = 6;
+  // Provider-presented phases in provider order.
+  repeated ScenarioHealthPhase phases = 7;
+  // Swarm-owned reconciliation summary for previously proposed work.
+  repeated shared.ScenarioRemediationSummary remediation = 8;
+}
+
+// ScenarioHealthPhase carries only the provider's presentation and stable
+// routing fields. Labels, rungs, ordering, blockers, and priority are opaque
+// to Swarm and must not be recomputed by a consumer.
+message ScenarioHealthPhase {
+  string phase = 1 [(buf.validate.field).string.min_len = 1];
+  optional string label = 2;
+  optional string verdict = 3;
+  optional string current_rung = 4;
+  optional string next_rung = 5;
+  optional string priority_capability_id = 6;
+  optional string priority_capability_label = 7;
+  repeated string blocking_codes = 8;
+  repeated string remediation_topics = 9;
 }
 
 // ScenarioMetadata stores editable metadata for a scenario.

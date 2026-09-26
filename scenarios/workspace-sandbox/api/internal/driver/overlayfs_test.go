@@ -8,27 +8,42 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/uuid"
 	"workspace-sandbox/internal/types"
+
+	"github.com/google/uuid"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
-// [REQ:P0-003] Overlayfs Mount Configuration - Verify mount options
-func TestOverlayfsDriverType(t *testing.T) {
-	drv := NewOverlayfsDriver(DefaultConfig())
-
-	if drv.Type() != DriverTypeOverlayfs {
-		t.Errorf("Type() = %v, want %v", drv.Type(), DriverTypeOverlayfs)
+// [REQ:P0-003] Overlayfs Mount Configuration - Verify mount options.
+// All overlay flavors use the same OverlayDriver struct; only the
+// DriverID and the per-flavor closures (mount/unmount/availability)
+// differ.
+func TestOverlayfsDriverID(t *testing.T) {
+	cases := []struct {
+		name string
+		ctor func() *OverlayDriver
+		want DriverID
+	}{
+		{"userns", func() *OverlayDriver { return NewOverlayfsUserNSDriver(DefaultConfig(), testDeps()) }, DriverOverlayfsUserNS},
+		{"root", func() *OverlayDriver { return NewOverlayfsRootDriver(DefaultConfig(), testDeps()) }, DriverOverlayfsRoot},
 	}
-
-	if drv.Version() == "" {
-		t.Error("Version() should not be empty")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			drv := tc.ctor()
+			if drv.ID() != tc.want {
+				t.Errorf("ID() = %v, want %v", drv.ID(), tc.want)
+			}
+			if drv.Version() == "" {
+				t.Error("Version() should not be empty")
+			}
+		})
 	}
 }
 
 // [REQ:P0-003] Overlayfs Mount Configuration - Test directory structure
 func TestOverlayfsDriverDirectoryStructure(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("overlayfs tests require Linux")
+		repocontracttest.SkipPlatform(t, "overlayfs tests require Linux")
 	}
 
 	tmpDir, err := os.MkdirTemp("", "overlayfs-test")
@@ -41,7 +56,7 @@ func TestOverlayfsDriverDirectoryStructure(t *testing.T) {
 		BaseDir:      tmpDir,
 		MaxSandboxes: 10,
 	}
-	drv := NewOverlayfsDriver(cfg)
+	drv := NewOverlayfsDriver(cfg, testDeps())
 
 	// Create a mock sandbox
 	projectDir := filepath.Join(tmpDir, "project")
@@ -85,6 +100,13 @@ func TestOverlayfsDriverDirectoryStructure(t *testing.T) {
 		t.Errorf("MergedDir should be under base dir")
 	}
 
+	// Wire the returned mount paths onto the sandbox so Cleanup's
+	// Unmount step can find the merged dir to release.
+	sb.LowerDir = paths.LowerDir
+	sb.UpperDir = paths.UpperDir
+	sb.WorkDir = paths.WorkDir
+	sb.MergedDir = paths.MergedDir
+
 	// Clean up
 	if err := drv.Cleanup(ctx, sb); err != nil {
 		t.Errorf("Cleanup() failed: %v", err)
@@ -93,7 +115,7 @@ func TestOverlayfsDriverDirectoryStructure(t *testing.T) {
 
 // [REQ:P0-003] Overlayfs Mount Configuration - Check availability
 func TestOverlayfsDriverIsAvailable(t *testing.T) {
-	drv := NewOverlayfsDriver(DefaultConfig())
+	drv := NewOverlayfsDriver(DefaultConfig(), testDeps())
 	ctx := context.Background()
 
 	available, err := drv.IsAvailable(ctx)
@@ -126,77 +148,15 @@ func TestDefaultConfig(t *testing.T) {
 	}
 }
 
-// [REQ:P0-006] Stable Diff Generation - File change detection
-func TestDetectChangeType(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("overlayfs tests require Linux")
-	}
-
-	tmpDir, err := os.MkdirTemp("", "overlayfs-change-test")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// Create lower and upper directories
-	lowerDir := filepath.Join(tmpDir, "lower")
-	upperDir := filepath.Join(tmpDir, "upper")
-	if err := os.MkdirAll(lowerDir, 0o755); err != nil {
-		t.Fatalf("failed to create lower dir: %v", err)
-	}
-	if err := os.MkdirAll(upperDir, 0o755); err != nil {
-		t.Fatalf("failed to create upper dir: %v", err)
-	}
-
-	// Create a file in lower (existing file)
-	existingFile := filepath.Join(lowerDir, "existing.txt")
-	if err := os.WriteFile(existingFile, []byte("original"), 0o644); err != nil {
-		t.Fatalf("failed to create existing file: %v", err)
-	}
-
-	// Create a new file in upper (added)
-	newFile := filepath.Join(upperDir, "new.txt")
-	if err := os.WriteFile(newFile, []byte("new content"), 0o644); err != nil {
-		t.Fatalf("failed to create new file: %v", err)
-	}
-
-	// Create modified file in upper
-	modifiedFile := filepath.Join(upperDir, "existing.txt")
-	if err := os.WriteFile(modifiedFile, []byte("modified content"), 0o644); err != nil {
-		t.Fatalf("failed to create modified file: %v", err)
-	}
-
-	cfg := DefaultConfig()
-	drv := NewOverlayfsDriver(cfg)
-
-	sb := &types.Sandbox{
-		ID:       uuid.New(),
-		LowerDir: lowerDir,
-		UpperDir: upperDir,
-	}
-
-	// Test change detection using shared helper
-	newInfo, _ := os.Stat(newFile)
-	modInfo, _ := os.Stat(modifiedFile)
-
-	// Use the shared detectOverlayChangeType helper
-	newType := detectOverlayChangeType(sb, "new.txt", newInfo)
-	if newType != types.ChangeTypeAdded {
-		t.Errorf("new file should be ChangeTypeAdded, got %s", newType)
-	}
-
-	modType := detectOverlayChangeType(sb, "existing.txt", modInfo)
-	if modType != types.ChangeTypeModified {
-		t.Errorf("modified file should be ChangeTypeModified, got %s", modType)
-	}
-
-	// Verify driver is created (unused but confirms API)
-	_ = drv
-}
+// Per-file change classification (Added vs Modified) is now covered by
+// the shared changedetect contract test
+// (internal/driver/changedetect/walker_contract_test.go); the
+// driver-level GetChangedFiles smoke test below stays here because it
+// exercises the OverlayfsDriver wiring end-to-end.
 
 func TestOverlayfsGetChangedFilesSkipsOpaqueAndMapsWhiteouts(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("overlayfs tests require Linux")
+		repocontracttest.SkipPlatform(t, "overlayfs tests require Linux")
 	}
 
 	tmpDir := t.TempDir()
@@ -244,7 +204,7 @@ func TestOverlayfsGetChangedFilesSkipsOpaqueAndMapsWhiteouts(t *testing.T) {
 		t.Fatalf("failed to create added file: %v", err)
 	}
 
-	drv := NewOverlayfsDriver(DefaultConfig())
+	drv := NewOverlayfsDriver(DefaultConfig(), testDeps())
 	sb := &types.Sandbox{
 		ID:       uuid.New(),
 		LowerDir: lowerDir,
@@ -292,7 +252,7 @@ func BenchmarkOverlayfsIsAvailable(b *testing.B) {
 		b.Skip("overlayfs benchmark requires Linux")
 	}
 
-	drv := NewOverlayfsDriver(DefaultConfig())
+	drv := NewOverlayfsDriver(DefaultConfig(), testDeps())
 	ctx := context.Background()
 
 	b.ResetTimer()

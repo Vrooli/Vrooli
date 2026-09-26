@@ -3,9 +3,11 @@ package engine
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
 
@@ -30,17 +32,28 @@ type FrameStreamingConfig struct {
 
 // SessionSpec describes the session needed for an execution.
 type SessionSpec struct {
-	ExecutionID    uuid.UUID
-	WorkflowID     uuid.UUID
-	ViewportWidth  int
-	ViewportHeight int
-	ReuseMode      SessionReuseMode
-	BaseURL        string
-	Labels         map[string]string
-	Capabilities   contracts.CapabilityRequirement  // Required capabilities derived from plan.
-	FrameStreaming *FrameStreamingConfig            // Optional: enables live frame streaming during execution.
-	BrowserProfile *sessionprofilepersistence.BrowserProfile // Optional: anti-detection and human-like behavior settings.
-	StorageState   json.RawMessage                  // Optional: session profile's storage state (cookies, localStorage) for authenticated execution.
+	ExecutionID           uuid.UUID
+	WorkflowID            uuid.UUID
+	ViewportWidth         int
+	ViewportHeight        int
+	ReuseMode             SessionReuseMode
+	SessionProfileVersion string
+	BaseURL               string
+	Labels                map[string]string
+	Capabilities          contracts.CapabilityRequirement           // Required capabilities derived from plan.
+	FrameStreaming        *FrameStreamingConfig                     // Optional: enables live frame streaming during execution.
+	BrowserProfile        *sessionprofilepersistence.BrowserProfile // Optional: anti-detection and human-like behavior settings.
+	StorageState          json.RawMessage                           // Optional: session profile's storage state (cookies, localStorage) for authenticated execution.
+	// FakeMicrophoneWav is an absolute WAV path served as a deterministic fake
+	// microphone. Requires a dedicated browser instance (Chromium launch flag).
+	FakeMicrophoneWav string
+
+	AppTarget         *driver.AppTarget
+	ValidationContext *driver.ValidationContext
+	// RecordingStartAt and RecordingID are supplied by the target ramp. BAS
+	// annotates each WebView step with an offset but never owns the recording.
+	RecordingStartAt *time.Time
+	RecordingID      string
 }
 
 // AutomationEngine exposes engine capabilities and produces engine sessions.

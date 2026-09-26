@@ -1,0 +1,505 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-09-22T02:44:43.132957+00:00",
+  "scope": "Launch preparation and isolated source regressions; no live browser/native product qualification",
+  "contract_sha256": "d4d386e579cd5ede9c1d3ac6569407647ecbd92a370f49cb4cbae144752278eb",
+  "source_inventory": {
+    "schema_version": 1,
+    "observed_at": "2026-09-22T02:44:43.094627+00:00",
+    "head": "7d1c7531d057c061c5ad5a67fbecb97ebe2eb194",
+    "scenario_worktree_status": [
+      " M scenarios/browser-automation-studio/.vrooli/program-runtime/setpoint-read.json",
+      " M scenarios/browser-automation-studio/.vrooli/program-runtime/setpoint-read.py",
+      " M scenarios/browser-automation-studio/PRD.md",
+      " M scenarios/browser-automation-studio/docs/PROBLEMS.md",
+      " M scenarios/browser-automation-studio/docs/START-HERE.md",
+      " M scenarios/browser-automation-studio/docs/concepts/ARCHITECTURE.md",
+      " M scenarios/browser-automation-studio/docs/manifest.json",
+      " M scenarios/browser-automation-studio/playwright-driver/src/routes/session-audio.ts",
+      " M scenarios/browser-automation-studio/playwright-driver/src/routes/session-start.ts",
+      " M scenarios/browser-automation-studio/playwright-driver/src/server.ts",
+      " M scenarios/browser-automation-studio/playwright-driver/src/session/manager.ts",
+      " M scenarios/browser-automation-studio/playwright-driver/src/types/session.ts",
+      " M scenarios/browser-automation-studio/requirements/index.json",
+      " M scenarios/browser-automation-studio/skills/browser-automation-studio-improve/SKILL.md",
+      "?? scenarios/browser-automation-studio/docs/internal/REFRACTOR_ASSESSMENT.md",
+      "?? scenarios/browser-automation-studio/docs/internal/REFRACTOR_BASELINE_2026-09-21.json",
+      "?? scenarios/browser-automation-studio/docs/internal/REFRACTOR_CONTRACT.json",
+      "?? scenarios/browser-automation-studio/docs/internal/REFRACTOR_EXECUTION_2026-09-22.json",
+      "?? scenarios/browser-automation-studio/docs/internal/REFRACTOR_PROBES_2026-09-22.json",
+      "?? scenarios/browser-automation-studio/docs/internal/REFRACTOR_PROFILE_REPLAY_2026-09-22.json",
+      "?? scenarios/browser-automation-studio/docs/internal/REFRACTOR_REUSE_2026-09-22.json",
+      "?? scenarios/browser-automation-studio/docs/internal/REFRACTOR_SESSION_FRAME_2026-09-22.json",
+      "?? scenarios/browser-automation-studio/docs/internal/REFRACTOR_STREAM_2026-09-22.json",
+      "?? scenarios/browser-automation-studio/docs/internal/TESTING.md",
+      "?? scenarios/browser-automation-studio/docs/internal/refactor_contract.py",
+      "?? scenarios/browser-automation-studio/docs/internal/refactor_execution_probes.cjs",
+      "?? scenarios/browser-automation-studio/docs/internal/refactor_execution_probes.go",
+      "?? scenarios/browser-automation-studio/docs/internal/refactor_input_probes.cjs",
+      "?? scenarios/browser-automation-studio/docs/internal/refactor_inventory.py",
+      "?? scenarios/browser-automation-studio/docs/internal/refactor_probes.cjs",
+      "?? scenarios/browser-automation-studio/docs/internal/refactor_probes.go",
+      "?? scenarios/browser-automation-studio/docs/internal/refactor_profile_probes.go",
+      "?? scenarios/browser-automation-studio/docs/internal/refactor_regressions.py",
+      "?? scenarios/browser-automation-studio/docs/internal/refactor_retention_probes.go",
+      "?? scenarios/browser-automation-studio/docs/internal/refactor_reuse_probes.cjs",
+      "?? scenarios/browser-automation-studio/docs/internal/refactor_session_frame_probes.cjs",
+      "?? scenarios/browser-automation-studio/docs/internal/refactor_stream_probes.cjs",
+      "?? scenarios/browser-automation-studio/docs/internal/test_refactor_contract.py",
+      "?? scenarios/browser-automation-studio/requirements/08-rehabilitation/"
+    ],
+    "source_digest_sha256": "5bb3a33175ce3b9c616abb372ee9c707a93ff3eb2d8fa9d1583ff38e03728327",
+    "method": {
+      "population": "Git-tracked plus nonignored untracked Go/TS/TSX/JS/MJS/Python files; physical lines include blanks and comments. tracked_source_* keys describe this selected population.",
+      "include_untracked": true,
+      "excluded": [
+        "coverage",
+        "dist",
+        "gen",
+        "generated",
+        "node_modules",
+        "vendor",
+        "filenames containing .generated."
+      ],
+      "runtime": "api/cli Go and ui/driver src, excluding named tests, testutil/testing directories, testutil_* and test-setup* helpers.",
+      "limits": "Not AST complexity, coverage or code-quality score. Runtime recording/testing diagnostics are excluded from main-path count. Untracked and ignored generated desktop trees are excluded. Shared worktree can change during scan."
+    },
+    "surfaces": {
+      ".vrooli": {
+        "tracked_source_files": 9,
+        "tracked_source_lines": 2398,
+        "runtime_files": 0,
+        "runtime_lines": 0,
+        "runtime_over_500_lines": 0,
+        "runtime_over_1000_lines": 0
+      },
+      "api": {
+        "tracked_source_files": 634,
+        "tracked_source_lines": 157506,
+        "runtime_files": 422,
+        "runtime_lines": 94165,
+        "runtime_over_500_lines": 44,
+        "runtime_over_1000_lines": 10
+      },
+      "bas": {
+        "tracked_source_files": 2,
+        "tracked_source_lines": 546,
+        "runtime_files": 0,
+        "runtime_lines": 0,
+        "runtime_over_500_lines": 0,
+        "runtime_over_1000_lines": 0
+      },
+      "cli": {
+        "tracked_source_files": 74,
+        "tracked_source_lines": 5382,
+        "runtime_files": 43,
+        "runtime_lines": 3179,
+        "runtime_over_500_lines": 0,
+        "runtime_over_1000_lines": 0
+      },
+      "docs": {
+        "tracked_source_files": 8,
+        "tracked_source_lines": 1153,
+        "runtime_files": 0,
+        "runtime_lines": 0,
+        "runtime_over_500_lines": 0,
+        "runtime_over_1000_lines": 0
+      },
+      "playwright-driver": {
+        "tracked_source_files": 354,
+        "tracked_source_lines": 90527,
+        "runtime_files": 210,
+        "runtime_lines": 55567,
+        "runtime_over_500_lines": 25,
+        "runtime_over_1000_lines": 4
+      },
+      "ui": {
+        "tracked_source_files": 794,
+        "tracked_source_lines": 150708,
+        "runtime_files": 685,
+        "runtime_lines": 131532,
+        "runtime_over_500_lines": 56,
+        "runtime_over_1000_lines": 11
+      }
+    },
+    "largest_runtime_files": [
+      {
+        "path": "api/automation/executor/simple_executor.go",
+        "lines": 1899,
+        "bytes": 63482,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "03ed4beba4c42c83cf64e47f3d7972ddbfdb8b9af00ca72d4bb1c59b55c2ce02"
+      },
+      {
+        "path": "playwright-driver/src/recording/capture/browser-scripts/recording-script.js",
+        "lines": 1626,
+        "bytes": 51138,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "9ce636040c0591341a82d4e1a17bec4a980bb42372cbb8fbe18ccf69eaa4e572"
+      },
+      {
+        "path": "ui/src/domains/recording/RecordingSession.tsx",
+        "lines": 1560,
+        "bytes": 61427,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "99ef04b56539e3cc8253d9351a0445f6476e9fab1cd1f81db961056ba18a49d3"
+      },
+      {
+        "path": "api/automation/execution-writer/file_writer.go",
+        "lines": 1510,
+        "bytes": 50326,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "61dd59786acee6d8d5ac3d5200b7ba6435c43c8da2d31ac35d1dc5a2b4e574ae"
+      },
+      {
+        "path": "api/automation/compiler/compiler.go",
+        "lines": 1337,
+        "bytes": 42287,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "e668f31261a9f85022a4fc15bb23ac2f7e7fa2e9a93e9cfa8f22b145ad2c9416"
+      },
+      {
+        "path": "playwright-driver/src/recording/orchestration/pipeline-manager.ts",
+        "lines": 1328,
+        "bytes": 42683,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "7a9b30e41189c7e06f5da7a91c1f518a311344cacbd655cbc2a6b60e09bd290f"
+      },
+      {
+        "path": "ui/src/domains/replay-style/catalog.tsx",
+        "lines": 1290,
+        "bytes": 48663,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "7b9e7f1a05735367464190b3af7e9455ba5e69e73622e317b751504bc4c35d29"
+      },
+      {
+        "path": "api/handlers/record_mode.go",
+        "lines": 1274,
+        "bytes": 43684,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "b7f35205756ba0f579fa403c8d82f40002713a08bc9784d0e6df5756c44d0d05"
+      },
+      {
+        "path": "ui/src/shared/onboarding/GuidedTour.tsx",
+        "lines": 1267,
+        "bytes": 42546,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "d0ec122ea66e29545b3c2bc8b7a7cfba99a1dbd596dd8ea5a91ed936b55319b9"
+      },
+      {
+        "path": "playwright-driver/src/session/manager.ts",
+        "lines": 1256,
+        "bytes": 47431,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "117350b730a64a73b90e29bf111735ee4f101aab8f6b222f5160ce09154c2acd"
+      },
+      {
+        "path": "api/main.go",
+        "lines": 1242,
+        "bytes": 54600,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "dc1bf80d65bf0970b9ac7244f6d7a92b5cf01654456fa5a76644e7b6e7ac6b6d"
+      },
+      {
+        "path": "api/services/credits/service.go",
+        "lines": 1215,
+        "bytes": 39751,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "384ff54a57fbdb7f255c3fe4bb4a260fbf848e56a736e381fbcedd74bd396aed"
+      },
+      {
+        "path": "api/automation/driver/client.go",
+        "lines": 1153,
+        "bytes": 40924,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "9cadae6081ea1f40c9f28a1bd980136763a61d7728f2069322b68daabb4beb14"
+      },
+      {
+        "path": "ui/src/domains/recording/timeline/TimelineFullView.tsx",
+        "lines": 1140,
+        "bytes": 54568,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "396cb1eaedaa5d238ad5469e91ad32fff516f0871874c40ce76cbad29b8169b5"
+      },
+      {
+        "path": "ui/src/export/ReplayExportPage.tsx",
+        "lines": 1136,
+        "bytes": 36761,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "b99f3be2d2ed69b4a28da89267a0e30f40047a750d1c06350459d4b8cbdc4873"
+      },
+      {
+        "path": "api/services/export/html_bundle.go",
+        "lines": 1133,
+        "bytes": 32603,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "aab7b22eab3373e45091d5d94b2129025db5d38fcd37c24c5a739c5c5322638d"
+      },
+      {
+        "path": "ui/src/shared/layout/Header.tsx",
+        "lines": 1126,
+        "bytes": 42976,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "3aca3f21ba2810aeb2e7585d7c9236c4b84ee80ed32c81c66e6a82389051d513"
+      },
+      {
+        "path": "api/internal/protoconv/driver_convert.go",
+        "lines": 1100,
+        "bytes": 27655,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "de11a02e41fd5f1635e4f42c5b5ea400c0ccb822957609f71fb5b7b3bba4473f"
+      },
+      {
+        "path": "ui/src/domains/workflows/builder/WorkflowBuilder.tsx",
+        "lines": 1077,
+        "bytes": 34593,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "ce872ff88c8ac0f4280f9ec2b613cbcd281819e9075e019db5322d7df62162a9"
+      },
+      {
+        "path": "ui/src/domains/executions/store.ts",
+        "lines": 1064,
+        "bytes": 39156,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "fc35a82d33bb9b38efabc90138d1f0d483f7471f9ce9e0b926e2603ee7ae66c6"
+      },
+      {
+        "path": "playwright-driver/src/ai/vision-agent/agent.ts",
+        "lines": 1063,
+        "bytes": 37782,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "b7c3780315b64b5d685b91d28dd56a679ffd89d474f57fc945e2979e016a87e7"
+      },
+      {
+        "path": "ui/src/domains/projects/ProjectFileTree.tsx",
+        "lines": 1046,
+        "bytes": 37022,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "07e972d7bd2cec928ce369f54fd5be1800ebe677c8539e681ce9ccca15c2dc08"
+      },
+      {
+        "path": "ui/src/domains/recording/timeline/ActionTimeline.tsx",
+        "lines": 1042,
+        "bytes": 51552,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "fd0b01dd72fb57703cabcfe00bdc7fd2801ff8f420f4de511eefb213475dc89c"
+      },
+      {
+        "path": "ui/src/utils/actionBuilder.ts",
+        "lines": 1026,
+        "bytes": 28021,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "38b30f957c7df59edc609401cc33576a186b158eeaa325edd469aba80cf30b61"
+      },
+      {
+        "path": "api/database/repository.go",
+        "lines": 1002,
+        "bytes": 39032,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "e7fa258ac9e666278362f09515eced7213425e6a9ded9192eda6b35338df8cb2"
+      },
+      {
+        "path": "api/config/config.go",
+        "lines": 983,
+        "bytes": 42099,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "17fb9afadbaec6578025ac9edbdf75dc7328822da154bea550845b2f02ccd537"
+      },
+      {
+        "path": "playwright-driver/src/config.ts",
+        "lines": 937,
+        "bytes": 44691,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "4e9908273e30b884b7ef697679c60a4f1145b9bc6d91c02e9b85e58120052895"
+      },
+      {
+        "path": "api/services/recording/service.go",
+        "lines": 882,
+        "bytes": 25353,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "ddcefb5637268f2b184c8fa2e9ee5bb898391f7f87946d5fd4b3e4ac54e453e8"
+      },
+      {
+        "path": "api/owner_cleanup.go",
+        "lines": 879,
+        "bytes": 30836,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "b7f50b41a39ddf5656a6dfd38c116f924d3c83342ab79b971db7cd3601bdc06d"
+      },
+      {
+        "path": "ui/src/domains/projects/ProjectDetailHeader.tsx",
+        "lines": 878,
+        "bytes": 31969,
+        "test": false,
+        "runtime_source": true,
+        "sha256": "3749a75a24d54c313e604f4d60c887ad6dfafcb4be51e48cb274413da0771681"
+      }
+    ],
+    "source_extensions": {
+      ".py": 13,
+      ".go": 714,
+      ".js": 9,
+      ".ts": 759,
+      ".mjs": 9,
+      ".tsx": 371
+    }
+  },
+  "tidiness": {
+    "run_id": "20260922-022553-efaa6ee7",
+    "completed_at": "2026-09-22T02:26:02Z",
+    "status": "failed",
+    "summary": {
+      "errors": 1,
+      "warnings": 236,
+      "infos": 867,
+      "total": 1104
+    },
+    "counts": {
+      "high_complexity": 381,
+      "high_coupling": 12,
+      "long_files": 82,
+      "duplicated_code": 338,
+      "duplicated_boilerplate": 290,
+      "duplication_line_debt": 35603
+    },
+    "artifact_catalog_digest": "ac:sha256:5494d4fa057ee651c200e8368cb62cd47dbdf7430bc7d0d4b58c48f23197b03a",
+    "limits": "Owner findings include tests and boilerplate and are not unique defects; preserve scanner/configuration population for comparisons."
+  },
+  "isolated_regressions": {
+    "cases": 10,
+    "checks": 121,
+    "met": 33,
+    "not_met": 88,
+    "producer_unavailable": 0,
+    "evidence_path": "docs/internal/evidence/rehabilitation/2026-09-22-initial-regressions.json",
+    "evidence_sha256": "ef7f4f667cc4b1f8ff80a5f778a6f2db7930cd6395d81254f096a1093487342e"
+  },
+  "governed_board": {
+    "program_id": "prog_f13b68b7-97fa-4b5d-b117-324d796a7c19",
+    "status": "PROGRAM_STATUS_SUCCEEDED",
+    "required": 17,
+    "unmet": 17,
+    "product_qualified": false
+  },
+  "programs_validation": {
+    "run_id": "20260922-023953-811244a0",
+    "status": "passed"
+  },
+  "platform_access": {
+    "linux-x64": "Local target ready",
+    "macos-x64": "Registered online target lacks authorized scenario-test dispatch scope",
+    "windows-x64": "No runner returned by desktop owner inventory",
+    "macos-arm64": "No runner returned by desktop owner inventory",
+    "android": "Registered reachable device; capability readiness unresolved; not a qualification receipt"
+  },
+  "prior_work": {
+    "swarm_goal": "browser-automation-studio-improve",
+    "relationship": "Operational diagnostics retained; this effort uses the rehabilitation profile and stronger product contract. No historical goal/plan was marked complete or archived.",
+    "plans": [
+      "browser-automation-studio-professionalization-and-readiness",
+      "bas-capture-truthfulness-session-lifecycle-and-cli-catalog",
+      "modernize-browser-automation-studio-architecture-and",
+      "desktop-application-evidence-bas-on-desktop-web-console"
+    ]
+  },
+  "amendments": [
+    {
+      "observed_at": "2026-09-22T02:54:04.115165+00:00",
+      "authority": "Latest operator clarification: unavailable validation must never block, including later-discovered release gaps",
+      "contract_sha256": "47368287a86cf7db88e8a64e4bc6c6c61217742dea13fa117db33024371c4a73",
+      "changes": [
+        "Explicit non-blocking engineering completion policy; unavailable results remain unverified",
+        "Two fresh reviews require no material actionable finding; documented unavailable validation does not reset their count",
+        "Numeric performance targets, preservation journeys and existing debt budgets remain unchanged"
+      ],
+      "preparation_validation": {
+        "tests_passed": 7,
+        "contract_consistent": true,
+        "plan_structure_valid": true
+      }
+    },
+    {
+      "observed_at": "2026-09-22T03:08:35.005322+00:00",
+      "authority": "Operator rejected Plan Manager, requested file-only continuous improvement with greater debt reduction, production quality, stakes and ongoing autonomous investigation.",
+      "superseded_handoff": {
+        "plan_id": "948897c4-bc18-4426-b798-f8bd2d25421e",
+        "plan_slug": "bas-browser-rehabilitation",
+        "status": "prepared_not_started",
+        "goal_text": "/home/matthalloran8/.vrooli/plan-artifacts/bas-browser-rehabilitation/goal.txt",
+        "plan_mirror": "/home/matthalloran8/.vrooli/plans/bas-browser-rehabilitation.md",
+        "external_resumer_configured": false,
+        "implementation_agent_launched": false
+      },
+      "contract_sha256": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+      "changes": [
+        "Mistakenly created plan archived through owner before execution; audit record is historical only",
+        "Goal, scope, feedback, decisions and progress all live in scenario files; no plan dependency",
+        "Green checks and two clean reviews trigger further investigation rather than completion",
+        "Stronger domain-wide complexity/debt and replacement-removal requirements",
+        "Numerical performance targets, preservation journeys, existing debt budgets and non-blocking validation retained"
+      ],
+      "preparation_validation": {
+        "observed_at": "2026-09-22T03:13:13.825782+00:00",
+        "preparation_tests_passed": 8,
+        "contract_consistent": true,
+        "goal_characters": 2044,
+        "goal_sha256": "7dccbac7f799d82dad5d26f5b1fa09757efe0175faba9c78b6779d70789edc9f",
+        "skill_set": {
+          "run_id": "20260922-030931-9015f688",
+          "status": "passed"
+        },
+        "docs": {
+          "initial_run_id": "20260922-030931-9015f688",
+          "initial_errors": 42,
+          "rerun_id": "20260922-031112-03ee86df",
+          "status": "failed",
+          "errors": 4,
+          "warnings": 389,
+          "infos": 20,
+          "issue_id": "BAS-RF-050",
+          "limits": "Owner findings retained; current preparation artifact errors repaired. No product/native qualification."
+        },
+        "retired_plan_status": "PLAN_STATUS_ARCHIVED"
+      }
+    }
+  ],
+  "handoff": {
+    "work_model": "file_based_continuous_improvement",
+    "status": "prepared_not_started",
+    "goal_file": "docs/internal/REFRACTOR_GOAL.md",
+    "progress_file": "docs/internal/REFRACTOR_PROGRESS.md",
+    "feedback_file": "docs/internal/OPERATOR_FEEDBACK.md",
+    "plan_required": false,
+    "external_resumer_configured": false,
+    "implementation_agent_launched": false
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "contractRow": "profile-durability",
+  "contractSha256": "8a9da35f075fb09bbe5f16fdb3785426a2c69b5643e49dd8d6a6b319d6948011",
+  "sourceFiles": {
+    "api/cmd/profile-durability-cohort/qualification.mjs": "b5ac4857c7187a27100f217c0a0dd44c0a9b16f65032f1c12145bb3449036400",
+    "playwright-driver/src/session/manager.ts": "6de195afa51085d1e6eb52f70e4822a0ac70282a3601065518ea5f0adca4cfb7"
+  },
+  "runtime": {
+    "managedBuildIdentityBeforeSeedAndAfterRestart": "sha256:56989be5aade350331b4a417406079ffe69408d53414363b6f1e49df5915cc5a"
+  },
+  "cohort": {
+    "allChecksPassed": true,
+    "seedChecks": 5,
+    "restartChecks": 2,
+    "checkpointVisibleAfterMs": 1259.8906749999999,
+    "alphaBetaIsolation": "passed",
+    "alphaAndBetaAfterManagedApiDriverRestart": "passed",
+    "syntheticProfilesDeleted": 2,
+    "seedOwnerReceipt": {
+      "path": ".vrooli/runtime/rehabilitation-evidence/profile-durability-w273-20260926-0303/seed-receipt.json",
+      "sha256": "f19be58972601baae13f9a5f791000ba8c311f961d727fcb9379eb370a53a318"
+    },
+    "restartOwnerReceipt": {
+      "path": ".vrooli/runtime/rehabilitation-evidence/profile-durability-w273-20260926-0303/verify-receipt.json",
+      "sha256": "4d631aea0a86e2f01ba84e2101348d48110db68afb13e5ca856327261ef2e699"
+    }
+  }
+}

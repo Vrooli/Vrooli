@@ -1,4 +1,10 @@
 {
-  "activePacks": ["local", "core"],
-  "inactivePacks": ["drafts"]
+  "activePacks": [
+    "local",
+    "core",
+    "vendor"
+  ],
+  "inactivePacks": [
+    "drafts"
+  ]
 }

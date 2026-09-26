@@ -12,7 +12,7 @@
       "description": "Implement tracking system for prompt usage patterns and success metrics",
       "id": "REQ-P1-004",
       "prd_ref": "prompt-manager-should-have-usage-tracking-and-metrics",
-      "status": "draft",
+      "status": "planned",
       "title": "Usage Analytics System",
       "validation": [
         {

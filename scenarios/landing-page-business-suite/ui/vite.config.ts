@@ -1,48 +1,111 @@
 import path from "node:path";
-import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { defineConfig } from "vitest/config";
 
-export default defineConfig({
-  base: './',  // Required for tunnel/proxy contexts
-  resolve: {
-    alias: {
-      "@proto-lprv": path.resolve(__dirname, "../../../packages/proto/gen/typescript/landing-page-react-vite/v1"),
+export default defineConfig(({ mode }) => {
+  const isProfile = mode === "profile";
+
+  return {
+    // INTEROP-CRITICAL: relative assets keep the UI operable through Vrooli's
+    // tunnel/proxy paths as well as direct local serving.
+    base: './',
+    resolve: {
+      alias: {
+        // Keep bundling aligned with tsconfig "paths": these generated
+        // modules resolve to the proto source, not the installed copy, so a
+        // field the type checker accepts is never silently dropped at runtime.
+        ...Object.fromEntries(
+          ["variant_pb", "variant_section_pb", "waitlist_pb", "admin_pb", "branding_pb", "account_security_pb"].map((module) => [
+            `@vrooli/proto-types/landing-page-business-suite/v1/${module}`,
+            path.resolve(__dirname, `../../../packages/proto/gen/typescript/landing-page-business-suite/v1/${module}.ts`),
+          ]),
+        ),
+        ...(isProfile
+          ? {
+              "react-dom/client": "react-dom/profiling",
+              "react-dom$": "react-dom/profiling",
+            }
+          : {}),
+      },
+      // Ensure modules imported from proto files resolve from UI's node_modules
+      dedupe: ["@bufbuild/protobuf"],
     },
-    // Ensure modules imported from proto files resolve from UI's node_modules
-    dedupe: ["@bufbuild/protobuf"],
-  },
-  server: {
-    fs: {
-      allow: [path.resolve(__dirname, "../../../packages")],
+    esbuild: isProfile
+      ? {
+          keepNames: true,
+        }
+      : undefined,
+    server: {
+      fs: {
+        allow: [path.resolve(__dirname, "../../../packages")],
+      },
     },
-  },
-  plugins: [react()],
-  optimizeDeps: {
-    include: ["@bufbuild/protobuf"],
-  },
-  build: {
-    commonjsOptions: {
-      include: [/node_modules/],
+    plugins: [react()],
+    optimizeDeps: {
+      include: ["@bufbuild/protobuf"],
     },
-    rollupOptions: {
-      // Force resolution of @bufbuild/protobuf from UI's node_modules
-      external: [],
+    build: {
+      commonjsOptions: {
+        include: [/node_modules/],
+      },
+      rollupOptions: {
+        // Force resolution of @bufbuild/protobuf from UI's node_modules
+        external: [],
+        output: {
+          // Keep the initial public-landing payload focused on application code.
+          // Monaco is only needed by the admin variant editor, while framework
+          // packages are long-lived browser-cache candidates across deployments.
+          manualChunks(id) {
+            if (id.includes('/node_modules/monaco-editor/') || id.includes('/node_modules/@monaco-editor/')) {
+              return 'monaco-editor';
+            }
+            if (
+              id.includes('/node_modules/react/') ||
+              id.includes('/node_modules/react-dom/') ||
+              id.includes('/node_modules/react-router/') ||
+              id.includes('/node_modules/react-router-dom/')
+            ) {
+              return 'react-framework';
+            }
+          },
+        },
+      },
     },
-  },
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: ['./src/test-setup.ts'],
-    coverage: {
-      provider: 'v8',
-      reporter: ['json-summary', 'json', 'text'],
-      reportOnFailure: true,
-      thresholds: {
-        lines: 0,
-        functions: 0,
-        branches: 0,
-        statements: 0
+    test: {
+      // Browser tests use jsdom; server/*.test.mjs uses Node's native runner
+      // through the package test scripts, not Vite's client bundler.
+      include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: ['./src/test-setup.ts'],
+      // Bound parallelism: the full DOM suite intermittently exhausts worker
+      // IPC under the default pool, while a single worker can deadlock a test
+      // that expects another file's isolated environment to make progress.
+      minWorkers: 1,
+      maxWorkers: 2,
+      coverage: {
+        provider: 'v8',
+        reporter: ['json-summary', 'json', 'text'],
+        reportOnFailure: true,
+        include: ['src/**/*.{ts,tsx}'],
+        exclude: [
+          'src/**/*.test.{ts,tsx}',
+          'src/**/*.spec.{ts,tsx}',
+          'src/**/*.d.ts',
+          'src/main.tsx',
+          'src/test-setup.ts',
+          'src/test-utils/**',
+          'src/consts/strings.generated.ts',
+          'src/i18n/locales/**',
+          'src/**/generated/**',
+        ],
+        thresholds: {
+          lines: 85,
+          functions: 85,
+          branches: 85,
+          statements: 85
+        }
       }
     }
-  }
+  };
 });

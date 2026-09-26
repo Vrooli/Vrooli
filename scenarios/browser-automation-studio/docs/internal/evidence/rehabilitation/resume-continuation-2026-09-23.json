@@ -1,0 +1,455 @@
+{
+  "cycle": "087",
+  "issue": "BAS-RF-107",
+  "status": "step-zero and deterministic graph continuation locally qualified and deployed; richer recovery remains open",
+  "source": {
+    "before": {
+      "api/automation/executor/executor.go": {
+        "sha256": "bec4752f31f6d1d980d5971c7f79f6eb96ac69a5698b612fb733295df5e01c82",
+        "lines": 121
+      },
+      "api/automation/executor/simple_executor.go": {
+        "sha256": "00f7893f66c4438a03759d628e45c1bbbf8c15deb5805f09fc33624e91f72f95",
+        "lines": 1822
+      },
+      "api/automation/executor/flow_executor.go": {
+        "sha256": "759ba4691dd54caa634f0363b903116b633dbe8d8d49412018406480dbcb9d57",
+        "lines": 759
+      },
+      "api/automation/executor/flow_utils.go": {
+        "sha256": "563eff46f5a4a415a75fa43791e93812b02293c78f071b428d155f95bf334258",
+        "lines": 372
+      },
+      "api/automation/executor/flow_executor_subflow_interpolation_test.go": {
+        "sha256": "10ae69673cdb10d80db0d223c3f95fc2439fb9bada91b6d1409cd3aa6c668aa6",
+        "lines": 369
+      },
+      "api/automation/executor/telemetry_directive_test.go": {
+        "sha256": "8319e5a952687f5415552aac0a06ff530b9486fbfe17df93c35c6e47dc59ec8e",
+        "lines": 300
+      },
+      "api/automation/executor/session_lifecycle_test.go": {
+        "sha256": "000ee4130eca4f5d2967db677a528efb273205bebf419334f164d9fc1b59020a",
+        "lines": 564
+      },
+      "api/services/workflow/executions.go": {
+        "sha256": "5bf76bcb0959191200ee44a6a59566837e41ca8cc9d5d2f1eceff73c1ba5207b",
+        "lines": 760
+      },
+      "api/services/workflow/executions_list.go": {
+        "sha256": "ee7aabf6b5e294ce2d491e803e845b47ba6962f9938f432fe2261c6b6102658e",
+        "lines": 209
+      }
+    },
+    "frozen": {
+      "api/automation/executor/executor.go": {
+        "sha256": "c98d1fae6fb0b46b138e474449e4fe4416c8ce68af405e18adc42bb98efc731a",
+        "lines": 122
+      },
+      "api/automation/executor/simple_executor.go": {
+        "sha256": "84e5093b92fc72a2b81d846c37770b02b7f3a93eddb485399c1490c05fb4182f",
+        "lines": 1819
+      },
+      "api/automation/executor/flow_executor.go": {
+        "sha256": "b860fffb8012849c6218229466648a26b079614e48e0193c16b1b2e4fabf2bac",
+        "lines": 758
+      },
+      "api/automation/executor/flow_utils.go": {
+        "sha256": "25f77c6e7e13987bef1fe291b394fcc3a21eac6c8440b3359bd3aafbb299a824",
+        "lines": 425
+      },
+      "api/automation/executor/flow_executor_subflow_interpolation_test.go": {
+        "sha256": "d016463fde4b254bce4911a8d680fd65d07eb2d8f714fe385820c69f83799b6b",
+        "lines": 488
+      },
+      "api/automation/executor/telemetry_directive_test.go": {
+        "sha256": "1b9f3b367493e4117c38a56d62e93d9a694ac9a864e1be83568a2a20c2e7c85d",
+        "lines": 300
+      },
+      "api/automation/executor/session_lifecycle_test.go": {
+        "sha256": "ad4e59edff0e24bcd2dbf2028d4f855001499d73f5bb12080398e61a96869173",
+        "lines": 564
+      },
+      "api/services/workflow/executions.go": {
+        "sha256": "5168331f2009b2f5b2eb1cfd0da3dfe1da77c7f36248d072db1030adc77760c5",
+        "lines": 759
+      },
+      "api/services/workflow/executions_list.go": {
+        "sha256": "eded92627a465803ad8e677fd6a7aba7779925a09e539a92f52f5fb191f07e4a",
+        "lines": 209
+      }
+    }
+  },
+  "change": "Optional checkpoint distinguishes fresh execution from resume after step0. Resolve instruction order or deterministic graph successor before setup effects; preserve full plan and identities. Reject scalar recovery requiring a control-flow cursor instead of replaying the graph root.",
+  "evidence": {
+    "overlay_red": "/tmp/bas-resume-checkpoint-red2-087.txt",
+    "producer_error": "/tmp/bas-resume-checkpoint-red-087.txt",
+    "native_red": {
+      "build_identity": "sha256:6bda665924ee0f708d0a7afbdddf5c1e2823ac5449451765b69b7748bd64ff46",
+      "artifact_dir": "/tmp/bas-resume-effects-087-kId0BY",
+      "cases": [
+        {
+          "name": "create owned workflow",
+          "status": "passed"
+        },
+        {
+          "name": "initial failure follows one completed effect",
+          "status": "passed"
+        },
+        {
+          "name": "resume completes without repeating the completed effect",
+          "status": "failed",
+          "error": "AssertionError [ERR_ASSERTION]: resume repeated a completed external effect\n\n2 !== 1\n"
+        },
+        {
+          "name": "remove only owned execution evidence",
+          "status": "passed"
+        },
+        {
+          "name": "remove owned workflow",
+          "status": "passed"
+        },
+        {
+          "name": "remove owned project",
+          "status": "passed"
+        }
+      ],
+      "effects": [
+        {
+          "sequence": 1,
+          "time": 1790165062148
+        },
+        {
+          "sequence": 2,
+          "time": 1790165062801
+        }
+      ],
+      "attempts": [
+        {
+          "url": "/effect",
+          "gate": false,
+          "time": 1790165062148
+        },
+        {
+          "url": "/gate",
+          "gate": false,
+          "time": 1790165062414
+        },
+        {
+          "url": "/gate",
+          "gate": false,
+          "time": 1790165062415
+        },
+        {
+          "url": "/effect",
+          "gate": true,
+          "time": 1790165062801
+        },
+        {
+          "url": "/gate",
+          "gate": true,
+          "time": 1790165063041
+        }
+      ],
+      "execution_ids": [
+        "79681996-c5a2-4088-8757-9722d7845f4d",
+        "41bfa826-9142-4725-8137-df5128e9a175"
+      ],
+      "passed": 5,
+      "failed": 1
+    },
+    "native_producer": "/tmp/browser-automation-studio/resume-effects-native-087.mjs",
+    "focused_controls": "/tmp/bas-resume-checkpoint-controls-green-087.txt",
+    "packages": "/tmp/bas-resume-checkpoint-packages-final-087.txt",
+    "race": "/tmp/bas-resume-checkpoint-races-087.txt",
+    "build": "/tmp/bas-go-build-087.txt",
+    "tidiness_run": "20260923-121205-0249b134",
+    "tidiness": {
+      "totalFindings": 1153,
+      "longFiles": 103,
+      "complexity": 414,
+      "duplication": 612,
+      "coupling": 23,
+      "duplicationLineDebt": 34310
+    },
+    "board": "/tmp/bas-setpoint-087.txt",
+    "native_green": {
+      "build_identity": "sha256:0c05266d1bc33ba6c0b0fe53bdc56f2b32fcfd755f51fb1d559e76fae17e836d",
+      "artifact_dir": "/tmp/bas-resume-effects-087-aLKrWN",
+      "cases": [
+        {
+          "name": "create owned workflow",
+          "status": "passed"
+        },
+        {
+          "name": "initial failure follows one completed effect",
+          "status": "passed"
+        },
+        {
+          "name": "resume completes without repeating the completed effect",
+          "status": "passed"
+        },
+        {
+          "name": "remove only owned execution evidence",
+          "status": "passed"
+        },
+        {
+          "name": "remove owned workflow",
+          "status": "passed"
+        },
+        {
+          "name": "remove owned project",
+          "status": "passed"
+        }
+      ],
+      "effects": [
+        {
+          "sequence": 1,
+          "time": 1790165884736
+        }
+      ],
+      "attempts": [
+        {
+          "url": "/effect",
+          "gate": false,
+          "time": 1790165884736
+        },
+        {
+          "url": "/gate",
+          "gate": false,
+          "time": 1790165885029
+        },
+        {
+          "url": "/gate",
+          "gate": false,
+          "time": 1790165885030
+        },
+        {
+          "url": "/gate",
+          "gate": true,
+          "time": 1790165885384
+        }
+      ],
+      "execution_ids": [
+        "84f658c7-ffaa-42ba-9726-c3475a001734",
+        "51b2995d-e3ed-4dc8-a86f-56c24e95b781"
+      ],
+      "passed": 6,
+      "failed": 0
+    },
+    "workflow_metadata": {
+      "build_identity": "sha256:0c05266d1bc33ba6c0b0fe53bdc56f2b32fcfd755f51fb1d559e76fae17e836d",
+      "cases": [
+        {
+          "name": "driver prerequisite",
+          "status": "passed"
+        },
+        {
+          "name": "owned recording captures the independent fixture click",
+          "status": "passed"
+        },
+        {
+          "name": "API persists and reads the generated workflow",
+          "status": "passed"
+        },
+        {
+          "name": "invalid owners leave recorded entries available",
+          "status": "passed"
+        },
+        {
+          "name": "committed entries receive an exact acknowledgement",
+          "status": "passed"
+        },
+        {
+          "name": "captured typed actions replay in a fresh browser context",
+          "status": "passed"
+        },
+        {
+          "name": "saved workflow executes through the API owner",
+          "status": "passed"
+        },
+        {
+          "name": "execution preserves resolved version, trigger and admitted parameters",
+          "status": "passed"
+        },
+        {
+          "name": "close owned session e6f15055-7afe-45f7-b14b-bf3a056bb4c5",
+          "status": "passed"
+        },
+        {
+          "name": "close owned session c5e00c0c-d889-411a-8c8b-036c91abb551",
+          "status": "passed"
+        },
+        {
+          "name": "remove only this fixture execution and artifacts",
+          "status": "passed"
+        },
+        {
+          "name": "delete fixture workflow",
+          "status": "passed"
+        },
+        {
+          "name": "delete fixture project and files",
+          "status": "passed"
+        }
+      ],
+      "effects": [
+        {
+          "sequence": 1,
+          "context": "fixture_context=e0cecbdc-99d2-49f4-8896-42c94a996def",
+          "received_at": "2026-09-23T12:18:05.018Z"
+        },
+        {
+          "sequence": 2,
+          "context": "fixture_context=148e22b0-bda0-4c5a-bbc0-51cdb00d8e01",
+          "received_at": "2026-09-23T12:18:05.328Z"
+        },
+        {
+          "sequence": 3,
+          "context": "fixture_context=2ef45a5a-c28a-42ec-af07-4132fb850854",
+          "received_at": "2026-09-23T12:18:06.042Z"
+        }
+      ],
+      "execution_id": "6361e0dd-20f2-487c-a30a-ff494c2960ec",
+      "artifact_dir": "/tmp/bas-recording-e2e-Eo9vem",
+      "api_selected": true,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0
+    },
+    "profiles": {
+      "original_full_reads": 3,
+      "api_equals": "086",
+      "receipt": "/tmp/bas-profile-final-087.txt"
+    },
+    "capture_controls": {
+      "admission": {
+        "passed": 5,
+        "receipt": "/tmp/bas-capture-admission-native-green-087/receipt.json"
+      },
+      "dpr": {
+        "passed": 18,
+        "receipt": "/tmp/bas-capture-dpr-native-green-087/receipt.json"
+      }
+    }
+  },
+  "metrics": {
+    "before": {
+      "runtime_lines": 4043,
+      "complexity": 777,
+      "functions": 118,
+      "hotspots": [
+        {
+          "function": "(*WorkflowService).executeWorkflowAsyncWithOptions",
+          "complexity": 55
+        },
+        {
+          "function": "(*SimpleExecutor).Execute",
+          "complexity": 37
+        },
+        {
+          "function": "(*SimpleExecutor).runPlan",
+          "complexity": 34
+        },
+        {
+          "function": "actionTypeToString",
+          "complexity": 29
+        },
+        {
+          "function": "(*SimpleExecutor).executePlanStep",
+          "complexity": 27
+        },
+        {
+          "function": "(*WorkflowService).ExecuteWorkflowAPIWithOptions",
+          "complexity": 25
+        },
+        {
+          "function": "(*SimpleExecutor).normalizeOutcome",
+          "complexity": 25
+        },
+        {
+          "function": "actionPrimarySelector",
+          "complexity": 19
+        }
+      ]
+    },
+    "after": {
+      "runtime_lines": 4092,
+      "complexity": 799,
+      "functions": 119,
+      "hotspots": [
+        {
+          "function": "(*WorkflowService).executeWorkflowAsyncWithOptions",
+          "complexity": 55
+        },
+        {
+          "function": "(*SimpleExecutor).runPlan",
+          "complexity": 37
+        },
+        {
+          "function": "(*SimpleExecutor).Execute",
+          "complexity": 37
+        },
+        {
+          "function": "actionTypeToString",
+          "complexity": 29
+        },
+        {
+          "function": "(*SimpleExecutor).executePlanStep",
+          "complexity": 27
+        },
+        {
+          "function": "(*WorkflowService).ExecuteWorkflowAPIWithOptions",
+          "complexity": 25
+        },
+        {
+          "function": "(*SimpleExecutor).normalizeOutcome",
+          "complexity": 25
+        },
+        {
+          "function": "actionPrimarySelector",
+          "complexity": 19
+        },
+        {
+          "function": "resumeStart",
+          "complexity": 19
+        }
+      ]
+    },
+    "delta": {
+      "runtime_lines": 49,
+      "complexity": 22,
+      "functions": 1
+    },
+    "cumulative_affected_go_complexity": -49
+  },
+  "duplication_attribution": {
+    "receipt": "/tmp/bas-tidiness-duplication-attribution-087.json",
+    "before": {
+      "duplication_class": "structural",
+      "duplication_line_debt": 0,
+      "file_role": "test",
+      "lines": 9,
+      "tool": "dupl"
+    },
+    "after": {
+      "duplication_class": "high-leverage",
+      "duplication_line_debt": 3250,
+      "file_role": "test",
+      "lines": 25,
+      "tool": "dupl"
+    },
+    "before_locations": 65,
+    "after_locations": 66,
+    "common_exact_locations": 58
+  },
+  "pending_operations": {},
+  "limitations": [
+    "Rich branch/loop/subflow recovery needs durable cursor/state; scalar recovery is explicitly rejected before effects. Fresh control flow remains supported.",
+    "Resume routed-context loss is separately reproduced as RF108; lineage projection and historical missing metadata remain open.",
+    "Runtime+49/Go complexity+22; no per-cycle simplification claim.",
+    "All17 release outcomes pending_telemetry; tidiness budgets fail.",
+    "086 capture performance is retained as dated evidence; no new performance certification claimed."
+  ],
+  "build_identity": "sha256:0c05266d1bc33ba6c0b0fe53bdc56f2b32fcfd755f51fb1d559e76fae17e836d"
+}

@@ -1,0 +1,6 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "effort-supervision",
+  "roles": [{ "id": "effort-supervisor", "name": "Effort Supervisor", "description": "Active autonomous delivery supervision, blocker recovery, cross-team coordination and independent evidence sampling under the standing supervision contract." }]
+}

@@ -10,9 +10,21 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
 )
+
+type HealthResponse struct {
+	Status    string    `json:"status"`
+	Service   string    `json:"service"`
+	Timestamp time.Time `json:"timestamp"`
+	Readiness bool      `json:"readiness"`
+	Version   string    `json:"version"`
+}
+
+var healthHandler = health.New("picker-wheel-api").Version("1.0.0").Check(health.DB(db), health.Optional).Handler()
 
 // TestLogger provides controlled logging during tests
 type TestLogger struct {

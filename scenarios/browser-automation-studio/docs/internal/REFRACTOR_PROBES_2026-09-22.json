@@ -1,0 +1,454 @@
+{
+  "schema_version": 1,
+  "assembled_at": "2026-09-22T00:16:41.506261+00:00",
+  "assessment": "REFRACTOR_ASSESSMENT.md#follow-up-isolated-reproductions--2026-09-22-utc",
+  "scope": "Investigation only; no production fixes or service restart; synthetic module probes, not scenario certification",
+  "source_head": "129da6b96062fad08f53b34228ae16801befdf79",
+  "source_digest_sha256": "2df361d5baaaf501715527e57993b6024ca63e798713f5d9e655a9682f584f43",
+  "product_source_digest_unchanged_from_initial": true,
+  "runtime_source_equivalence": "UNKNOWN: running Go binary has older vcs.revision and vcs.modified=true; source equivalence is not established",
+  "running_build_info": [
+    "/proc/1647308/exe: go1.25.12",
+    "\tpath\tgithub.com/vrooli/browser-automation-studio",
+    "\tmod\tgithub.com/vrooli/browser-automation-studio\t(devel)\t",
+    "\tdep\tbuf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go\tv1.36.11-20251209175733-2a1774d88802.1\th1:j9yeqTWEFrtimt8Nng2MIeRrpoCvQzM9/g25XTvqUGg=",
+    "\tdep\tconnectrpc.com/connect\tv1.19.2\th1:McQ83FGdzL+t60peksi0gXC7MQ/iLKgLduAnThbM0mo=",
+    "\tdep\tgithub.com/Masterminds/semver/v3\tv3.4.0\th1:Zog+i5UMtVoCU8oKka5P7i9q9HgrJeGzI9SA1Xbatp0=",
+    "\tdep\tgithub.com/bmatcuk/doublestar/v4\tv4.10.0\th1:zU9WiOla1YA122oLM6i4EXvGW62DvKZVxIe6TYWexEs=",
+    "\tdep\tgithub.com/dustin/go-humanize\tv1.0.1\th1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=",
+    "\tdep\tgithub.com/go-chi/chi/v5\tv5.0.11\th1:BnpYbFZ3T3S1WMpD79r7R5ThWX40TaFB7L31Y8xqSwA=",
+    "\tdep\tgithub.com/google/uuid\tv1.6.0\th1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=",
+    "\tdep\tgithub.com/gorilla/mux\tv1.8.1\th1:TuBL49tXwgrFYWhqrNgrUNEY92u81SPhu7sTdzQEiWY=",
+    "\tdep\tgithub.com/gorilla/websocket\tv1.5.3\th1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=",
+    "\tdep\tgithub.com/jmoiron/sqlx\tv1.3.5\th1:vFFPA71p1o5gAeqtEAwLU4dnX2napprKtHr7PYIcN3g=",
+    "\tdep\tgithub.com/json-iterator/go\tv1.1.12\th1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=",
+    "\tdep\tgithub.com/klauspost/compress\tv1.17.4\th1:Ej5ixsIri7BrIjBkRZLTo6ghwrEtHFk7ijlczPW4fZ4=",
+    "\tdep\tgithub.com/klauspost/cpuid/v2\tv2.2.6\th1:ndNyv040zDGIDh8thGkXYjnFtiN02M1PVVF+JE/48xc=",
+    "\tdep\tgithub.com/minio/md5-simd\tv1.1.2\th1:Gdi1DZK69+ZVMoNHRXJyNcxrMA4dSxoYHZSQbirFg34=",
+    "\tdep\tgithub.com/minio/minio-go/v7\tv7.0.66\th1:bnTOXOHjOqv/gcMuiVbN9o2ngRItvqE774dG9nq0Dzw=",
+    "\tdep\tgithub.com/minio/sha256-simd\tv1.0.1\th1:6kaan5IFmwTNynnKKpDHe6FWHohJOHhCPchzK49dzMM=",
+    "\tdep\tgithub.com/modern-go/concurrent\tv0.0.0-20180306012644-bacd9c7ef1dd\th1:TRLaZ9cD/w8PVh93nsPXa1VrQ6jlwL5oN8l14QlcNfg=",
+    "\tdep\tgithub.com/modern-go/reflect2\tv1.0.2\th1:xBagoLtFs94CBntxluKeaWgTMpvLxC4ur3nMaC9Gz0M=",
+    "\tdep\tgithub.com/remyoudompheng/bigfft\tv0.0.0-20230129092748-24d4a6f8daec\th1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=",
+    "\tdep\tgithub.com/robfig/cron/v3\tv3.0.1\th1:WdRxkvbJztn8LMz/QEvLN5sBU+xKpSqwwUO1Pjr4qDs=",
+    "\tdep\tgithub.com/rs/xid\tv1.5.0\th1:mKX4bl4iPYJtEIxp6CYiUuLQ/8DYMoz0PUdtGgMFRVc=",
+    "\tdep\tgithub.com/santhosh-tekuri/jsonschema/v5\tv5.3.1\th1:lZUw3E0/J3roVtGQ+SCrUrg3ON6NgVqpn3+iol9aGu4=",
+    "\tdep\tgithub.com/sirupsen/logrus\tv1.9.3\th1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=",
+    "\tdep\tgithub.com/sony/gobreaker/v2\tv2.3.0\th1:7VYxZ69QXRQ2Q4eEawHn6eU4FiuwovzJwsUMA03Lu4I=",
+    "\tdep\tgithub.com/vrooli/ai-go\tv0.0.0",
+    "\t=>\t../../../packages/ai-go\t(devel)\t",
+    "\t",
+    "\tdep\tgithub.com/vrooli/api-core\tv0.0.0",
+    "\t=>\t../../../packages/api-core\t(devel)\t",
+    "\t",
+    "\tdep\tgithub.com/vrooli/binaryfetch\tv0.0.0",
+    "\t=>\t../../../packages/binaryfetch\t(devel)\t",
+    "\t",
+    "\tdep\tgithub.com/vrooli/cli-core\tv0.0.0",
+    "\t=>\t../../../packages/cli-core\t(devel)\t",
+    "\t",
+    "\tdep\tgithub.com/vrooli/envkit-go\tv0.0.0",
+    "\t=>\t../../../packages/envkit-go\t(devel)\t",
+    "\t",
+    "\tdep\tgithub.com/vrooli/measures-go\tv0.0.0",
+    "\t=>\t../../../packages/measures-go\t(devel)\t",
+    "\t",
+    "\tdep\tgithub.com/vrooli/platform-go\tv0.0.0",
+    "\t=>\t../../../packages/platform-go\t(devel)\t",
+    "\t",
+    "\tdep\tgithub.com/vrooli/repo-contract-go\tv0.0.0",
+    "\t=>\t../../../packages/repo-contract-go\t(devel)\t",
+    "\t",
+    "\tdep\tgithub.com/vrooli/scenarioconfig-go\tv0.0.0",
+    "\t=>\t../../../packages/scenarioconfig-go\t(devel)\t",
+    "\t",
+    "\tdep\tgithub.com/vrooli/vrooli\tv0.0.0",
+    "\t=>\t../../..\t(devel)\t",
+    "\t",
+    "\tdep\tgithub.com/vrooli/vrooli-cli-go\tv0.0.0",
+    "\t=>\t../../../packages/vrooli-cli-go\t(devel)\t",
+    "\t",
+    "\tdep\tgithub.com/vrooli/vrooli/packages/proto\tv0.0.0",
+    "\t=>\t../../../packages/proto\t(devel)\t",
+    "\t",
+    "\tdep\tgolang.org/x/crypto\tv0.54.0\th1:YLIA59K4fiNzHzjnZt2tUJQjQtUWfWbeHBqKtk3eScw=",
+    "\tdep\tgolang.org/x/net\tv0.56.0\th1:Rw8j/hFzGvJUZwNBXnAtf5sVDVt+65SK2C7IxCxZt5o=",
+    "\tdep\tgolang.org/x/sync\tv0.22.0\th1:SZjpbeLmrCk4xhRSZFNZW5gFUeCeFgjekvI/+gfScek=",
+    "\tdep\tgolang.org/x/sys\tv0.47.0\th1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=",
+    "\tdep\tgolang.org/x/text\tv0.40.0\th1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs=",
+    "\tdep\tgoogle.golang.org/protobuf\tv1.36.11\th1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=",
+    "\tdep\tgopkg.in/ini.v1\tv1.67.0\th1:Dgnx+6+nfE+IfzjUEISNeydPJh9AXNNsWbGP9KzCsOA=",
+    "\tdep\tmodernc.org/libc\tv1.72.3\th1:ZnDF4tXn4NBXFutMMQC4vtbTFSXhhKzR73fv0beZEAU=",
+    "\tdep\tmodernc.org/mathutil\tv1.7.1\th1:GCZVGXdaN8gTqB1Mf/usp1Y/hSqgI2vAGGP4jZMCxOU=",
+    "\tdep\tmodernc.org/memory\tv1.11.0\th1:o4QC8aMQzmcwCK3t3Ux/ZHmwFPzE6hf2Y5LbkRs+hbI=",
+    "\tdep\tmodernc.org/sqlite\tv1.50.1\th1:l+cQvn0sd0zJJtfygGHuQJ5AjlrwXmWPw4KP3ZMwr9w=",
+    "\tbuild\t-buildmode=exe",
+    "\tbuild\t-compiler=gc",
+    "\tbuild\t-trimpath=true",
+    "\tbuild\tCGO_ENABLED=1",
+    "\tbuild\tGOARCH=amd64",
+    "\tbuild\tGOOS=linux",
+    "\tbuild\tGOAMD64=v1",
+    "\tbuild\tvcs=git",
+    "\tbuild\tvcs.revision=92ad79a9dbcbb556afbfabdf7cb86fd3c82553c6",
+    "\tbuild\tvcs.time=2026-09-19T03:44:05Z",
+    "\tbuild\tvcs.modified=true"
+  ],
+  "live_memory_observations": [
+    {
+      "timestamp": "2026-09-22T00:05:22.722748+00:00",
+      "pid": 1647308,
+      "status": {
+        "Name": "browser-automat",
+        "VmPeak": "20413712 kB",
+        "VmSize": "20412572 kB",
+        "VmHWM": "8345712 kB",
+        "VmRSS": "4382276 kB",
+        "RssAnon": "4368224 kB",
+        "RssFile": "14052 kB",
+        "RssShmem": "0 kB",
+        "VmSwap": "9874848 kB",
+        "Threads": "18"
+      },
+      "smaps_rollup": {
+        "00400000-7fffdeca1000 ---p 00000000 00": "00 0                              [rollup]",
+        "Rss": "4382276 kB",
+        "Pss": "4380054 kB",
+        "Pss_Dirty": "4368232 kB",
+        "Pss_Anon": "4368224 kB",
+        "Pss_File": "11830 kB",
+        "Pss_Shmem": "0 kB",
+        "Shared_Clean": "2288 kB",
+        "Shared_Dirty": "0 kB",
+        "Private_Clean": "11756 kB",
+        "Private_Dirty": "4368232 kB",
+        "Referenced": "2571140 kB",
+        "Anonymous": "4368224 kB",
+        "KSM": "0 kB",
+        "LazyFree": "0 kB",
+        "AnonHugePages": "0 kB",
+        "ShmemPmdMapped": "0 kB",
+        "FilePmdMapped": "0 kB",
+        "Shared_Hugetlb": "0 kB",
+        "Private_Hugetlb": "0 kB",
+        "Swap": "9874848 kB",
+        "SwapPss": "9874848 kB",
+        "Locked": "0 kB"
+      },
+      "health": {
+        "status": "healthy",
+        "service": "browser-automation-studio-api",
+        "timestamp": "2026-09-22T00:05:22Z",
+        "readiness": true,
+        "version": "1.0.0",
+        "build_identity": "sha256:1299d80addef54ad15bd1d3d3b4dceec18640087a56e99db9a8ee68741b7c5a2",
+        "uptime_seconds": 75064.190241382,
+        "dependencies": {
+          "automation_engine": {
+            "connected": true
+          },
+          "database": {
+            "connected": true,
+            "latency_ms": 0.028
+          },
+          "playwright_driver": {
+            "connected": true,
+            "latency_ms": 0.454
+          },
+          "storage": {
+            "connected": true,
+            "latency_ms": 0.194
+          }
+        },
+        "metrics": {
+          "goroutines": 10301,
+          "heap_mb": 10727.81169128418,
+          "uptime_seconds": 75064.190241382
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-22T00:11:47.712966+00:00",
+      "pid": 1647308,
+      "health": {
+        "status": "healthy",
+        "metrics": {
+          "goroutines": 10309,
+          "heap_mb": 12128.587440490723,
+          "uptime_seconds": 75448.988714508
+        },
+        "build_identity": "sha256:1299d80addef54ad15bd1d3d3b4dceec18640087a56e99db9a8ee68741b7c5a2"
+      },
+      "status": {
+        "VmRSS": "3183236 kB",
+        "VmSwap": "10227812 kB",
+        "Threads": "18"
+      },
+      "smaps_rollup": {
+        "Rss": "3183236 kB",
+        "Pss": "3181003 kB",
+        "Private_Dirty": "3170196 kB",
+        "Swap": "10227812 kB",
+        "SwapPss": "10227812 kB"
+      }
+    }
+  ],
+  "memory_limits": "Non-quiescent shared workloads; no forced GC, production heap dump, restart, or controlled soak. HeapAlloc is allocated, not post-GC retained heap. Samples cannot establish a leak rate.",
+  "driver_probes": {
+    "schema_version": 1,
+    "observed_at": "2026-09-22T00:13:51.817Z",
+    "scope": "isolated actual-module probes with synthetic I/O; not a browser E2E or certification run",
+    "results": [
+      {
+        "id": "network-request-identity",
+        "expected": "Two responses retain their own request URL and status",
+        "actual": {
+          "request_strings": [
+            "[object Object]",
+            "[object Object]"
+          ],
+          "distinct_request_objects": true,
+          "events": [
+            {
+              "url": "https://fixture.invalid/b",
+              "status": 201
+            }
+          ]
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "network-sequential-control",
+        "expected": "The same fixture without overlapping requests preserves two correct responses",
+        "actual": [
+          {
+            "url": "https://fixture.invalid/a",
+            "status": 201
+          },
+          {
+            "url": "https://fixture.invalid/b",
+            "status": 202
+          }
+        ],
+        "expected_behavior_met": true
+      },
+      {
+        "id": "browser-pool-retry-coalescing",
+        "expected": "Waiting callers share one retry and every launched browser has an owner",
+        "actual": {
+          "launchCount": 3,
+          "successful_browser_ids": [
+            2,
+            3
+          ],
+          "closed_browser_ids": [
+            3
+          ]
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "browser-pool-shutdown-during-launch",
+        "expected": "Shutdown owns and closes a concurrently completing launch",
+        "actual": {
+          "live_browser_after_close": true,
+          "closedOnShutdown": 0
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "direct-frame-subscription",
+        "expected": "A connection without a session receives no session frames",
+        "actual": {
+          "anonymous_frames": 10,
+          "wrong_session_frames": 0,
+          "matching_frames": 10
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "direct-frame-backpressure",
+        "expected": "A socket already holding 64 MiB cannot accumulate ten more frame sends",
+        "actual": {
+          "initial_buffered_bytes": 67108864,
+          "additional_frames": 10
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "concurrent-input-order",
+        "expected": "A down request started before up applies down before up",
+        "actual": {
+          "applied_order": [
+            "up",
+            "down"
+          ]
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "recorder-clear-field",
+        "expected": "Input snapshots include the final empty value",
+        "actual": {
+          "captured_texts": [
+            "a",
+            "ab"
+          ]
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "recorder-password",
+        "expected": "A password sentinel is absent from raw recording transport",
+        "actual": {
+          "transported_literal": "SYNTHETIC-NOT-A-REAL-SECRET",
+          "input_type": "password"
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "recorder-stop-flush",
+        "expected": "Stopping capture preserves a buffered final edit",
+        "actual": {
+          "new_events_after_stop": 0
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "recorder-http-error-ack",
+        "expected": "An HTTP 500 does not acknowledge or discard a pending event",
+        "actual": {
+          "pending_count": 0,
+          "success_count": 1
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "recorder-timestamp-identity",
+        "expected": "Acknowledging one of two same-millisecond events retains the other",
+        "actual": {
+          "pending_before": 2,
+          "pending_after_one_ack": 0
+        },
+        "expected_behavior_met": false
+      }
+    ]
+  },
+  "api_probes": {
+    "observed_at": "2026-09-22T00:13:52.168271969Z",
+    "results": [
+      {
+        "id": "merge-input-snapshots",
+        "expected": "The latest full-value snapshot is ab",
+        "actual": "aab",
+        "expected_behavior_met": false
+      },
+      {
+        "id": "merge-page-identity",
+        "expected": "Identical selectors in separate pages retain two actions",
+        "actual": 1,
+        "expected_behavior_met": false
+      },
+      {
+        "id": "merge-frame-identity",
+        "expected": "Identical selectors in separate frames retain two actions",
+        "actual": 1,
+        "expected_behavior_met": false
+      },
+      {
+        "id": "recording-persistence-ack",
+        "expected": "A failed durable write does not report success",
+        "actual": {
+          "broadcasts": 1,
+          "returned_error": false,
+          "save_attempts": 1
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "timeline-cache-pagination",
+        "expected": "A 1001-event durable session reports 1001 and offset changes the page",
+        "actual": {
+          "database_reads": 0,
+          "durable_saves": 1001,
+          "first_page_start_sequence": 902,
+          "offset_page_start_sequence": 902,
+          "reported_total": 501
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "frame-window-accounting",
+        "expected": "Two retained non-skipped 1000-byte frames average 1000 bytes",
+        "actual": {
+          "average_frame_bytes": 0,
+          "lifetime_frames": 5,
+          "lifetime_skips": 3,
+          "retained_frames": 2
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "wrapped-sink-cleanup",
+        "expected": "Completing 24 wrapped sinks closes their execution queues",
+        "actual": {
+          "hub_close_calls": 0,
+          "remaining_queue_goroutines": 24
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "probe-resource-cleanup",
+        "expected": "Explicitly closing the underlying sinks releases all probe queues",
+        "actual": 0,
+        "expected_behavior_met": true
+      },
+      {
+        "id": "sink-close-drains-terminal-event",
+        "expected": "Closing a queue delivers its already-accepted terminal event",
+        "actual": {
+          "delivered_events": 1,
+          "published_events": 2
+        },
+        "expected_behavior_met": false
+      }
+    ],
+    "schema_version": 1,
+    "scope": "isolated production-module composition and pure-function probes; no live workflows"
+  },
+  "source_files_sha256": {
+    "api/services/recording/service.go": "ddcefb5637268f2b184c8fa2e9ee5bb898391f7f87946d5fd4b3e4ac54e453e8",
+    "api/services/live-capture/workflow_generator.go": "5cddfd4932ca0833c55554b2b043afd5115461f14b76990bd1c112aae75791bc",
+    "api/performance/collector.go": "7b4f0cc2c65fac926417b7c372206ab9ec944e9aae5fb7ac569c3a328e3ed5ee",
+    "api/automation/events/ws_sink.go": "9fb750c7a6484485a2aba362d9fb83f8204e568c5ec7d3ea0e56480bad0bd2aa",
+    "api/automation/events/sink.go": "bdd60e90e5dcc07d4710f1ffb47d899f67cd7a639ee303631e021c545a8a8985",
+    "api/automation/execution-writer/file_writer.go": "61dd59786acee6d8d5ac3d5200b7ba6435c43c8da2d31ac35d1dc5a2b4e574ae",
+    "api/automation/execution-writer/timeline.go": "ad1df6920bb625ad237812fa4d688e0290d98acd0e44f5ddac49c1372645f325",
+    "api/automation/execution-writer/artifact_config.go": "49feb9633011eac74d77ebc885ee4b3d387c1ba98be0c4660f68f78f96be4e75",
+    "api/handlers/handler.go": "6a604e320092e439fddad4646360d1de71112cf4d109dc4c63355e418a99115d",
+    "api/services/workflow/executions.go": "97366117285292dddfe3a8d94e86487cef50d6a873fcd947b32e438db6fbb9c7",
+    "api/services/uxmetrics/collector/collector.go": "9cf79ff05e41523e5d4a30bd8a0d3b5e15eeb8e8669fd80acdc4d91a879d75d1",
+    "api/websocket/hub.go": "09d8a6168e443214e4eb2308001a93375080792c274243ebcd7869d8edbfab76",
+    "playwright-driver/src/telemetry/collector.ts": "ca9fbccc6b3baf5be7d0341326c7ee0523e50893d1992e3c5e756e05dd750437",
+    "playwright-driver/src/session/browser-pool.ts": "e7236ecaebf89db0875ca570979b4d46b4cf7840f4e29d55ca4d741add19dd87",
+    "playwright-driver/src/frame-streaming/websocket/server.ts": "fca102b9d500cea49695aaacd59509a09b67a8320e1b9de6fb9118b82e53fb84",
+    "playwright-driver/src/routes/record-mode/recording-input.ts": "d0ba24596757efba33d26aeced82c9c4a2e36432399f2d9fe3c2fd524e750a63",
+    "playwright-driver/src/recording/capture/browser-scripts/recording-script.js": "9ce636040c0591341a82d4e1a17bec4a980bb42372cbb8fbe18ccf69eaa4e572",
+    "docs/internal/refactor_probes.go": "611565bcc80f554834302b55ba672ecb12e7a6b3ae86bfe2915f8c14845b0de3",
+    "docs/internal/refactor_probes.cjs": "3732225145db3b6ac9a16d204127814fceee326ee4caf22bbdd2b632435140fa"
+  },
+  "not_exercised": [
+    "Real-browser input-to-paint latency",
+    "Browser process count after pool launch failure",
+    "Real-account credential exposure or downstream AI/export disclosure",
+    "Production goroutine stacks and retained-heap attribution",
+    "Profile restart/crash durability",
+    "Native cross-platform packaging and rendering comparison"
+  ],
+  "probe_summary": {
+    "observations": 21,
+    "desired_behavior_mismatches": 19,
+    "controls_met": 2,
+    "note": "Mismatch count is not a distinct issue count or a live failure rate. Zero process exit means probe completion, not product success."
+  }
+}

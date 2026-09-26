@@ -1,0 +1,31 @@
+{
+  "name": "@vrooli/typescript-code-graph-sidecar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Node sidecar hosting ts-morph for the typescript-code-graph scenario API.",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ts-morph": "28.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.0",
+    "esbuild": "0.24.0",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
+}

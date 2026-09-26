@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 )
 
 const (
@@ -113,14 +114,22 @@ const (
 // workflow compiler. The Action field provides type-safe access to step type
 // and parameters via proto-generated types.
 type CompiledInstruction struct {
-	Index       int               `json:"index"`
-	NodeID      string            `json:"node_id"`
-	PageID      *uuid.UUID        `json:"page_id,omitempty"` // V2: Page this instruction belongs to.
-	PreloadHTML string            `json:"preload_html,omitempty"`
-	Context     map[string]any    `json:"context,omitempty"`
-	Metadata    map[string]string `json:"metadata,omitempty"` // Freeform, engine-agnostic hints (e.g., labels).
+	// InvocationID identifies one logical visit; Attempt identifies its declared retry.
+	// Runtime ownership is not part of a saved workflow definition.
+	InvocationID string            `json:"-"`
+	Attempt      int               `json:"-"`
+	Index        int               `json:"index"`
+	NodeID       string            `json:"node_id"`
+	PageID       *uuid.UUID        `json:"page_id,omitempty"` // V2: Page this instruction belongs to.
+	PreloadHTML  string            `json:"preload_html,omitempty"`
+	Context      map[string]any    `json:"context,omitempty"`
+	Metadata     map[string]string `json:"metadata,omitempty"` // Freeform, engine-agnostic hints (e.g., labels).
 	// Action is the typed action definition with full type safety.
 	Action *basactions.ActionDefinition `json:"action,omitempty"`
+	// Telemetry carries per-step collection intent to the driver. Omitted means
+	// "use driver defaults", so an instruction built without it behaves exactly
+	// as it did before the directive existed.
+	Telemetry *basexecution.StepTelemetryDirective `json:"telemetry,omitempty"`
 }
 
 // PlanGraph preserves branching/loop metadata from the compiled workflow so

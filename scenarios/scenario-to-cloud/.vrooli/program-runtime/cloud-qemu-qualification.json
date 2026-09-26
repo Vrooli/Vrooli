@@ -1,0 +1,398 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "scenario-to-cloud.cloud-qemu-qualification",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Admit one QEMU-lane qualification request, refuse absent authorization, incompatible target, stale artifact or unknown fault before mutation, deploy the fixture via plan, apply and wait, observe health, and return standing.",
+  "inputs": {
+    "request_id": {
+      "type": "string",
+      "required": true,
+      "description": "Idempotent qualification request id, e.g. cloud-certification-fixture-v1-amd64-qemu-001."
+    },
+    "release_ref": {
+      "type": "string",
+      "required": true,
+      "description": "Immutable release manifest digest sha256:<64 hex>; a mutable reference is refused as stale_artifact."
+    },
+    "target_ref": {
+      "type": "string",
+      "required": true,
+      "description": "Owned disposable guest identity local-qemu:<id>; any other target is refused as incompatible_target."
+    },
+    "environment_ref": {
+      "type": "string",
+      "required": true,
+      "description": "Isolated test environment id the deployment is bound to."
+    },
+    "workload_ref": {
+      "type": "string",
+      "required": true,
+      "description": "Declaration-derived fixture id from fixtures/workloads or fixtures/coexistence."
+    },
+    "authorization_ref": {
+      "type": "string",
+      "default": "",
+      "description": "Operator grant reference designating target_ref as a disposable owned fixture; absent means refused."
+    },
+    "matrix_revision": {
+      "type": "string",
+      "default": "cloud-launch-v1"
+    },
+    "lane": {
+      "type": "string",
+      "default": "qemu",
+      "enum": [
+        "qemu"
+      ]
+    },
+    "cases": {
+      "type": "array",
+      "required": true,
+      "description": "Matrix case ids; every id must be a cell of certification/lanes/qemu.json."
+    },
+    "limits": {
+      "type": "object",
+      "default": {
+        "execution_seconds": 7200,
+        "owned_target_count": 1,
+        "spend_ceiling_minor_units": 0
+      }
+    },
+    "faults": {
+      "type": "object",
+      "default": {
+        "allowed": []
+      },
+      "description": "faults.allowed lists lane fault capabilities (worker_restart, lease_expiry, lost_reply, transport_disconnect, target_reboot, data_interruption)."
+    },
+    "cleanup": {
+      "type": "object",
+      "default": {
+        "policy": "retain_failed_evidence_then_remove_owned_ephemeral_resources"
+      }
+    },
+    "deployment_id": {
+      "type": "string",
+      "default": "",
+      "description": "Optional exact deployment id on the owned guest; empty resolves by (workload_ref as scenario_id, environment_ref)."
+    }
+  },
+  "assumptions": [
+    "scenario-to-cloud is running and its connect-rpc bindings deployment/get, deployment/resolve, deployment/plan, deployment/apply, operation/wait, deployment/health and edge/status are governed",
+    "the operator has already created and snapshotted the owned guest with vps instance create / wait-for-ssh / snapshot (REST pre-step) and bound a fixture deployment to it (target machine_id equals target_ref)",
+    "the session holds the destructive grant for deployment/apply (effect:destructive or the binding's permission); without it the act phase ends refused/no_grant and nothing was mutated",
+    "certification/lanes/qemu.json is the required-cell set for the lane and api/certification/lanes_test.go keeps this program's QEMU_CASES equal to it",
+    "fault injection arming and target receipt reads have no governed binding yet; fault cells stay pending after the deploy journey and are named in the envelope",
+    "host tools qemu and cloud-localds are installed only through vrooli setup (EXT-06); the program never installs anything"
+  ],
+  "invariants": [
+    "admission refuses an absent authorization grant, an incompatible target, a stale artifact, an unknown fault capability, a non-zero spend ceiling and a case outside the lane before any read or write",
+    "the only mutation is one deployment/apply of the compiled plan digest with request_id as the idempotency key; the same request replays the admitted operation",
+    "a deployment whose target machine_id differs from target_ref is never applied to",
+    "no shell string or opaque argv is forwarded; every effect goes through a declared scenario-to-cloud binding",
+    "a non-terminal operation after the bounded wait is reported with its id, never converted into a failure",
+    "no cell is marked passed by this program; receipts require per-case assertions and target receipts",
+    "at most one row is materialized per binding call",
+    "one envelope is printed on every path"
+  ],
+  "bindings": [
+    {
+      "id": "scenario-to-cloud/deployment/get",
+      "effect": "read",
+      "note": "Used when deployment_id is supplied."
+    },
+    {
+      "id": "scenario-to-cloud/deployment/resolve",
+      "effect": "read",
+      "note": "Used when deployment_id is empty: selector (scenario_id=workload_ref, environment=environment_ref)."
+    },
+    {
+      "id": "scenario-to-cloud/deployment/plan",
+      "effect": "read"
+    },
+    {
+      "id": "scenario-to-cloud/deployment/apply",
+      "effect": "destructive",
+      "note": "Requires the session grant and _confirm; refused otherwise."
+    },
+    {
+      "id": "scenario-to-cloud/operation/wait",
+      "effect": "read"
+    },
+    {
+      "id": "scenario-to-cloud/deployment/health",
+      "effect": "read",
+      "optional": true,
+      "note": "An unreachable observation leaves health unknown; the journey is then unverified, not failed."
+    },
+    {
+      "id": "scenario-to-cloud/edge/status",
+      "effect": "read",
+      "optional": true,
+      "note": "Edge observation is evidence only."
+    }
+  ],
+  "verbs": [
+    "validate"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "decide",
+        "act",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "qualification_id": "qual:<request_id>",
+      "standing": "refused, admitted, ready_to_act, no_op, applied_without_operation, operation_pending, journey_failed, journey_unverified or journey_verified",
+      "cells": "[{case_id, lane, verdict, operation_ref?}] with verdict pending or pending_assertions; never passed",
+      "release": "release_ref as admitted",
+      "target": "target_ref, environment_ref, workload_ref and the bound deployment_id",
+      "deployment": "resolved deployment id, scenario, environment, machine_id, transport",
+      "plan": "plan_digest, release_digest and closure_status of the compiled plan",
+      "operation": "operation_id, state, terminal, fence after apply and one bounded wait",
+      "health": "status, freshness, observed_release_digest from the health observation",
+      "edge": "route and private listener counts from the edge observation",
+      "validation_run": "unavailable when the latest test-genie run could not be read",
+      "fault_injection": "present when faults were requested: names the missing governed binding",
+      "faults_allowed": "fault capabilities admitted for this run",
+      "cleanup_policy": "admitted cleanup policy",
+      "next_action": "the one operator or owner action that moves the qualification forward"
+    },
+    "errors": {
+      "classes": [
+        "ambiguous_response",
+        "binding_error",
+        "deadline_exceeded",
+        "delegated_run_spend_exceeded",
+        "health_unverified",
+        "incompatible_target",
+        "inference_spend_exceeded",
+        "invalid_input",
+        "journey_failed",
+        "kernel_runtime",
+        "no_authorization",
+        "no_governed_binding",
+        "no_grant",
+        "not_run_eligible",
+        "remote_error",
+        "scenario_unreachable",
+        "stale_artifact",
+        "unknown_fault_capability"
+      ]
+    },
+    "evidence": "authorization reference, lane and image manifest paths, latest test-genie run id, operation id; receipts land in certification/evidence/<CASE>.qemu.json once assertions are collected"
+  },
+  "budget": {
+    "wall_ms": 180000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 1,
+    "async": true,
+    "async_reason": "deployment/apply plus one bounded operation wait exceeds the 120 s synchronous bound",
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "missing-authorization",
+      "inputs": {
+        "request_id": "fixture-qemu-001",
+        "release_ref": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "target_ref": "local-qemu:fixture",
+        "environment_ref": "env:fixture",
+        "workload_ref": "stateless-web",
+        "cases": [
+          "RUN-01"
+        ]
+      },
+      "expect": {
+        "status": [
+          "refused"
+        ]
+      },
+      "note": "Admission refuses before any binding is called, so this fixture needs no running scenario."
+    },
+    {
+      "id": "unknown-fault-capability",
+      "inputs": {
+        "request_id": "fixture-qemu-002",
+        "release_ref": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "target_ref": "local-qemu:fixture",
+        "environment_ref": "env:fixture",
+        "workload_ref": "stateless-web",
+        "authorization_ref": "grant:fixture",
+        "cases": [
+          "RUN-03"
+        ],
+        "faults": {
+          "allowed": [
+            "network_partition_of_the_world"
+          ]
+        }
+      },
+      "expect": {
+        "status": [
+          "refused"
+        ]
+      }
+    },
+    {
+      "id": "incompatible-target",
+      "inputs": {
+        "request_id": "fixture-qemu-003",
+        "release_ref": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "target_ref": "203.0.113.10",
+        "environment_ref": "env:fixture",
+        "workload_ref": "stateless-web",
+        "authorization_ref": "grant:fixture",
+        "cases": [
+          "RUN-01"
+        ]
+      },
+      "expect": {
+        "status": [
+          "refused"
+        ]
+      }
+    },
+    {
+      "id": "stale-artifact",
+      "inputs": {
+        "request_id": "fixture-qemu-004",
+        "release_ref": "latest",
+        "target_ref": "local-qemu:fixture",
+        "environment_ref": "env:fixture",
+        "workload_ref": "stateless-web",
+        "authorization_ref": "grant:fixture",
+        "cases": [
+          "RUN-01"
+        ]
+      },
+      "expect": {
+        "status": [
+          "refused"
+        ]
+      }
+    },
+    {
+      "id": "case-outside-lane",
+      "inputs": {
+        "request_id": "fixture-qemu-005",
+        "release_ref": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "target_ref": "local-qemu:fixture",
+        "environment_ref": "env:fixture",
+        "workload_ref": "stateless-web",
+        "authorization_ref": "grant:fixture",
+        "cases": [
+          "AUTH-01"
+        ]
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "nonzero-spend-ceiling",
+      "inputs": {
+        "request_id": "fixture-qemu-006",
+        "release_ref": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "target_ref": "local-qemu:fixture",
+        "environment_ref": "env:fixture",
+        "workload_ref": "stateless-web",
+        "authorization_ref": "grant:fixture",
+        "cases": [
+          "RUN-01"
+        ],
+        "limits": {
+          "execution_seconds": 7200,
+          "owned_target_count": 1,
+          "spend_ceiling_minor_units": 500
+        }
+      },
+      "expect": {
+        "status": [
+          "refused"
+        ]
+      }
+    },
+    {
+      "id": "admitted-no-fixture-deployment",
+      "inputs": {
+        "request_id": "fixture-qemu-007",
+        "release_ref": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "target_ref": "local-qemu:fixture",
+        "environment_ref": "env:fixture",
+        "workload_ref": "stateless-web",
+        "authorization_ref": "grant:fixture",
+        "cases": [
+          "RUN-01",
+          "RUN-03",
+          "DATA-05",
+          "OPS-07"
+        ],
+        "faults": {
+          "allowed": [
+            "worker_restart",
+            "target_reboot"
+          ]
+        }
+      },
+      "expect": {
+        "status": [
+          "refused",
+          "failed",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "scenario-to-cloud"
+      ],
+      "note": "Admitted; no deployment is bound to the fixture selector so collect refuses incompatible_target (404), or unavailable when scenario-to-cloud is down."
+    },
+    {
+      "id": "unknown-deployment-id",
+      "inputs": {
+        "request_id": "fixture-qemu-008",
+        "release_ref": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "target_ref": "local-qemu:fixture",
+        "environment_ref": "env:fixture",
+        "workload_ref": "stateless-web",
+        "authorization_ref": "grant:fixture",
+        "deployment_id": "00000000-0000-0000-0000-000000000000",
+        "cases": [
+          "RUN-01"
+        ]
+      },
+      "expect": {
+        "status": [
+          "refused",
+          "failed",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "scenario-to-cloud"
+      ],
+      "note": "deployment/get 404 is refused as incompatible_target before any mutation."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "scenario-to-cloud"
+}

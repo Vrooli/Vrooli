@@ -1,0 +1,53 @@
+{
+  "_metadata": {
+    "module": "finite-investigations",
+    "description": "OT-P0-015 — caller-neutral finite investigation lifecycle and evidence-backed diagnosis.",
+    "prd_ref": "OT-P0-015",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-027",
+      "title": "Typed bounded investigation lifecycle",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-015",
+      "category": "core",
+      "description": "Agent Manager shall reserve a caller-neutral investigation by stable request key, dispatch at most one diagnosis-only workflow for the exact subject run set, persist collecting/diagnosing/completed/failed/cancelled state, and expose restart-safe get, list, wait, result, and cancel operations.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/handlers/investigations_test.go::TestInvestigation",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Focused handler tests cover admission, idempotency, wait/result/cancel, and fast-settlement reconciliation. Full owner certification remains pending."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/investigation/repository_test.go::TestCompletionRepositoryOwnsResultIdentity",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Repository completion owns the durable result identity before validation."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-028",
+      "title": "Subject-specific evidence attribution",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-015",
+      "category": "provenance",
+      "description": "Findings and recommendations shall reference typed evidence and only implicated subject run IDs; incomplete, stale, or unavailable evidence shall remain visible as coverage and applicability limits rather than becoming invented support.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/orchestration/investigation_findings_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Focused finding-edge tests cover run-specific attribution and cohort non-expansion."
+        }
+      ]
+    }
+  ],
+  "title": "Finite Investigations"
+}

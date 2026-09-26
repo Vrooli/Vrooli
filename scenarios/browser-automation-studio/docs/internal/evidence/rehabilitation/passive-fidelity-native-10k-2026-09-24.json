@@ -1,0 +1,48 @@
+{
+  "work": "BAS-WORK-182",
+  "captured_at": "2026-09-24T20:04:56Z",
+  "scope": "real Chromium native pointer workload with an independent fixture oracle; driver pipeline callback remains in-process and is not the managed API journal",
+  "contractRow": "passive-fidelity",
+  "command": "pnpm exec jest tests/integration/pipeline-e2e.test.ts --runInBand --coverage=false --silent=false --testNamePattern='retains (10000 unique native fixture actions|a rejected browser event)'",
+  "result": "passed",
+  "tests": "2/2",
+  "cases": [
+    {
+      "name": "10000 native mouse actions with rejected delivery and same-ID retry",
+      "duration_seconds": 11.906,
+      "input": "Playwright mouse down/up at the fixture button in acknowledgement-paced batches of25; no DOM MouseEvent dispatch",
+      "independent_oracle": "fixture-owned document listener counted exactly10000 target clicks",
+      "observed": "pipeline journal callback received10000 unique event IDs in strictly increasing sequence; one rejected event identity was attempted exactly twice"
+    },
+    {
+      "name": "pending event survives an HTTP rejection and page reload",
+      "duration_seconds": 1.57,
+      "observed": "event ID remained in sessionStorage after reload and the same ID was later acknowledged by the pipeline callback"
+    }
+  ],
+  "source_sha256": {
+    "docs/internal/REFRACTOR_CONTRACT.json": "4ec793e57754a709183024dd9a8a6cfa683c42c4a8c96541ed120897bccfc54a",
+    "playwright-driver/tests/integration/pipeline-e2e.test.ts": "6be503bb8e9c8709bfd0a27cc998fb8a79e2a184f1c55d7d1d997dce85bc211b",
+    "playwright-driver/src/recording/capture/browser-scripts/recording-script.js": "440e6c84eab36cb7b6ec66caa277ee92b070b3764e5c982c5645772fd0322dd3",
+    "playwright-driver/src/recording/orchestration/pipeline-manager.ts": "543fa6f60c453f465fefff6fb5529b6b7050d32eb2c04f64c76fb8cab4b55cdc"
+  },
+  "test_genie_phase_run": false,
+  "managed_build_identity": null,
+  "qualification": {
+    "score_credit_claimed": false,
+    "remaining": [
+      "connect these browser actions to the real durable API journal",
+      "driver/browser process death while browser observations are pending",
+      "full supported event-semantics corpus",
+      "current-build receipt validator and governed passive-fidelity sensor"
+    ]
+  },
+  "latest_setpoint": {
+    "program_run_id": "prog_c749e066-78db-4414-b200-acd3e857f79e",
+    "in_band": "3/17",
+    "unavailable": 14,
+    "unavailable_reason": "pending_telemetry",
+    "product_qualified": false,
+    "passive_fidelity_in_band": null
+  }
+}

@@ -19,7 +19,7 @@
  * USAGE:
  * ```typescript
  * const orchestrator = new TelemetryOrchestrator(page, config);
- * orchestrator.start();
+ * await orchestrator.start();
  *
  * // Capture element context BEFORE action (optional)
  * const elementContext = await orchestrator.captureElementContext(selector);
@@ -28,7 +28,7 @@
  * const telemetry = await orchestrator.collectForStep(handlerResult);
  *
  * // When done:
- * orchestrator.dispose();
+ * await orchestrator.dispose();
  * ```
  *
  * @module telemetry/orchestrator
@@ -50,6 +50,8 @@ import { captureElementContext, type ElementContext } from './element-context';
  * Telemetry data collected for a single step.
  */
 export interface StepTelemetry {
+  /** Unexpected capture failures, retained alongside independent evidence. */
+  captureErrors?: string[];
   screenshot?: Screenshot;
   domSnapshot?: DOMSnapshot;
   consoleLogs?: ConsoleLogEntry[];
@@ -67,6 +69,15 @@ export type { ElementContext };
 export interface TelemetryCollectionOptions {
   /** Force screenshot capture even if handler already provided one */
   forceScreenshot?: boolean;
+  /**
+   * Skip screenshot capture entirely for this step.
+   *
+   * Set when the caller has decided this step carries no visual evidence
+   * value (variable assignments, waits, mid-sequence interactions). Ignored
+   * when the handler already produced a screenshot, so explicit screenshot
+   * steps are never suppressed.
+   */
+  skipScreenshot?: boolean;
   /** Force DOM snapshot even if handler already provided one */
   forceDomSnapshot?: boolean;
   /** Include console logs in collection */
@@ -89,7 +100,7 @@ export interface TelemetryCollectionOptions {
  * @example
  * ```typescript
  * const orchestrator = new TelemetryOrchestrator(page, config);
- * orchestrator.start();
+ * await orchestrator.start();
  *
  * for (const instruction of instructions) {
  *   const result = await handler.execute(instruction, context);
@@ -97,7 +108,7 @@ export interface TelemetryCollectionOptions {
  *   // telemetry now contains screenshot, dom, logs, network
  * }
  *
- * orchestrator.dispose();
+ * await orchestrator.dispose();
  * ```
  */
 export class TelemetryOrchestrator {
@@ -107,6 +118,8 @@ export class TelemetryOrchestrator {
   private networkCollector: NetworkCollector | null = null;
   private started = false;
   private disposed = false;
+  private starting?: Promise<void>;
+  private disposing?: Promise<void>;
 
   constructor(page: Page, config: Config) {
     this.page = page;
@@ -119,24 +132,21 @@ export class TelemetryOrchestrator {
    * Initializes console and network collectors if enabled in config.
    * Must be called before collectForStep().
    */
-  start(): void {
-    if (this.started || this.disposed) return;
-    this.started = true;
+  start(): Promise<void> {
+    if (this.disposed) return Promise.reject(new Error('TelemetryOrchestrator has been disposed.'));
+    return this.starting ??= this.initialize();
+  }
 
-    // Initialize collectors based on config
+  private async initialize(): Promise<void> {
     if (this.config.telemetry.console.enabled) {
-      this.consoleCollector = new ConsoleLogCollector(
-        this.page,
-        this.config.telemetry.console.maxEntries
-      );
+      this.consoleCollector = new ConsoleLogCollector(this.page, this.config.telemetry.console.maxEntries);
+      await this.consoleCollector.start();
     }
-
+    if (this.disposed) throw new Error('TelemetryOrchestrator disposed during startup.');
     if (this.config.telemetry.network.enabled) {
-      this.networkCollector = new NetworkCollector(
-        this.page,
-        this.config.telemetry.network.maxEvents
-      );
+      this.networkCollector = new NetworkCollector(this.page, this.config.telemetry.network.maxEvents);
     }
+    this.started = true;
   }
 
   /**
@@ -164,11 +174,12 @@ export class TelemetryOrchestrator {
     }
 
     const telemetry: StepTelemetry = {};
+    const captureErrors: string[] = [];
 
     // Screenshot: use handler result or capture if enabled
     if (!handlerResult?.screenshot || options?.forceScreenshot) {
-      if (this.config.telemetry.screenshot.enabled) {
-        telemetry.screenshot = await captureScreenshot(this.page, this.config);
+      if (this.config.telemetry.screenshot.enabled && !options?.skipScreenshot) {
+        telemetry.screenshot = await captureChannel('screenshot', () => captureScreenshot(this.page, this.config), captureErrors);
       }
     } else {
       telemetry.screenshot = handlerResult.screenshot;
@@ -177,7 +188,7 @@ export class TelemetryOrchestrator {
     // DOM Snapshot: use handler result or capture if enabled
     if (!handlerResult?.domSnapshot || options?.forceDomSnapshot) {
       if (this.config.telemetry.dom.enabled) {
-        telemetry.domSnapshot = await captureDOMSnapshot(this.page, this.config);
+        telemetry.domSnapshot = await captureChannel('dom', () => captureDOMSnapshot(this.page, this.config), captureErrors);
       }
     } else {
       telemetry.domSnapshot = handlerResult.domSnapshot;
@@ -199,6 +210,7 @@ export class TelemetryOrchestrator {
       telemetry.networkEvents = handlerResult.networkEvents;
     }
 
+    if (captureErrors.length) telemetry.captureErrors = captureErrors;
     return telemetry;
   }
 
@@ -290,16 +302,18 @@ export class TelemetryOrchestrator {
    * Must be called when telemetry collection is no longer needed to
    * prevent memory leaks from event listeners.
    */
-  dispose(): void {
-    if (this.disposed) return;
+  dispose(): Promise<void> {
+    return this.disposing ??= this.close();
+  }
+
+  private async close(): Promise<void> {
     this.disposed = true;
-
-    this.consoleCollector?.dispose();
     this.networkCollector?.dispose();
-
+    await this.consoleCollector?.dispose();
     this.consoleCollector = null;
     this.networkCollector = null;
   }
+
 }
 
 /**
@@ -314,4 +328,14 @@ export class TelemetryOrchestrator {
  */
 export function createTelemetryOrchestrator(page: Page, config: Config): TelemetryOrchestrator {
   return new TelemetryOrchestrator(page, config);
+}
+
+// A failed capture must not discard other channels or buffered browser events.
+async function captureChannel<T>(channel: string, capture: () => Promise<T>, errors: string[]): Promise<T | undefined> {
+  try {
+    return await capture();
+  } catch (error) {
+    errors.push(`${channel}: ${error instanceof Error ? error.message : String(error)}`);
+    return undefined;
+  }
 }

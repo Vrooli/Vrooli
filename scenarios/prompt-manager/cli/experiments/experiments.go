@@ -10,12 +10,13 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
+
+	"prompt-manager/cli/internal/appctx"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"prompt-manager/cli/internal/appctx"
 )
 
 // ExperimentResponse matches the API response for experiments.
@@ -43,6 +44,30 @@ type ExperimentArmResp struct {
 	Weight      float64 `json:"weight"`
 }
 
+// ReportResponse matches the API response for an experiment report.
+type ReportResponse struct {
+	ExperimentID  string          `json:"experimentId"`
+	SkillID       string          `json:"skillId"`
+	Name          string          `json:"name"`
+	Status        string          `json:"status"`
+	TotalServes   int             `json:"totalServes"`
+	TotalOutcomes int             `json:"totalOutcomes"`
+	Arms          []ArmReportResp `json:"arms"`
+	ZeroDataArms  []string        `json:"zeroDataArms,omitempty"`
+}
+
+// ArmReportResp is the API representation of a per-arm report.
+type ArmReportResp struct {
+	VariantID      string         `json:"variantId"`
+	VariantName    string         `json:"variantName,omitempty"`
+	Weight         float64        `json:"weight,omitempty"`
+	Serves         int            `json:"serves"`
+	Outcomes       int            `json:"outcomes"`
+	StatusCounts   map[string]int `json:"statusCounts,omitempty"`
+	SuccessRate    *float64       `json:"successRate,omitempty"`
+	MeanTokensUsed *float64       `json:"meanTokensUsed,omitempty"`
+}
+
 // OutcomeResponse matches the API response for an outcome.
 type OutcomeResponse struct {
 	VariantID     string          `json:"variantId"`
@@ -61,7 +86,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Name:        "experiment",
 				Aliases:     []string{"experiments", "exp"},
 				NeedsAPI:    true,
-				Description: "Manage experiments (list|show|create|start|conclude|outcomes|delete)",
+				Description: "Manage experiments (list|show|create|start|conclude|holdout|promote|outcomes|report|delete)",
 				Run: func(args []string) error {
 					return route(ctx, args)
 				},
@@ -90,8 +115,14 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdStart(ctx, subArgs)
 	case "conclude":
 		return cmdConclude(ctx, subArgs)
+	case "holdout":
+		return cmdHoldout(ctx, subArgs)
+	case "promote":
+		return cmdPromote(ctx, subArgs)
 	case "outcomes":
 		return cmdOutcomes(ctx, subArgs)
+	case "report":
+		return cmdReport(ctx, subArgs)
 	case "delete", "rm":
 		return cmdDelete(ctx, subArgs)
 	default:
@@ -113,7 +144,12 @@ Subcommands:
   create, add           Create a new experiment
   start <eid>           Start a draft experiment
   conclude <eid> <vid>  Conclude a running experiment with a winner
+	  holdout <eid> --findings-hash HASH --idempotency-key KEY
+	                        Record separately held-out confirmation
+	  promote <eid> <work-item-ref>
+	                        Apply only after the operator dispositions that exact work item
   outcomes <eid>        List recorded outcomes
+  report <eid>          Show per-arm report (serves, outcomes, success rate)
   delete, rm <eid>      Delete an experiment`
 }
 
@@ -344,22 +380,31 @@ func cmdConclude(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("conclude", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
 	notes := fs.String("notes", "", "Conclusion notes")
+	override := fs.Bool("override", false, "Bypass the pre-registered statistical and cost gates (requires --justification; the signed audit receipt is never bypassed)")
+	justification := fs.String("justification", "", "Recorded reason for --override")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: experiment conclude <eid> <winner-variant-id> [--notes TEXT]")
+		return fmt.Errorf("usage: experiment conclude <eid> <winner-variant-id> [--notes TEXT] [--override --justification TEXT]")
+	}
+	if *override && *justification == "" {
+		return fmt.Errorf("--override requires --justification")
 	}
 	eid := fs.Arg(0)
 	winnerVID := fs.Arg(1)
 
 	req := struct {
-		WinnerVariantID string `json:"winnerVariantId"`
-		Notes           string `json:"notes,omitempty"`
+		WinnerVariantID       string `json:"winnerVariantId"`
+		Notes                 string `json:"notes,omitempty"`
+		Override              bool   `json:"override,omitempty"`
+		OverrideJustification string `json:"overrideJustification,omitempty"`
 	}{
-		WinnerVariantID: winnerVID,
-		Notes:           *notes,
+		WinnerVariantID:       winnerVID,
+		Notes:                 *notes,
+		Override:              *override,
+		OverrideJustification: *justification,
 	}
 
 	var exp ExperimentResponse
@@ -374,6 +419,41 @@ func cmdConclude(ctx appctx.Context, args []string) error {
 	}
 
 	fmt.Printf("Concluded experiment: %s [%s] - winner: %s\n", exp.Name, exp.ID, winnerVID)
+	return nil
+}
+
+func cmdHoldout(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("holdout", flag.ContinueOnError)
+	findings := fs.String("findings-hash", "", "Hash of holdout findings")
+	key := fs.String("idempotency-key", "", "Stable holdout receipt key")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 || *findings == "" || *key == "" {
+		return fmt.Errorf("usage: experiment holdout <eid> --findings-hash HASH --idempotency-key KEY")
+	}
+	var exp ExperimentResponse
+	if err := ctx.Post(fmt.Sprintf("/experiments/%s/holdout-receipt", fs.Arg(0)), struct {
+		FindingsHash   string `json:"findingsHash"`
+		IdempotencyKey string `json:"idempotencyKey"`
+	}{*findings, *key}, &exp); err != nil {
+		return fmt.Errorf("failed to record holdout: %w", err)
+	}
+	fmt.Printf("Recorded signed holdout receipt for experiment %s\n", exp.ID)
+	return nil
+}
+
+func cmdPromote(ctx appctx.Context, args []string) error {
+	if len(args) != 2 {
+		return fmt.Errorf("usage: experiment promote <eid> <work-item-ref>")
+	}
+	var exp ExperimentResponse
+	if err := ctx.Post(fmt.Sprintf("/experiments/%s/promote", args[0]), struct {
+		WorkItemRef string `json:"workItemRef"`
+	}{args[1]}, &exp); err != nil {
+		return fmt.Errorf("failed to promote experiment: %w", err)
+	}
+	fmt.Printf("Promoted accepted experiment %s\n", exp.ID)
 	return nil
 }
 
@@ -409,6 +489,73 @@ func cmdOutcomes(ctx appctx.Context, args []string) error {
 	for _, o := range outcomes {
 		fmt.Printf("  variant=%s  source=%s  schema=v%d  at=%s\n", o.VariantID, o.Source, o.SchemaVersion, o.RecordedAt)
 	}
+	return nil
+}
+
+func cmdReport(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("report", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: experiment report <eid>")
+	}
+	eid := fs.Arg(0)
+
+	var report ReportResponse
+	if err := ctx.Get(fmt.Sprintf("/experiments/%s/report", eid), &report); err != nil {
+		return fmt.Errorf("failed to get report: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(report)
+	}
+
+	fmt.Printf("Experiment: %s [%s]\n", report.Name, report.ExperimentID)
+	fmt.Printf("Skill:      %s\n", report.SkillID)
+	fmt.Printf("Status:     %s\n", report.Status)
+	fmt.Printf("Totals:     %d serves, %d outcomes\n", report.TotalServes, report.TotalOutcomes)
+
+	fmt.Println("\nArms:")
+	for _, arm := range report.Arms {
+		label := arm.VariantID
+		if arm.VariantName != "" && arm.VariantName != arm.VariantID {
+			label = fmt.Sprintf("%s (%s)", arm.VariantID, arm.VariantName)
+		}
+		fmt.Printf("  %s  weight=%.2f\n", label, arm.Weight)
+
+		successRate := "n/a"
+		if arm.SuccessRate != nil {
+			successRate = fmt.Sprintf("%.1f%%", *arm.SuccessRate*100)
+		}
+		meanTokens := "n/a"
+		if arm.MeanTokensUsed != nil {
+			meanTokens = fmt.Sprintf("%.0f", *arm.MeanTokensUsed)
+		}
+		fmt.Printf("    serves=%d  outcomes=%d  success=%s  mean-tokens=%s\n", arm.Serves, arm.Outcomes, successRate, meanTokens)
+
+		if len(arm.StatusCounts) > 0 {
+			statuses := make([]string, 0, len(arm.StatusCounts))
+			for status := range arm.StatusCounts {
+				statuses = append(statuses, status)
+			}
+			sort.Strings(statuses)
+			parts := make([]string, 0, len(statuses))
+			for _, status := range statuses {
+				parts = append(parts, fmt.Sprintf("%s=%d", status, arm.StatusCounts[status]))
+			}
+			fmt.Printf("    statuses: %s\n", strings.Join(parts, "  "))
+		}
+	}
+
+	if len(report.ZeroDataArms) > 0 {
+		fmt.Printf("\nArms with no data: %s\n", strings.Join(report.ZeroDataArms, ", "))
+	}
+
 	return nil
 }
 

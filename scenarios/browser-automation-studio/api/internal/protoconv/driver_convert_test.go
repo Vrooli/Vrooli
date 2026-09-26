@@ -307,7 +307,7 @@ func TestProtoToStepOutcome(t *testing.T) {
 			Negated:       false,
 			CaseSensitive: true,
 		},
-		Condition: &basexecution.ConditionOutcome{
+		Condition: &basbase.ConditionOutcome{
 			Type:    strPtr("element_visible"),
 			Outcome: true,
 			Negated: false,
@@ -534,7 +534,7 @@ func TestProtoToExecutionPlan(t *testing.T) {
 			{
 				Index:  0,
 				NodeId: "node-1",
-				Type:   "navigate",
+				Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE},
 			},
 		},
 		Graph: &basexecution.PlanGraph{
@@ -542,7 +542,7 @@ func TestProtoToExecutionPlan(t *testing.T) {
 				{
 					Index:  0,
 					NodeId: "node-1",
-					Type:   "navigate",
+					Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE},
 					Outgoing: []*basexecution.PlanEdge{
 						{Id: "edge-1", Target: "node-2"},
 					},

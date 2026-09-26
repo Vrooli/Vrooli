@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useWebSocket } from "@/contexts/WebSocketContext";
+import { useWebSocket, useWebSocketMessage } from "@/contexts/WebSocketContext";
 import type { ExportProgress } from "../api/executeExport";
 import { getExportStatus } from "../api/executeExport";
 
@@ -39,7 +39,7 @@ export function useExportProgress(
   options: UseExportProgressOptions
 ): UseExportProgressResult {
   const { exportId, executionId, onComplete, onError } = options;
-  const { send, lastMessage, isConnected } = useWebSocket();
+  const { send, isConnected } = useWebSocket();
 
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -74,8 +74,8 @@ export function useExportProgress(
   }, [exportId, executionId, isConnected, send]);
 
   // Handle incoming messages
-  useEffect(() => {
-    if (!lastMessage || lastMessage.type !== "export_progress") {
+  useWebSocketMessage((lastMessage) => {
+    if (lastMessage.type !== "export_progress") {
       return;
     }
 
@@ -109,7 +109,7 @@ export function useExportProgress(
     } else if (progressUpdate.status === "failed") {
       onErrorRef.current?.(progressUpdate.error ?? "Export failed");
     }
-  }, [lastMessage, exportId, executionId]);
+  });
 
   const reset = useCallback(() => {
     setProgress(null);

@@ -19,7 +19,7 @@
 ## Runtime Behavior
 
 1. The automation compiler keeps the Set Variable payload intact (sourceType/valueType/expression/extract settings); validation is handled by the workflow validator/UI.
-2. For static sources, the executor stores the literal/coerced value; expression sources run in-page via BrowserlessEngine; extract sources reuse the Extract flow.
+2. For static sources, the executor stores the literal/coerced value; expression sources run in-page via the Playwright driver; extract sources reuse the Extract flow.
 3. The value is stored in the execution context map and snapshots are written to artifacts for debugging.
 
 ## Example

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 )
 
 // requireIntegrationTest skips test if running in short mode
@@ -110,14 +112,12 @@ func setupTestServerNoData(t *testing.T) *Server {
 		return nil
 	}
 
-	db, err := sql.Open("postgres", dbURL)
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: database.DriverPostgres,
+		DSN:    dbURL,
+	})
 	if err != nil {
 		t.Skip("Could not open database connection")
-		return nil
-	}
-
-	if err := db.Ping(); err != nil {
-		t.Skip("Could not ping database, skipping integration test")
 		return nil
 	}
 
@@ -125,12 +125,16 @@ func setupTestServerNoData(t *testing.T) *Server {
 		config: &Config{
 			Port: "8080",
 		},
-		db:              db,
-		store:           NewTidinessStore(db),
-		router:          mux.NewRouter(),
-		campaignMgr:     NewCampaignManager(),
-		scenarioLocator: NewScenarioLocator(5 * time.Minute),
+		db:          db,
+		store:       NewTidinessStore(db),
+		router:      mux.NewRouter(),
+		campaignMgr: NewCampaignManager(),
 	}
+	locator, err := NewScenarioLocator(5 * time.Minute)
+	if err != nil {
+		t.Fatalf("Failed to initialize scenario locator: %v", err)
+	}
+	srv.scenarioLocator = locator
 	srv.scanCoordinator = NewScanCoordinator(
 		db,
 		srv.scenarioLocator,
@@ -230,13 +234,12 @@ func setupDBTest(t *testing.T) (*Server, *sql.DB) {
 	if dbURL == "" {
 		t.Skip("DATABASE_URL not set, skipping database integration test")
 	}
-	db, err := sql.Open("postgres", dbURL)
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: database.DriverPostgres,
+		DSN:    dbURL,
+	})
 	if err != nil {
 		t.Skip("Could not open database connection")
-	}
-	if err := db.Ping(); err != nil {
-		db.Close()
-		t.Skip("Could not ping database, skipping integration test")
 	}
 	srv := &Server{
 		config: &Config{},

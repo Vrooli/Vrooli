@@ -1,0 +1,425 @@
+{
+  "cycle": "033",
+  "issue": "BAS-RF-002",
+  "status": "deployed_named_boundaries_qualified_full_product_unqualified",
+  "recorded_at": "2026-09-22T13:42:34.322298+00:00",
+  "live_build": "sha256:27b9cd6d7734e44874e92bb6e3213ffb3dc83873696d10f9433f34e642a7c13b",
+  "source_changes": [
+    "playwright-driver/tests/integration/pipeline-e2e.test.ts: three desired-behavior native Chromium tests"
+  ],
+  "runtime_changes": [
+    "One bounded browser pending queue, UUID identity, per-entry immediate transmission and matching HTTP/application acknowledgement; no retry-age/count eviction or cleanup erase. Ordered commit remains in the driver.",
+    "One bounded driver entry/delivery/receipt owner; pending entries cannot be evicted, replaced or removed.",
+    "Async page-route admission and strict Go callback acknowledgement; removed silent callback circuit.",
+    "Stop joins admitted start, flushes browser input/current frames and pending deliveries, and retains failed ownership. Repeated terminal stop retains count/time.",
+    "Nondestructive driver GET plus explicit entry-ID acknowledgement POST; Go public clear commits through shared journal ingress before ACK.",
+    "Reset and teardown preflight pending delivery before navigation, storage clearing or browser close.",
+    "One tracked page/frame listener owner activates all current/future documents through native WindowProxy MessageChannels; stop joins activation. Default Rebrowser mode unchanged."
+  ],
+  "experiment": {
+    "command": "pnpm exec jest tests/integration/pipeline-e2e.test.ts --testNamePattern='retains a rejected|does not acknowledge|does not report stopped' --coverage=false --runInBand --detectOpenHandles",
+    "result": "3 failed,7 filtered,1.550s,natural exit",
+    "log": "/tmp/bas-recording-ack-expanded-red-033.txt",
+    "prior_two_case_log": "/tmp/bas-recording-ack-red-033.txt",
+    "observations": [
+      "Browser raw click has no stable id.",
+      "Actual driver event route replies HTTP200 despite rejected async delivery.",
+      "Actual pipeline stop resolves success while the admitted click callback is held behind an unreleased commit promise."
+    ],
+    "scope": "Local Chromium, existing recording injection and actual page routes/pipeline; callback failure/delay controlled; not a full live Go journal or crash test."
+  },
+  "source_audit": [
+    "Browser fetch/retry ignores response.ok; pending removal matches timestamp.",
+    "Browser queues drop oldest/30-second/10-retry events; reinjection cleanup clears sessionStorage.",
+    "rawBrowserEventToTimelineEntry assigns a new UUID and pipeline sequence on every arrival.",
+    "Pipeline invokes async callback without waiting; stop does not join it.",
+    "callback circuit-open and HTTP failures resolve successfully.",
+    "Driver buffer evicts oldest and destructive read clears before response delivery.",
+    "Go journal commits before ingress200 and rejects changed observation for reused identity; unchanged identity alone without stable driver sequence is insufficient.",
+    "Session reset clears page/storage/buffer without a recording flush; teardown only calls stop while isRecording is true."
+  ],
+  "target": "docs/concepts/ARCHITECTURE.md#recording-delivery-owner--rf002-033",
+  "next": "Fresh adversarial frame-targeting investigation RF004/RF030; recording durability residuals remain open.",
+  "pending_operations": [],
+  "qualification": "Named native delivery, stop and dynamic cross-origin frame cases pass. Browser/driver process loss, overflow recovery, committed receipt eviction, generic frame execution, full live journal chain and complete journeys remain unqualified.",
+  "updated_at": "2026-09-22T15:15:18.911521+00:00",
+  "checks": {
+    "native_faults": "/tmp/bas-recording-ack-wired-033.txt:3pass/7filtered,3.233s",
+    "recording_suites": "/tmp/bas-recording-unit-interim-033.txt:163pass/11suites",
+    "guards": "/tmp/bas-recording-guards-033b.txt:148pass/12suites",
+    "stop_retry_input_overlap": "/tmp/bas-recording-stop-retry-033b.txt:3pass/9filtered,1.226s; prior 121.63s failure was incorrect error-text assertion with contaminated fixture cleanup; retained log033",
+    "go_races": "/tmp/bas-recording-go-033.txt:driver/session/handlers/live-capture/recording/persistence/sidecar pass",
+    "types": "/tmp/bas-recording-types-final3-033.txt:pass",
+    "setpoint": {
+      "program_id": "prog_145c2fe8-51db-426b-ac78-8bb2c3adf58f",
+      "required": 17,
+      "pending": 17,
+      "product_qualified": false
+    },
+    "native_pipeline": "/tmp/bas-recording-native-frames-033.txt:14/14pass,8.166s",
+    "activation_suites": "/tmp/bas-recording-fixture-activation-033.txt:23/23pass,13.631s",
+    "owner_regressions": "/tmp/bas-recording-owner-regressions-033.txt:29/29pass,2.044s",
+    "canonical_unit": "TestGenie20260922-142106-ee94c0d4 failed427s; source mutable; driver old fixture/opaque origin failures focused repaired, RF068 AI fields actual failure, unchanged UI coverage",
+    "tidiness": {
+      "run": "20260922-144527-149c7c63",
+      "status": "failed",
+      "total_findings": 1115,
+      "long": 103,
+      "complexity": 387,
+      "duplication": 607,
+      "coupling": 17,
+      "duplication_line_debt": 33540,
+      "delta_cycle": 16,
+      "delta_expanded_original": -2063
+    },
+    "shared_cli": "RF069 actual timeout red; all CLI race packages pass after long-RPC client reuse; fixture encoding corrected; /tmp/bas-unit-cli-deadline-green2-033.txt",
+    "scoped_driver": {
+      "run": "uh-20260922-145457-7e793a0764f101413651f7c3ea6d386d",
+      "status": "passed",
+      "seconds": 393.839,
+      "tests_passed": 1549,
+      "suites_passed": 125,
+      "tests_skipped": 2,
+      "suites_skipped": 1
+    },
+    "builds": "make build and driver pnpm run build passed"
+  },
+  "performance": {
+    "scope": "10000 retained proto entries read+proto JSON+JSON stringify; identical487765 output bytes,10warmups,three50sample trials; microbenchmark not whole journey",
+    "before": {
+      "entries": 10000,
+      "bytes": 487765,
+      "trials": [
+        {
+          "median_us": 4000.795000000039,
+          "p95_us": 5354.157000000015
+        },
+        {
+          "median_us": 4035.3850000000193,
+          "p95_us": 4301.5850000000455
+        },
+        {
+          "median_us": 3967.6849999999604,
+          "p95_us": 4226.454999999987
+        }
+      ]
+    },
+    "after": {
+      "entries": 10000,
+      "bytes": 487765,
+      "trials": [
+        {
+          "median_us": 3895.144999999957,
+          "p95_us": 5177.907000000005
+        },
+        {
+          "median_us": 3917.8739999999834,
+          "p95_us": 4287.885000000017
+        },
+        {
+          "median_us": 4067.5050000000965,
+          "p95_us": 4778.066000000081
+        }
+      ]
+    },
+    "interpretation": "Initial allocating filter/map implementation cost~6.34% median; replaced by single traversal. Final median-of-medians4000.795us before/3917.874us after,~2.07% lower within noise; no speed claim. Initial failed harness builds and stale after2 run excluded as invalid producer evidence."
+  },
+  "publication": {
+    "healthy_at": "2026-09-22T15:14:42Z",
+    "build": "sha256:ce4d775d1ee2c2ba22bd0c8c7ceed449bb2e84cfd1cc7315f869859a12460acc",
+    "gate": {
+      "checked_at": "2026-09-22T15:10:11.885709+00:00",
+      "rows": 2668,
+      "states": {
+        "EXECUTION_STATUS_COMPLETED": 2288,
+        "EXECUTION_STATUS_FAILED": 375,
+        "EXECUTION_STATUS_RUNNING": 5
+      },
+      "historical_orphans": [
+        {
+          "executionId": "879c542b-d9cd-481b-82d2-6b6c7c11ebf1",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-16T13:18:42.087757908Z",
+          "createdAt": "2026-09-16T13:18:42Z",
+          "updatedAt": "2026-09-16T13:19:10.005000924Z"
+        },
+        {
+          "executionId": "d19bd80e-2624-4874-ab9f-eab0cda42286",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-09T19:30:12.784163869Z",
+          "createdAt": "2026-09-09T19:30:12Z",
+          "updatedAt": "2026-09-09T19:30:18.302018879Z"
+        },
+        {
+          "executionId": "b74ec692-da21-42f7-a86c-f33d436ecfbb",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-09T06:30:44.282585140Z",
+          "createdAt": "2026-09-09T06:30:44Z",
+          "updatedAt": "2026-09-09T06:30:45.060249200Z"
+        },
+        {
+          "executionId": "e0d33e05-297d-4867-aee0-783d59882fa8",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-07T20:36:44.551353663Z",
+          "createdAt": "2026-09-07T20:36:44Z",
+          "updatedAt": "2026-09-07T20:36:45.625164771Z"
+        },
+        {
+          "executionId": "206d68cf-a72c-4838-872b-f913a6a8def6",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-07T20:36:44.551265983Z",
+          "createdAt": "2026-09-07T20:36:44Z",
+          "updatedAt": "2026-09-07T20:36:45.663485899Z"
+        }
+      ],
+      "driver_sessions": 0,
+      "driver_recordings": 0,
+      "seconds": 0.7625015659723431,
+      "build_before": "sha256:27b9cd6d7734e44874e92bb6e3213ffb3dc83873696d10f9433f34e642a7c13b",
+      "limitation": "Observation before stop, not atomic global admission lock",
+      "decision": "admit stop; preserve orphan history"
+    },
+    "saved_profiles": "API metadata equals032; three complete repository reads preserve every original rollback field",
+    "history_limitation": "Rows2668 at stop vs2875 previous observation; prior automatic retention logged934recording directories and deletes associated terminal rows. Exact removed-ID reconciliation unavailable."
+  },
+  "structural": {
+    "runtime_lines": {
+      "scope": "Changed runtime files, including compiled Go test helpers, compared with retained immediately-before033 copies",
+      "paths": [
+        {
+          "path": "api/sidecar/wire.go",
+          "before": 409,
+          "after": 409
+        },
+        {
+          "path": "api/handlers/record_mode_actions.go",
+          "before": 130,
+          "after": 132
+        },
+        {
+          "path": "api/handlers/testutil_mock_services.go",
+          "before": 1514,
+          "after": 1523
+        },
+        {
+          "path": "api/handlers/record_mode.go",
+          "before": 1097,
+          "after": 1113
+        },
+        {
+          "path": "api/automation/session/session.go",
+          "before": 426,
+          "after": 426
+        },
+        {
+          "path": "api/automation/driver/client.go",
+          "before": 1184,
+          "after": 1162
+        },
+        {
+          "path": "api/services/live-capture/service.go",
+          "before": 807,
+          "after": 807
+        },
+        {
+          "path": "playwright-driver/src/server.ts",
+          "before": 688,
+          "after": 693
+        },
+        {
+          "path": "playwright-driver/src/proto/recording.ts",
+          "before": 564,
+          "after": 566
+        },
+        {
+          "path": "playwright-driver/src/session/session-teardown.ts",
+          "before": 88,
+          "after": 89
+        },
+        {
+          "path": "playwright-driver/src/session/session-reset.ts",
+          "before": 37,
+          "after": 40
+        },
+        {
+          "path": "playwright-driver/src/recording/index.ts",
+          "before": 363,
+          "after": 364
+        },
+        {
+          "path": "playwright-driver/src/recording/io/buffer.ts",
+          "before": 204,
+          "after": 151
+        },
+        {
+          "path": "playwright-driver/src/recording/io/context-initializer.ts",
+          "before": 586,
+          "after": 586
+        },
+        {
+          "path": "playwright-driver/src/recording/io/event-route.ts",
+          "before": 293,
+          "after": 295
+        },
+        {
+          "path": "playwright-driver/src/recording/capture/init-script-generator.ts",
+          "before": 162,
+          "after": 131
+        },
+        {
+          "path": "playwright-driver/src/recording/orchestration/pipeline-manager.ts",
+          "before": 1328,
+          "after": 995
+        },
+        {
+          "path": "playwright-driver/src/recording/orchestration/state-machine.ts",
+          "before": 666,
+          "after": 669
+        },
+        {
+          "path": "playwright-driver/src/recording/capture/browser-scripts/recording-script.js",
+          "before": 1626,
+          "after": 1518
+        },
+        {
+          "path": "playwright-driver/src/routes/record-mode/recording-lifecycle.ts",
+          "before": 489,
+          "after": 480
+        },
+        {
+          "path": "playwright-driver/src/routes/record-mode/index.ts",
+          "before": 114,
+          "after": 115
+        },
+        {
+          "path": "playwright-driver/src/routes/record-mode/callback-streaming.ts",
+          "before": 147,
+          "after": 22
+        }
+      ],
+      "before_lines": 12922,
+      "after_lines": 12286,
+      "delta_lines": -636
+    },
+    "go_cycle": {
+      "scope": "Changed non-_test.go files, including compiled test helpers",
+      "paths": [
+        "scenarios/browser-automation-studio/api/sidecar/wire.go",
+        "scenarios/browser-automation-studio/api/handlers/record_mode_actions.go",
+        "scenarios/browser-automation-studio/api/handlers/testutil_mock_services.go",
+        "scenarios/browser-automation-studio/api/handlers/record_mode.go",
+        "scenarios/browser-automation-studio/api/automation/session/session.go",
+        "scenarios/browser-automation-studio/api/automation/driver/client.go",
+        "scenarios/browser-automation-studio/api/services/live-capture/service.go"
+      ],
+      "before": {
+        "files": 7,
+        "lines": 5567,
+        "functions": 270,
+        "cyclomatic": 847
+      },
+      "after": {
+        "files": 7,
+        "lines": 5572,
+        "functions": 273,
+        "cyclomatic": 851
+      }
+    },
+    "go_cumulative": {
+      "paths": [
+        "api/automation/compiler/action_definition_builder.go",
+        "api/automation/contracts/plan.go",
+        "api/automation/driver/claudecode/driver.go",
+        "api/automation/driver/client.go",
+        "api/automation/driver/interface.go",
+        "api/automation/driver/playwright/driver.go",
+        "api/automation/driver/types.go",
+        "api/automation/events/sink.go",
+        "api/automation/events/ws_sink.go",
+        "api/automation/execution-writer/artifact_config.go",
+        "api/automation/execution-writer/external_artifacts.go",
+        "api/automation/execution-writer/file_writer.go",
+        "api/automation/execution-writer/interface.go",
+        "api/automation/execution-writer/result_manifest.go",
+        "api/automation/executor/flow_executor.go",
+        "api/automation/executor/flow_utils.go",
+        "api/automation/executor/simple_executor.go",
+        "api/automation/session/manager.go",
+        "api/automation/session/session.go",
+        "api/database/models.go",
+        "api/database/repository.go",
+        "api/handlers/execution_export.go",
+        "api/handlers/executions/service.go",
+        "api/handlers/handler.go",
+        "api/handlers/record_mode.go",
+        "api/handlers/record_mode_actions.go",
+        "api/handlers/record_mode_pages.go",
+        "api/handlers/record_mode_persistence.go",
+        "api/handlers/recordings/module.go",
+        "api/handlers/recordings/service.go",
+        "api/handlers/testutil_mock_repository.go",
+        "api/handlers/testutil_mock_services.go",
+        "api/internal/testutil/mocks/workflow_services.go",
+        "api/internal/typeconv/builders.go",
+        "api/internal/typeconv/primitives.go",
+        "api/internal/typeconv/timeline.go",
+        "api/internal/wire/wire.go",
+        "api/main.go",
+        "api/owner_cleanup.go",
+        "api/performance/collector.go",
+        "api/performance/types.go",
+        "api/services/archive-ingestion/persistence.go",
+        "api/services/export/source/video_source.go",
+        "api/services/live-capture/action_registry.go",
+        "api/services/live-capture/service.go",
+        "api/services/live-capture/workflow_generator.go",
+        "api/services/recording/persistence/mock_repository.go",
+        "api/services/recording/persistence/repository.go",
+        "api/services/recording/persistence/sqlite.go",
+        "api/services/recording/persistence/types.go",
+        "api/services/recording/recorder.go",
+        "api/services/recording/service.go",
+        "api/services/recovery/service.go",
+        "api/services/retention/retention.go",
+        "api/services/session-profile/persistence/credentials.go",
+        "api/services/session-profile/persistence/file_repository.go",
+        "api/services/session-profile/persistence/filesystem.go",
+        "api/services/session-profile/persistence/filesystem_mock.go",
+        "api/services/session-profile/persistence/mock_repository.go",
+        "api/services/session-profile/persistence/protected_state.go",
+        "api/services/session-profile/persistence/repository.go",
+        "api/services/session-profile/service.go",
+        "api/services/uxmetrics/collector/collector.go",
+        "api/services/workflow/executions.go",
+        "api/services/workflow/executions_list.go",
+        "api/services/workflow/interfaces.go",
+        "api/sidecar/wire.go"
+      ],
+      "before": {
+        "files": 66,
+        "lines": 30519,
+        "functions": 1106,
+        "cyclomatic": 5000
+      },
+      "after": {
+        "files": 63,
+        "lines": 27847,
+        "functions": 1057,
+        "cyclomatic": 4758
+      },
+      "shared_cyclomatic_delta": -12
+    },
+    "shared_cli": {
+      "runtime_lines_before": 383,
+      "runtime_lines_after": 383,
+      "function_delta": 0,
+      "cyclomatic_delta": 0
+    },
+    "affected_cumulative_cyclomatic_delta": -254
+  }
+}

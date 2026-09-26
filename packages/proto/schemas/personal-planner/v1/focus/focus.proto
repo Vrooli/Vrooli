@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package vrooli.personal_planner.v1.focus;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/focus;focus_v1";
+
+// Focus owns durable working sessions. A session's lifecycle is independent
+// from the linked work item's status and from the accepted schedule.
+service FocusService {
+  rpc GetCurrentSession(GetCurrentSessionRequest) returns (GetCurrentSessionResponse);
+  rpc StartFocus(StartFocusRequest) returns (FocusSessionResponse);
+  rpc PauseFocus(TransitionFocusRequest) returns (FocusSessionResponse);
+  rpc ResumeFocus(TransitionFocusRequest) returns (FocusSessionResponse);
+  rpc EndFocus(EndFocusRequest) returns (FocusSessionResponse);
+  rpc RecordManualActual(RecordManualActualRequest) returns (ActualResponse);
+  rpc ListActuals(ListActualsRequest) returns (ListActualsResponse);
+  rpc ListActualCorrections(ListActualCorrectionsRequest) returns (ListActualCorrectionsResponse);
+  rpc CorrectActual(CorrectActualRequest) returns (ActualResponse);
+}
+
+message Actual {
+  string id = 1;
+  string work_item_id = 2;
+  string title = 3;
+  string local_date = 4;
+  int64 reported_minutes = 5;
+  string certainty = 6;
+  string note = 7;
+  int64 created_at_unix_seconds = 8;
+  int64 revision = 9;
+}
+
+message RecordManualActualRequest {
+  string work_item_id = 1;
+  string title = 2;
+  string local_date = 3;
+  int64 reported_minutes = 4;
+  string certainty = 5;
+  string note = 6;
+}
+
+message ListActualsRequest { string local_date = 1; }
+
+message ListActualsResponse { repeated Actual actuals = 1; }
+
+message ActualCorrection {
+  string id = 1;
+  string actual_id = 2;
+  int64 previous_minutes = 3;
+  int64 new_minutes = 4;
+  string previous_certainty = 5;
+  string new_certainty = 6;
+  string reason = 7;
+  int64 created_at_unix_seconds = 8;
+}
+
+message ListActualCorrectionsRequest {
+  string actual_id = 1;
+  string local_date = 2;
+  int32 limit = 3;
+}
+
+message ListActualCorrectionsResponse { repeated ActualCorrection corrections = 1; }
+
+message CorrectActualRequest {
+  string id = 1;
+  int64 expected_revision = 2;
+  int64 reported_minutes = 3;
+  string certainty = 4;
+  string note = 5;
+}
+
+message ActualResponse { Actual actual = 1; }
+
+message FocusSession {
+  string id = 1;
+  string work_item_id = 2;
+  string title = 3;
+  string mode = 4;
+  string state = 5;
+  int64 started_at_unix_seconds = 6;
+  int64 ended_at_unix_seconds = 7;
+  int64 active_seconds = 8;
+  int64 wall_seconds = 9;
+  int64 revision = 10;
+  int64 active_started_at_unix_seconds = 11;
+}
+
+message GetCurrentSessionRequest {}
+
+message GetCurrentSessionResponse {
+  bool has_session = 1;
+  FocusSession session = 2;
+}
+
+message StartFocusRequest {
+  string work_item_id = 1;
+  string title = 2;
+  string mode = 3;
+}
+
+message TransitionFocusRequest {
+  string session_id = 1;
+  int64 expected_revision = 2;
+}
+
+message EndFocusRequest {
+  string session_id = 1;
+  int64 expected_revision = 2;
+  int64 reported_remaining_minutes = 3;
+}
+
+message FocusSessionResponse {
+  FocusSession session = 1;
+}

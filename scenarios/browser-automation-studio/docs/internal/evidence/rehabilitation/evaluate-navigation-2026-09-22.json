@@ -1,0 +1,100 @@
+{
+  "cycle": "BAS-WORK-036",
+  "issues": [
+    "BAS-RF-073"
+  ],
+  "updated_at": "2026-09-22T16:37:52.744980+00:00",
+  "status": "qualified_awaiting_combined_036_037_publication",
+  "original_native_counter": {
+    "result": {
+      "success": false,
+      "error": {
+        "message": "page.evaluate: Execution context was destroyed, most likely because of a navigation.",
+        "code": "NAVIGATION_ERROR",
+        "kind": 1,
+        "retryable": true
+      }
+    },
+    "effects": [
+      "http://127.0.0.1:36757/first",
+      "http://127.0.0.1:36757/next"
+    ],
+    "expectedEffectCount": 1,
+    "actualEffectCount": 2,
+    "browserVersion": "136.0.7103.25"
+  },
+  "original_native_harness": "/tmp/browser-automation-studio/evaluate-navigation-036.ts",
+  "maintained_red": {
+    "receipt": "/tmp/bas-evaluate-maintained-red-036.txt",
+    "duration_s": 2.086,
+    "failures": 3,
+    "note": "Filtered selection also missed aggregate coverage floor; this was not a full coverage run."
+  },
+  "focused": {
+    "receipt": "/tmp/bas-evaluate-focused-036.txt",
+    "duration_s": 15.235,
+    "tests": 82,
+    "suites": 5,
+    "status": "passed"
+  },
+  "types": {
+    "receipt": "/tmp/bas-evaluate-types-036.txt",
+    "status": "passed"
+  },
+  "build": {
+    "receipt": "/tmp/bas-evaluate-build-driver-036.txt",
+    "status": "passed"
+  },
+  "runtime": {
+    "path": "playwright-driver/src/handlers/extraction.ts",
+    "before_lines": 189,
+    "after_lines": 152,
+    "before_sha256": "3f436a6a5964d73b2007dcc4f17dcb1a2d60e9d7adcb3124cb2b89c7f111f8ef",
+    "after_sha256": "bee97062963ce8f341bb20ec9684757739d6b2f2b02f5c7a71fe138d9a628a6c",
+    "retired": "evaluateSurvivingNavigation and its duplicate implicit retry/load wait policy",
+    "performance": "No matched latency claim; wrong duplicate effects reduced from two to one in regression fixture.",
+    "complexity": "One named helper and its catch/regex branch/wait fallback removed; no canonical TS cyclomatic sensor claim."
+  },
+  "tidiness": {
+    "run_id": "20260922-163350-8274aa55",
+    "status": "failed",
+    "summary": {
+      "totalFindings": 1116,
+      "longFiles": 103,
+      "complexity": 387,
+      "duplication": 607,
+      "coupling": 18,
+      "duplicationLineDebt": 33540
+    },
+    "receipt": "/tmp/bas-evaluate-tidiness-native-036.json",
+    "waits": 1
+  },
+  "board": {
+    "receipt": "/tmp/bas-evaluate-board-036.json",
+    "required": 17,
+    "pending": 17,
+    "product_qualified": false
+  },
+  "pending_operations": [],
+  "limits": [
+    "No durable exactly-once guarantee across browser/driver death or caller-created new invocation.",
+    "Read-only arbitrary expressions also need explicit readiness rather than implicit retry.",
+    "Live035 has not adopted036."
+  ],
+  "full_driver": {
+    "run_id": "uh-20260922-163345-07f0358027780d17a733b9ef0ad01760",
+    "status": "passed",
+    "duration_ms": 307798,
+    "tests_passed": 1552,
+    "suites_passed": 124,
+    "tests_skipped": 2,
+    "suites_skipped": 1,
+    "receipt": "/tmp/bas-evaluate-owner-036.json",
+    "consumed_tool_session": 73224
+  },
+  "combined_bas_publication_038": {
+    "status": "deployed",
+    "build_identity": "sha256:8129e9e98743f51dfb61a568315b0662dd69c312ca63beff80197474745a2e80",
+    "receipt": "download-url-2026-09-22.json"
+  }
+}

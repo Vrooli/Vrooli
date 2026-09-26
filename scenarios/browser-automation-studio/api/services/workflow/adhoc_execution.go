@@ -9,8 +9,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
+	"github.com/vrooli/browser-automation-studio/services/readiness"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
@@ -79,16 +82,16 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 
 	now := time.Now().UTC()
 	wf := &basapi.WorkflowSummary{
-		Id:            workflowID.String(),
-		ProjectId:     "",
-		Name:          strings.TrimSpace(req.GetMetadata().GetName()),
-		FolderPath:    "/",
-		Description:   strings.TrimSpace(req.GetMetadata().GetDescription()),
-		Version:       1,
-		CreatedAt:     autocontracts.TimeToTimestamp(now),
-		UpdatedAt:     autocontracts.TimeToTimestamp(now),
-		FlowDefinition: req.FlowDefinition,
-		LastChangeSource: basbase.ChangeSource_CHANGE_SOURCE_MANUAL,
+		Id:                    workflowID.String(),
+		ProjectId:             "",
+		Name:                  strings.TrimSpace(req.GetMetadata().GetName()),
+		FolderPath:            "/",
+		Description:           strings.TrimSpace(req.GetMetadata().GetDescription()),
+		Version:               1,
+		CreatedAt:             autocontracts.TimeToTimestamp(now),
+		UpdatedAt:             autocontracts.TimeToTimestamp(now),
+		FlowDefinition:        req.FlowDefinition,
+		LastChangeSource:      basbase.ChangeSource_CHANGE_SOURCE_MANUAL,
 		LastChangeDescription: "Adhoc execution",
 	}
 	if strings.TrimSpace(wf.Name) == "" {
@@ -96,6 +99,9 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	}
 
 	store, params, env, artifactCfg, execBrowserProfile, projectRoot, startURL, sessionProfileID, saveSessionProfileID, restoreTabs, navigationWaitUntil, continueOnError := executionParametersToMaps(req.Parameters)
+	if err := validateProjectRoot(projectRoot); err != nil {
+		return nil, err
+	}
 	if err := validateSeedRequirements(req.FlowDefinition, store, params, env); err != nil {
 		return nil, err
 	}
@@ -103,10 +109,39 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 		return nil, err
 	}
 
+	// Settle the opening navigation on the target scenario's declared surfaces.
+	// This is the path bas/ cases actually take — Workflow Health runs every
+	// case through ExecuteAdhocWorkflow — so without it the declared contract
+	// would be resolved for captures and ignored for the suite it exists to fix.
+	// A caller that already injected its own wait (Capture does) reports
+	// explicit-wait here and is left untouched.
+	settle := readiness.Settle(ctx, s.readinessResolver, req.FlowDefinition)
+	if s.log != nil {
+		entry := s.log.WithFields(logrus.Fields{
+			"execution_id":       executionID,
+			"readiness_strategy": settle.Strategy,
+		})
+		if settle.Strategy == readiness.StrategyDeclaredSurface {
+			entry.WithFields(logrus.Fields{
+				"profile_version":   settle.ProfileVersion,
+				"route":             settle.Route,
+				"required_surfaces": settle.RequiredSurfaceIDs,
+			}).Info("Adhoc execution settles on declared readiness surfaces")
+		} else if settle.FallbackReason != "" {
+			// Info, not Debug: a silent fallback is indistinguishable from a
+			// fast pass, which is the failure mode this whole contract exists
+			// to remove. Say which rung was used and why.
+			entry.WithField("fallback_reason", settle.FallbackReason).
+				Info("Adhoc execution uses generic navigation readiness")
+		}
+	}
+	wf.FlowDefinition = req.FlowDefinition
+
 	// Resolve session profile if provided for authenticated execution
 	var storageState json.RawMessage
 	var profileBrowserSettings *sessionprofilepersistence.BrowserProfile
 	var openTabs []sessionprofilepersistence.TabState
+	var sessionProfileVersion string
 	if sessionProfileID != "" && s.sessionProfileService != nil {
 		profile, err := s.sessionProfileService.GetProfile(sessionprofilepersistence.ProfileID(sessionProfileID))
 		if err != nil {
@@ -114,6 +149,7 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 		}
 		storageState = profile.StorageState
 		profileBrowserSettings = profile.BrowserProfile
+		sessionProfileVersion = profileVersionForReuse(profile)
 
 		// Load open tabs if tab restoration is requested
 		if restoreTabs && len(profile.OpenTabs) > 0 {
@@ -124,6 +160,9 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 		if _, err := s.sessionProfileService.Touch(sessionprofilepersistence.ProfileID(sessionProfileID)); err != nil && s.log != nil {
 			s.log.WithError(err).WithField("session_profile_id", sessionProfileID).Warn("Failed to update session profile usage timestamp")
 		}
+	}
+	if sessionProfileVersion == "" && saveSessionProfileID != "" {
+		sessionProfileVersion = profileVersionForReuse(&sessionprofilepersistence.SessionProfile{ID: sessionprofilepersistence.ProfileID(saveSessionProfileID)})
 	}
 
 	// Extract adhoc workflow's default browser profile and merge with execution override
@@ -138,21 +177,43 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	finalBrowserProfile := sessionprofilepersistence.MergeBrowserProfiles(baseBrowserProfile, execBrowserProfile)
 
 	execIndex := &database.ExecutionIndex{
-		ID:        executionID,
-		WorkflowID: workflowID,
-		Status:    database.ExecutionStatusPending,
-		StartedAt: now,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:          executionID,
+		WorkflowID:  workflowID,
+		Status:      database.ExecutionStatusPending,
+		TriggerType: "api",
+		StartedAt:   now,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
-	if err := s.repo.CreateExecution(ctx, execIndex); err != nil {
+	if err := s.createExecution(ctx, execIndex, &basexecution.Execution{
+		WorkflowVersion: wf.Version,
+		TriggerType:     basbase.TriggerType_TRIGGER_TYPE_API,
+		Parameters:      req.Parameters,
+	}); err != nil {
 		return nil, fmt.Errorf("create execution: %w", err)
 	}
 
 	// Use the standard async runner so status polling, stop requests, and result indexing work.
-	s.startExecutionRunnerWithOptions(wf, executionID, store, params, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
+	completion := s.startExecutionRunnerWithOptions(ctx, wf, executionID, store, params, env, artifactCfg, finalBrowserProfile, storageState, sessionProfileVersion, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
 
-	// Adhoc runs return immediately; callers should poll the execution ID.
+	if req.WaitForCompletion {
+		latest, err := s.waitForExecutionCompletion(ctx, executionID, completion)
+		if err != nil {
+			return nil, err
+		}
+		resp := &basexecution.ExecuteAdhocResponse{
+			ExecutionId: latest.ID.String(),
+			Status:      enums.StringToExecutionStatus(latest.Status),
+			CompletedAt: autocontracts.TimePtrToTimestamp(latest.CompletedAt),
+		}
+		if strings.TrimSpace(latest.ErrorMessage) != "" {
+			msg := latest.ErrorMessage
+			resp.Error = &msg
+		}
+		return resp, nil
+	}
+
+	// Async return — caller polls the execution ID separately.
 	return &basexecution.ExecuteAdhocResponse{
 		ExecutionId: executionID.String(),
 		Status:      basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING,

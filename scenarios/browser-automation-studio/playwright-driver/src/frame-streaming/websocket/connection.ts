@@ -14,8 +14,9 @@ import { logger, scopedLog, LogContext } from '../../utils';
 import type { FrameWebSocket } from '../types';
 import { WS_RECONNECT_DELAY_MS } from '../types';
 
-// Type cast for WebSocket constructor (ws module types are complex)
-const WS: new (url: string) => FrameWebSocket = WebSocket as new (url: string) => FrameWebSocket;
+type WebSocketOptions = { headers?: Record<string, string> };
+const WS: new (url: string, options?: WebSocketOptions) => FrameWebSocket =
+  WebSocket as new (url: string, options?: WebSocketOptions) => FrameWebSocket;
 
 /**
  * WebSocket connection state.
@@ -41,6 +42,7 @@ export interface WebSocketConnectionOptions {
   sessionId: string;
   /** Reconnection delay in ms (default: WS_RECONNECT_DELAY_MS) */
   reconnectDelayMs?: number;
+  routedTestMode?: boolean;
 }
 
 /**
@@ -52,10 +54,12 @@ export class WebSocketConnectionManager {
   private state: WebSocketConnectionState;
   private readonly sessionId: string;
   private readonly reconnectDelayMs: number;
+  private readonly routedTestMode: boolean;
 
   constructor(options: WebSocketConnectionOptions) {
     this.sessionId = options.sessionId;
     this.reconnectDelayMs = options.reconnectDelayMs ?? WS_RECONNECT_DELAY_MS;
+    this.routedTestMode = options.routedTestMode === true;
     this.state = {
       ws: null,
       url: options.url,
@@ -93,7 +97,9 @@ export class WebSocketConnectionManager {
     if (!this.state.isActive) return;
 
     try {
-      const ws = new WS(this.state.url);
+      const ws = this.routedTestMode
+        ? new WS(this.state.url, { headers: { 'X-Vrooli-Test-Mode': '1' } })
+        : new WS(this.state.url);
       this.state.ws = ws;
 
       ws.on('open', () => {

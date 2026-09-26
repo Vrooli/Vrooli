@@ -3,12 +3,6 @@
     {
       "id": "call-open-builder-to-wait1",
       "source": "call-open-builder",
-      "target": "wait1",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e4",
-      "source": "wait1",
       "target": "assert-palette",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -51,11 +45,14 @@
   ],
   "metadata": {
     "description": "Validates palette search filters nodes by name, description, and keywords",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Palette Search Filter",
+    "version": "1"
   },
   "nodes": [
     {
@@ -73,18 +70,6 @@
         "type": "ACTION_TYPE_SUBFLOW"
       },
       "id": "call-open-builder"
-    },
-    {
-      "action": {
-        "metadata": {
-          "label": "Wait"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 3000
-        }
-      },
-      "id": "wait1"
     },
     {
       "action": {
@@ -125,9 +110,6 @@
           "label": "Search 'navigate'"
         },
         "type": "ACTION_TYPE_INPUT"
-      },
-      "execution_settings": {
-        "wait_after_ms": 1000
       },
       "id": "search"
     },
@@ -170,9 +152,6 @@
           "label": "Clear search"
         },
         "type": "ACTION_TYPE_INPUT"
-      },
-      "execution_settings": {
-        "wait_after_ms": 1000
       },
       "id": "clear"
     },

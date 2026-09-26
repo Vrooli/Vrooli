@@ -1,0 +1,71 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.status-indicator",
+    "name": "StatusIndicator",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "primitives",
+    "description": "The compact status component combining icon, text, shape, and animation policy to express certainty and urgency independently rather than as one flat variant set.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.icon",
+        "reason": "Status shape and glyph come from the registry."
+      },
+      {
+        "asset": "primitives.text",
+        "reason": "Status labels use the shared text styles."
+      },
+      {
+        "asset": "hooks.use-reduced-motion",
+        "reason": "Motion policy is resolved through the shared hook so the preference can be overridden and tested."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "non-color-status",
+    "contrast-floor",
+    "status-announced",
+    "reduced-motion",
+    "forced-colors-legibility"
+  ],
+  "api": {
+    "levels": [
+      "convenience"
+    ],
+    "variants": {
+      "certainty": [
+        "scheduled",
+        "estimated",
+        "predicted",
+        "observed",
+        "confirmed"
+      ],
+      "urgency": [
+        "ambient",
+        "informational",
+        "actionable",
+        "critical"
+      ]
+    }
+  },
+  "beauty": {
+    "avoid": [
+      "color-without-semantic-purpose"
+    ]
+  },
+  "rationale": "Certainty and urgency are orthogonal, and for a system full of agent and async work the distinction is load-bearing: an agent predicting a failure must not render identically to a failure that happened."
+}

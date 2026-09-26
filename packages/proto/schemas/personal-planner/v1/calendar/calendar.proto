@@ -1,0 +1,194 @@
+syntax = "proto3";
+
+package vrooli.personal_planner.v1.calendar;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/calendar;calendar_v1";
+
+// Calendar owns accepted time allocations. Work recommendations are not
+// allocations until the user explicitly places them here.
+service CalendarService {
+  rpc ListTodayAllocations(ListTodayAllocationsRequest) returns (ListTodayAllocationsResponse);
+  rpc ListAllocations(ListAllocationsRequest) returns (ListAllocationsResponse);
+  rpc CreateAllocation(CreateAllocationRequest) returns (CreateAllocationResponse);
+  rpc PreviewAllocation(PreviewAllocationRequest) returns (PreviewAllocationResponse);
+  rpc ApplyAllocationProposal(ApplyAllocationProposalRequest) returns (ApplyAllocationProposalResponse);
+  rpc PreviewSchedule(PreviewScheduleRequest) returns (PreviewScheduleResponse);
+  rpc ApplyScheduleProposal(ApplyScheduleProposalRequest) returns (ApplyScheduleProposalResponse);
+  rpc CarryForwardAllocation(CarryForwardAllocationRequest) returns (CarryForwardAllocationResponse);
+  rpc ListRoutines(ListRoutinesRequest) returns (ListRoutinesResponse);
+  rpc CreateRoutine(CreateRoutineRequest) returns (CreateRoutineResponse);
+  rpc ListRoutineOccurrences(ListRoutineOccurrencesRequest) returns (ListRoutineOccurrencesResponse);
+  rpc SkipRoutineOccurrence(SkipRoutineOccurrenceRequest) returns (SkipRoutineOccurrenceResponse);
+  rpc RescheduleRoutineOccurrence(RescheduleRoutineOccurrenceRequest) returns (RescheduleRoutineOccurrenceResponse);
+}
+
+message Allocation {
+  string id = 1;
+  string work_item_id = 2;
+  string title = 3;
+  string source_label = 4;
+  string local_date = 5;
+  int32 start_minutes = 6;
+  int32 duration_minutes = 7;
+  string state = 8;
+  google.protobuf.Timestamp created_at = 9;
+  string carried_from_id = 10;
+}
+
+message ListTodayAllocationsRequest {
+  // Optional browser-local date; empty means the planner's current local day.
+  string local_date = 1;
+}
+
+message ListTodayAllocationsResponse {
+  repeated Allocation allocations = 1;
+  int32 planned_minutes = 2;
+  int32 available_minutes = 3;
+  int32 breathing_room_minutes = 4;
+  int32 external_busy_minutes = 5;
+  int32 external_event_count = 6;
+  string external_freshness = 7;
+}
+
+message ListAllocationsRequest {
+  // Inclusive local-date range in the planner timezone.
+  string start_local_date = 1;
+  string end_local_date = 2;
+}
+message ListAllocationsResponse { repeated Allocation allocations = 1; }
+
+message CreateAllocationRequest {
+  string work_item_id = 1;
+  string local_date = 2;
+  int32 start_minutes = 3;
+  int32 duration_minutes = 4;
+}
+
+message CreateAllocationResponse { Allocation allocation = 1; }
+
+message PreviewAllocationRequest {
+  string work_item_id = 1;
+  string local_date = 2;
+  int32 start_minutes = 3;
+  int32 duration_minutes = 4;
+}
+message PlacementProposal {
+  string id = 1;
+  string work_item_id = 2;
+  string local_date = 3;
+  int32 start_minutes = 4;
+  int32 duration_minutes = 5;
+  string state = 6;
+  string reason = 7;
+  int64 base_revision = 8;
+}
+message PreviewAllocationResponse { PlacementProposal proposal = 1; }
+
+message ApplyAllocationProposalRequest {
+  string proposal_id = 1;
+  int64 expected_revision = 2;
+  string idempotency_key = 3;
+}
+message ApplyAllocationProposalResponse { Allocation allocation = 1; }
+
+message PreviewScheduleRequest {
+  string local_date = 1;
+  int32 start_minutes = 2;
+  repeated string work_item_ids = 3;
+}
+message ProposedPlacement {
+  string work_item_id = 1;
+  string title = 2;
+  string local_date = 3;
+  int32 start_minutes = 4;
+  int32 duration_minutes = 5;
+  string state = 6;
+  string reason = 7;
+}
+message ScheduleProposal {
+  string id = 1;
+  string local_date = 2;
+  int64 base_revision = 3;
+  string state = 4;
+  string reason = 5;
+  repeated ProposedPlacement placements = 6;
+}
+message PreviewScheduleResponse { ScheduleProposal proposal = 1; }
+
+message ApplyScheduleProposalRequest {
+  string proposal_id = 1;
+  int64 expected_revision = 2;
+  string idempotency_key = 3;
+}
+message ApplyScheduleProposalResponse { repeated Allocation allocations = 1; }
+
+message CarryForwardAllocationRequest {
+  string allocation_id = 1;
+  string target_local_date = 2;
+  int32 start_minutes = 3;
+}
+message CarryForwardAllocationResponse { Allocation allocation = 1; }
+
+message Routine {
+  string id = 1;
+  string title = 2;
+  string kind = 3;
+  string timezone = 4;
+  string start_date = 5;
+  string end_date = 6;
+  repeated int32 weekdays = 7;
+  int32 start_minute = 8;
+  int32 duration_minutes = 9;
+  int32 frequency_per_week = 10;
+  int64 revision = 11;
+  bool active = 12;
+}
+
+message RoutineOccurrence {
+  string routine_id = 1;
+  string title = 2;
+  string local_date = 3;
+  int32 start_minute = 4;
+  int32 duration_minutes = 5;
+  string kind = 6;
+  bool generated = 7;
+}
+
+message ListRoutinesRequest {}
+message ListRoutinesResponse { repeated Routine routines = 1; }
+
+message CreateRoutineRequest {
+  string title = 1;
+  string kind = 2;
+  string timezone = 3;
+  string start_date = 4;
+  string end_date = 5;
+  repeated int32 weekdays = 6;
+  int32 start_minute = 7;
+  int32 duration_minutes = 8;
+  int32 frequency_per_week = 9;
+}
+message CreateRoutineResponse { Routine routine = 1; }
+
+message ListRoutineOccurrencesRequest {
+  string start_local_date = 1;
+  string end_local_date = 2;
+}
+message ListRoutineOccurrencesResponse { repeated RoutineOccurrence occurrences = 1; }
+
+message SkipRoutineOccurrenceRequest {
+  string routine_id = 1;
+  string local_date = 2;
+  int64 expected_revision = 3;
+}
+message SkipRoutineOccurrenceResponse { bool skipped = 1; }
+
+message RescheduleRoutineOccurrenceRequest {
+  string routine_id = 1;
+  string local_date = 2;
+  int32 start_minute = 3;
+  int64 expected_revision = 4;
+}
+message RescheduleRoutineOccurrenceResponse { bool rescheduled = 1; }

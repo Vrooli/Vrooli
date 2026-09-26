@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "unit-health.mutation-pilot",
+  "version": "1",
+  "helpers": {"program": "1"},
+  "purpose": "Run a bounded owner-side mutation pilot in disposable scenario-cache workspaces.",
+  "inputs": {
+    "scenario": {"type": "string", "required": true},
+    "workspace": {"type": "string", "default": "api"},
+    "package": {"type": "string", "default": "./internal/testquality/..."},
+    "operators": {"type": "array", "default": ["boundary", "negate-condition", "return-constant"]},
+    "max_mutants": {"type": "integer", "default": 20},
+    "seed": {"type": "string", "required": true}
+  },
+  "assumptions": [
+    "Unit Health owns mutation discovery and execution through its bounded executor",
+    "The pilot writes only disposable copies below the scenario cache prefix"
+  ],
+  "invariants": [
+    "No shared-worktree source is mutated",
+    "At most 50 mutant receipts are returned",
+    "A transport or owner failure remains unavailable or partial; it is never a clean score"
+  ],
+  "bindings": [
+    {"id": "unit-health/mutation/pilot", "effect": "read"}
+  ],
+  "outputs": {
+    "status": {"enum": ["ok", "partial", "unavailable", "failed"]},
+    "phase": {"enum": ["validate", "collect", "report"]},
+    "signals": {
+      "summary": "bounded mutation disposition counts and kill rate",
+      "receipts": "bounded mutation receipts"
+    },
+    "errors": {
+      "classes": ["invalid_input", "scenario_unreachable", "remote_error", "binding_error", "kernel_runtime", "partial_results"]
+    },
+    "evidence": "owner run identity, cache workspace prefix, and mutation receipt dispositions"
+  },
+  "budget": {"wall_ms": 90000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 50, "output_bytes": 65536},
+  "fixtures": [
+    {
+      "id": "invalid-operator",
+      "inputs": {"scenario": "unit-health", "seed": "fixture-1", "operators": ["not-an-operator"]},
+      "expect": {"status": ["failed"]}
+    },
+    {
+      "id": "live-pilot",
+      "inputs": {"scenario": "unit-health", "seed": "fixture-live", "max_mutants": 3},
+      "requires": ["unit-health"],
+      "expect": {"status": ["ok", "partial", "unavailable"]}
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "unit-health-improve",
+  "verbs": ["gather"]
+}

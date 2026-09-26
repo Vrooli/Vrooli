@@ -30,6 +30,7 @@
 
 import { CONFIG_TIER_METADATA, type ConfigDataType } from './config';
 import { logger, scopedLog, LogContext } from './utils';
+import { setLogLevel } from './utils/logger';
 
 // =============================================================================
 // Types
@@ -399,13 +400,10 @@ function validateValue(
 onConfigChange((envVar, newValue) => {
   if (envVar === 'LOG_LEVEL') {
     try {
-      // The logger module should be updated to support setLevel()
-      // For now, we just log that the level was changed
+      setLogLevel(newValue);
       logger.info(scopedLog(LogContext.CONFIG, 'log level changed'), {
         newLevel: newValue,
-        note: 'Level change will take effect on new log entries',
       });
-      // TODO: Implement logger.setLevel(newValue) when logger supports it
     } catch (error) {
       logger.warn(scopedLog(LogContext.CONFIG, 'failed to update log level'), {
         error: error instanceof Error ? error.message : String(error),

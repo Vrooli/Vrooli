@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "IconRegistry",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Every declared name resolves to a path",
+      "role": "anatomy",
+      "mode": "live",
+      "description": "The registry is the single source of glyph geometry, so the contract renders every entry rather than a sample. A name declared in the union but missing from the record fails to compile; a name present but undrawable fails here.",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Default" } },
+      "interactions": [{ "kind": "settle" }],
+      "expect": [
+        { "kind": "visible", "selector": "[data-testid='story-registry']" },
+        { "kind": "visible", "selector": "[data-testid='story-icon-eye']" },
+        { "kind": "visible", "selector": "[data-testid='story-icon-eyeOff']" },
+        { "kind": "visible", "selector": "[data-testid='story-icon-check']" }
+      ]
+    }
+  ]
+}

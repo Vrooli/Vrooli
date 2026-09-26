@@ -1,0 +1,35 @@
+{
+  "id": "credit_balances",
+  "label": "Credits outstanding",
+  "description": "Total credit balance held across every wallet.",
+  "unit": "count",
+  "format": "compact",
+  "shape": "series",
+  "source": {
+    "team": "monetization",
+    "binding": "scenario:landing-page-business-suite",
+    "read": "/api/v1/admin/dashboard/revenue",
+    "select": "credit_balances",
+    "ttlSeconds": 300,
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "featureId": "credit_balances",
+    "contractVersion": "revenue-summary.v1",
+    "selector": "credit_balances",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "IN-REACH",
+  "sample": {
+    "value": 128400,
+    "series": [
+      92000,
+      99000,
+      108000,
+      114000,
+      121000,
+      128400
+    ],
+    "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+  }
+}

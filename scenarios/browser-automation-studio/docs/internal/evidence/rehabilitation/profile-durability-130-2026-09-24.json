@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "work": "BAS-WORK-130",
+  "issue": "BAS-RF-011",
+  "contractRow": "profile-durability",
+  "observedAt": "2026-09-24T04:44:26.713Z",
+  "sourceHead": "8707b970a48f82665662450766ad8233d6def9e7",
+  "contractSha256": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+  "sourceFiles": {
+    "playwright-driver/src/session/manager.ts": "5dfc1926f3f69e68bfbc0c105e9d066fba22fbcfbc92bc779b166fc1f99536f8",
+    "api/cmd/profile-durability-cohort/qualification.mjs": "70173eb21193f402cd0510dd9b86e4c1d5f104446a78dcd6d0bba35e9df09d69"
+  },
+  "runtime": {
+    "managedBuildIdentityBeforeSeedAndAfterRestart": "sha256:1fa3e575c0606946f56b2b0d5b3577776c7e01cdf4dd71408808126736070fe1",
+    "firstManagedRestart": {
+      "operationId": "startop-2c30055d9e8cced247834716e5b90325",
+      "verdict": "healthy",
+      "elapsedSeconds": 306
+    },
+    "restartBetweenSeedAndVerify": {
+      "operationId": "startop-be48d17341dd92759b43af0ce2badbdf",
+      "verdict": "healthy",
+      "elapsedSeconds": 44
+    },
+    "apiAfterVerification": "healthy and ready",
+    "driverAfterCleanup": {
+      "status": "ok",
+      "ready": true,
+      "sessions": 0,
+      "activeRecordings": 0,
+      "chromium": "136.0.7103.25"
+    }
+  },
+  "cohort": {
+    "producer": "api/cmd/profile-durability-cohort/qualification.mjs",
+    "seedCommand": "node cmd/profile-durability-cohort/qualification.mjs seed /tmp/bas-profile-durability-130",
+    "verifyCommand": "node cmd/profile-durability-cohort/qualification.mjs verify /tmp/bas-profile-durability-130",
+    "seedOwnerReceipt": {
+      "path": "internal/evidence/rehabilitation/profile-durability-130-seed-owner.json",
+      "sha256": "2169a3e0ab67b68ed916bda0fff06de6afcc6f2b6de3e225eb9c099a92dfe5af"
+    },
+    "restartOwnerReceipt": {
+      "path": "internal/evidence/rehabilitation/profile-durability-130-restart-owner.json",
+      "sha256": "370fdcc5a5d29410564fdb65b483dbafbca172431b1d5c9f79c99f64f8a5eabd"
+    },
+    "allChecksPassed": true,
+    "seedChecks": 5,
+    "restartChecks": 2,
+    "checkpointVisibleAfterMs": 1115.704074,
+    "checkpointPollSamples": 22,
+    "alphaCookieLocalStorageIndexedDBCloseReopen": "passed",
+    "betaCookieLocalStorageIndexedDB": "passed",
+    "alphaBetaIsolation": "passed",
+    "alphaAndBetaAfterManagedApiDriverRestart": "passed",
+    "syntheticProfilesDeleted": 2
+  },
+  "additionalFocusedValidation": {
+    "command": "pnpm exec jest tests/integration/profile-storage-continuity.test.ts --runInBand --coverage=false",
+    "result": "passed",
+    "suites": 1,
+    "tests": 7,
+    "durationSeconds": 5.643
+  },
+  "testGenie": "not run; maintained owner cohort and targeted owner integration suite used under BAS-FB-016",
+  "qualificationStatus": "Fresh owner evidence passes the listed profile close/reopen, isolation, automatic checkpoint <=5000ms and managed API/driver restart behaviors on one current Linux candidate. The global setpoint reader still has no governed binding for this owner receipt.",
+  "limitations": [
+    "Checkpoint timing has one trial; repeatability is unverified.",
+    "Abrupt process-death or power-loss recovery was not exercised.",
+    "Only the Linux managed candidate was exercised; other platform targets remain unverified."
+  ],
+  "freshCaptureWorkload": {
+    "operationId": "0ec2e936779ff37ea697247386008c42",
+    "outcome": "WORKLOAD_OUTCOME_MEASURED",
+    "samples": 100,
+    "attemptsIncludingWarmup": 101,
+    "serviceP95Ms": 444,
+    "wallP95Ms": 640.403589,
+    "budgetMs": 2000,
+    "buildIdentity": "sha256:1fa3e575c0606946f56b2b0d5b3577776c7e01cdf4dd71408808126736070fe1",
+    "receiptSha256": "e4873993fec4843d2d9e1dd124180fb938d78493180754710a620c679b40c46c"
+  },
+  "setpointRead": {
+    "programId": "prog_94970f5b-20bd-4eb2-a1d1-2fdc170c429f",
+    "qualifiedRows": 1,
+    "unknownRows": 16,
+    "productQualified": false
+  },
+  "stalePriorCaptureRead": {
+    "programId": "prog_761b2062-880f-475e-b927-6a90e8f73826",
+    "cause": "prior capture workload receipt described a different deployed build",
+    "recovery": "fresh 100-sample capture workload measured against current build"
+  },
+  "sourceInventory": {
+    "sha256": "cddec42131387f694377ae05d15433c2ccc05c09f892bb959077ee7dd020c711",
+    "runtimeSourceLines": {
+      "api": 92414,
+      "playwrightDriver": 52510,
+      "ui": 130198
+    },
+    "priorObservedLines": {
+      "api": 92411,
+      "playwrightDriver": 52482,
+      "ui": 130198
+    },
+    "priorObservation": "BAS-WORK-126, 2026-09-24, inventory digest 56752432f7914eb2a3df4713786d47ecd7e4423184433c7d8cc6a20f59762933",
+    "interpretation": "driver net +28 corresponds to BAS-WORK-129 reservation code; API +3 predates W129; UI unchanged. Inventory measures physical size, not AST complexity or debt."
+  }
+}

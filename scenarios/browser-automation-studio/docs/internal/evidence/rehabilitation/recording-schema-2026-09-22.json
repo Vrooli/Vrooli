@@ -1,0 +1,389 @@
+{
+  "schema_version": 1,
+  "record": "BAS-WORK-013",
+  "issues": [
+    "BAS-RF-058"
+  ],
+  "source_sha256": {
+    "api/internal/recording/schema.sql": "981de136941e4e52306b1b7621b897dd585ef64bb157906d73b819f5b27b1a65",
+    "api/services/recording/persistence/sqlite_test.go": "4fe7c30b22099fcaa3df78f143e74ffd06b76fec188c1783cee076f7a91e38ad",
+    "api/database/connection_routing_test.go": "0e7319a21ab5726850364f38ed1ddbe51544384bbcd7bda08377453ef3541947"
+  },
+  "source_inventory_digest": "da918c4efde5cc3c68b88b59f1d089bd40416f059f5c6b55a868303110f9b63d",
+  "checks": {
+    "repository_red": "--- FAIL: TestSQLiteRepository_SaveTimelineEntry (0.00s)\n    sqlite_test.go:298: SaveTimelineEntry failed: save timeline entry: SQL logic error: no such table: timeline_entries (1)\nFAIL\nFAIL\tgithub.com/vrooli/browser-automation-studio/services/recording/persistence\t0.004s\nFAIL\n",
+    "production_routing_red": "time=\"2026-09-22T02:45:47-04:00\" level=info msg=\"Using SQLite database\" path=/home/matthalloran8/.vrooli/tmp/go-work/TestNewConnectionRoutesRecordingWritesToLeasedTestPool2668535542/001/primary.db\ntime=\"2026-09-22T02:45:47-04:00\" level=info msg=\"Successfully connected to database\"\ntime=\"2026-09-22T02:45:47-04:00\" level=info msg=\"Database schema initialized successfully\"\ntime=\"2026-09-22T02:45:48-04:00\" level=info msg=\"Database schema initialized successfully\"\n--- FAIL: TestNewConnectionRoutesRecordingWritesToLeasedTestPool (1.74s)\n    connection_routing_test.go:72: append routed journal entry using production schema: save timeline entry: SQL logic error: no such table: timeline_entries (1)\nFAIL\nFAIL\tgithub.com/vrooli/browser-automation-studio/database\t1.745s\nFAIL\n",
+    "race_green": "ok  \tgithub.com/vrooli/browser-automation-studio/database\t10.711s\nok  \tgithub.com/vrooli/browser-automation-studio/services/recording/persistence\t1.160s\n"
+  },
+  "source_change": {
+    "domain_schema_lines_added": 15,
+    "private_ddl_removed": "test fixture now reads internal/recording.Schema()",
+    "runtime_go_changed": false
+  },
+  "board": {
+    "program": "browser-automation-studio.setpoint-read",
+    "version": "1",
+    "status": "ok",
+    "phase": "report",
+    "inputs": {
+      "window": 100,
+      "evidence_sample": 5,
+      "profile": "rehabilitation"
+    },
+    "signals": {
+      "rows": [
+        {
+          "row": "preservation",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#preservation",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "interactive-feedback",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#interactive-feedback",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "motion",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#motion",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "readiness",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#readiness",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "capture",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#capture",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "passive-fidelity",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#passive-fidelity",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "profile-durability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#profile-durability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "known-flow-reliability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#known-flow-reliability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "cancellation-recovery",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#cancellation-recovery",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "resource-budget",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#resource-budget",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "soak-stability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#soak-stability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "evidence-completeness",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#evidence-completeness",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "desktop-portability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#desktop-portability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "agent-usefulness",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#agent-usefulness",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "structural-debt",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#structural-debt",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "workspace-usability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#workspace-usability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "adversarial-review",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#adversarial-review",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        }
+      ],
+      "readable": 0,
+      "unavailable": 17,
+      "required": 17,
+      "unmet": 17,
+      "product_qualified": false
+    },
+    "errors": [],
+    "evidence": [
+      "scenarios/browser-automation-studio/docs/internal/REFRACTOR_CONTRACT.json"
+    ]
+  },
+  "build": "make build passed /tmp/bas-build-013.txt",
+  "deployed": true,
+  "limitations": [
+    "RF-002 cache-first success and RF-024 pagination unchanged",
+    "Schema-only tests do not qualify full recording durability; real SQL failure reproduced then corrected"
+  ],
+  "final_owner_validation": {
+    "run_id": "20260922-070615-366d3617",
+    "status": "terminal failed",
+    "duration_seconds": 379,
+    "api": "passed14.978s",
+    "cli": "passed0.895s",
+    "driver": "passed126suites1476tests; naturalexit282.782s, command283.766s",
+    "ui": "coverage statements/lines28.57%, functions30.34%, branches64.96% below85%; typecheckpassed12.019s",
+    "tidiness": {
+      "totalFindings": 1077,
+      "longFiles": 80,
+      "complexity": 380,
+      "duplication": 604,
+      "coupling": 12,
+      "duplicationLineDebt": 35064
+    },
+    "budget_failure": "complexity380 vs baseline363",
+    "artifacts": {
+      "schema_version": 1,
+      "digest": "ac:sha256:a58050737344b8abe6e2c8b95e30464ab2461ad76e16d59160fc801b17190afc",
+      "artifacts": [
+        {
+          "id": "artifact_350c2b9e220e0f398f229b90c93294b6",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "unit.log",
+          "producing_phase": "unit",
+          "size_bytes": "29019",
+          "created_at": "2026-09-22T07:12:30.61908565Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_350c2b9e220e0f398f229b90c93294b6",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_8ef7bf70769af424b8336f7b2d20c06f",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "tidiness.log",
+          "producing_phase": "tidiness",
+          "size_bytes": "437902",
+          "created_at": "2026-09-22T07:12:34.787107382Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_8ef7bf70769af424b8336f7b2d20c06f",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_dcbd9020f4097ecbd3981d0a3c2cc8f1",
+          "kind": "findings.report",
+          "media_type": "application/json",
+          "label": "findings.json",
+          "size_bytes": "7662879",
+          "created_at": "2026-09-22T07:12:35.064108826Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_dcbd9020f4097ecbd3981d0a3c2cc8f1",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_6ceb860af91c7639e4fcbb3b3aee4798",
+          "kind": "generic.file",
+          "media_type": "application/json",
+          "label": "evidence-manifest.json",
+          "size_bytes": "92561",
+          "created_at": "2026-09-22T07:12:35.08410893Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_6ceb860af91c7639e4fcbb3b3aee4798",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_17edb8677b8bc316d3346812c6a39f7d",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "unit.json",
+          "producing_phase": "unit",
+          "size_bytes": "3038",
+          "created_at": "2026-09-22T07:12:30.61908565Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_17edb8677b8bc316d3346812c6a39f7d",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_8c605ed9317675910993c73946fee812",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "tidiness.json",
+          "producing_phase": "tidiness",
+          "size_bytes": "2987",
+          "created_at": "2026-09-22T07:12:34.786107377Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_8c605ed9317675910993c73946fee812",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        }
+      ]
+    }
+  },
+  "deployment": {
+    "health": {
+      "status": "healthy",
+      "service": "browser-automation-studio-api",
+      "timestamp": "2026-09-22T07:17:18Z",
+      "readiness": true,
+      "version": "1.0.0",
+      "build_identity": "sha256:e55e1a548d5c0f27774977035f8894db9d09e27f02089ebca18c45eab7962992",
+      "uptime_seconds": 27.099904177,
+      "dependencies": {
+        "automation_engine": {
+          "connected": true
+        },
+        "database": {
+          "connected": true,
+          "latency_ms": 0.024
+        },
+        "playwright_driver": {
+          "connected": true,
+          "latency_ms": 1.047
+        },
+        "storage": {
+          "connected": true,
+          "latency_ms": 0.165
+        }
+      },
+      "metrics": {
+        "goroutines": 31,
+        "heap_mb": 5.1823883056640625,
+        "uptime_seconds": 27.099904177
+      }
+    },
+    "drain_gate": {
+      "checked_at": "2026-09-22T07:14:23.538695+00:00",
+      "rows": 2924,
+      "states": {
+        "EXECUTION_STATUS_COMPLETED": 2537,
+        "EXECUTION_STATUS_FAILED": 382,
+        "EXECUTION_STATUS_RUNNING": 5
+      },
+      "historical_orphans": [
+        {
+          "executionId": "879c542b-d9cd-481b-82d2-6b6c7c11ebf1",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-16T13:18:42.087757908Z",
+          "createdAt": "2026-09-16T13:18:42Z",
+          "updatedAt": "2026-09-16T13:19:10.005000924Z"
+        },
+        {
+          "executionId": "d19bd80e-2624-4874-ab9f-eab0cda42286",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-09T19:30:12.784163869Z",
+          "createdAt": "2026-09-09T19:30:12Z",
+          "updatedAt": "2026-09-09T19:30:18.302018879Z"
+        },
+        {
+          "executionId": "b74ec692-da21-42f7-a86c-f33d436ecfbb",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-09T06:30:44.282585140Z",
+          "createdAt": "2026-09-09T06:30:44Z",
+          "updatedAt": "2026-09-09T06:30:45.060249200Z"
+        },
+        {
+          "executionId": "e0d33e05-297d-4867-aee0-783d59882fa8",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-07T20:36:44.551353663Z",
+          "createdAt": "2026-09-07T20:36:44Z",
+          "updatedAt": "2026-09-07T20:36:45.625164771Z"
+        },
+        {
+          "executionId": "206d68cf-a72c-4838-872b-f913a6a8def6",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-07T20:36:44.551265983Z",
+          "createdAt": "2026-09-07T20:36:44Z",
+          "updatedAt": "2026-09-07T20:36:45.663485899Z"
+        }
+      ],
+      "driver_sessions": 0,
+      "driver_recordings": 0,
+      "seconds": 0.41819682205095887,
+      "build_before": "sha256:3c0e62a11289d56a838a06f72e452c7b9b49e4466c051e29ebf9a9e2ea6de6aa",
+      "limitation": "Observation before stop, not atomic global admission lock",
+      "decision": "admit stop; preserve orphan history"
+    },
+    "schema": {
+      "database": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/data/browser-automation-studio.db",
+      "authority": "running API startup log DSN",
+      "tables": {
+        "recording_sessions": 0,
+        "recording_actions": 0,
+        "timeline_entries": 0
+      },
+      "before_state": "Not measured on actual live database. Earlier default-root read was an unused database and must not be attributed to live BAS."
+    },
+    "profile_read_verification": "read 1: complete identity preserved; elapsed_ms=1214.91\nread 2: complete identity preserved; elapsed_ms=0.45\nread 3: complete identity preserved; elapsed_ms=0.41\n",
+    "live_profile_metadata": {
+      "profile_count": 1,
+      "live_identity_and_name_match_original": true,
+      "storage_state_absent_from_metadata": true
+    }
+  }
+}

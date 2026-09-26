@@ -421,18 +421,6 @@ func TestConfigEdgeCases(t *testing.T) {
 		}
 	})
 
-	t.Run("BrowserlessURLOverride", func(t *testing.T) {
-		customURL := "http://custom-browserless:3000"
-		os.Setenv("BROWSERLESS_URL", customURL)
-		defer os.Unsetenv("BROWSERLESS_URL")
-
-		cfg := loadConfig()
-
-		if cfg.BrowserlessURL != customURL {
-			t.Errorf("Expected custom browserless URL %s, got %s", customURL, cfg.BrowserlessURL)
-		}
-	})
-
 	t.Run("DebugMode", func(t *testing.T) {
 		os.Setenv("DEBUG", "true")
 		defer os.Unsetenv("DEBUG")

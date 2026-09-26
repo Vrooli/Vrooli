@@ -1,0 +1,662 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "infrastructure-manager",
+  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "coverage",
+      "description": "Read-only reliability coverage, open-loop and setpoint integrity",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show coverage ratios with denominator confidence",
+          "flags": [
+            {
+              "name": "projection",
+              "description": "Optional projection filter",
+              "bind": {
+                "field": "projections"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "GetCoverage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show one projection's cells and bars",
+          "positionals": [
+            {
+              "name": "projection",
+              "required": true,
+              "description": "Reliability projection"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "GetProjection"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "cells",
+          "description": "List reliability cells, optionally filtered by projection and status",
+          "flags": [
+            {
+              "name": "projection",
+              "description": "Optional projection filter"
+            },
+            {
+              "name": "status",
+              "description": "Optional status filter"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "ListCells"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "open-loop",
+          "description": "List every dated MISSING reliability cell",
+          "flags": [
+            {
+              "name": "projection",
+              "description": "Optional projection filter"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "ListOpenLoopCells"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Validate the read-only setpoint and coverage integrity",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "ValidateSetpoint"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "drift",
+          "description": "Show live space and sensor drift findings",
+          "flags": [
+            {
+              "name": "projection",
+              "description": "Optional projection filter"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "GetDrift"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "condition",
+      "description": "Read condition, trust and history evidence",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Read condition readings",
+          "flags": [
+            {
+              "name": "projection",
+              "description": "Projection filter"
+            },
+            {
+              "name": "cell",
+              "description": "Optional cell filter",
+              "bind": {
+                "field": "cell_ref"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConditionService",
+            "method": "GetCondition"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "trust",
+          "description": "Read the trust distribution and checked denominator",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConditionService",
+            "method": "GetTrustDistribution"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "explain",
+          "description": "Explain one condition cell",
+          "positionals": [
+            {
+              "name": "cell",
+              "required": true,
+              "description": "Condition cell reference",
+              "bind": {
+                "field": "cell_ref"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConditionService",
+            "method": "ExplainCell"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "history",
+          "description": "Read condition history or its measurement status",
+          "positionals": [
+            {
+              "name": "cell",
+              "required": true,
+              "description": "Condition cell reference",
+              "bind": {
+                "field": "cell_ref"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum readings"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConditionService",
+            "method": "GetHistory"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "focus",
+      "description": "Read ranked reliability findings and efficacy evidence",
+      "commands": [
+        {
+          "name": "next",
+          "description": "Read ranked next findings",
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum findings"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FocusService",
+            "method": "GetNext"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "finding",
+          "description": "Read one ranked finding",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Finding id",
+              "bind": {
+                "field": "finding_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FocusService",
+            "method": "GetFinding"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "sources",
+          "description": "Read focus source availability",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FocusService",
+            "method": "ListSources"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "efficacy",
+          "description": "Read finding efficacy evidence",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Finding id",
+              "bind": {
+                "field": "finding_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FocusService",
+            "method": "GetEfficacy"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "portability",
+      "description": "Read-only capability portability grid, situations and fleet blockers",
+      "commands": [
+        {
+          "name": "grid",
+          "description": "Show the capability grid with resolution status and qualification rung",
+          "flags": [
+            {
+              "name": "capability",
+              "description": "Optional capability filter; repeatable",
+              "bind": {
+                "field": "capabilities"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PortabilityService",
+            "method": "GetGrid"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "capability",
+          "description": "Show one capability's per-platform row",
+          "positionals": [
+            {
+              "name": "capability",
+              "required": true,
+              "description": "Capability name from the capability vocabulary"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PortabilityService",
+            "method": "GetCapability"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "situations",
+          "description": "List capabilities by situation classification",
+          "flags": [
+            {
+              "name": "situation",
+              "description": "Optional situation filter: built-everywhere, no-work-required, no-equivalent-ever, real-peer-nobody-wired"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PortabilityService",
+            "method": "ListSituations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "fleet",
+          "description": "Show computed fleet portability blockers",
+          "flags": [
+            {
+              "name": "view",
+              "description": "Optional view: blocked, docker, peerless, upgrades, desktop"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PortabilityService",
+            "method": "GetFleet"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "ladder",
+      "description": "Read-only device-layer capability ladder, its sources and its cascade-ranked findings",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show the whole ladder readout: cells, sources and ranked findings",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LadderService",
+            "method": "GetLadder"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "cells",
+          "description": "List ladder cells, optionally filtered by class, rung, host OS or substrate cell",
+          "flags": [
+            {
+              "name": "device-class",
+              "description": "Optional device class filter"
+            },
+            {
+              "name": "rung",
+              "description": "Optional rung filter: identity, telemetry, evidence, control, anticipation"
+            },
+            {
+              "name": "host-os",
+              "description": "Optional host OS filter: linux, macos, windows"
+            },
+            {
+              "name": "cell-ref",
+              "description": "Optional substrate cell filter, for example substrate/SB11"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LadderService",
+            "method": "ListCells"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "devices",
+          "description": "List graded hardware devices with per-rung state and the reason each rung is blind",
+          "flags": [
+            {
+              "name": "device-class",
+              "description": "Optional device class filter"
+            },
+            {
+              "name": "device-id",
+              "description": "Optional device id filter, for example pci:0000:01:00.0"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LadderService",
+            "method": "ListDevices"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "sources",
+          "description": "Show each ladder source's availability and the reason it was unreadable",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LadderService",
+            "method": "ListSources"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "findings",
+          "description": "Show cascade-ranked ladder findings and the stage that placed each one",
+          "flags": [
+            {
+              "name": "stage",
+              "description": "Optional cascade stage filter: sensor-channel-integrity, host-substrate, capability-availability, efficiency, measurement-improvement"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LadderService",
+            "method": "RankFindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "space",
+      "flat": true,
+      "description": "Emit this scenario's coverage-space denominator.",
+      "commands": [
+        {
+          "name": "space",
+          "description": "Emit this scenario's coverage-space denominator as JSON (the cross-scenario read contract)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "exceptions": [],
+  "omitted": []
+}

@@ -95,6 +95,7 @@ export interface StorageHandlerDependencies {
  */
 export interface AuthHandlerDependencies {
     authManager: IAuthManager;
+    getLocalSessionToken?: () => Promise<string | null>;
 }
 
 /**
@@ -106,6 +107,7 @@ export interface IpcHandlerDependencies {
     fs: IFileFs;
     storage: IAppStorage;
     authManager: IAuthManager;
+    getLocalSessionToken?: () => Promise<string | null>;
     getMainWindow: () => BrowserWindow | null;
     systemInfo: SystemInfo;
 }

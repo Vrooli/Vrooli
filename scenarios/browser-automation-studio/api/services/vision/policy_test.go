@@ -6,7 +6,7 @@ func TestCreditPolicy_ShouldChargeCredits(t *testing.T) {
 	tests := []struct {
 		name                  string
 		policy                CreditPolicy
-		isBYOK                bool
+		provenance            CredentialProvenance
 		hasResourceOpenrouter bool
 		isLocalExecution      bool
 		want                  bool
@@ -22,22 +22,22 @@ func TestCreditPolicy_ShouldChargeCredits(t *testing.T) {
 			want:   true,
 		},
 		{
-			name: "BYOK bypass when isBYOK is true",
+			name: "credential provenance bypass",
 			policy: CreditPolicy{
 				RequiresCredits:  true,
-				BypassConditions: []BypassCondition{BypassBYOK},
+				BypassConditions: []BypassCondition{BypassCredentialProvenance},
 			},
-			isBYOK: true,
-			want:   false,
+			provenance: CredentialProvenanceAuthority,
+			want:       false,
 		},
 		{
-			name: "BYOK bypass when isBYOK is false",
+			name: "credential provenance absent",
 			policy: CreditPolicy{
 				RequiresCredits:  true,
-				BypassConditions: []BypassCondition{BypassBYOK},
+				BypassConditions: []BypassCondition{BypassCredentialProvenance},
 			},
-			isBYOK: false,
-			want:   true,
+			provenance: CredentialProvenanceNone,
+			want:       true,
 		},
 		{
 			name: "resource_openrouter bypass when true",
@@ -67,12 +67,12 @@ func TestCreditPolicy_ShouldChargeCredits(t *testing.T) {
 			want:             false,
 		},
 		{
-			name: "multiple bypass conditions - BYOK matches",
+			name: "multiple bypass conditions - provenance matches",
 			policy: CreditPolicy{
 				RequiresCredits:  true,
-				BypassConditions: []BypassCondition{BypassBYOK, BypassResourceOpenrouter},
+				BypassConditions: []BypassCondition{BypassCredentialProvenance, BypassResourceOpenrouter},
 			},
-			isBYOK:                true,
+			provenance:            CredentialProvenanceAuthority,
 			hasResourceOpenrouter: false,
 			want:                  false,
 		},
@@ -80,9 +80,9 @@ func TestCreditPolicy_ShouldChargeCredits(t *testing.T) {
 			name: "multiple bypass conditions - openrouter matches",
 			policy: CreditPolicy{
 				RequiresCredits:  true,
-				BypassConditions: []BypassCondition{BypassBYOK, BypassResourceOpenrouter},
+				BypassConditions: []BypassCondition{BypassCredentialProvenance, BypassResourceOpenrouter},
 			},
-			isBYOK:                false,
+			provenance:            CredentialProvenanceNone,
 			hasResourceOpenrouter: true,
 			want:                  false,
 		},
@@ -90,9 +90,9 @@ func TestCreditPolicy_ShouldChargeCredits(t *testing.T) {
 			name: "multiple bypass conditions - none match",
 			policy: CreditPolicy{
 				RequiresCredits:  true,
-				BypassConditions: []BypassCondition{BypassBYOK, BypassResourceOpenrouter},
+				BypassConditions: []BypassCondition{BypassCredentialProvenance, BypassResourceOpenrouter},
 			},
-			isBYOK:                false,
+			provenance:            CredentialProvenanceNone,
 			hasResourceOpenrouter: false,
 			want:                  true,
 		},
@@ -100,7 +100,7 @@ func TestCreditPolicy_ShouldChargeCredits(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.policy.ShouldChargeCredits(tt.isBYOK, tt.hasResourceOpenrouter, tt.isLocalExecution)
+			got := tt.policy.ShouldChargeCredits(tt.provenance, tt.hasResourceOpenrouter, tt.isLocalExecution)
 			if got != tt.want {
 				t.Errorf("ShouldChargeCredits() = %v, want %v", got, tt.want)
 			}
@@ -112,7 +112,7 @@ func TestCreditPolicy_ToInfo(t *testing.T) {
 	policy := CreditPolicy{
 		RequiresCredits:  true,
 		CreditsPerStep:   2,
-		BypassConditions: []BypassCondition{BypassBYOK, BypassResourceOpenrouter},
+		BypassConditions: []BypassCondition{BypassCredentialProvenance, BypassResourceOpenrouter},
 	}
 
 	info := policy.ToInfo()

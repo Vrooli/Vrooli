@@ -1,0 +1,317 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "minio",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "pinned",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/minio",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/minio",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/minio"
+        },
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "MinIO object data is bind-mounted to /data and must survive container replacement.",
+        "budget": {
+          "max_bytes": "100GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      },
+      "config": {
+        "rung": "pinned",
+        "path": {
+          "linux": "$USER_HOME/.config/vrooli/resources/minio",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/minio",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/minio"
+        },
+        "kind": "dir",
+        "class": "config",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "MinIO credentials and server configuration are bind-mounted to /root/.minio."
+      }
+    }
+  },
+  "display_name": "MinIO",
+  "description": "Managed MinIO object storage service supervised from a checksum-verified native binary.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-minio",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-minio_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-minio"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "managed-service",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "Native artifact availability is verified per target architecture."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "native-artifact-check"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "Native artifact availability is verified per target architecture."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "native-artifact-check"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64"
+          ],
+          "limitations": [
+            "Native artifact availability is verified per target architecture."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "native-artifact-check"
+          ]
+        }
+      }
+    }
+  },
+  "category": "storage",
+  "requirements": {
+    "ram_mb": 1024,
+    "disk_mb": 4096,
+    "cpu_cores": 1,
+    "network": "optional",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "storage",
+    "weight": 2
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "build-verified",
+    "windows": "build-verified"
+  },
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "api",
+      "container": 9000,
+      "host": 9000
+    },
+    {
+      "name": "console",
+      "container": 9001,
+      "host": 9001
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "kind": "readiness",
+      "target": "http://127.0.0.1:9000/minio/health/ready",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "kind": "liveness",
+      "target": "http://127.0.0.1:9000/minio/health/live",
+      "interval_seconds": 30,
+      "timeout_seconds": 10
+    }
+  ],
+  "runtime": {
+    "env": {
+      "MINIO_ROOT_USER": "minioadmin",
+      "MINIO_ROOT_PASSWORD": "minioadmin",
+      "MINIO_BROWSER": "on",
+      "MINIO_REGION": "us-east-1",
+      "GOMAXPROCS": "4",
+      "MINIO_API_REQUESTS_MAX": "8000",
+      "MINIO_API_REQUESTS_DEADLINE": "10s"
+    },
+    "volumes": [],
+    "command": []
+  },
+  "managed_service": {
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-shared",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/minio",
+      "version": "RELEASE.2025-07-23T15-54-02Z",
+      "sha256_by_platform": {
+        "linux-amd64": "eef6581f6509f43ece007a6f2eb4c5e3ce41498c8956e919a7ac7b4b170fa431",
+        "linux-arm64": "ec9f48fee97dee7e6ce8fe9f576471bcd52380c035091d8b075b64d606124c7e",
+        "macos-amd64": "314cc62269594d291eaca7807522a079d7c246ff15626964d7190fdd05b7ab04",
+        "macos-arm64": "0939ce5553ce9e6451b69e049fbf399794368276b61da8166f84cbd8c7f2d641",
+        "windows-amd64": "4c7c7b6e52638fbe25997a5e4dbb735c44537397ccc7c503c1cb0d02bb61b517"
+      },
+      "bundle_artifact": "minio_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "url",
+      "license": "AGPL-3.0-or-later",
+      "targets": [
+        {"when": {"os": "linux", "arch": "amd64"}, "url": "https://dl.min.io/server/minio/release/linux-amd64/archive/minio.RELEASE.2025-07-23T15-54-02Z", "sha256": "eef6581f6509f43ece007a6f2eb4c5e3ce41498c8956e919a7ac7b4b170fa431", "archive": "none", "layout": "file"},
+        {"when": {"os": "linux", "arch": "arm64"}, "url": "https://dl.min.io/server/minio/release/linux-arm64/archive/minio.RELEASE.2025-07-23T15-54-02Z", "sha256": "ec9f48fee97dee7e6ce8fe9f576471bcd52380c035091d8b075b64d606124c7e", "archive": "none", "layout": "file"},
+        {"when": {"os": "macos", "arch": "amd64"}, "url": "https://dl.min.io/server/minio/release/darwin-amd64/archive/minio.RELEASE.2025-07-23T15-54-02Z", "sha256": "314cc62269594d291eaca7807522a079d7c246ff15626964d7190fdd05b7ab04", "archive": "none", "layout": "file"},
+        {"when": {"os": "macos", "arch": "arm64"}, "url": "https://dl.min.io/server/minio/release/darwin-arm64/archive/minio.RELEASE.2025-07-23T15-54-02Z", "sha256": "0939ce5553ce9e6451b69e049fbf399794368276b61da8166f84cbd8c7f2d641", "archive": "none", "layout": "file"},
+        {"when": {"os": "windows", "arch": "amd64"}, "url": "https://dl.min.io/server/minio/release/windows-amd64/archive/minio.RELEASE.2025-07-23T15-54-02Z", "sha256": "4c7c7b6e52638fbe25997a5e4dbb735c44537397ccc7c503c1cb0d02bb61b517", "archive": "none", "layout": "file"}
+      ]
+    },
+    "attach_health_path": "/minio/health/ready",
+    "arguments": [
+      "server",
+      "--address",
+      "127.0.0.1:${RESOURCE_PORT_API}",
+      "${RESOURCE_DATA_DIR}",
+      "--console-address",
+      "127.0.0.1:${RESOURCE_PORT_CONSOLE}"
+    ],
+    "environment": {
+      "MINIO_ROOT_USER": "minioadmin",
+      "MINIO_ROOT_PASSWORD": "minioadmin",
+      "MINIO_BROWSER": "on",
+      "MINIO_REGION": "us-east-1"
+    }
+  },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific MinIO dependency settings.",
+    "properties": {
+      "buckets": {
+        "type": "object",
+        "properties": {
+          "default_buckets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "environment_exports": {
+    "static": {
+      "MINIO_HOST": "localhost"
+    },
+    "from_ports": {
+      "MINIO_PORT": "api",
+      "MINIO_CONSOLE_PORT": "console"
+    },
+    "from_runtime_env": [
+      "MINIO_ROOT_USER",
+      "MINIO_ROOT_PASSWORD",
+      "MINIO_BROWSER",
+      "MINIO_REGION"
+    ],
+    "derived": {
+      "MINIO_URL": {
+        "template": "http://${MINIO_HOST}:${MINIO_PORT}"
+      },
+      "MINIO_BASE_URL": {
+        "template": "${MINIO_URL}"
+      },
+      "MINIO_ENDPOINT": {
+        "template": "${MINIO_HOST}:${MINIO_PORT}"
+      },
+      "MINIO_CONSOLE_URL": {
+        "template": "http://${MINIO_HOST}:${MINIO_CONSOLE_PORT}"
+      },
+      "MINIO_ACCESS_KEY": {
+        "template": "${MINIO_ROOT_USER}"
+      },
+      "MINIO_SECRET_KEY": {
+        "template": "${MINIO_ROOT_PASSWORD}"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 950,
+    "startup_timeout_seconds": 20,
+    "startup_time_estimate": "5-10s",
+    "dependencies": [],
+    "recovery_attempts": 3,
+    "priority": "high"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 60,
+    "stop_timeout_seconds": 30,
+    "retries": 3
+  },
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "vendorable"
+}

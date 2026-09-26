@@ -1,0 +1,231 @@
+{
+  "_metadata": {
+    "description": "Durable private workspace, on-boarding draft, dietary rules, kitchen capabilities, and priority weights.",
+    "module": "workspace-and-profile",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "WS-001",
+      "title": "User-owned records belong to a server-authorized workspace",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "security",
+      "criticality": "P0",
+      "description": "The scenario shall scope every user-owned aggregate to a server-authorized private workspace, deriving the actor and accessible scope from the authenticated session rather than any client-supplied owner identifier, and the local personal runtime shall resolve that principal through the platform authentication profile instead of rejecting every request or bypassing authorization in handlers.",
+      "tags": [
+        "workspace",
+        "isolation",
+        "authorization",
+        "local-runtime"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: domain store rejects an aggregate created without a workspace; a workspace-scoped query never returns another workspace's rows. Cross-workspace reads, writes, downloads, and nested foreign references are denied (ACT-036)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a generated API client cannot read or mutate a foreign workspace even when it supplies that owner ID."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: in the running scenario the CLI and UI list and create a workspace without an unauthenticated error, because the declared authentication profile supplies a local principal (blocker B1, docs/internal/REDESIGN_PLAN.md §3.2); AT-044 denies another workspace's private media."
+        }
+      ]
+    },
+    {
+      "id": "WS-002",
+      "title": "Saved edits survive refresh and new sessions",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "storage",
+      "criticality": "P0",
+      "description": "When a saved edit is committed, the scenario shall persist it durably so that a refresh, a new session, or another authorized device reloads the same records rather than resetting to demo seed data.",
+      "tags": [
+        "persistence",
+        "durability",
+        "recovery"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: save a profile edit, restart the API and reload the UI, and observe the same record; a failed save visibly retains the local draft (ACT-034)."
+        }
+      ]
+    },
+    {
+      "id": "WS-003",
+      "title": "Fixtures are never silently adopted as real data",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "The scenario shall keep development fixtures and anonymous exploration deliberately isolated from authenticated accounts, so sample food content can never be presented or persisted as the user's own records.",
+      "tags": [
+        "fixtures",
+        "honesty",
+        "isolation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a fresh real account starts with an intentional empty state, not a demo profile (ACT-001); loading or error states never render sample numbers as saved facts (ACT-022)."
+        }
+      ]
+    },
+    {
+      "id": "WS-004",
+      "title": "Four-step setup is a resumable draft",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The setup experience shall present the four steps Your food, Your kitchen, Your rhythm, and Ready, reuse the Kitchen equipment tiles and scene, keep all edits as a draft separate from active settings until the final apply, preserve entered values across Back, Continue, refresh, and resume, and allow Explore first with an explicit unconfigured state that never claims suggestions fit rules the user has not entered.",
+      "tags": [
+        "onboarding",
+        "draft",
+        "ux"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: draft state machine preserves values across navigation and never mutates active rules before apply (ACT-002)."
+        },
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned UI journey: leave setup mid-step, reopen, and confirm the resumable draft with Keep editing / Discard behavior."
+        }
+      ]
+    },
+    {
+      "id": "WS-005",
+      "title": "Diet presets compile to explicit, versioned rules",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "The scenario shall compile data-driven diet presets into explicit active rules, keep composable exclusions separate from the preset, and record the preset version plus expanded rules so a later preset update cannot silently change the user's contract.",
+      "tags": [
+        "rules",
+        "presets",
+        "diet"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: switching vegan/vegetarian/pescatarian/everything/plant-forward/my-own-way yields the documented rules while independent restrictions survive (ACT-003)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a restriction whose evidence is unresolved raises Needs information rather than passing (ACT-004)."
+        }
+      ]
+    },
+    {
+      "id": "WS-006",
+      "title": "Kitchen capabilities and priorities are stable inputs",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "The scenario shall store kitchen equipment as stable capability identifiers rather than display text, accept zero appliances, and map ordinary-language priority answers to editable cost, effort, and variety weights while preserving a persisted custom vector after reload.",
+      "tags": [
+        "kitchen",
+        "priorities",
+        "onboarding"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: answer-to-weight mapping matches the documented table and a custom vector reopens as Custom, not a quantized preset (ACT-005, ACT-006)."
+        },
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned UI journey: select zero appliances and confirm ready-to-eat assembly meals are still offered."
+        }
+      ]
+    },
+    {
+      "id": "WS-007",
+      "title": "Apply previews conflicts and counts eligibility truthfully",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "service",
+      "criticality": "P0",
+      "description": "When a profile is applied, the scenario shall preview conflicts against any existing plan, count matching meals through the same eligibility service the planner uses, and never relax a restriction merely to produce a nonzero count.",
+      "tags": [
+        "eligibility",
+        "apply",
+        "conflict"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: applying a new restriction flags affected future locks while historical intake is unchanged (ACT-007); no-eligible-meals shows a rule-conflict summary with a repair path."
+        },
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned UI journey: review and apply an edited setup and confirm the previewed count matches planner eligibility."
+        }
+      ]
+    },
+    {
+      "id": "WS-008",
+      "title": "A fresh workspace is an explicit unconfigured state",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "When a workspace has no applied profile or saved plan, the scenario shall return an explicit unconfigured or empty state from profile, planning, swap, and feedback operations instead of an internal error, and the UI shall offer setup, Choose a meal, or Plan my week rather than demo content.",
+      "tags": [
+        "onboarding",
+        "empty-state",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: profile lookup on a fresh workspace maps no rows to the domain not-found error and planning, swap, and feedback return typed empty-plan states (blockers B2 and B3 in docs/internal/REDESIGN_PLAN.md §3.2)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a fresh real account opens every destination with intentional empty states and no demo data leakage (AT-001, ACT-001)."
+        }
+      ]
+    }
+  ]
+}

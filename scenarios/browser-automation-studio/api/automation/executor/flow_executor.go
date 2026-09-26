@@ -2,8 +2,8 @@ package executor
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -16,7 +16,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
-	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
 
 // flow_executor.go isolates graph/loop orchestration so complex flow support
@@ -27,9 +26,8 @@ const (
 	defaultLoopIndexVar = "loop.index"
 )
 
-func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, execState *state.ExecutionState, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
+func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, execState *state.ExecutionState, reuseMode engine.SessionReuseMode, current *contracts.PlanStep) (engine.EngineSession, error) {
 	stepMap := indexGraph(req.Plan.Graph)
-	current := firstStep(req.Plan.Graph)
 	visited := 0
 	maxVisited := len(stepMap) * 10
 	var lastFailure error
@@ -39,20 +37,16 @@ func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, execCtx 
 		if maxVisited > 0 && visited > maxVisited {
 			return session, fmt.Errorf("graph execution exceeded step budget (%d)", maxVisited)
 		}
-		if ctx.Err() != nil {
-			instr := planStepToInstruction(*current)
-			if _, err := e.recordTerminatedStep(ctx, req, instr, ctx.Err()); err != nil {
-				return session, err
-			}
-			return session, ctx.Err()
-		}
 
 		outcome, updatedSession, err := e.executePlanStep(ctx, req, execCtx, eng, spec, session, *current, execState, reuseMode)
 		if err != nil {
-			return session, err
+			return updatedSession, err
 		}
 		session = updatedSession
-		if !outcome.Success {
+		// A graph step that explicitly continues on error still records its
+		// failed outcome for replay and diagnostics, but it must not make the
+		// completed workflow fail after every downstream recovery step passed.
+		if !outcome.Success && !shouldContinueOnError(planStepToInstruction(*current), req.ContinueOnError) {
 			lastFailure = fmt.Errorf("step %d failed: %s", outcome.StepIndex, e.failureMessage(outcome))
 		}
 
@@ -74,6 +68,11 @@ func (e *SimpleExecutor) executeGraph(ctx context.Context, req Request, execCtx 
 }
 
 func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, execState *state.ExecutionState, reuseMode engine.SessionReuseMode) (contracts.StepOutcome, engine.EngineSession, error) {
+	if ctx.Err() != nil {
+		outcome, err := e.recordTerminatedStep(ctx, req, planStepToInstruction(step), ctx.Err())
+		return outcome, session, err
+	}
+
 	stepType := PlanStepType(step)
 	logrus.WithFields(logrus.Fields{
 		"execution_id": req.Plan.ExecutionID,
@@ -85,6 +84,11 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 	if strings.EqualFold(strings.TrimSpace(stepType), "workflowcall") {
 		return contracts.StepOutcome{}, session, fmt.Errorf("unsupported step type 'workflowCall'; use 'subflow' instead")
 	}
+	resolvedAction, selectorErr := resolveRuntimeSelectors(step.Action, execState)
+	if selectorErr != nil {
+		return contracts.StepOutcome{}, session, selectorErr
+	}
+	step.Action = resolvedAction
 	step = e.interpolatePlanStep(step, execState)
 	if isSubflowPlanStep(step) {
 		logrus.WithFields(logrus.Fields{
@@ -117,13 +121,17 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 	}
 
 	// Built-in variable mutation node used to support while/forEach flows without engine involvement.
-	if isSetVariablePlanStep(step) {
-		stepParams := PlanStepParams(step)
-		outcome, err := e.applySetVariable(ctx, req, step.Index, stepType, step.NodeID, stepParams, execState)
+	if isWorkflowStateAction(step.Action) {
+		outcome, err := e.executeWorkflowStateAction(ctx, req, planStepToInstruction(step), execState)
 		return outcome, session, err
 	}
 
 	instruction := planStepToInstruction(step)
+	var rewriteErr error
+	instruction, rewriteErr = rewriteAppTargetScenarioNavigation(instruction, spec.AppTarget)
+	if rewriteErr != nil {
+		return contracts.StepOutcome{}, session, rewriteErr
+	}
 	stepIndex := instruction.Index
 
 	session, err := e.ensureNavigation(ctx, req, execCtx, eng, spec, session, instruction.NodeID, PlanStepType(step))
@@ -174,55 +182,21 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 		logrus.WithFields(fields).Warn("Step failed")
 	}
 
-	recordResult, recordErr := req.Recorder.RecordStepOutcome(ctx, req.Plan, normalized)
-	if recordErr != nil {
-		return normalized, session, fmt.Errorf("record step outcome: %w", recordErr)
+	if normalized.Success {
+		storeActionResult(instruction.Action, normalized.ExtractedData, execState)
 	}
 
-	// Calculate progress for graph execution
-	totalSteps := len(req.Plan.Graph.Steps)
-	if totalSteps == 0 {
-		totalSteps = len(req.Plan.Instructions)
-	}
-	progressPercent := calculateProgress(instruction.Index, totalSteps)
-
-	payload := map[string]any{
-		"outcome":   normalized,
-		"artifacts": recordResult.ArtifactIDs,
-		"progress":  progressPercent,
-	}
-	if recordResult.TimelineArtifactID != nil {
-		payload["timeline_artifact_id"] = *recordResult.TimelineArtifactID
-	}
-
-	eventKind := contracts.EventKindStepCompleted
-	if !normalized.Success {
-		eventKind = contracts.EventKindStepFailed
-	}
-	e.emitEvent(ctx, req, eventKind, &instruction.Index, &attempt, payload)
-
-	// Store extracted data to execState if storeResult is specified
-	if normalized.Success && normalized.ExtractedData != nil {
-		instrParams := InstructionParams(instruction)
-		if storeKey := state.StringValue(instrParams, "storeResult"); storeKey != "" {
-			// Store the raw ExtractedData directly - it's not wrapped at this point
-			// (wrapping only happens when creating database artifacts in db_recorder)
-			execState.Set(storeKey, normalized.ExtractedData)
-		}
+	if recordErr := e.recordOutcome(ctx, req, normalized, execState); recordErr != nil {
+		return normalized, session, errors.Join(runErr, recordErr)
 	}
 
 	if normalized.Success && isNavigateInstruction(instruction) {
 		markNavigation(execCtx.navigation)
 	}
 
-	newSession, resetErr := e.maybeResetSession(ctx, eng, spec, session, reuseMode)
-	if resetErr != nil {
-		return normalized, session, fmt.Errorf("reset session: %w", resetErr)
-	}
-	if shouldResetNavigation(reuseMode, newSession) {
+	if decideLifecycle(reuseMode, betweenSteps, session != nil).ResetNavigation {
 		resetNavigation(execCtx.navigation)
 	}
-	session = newSession
 
 	// Check if we should continue despite the error
 	if runErr != nil {
@@ -249,13 +223,16 @@ type loopExecutionResult struct {
 }
 
 func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, execState *state.ExecutionState, reuseMode engine.SessionReuseMode) (contracts.StepOutcome, engine.EngineSession, error) {
-	stepParams := PlanStepParams(step)
-	loopType := strings.ToLower(strings.TrimSpace(state.StringValue(stepParams, "loopType")))
+	loop := step.Action.GetLoop()
+	if loop == nil {
+		return contracts.StepOutcome{}, session, fmt.Errorf("loop node %s is missing typed loop params", step.NodeID)
+	}
+	loopType := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(loop.GetLoopType().String(), "LOOP_TYPE_")))
 	if loopType == "" {
 		return contracts.StepOutcome{}, session, fmt.Errorf("loop node %s missing loopType", step.NodeID)
 	}
 
-	maxIterations := state.IntValue(stepParams, "loopMaxIterations")
+	maxIterations := int(loop.GetMaxIterations())
 	if maxIterations <= 0 {
 		maxIterations = 100
 	}
@@ -280,10 +257,8 @@ func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, execCtx e
 		MaxIterations: maxIterations,
 	}
 
-	result, err := handler.Execute(e, lctx)
-	if err != nil {
-		return contracts.StepOutcome{}, session, err
-	}
+	startedAt := time.Now().UTC()
+	result, runErr := handler.Execute(e, lctx)
 
 	session = result.session
 
@@ -296,11 +271,7 @@ func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, execCtx e
 		NodeID:         step.NodeID,
 		StepType:       PlanStepType(step),
 		Success:        true,
-		StartedAt:      time.Now().UTC(),
-		CompletedAt: func() *time.Time {
-			t := time.Now().UTC()
-			return &t
-		}(),
+		StartedAt:      startedAt,
 		Notes: map[string]string{
 			"iterations": fmt.Sprintf("%d", result.iterations),
 		},
@@ -310,29 +281,8 @@ func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, execCtx e
 		loopOutcome.Failure = result.lastOutcome.Failure
 	}
 
-	recordResult, recordErr := req.Recorder.RecordStepOutcome(ctx, req.Plan, loopOutcome)
-	if recordErr != nil {
-		return loopOutcome, session, fmt.Errorf("record loop outcome: %w", recordErr)
-	}
-
-	// Calculate progress for loop completion
-	totalSteps := len(req.Plan.Graph.Steps)
-	if totalSteps == 0 {
-		totalSteps = len(req.Plan.Instructions)
-	}
-	progressPercent := calculateProgress(step.Index, totalSteps)
-
-	payload := map[string]any{
-		"outcome":   loopOutcome,
-		"artifacts": recordResult.ArtifactIDs,
-		"progress":  progressPercent,
-	}
-	if recordResult.TimelineArtifactID != nil {
-		payload["timeline_artifact_id"] = *recordResult.TimelineArtifactID
-	}
-	e.emitEvent(ctx, req, contracts.EventKindStepCompleted, &step.Index, intPtr(1), payload)
-
-	return loopOutcome, session, nil
+	loopOutcome = e.normalizeOutcome(req.Plan, planStepToInstruction(step), 1, startedAt, loopOutcome, runErr)
+	return loopOutcome, session, errors.Join(runErr, e.recordOutcome(ctx, req, loopOutcome, execState))
 }
 
 // NOTE: Loop handlers (runRepeatLoop, runForEachLoop, runWhileLoop) have been
@@ -374,34 +324,7 @@ func (e *SimpleExecutor) executeSubflow(ctx context.Context, req Request, execCt
 
 	normalized := e.normalizeOutcome(req.Plan, planStepToInstruction(step), attempt, startedAt, outcome, runErr)
 
-	recordResult, recordErr := req.Recorder.RecordStepOutcome(ctx, req.Plan, normalized)
-	if recordErr != nil {
-		return normalized, updatedSession, fmt.Errorf("record subflow outcome: %w", recordErr)
-	}
-
-	// Calculate progress for subflow completion
-	totalSteps := len(req.Plan.Graph.Steps)
-	if totalSteps == 0 {
-		totalSteps = len(req.Plan.Instructions)
-	}
-	progressPercent := calculateProgress(stepIndex, totalSteps)
-
-	payload := map[string]any{
-		"outcome":   normalized,
-		"artifacts": recordResult.ArtifactIDs,
-		"progress":  progressPercent,
-	}
-	if recordResult.TimelineArtifactID != nil {
-		payload["timeline_artifact_id"] = *recordResult.TimelineArtifactID
-	}
-
-	eventKind := contracts.EventKindStepCompleted
-	if !normalized.Success {
-		eventKind = contracts.EventKindStepFailed
-	}
-	e.emitEvent(ctx, req, eventKind, &stepIndex, &attempt, payload)
-
-	return normalized, updatedSession, runErr
+	return normalized, updatedSession, errors.Join(runErr, e.recordOutcome(ctx, req, normalized, execState))
 }
 
 func (e *SimpleExecutor) runSubflow(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, execState *state.ExecutionState, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
@@ -586,7 +509,7 @@ func (e *SimpleExecutor) executeGraphIteration(ctx context.Context, req Request,
 
 		outcome, updatedSession, err := e.executePlanStep(ctx, req, execCtx, eng, spec, session, *current, execState, reuseMode)
 		if err != nil {
-			return loopControl{}, session, err
+			return loopControl{}, updatedSession, err
 		}
 		session = updatedSession
 		last = outcome
@@ -611,16 +534,11 @@ func (e *SimpleExecutor) executeGraphIteration(ctx context.Context, req Request,
 	return loopControl{LastOutcome: last}, session, nil
 }
 
-// isSetVariableInstruction checks if an instruction is a set_variable action.
-// Prefers Action.Type over the deprecated Type field.
-func isSetVariableInstruction(instr contracts.CompiledInstruction) bool {
-	return IsActionType(instr, basactions.ActionType_ACTION_TYPE_SET_VARIABLE)
-}
-
-// isSetVariablePlanStep checks if a plan step is a set_variable action.
-// Prefers Action.Type over the deprecated Type field.
-func isSetVariablePlanStep(step contracts.PlanStep) bool {
-	return IsPlanStepActionType(step, basactions.ActionType_ACTION_TYPE_SET_VARIABLE)
+// Workflow variables are owned by the executor, not the browser session.
+func isWorkflowStateAction(action *basactions.ActionDefinition) bool {
+	return action.GetType() == basactions.ActionType_ACTION_TYPE_SET_VARIABLE ||
+		(action.GetType() == basactions.ActionType_ACTION_TYPE_CONDITIONAL &&
+			action.GetConditional().GetConditionType() == basactions.ConditionalType_CONDITIONAL_TYPE_VARIABLE)
 }
 
 // isSubflowInstruction checks if an instruction is a subflow action.
@@ -635,170 +553,94 @@ func isSubflowPlanStep(step contracts.PlanStep) bool {
 	return IsPlanStepActionType(step, basactions.ActionType_ACTION_TYPE_SUBFLOW)
 }
 
-// applySetVariable handles executor-scoped variable mutations without invoking an engine.
-func (e *SimpleExecutor) applySetVariable(ctx context.Context, req Request, stepIndex int, stepType, nodeID string, params map[string]any, execState *state.ExecutionState) (contracts.StepOutcome, error) {
-	name := state.StringValue(params, "name")
-	if name == "" {
-		name = state.StringValue(params, "variable")
+// executeWorkflowStateAction shares ordinary outcome/event/checkpoint ownership
+// for mutations and predicates over the same execution store.
+func (e *SimpleExecutor) executeWorkflowStateAction(ctx context.Context, req Request, instruction contracts.CompiledInstruction, execState *state.ExecutionState) (contracts.StepOutcome, error) {
+	startedAt := time.Now().UTC()
+	attempt := 1
+	outcome := contracts.StepOutcome{Success: true}
+	var runErr error
+	if IsActionType(instruction, basactions.ActionType_ACTION_TYPE_SET_VARIABLE) {
+		params := instruction.Action.GetSetVariable()
+		name := strings.TrimSpace(params.GetName())
+		if name == "" {
+			runErr = fmt.Errorf("set_variable node %s requires a name", instruction.NodeID)
+		} else {
+			valueType := strings.TrimPrefix(strings.ToLower(params.GetValueType().String()), "set_variable_value_type_")
+			execState.Set(name, state.NormalizeVariableValue(typeconv.JsonValueToAny(params.GetValue()), valueType))
+		}
+	} else {
+		outcome.Condition, runErr = evaluateVariableCondition(instruction.Action.GetConditional(), execState)
 	}
-	if name == "" {
-		name = state.StringValue(params, "variableName")
+	if runErr != nil {
+		outcome.Failure = &contracts.StepFailure{Kind: contracts.FailureKindOrchestration, Code: "INVALID_WORKFLOW_STATE_ACTION", Message: runErr.Error(), Retryable: false}
 	}
-	if name == "" {
-		return contracts.StepOutcome{}, fmt.Errorf("set_variable node %s missing name", nodeID)
+	outcome = e.normalizeOutcome(req.Plan, instruction, attempt, startedAt, outcome, runErr)
+	if err := e.recordOutcome(ctx, req, outcome, execState); err != nil {
+		return outcome, errors.Join(runErr, err)
 	}
-	value := firstPresent(params, "value", "variableValue")
-	valueType := state.StringValue(params, "valueType")
-	if valueType == "" {
-		valueType = state.StringValue(params, "variableType")
+	if shouldContinueOnError(instruction, req.ContinueOnError) {
+		runErr = nil
 	}
-	execState.Set(name, state.NormalizeVariableValue(value, valueType))
+	return outcome, runErr
+}
 
-	outcome := contracts.StepOutcome{
-		SchemaVersion:  contracts.StepOutcomeSchemaVersion,
-		PayloadVersion: contracts.PayloadVersion,
-		ExecutionID:    req.Plan.ExecutionID,
-		StepIndex:      stepIndex,
-		Attempt:        1,
-		NodeID:         nodeID,
-		StepType:       stepType,
-		Success:        true,
-		StartedAt:      time.Now().UTC(),
+func evaluateVariableCondition(params *basactions.ConditionalParams, execState *state.ExecutionState) (*contracts.ConditionOutcome, error) {
+	name := strings.TrimSpace(params.GetVariable())
+	actual, found := execState.Get(name)
+	if name == "" || !found {
+		return nil, fmt.Errorf("conditional variable %q is not defined", name)
 	}
-	end := outcome.StartedAt
-	outcome.CompletedAt = &end
-
-	recordResult, recordErr := req.Recorder.RecordStepOutcome(ctx, req.Plan, outcome)
-	if recordErr != nil {
-		return outcome, recordErr
+	operator := params.GetOperator()
+	if params.Operator == nil {
+		operator = basactions.ConditionalOperator_CONDITIONAL_OPERATOR_EQUALS
 	}
-
-	// Calculate progress for set_variable step
-	totalSteps := len(req.Plan.Graph.Steps)
-	if totalSteps == 0 {
-		totalSteps = len(req.Plan.Instructions)
+	if operator < basactions.ConditionalOperator_CONDITIONAL_OPERATOR_EQUALS || operator > basactions.ConditionalOperator_CONDITIONAL_OPERATOR_LTE {
+		return nil, fmt.Errorf("unsupported conditional operator %d", operator)
 	}
-	progressPercent := calculateProgress(stepIndex, totalSteps)
-
-	payload := map[string]any{
-		"outcome":   outcome,
-		"artifacts": recordResult.ArtifactIDs,
-		"progress":  progressPercent,
+	expected := typeconv.JsonValueToAny(params.GetValue())
+	if operator >= basactions.ConditionalOperator_CONDITIONAL_OPERATOR_GT {
+		_, actualNumeric := state.ToFloat(actual)
+		_, expectedNumeric := state.ToFloat(expected)
+		if !actualNumeric || !expectedNumeric {
+			return nil, fmt.Errorf("conditional numeric comparison requires numeric values")
+		}
 	}
-	e.emitEvent(ctx, req, contracts.EventKindStepCompleted, &stepIndex, intPtr(1), payload)
-	return outcome, nil
+	op := strings.ToLower(strings.TrimPrefix(operator.String(), "CONDITIONAL_OPERATOR_"))
+	return &contracts.ConditionOutcome{
+		Type: "variable", Variable: name, Operator: op, Actual: actual, Expected: expected,
+		Negated: params.GetNegate(), Outcome: state.CompareValues(actual, expected, op) != params.GetNegate(),
+	}, nil
 }
 
 type subflowSpec struct {
 	workflowID      *uuid.UUID
 	workflowVersion *int
 	workflowPath    string
-	inlineDef       map[string]any
 	params          map[string]any
 }
 
 func parseSubflowSpec(step contracts.PlanStep) (subflowSpec, error) {
 	spec := subflowSpec{}
-	stepParams := PlanStepParams(step)
-	if idStr := state.StringValue(stepParams, "workflowId"); strings.TrimSpace(idStr) != "" {
-		if parsed, err := uuid.Parse(idStr); err == nil {
-			spec.workflowID = &parsed
-		} else {
-			return spec, fmt.Errorf("subflow %s has invalid workflowId: %w", step.NodeID, err)
+	sub := step.Action.GetSubflow()
+	if sub == nil {
+		return spec, fmt.Errorf("subflow %s is missing typed subflow parameters", step.NodeID)
+	}
+	if idStr := strings.TrimSpace(sub.GetWorkflowId()); idStr != "" {
+		parsed, err := uuid.Parse(idStr)
+		if err != nil {
+			return spec, fmt.Errorf("subflow %s has invalid workflow_id: %w", step.NodeID, err)
 		}
+		spec.workflowID = &parsed
 	}
-	if spec.workflowID == nil {
-		if idStr := state.StringValue(stepParams, "workflow_id"); strings.TrimSpace(idStr) != "" {
-			if parsed, err := uuid.Parse(idStr); err == nil {
-				spec.workflowID = &parsed
-			} else {
-				return spec, fmt.Errorf("subflow %s has invalid workflow_id: %w", step.NodeID, err)
-			}
-		}
+	spec.workflowPath = strings.TrimSpace(sub.GetWorkflowPath())
+	if version := sub.GetWorkflowVersion(); version > 0 {
+		converted := int(version)
+		spec.workflowVersion = &converted
 	}
-	if version := state.IntValue(stepParams, "workflowVersion"); version > 0 {
-		spec.workflowVersion = &version
-	}
-	if pathStr := state.StringValue(stepParams, "workflowPath"); strings.TrimSpace(pathStr) != "" {
-		spec.workflowPath = strings.TrimSpace(pathStr)
-	}
-	if spec.workflowPath == "" {
-		if pathStr := state.StringValue(stepParams, "workflow_path"); strings.TrimSpace(pathStr) != "" {
-			spec.workflowPath = strings.TrimSpace(pathStr)
-		}
-	}
-	if rawDef, ok := stepParams["workflowDefinition"]; ok {
-		if def, ok := rawDef.(map[string]any); ok && len(def) > 0 {
-			spec.inlineDef = def
-		}
-	}
-	if spec.inlineDef == nil {
-		if rawDef, ok := stepParams["workflow_definition"]; ok {
-			if def, ok := rawDef.(map[string]any); ok && len(def) > 0 {
-				spec.inlineDef = def
-			}
-		}
-	}
-	if rawParams, ok := stepParams["parameters"]; ok {
-		if params, ok := rawParams.(map[string]any); ok && len(params) > 0 {
-			// Unwrap JsonValue wrapper format from proto serialization
-			spec.params = unwrapJsonValueArgs(params)
-		}
-	}
-	// Also check "args" key - used when workflow is compiled from JSON
-	if spec.params == nil {
-		if rawArgs, ok := stepParams["args"]; ok {
-			if args, ok := rawArgs.(map[string]any); ok && len(args) > 0 {
-				spec.params = unwrapJsonValueArgs(args)
-			}
-		}
-	}
-	if spec.workflowID == nil && spec.workflowPath == "" && spec.inlineDef == nil && step.Action != nil {
-		if sub := step.Action.GetSubflow(); sub != nil {
-			if spec.workflowID == nil {
-				if idStr := strings.TrimSpace(sub.GetWorkflowId()); idStr != "" {
-					if parsed, err := uuid.Parse(idStr); err == nil {
-						spec.workflowID = &parsed
-					} else {
-						return spec, fmt.Errorf("subflow %s has invalid workflowId: %w", step.NodeID, err)
-					}
-				}
-			}
-			if spec.workflowPath == "" {
-				if pathStr := strings.TrimSpace(sub.GetWorkflowPath()); pathStr != "" {
-					spec.workflowPath = pathStr
-				}
-			}
-			if spec.workflowVersion == nil {
-				if version := sub.GetWorkflowVersion(); version > 0 {
-					converted := int(version)
-					spec.workflowVersion = &converted
-				}
-			}
-			if spec.params == nil {
-				spec.params = typeconv.JsonValueMapToAny(sub.GetArgs())
-			}
-		}
-	}
-	if spec.workflowID == nil && spec.workflowPath == "" && spec.inlineDef == nil {
-		paramKeys := make([]string, 0, len(stepParams))
-		for key := range stepParams {
-			paramKeys = append(paramKeys, key)
-		}
-		sort.Strings(paramKeys)
-		stepType := PlanStepType(step)
-		logrus.WithFields(logrus.Fields{
-			"node_id":                  step.NodeID,
-			"step_type":                stepType,
-			"action_present":           step.Action != nil,
-			"subflow_action_present":   step.Action != nil && step.Action.GetSubflow() != nil,
-			"workflow_id_present":      spec.workflowID != nil,
-			"workflow_path_present":    spec.workflowPath != "",
-			"workflow_def_present":     spec.inlineDef != nil,
-			"workflow_version_present": spec.workflowVersion != nil,
-			"param_keys":               paramKeys,
-		}).Warn("subflow missing workflow reference")
-		return spec, fmt.Errorf("subflow %s missing workflowId, workflowPath, or workflowDefinition", step.NodeID)
+	spec.params = typeconv.JsonValueMapToAny(sub.GetArgs())
+	if spec.workflowID == nil && spec.workflowPath == "" {
+		return spec, fmt.Errorf("subflow %s must define workflow_id or workflow_path", step.NodeID)
 	}
 	return spec, nil
 }
@@ -887,20 +729,7 @@ func resolveSubflowWorkflow(ctx context.Context, req Request, spec subflowSpec) 
 		return wf, workflowID, nil
 	}
 
-	// Inline workflow definition - create a WorkflowSummary with the inline definition
-	// NOTE: Inline subflows with workflowDefinition are a complex edge case.
-	// The common path (workflow_id or workflow_path reference) is fully V2-compatible.
-	// Inline definitions would require parsing nested ActionDefinition protos from a map,
-	// which is rarely used. For now, inline subflows return an empty flow.
-	id := uuid.New()
-	flowDef := &basworkflows.WorkflowDefinitionV2{
-		Nodes: []*basworkflows.WorkflowNodeV2{},
-		Edges: []*basworkflows.WorkflowEdgeV2{},
-	}
-	return &basapi.WorkflowSummary{
-		Id:             id.String(),
-		FlowDefinition: flowDef,
-	}, id, nil
+	return nil, uuid.Nil, fmt.Errorf("subflow must define workflow_id or workflow_path")
 }
 
 func planStepCount(plan contracts.ExecutionPlan) int {

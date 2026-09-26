@@ -1,0 +1,74 @@
+{
+  "cycle": "084",
+  "issue": "BAS-RF-068",
+  "status": "optional-text response repair locally qualified and deployed",
+  "source": {
+    "before": {
+      "api/handlers/ai/ollama_suggestions.go": {
+        "sha256": "c3f4a8b75c4d9d88c7d9fe0df12fb81f4782d094639987c115dbda0fc5792ebb",
+        "lines": 155
+      },
+      "api/handlers/ai/ai_analysis_test.go": {
+        "sha256": "55d4f8912fd570c28741ac3f8d70b18da84d0fcbee6d549a3cf4d80999657de5",
+        "lines": 247
+      }
+    },
+    "frozen": {
+      "api/handlers/ai/ollama_suggestions.go": {
+        "sha256": "ced7a7079701749eb402cb5289f71fd01134cb5e5b0233a6abb0dd71c8fd6e34",
+        "lines": 157
+      },
+      "api/handlers/ai/ai_analysis_test.go": {
+        "sha256": "08b2e2bea193a09bbc012904435247c7948df501b921ca0d1ebe1db1564babc7",
+        "lines": 257
+      }
+    }
+  },
+  "change": "Optional descriptive text accepts omitted/null absence through the same provider/parser schema; required action, confidence and category and wrong-type text remain rejected. No coercion layer or retry.",
+  "evidence": {
+    "red": "/tmp/bas-ai-null-red-084.txt",
+    "package_green": "/tmp/bas-ai-null-green-084.txt",
+    "race": "/tmp/bas-ai-null-races-084.txt",
+    "build": "/tmp/bas-go-build-084.txt",
+    "local_provider_first_attempts": 3,
+    "local_provider_passes": 3,
+    "local_provider_receipt": "/tmp/bas-ai-null-live-084.txt",
+    "tidiness_run": "20260923-110732-83866f3a",
+    "board": "/tmp/bas-board-084.txt",
+    "workflow": {
+      "passed": 12,
+      "effects": 3,
+      "execution_id": "3c644e92-0f0d-4416-a3cc-b3c7b2678985",
+      "artifact_dir": "/tmp/bas-recording-e2e-Bpmkm0",
+      "receipt": "/tmp/bas-workflow-native-084.txt"
+    },
+    "profiles": {
+      "full_original_reads": 3,
+      "api_equals": "083",
+      "receipt": "/tmp/bas-profile-final-084.txt"
+    }
+  },
+  "metrics": {
+    "before": {
+      "lines": 155,
+      "complexity": 13,
+      "functions": 5,
+      "hotspots": []
+    },
+    "after": {
+      "lines": 157,
+      "complexity": 13,
+      "functions": 5,
+      "hotspots": []
+    },
+    "cumulative_affected_go_complexity": -57
+  },
+  "pending_operations": {},
+  "limitations": [
+    "Provider search fixture only; broader AI corpus/selector grounding and release readiness remain unqualified.",
+    "17 rehabilitation outcomes still pending_telemetry.",
+    "Capture CLI wall-time observation and duplicated artifacts remain083follow-up work.",
+    "AnalyzeElements intentionally retains documented optional-suggestion degradation when the provider fails; generator validation remains strict. No public partial-result contract change in084."
+  ],
+  "build_identity": "sha256:a00722acc3738c5f583c95a71125c60e75ca34710737bd775fa1631752c840a9"
+}

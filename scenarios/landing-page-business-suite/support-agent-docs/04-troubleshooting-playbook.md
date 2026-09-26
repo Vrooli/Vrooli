@@ -10,7 +10,7 @@
 ### Diagnostic Steps
 
 **Check system requirements:**
-- Windows 10+, macOS 11+, or Linux with glibc 2.28+
+- Windows num[threshold]:10+, macOS num[threshold]:11+, or Linux with glibc 2.28+
 - At least 4 GB RAM available
 - Sufficient disk space (500 MB minimum)
 

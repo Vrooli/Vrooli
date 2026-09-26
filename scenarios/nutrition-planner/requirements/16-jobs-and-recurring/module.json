@@ -1,0 +1,100 @@
+{
+  "_metadata": {
+    "description": "Persisted background job states, budgets, cancellation, and opt-in recurring draft generation with quiet notifications.",
+    "module": "jobs-and-recurring",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "JOB-001",
+      "title": "Jobs are persisted with explicit states and bounds",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "automation",
+      "criticality": "P1",
+      "description": "The scenario should persist jobs in queued, running, waiting_for_review, succeeded, failed, or canceled states, recording workspace, type, deduplication key, input revisions, attempts, provider, budget, result reference, and a safe error code, and a server-side worker shall execute queued jobs rather than relying on clients to drive state transitions.",
+      "tags": [
+        "jobs",
+        "states",
+        "dedup"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: an invented precise completion percentage is unavailable, and a job records meaningful stage progress plus its dedup key (ACT-060)."
+        }
+      ]
+    },
+    {
+      "id": "JOB-002",
+      "title": "Retries, cancellation, and outages never duplicate effects",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "resilience",
+      "criticality": "P1",
+      "description": "The scenario should retry transient failures with bounded backoff, distinguish extraction success from proposal application, discard or retain a canceled job's late response as canceled evidence, and leave manual editing and deterministic planning operational during a provider outage or exhausted budget.",
+      "tags": [
+        "retries",
+        "cancellation",
+        "budgets"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: cancel, retry, outage, and budget-exceeded paths each produce one terminal outcome and no duplicate application, while manual flows stay usable (ACT-060)."
+        }
+      ]
+    },
+    {
+      "id": "JOB-003",
+      "title": "Recurring drafts are opt-in and timezone-correct",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "automation",
+      "criticality": "P1",
+      "description": "The scenario should support opt-in recurring draft generation at a user-selected local time in the profile's IANA timezone, deduplicate a run by workspace, recurrence, and intended local period, and define behavior when the user changes timezone.",
+      "tags": [
+        "recurring",
+        "timezone",
+        "scheduling"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a daylight-saving transition and a retry of the same intended period produce exactly one reviewable draft (ACT-061)."
+        }
+      ]
+    },
+    {
+      "id": "JOB-004",
+      "title": "Scheduled runs propose and never act silently",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "policy",
+      "criticality": "P1",
+      "description": "A scheduled run should create a draft for review and should never replace an accepted plan, mark food eaten, alter a supplement schedule, or buy groceries; notifications should default to a quiet in-app badge and deduplicate repetitive or already-dismissed prompts.",
+      "tags": [
+        "scheduling",
+        "notifications",
+        "policy"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a scheduled run leaves an accepted plan unchanged, produces one draft, and emits no invented consumption or purchase (ACT-061)."
+        }
+      ]
+    }
+  ]
+}

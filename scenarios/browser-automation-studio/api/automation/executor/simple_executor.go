@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -21,7 +22,9 @@ import (
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/automation/state"
 	"github.com/vrooli/browser-automation-studio/config"
+	credentialuse "github.com/vrooli/browser-automation-studio/internal/credentialuse"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 )
 
 // SimpleExecutor provides a minimal sequential executor that delegates step
@@ -32,6 +35,10 @@ type SimpleExecutor struct {
 	sequencer    events.Sequencer
 	telemetrySeq map[string]uint64
 	telemetryMu  sync.Mutex
+
+	// telemetry is the instrumentation seam invoked around each step.
+	// Defaults to driver.NoOpCollector (inert); P2 supplies a real one.
+	telemetry driver.TelemetryCollector
 }
 
 type executionContext struct {
@@ -40,10 +47,6 @@ type executionContext struct {
 	maxDepth   int
 	callStack  []uuid.UUID
 	navigation *navigationState
-}
-
-type navigationState struct {
-	hasNavigated bool
 }
 
 // NewSimpleExecutor constructs a SimpleExecutor. If no sequencer is supplied,
@@ -55,7 +58,19 @@ func NewSimpleExecutor(seq events.Sequencer) *SimpleExecutor {
 	return &SimpleExecutor{
 		sequencer:    seq,
 		telemetrySeq: make(map[string]uint64),
+		telemetry:    driver.NoOpCollector{},
 	}
+}
+
+// WithTelemetryCollector sets the instrumentation seam invoked around each
+// step. A nil collector resets to the inert NoOpCollector. Returns the
+// executor for chaining at construction time.
+func (e *SimpleExecutor) WithTelemetryCollector(c driver.TelemetryCollector) *SimpleExecutor {
+	if c == nil {
+		c = driver.NoOpCollector{}
+	}
+	e.telemetry = c
+	return e
 }
 
 // Execute runs the plan sequentially. Retries/branching will be layered on
@@ -177,17 +192,29 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 
 	viewportWidth, viewportHeight := extractViewport(req.Plan.Metadata)
 	frameStreamingConfig := extractFrameStreamingConfig(req.Plan.Metadata, req.Plan.ExecutionID)
+	fakeMicrophoneWav := extractFakeMicrophoneWav(req.Plan.Metadata)
+	electronTarget, validationContext, err := extractElectronValidation(req.Plan.Metadata)
+	if err != nil {
+		return err
+	}
 	spec := engine.SessionSpec{
-		ExecutionID:    req.Plan.ExecutionID,
-		WorkflowID:     req.Plan.WorkflowID,
-		ReuseMode:      reuseMode,
-		ViewportWidth:  viewportWidth,
-		ViewportHeight: viewportHeight,
-		Labels:         map[string]string{},
-		Capabilities:   requirements,
-		FrameStreaming: frameStreamingConfig,
-		BrowserProfile: req.BrowserProfile,
-		StorageState:   req.StorageState,
+		ExecutionID:           req.Plan.ExecutionID,
+		WorkflowID:            req.Plan.WorkflowID,
+		ReuseMode:             reuseMode,
+		SessionProfileVersion: req.SessionProfileVersion,
+		ViewportWidth:         viewportWidth,
+		ViewportHeight:        viewportHeight,
+		// The fake_microphone label partitions session pooling: a session
+		// bound to a fake-media browser must never be reused by an execution
+		// that expects real devices, and vice versa.
+		Labels:            map[string]string{"fake_microphone": fakeMicrophoneWav},
+		Capabilities:      requirements,
+		FrameStreaming:    frameStreamingConfig,
+		BrowserProfile:    req.BrowserProfile,
+		StorageState:      req.StorageState,
+		FakeMicrophoneWav: fakeMicrophoneWav,
+		AppTarget:         electronTarget,
+		ValidationContext: validationContext,
 	}
 
 	var session engine.EngineSession
@@ -214,54 +241,22 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 					}).Warn("Failed to capture storage state from session")
 				}
 			}
-			closeSessionWithArtifacts(context.Background(), session, req.Plan, req.Recorder)
+			closeCtx, closeCancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+			defer closeCancel()
+			err = errors.Join(err, closeSessionWithArtifacts(closeCtx, session, req.Plan, req.Recorder))
 		}
 	}()
 
-	// Initialize execution state based on whether namespace-aware fields are provided.
-	// Priority for @store/ initialization:
-	//   1. req.InitialStore (explicit namespace-aware seed)
-	//   2. req.InitialVariables (resume support, backward compat)
-	//   3. req.Plan.Metadata["variables"] (legacy plan-embedded variables)
-	var execState *state.ExecutionState
-	if req.InitialStore != nil || req.InitialParams != nil || req.Env != nil {
-		// Namespace-aware execution: build initial store from multiple sources
-		initialStore := map[string]any{}
-		// Start with plan metadata variables (lowest priority)
-		if metaVars, ok := req.Plan.Metadata["variables"].(map[string]any); ok {
-			for k, v := range metaVars {
-				initialStore[k] = v
-			}
-		}
-		// Merge InitialVariables from resume (middle priority)
-		if req.InitialVariables != nil {
-			for k, v := range req.InitialVariables {
-				initialStore[k] = v
-			}
-		}
-		// Merge InitialStore (highest priority)
-		if req.InitialStore != nil {
-			for k, v := range req.InitialStore {
-				initialStore[k] = v
-			}
-		}
-		execState = state.New(initialStore, req.InitialParams, req.Env)
-	} else {
-		// Legacy execution: use flat variable map
-		seedVars := map[string]any{}
-		if metaVars, ok := req.Plan.Metadata["variables"].(map[string]any); ok {
-			for k, v := range metaVars {
-				seedVars[k] = v
-			}
-		}
-		// Merge initial variables from a resumed execution (takes precedence over plan defaults)
-		if req.InitialVariables != nil {
-			for k, v := range req.InitialVariables {
-				seedVars[k] = v
-			}
-		}
-		execState = state.NewFromStore(seedVars)
+	// Explicit store inputs override plan defaults for fresh and resumed runs.
+	initialStore := make(map[string]any)
+	metaVars, _ := req.Plan.Metadata["variables"].(map[string]any)
+	for key, value := range metaVars {
+		initialStore[key] = value
 	}
+	for key, value := range req.InitialStore {
+		initialStore[key] = value
+	}
+	execState := state.New(initialStore, req.InitialParams, req.Env)
 
 	execState.SetNextIndexFromPlan(req.Plan)
 
@@ -278,6 +273,9 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 		}(),
 		navigation: &navigationState{},
 	}
+	if decideLifecycle(reuseMode, executionStart, session != nil).ResetNavigation {
+		resetNavigation(execCtx.navigation)
+	}
 
 	session, err = e.runPlan(ctx, req, execCtx, eng, spec, session, execState, reuseMode)
 	return err
@@ -285,15 +283,25 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 
 func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, execState *state.ExecutionState, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
 	var err error
+	instructionStart := 0
+	hasGraph := req.Plan.Graph != nil && len(req.Plan.Graph.Steps) > 0
+	graphStart := firstStep(req.Plan.Graph)
 
 	// Log resume context if resuming from a previous execution
-	if req.StartFromStepIndex > 0 {
+	if req.ResumeAfterStep != nil {
+		instructionStart, graphStart, err = resumeStart(req.Plan, *req.ResumeAfterStep)
+		if err != nil {
+			return session, err
+		}
 		logrus.WithFields(logrus.Fields{
-			"execution_id":          req.Plan.ExecutionID,
-			"start_from_step_index": req.StartFromStepIndex,
-			"resumed_from_id":       req.ResumedFromID,
-			"initial_vars_count":    len(req.InitialVariables),
+			"execution_id":        req.Plan.ExecutionID,
+			"resume_after_step":   *req.ResumeAfterStep,
+			"resumed_from_id":     req.ResumedFromID,
+			"initial_store_count": len(req.InitialStore),
 		}).Info("Resuming execution from checkpoint")
+	}
+	if (hasGraph && graphStart == nil) || (!hasGraph && instructionStart == len(req.Plan.Instructions)) {
+		return session, nil
 	}
 
 	// Restore tabs from session profile before workflow execution
@@ -307,24 +315,16 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 		return session, err
 	}
 
-	if req.Plan.Graph != nil && len(req.Plan.Graph.Steps) > 0 {
-		return e.executeGraph(ctx, req, execCtx, eng, spec, session, execState, reuseMode)
+	if hasGraph {
+		return e.executeGraph(ctx, req, execCtx, eng, spec, session, execState, reuseMode, graphStart)
 	}
 
-	for idx := range req.Plan.Instructions {
-		instruction := req.Plan.Instructions[idx]
-
-		// Skip steps that were already completed in a resumed execution.
-		// StartFromStepIndex represents the last completed step, so we skip all steps <= StartFromStepIndex.
+	for _, instruction := range req.Plan.Instructions[instructionStart:] {
 		instrStepType := InstructionStepType(instruction)
-		if req.StartFromStepIndex > 0 && instruction.Index <= req.StartFromStepIndex {
-			logrus.WithFields(logrus.Fields{
-				"execution_id": req.Plan.ExecutionID,
-				"step_index":   instruction.Index,
-				"step_type":    instrStepType,
-				"node_id":      instruction.NodeID,
-			}).Debug("Skipping already completed step (resume)")
-			continue
+
+		if ctx.Err() != nil {
+			_, err := e.recordTerminatedStep(ctx, req, instruction, ctx.Err())
+			return session, err
 		}
 
 		if session == nil {
@@ -334,8 +334,16 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 			}
 			session = s
 		}
+		instruction.Action, err = resolveRuntimeSelectors(instruction.Action, execState)
+		if err != nil {
+			return session, fmt.Errorf("resolve selector: %w", err)
+		}
 		instruction = e.interpolateInstruction(instruction, execState)
 		instrStepType = InstructionStepType(instruction) // Refresh after interpolation
+		instruction, err = rewriteAppTargetScenarioNavigation(instruction, spec.AppTarget)
+		if err != nil {
+			return session, err
+		}
 
 		if strings.EqualFold(strings.TrimSpace(instrStepType), "workflowcall") {
 			return session, fmt.Errorf("workflowCall nodes are no longer supported; use subflow instead")
@@ -354,23 +362,11 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 			continue
 		}
 
-		if isSetVariableInstruction(instruction) {
-			instrParams := InstructionParams(instruction)
-			outcome, setErr := e.applySetVariable(ctx, req, instruction.Index, instrStepType, instruction.NodeID, instrParams, execState)
-			if setErr != nil {
-				return session, setErr
-			}
-			if !outcome.Success {
-				return session, fmt.Errorf("set_variable step %d failed", instruction.Index)
+		if isWorkflowStateAction(instruction.Action) {
+			if _, stateErr := e.executeWorkflowStateAction(ctx, req, instruction, execState); stateErr != nil {
+				return session, stateErr
 			}
 			continue
-		}
-
-		if ctx.Err() != nil {
-			if _, cancelErr := e.recordTerminatedStep(ctx, req, instruction, ctx.Err()); cancelErr != nil {
-				return session, cancelErr
-			}
-			return session, ctx.Err()
 		}
 
 		session, err = e.ensureNavigation(ctx, req, execCtx, eng, spec, session, instruction.NodeID, instrStepType)
@@ -397,67 +393,25 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 
 		normalized := e.normalizeOutcome(req.Plan, instruction, attempt, startedAt, outcome, runErr)
 
-		// Use WithoutCancel to ensure outcomes are persisted even when context is cancelled.
-		// This is critical for debugging and audit trails when executions are cancelled mid-flight.
-		persistCtx := context.WithoutCancel(ctx)
-		recordResult, recordErr := req.Recorder.RecordStepOutcome(persistCtx, req.Plan, normalized)
-		if recordErr != nil {
-			return session, fmt.Errorf("record step outcome: %w", recordErr)
-		}
-
-		// Calculate progress: (completed steps / total steps) * 100
-		totalSteps := len(req.Plan.Instructions)
-		progressPercent := calculateProgress(instruction.Index, totalSteps)
-
-		payload := map[string]any{
-			"outcome":   normalized,
-			"artifacts": recordResult.ArtifactIDs,
-			"progress":  progressPercent,
-		}
-		if recordResult.TimelineArtifactID != nil {
-			payload["timeline_artifact_id"] = *recordResult.TimelineArtifactID
-		}
-
-		eventKind := contracts.EventKindStepCompleted
-		if !normalized.Success {
-			eventKind = contracts.EventKindStepFailed
-		}
-		e.emitEvent(persistCtx, req, eventKind, &instruction.Index, &attempt, payload)
-
-		// Update checkpoint for progress continuity after successful steps
 		if normalized.Success {
-			totalSteps := len(req.Plan.Instructions)
-			if err := req.Recorder.UpdateCheckpoint(persistCtx, req.Plan.ExecutionID, instruction.Index, totalSteps); err != nil {
-				// Log but don't fail the execution - checkpoint is best-effort
-				logrus.WithError(err).WithFields(logrus.Fields{
-					"execution_id": req.Plan.ExecutionID,
-					"step_index":   instruction.Index,
-				}).Warn("Failed to update execution checkpoint")
+			storeActionResult(instruction.Action, normalized.ExtractedData, execState)
+		}
+
+		if recordErr := e.recordOutcome(ctx, req, normalized, execState); recordErr != nil {
+			return session, errors.Join(runErr, recordErr)
+		}
+
+		if isNavigateInstruction(instruction) {
+			if normalized.Success {
+				markNavigation(execCtx.navigation)
+			} else {
+				recordFailedNavigate(execCtx.navigation, instruction, e.failureMessage(normalized))
 			}
 		}
 
-		// Store extracted data to execState if storeResult is specified
-		if normalized.Success && normalized.ExtractedData != nil {
-			instrParams := InstructionParams(instruction)
-			if storeKey := state.StringValue(instrParams, "storeResult"); storeKey != "" {
-				// Store the raw ExtractedData directly - it's not wrapped at this point
-				// (wrapping only happens when creating database artifacts in db_recorder)
-				execState.Set(storeKey, normalized.ExtractedData)
-			}
-		}
-
-		if normalized.Success && isNavigateInstruction(instruction) {
-			markNavigation(execCtx.navigation)
-		}
-
-		newSession, resetErr := e.maybeResetSession(ctx, eng, spec, session, reuseMode)
-		if resetErr != nil {
-			return session, fmt.Errorf("reset session: %w", resetErr)
-		}
-		if shouldResetNavigation(reuseMode, newSession) {
+		if decideLifecycle(reuseMode, betweenSteps, session != nil).ResetNavigation {
 			resetNavigation(execCtx.navigation)
 		}
-		session = newSession
 
 		// Check if we should continue despite errors/failures
 		if runErr != nil || !normalized.Success {
@@ -505,12 +459,19 @@ func (e *SimpleExecutor) validateRequest(req Request) error {
 	if err := e.validateSubflowResolver(req); err != nil {
 		return err
 	}
+	if policy := req.CredentialPolicy; policy != nil {
+		for _, instruction := range req.Plan.Instructions {
+			if err := credentialuse.ValidateAction(policy, instruction.Action, policy.GetOrigin(), policy.GetDocumentId()); err != nil {
+				return fmt.Errorf("credential browser action %q rejected: %w", instruction.NodeID, err)
+			}
+		}
+	}
 
 	return nil
 }
 
-// validateSubflowResolver checks that WorkflowResolver is provided if any subflow
-// instruction references an external workflowId (as opposed to inline workflowDefinition).
+// validateSubflowResolver checks that WorkflowResolver is provided for every
+// subflow. Inline workflow definitions are not an execution contract.
 // This catches configuration errors early with a clear message.
 func (e *SimpleExecutor) validateSubflowResolver(req Request) error {
 	if req.WorkflowResolver != nil {
@@ -523,35 +484,11 @@ func (e *SimpleExecutor) validateSubflowResolver(req Request) error {
 			continue
 		}
 
-		// Check if this subflow references an external workflow (workflowId/workflowPath)
-		// vs inline definition (workflowDefinition).
-		instrParams := InstructionParams(instr)
-		if instrParams == nil {
-			continue
-		}
-
-		hasWorkflowID := false
-		hasWorkflowPath := false
-		hasInlineDefinition := false
-
-		if wfID, ok := instrParams["workflowId"]; ok && wfID != nil && wfID != "" {
-			hasWorkflowID = true
-		}
-		if wfPath, ok := instrParams["workflowPath"]; ok && wfPath != nil && wfPath != "" {
-			hasWorkflowPath = true
-		}
-		if wfDef, ok := instrParams["workflowDefinition"]; ok && wfDef != nil {
-			hasInlineDefinition = true
-		}
-
-		// If workflowId/workflowPath is specified without inline definition, resolver is required.
-		if (hasWorkflowID || hasWorkflowPath) && !hasInlineDefinition {
-			return fmt.Errorf(
-				"WorkflowResolver is required: subflow node %q references an external workflow - "+
-					"provide a WorkflowResolver in the execution request to resolve external workflow references",
-				instr.NodeID,
-			)
-		}
+		return fmt.Errorf(
+			"WorkflowResolver is required: subflow node %q requires a referenced workflow - "+
+				"provide a WorkflowResolver in the execution request",
+			instr.NodeID,
+		)
 	}
 
 	return nil
@@ -854,8 +791,7 @@ func entrySelectorFromPlan(plan contracts.ExecutionPlan) (string, int) {
 				logrus.WithField("execution_id", plan.ExecutionID).Debug("Skipping entry probe - workflow starts with subflow")
 				return "", 0
 			}
-			instrParams := InstructionParams(instr)
-			if selector := firstSelectorFromParams(instrParams); selector != "" {
+			if selector := actionPrimarySelector(instr.Action); selector != "" {
 				timeout := readInt(plan.Metadata, "entrySelectorTimeoutMs", "entryTimeoutMs")
 				logrus.WithFields(logrus.Fields{
 					"execution_id": plan.ExecutionID,
@@ -893,51 +829,9 @@ func firstSelectorFromInstructions(instructions []contracts.CompiledInstruction)
 		if InstructionStepType(instr) == "navigate" {
 			continue
 		}
-		selector := firstSelectorFromParams(InstructionParams(instr))
+		selector := actionPrimarySelector(instr.Action)
 		if selector != "" {
 			return selector
-		}
-	}
-	return ""
-}
-
-var selectorPriority = []string{
-	"selector",
-	"waitForSelector",
-	"preconditionSelector",
-	"successSelector",
-	"targetSelector",
-	"dragTargetSelector",
-	"dragSourceSelector",
-	"sourceSelector",
-	"focusSelector",
-	"gestureSelector",
-	"scrollTargetSelector",
-	"frameSelector",
-	"conditionSelector",
-}
-
-func firstSelectorFromParams(params map[string]any) string {
-	for _, key := range selectorPriority {
-		if val, ok := params[key]; ok {
-			if s, ok := val.(string); ok && strings.TrimSpace(s) != "" {
-				return strings.TrimSpace(s)
-			}
-		}
-	}
-	keys := make([]string, 0, len(params))
-	for k := range params {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		if !strings.Contains(strings.ToLower(k), "selector") {
-			continue
-		}
-		if val, ok := params[k]; ok {
-			if s, ok := val.(string); ok && strings.TrimSpace(s) != "" {
-				return strings.TrimSpace(s)
-			}
 		}
 	}
 	return ""
@@ -1098,46 +992,6 @@ func intOrDefault(value, fallback int) int {
 }
 
 // resolveReuseMode selects the session reuse policy from the request, plan metadata, or environment.
-func resolveReuseMode(req Request) engine.SessionReuseMode {
-	if req.ReuseMode != "" {
-		return req.ReuseMode
-	}
-	if v, ok := req.Plan.Metadata["sessionReuseMode"].(string); ok && strings.TrimSpace(v) != "" {
-		return normalizeReuseMode(v)
-	}
-	if env := strings.TrimSpace(os.Getenv("BAS_SESSION_STRATEGY")); env != "" {
-		return normalizeReuseMode(env)
-	}
-	return engine.ReuseModeReuse
-}
-
-func normalizeReuseMode(raw string) engine.SessionReuseMode {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "fresh":
-		return engine.ReuseModeFresh
-	case "clean":
-		return engine.ReuseModeClean
-	default:
-		return engine.ReuseModeReuse
-	}
-}
-
-// maybeResetSession clears or recreates browser state based on reuse policy.
-func (e *SimpleExecutor) maybeResetSession(ctx context.Context, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
-	if session == nil {
-		return session, nil
-	}
-
-	switch reuseMode {
-	case engine.ReuseModeClean:
-		return session, session.Reset(ctx)
-	case engine.ReuseModeFresh:
-		_ = session.Close(ctx)
-		return nil, nil
-	default:
-		return session, nil
-	}
-}
 
 func (e *SimpleExecutor) ensureNavigation(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, nodeID string, stepType string) (engine.EngineSession, error) {
 	if !requiresNavigationStepType(stepType) {
@@ -1148,6 +1002,17 @@ func (e *SimpleExecutor) ensureNavigation(ctx context.Context, req Request, exec
 	}
 	startURL := strings.TrimSpace(req.StartURL)
 	if startURL == "" {
+		if attempt := lastFailedNavigate(execCtx.navigation); attempt != nil {
+			return session, fmt.Errorf(
+				"navigation required before step %q (%s): prior navigate step %q (url=%s) failed: %s; "+
+					"fix the navigate target or add a fallback (CLI: --start-url <url>)",
+				nodeID,
+				stepType,
+				attempt.nodeID,
+				attempt.url,
+				attempt.summary,
+			)
+		}
 		return session, fmt.Errorf(
 			"navigation required before step %q (%s): no prior navigate step and no start_url provided; "+
 				"add a navigate node in a parent workflow or pass execution parameters start_url (CLI: --start-url <url>)",
@@ -1192,7 +1057,10 @@ func requiresNavigationStepType(stepType string) bool {
 	normalized := strings.ToLower(strings.TrimSpace(stepType))
 	normalized = strings.ReplaceAll(normalized, "_", "")
 	switch normalized {
-	case "", "navigate", "setvariable", "subflow", "loop", "conditional":
+	// Evaluate can seed or transform execution state without accessing the
+	// browser (for example the reusable load-seed-state fixture). Requiring a
+	// page navigation for it makes those deterministic setup flows impossible.
+	case "", "navigate", "setvariable", "evaluate", "subflow", "loop", "conditional":
 		return false
 	default:
 		return true
@@ -1203,27 +1071,6 @@ func isNavigateInstruction(instruction contracts.CompiledInstruction) bool {
 	return IsActionType(instruction, basactions.ActionType_ACTION_TYPE_NAVIGATE)
 }
 
-func markNavigation(state *navigationState) {
-	if state == nil {
-		return
-	}
-	state.hasNavigated = true
-}
-
-func resetNavigation(state *navigationState) {
-	if state == nil {
-		return
-	}
-	state.hasNavigated = false
-}
-
-func shouldResetNavigation(reuseMode engine.SessionReuseMode, session engine.EngineSession) bool {
-	if reuseMode == engine.ReuseModeClean || reuseMode == engine.ReuseModeFresh {
-		return true
-	}
-	return session == nil
-}
-
 type sessionArtifactCloser interface {
 	CloseWithArtifacts(ctx context.Context) (*driver.CloseSessionResponse, error)
 }
@@ -1232,91 +1079,62 @@ type sessionArtifactDownloader interface {
 	DownloadArtifact(ctx context.Context, path string) (*driver.ArtifactDownload, error)
 }
 
-func closeSessionWithArtifacts(ctx context.Context, session engine.EngineSession, plan contracts.ExecutionPlan, recorder executionwriter.ExecutionWriter) {
+// Finalization is part of the execution outcome. Persist available evidence even
+// when another artifact fails, while retaining every failure in the returned error.
+func closeSessionWithArtifacts(ctx context.Context, session engine.EngineSession, plan contracts.ExecutionPlan, recorder executionwriter.ExecutionWriter) error {
 	if session == nil {
-		return
+		return nil
+	}
+	closer, ok := session.(sessionArtifactCloser)
+	if !ok {
+		return session.Close(ctx)
+	}
+	artifacts, closeErr := closer.CloseWithArtifacts(ctx)
+	if artifacts == nil || recorder == nil {
+		return closeErr
 	}
 
-	if closer, ok := session.(sessionArtifactCloser); ok {
-		artifacts, err := closer.CloseWithArtifacts(ctx)
+	candidates := make([]executionwriter.ExternalArtifact, 0, len(artifacts.VideoPaths)+2)
+	for index, path := range artifacts.VideoPaths {
+		candidates = append(candidates, executionwriter.ExternalArtifact{
+			ArtifactType: "video_meta", Label: fmt.Sprintf("video-%d", index+1), Path: path,
+			Payload: map[string]any{"page_index": index},
+		})
+	}
+	candidates = append(candidates,
+		executionwriter.ExternalArtifact{ArtifactType: "trace_meta", Label: "trace", Path: artifacts.TracePath},
+		executionwriter.ExternalArtifact{ArtifactType: "har_meta", Label: "har", Path: artifacts.HARPath})
+	downloader, _ := session.(sessionArtifactDownloader)
+	external := make([]executionwriter.ExternalArtifact, 0, len(candidates))
+	result := closeErr
+	extensions := map[string]string{"video_meta": ".webm", "trace_meta": ".zip", "har_meta": ".har"}
+	for _, artifact := range candidates {
+		source := strings.TrimSpace(artifact.Path)
+		if source == "" {
+			continue
+		}
+		extension := extensions[artifact.ArtifactType]
+		path, contentType, cleanup, err := resolveArtifactPath(ctx, downloader, source, extension)
 		if err != nil {
-			logrus.WithError(err).WithField("execution_id", plan.ExecutionID).Warn("Failed to close session")
-			return
+			result = errors.Join(result, fmt.Errorf("resolve %s artifact %q: %w", artifact.Label, source, err))
+			continue
 		}
-		if recorder == nil || artifacts == nil {
-			return
+		if cleanup != nil {
+			defer cleanup()
 		}
-		downloader, _ := session.(sessionArtifactDownloader)
-		cleanups := make([]func(), 0, len(artifacts.VideoPaths)+2)
-		external := make([]executionwriter.ExternalArtifact, 0, len(artifacts.VideoPaths)+2)
-		for index, videoPath := range artifacts.VideoPaths {
-			trimmedPath := strings.TrimSpace(videoPath)
-			if trimmedPath == "" {
-				continue
-			}
-			pathToStore, contentType, cleanup := resolveArtifactPath(ctx, downloader, trimmedPath, ".webm")
-			if cleanup != nil {
-				cleanups = append(cleanups, cleanup)
-			}
-			external = append(external, executionwriter.ExternalArtifact{
-				ArtifactType: "video_meta",
-				Label:        fmt.Sprintf("video-%d", index+1),
-				Path:         pathToStore,
-				ContentType:  contentType,
-				Payload: map[string]any{
-					"page_index":  index,
-					"source_path": trimmedPath,
-				},
-			})
+		artifact.Path, artifact.ContentType = path, contentType
+		if artifact.Payload == nil {
+			artifact.Payload = make(map[string]any)
 		}
-
-		if tracePath := strings.TrimSpace(artifacts.TracePath); tracePath != "" {
-			pathToStore, contentType, cleanup := resolveArtifactPath(ctx, downloader, tracePath, ".zip")
-			if cleanup != nil {
-				cleanups = append(cleanups, cleanup)
-			}
-			external = append(external, executionwriter.ExternalArtifact{
-				ArtifactType: "trace_meta",
-				Label:        "trace",
-				Path:         pathToStore,
-				ContentType:  contentType,
-				Payload: map[string]any{
-					"source_path": tracePath,
-				},
-			})
-		}
-
-		if harPath := strings.TrimSpace(artifacts.HARPath); harPath != "" {
-			pathToStore, contentType, cleanup := resolveArtifactPath(ctx, downloader, harPath, ".har")
-			if cleanup != nil {
-				cleanups = append(cleanups, cleanup)
-			}
-			external = append(external, executionwriter.ExternalArtifact{
-				ArtifactType: "har_meta",
-				Label:        "har",
-				Path:         pathToStore,
-				ContentType:  contentType,
-				Payload: map[string]any{
-					"source_path": harPath,
-				},
-			})
-		}
-
-		if len(external) == 0 {
-			return
-		}
+		artifact.Payload["source_path"] = source
+		external = append(external, artifact)
+	}
+	if len(external) > 0 {
 		if err := recorder.RecordExecutionArtifacts(ctx, plan, external); err != nil {
-			logrus.WithError(err).WithField("execution_id", plan.ExecutionID).Warn("Failed to persist execution artifacts")
+			result = errors.Join(result, fmt.Errorf("persist execution artifacts: %w", err))
 		}
-		for _, cleanup := range cleanups {
-			cleanup()
-		}
-		return
 	}
-
-	if err := session.Close(ctx); err != nil {
-		logrus.WithError(err).Warn("Failed to close session")
-	}
+	return result
 }
 
 func downloadSessionArtifact(ctx context.Context, downloader sessionArtifactDownloader, sourcePath string, fallbackExt string) (string, string, func(), error) {
@@ -1359,24 +1177,18 @@ func downloadSessionArtifact(ctx context.Context, downloader sessionArtifactDown
 	return tmpFile.Name(), download.ContentType, cleanup, nil
 }
 
-func resolveArtifactPath(ctx context.Context, downloader sessionArtifactDownloader, sourcePath string, fallbackExt string) (string, string, func()) {
-	pathToStore := sourcePath
-	contentType := ""
-	if _, statErr := os.Stat(sourcePath); statErr != nil {
-		if downloader == nil {
-			logrus.WithError(statErr).WithField("path", sourcePath).Warn("Artifact path missing and downloader unavailable")
-			return pathToStore, contentType, nil
+func resolveArtifactPath(ctx context.Context, downloader sessionArtifactDownloader, sourcePath string, fallbackExt string) (string, string, func(), error) {
+	info, statErr := os.Stat(sourcePath)
+	if statErr == nil {
+		if !info.Mode().IsRegular() {
+			return "", "", nil, fmt.Errorf("artifact is not a regular file: %s", sourcePath)
 		}
-		downloadedPath, downloadedType, cleanup, dlErr := downloadSessionArtifact(ctx, downloader, sourcePath, fallbackExt)
-		if dlErr != nil {
-			logrus.WithError(dlErr).WithField("path", sourcePath).Warn("Failed to download remote artifact")
-			return pathToStore, contentType, nil
-		}
-		pathToStore = downloadedPath
-		contentType = downloadedType
-		return pathToStore, contentType, cleanup
+		return sourcePath, "", nil, nil
 	}
-	return pathToStore, contentType, nil
+	if downloader == nil {
+		return "", "", nil, statErr
+	}
+	return downloadSessionArtifact(ctx, downloader, sourcePath, fallbackExt)
 }
 
 func extensionForContentType(contentType string) string {
@@ -1410,6 +1222,60 @@ func extractViewport(metadata map[string]any) (int, int) {
 		"height": height,
 	}).Info("extractViewport: extracted viewport dimensions")
 	return width, height
+}
+
+// extractFakeMicrophoneWav extracts the compiler-resolved fake microphone WAV
+// path from plan metadata. Empty when the workflow does not request fake media.
+func extractFakeMicrophoneWav(metadata map[string]any) string {
+	if v, ok := metadata["fakeMediaMicrophoneWav"].(string); ok {
+		return strings.TrimSpace(v)
+	}
+	return ""
+}
+
+// extractElectronValidation reads the target seam from execution metadata.
+// Plans are persisted as JSON-shaped metadata, so decode through JSON rather
+// than relying on map type assertions that only work for in-process callers.
+// A target without its run-bound context is rejected before session creation.
+func extractElectronValidation(metadata map[string]any) (*driver.AppTarget, *driver.ValidationContext, error) {
+	if metadata == nil {
+		return nil, nil, nil
+	}
+	rawTarget, targetOK := metadata["app_target"]
+	if !targetOK {
+		rawTarget, targetOK = metadata["electronTarget"]
+	}
+	if !targetOK || rawTarget == nil {
+		return nil, nil, nil
+	}
+	rawContext, contextOK := metadata["validation_context"]
+	if !contextOK {
+		rawContext, contextOK = metadata["validationContext"]
+	}
+	if !contextOK || rawContext == nil {
+		return nil, nil, fmt.Errorf("electron target requires a validation context")
+	}
+
+	var target driver.AppTarget
+	if err := decodeExecutionMetadata(rawTarget, &target); err != nil {
+		return nil, nil, fmt.Errorf("decode electron target: %w", err)
+	}
+	var validationContext driver.ValidationContext
+	if err := decodeExecutionMetadata(rawContext, &validationContext); err != nil {
+		return nil, nil, fmt.Errorf("decode Electron validation context: %w", err)
+	}
+	if strings.TrimSpace(validationContext.IsolationLeaseID) == "" {
+		return nil, nil, fmt.Errorf("electron validation context requires an isolation lease")
+	}
+	return &target, &validationContext, nil
+}
+
+func decodeExecutionMetadata(raw any, dst any) error {
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(encoded, dst)
 }
 
 // extractFrameStreamingConfig extracts frame streaming configuration from plan metadata.
@@ -1470,7 +1336,17 @@ func extractFrameStreamingConfig(metadata map[string]any, executionID uuid.UUID)
 	return config
 }
 
+// telemetryCollector returns the configured collector, defaulting to the
+// inert NoOpCollector so a zero-value executor never panics.
+func (e *SimpleExecutor) telemetryCollector() driver.TelemetryCollector {
+	if e.telemetry == nil {
+		return driver.NoOpCollector{}
+	}
+	return e.telemetry
+}
+
 func (e *SimpleExecutor) runWithRetries(ctx context.Context, req Request, session engine.EngineSession, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+	instruction.InvocationID = uuid.NewString()
 	cfg := retryConfigFromInstruction(instruction)
 	var lastOutcome contracts.StepOutcome
 	var lastErr error
@@ -1480,7 +1356,13 @@ func (e *SimpleExecutor) runWithRetries(ctx context.Context, req Request, sessio
 	// Apply execution-level navigation wait default if applicable
 	instruction = applyNavigationWaitDefault(instruction, req.NavigationWaitUntil)
 
+	// Tell the driver whether this step's screenshot is worth capturing. The
+	// API owns the policy so the driver stays a mechanism, and so a validation
+	// suite can stop paying for imagery that a replay audience would want.
+	instruction = applyTelemetryDirective(instruction, req.ArtifactConfig)
+
 	for attempt := 1; attempt <= cfg.MaxAttempts; attempt++ {
+		instruction.Attempt = attempt
 		attemptStart := time.Now().UTC()
 
 		attemptCtx := ctx
@@ -1494,33 +1376,16 @@ func (e *SimpleExecutor) runWithRetries(ctx context.Context, req Request, sessio
 			attemptCtx, cancel = context.WithTimeout(ctx, timeout+httpBufferTime)
 		}
 
+		collector := e.telemetryCollector()
+		attemptCtx = collector.BeforeStep(attemptCtx, instruction)
 		outcome, err := session.Run(attemptCtx, instruction)
+		collector.AfterStep(attemptCtx, instruction, outcome, err)
 		if cancel != nil {
 			cancel()
 		}
 
 		outcome.Attempt = attempt
 		outcome = e.normalizeOutcome(req.Plan, instruction, attempt, attemptStart, outcome, err)
-		if shouldIgnoreFailure(instruction, outcome) {
-			message := "screenshot capture failed"
-			code := "SCREENSHOT_FAILED"
-			if outcome.Failure != nil {
-				if strings.TrimSpace(outcome.Failure.Message) != "" {
-					message = outcome.Failure.Message
-				}
-				if strings.TrimSpace(outcome.Failure.Code) != "" {
-					code = outcome.Failure.Code
-				}
-			}
-			outcome.Success = true
-			outcome.Failure = nil
-			if outcome.Notes == nil {
-				outcome.Notes = map[string]string{}
-			}
-			outcome.Notes["non_fatal_failure"] = message
-			outcome.Notes["non_fatal_failure_code"] = code
-			return outcome, nil
-		}
 
 		if req.Recorder != nil && outcome.Failure != nil {
 			_ = req.Recorder.RecordTelemetry(ctx, req.Plan, contracts.StepTelemetry{
@@ -1559,16 +1424,6 @@ func (e *SimpleExecutor) runWithRetries(ctx context.Context, req Request, sessio
 	return lastOutcome, lastErr
 }
 
-func shouldIgnoreFailure(instruction contracts.CompiledInstruction, outcome contracts.StepOutcome) bool {
-	if outcome.Success {
-		return false
-	}
-	if InstructionStepType(instruction) != "screenshot" {
-		return false
-	}
-	return true
-}
-
 type retryConfig struct {
 	MaxAttempts   int
 	Delay         time.Duration
@@ -1581,18 +1436,18 @@ func retryConfigFromInstruction(instruction contracts.CompiledInstruction) retry
 		Delay:         750 * time.Millisecond,
 		BackoffFactor: 1.5,
 	}
-	instrParams := InstructionParams(instruction)
-	if instrParams == nil {
+	resilience, ok := instruction.Context["resilience"].(map[string]any)
+	if !ok {
 		return cfg
 	}
-	if v, ok := instrParams["retryAttempts"].(float64); ok && v > 0 {
-		cfg.MaxAttempts = int(v)
+	if maxAttempts, ok := contextInt(resilience["maxAttempts"]); ok && maxAttempts > 0 {
+		cfg.MaxAttempts = maxAttempts
 	}
-	if v, ok := instrParams["retryDelayMs"].(float64); ok && v > 0 {
-		cfg.Delay = time.Duration(v) * time.Millisecond
+	if delayMs, ok := contextInt(resilience["delayMs"]); ok && delayMs >= 0 {
+		cfg.Delay = time.Duration(delayMs) * time.Millisecond
 	}
-	if v, ok := instrParams["retryBackoffFactor"].(float64); ok && v > 0 {
-		cfg.BackoffFactor = v
+	if backoffFactor, ok := contextFloat(resilience["backoffFactor"]); ok && backoffFactor >= 1 {
+		cfg.BackoffFactor = backoffFactor
 	}
 	if cfg.MaxAttempts < 1 {
 		cfg.MaxAttempts = 1
@@ -1603,21 +1458,43 @@ func retryConfigFromInstruction(instruction contracts.CompiledInstruction) retry
 	return cfg
 }
 
+func contextInt(value any) (int, bool) {
+	switch typed := value.(type) {
+	case int:
+		return typed, true
+	case int32:
+		return int(typed), true
+	case int64:
+		return int(typed), true
+	case float64:
+		return int(typed), float64(int(typed)) == typed
+	default:
+		return 0, false
+	}
+}
+
+func contextFloat(value any) (float64, bool) {
+	switch typed := value.(type) {
+	case float64:
+		return typed, true
+	case float32:
+		return float64(typed), true
+	case int:
+		return float64(typed), true
+	case int32:
+		return float64(typed), true
+	case int64:
+		return float64(typed), true
+	default:
+		return 0, false
+	}
+}
+
 // instructionTimeout returns a step-level timeout derived from instruction params or plan metadata.
 // timeoutMs is expected to be milliseconds; zero disables executor-side deadline enforcement.
 func instructionTimeout(plan contracts.ExecutionPlan, instruction contracts.CompiledInstruction) time.Duration {
 	ms := 0
-	instrParams := InstructionParams(instruction)
-	if v, ok := instrParams["timeoutMs"]; ok {
-		switch t := v.(type) {
-		case int:
-			ms = t
-		case int64:
-			ms = int(t)
-		case float64:
-			ms = int(t)
-		}
-	}
+	ms = actionTimeoutMs(instruction.Action)
 	if ms <= 0 {
 		if v, ok := plan.Metadata["defaultTimeoutMs"]; ok {
 			switch t := v.(type) {
@@ -1647,8 +1524,9 @@ const (
 	perStepTimeoutWithSubflows = 15 * time.Second
 	// minExecutionTimeout prevents unreasonably short timeouts for small workflows.
 	minExecutionTimeout = 90 * time.Second
-	// maxExecutionTimeout prevents timeouts from exceeding the HTTP client timeout (5 minutes).
-	// The 30-second buffer accounts for network overhead and response processing.
+	// maxExecutionTimeout is the conservative default. Long-form callers can
+	// opt into the separately bounded explicit timeout; the driver/API HTTP
+	// ceilings are sized for that two-hour qualification upper bound.
 	maxExecutionTimeout = 270 * time.Second // 4.5 minutes
 )
 
@@ -1657,21 +1535,16 @@ const (
 func executionTimeout(plan contracts.ExecutionPlan) time.Duration {
 	// Check for explicit timeout in metadata (takes precedence)
 	if plan.Metadata != nil {
-		if v, ok := plan.Metadata["executionTimeoutMs"]; ok {
-			switch t := v.(type) {
-			case int:
-				if t > 0 {
-					return time.Duration(t) * time.Millisecond
-				}
-			case int64:
-				if t > 0 {
-					return time.Duration(t) * time.Millisecond
-				}
-			case float64:
-				if t > 0 {
-					return time.Duration(t) * time.Millisecond
-				}
+		if requestedMs := readInt(plan.Metadata, "executionTimeoutMs", "execution_timeout_ms"); requestedMs > 0 {
+			maxExplicit := config.Load().Execution.ExplicitMaxTimeout
+			if maxExplicit <= 0 {
+				maxExplicit = 2 * time.Hour
 			}
+			requested := time.Duration(requestedMs) * time.Millisecond
+			if requested > maxExplicit {
+				return maxExplicit
+			}
+			return requested
 		}
 	}
 
@@ -1744,31 +1617,100 @@ func computeDynamicTimeout(plan contracts.ExecutionPlan) time.Duration {
 	return timeout
 }
 
-// recordTerminatedStep best-effort persists an outcome when execution is cancelled or times out,
-// and emits a failed event with appropriate failure taxonomy.
-func (e *SimpleExecutor) recordTerminatedStep(ctx context.Context, req Request, instruction contracts.CompiledInstruction, cause error) (contracts.StepOutcome, error) {
-	startedAt := time.Now().UTC()
-	if cause == nil {
-		cause = context.Canceled
+// recordOutcome owns the bounded persistence and completion-event boundary for
+// every execution shape. Cancellation stops actions, not their audit trail.
+func (e *SimpleExecutor) recordOutcome(ctx context.Context, req Request, outcome contracts.StepOutcome, execState *state.ExecutionState) error {
+	persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+	defer cancel()
+	result, err := req.Recorder.RecordStepOutcome(persistCtx, req.Plan, outcome)
+	if err != nil {
+		return fmt.Errorf("record step outcome: %w", err)
 	}
-	outcome := e.normalizeOutcome(req.Plan, instruction, 1, startedAt, contracts.StepOutcome{}, cause)
 
-	persistCtx := context.WithoutCancel(ctx)
-	recordResult, recordErr := req.Recorder.RecordStepOutcome(persistCtx, req.Plan, outcome)
-	if recordErr != nil {
-		return outcome, fmt.Errorf("record terminated step outcome: %w", recordErr)
+	totalSteps := len(req.Plan.Instructions)
+	if req.Plan.Graph != nil && len(req.Plan.Graph.Steps) > 0 {
+		totalSteps = len(req.Plan.Graph.Steps)
+	}
+	if outcome.Success {
+		checkpoint := executionwriter.Checkpoint{SchemaVersion: executionwriter.CheckpointVersion, ExecutionID: req.Plan.ExecutionID, WorkflowID: req.Plan.WorkflowID, LastStepIndex: outcome.StepIndex, NodeID: outcome.NodeID, TotalSteps: totalSteps, Store: execState.GetNamespace(state.NamespaceStore)}
+		if err := req.Recorder.RecordCheckpoint(persistCtx, checkpoint); err != nil {
+			return fmt.Errorf("record execution checkpoint: %w", err)
+		}
 	}
 
 	payload := map[string]any{
 		"outcome":   outcome,
-		"artifacts": recordResult.ArtifactIDs,
+		"artifacts": result.ArtifactIDs,
+		"progress":  calculateProgress(outcome.StepIndex, totalSteps),
 	}
-	if recordResult.TimelineArtifactID != nil {
-		payload["timeline_artifact_id"] = *recordResult.TimelineArtifactID
+	if result.TimelineArtifactID != nil {
+		payload["timeline_artifact_id"] = *result.TimelineArtifactID
 	}
-	e.emitEvent(persistCtx, req, contracts.EventKindStepFailed, &outcome.StepIndex, &outcome.Attempt, payload)
+	kind := contracts.EventKindStepCompleted
+	if !outcome.Success {
+		kind = contracts.EventKindStepFailed
+	}
+	e.emitEvent(persistCtx, req, kind, &outcome.StepIndex, &outcome.Attempt, payload)
 
-	return outcome, cause
+	return nil
+}
+
+// recordTerminatedStep records an action that was canceled before dispatch.
+func (e *SimpleExecutor) recordTerminatedStep(ctx context.Context, req Request, instruction contracts.CompiledInstruction, cause error) (contracts.StepOutcome, error) {
+	if cause == nil {
+		cause = context.Canceled
+	}
+	outcome := e.normalizeOutcome(req.Plan, instruction, 1, time.Now().UTC(), contracts.StepOutcome{}, cause)
+	return outcome, errors.Join(cause, e.recordOutcome(ctx, req, outcome, nil))
+}
+
+// screenshotEvidenceActions are the steps whose screenshot is diagnostic rather
+// than incidental. An assert is where a validation run proves its claim, and a
+// navigate marks the page transition that makes a storyboard readable. A
+// screenshot step is listed for intent; its handler supplies the image anyway.
+var screenshotEvidenceActions = map[basactions.ActionType]bool{
+	basactions.ActionType_ACTION_TYPE_ASSERT:     true,
+	basactions.ActionType_ACTION_TYPE_NAVIGATE:   true,
+	basactions.ActionType_ACTION_TYPE_SCREENSHOT: true,
+}
+
+// resolveStepScreenshotPolicy decides the per-step capture policy from the
+// execution-wide setting and the step's action type.
+//
+// Kept pure and separate from instruction mutation so the policy can be tested
+// without building a plan or a browser.
+func resolveStepScreenshotPolicy(
+	settings config.ArtifactCollectionSettings,
+	action *basactions.ActionDefinition,
+) basexecution.ScreenshotCapturePolicy {
+	switch settings.ScreenshotPolicy {
+	case basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_NEVER:
+		return basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_NEVER
+	case basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ON_FAILURE:
+		if settings.CaptureValidationCheckpoints && action != nil && screenshotEvidenceActions[action.Type] {
+			return basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ALWAYS
+		}
+		return basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ON_FAILURE
+	default:
+		// UNSPECIFIED and ALWAYS both mean "capture everything", which is the
+		// behavior every execution had before this directive existed.
+		return basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ALWAYS
+	}
+}
+
+// applyTelemetryDirective stamps the resolved per-step collection intent onto
+// an instruction before it is dispatched to the driver.
+func applyTelemetryDirective(
+	instruction contracts.CompiledInstruction,
+	settings *config.ArtifactCollectionSettings,
+) contracts.CompiledInstruction {
+	if settings == nil {
+		return instruction
+	}
+	instruction.Telemetry = &basexecution.StepTelemetryDirective{
+		Screenshot: resolveStepScreenshotPolicy(*settings, instruction.Action),
+	}
+	return instruction
 }
 
 // applyNavigationWaitDefault applies the execution-level navigation wait default to a navigate instruction
@@ -1816,8 +1758,13 @@ func stringToNavigateWaitEvent(s string) basactions.NavigateWaitEvent {
 func shouldContinueOnError(instruction contracts.CompiledInstruction, requestDefault *bool) bool {
 	// First check instruction context (per-node setting)
 	if instruction.Context != nil {
-		if continueOnError, ok := instruction.Context["continueOnError"].(bool); ok {
-			return continueOnError
+		// Compiler-produced plans use camelCase. Persisted JSON imported through
+		// compatibility paths can retain the proto field spelling instead, so
+		// accept both representations at this execution boundary.
+		for _, key := range []string{"continueOnError", "continue_on_error"} {
+			if continueOnError, ok := instruction.Context[key].(bool); ok {
+				return continueOnError
+			}
 		}
 	}
 	// Fall back to request-level default

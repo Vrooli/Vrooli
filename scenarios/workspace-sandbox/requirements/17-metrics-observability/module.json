@@ -1,61 +1,59 @@
 {
-  "description": "Active sandbox count, total disk usage, per-sandbox size distribution, create latency, cleanup success rates",
-  "module_id": "MOD-P1-017",
-  "prd_ref": "OT-P1-008",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-07-13T22:51:14-04:00"
+  },
   "requirements": [
     {
+      "id": "REQ-P1-008",
+      "title": "Sandbox Metrics Collection",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-008",
       "category": "performance",
       "description": "Collect and expose metrics for sandbox count, disk usage, size distribution, operation latencies, and success rates. Support standard monitoring integrations.",
-      "id": "REQ-P1-008",
-      "prd_ref": "OT-P1-008",
-      "status": "complete",
-      "title": "Sandbox Metrics Collection",
       "validation": [
         {
-          "notes": "Test metric collection for counters (created, stopped, approved, rejected, deleted, errors, gc runs)",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/metrics/metrics_test.go::TestCollector_Counters",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test metric collection for counters (created, stopped, approved, rejected, deleted, errors, gc runs)"
         },
         {
-          "notes": "Test gauge metrics (active sandboxes, disk usage, process count)",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/metrics/metrics_test.go::TestCollector_Gauges",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test gauge metrics (active sandboxes, disk usage, process count)"
         },
         {
-          "notes": "Test latency tracking for create and diff operations",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/metrics/metrics_test.go::TestCollector_Latencies",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test latency tracking for create and diff operations"
         },
         {
-          "notes": "Verify Prometheus format export with correct metric types and help text",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/metrics/metrics_test.go::TestCollector_ExportPrometheus",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Verify Prometheus format export with correct metric types and help text"
         },
         {
-          "notes": "Test latency ring buffer handles overflow correctly",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/metrics/metrics_test.go::TestCollector_LatencyRingBuffer",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test latency ring buffer handles overflow correctly"
         },
         {
-          "notes": "Default collector singleton is available and functional",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/metrics/metrics_test.go::TestDefault",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Default collector singleton is available and functional"
         }
       ]
     }
-  ],
-  "title": "Metrics/Observability"
+  ]
 }

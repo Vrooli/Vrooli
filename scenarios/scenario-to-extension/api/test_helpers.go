@@ -37,6 +37,8 @@ type TestEnvironment struct {
 	TempDir    string
 	OriginalWD string
 	Config     *Config
+	RunnerEnv  string
+	RunnerSet  bool
 	Cleanup    func()
 }
 
@@ -55,11 +57,11 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 	// Create test subdirectories
 	templatesDir := filepath.Join(tempDir, "templates", "vanilla")
 	dataDir := filepath.Join(tempDir, "data", "extensions")
-	if err := os.MkdirAll(templatesDir, 0755); err != nil {
+	if err := os.MkdirAll(templatesDir, 0o755); err != nil {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to create templates dir: %v", err)
 	}
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to create data dir: %v", err)
 	}
@@ -73,25 +75,83 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
   "permissions": {{PERMISSIONS}},
   "host_permissions": {{HOST_PERMISSIONS}}
 }`
-	if err := os.WriteFile(filepath.Join(templatesDir, "manifest.json"), []byte(manifestContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(templatesDir, "manifest.json"), []byte(manifestContent), 0o644); err != nil {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to create manifest template: %v", err)
+	}
+	packageContent := `{"name":"{{PACKAGE_NAME}}","version":"{{VERSION}}","description":"{{APP_DESCRIPTION}}"}`
+	if err := os.WriteFile(filepath.Join(templatesDir, "package.json"), []byte(packageContent), 0o644); err != nil {
+		os.RemoveAll(tempDir)
+		t.Fatalf("Failed to create package template: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(templatesDir, "README.md"), []byte("# {{APP_NAME}}\n\n{{APP_DESCRIPTION}}\n"), 0o644); err != nil {
+		os.RemoveAll(tempDir)
+		t.Fatalf("Failed to create README template: %v", err)
+	}
+
+	advancedDir := filepath.Join(tempDir, "templates", "advanced")
+	if err := os.MkdirAll(advancedDir, 0o755); err != nil {
+		os.RemoveAll(tempDir)
+		t.Fatalf("Failed to create advanced templates dir: %v", err)
+	}
+	for _, template := range []struct {
+		name        string
+		displayName string
+	}{
+		{name: "content-script-only", displayName: "Content Script Only"},
+		{name: "background-only", displayName: "Background Only"},
+		{name: "popup-only", displayName: "Popup Only"},
+	} {
+		metadata := fmt.Sprintf(`{"name":%q,"description":%q,"files":["manifest.json"]}`, template.displayName, "Test "+template.displayName)
+		if err := os.WriteFile(filepath.Join(advancedDir, template.name+".json"), []byte(metadata), 0o644); err != nil {
+			os.RemoveAll(tempDir)
+			t.Fatalf("Failed to create %s template: %v", template.name, err)
+		}
+	}
+
+	runnerPath := filepath.Join(tempDir, "browser-runner.py")
+	runner := `#!/usr/bin/env python3
+import json
+import sys
+
+args = sys.argv[1:]
+sites = []
+if "--test-sites" in args:
+    index = args.index("--test-sites") + 1
+    if index < len(args) and args[index]:
+        sites = args[index].split(",")
+results = [{"site": site, "loaded": True, "errors": [], "load_time_ms": 1} for site in sites]
+print(json.dumps({
+    "success": True,
+    "status": "passed",
+    "test_results": results,
+    "summary": {
+        "total_tests": len(results),
+        "passed": len(results),
+        "failed": 0,
+        "success_rate": 100.0 if results else 0.0,
+    },
+}))
+`
+	if err := os.WriteFile(runnerPath, []byte(runner), 0o755); err != nil {
+		os.RemoveAll(tempDir)
+		t.Fatalf("Failed to create browser runner: %v", err)
 	}
 
 	// Create test config
 	testConfig := &Config{
-		Port:           3201,
-		APIEndpoint:    "http://localhost:3201",
-		TemplatesPath:  filepath.Join(tempDir, "templates"),
-		OutputPath:     dataDir,
-		BrowserlessURL: "http://localhost:3000",
-		Debug:          false,
+		Port:          3201,
+		APIEndpoint:   "http://localhost:3201",
+		TemplatesPath: filepath.Join(tempDir, "templates"),
+		OutputPath:    dataDir,
+		Debug:         false,
 	}
 
 	return &TestEnvironment{
 		TempDir:    tempDir,
 		OriginalWD: originalWD,
 		Config:     testConfig,
+		RunnerEnv:  runnerPath,
 		Cleanup: func() {
 			os.RemoveAll(tempDir)
 		},
@@ -102,11 +162,20 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 func setupTestConfig(env *TestEnvironment) func() {
 	originalConfig := config
 	originalBuildManager := buildManager
+	env.RunnerEnv, env.RunnerSet = os.LookupEnv("SCENARIO_TO_EXTENSION_BROWSER_RUNNER")
 	config = env.Config
 	buildManager = NewBuildManager()
+	if err := os.Setenv("SCENARIO_TO_EXTENSION_BROWSER_RUNNER", filepath.Join(env.TempDir, "browser-runner.py")); err != nil {
+		panic(err)
+	}
 	return func() {
 		config = originalConfig
 		buildManager = originalBuildManager
+		if env.RunnerSet {
+			_ = os.Setenv("SCENARIO_TO_EXTENSION_BROWSER_RUNNER", env.RunnerEnv)
+		} else {
+			_ = os.Unsetenv("SCENARIO_TO_EXTENSION_BROWSER_RUNNER")
+		}
 	}
 }
 

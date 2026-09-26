@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"swarm-manager/internal/pathredact"
 	"swarm-manager/internal/storage"
 )
 
@@ -32,6 +33,7 @@ func NowRFC3339() string {
 }
 
 func Save(path string, trace Trace) error {
+	trace = redactTrace(path, trace)
 	if strings.TrimSpace(trace.CapturedAt) == "" {
 		trace.CapturedAt = NowRFC3339()
 	}
@@ -39,6 +41,19 @@ func Save(path string, trace Trace) error {
 		trace.PromptRevision = PromptRevision(trace.Prompt)
 	}
 	return storage.WriteJSONAtomic(path, trace)
+}
+
+func redactTrace(path string, trace Trace) Trace {
+	redactor := pathredact.NewForArtifactPath(path)
+	if len(trace.Variables) > 0 {
+		vars := make(map[string]string, len(trace.Variables))
+		for key, value := range trace.Variables {
+			vars[key] = redactor.RedactString(value)
+		}
+		trace.Variables = vars
+	}
+	trace.Prompt = redactor.RedactString(trace.Prompt)
+	return trace
 }
 
 func PromptRevision(prompt string) string {

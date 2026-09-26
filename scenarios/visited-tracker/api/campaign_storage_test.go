@@ -1,8 +1,8 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,7 +14,7 @@ import (
 
 func TestCampaignStorage(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -47,7 +47,7 @@ func TestCampaignStorage(t *testing.T) {
 		t.Fatalf("Failed to marshal campaign: %v", err)
 	}
 
-	if err := os.WriteFile(testPath, data, 0644); err != nil {
+	if err := os.WriteFile(testPath, data, 0o644); err != nil {
 		t.Fatalf("Failed to write test campaign file: %v", err)
 	}
 
@@ -73,7 +73,7 @@ func TestCampaignStorage(t *testing.T) {
 
 func TestInitFileStorage(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-init-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-init-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -86,6 +86,7 @@ func TestInitFileStorage(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
+	initTestStorageRoot(t, tempDir)
 
 	// Initialize logger for testing (initFileStorage uses global logger)
 	cleanup := setupTestLogger()
@@ -97,7 +98,7 @@ func TestInitFileStorage(t *testing.T) {
 	}
 
 	// Verify directory was created
-	expectedPath := filepath.Join("scenarios", "visited-tracker", dataDir)
+	expectedPath := storageDataPath()
 	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
 		t.Errorf("Data directory should be created at: %s", expectedPath)
 	}
@@ -112,7 +113,7 @@ func TestInitFileStorage(t *testing.T) {
 
 func TestSaveCampaign(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-save-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-save-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -125,12 +126,7 @@ func TestSaveCampaign(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	// Create the required directory structure
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Create test campaign
 	campaign := &Campaign{
@@ -149,7 +145,7 @@ func TestSaveCampaign(t *testing.T) {
 	}
 
 	// Test saving campaign
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Errorf("saveCampaign should succeed: %v", err)
 	}
 
@@ -183,7 +179,7 @@ func TestSaveCampaign(t *testing.T) {
 
 func TestLoadCampaign(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-load-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-load-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -196,12 +192,7 @@ func TestLoadCampaign(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	// Create the required directory structure
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Create and save test campaign
 	campaign := &Campaign{
@@ -220,7 +211,7 @@ func TestLoadCampaign(t *testing.T) {
 	}
 
 	// Save campaign first
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -253,7 +244,7 @@ func TestLoadCampaign(t *testing.T) {
 
 func TestLoadAllCampaigns(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-load-all-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-load-all-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -266,12 +257,7 @@ func TestLoadAllCampaigns(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	// Create the required directory structure
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Test loading from empty directory
 	campaigns, err := loadAllCampaigns()
@@ -312,10 +298,10 @@ func TestLoadAllCampaigns(t *testing.T) {
 	}
 
 	// Save campaigns
-	if err := saveCampaign(campaign1); err != nil {
+	if err := saveCampaign(context.Background(), campaign1); err != nil {
 		t.Fatalf("Failed to save campaign1: %v", err)
 	}
-	if err := saveCampaign(campaign2); err != nil {
+	if err := saveCampaign(context.Background(), campaign2); err != nil {
 		t.Fatalf("Failed to save campaign2: %v", err)
 	}
 
@@ -366,6 +352,7 @@ func TestLoadAllCampaignsDirectoryMissing(t *testing.T) {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 	defer os.Chdir(originalWd)
+	initTestStorageRoot(t, tempDir)
 
 	campaigns, err := loadAllCampaigns()
 	if err != nil {
@@ -376,7 +363,7 @@ func TestLoadAllCampaignsDirectoryMissing(t *testing.T) {
 	}
 }
 
-func TestLoadAllCampaignsSkipsInvalidFiles(t *testing.T) {
+func TestLoadAllCampaignsRejectsInvalidFiles(t *testing.T) {
 	teardownLogger := setupTestLogger()
 	defer teardownLogger()
 
@@ -389,13 +376,14 @@ func TestLoadAllCampaignsSkipsInvalidFiles(t *testing.T) {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 	defer os.Chdir(originalWd)
+	setTestStorageRoot(t, tempDir)
 
-	campaignsDir := filepath.Join("scenarios", "visited-tracker", dataDir)
+	campaignsDir := storageDataPath()
 	if err := os.MkdirAll(campaignsDir, 0o755); err != nil {
 		t.Fatalf("Failed to create campaigns directory: %v", err)
 	}
 
-	// Invalid JSON file should be ignored gracefully
+	// Invalid JSON must make a catalog lookup fail closed
 	if err := os.WriteFile(filepath.Join(campaignsDir, "invalid.json"), []byte("{invalid"), 0o644); err != nil {
 		t.Fatalf("Failed to write invalid campaign file: %v", err)
 	}
@@ -418,15 +406,9 @@ func TestLoadAllCampaignsSkipsInvalidFiles(t *testing.T) {
 		t.Fatalf("Failed to write valid campaign file: %v", err)
 	}
 
-	campaigns, err := loadAllCampaigns()
-	if err != nil {
-		t.Fatalf("Expected no error when loading campaigns, got %v", err)
-	}
-	if len(campaigns) != 1 {
-		t.Fatalf("Expected 1 valid campaign, got %d", len(campaigns))
-	}
-	if campaigns[0].Name != validCampaign.Name {
-		t.Fatalf("Expected campaign name %q, got %q", validCampaign.Name, campaigns[0].Name)
+	_, err = loadAllCampaigns()
+	if err == nil {
+		t.Fatal("invalid campaign must prevent a partial catalog from reporting success")
 	}
 }
 
@@ -434,7 +416,7 @@ func TestLoadAllCampaignsSkipsInvalidFiles(t *testing.T) {
 
 func TestDeleteCampaignFile(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-delete-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-delete-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -447,12 +429,7 @@ func TestDeleteCampaignFile(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	// Create the required directory structure
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Create and save test campaign
 	campaign := &Campaign{
@@ -470,7 +447,7 @@ func TestDeleteCampaignFile(t *testing.T) {
 	}
 
 	// Save campaign first
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -481,7 +458,7 @@ func TestDeleteCampaignFile(t *testing.T) {
 	}
 
 	// Test deleting campaign file
-	if err := deleteCampaignFile(campaign.ID); err != nil {
+	if err := deleteCampaignFile(context.Background(), campaign.ID); err != nil {
 		t.Errorf("deleteCampaignFile should succeed: %v", err)
 	}
 
@@ -491,7 +468,7 @@ func TestDeleteCampaignFile(t *testing.T) {
 	}
 
 	// Test deleting non-existent file (should not error)
-	if err := deleteCampaignFile(uuid.New()); err != nil {
+	if err := deleteCampaignFile(context.Background(), uuid.New()); err != nil {
 		t.Errorf("deleteCampaignFile should not error for non-existent file: %v", err)
 	}
 }
@@ -505,14 +482,14 @@ func TestLoadAllCampaignsErrorPaths(t *testing.T) {
 	// Test by changing to a directory where the data dir doesn't exist
 	originalWD, _ := os.Getwd()
 	testDir := "/tmp/visited-tracker-test-no-data"
-	os.MkdirAll(testDir, 0755)
+	os.MkdirAll(testDir, 0o755)
 	defer os.RemoveAll(testDir)
 
 	os.Chdir(testDir)
 	defer os.Chdir(originalWD)
+	setTestStorageRoot(t, testDir)
 
 	campaigns, err := loadAllCampaigns()
-
 	// Should handle missing directory gracefully
 	if err != nil {
 		t.Errorf("loadAllCampaigns should handle missing directory gracefully, got error: %v", err)
@@ -532,25 +509,7 @@ func TestGetCampaignPath(t *testing.T) {
 		t.Errorf("Campaign path should end with %s, got %s", expectedSuffix, path)
 	}
 
-	if !strings.Contains(path, "scenarios/visited-tracker/data/campaigns") {
-		t.Errorf("Campaign path should contain correct directory structure, got %s", path)
-	}
-}
-
-func TestGetFileLock(t *testing.T) {
-	filename := "test_file.json"
-
-	lock1 := getFileLock(filename)
-	lock2 := getFileLock(filename)
-
-	// Should return the same lock instance for the same filename
-	if lock1 != lock2 {
-		t.Error("getFileLock should return the same lock instance for the same filename")
-	}
-
-	// Test different filenames get different locks
-	lock3 := getFileLock("different_file.json")
-	if lock1 == lock3 {
-		t.Error("Different filenames should get different lock instances")
+	if filepath.Dir(path) != storageDataPath() {
+		t.Errorf("Campaign path should resolve inside %s, got %s", storageDataPath(), path)
 	}
 }

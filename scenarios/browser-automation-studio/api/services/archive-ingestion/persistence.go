@@ -30,6 +30,7 @@ func (s *IngestionService) persistFrames(
 	execution *database.ExecutionIndex,
 	manifest *recordingManifest,
 ) (*framePersistResult, error) {
+	defer s.recorder.ForgetExecution(execution.ID)
 	// Build a map of archive files for efficient lookup
 	files := map[string]*zip.File{}
 	for i := range zr.File {

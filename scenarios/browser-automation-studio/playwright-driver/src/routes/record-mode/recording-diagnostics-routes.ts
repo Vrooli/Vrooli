@@ -108,6 +108,15 @@ export async function handleStreamSettings(
 
     const body = await parseJsonBody(req, config);
     const request = body as unknown as StreamSettingsRequest;
+    const invalidNumber = ['quality', 'fps'].some((key) =>
+      body[key] !== undefined && (typeof body[key] !== 'number' || !Number.isFinite(body[key])));
+    if (invalidNumber || (request.quality !== undefined && !Number.isInteger(request.quality)) ||
+        (request.perfMode !== undefined && typeof request.perfMode !== 'boolean') ||
+        (request.scale !== undefined && request.scale !== 'css' && request.scale !== 'device')) {
+      sendJson(res, 400, { error: 'INVALID_STREAM_SETTINGS', message: 'Quality must be an integer, FPS a finite number, perfMode a boolean, and scale css or device.' });
+      return;
+    }
+
 
     // Get current settings (may be null if no stream active)
     const currentSettings = getFrameStreamSettings(sessionId);
@@ -149,7 +158,7 @@ export async function handleStreamSettings(
     }
 
     // Apply the settings update (quality, fps, and perfMode)
-    const updated = updateFrameStreamSettings(sessionId, {
+    const updated = await updateFrameStreamSettings(sessionId, {
       quality: request.quality,
       fps: request.fps,
       perfMode: request.perfMode,

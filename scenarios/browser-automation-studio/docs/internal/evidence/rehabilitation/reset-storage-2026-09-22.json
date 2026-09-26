@@ -1,0 +1,296 @@
+{
+  "record": "BAS-WORK-040",
+  "date": "2026-09-22",
+  "issues": [
+    "BAS-RF-076",
+    "BAS-RF-038"
+  ],
+  "status": "deployed",
+  "live_build": "sha256:aa7f6efbe4a4ee3e194865259087c40720dd50b2d2e8412b43c89effe7f3f66e",
+  "scope": "Clean managed context reset; manager owns joining and phase fencing. Retain primary page/context and capture.",
+  "runtime_line_counts": [
+    {
+      "path": "playwright-driver/src/session/context-builder.ts",
+      "before": 514,
+      "after": 528
+    },
+    {
+      "path": "playwright-driver/src/session/manager.ts",
+      "before": 1199,
+      "after": 1220
+    },
+    {
+      "path": "playwright-driver/src/session/session-reset.ts",
+      "before": 40,
+      "after": 59
+    },
+    {
+      "path": "playwright-driver/src/routes/session-reset.ts",
+      "before": 42,
+      "after": 27
+    },
+    {
+      "path": "playwright-driver/src/types/session.ts",
+      "before": 556,
+      "after": 558
+    }
+  ],
+  "runtime_net_lines": 41,
+  "combined_039_040_runtime_net_lines": -36,
+  "cumulative_affected_go_cyclomatic_delta": -246,
+  "source_sha256": {
+    "playwright-driver/src/session/context-builder.ts": "a2089ec465bd69323759cd54672479b22ed3d43b01e15bfcb059753f73418ee1",
+    "playwright-driver/src/session/manager.ts": "285a71b6548b7c232d602671b9e2d7da96edc7137c3936cf9e34a9f01d095968",
+    "playwright-driver/src/session/session-reset.ts": "851d81487e5cecd314f0461794d8ad4ac3d8175ec4633751b3ace36378d7181b",
+    "playwright-driver/src/routes/session-reset.ts": "1a082da34a3668494f7e248d3190f3d22b4cd6c930179c641937627fe8b9c883",
+    "playwright-driver/src/types/session.ts": "3f79232131cd18e82cc1ba7fcfca0eab25c4a8707f6b6ab857e465dbe1c9a259"
+  },
+  "focused": {
+    "tests": 149,
+    "suites": 6,
+    "seconds": 9.609,
+    "status": "passed",
+    "receipt": "/tmp/bas-reset-storage-qualified-focused-040.txt"
+  },
+  "types": "passed",
+  "build": "passed",
+  "native_http": {
+    "results": [
+      {
+        "variant": "stale",
+        "status": 404,
+        "reply": {
+          "error": {
+            "code": "SESSION_NOT_FOUND",
+            "message": "Session not found: c6f0879f-198b-41e8-b64b-a20d15dce03c",
+            "kind": 1,
+            "retryable": false,
+            "hint": "Session may have timed out or been closed. Create a new session with POST /session/start"
+          }
+        },
+        "before": {
+          "url": "http://127.0.0.1:39205/",
+          "cookies": [
+            {
+              "name": "reset_sentinel",
+              "value": "preserve",
+              "domain": "127.0.0.1",
+              "path": "/",
+              "expires": -1,
+              "httpOnly": false,
+              "secure": false,
+              "sameSite": "Lax"
+            }
+          ],
+          "phase": "ready"
+        },
+        "after": {
+          "url": "http://127.0.0.1:39205/",
+          "cookies": [
+            {
+              "name": "reset_sentinel",
+              "value": "preserve",
+              "domain": "127.0.0.1",
+              "path": "/",
+              "expires": -1,
+              "httpOnly": false,
+              "secure": false,
+              "sameSite": "Lax"
+            }
+          ],
+          "phase": "ready"
+        },
+        "retainedLocalStorage": "preserve",
+        "observedResetMs": 20.085634000000027
+      },
+      {
+        "variant": "missing",
+        "status": 400,
+        "reply": {
+          "error": {
+            "code": "INVALID_INSTRUCTION",
+            "message": "execution_id and lease_id are required to reset a session",
+            "kind": 3,
+            "retryable": false,
+            "hint": "Check instruction parameters match the expected schema for this instruction type."
+          }
+        },
+        "before": {
+          "url": "http://127.0.0.1:39205/",
+          "cookies": [
+            {
+              "name": "reset_sentinel",
+              "value": "preserve",
+              "domain": "127.0.0.1",
+              "path": "/",
+              "expires": -1,
+              "httpOnly": false,
+              "secure": false,
+              "sameSite": "Lax"
+            }
+          ],
+          "phase": "ready"
+        },
+        "after": {
+          "url": "http://127.0.0.1:39205/",
+          "cookies": [
+            {
+              "name": "reset_sentinel",
+              "value": "preserve",
+              "domain": "127.0.0.1",
+              "path": "/",
+              "expires": -1,
+              "httpOnly": false,
+              "secure": false,
+              "sameSite": "Lax"
+            }
+          ],
+          "phase": "ready"
+        },
+        "retainedLocalStorage": "preserve",
+        "observedResetMs": 14.850378000000092
+      },
+      {
+        "variant": "current",
+        "status": 200,
+        "reply": {
+          "success": true,
+          "phase": "ready"
+        },
+        "before": {
+          "url": "http://127.0.0.1:39205/",
+          "cookies": [
+            {
+              "name": "reset_sentinel",
+              "value": "preserve",
+              "domain": "127.0.0.1",
+              "path": "/",
+              "expires": -1,
+              "httpOnly": false,
+              "secure": false,
+              "sameSite": "Lax"
+            }
+          ],
+          "phase": "ready"
+        },
+        "after": {
+          "url": "about:blank",
+          "cookies": [],
+          "phase": "ready"
+        },
+        "retainedLocalStorage": null,
+        "observedResetMs": 50.15038900000036
+      }
+    ]
+  },
+  "native_http_timing_limit": "observedResetMs includes post-reset oracle navigation/read; not an isolated operation measurement",
+  "board": {
+    "program_id": "prog_8ded6dad-b2fc-4e13-9b5b-2b84432c3a9b",
+    "required": 17,
+    "pending": 17,
+    "product_qualified": false
+  },
+  "tidiness": {
+    "run_id": "20260922-180542-e4db78b1",
+    "status": "failed",
+    "quiet_wait_consumed": true,
+    "summary": {
+      "totalFindings": 1118,
+      "longFiles": 104,
+      "complexity": 387,
+      "duplication": 608,
+      "coupling": 18,
+      "duplicationLineDebt": 32643
+    },
+    "receipt": "/tmp/bas-reset-storage-tidiness-native-040.json"
+  },
+  "pending_operations": [],
+  "limitations": [
+    "One-second open-handle warning before natural process exit is unresolved.",
+    "RF042 profile import/reuse compatibility and RF043 secondary-tab capture remain open.",
+    "Native OS, crash, soak, full record/replay and overall product qualification remain unverified."
+  ],
+  "experiments": {
+    "initial_native_red": "/tmp/bas-reset-storage-maintained-red-040.txt",
+    "file_native_red": "/tmp/bas-reset-file-maintained-red-040.txt",
+    "candidate": "/tmp/bas-reset-protocol-candidate-040.json",
+    "cross_site_frame": "/tmp/bas-reset-partition-candidate-040.json",
+    "full_focused": "/tmp/bas-reset-storage-qualified-focused-040.txt"
+  },
+  "driver_owner": {
+    "run_id": "uh-20260922-180536-251d1c74ffe41f505e06d9d89f73826c",
+    "status": "passed",
+    "duration_ms": "332571",
+    "jest_seconds": 327.966,
+    "tests_passed": 1573,
+    "suites_passed": 124,
+    "tests_skipped": 2,
+    "suites_skipped": 1,
+    "receipt": "/tmp/bas-reset-storage-driver-owner-040.json"
+  },
+  "deployment": {
+    "build_identity": "sha256:9c7c5eef94430e9f37d9a5b9bb14fb7fb01710053704586fdcc447d480651df7",
+    "healthy_at": "2026-09-22T18:16:54.021829+00:00",
+    "health_receipt": "/tmp/bas-live-health-040.json",
+    "profile_api_metadata_unchanged": true,
+    "complete_original_profile_reads": 3,
+    "profile_receipt": "/tmp/bas-profile-final-040.txt"
+  },
+  "publication_gate": {
+    "checked_at": "2026-09-22T18:12:42.067615+00:00",
+    "rows": 2885,
+    "states": {
+      "EXECUTION_STATUS_COMPLETED": 2468,
+      "EXECUTION_STATUS_FAILED": 412,
+      "EXECUTION_STATUS_RUNNING": 5
+    },
+    "historical_orphans": [
+      {
+        "executionId": "879c542b-d9cd-481b-82d2-6b6c7c11ebf1",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-16T13:18:42.087757908Z",
+        "createdAt": "2026-09-16T13:18:42Z",
+        "updatedAt": "2026-09-16T13:19:10.005000924Z"
+      },
+      {
+        "executionId": "d19bd80e-2624-4874-ab9f-eab0cda42286",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-09T19:30:12.784163869Z",
+        "createdAt": "2026-09-09T19:30:12Z",
+        "updatedAt": "2026-09-09T19:30:18.302018879Z"
+      },
+      {
+        "executionId": "b74ec692-da21-42f7-a86c-f33d436ecfbb",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-09T06:30:44.282585140Z",
+        "createdAt": "2026-09-09T06:30:44Z",
+        "updatedAt": "2026-09-09T06:30:45.060249200Z"
+      },
+      {
+        "executionId": "e0d33e05-297d-4867-aee0-783d59882fa8",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-07T20:36:44.551353663Z",
+        "createdAt": "2026-09-07T20:36:44Z",
+        "updatedAt": "2026-09-07T20:36:45.625164771Z"
+      },
+      {
+        "executionId": "206d68cf-a72c-4838-872b-f913a6a8def6",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-07T20:36:44.551265983Z",
+        "createdAt": "2026-09-07T20:36:44Z",
+        "updatedAt": "2026-09-07T20:36:45.663485899Z"
+      }
+    ],
+    "driver_sessions": 0,
+    "driver_recordings": 0,
+    "seconds": 0.48813518788665533,
+    "build_before": "sha256:aa7f6efbe4a4ee3e194865259087c40720dd50b2d2e8412b43c89effe7f3f66e",
+    "limitation": "Observation before stop, not atomic global admission lock",
+    "decision": "admit stop; preserve orphan history"
+  }
+}

@@ -87,7 +87,7 @@ export function SkillsSettingsTab({
             )}
           </div>
           <p className="text-xs text-slate-500 truncate">
-            {skill.modes?.join(" / ") || skill.category || "No category"}
+            {skill.modes?.join(" / ") || "No category"}
           </p>
         </div>
         <div className="flex items-center gap-1 ml-2">
@@ -103,7 +103,7 @@ export function SkillsSettingsTab({
 
           {/* Delete button */}
           <button
-            onClick={() => handleDelete(skill.id)}
+            onClick={() => { void handleDelete(skill.id); }}
             disabled={isDeleting}
             className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-red-400 transition-colors disabled:opacity-50"
             title="Delete skill"
@@ -131,7 +131,7 @@ export function SkillsSettingsTab({
           <div className="flex items-center gap-2">
             {onSyncSkills && (
               <button
-                onClick={onSyncSkills}
+                onClick={() => { void onSyncSkills(); }}
                 disabled={isSyncing}
                 className="flex items-center gap-1 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors disabled:opacity-50"
                 title="Sync skills from prompt-manager"
@@ -185,11 +185,11 @@ export function SkillsSettingsTab({
                   <p>No skills available</p>
                   {onSyncSkills && (
                     <button
-                      onClick={onSyncSkills}
+                      onClick={() => { void onSyncSkills(); }}
                       disabled={isSyncing}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors disabled:opacity-50"
                     >
-                      <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? "animate-spin" : ""}`} />
+                      <RefreshCw className="h-3.5 w-3.5" />
                       Sync from prompt-manager
                     </button>
                   )}

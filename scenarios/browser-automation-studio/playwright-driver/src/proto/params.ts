@@ -43,7 +43,7 @@ import { jsonValueToPlain } from './utils';
 // ENUM TO STRING CONVERTERS (internal helpers)
 // =============================================================================
 
-function mouseButtonToString(button: MouseButton | undefined): string | undefined {
+function mouseButtonToString(button: MouseButton | undefined): 'left' | 'right' | 'middle' | undefined {
   if (button === undefined) return undefined;
   switch (button) {
     case MouseButton.LEFT: return 'left';
@@ -53,16 +53,18 @@ function mouseButtonToString(button: MouseButton | undefined): string | undefine
   }
 }
 
-function keyboardModifiersToStrings(modifiers: KeyboardModifier[]): string[] {
+type BrowserModifier = 'Control' | 'Shift' | 'Alt' | 'Meta';
+
+function keyboardModifiersToStrings(modifiers: KeyboardModifier[]): BrowserModifier[] {
   return modifiers.map(m => {
     switch (m) {
-      case KeyboardModifier.CTRL: return 'ctrl';
-      case KeyboardModifier.SHIFT: return 'shift';
-      case KeyboardModifier.ALT: return 'alt';
-      case KeyboardModifier.META: return 'meta';
-      default: return '';
+      case KeyboardModifier.CTRL: return 'Control';
+      case KeyboardModifier.SHIFT: return 'Shift';
+      case KeyboardModifier.ALT: return 'Alt';
+      case KeyboardModifier.META: return 'Meta';
+      default: throw new Error(`Unsupported keyboard modifier: ${m}`);
     }
-  }).filter(Boolean);
+  });
 }
 
 function navigateWaitEventToString(event: NavigateWaitEvent | undefined): string | undefined {
@@ -96,7 +98,7 @@ function assertionModeToString(mode: AssertionMode): string {
     case AssertionMode.TEXT_CONTAINS: return 'text_contains';
     case AssertionMode.ATTRIBUTE_EQUALS: return 'attribute_equals';
     case AssertionMode.ATTRIBUTE_CONTAINS: return 'attribute_contains';
-    default: return 'exists';
+    default: return 'unsupported';
   }
 }
 
@@ -237,10 +239,10 @@ function deviceOrientationToString(orientation: DeviceOrientation): string {
 /** Extract ClickParams from ActionDefinition */
 export function getClickParams(action: ActionDefinition): {
   selector: string;
-  button?: string;
+  button?: 'left' | 'right' | 'middle';
   clickCount?: number;
   delayMs?: number;
-  modifiers?: string[];
+  modifiers?: BrowserModifier[];
   force?: boolean;
   timeoutMs?: number;
 } | undefined {
@@ -340,6 +342,7 @@ export function getAssertParams(action: ActionDefinition): {
   caseSensitive?: boolean;
   attributeName?: string;
   timeoutMs?: number;
+  failureMessage?: string;
 } | undefined {
   if (action.params?.case === 'assert' && action.params.value) {
     const p = action.params.value;
@@ -351,6 +354,7 @@ export function getAssertParams(action: ActionDefinition): {
       caseSensitive: p.caseSensitive,
       attributeName: p.attributeName,
       timeoutMs: p.timeoutMs,
+      failureMessage: p.failureMessage,
     };
   }
   return undefined;
@@ -492,7 +496,7 @@ export function getEvaluateParams(action: ActionDefinition): {
 export function getKeyboardParams(action: ActionDefinition): {
   key?: string;
   keys?: string[];
-  modifiers?: string[];
+  modifiers?: BrowserModifier[];
   action?: string;
 } | undefined {
   if (action.params?.case === 'keyboard' && action.params.value) {
@@ -666,6 +670,8 @@ export function getDragDropParams(action: ActionDefinition): {
   targetSelector?: string;
   offsetX?: number;
   offsetY?: number;
+  targetOffsetX?: number;
+  targetOffsetY?: number;
   steps?: number;
   delayMs?: number;
   timeoutMs?: number;
@@ -677,6 +683,8 @@ export function getDragDropParams(action: ActionDefinition): {
       targetSelector: p.targetSelector,
       offsetX: p.offsetX,
       offsetY: p.offsetY,
+      targetOffsetX: p.targetOffsetX,
+      targetOffsetY: p.targetOffsetY,
       steps: p.steps,
       delayMs: p.delayMs,
       timeoutMs: p.timeoutMs,
@@ -693,6 +701,12 @@ export function getGestureParams(action: ActionDefinition): {
   distance?: number;
   scale?: number;
   durationMs?: number;
+  steps?: number;
+  stepDelayMs?: number;
+  traceLabel?: string;
+  idleAfterMs?: number;
+  wheelDeltaY?: number;
+  ctrlKey?: boolean;
 } | undefined {
   if (action.params?.case === 'gesture' && action.params.value) {
     const p = action.params.value;
@@ -703,6 +717,12 @@ export function getGestureParams(action: ActionDefinition): {
       distance: p.distance,
       scale: p.scale,
       durationMs: p.durationMs,
+      steps: p.steps,
+      stepDelayMs: p.stepDelayMs,
+      traceLabel: p.traceLabel,
+      idleAfterMs: p.idleAfterMs,
+      wheelDeltaY: p.wheelDeltaY,
+      ctrlKey: p.ctrlKey,
     };
   }
   return undefined;

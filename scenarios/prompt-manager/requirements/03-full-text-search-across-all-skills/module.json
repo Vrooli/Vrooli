@@ -12,7 +12,7 @@
       "description": "Implement full-text search across skill content and metadata with file-based storage",
       "id": "REQ-P0-004",
       "prd_ref": "prompt-manager-must-have-full-text-search-across-all-skills",
-      "status": "draft",
+      "status": "planned",
       "title": "Full-text Search Implementation",
       "validation": [
         {
@@ -64,13 +64,20 @@
           "status": "pending",
           "type": "test"
         },
-        {
-          "notes": "Search results are relevant",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        }
+      {
+        "notes": "Search results are relevant",
+        "phase": "business",
+        "ref": "",
+        "status": "pending",
+        "type": "test"
+      },
+      {
+        "notes": "Skill search filter journey",
+        "phase": "workflow",
+        "ref": "bas/cases/01-foundation/03-search/skill-search-filter.json",
+        "status": "implemented",
+        "type": "bas"
+      }
       ]
     }
   ],

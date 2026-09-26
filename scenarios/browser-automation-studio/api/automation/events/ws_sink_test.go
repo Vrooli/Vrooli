@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
 type stubHub struct {
@@ -51,15 +53,13 @@ func (s *stubHub) CloseExecution(executionID uuid.UUID) {
 	_ = executionID
 }
 
-func (s *stubHub) BroadcastRecordingEntry(sessionID string, entry *wsHub.UnifiedTimelineEntry) wsHub.BroadcastResult {
+func (s *stubHub) BroadcastTimelineEntry(sessionID string, entry *bastimeline.TimelineEntry) wsHub.BroadcastResult {
 	return wsHub.BroadcastResult{}
 }
 
 func (s *stubHub) BroadcastBinaryFrame(executionID string, data []byte) {}
 
-func (s *stubHub) BroadcastRecordingFrame(sessionID string, frame *wsHub.RecordingFrame) {}
-
-func (s *stubHub) HasRecordingSubscribers(sessionID string) bool { return false }
+func (s *stubHub) HasRecordingFrameSubscribers(sessionID string) bool { return false }
 
 func (s *stubHub) BroadcastPerfStats(sessionID string, stats any) {}
 
@@ -256,11 +256,10 @@ func TestWSHubSinkCloseExecutionStopsEnqueue(t *testing.T) {
 
 	sink.CloseExecution(execID)
 
-	// Attempt to publish after close should be ignored for this execution.
-	if err := sink.Publish(context.Background(), env); err != nil {
-		t.Fatalf("publish after close returned error: %v", err)
+	// Rejected events must not be acknowledged or recreate a queue.
+	if err := sink.Publish(context.Background(), env); !errors.Is(err, ErrExecutionClosed) {
+		t.Fatalf("publish after close must report ErrExecutionClosed: %v", err)
 	}
-	time.Sleep(50 * time.Millisecond)
 	if count := len(hub.Updates()); count != 1 {
 		t.Fatalf("expected updates to stay at 1 after close, got %d", count)
 	}
@@ -297,15 +296,13 @@ func (b *blockingHub) CloseExecution(executionID uuid.UUID) {
 	_ = executionID
 }
 
-func (b *blockingHub) BroadcastRecordingEntry(sessionID string, entry *wsHub.UnifiedTimelineEntry) wsHub.BroadcastResult {
+func (b *blockingHub) BroadcastTimelineEntry(sessionID string, entry *bastimeline.TimelineEntry) wsHub.BroadcastResult {
 	return wsHub.BroadcastResult{}
 }
 
 func (b *blockingHub) BroadcastBinaryFrame(executionID string, data []byte) {}
 
-func (b *blockingHub) BroadcastRecordingFrame(sessionID string, frame *wsHub.RecordingFrame) {}
-
-func (b *blockingHub) HasRecordingSubscribers(sessionID string) bool { return false }
+func (b *blockingHub) HasRecordingFrameSubscribers(sessionID string) bool { return false }
 
 func (b *blockingHub) BroadcastPerfStats(sessionID string, stats any) {}
 
@@ -542,6 +539,79 @@ func TestWSHubSinkCloseExecutionNotifiesHub(t *testing.T) {
 	defer hub.stubHub.mu.Unlock()
 	if len(hub.closed) != 1 || hub.closed[0] != execID {
 		t.Fatalf("expected hub.CloseExecution invoked with %s, got %+v", execID, hub.closed)
+	}
+}
+
+type drainingHub struct {
+	stubHub
+	entered chan struct{}
+	release chan struct{}
+	closed  chan int
+	once    sync.Once
+}
+
+func (h *drainingHub) BroadcastEnvelope(event any) {
+	h.once.Do(func() { close(h.entered) })
+	<-h.release
+	h.stubHub.BroadcastEnvelope(event)
+}
+
+func (h *drainingHub) CloseExecution(uuid.UUID) {
+	h.closed <- len(h.Updates())
+}
+
+// [REQ:BAS-RH-J18] Terminal events accepted behind a slow consumer must drain
+// before lifecycle cleanup, including failed and cancelled executions.
+func TestWSHubSinkCloseDrainsAcceptedEvents(t *testing.T) {
+	for _, terminal := range []contracts.EventKind{contracts.EventKindExecutionCompleted, contracts.EventKindExecutionFailed, contracts.EventKindExecutionCancelled} {
+		t.Run(string(terminal), func(t *testing.T) {
+			hub := &drainingHub{entered: make(chan struct{}), release: make(chan struct{}), closed: make(chan int, 2)}
+			var release sync.Once
+			unblock := func() { release.Do(func() { close(hub.release) }) }
+			defer unblock()
+			sink := NewWSHubSink(hub, nil, contracts.DefaultEventBufferLimits)
+			id := uuid.New()
+			publish := func(kind contracts.EventKind) error {
+				return sink.Publish(context.Background(), contracts.EventEnvelope{ExecutionID: id, Kind: kind})
+			}
+			if err := publish(contracts.EventKindExecutionStarted); err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case <-hub.entered:
+			case <-time.After(time.Second):
+				t.Fatal("hub never received the first event")
+			}
+			if err := publish(terminal); err != nil {
+				t.Fatal(err)
+			}
+			sink.CloseExecution(id)
+			sink.CloseExecution(id)
+			select {
+			case <-hub.closed:
+				t.Error("hub was closed before its accepted events drained")
+			default:
+			}
+			if err := publish(terminal); err == nil {
+				t.Error("late publish was acknowledged after close")
+			}
+			// Release the consumer without sleeps. The close receipt names exactly
+			// how many accepted events reached the downstream owner.
+			unblock()
+			select {
+			case delivered := <-hub.closed:
+				if delivered != 2 {
+					t.Errorf("close delivered %d/2 accepted events", delivered)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("drained execution did not close")
+			}
+			sink.mu.Lock()
+			defer sink.mu.Unlock()
+			if len(sink.queues) != 0 {
+				t.Fatal("closed execution retained a live queue")
+			}
+		})
 	}
 }
 

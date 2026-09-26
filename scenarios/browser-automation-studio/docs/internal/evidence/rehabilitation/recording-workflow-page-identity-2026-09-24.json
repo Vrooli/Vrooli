@@ -1,0 +1,46 @@
+{
+  "work": "BAS-WORK-178",
+  "captured_at": "2026-09-24T19:15:03Z",
+  "managed_build_identity": "sha256:43bbd665129c3f02008d576b6124b43442b5b2a0754cb2e0eeeb8a1a27a3c6b4",
+  "owners": [
+    {
+      "name": "timeline logical-page identity join",
+      "command": "pnpm exec vitest run src/domains/recording/types/timeline-unified.test.ts",
+      "result": "passed",
+      "tests": "35/35"
+    },
+    {
+      "name": "UI typecheck",
+      "command": "pnpm exec tsc --noEmit --pretty false",
+      "result": "passed"
+    },
+    {
+      "name": "scoped UI lint",
+      "command": "pnpm exec eslint src/domains/recording/RecordingSession.tsx src/domains/recording/types/timeline-unified.ts src/domains/recording/types/timeline-unified.test.ts",
+      "result": "passed"
+    },
+    {
+      "name": "managed real-input save and fresh-context replay",
+      "command": "BAS_REHAB_LIVE_API_BASE=http://127.0.0.1:17116 pnpm exec jest tests/integration/saved-workflow-fresh-context.test.ts --runInBand --coverage=false",
+      "result": "passed",
+      "tests": "1/1",
+      "duration_seconds": 5.285,
+      "observed": [
+        "three real pointer clicks entered the recording session",
+        "driver action IDs matched persisted timeline actions with logical page IDs",
+        "generated saved workflow replayed exactly main, popup, main effects in a separate context",
+        "disposable workflow and project were deleted"
+      ],
+      "limit": "The integration test calls the generation API with the timeline join applied; it does not automate the UI click-to-generate interaction."
+    }
+  ],
+  "setpoint": {
+    "program_run_id": "prog_d2c64cfd-341d-40f3-8b61-760f762c7f7a",
+    "in_band": "3/17",
+    "unavailable": 14,
+    "unavailable_reason": "pending_telemetry",
+    "product_qualified": false
+  },
+  "test_genie_phase_run": false,
+  "complexity_reduction_claimed": false
+}

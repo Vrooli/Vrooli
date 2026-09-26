@@ -11,12 +11,12 @@ interface StatusIconProps {
 export function StatusIcon({ status, size = 20 }: StatusIconProps) {
   switch (status) {
     case "ok":
-      return <CheckCircle className="text-emerald-500" size={size} />;
+      return <CheckCircle className="shrink-0 text-accent-success" size={size} />;
     case "warning":
-      return <AlertTriangle className="text-amber-500" size={size} />;
+      return <AlertTriangle className="shrink-0 text-accent-warning" size={size} />;
     case "critical":
-      return <AlertCircle className="text-red-500" size={size} />;
+      return <AlertCircle className="shrink-0 text-accent-danger" size={size} />;
     default:
-      return <Activity className="text-slate-400" size={size} />;
+      return <Activity className="shrink-0 text-text-muted" size={size} />;
   }
 }

@@ -135,6 +135,21 @@ func TestGenerator_GenerateElectronBuilder_Windows(t *testing.T) {
 	})
 }
 
+func TestGenerator_GenerateElectronBuilder_RejectsUnsupportedCloudSource(t *testing.T) {
+	g := NewGenerator(nil)
+	for _, source := range []string{codesigning.CertSourceAzureKeyVault, codesigning.CertSourceAWSKMS} {
+		t.Run(source, func(t *testing.T) {
+			_, err := g.GenerateElectronBuilder(&codesigning.SigningConfig{
+				Enabled: true,
+				Windows: &codesigning.WindowsSigningConfig{CertificateSource: source},
+			})
+			if err == nil {
+				t.Fatalf("expected unsupported certificate source %q to be rejected", source)
+			}
+		})
+	}
+}
+
 func TestGenerator_GenerateElectronBuilder_MacOS(t *testing.T) {
 	g := NewGenerator(nil)
 
@@ -316,6 +331,7 @@ func TestGenerator_GenerateNotarizeScript(t *testing.T) {
 			TeamID:           "ABC123XYZ",
 			Notarize:         true,
 			AppleAPIKeyID:    "KEYID123",
+			AppleAPIKeyFile:  "/target-local/keys/AuthKey_KEYID123.p8",
 			AppleAPIIssuerID: "issuer-uuid",
 		}
 
@@ -329,8 +345,11 @@ func TestGenerator_GenerateNotarizeScript(t *testing.T) {
 		if !strings.Contains(content, "notarytool") {
 			t.Error("expected notarytool reference")
 		}
-		if !strings.Contains(content, "KEYID123") {
-			t.Error("expected API key ID in script")
+		if !strings.Contains(content, "appleApiKey: process.env.APPLE_API_KEY_PATH || '/target-local/keys/AuthKey_KEYID123.p8'") {
+			t.Error("expected API key file path to be passed separately")
+		}
+		if !strings.Contains(content, "appleApiKeyId: process.env.APPLE_API_KEY_ID || 'KEYID123'") {
+			t.Error("expected API key ID to be passed separately")
 		}
 		if !strings.Contains(content, "ABC123XYZ") {
 			t.Error("expected team ID in script")

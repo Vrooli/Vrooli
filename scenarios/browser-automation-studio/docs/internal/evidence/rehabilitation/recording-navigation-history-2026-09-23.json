@@ -1,0 +1,598 @@
+{
+  "cycle": "BAS-WORK-057",
+  "issues": [
+    "BAS-RF-038",
+    "BAS-RF-087"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "qualified_and_deployed",
+  "scope": "Owned navigation admission/completion and browser-authoritative history; broader interruption/API page attribution remains RF038.",
+  "baseline": "/tmp/bas-before-057/manifest.json",
+  "source": {
+    "playwright-driver/src/routes/record-mode/recording-navigation.ts": {
+      "before": {
+        "sha256": "a38e91133781ac94f967175312b8dd1ed2250c00dc7a6c0aaf1849eead7b91d4",
+        "lines": 557
+      },
+      "after": {
+        "sha256": "8db637b69efbc6eb6844ea81af2be3bb1682dca749ac8ffb3a8fe4a33f93da03",
+        "lines": 229
+      }
+    },
+    "playwright-driver/src/routes/record-mode/types.ts": {
+      "before": {
+        "sha256": "357ebe07dbc9dcd4c2a9d8f2d687cd17b844c933e5525af4346f56e166e2eff1",
+        "lines": 404
+      },
+      "after": {
+        "sha256": "c2957389b9f14ee5c99e2ebd344d02d9fefcaf74f88bcdb7fb2e1bbc6102eeb1",
+        "lines": 359
+      }
+    },
+    "playwright-driver/src/routes/record-mode/index.ts": {
+      "before": {
+        "sha256": "a45e59df33ba984116ac82ef804bc287bacdab690741471a2669a36931ce807b",
+        "lines": 115
+      },
+      "after": {
+        "sha256": "7b6af48361af96b8823008dcfab6dec5532198e3a30a21e76958de375a099e3d",
+        "lines": 107
+      }
+    },
+    "api/automation/driver/client.go": {
+      "before": {
+        "sha256": "01677a896b05059c5be890407a0498024dc708ac2fc92c6060e6e38a8ba68771",
+        "lines": 1187
+      },
+      "after": {
+        "sha256": "36285fe0ab8cc28e5da9fc73bcb8a8497c7014b48ea91f9d82fdfdef185a6aab",
+        "lines": 1186
+      }
+    },
+    "api/automation/driver/types.go": {
+      "before": {
+        "sha256": "3c43339e9c8a25499e92c8dc8e9c2432d3441706298324a5c5192b0c82d2ea7c",
+        "lines": 620
+      },
+      "after": {
+        "sha256": "26e7fb2f92b55930676e4e6a7f8d04d412d797e87c5d29d9a541052cd033cc9e",
+        "lines": 599
+      }
+    },
+    "api/automation/session/session.go": {
+      "before": {
+        "sha256": "ecb8bbf00342f8b4eccfac5d0813b7c46ed8270adca7566260ffaf546361516f",
+        "lines": 419
+      },
+      "after": {
+        "sha256": "3369411bf26e73b7e6402ccc0f2055dffb3c9cda414c8bf545c11bc6cc6561c6",
+        "lines": 427
+      }
+    },
+    "api/services/live-capture/service.go": {
+      "before": {
+        "sha256": "a530f0b0ba4eefc30b19ad5daa9f728478cc4913d33bcd3715b5fe7dd7bf0d47",
+        "lines": 831
+      },
+      "after": {
+        "sha256": "83228e00c2aba2b8c51b993acafc55a14e367e9df17793db0c13f79c187e39e8",
+        "lines": 831
+      }
+    },
+    "api/handlers/record_mode.go": {
+      "before": {
+        "sha256": "b3c0ad40a8fd40927d23aa31c50e9670bbd3cd8af4edbcbadfe9df1d62e399ae",
+        "lines": 1076
+      },
+      "after": {
+        "sha256": "20c5cde0da56fdf59e53afa0d45993073adec4d5111ca6f5e7af506df622a850",
+        "lines": 977
+      }
+    },
+    "api/handlers/record_mode_navigation.go": {
+      "before": {
+        "sha256": "16aa28c44ebf8b4764cfe4c11edfc99c45cf3c6b51ac1f2cda9f0071d64206a1",
+        "lines": 82
+      },
+      "after": {
+        "sha256": "77ddb105a931b698905e873d19efc45f44d968b0e9c81a2de9b372b9d9db2248",
+        "lines": 87
+      }
+    },
+    "api/handlers/record_mode_types.go": {
+      "before": {
+        "sha256": "1dbfa785ad8c17662717db23afd1c7aa2a3a9d2edf27bd6a037da0255bd66b24",
+        "lines": 335
+      },
+      "after": {
+        "sha256": "6c710d0c38d67692319a8a0e72a52a580917b4c9b981ef0df51ea8baa7375d2f",
+        "lines": 290
+      }
+    },
+    "api/handlers/recordings/module.go": {
+      "before": {
+        "sha256": "1ca7448f3a44aad39e7b72c8a78bc3caf8238339cb377e0dcc5a6f47787fbaf9",
+        "lines": 79
+      },
+      "after": {
+        "sha256": "f3022c14ea1a700c38586fbb1b13a6cc564553d7400193cc82bb3b248e898718",
+        "lines": 80
+      }
+    },
+    "api/handlers/recordings/service.go": {
+      "before": {
+        "sha256": "7dbfb900fca635cd02dcfc0a80a6a19501fdf9a4e146ba9b4c17d5ed13ab40dc",
+        "lines": 661
+      },
+      "after": {
+        "sha256": "c186bfa8c7c8824c1be358f77f7755de13e85509fe9cf4e58930b5ad459a1534",
+        "lines": 662
+      }
+    },
+    "playwright-driver/src/server.ts": {
+      "before": {
+        "sha256": "996c3a90870229069c4a2c7c0f193f4711da76eb021595c4a4e72784909fc1c1",
+        "lines": 693
+      },
+      "after": {
+        "sha256": "29b563f2acd60e53eb8161e00bf3e2a195794bc1c5f8e984a36e90713231d032",
+        "lines": 692
+      }
+    },
+    "ui/src/domains/recording/hooks/useBrowserNavigation.ts": {
+      "before": {
+        "sha256": "54d66e580a3bfd5537d2de75b7c190df271fd7c4dfd6fa91e81d956fa1f2467c",
+        "lines": 233
+      },
+      "after": {
+        "sha256": "22509cc0b4bf3899f6ae02b8ac6ff54c1acffff2c5a0488dc51e3b5575b2b95b",
+        "lines": 233
+      }
+    },
+    "ui/src/domains/recording/capture/BrowserChrome.tsx": {
+      "before": {
+        "sha256": "3a8de523dabcf35ad681455e969b8da6282eca48334928cdfd2ff2876a810254",
+        "lines": 495
+      },
+      "after": {
+        "sha256": "bd7fc46d889dffaef8535f028da8972a080d4d4d7a35ed2df99ba4fb43521992",
+        "lines": 495
+      }
+    }
+  },
+  "test_hashes": {
+    "playwright-driver/tests/unit/routes/record-mode.test.ts": "6ae8bcb0e90471efecf2a0a39f404ced49d317dcaf8a398d5b3e7021ef0e1195",
+    "api/handlers/testutil_mock_services.go": "47026822c8af2861b37ae12a61677f316b394d7e9040bf398393e2e914eec966",
+    "api/handlers/record_mode_integration_test.go": "b4588c9d3803e4f04b8f354abac0e8116031615181b7d23e34da6a6fdf5b193c",
+    "api/handlers/record_mode_test.go": "e39aa802ddcde99939193a6487197c9fea10b24db9d5ff9d50536b8aa9bd7734",
+    "api/handlers/recordings/service_test.go": "98af99a1006f3cd771faf1db5e520f0c78c0864295f2c86e892ab5dec1a9dbf1",
+    "api/automation/session/session_test.go": "f8e60bf732046b630aea1f0fbc43087051a9ba21969e4e97fc37315e36a657dc",
+    "api/automation/driver/client_payload_test.go": "955773262d8541bdde205b6475837dde7045c2105bd6f4de0502f3b85bbbc3aa",
+    "api/services/live-capture/service_test.go": "870b58a531cc17e1f5fac5c4533c4ebcd4c30421b80a4445a580e2fd1d36b04a",
+    "ui/src/domains/recording/hooks/useBrowserNavigation.test.ts": "099c2f8a7864e030e6f9b1edbf3965e43293a0a9e100470078f1309daaa02a35"
+  },
+  "native_owner_red": {
+    "cases": [
+      {
+        "case": "missing",
+        "status": 200,
+        "expected_status": 400,
+        "independent_requests": 1,
+        "met": false
+      },
+      {
+        "case": "missing_cleanup",
+        "status": 200,
+        "met": true
+      },
+      {
+        "case": "stale",
+        "status": 200,
+        "expected_status": 404,
+        "independent_requests": 1,
+        "met": false
+      },
+      {
+        "case": "stale_cleanup",
+        "status": 200,
+        "met": true
+      },
+      {
+        "case": "current",
+        "status": 200,
+        "expected_status": 200,
+        "independent_requests": 1,
+        "met": true
+      },
+      {
+        "case": "current_cleanup",
+        "status": 200,
+        "met": true
+      }
+    ],
+    "effects": [
+      "/missing",
+      "/stale",
+      "/current"
+    ]
+  },
+  "native_owner_green": {
+    "cases": [
+      {
+        "case": "missing",
+        "status": 400,
+        "expected_status": 400,
+        "independent_requests": 0,
+        "met": true
+      },
+      {
+        "case": "missing_cleanup",
+        "status": 200,
+        "met": true
+      },
+      {
+        "case": "stale",
+        "status": 404,
+        "expected_status": 404,
+        "independent_requests": 0,
+        "met": true
+      },
+      {
+        "case": "stale_cleanup",
+        "status": 200,
+        "met": true
+      },
+      {
+        "case": "current",
+        "status": 200,
+        "expected_status": 200,
+        "independent_requests": 1,
+        "met": true
+      },
+      {
+        "case": "current_cleanup",
+        "status": 200,
+        "met": true
+      }
+    ],
+    "effects": [
+      "/current"
+    ]
+  },
+  "native_history_red": [
+    {
+      "operation": "go-back",
+      "status": 400,
+      "body": {
+        "error": "CANNOT_GO_BACK",
+        "message": "No history to go back to"
+      },
+      "observed_url": "http://127.0.0.1:46459/#one",
+      "expected_url": "http://127.0.0.1:46459/#one",
+      "met": false
+    },
+    {
+      "operation": "go-forward",
+      "status": 400,
+      "body": {
+        "error": "CANNOT_GO_FORWARD",
+        "message": "No forward history to navigate to"
+      },
+      "observed_url": "http://127.0.0.1:46459/#one",
+      "expected_url": "http://127.0.0.1:46459/#two",
+      "met": false
+    },
+    {
+      "operation": "cleanup",
+      "status": 200,
+      "met": true
+    }
+  ],
+  "native_history_green": {
+    "artifact": "/tmp/bas-history-native-green-057.json",
+    "passed": 49,
+    "failed": 0,
+    "cases": [
+      {
+        "case": "navigate_http",
+        "met": true
+      },
+      {
+        "case": "navigate_http",
+        "met": true
+      },
+      {
+        "case": "navigation-stack_http",
+        "met": true
+      },
+      {
+        "case": "reject_navigate_missing",
+        "met": true
+      },
+      {
+        "case": "reject_navigate_stale",
+        "met": true
+      },
+      {
+        "case": "navigation-stack_http",
+        "met": true
+      },
+      {
+        "case": "rejected_navigate_has_no_effect",
+        "met": true
+      },
+      {
+        "case": "navigation-stack_http",
+        "met": true
+      },
+      {
+        "case": "reject_reload_missing",
+        "met": true
+      },
+      {
+        "case": "reject_reload_stale",
+        "met": true
+      },
+      {
+        "case": "navigation-stack_http",
+        "met": true
+      },
+      {
+        "case": "rejected_reload_has_no_effect",
+        "met": true
+      },
+      {
+        "case": "navigation-stack_http",
+        "met": true
+      },
+      {
+        "case": "reject_go-back_missing",
+        "met": true
+      },
+      {
+        "case": "reject_go-back_stale",
+        "met": true
+      },
+      {
+        "case": "navigation-stack_http",
+        "met": true
+      },
+      {
+        "case": "rejected_go-back_has_no_effect",
+        "met": true
+      },
+      {
+        "case": "navigation-stack_http",
+        "met": true
+      },
+      {
+        "case": "reject_go-forward_missing",
+        "met": true
+      },
+      {
+        "case": "reject_go-forward_stale",
+        "met": true
+      },
+      {
+        "case": "navigation-stack_http",
+        "met": true
+      },
+      {
+        "case": "rejected_go-forward_has_no_effect",
+        "met": true
+      },
+      {
+        "case": "go-back_http",
+        "met": true
+      },
+      {
+        "case": "navigation-state_http",
+        "met": true
+      },
+      {
+        "case": "native_hash_go-back",
+        "met": true
+      },
+      {
+        "case": "go-forward_http",
+        "met": true
+      },
+      {
+        "case": "navigation-state_http",
+        "met": true
+      },
+      {
+        "case": "native_hash_go-forward",
+        "met": true
+      },
+      {
+        "case": "reload_http",
+        "met": true
+      },
+      {
+        "case": "reload_one_http_effect",
+        "met": true
+      },
+      {
+        "case": "owned_instruction",
+        "met": true
+      },
+      {
+        "case": "navigation-stack_http",
+        "met": true
+      },
+      {
+        "case": "browser_script_history_visible",
+        "met": true
+      },
+      {
+        "case": "go-back_http",
+        "met": true
+      },
+      {
+        "case": "owned_instruction",
+        "met": true
+      },
+      {
+        "case": "go-forward_http",
+        "met": true
+      },
+      {
+        "case": "owned_instruction",
+        "met": true
+      },
+      {
+        "case": "new-page_http",
+        "met": true
+      },
+      {
+        "case": "navigate_http",
+        "met": true
+      },
+      {
+        "case": "new-page_http",
+        "met": true
+      },
+      {
+        "case": "navigation-state_http",
+        "met": true
+      },
+      {
+        "case": "new_tab_history_is_independent",
+        "met": true
+      },
+      {
+        "case": "active-page_http",
+        "met": true
+      },
+      {
+        "case": "go-back_http",
+        "met": true
+      },
+      {
+        "case": "navigation-state_http",
+        "met": true
+      },
+      {
+        "case": "switch_restores_native_tab_history",
+        "met": true
+      },
+      {
+        "case": "navigation-stack_http",
+        "met": true
+      },
+      {
+        "case": "untitled_history_has_no_fabricated_timestamp",
+        "met": true
+      },
+      {
+        "case": "cleanup",
+        "met": true
+      }
+    ]
+  },
+  "native_api": {
+    "artifact": "/tmp/bas-recording-live-057.json",
+    "passed": 48,
+    "failed": 0,
+    "independent_click_effects": 2
+  },
+  "native_workflow": {
+    "artifact_dir": "/tmp/bas-recording-e2e-b7kF51",
+    "execution_id": "cd0bc943-fbc6-4ffb-97a4-29a87c217c92",
+    "passed": 12,
+    "failed": 0,
+    "skipped": 0,
+    "independent_click_effects": 3
+  },
+  "checks": {
+    "driver_focused": {
+      "passed": 63,
+      "suites": 1,
+      "duration_seconds": 0.807,
+      "log": "/tmp/bas-navigation-history-driver-final-057.txt"
+    },
+    "driver_types": "passed",
+    "go_race_packages": [
+      "automation/driver",
+      "automation/session",
+      "services/live-capture",
+      "handlers",
+      "handlers/recordings"
+    ],
+    "go_race_log": "/tmp/bas-navigation-go-race-final-057.txt",
+    "go_build": "passed",
+    "ui": {
+      "project": "record-mode",
+      "passed": 460,
+      "test_seconds": 2.5,
+      "total_seconds": 9.4,
+      "log": "/tmp/bas-navigation-ui-record-mode-057.txt"
+    },
+    "ui_types": "passed",
+    "contract": "passed",
+    "inventory": "passed",
+    "full_driver": {
+      "status": "passed",
+      "run_id": "uh-20260923-001758-aab8b8c7e98e4a7a6a981b2264c4c06a",
+      "passed_tests": 1742,
+      "passed_suites": 124,
+      "skipped_tests": 2,
+      "skipped_suites": 1,
+      "owner_seconds": 395.68,
+      "jest_seconds": 394.782,
+      "artifact": "/tmp/bas-navigation-driver-owner-final-057.json"
+    }
+  },
+  "measurements": {
+    "runtime_lines_before": 7787,
+    "runtime_lines_after": 7254,
+    "runtime_line_delta": -533,
+    "go_functions_before": 177,
+    "go_functions_after": 177,
+    "go_complexity_before": 697,
+    "go_complexity_after": 700,
+    "cumulative_affected_go_complexity_reduction": 216,
+    "tidiness_run": "20260923-001802-49f182c4",
+    "tidiness_status": "failed",
+    "tidiness_summary": {
+      "totalFindings": 1128,
+      "longFiles": 105,
+      "complexity": 393,
+      "duplication": 610,
+      "coupling": 19,
+      "duplicationLineDebt": 31591
+    },
+    "prior_duplication_debt": 32663,
+    "expanded_original_duplication_debt": 35603,
+    "limitations": [
+      "Shared tree observations are not attributable solely to this cycle.",
+      "RF064 JavaScript/TypeScript complexity measurement remains incomplete.",
+      "Removed duplicated policies and state ownership; line count alone does not prove reduced complexity."
+    ]
+  },
+  "board": {
+    "required": 17,
+    "unqualified": 17,
+    "product_qualified": false
+  },
+  "deployment": {
+    "build_identity": "sha256:7794187bd9281a31cf9880df318aa037a38dfee7e0997c4bd9b4105f9d97339b",
+    "managed_restart_log": "/tmp/bas-restart-057.txt",
+    "health": "/tmp/bas-live-health-057.json",
+    "profile_metadata_matches_previous": true,
+    "profile_contents_match_original_rollback_reads": 3,
+    "profile_receipt": "/tmp/bas-profile-final-057.txt"
+  },
+  "removed": [
+    "Session-scoped navigation history map, index/length counters, mutators and cleanup exports",
+    "Three duplicate Go history-navigation transport/type/handler policies",
+    "Unowned navigation methods from ClientInterface and mocks",
+    "UI requirement for fabricated browser-history timestamps or nonempty titles"
+  ],
+  "remaining": [
+    "RF038 API page/journal attribution during handoff and interruption after admitted external effects",
+    "Unowned page/viewport/preview controls",
+    "Full J04/J17 journey matrices and release outcomes remain unqualified"
+  ]
+}

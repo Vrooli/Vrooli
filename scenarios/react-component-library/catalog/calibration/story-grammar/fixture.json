@@ -1,0 +1,11 @@
+{
+  "gate": "story-grammar",
+  "assetId": "calibration.story-grammar",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.raw_node_tag_name",
+  "source": "broken.tsx",
+  "story": "broken-story.json",
+  "catalogAsset": "asset.json",
+  "description": "Contains a tag name encoded as a text node."
+}

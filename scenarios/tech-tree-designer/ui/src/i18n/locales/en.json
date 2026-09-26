@@ -1,0 +1,195 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Tech Tree Designer are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Tech Tree Designer"
+  },
+  "layout": {
+    "sidebarLabel": "Desktop navigation",
+    "bottomNavLabel": "Mobile navigation",
+    "mainLabel": "Main content",
+    "nav": {
+      "dashboard": "Dashboard",
+      "graph": "Graph",
+      "ontology": "Ontology",
+      "planning": "Planning",
+      "settings": "Settings"
+    }
+  },
+  "theme": {
+    "switcherLabel": "Theme",
+    "choice": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
+      "statPlaceholderLabel": "Stat"
+    },
+    "settings": {
+      "title": "Settings",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language"
+    }
+  },
+  "graph": {
+    "eyebrow": "Interface graph",
+    "title": "Scenario dependency canvas",
+    "description": "Inspect live proto import dependencies and planned contract nodes on one editable canvas.",
+    "group": {
+      "none": "No grouping",
+      "sector": "Group by sector",
+      "tier": "Group by tier"
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "dot": "DOT"
+    },
+    "metrics": {
+      "live": "Live scenarios",
+      "planned": "Planned scenarios",
+      "dependencies": "Dependencies",
+      "warnings": "Source warnings"
+    },
+    "states": {
+      "loading": "Loading graph from Tech Tree Designer…",
+      "error": "Graph data is unavailable. Confirm the API and scenario-dependency-analyzer are running.",
+      "empty": "No graph nodes are available yet. Start scenario-dependency-analyzer and add planned scenarios to populate the canvas."
+    },
+    "warnings": {
+      "title": "Graph source warnings",
+      "item": "{{source}} {{scenario}}: {{message}}"
+    },
+    "node": {
+      "planned": "planned",
+      "live": "live",
+      "none": "NONE",
+      "unknown": "unknown",
+      "unassigned": "unassigned",
+      "untiered": "untiered"
+    }
+  },
+  "planning": {
+    "eyebrow": "Planning",
+    "title": "Contract-first scenarios",
+    "slugPlaceholder": "planned-scenario",
+    "actions": {
+      "create": "Create planned scenario",
+      "save": "Save file",
+      "validate": "Validate",
+      "materialize": "Materialize",
+      "delete": "Delete"
+    },
+    "states": {
+      "loading": "Loading plans…",
+      "emptyList": "Create a planned scenario to start drafting proto contracts.",
+      "noSelection": "Select or create a planned scenario.",
+      "noFiles": "No files yet. Save the editor contents to add the first proto file."
+    },
+    "fallbacks": {
+      "unassigned": "unassigned",
+      "untiered": "untiered"
+    },
+    "validation": {
+      "passed": "Validation passed",
+      "findings": "Validation findings",
+      "none": "No findings returned."
+    },
+    "materialized": "Wrote {{count}} proto file(s).",
+    "materialized_one": "Wrote 1 proto file."
+  },
+  "ontology": {
+    "eyebrow": "Capability ontology",
+    "title": "Coverage and fulfillment",
+    "description": "Author the top-down capability tree, place live and planned scenarios against it, and inspect cross-layer coverage.",
+    "actions": {
+      "refresh": "Refresh"
+    },
+    "metrics": {
+      "capabilities": "Capabilities",
+      "ontologyCompleteness": "Ontology coverage",
+      "implementationSituatedness": "Mapped scenarios",
+      "unmapped": "Unmapped"
+    },
+    "tree": {
+      "filterPlaceholder": "Filter capabilities"
+    },
+    "focus": {
+      "title": "Focus queue",
+      "score": "Score {{score}} · {{dependents}} downstream",
+      "empty": "No focus items yet."
+    },
+    "detail": {
+      "none": "No capability selected",
+      "noDescription": "No description yet.",
+      "direct": "Direct",
+      "subtree": "Subtree",
+      "fulfillments": "Fulfillments",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "fulfillment": {
+      "placeholder": "scenario-slug",
+      "link": "Link scenario"
+    },
+    "coverage": {
+      "title": "Sector coverage",
+      "counts": "Built {{built}} / In-flight {{inflight}} / Gap {{gap}}"
+    },
+    "overlay": {
+      "title": "Overlay graph: {{nodes}} nodes / {{edges}} edges",
+      "ariaLabel": "Ontology overlay graph",
+      "empty": "No overlay nodes match this view."
+    },
+    "states": {
+      "loading": "Loading ontology coverage…",
+      "error": "Ontology data is unavailable. Confirm the API is running.",
+      "empty": "No capabilities have been imported yet."
+    }
+  },
+  "health": {
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
+  }
+}

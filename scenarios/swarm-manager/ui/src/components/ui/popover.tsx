@@ -5,10 +5,14 @@
  * Supports fixed positioning (x/y) for context menus and click-outside/Esc to close.
  */
 
-import { useRef, useEffect, type ReactNode } from 'react'
+import { useRef, useState, useLayoutEffect, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '../../lib/utils'
 import { useModalBehavior } from '../../hooks/useModalBehavior'
+import { useIsMobile } from '../../hooks/useMediaQuery'
+import { BottomSheet } from './bottom-sheet'
+
+type PopoverPlacement = 'bottom-start' | 'bottom-end' | 'top-start' | 'top-end'
 
 export interface PopoverProps {
   /** Whether the popover is visible */
@@ -19,12 +23,25 @@ export interface PopoverProps {
   x?: number
   /** Fixed Y position (for context menus) */
   y?: number
+  /** Trigger element to anchor the popover to */
+  triggerRef?: RefObject<HTMLElement | null>
+  /** Trigger-anchored placement */
+  placement?: PopoverPlacement
+  /** Gap between the trigger and the popover */
+  offset?: number
   /** Popover content */
   children: ReactNode
   /** Additional CSS classes for the container */
   className?: string
   /** Delay click-outside listener (prevents instant close from triggering right-click) */
   delayClickOutside?: boolean
+  /**
+   * Render as a full-width BottomSheet on mobile instead of an anchored card.
+   * Opt-in: coordinate-positioned context menus and tooltips must stay anchored.
+   */
+  mobileSheet?: boolean
+  /** Sheet header title when mobileSheet is active (omit if the content self-titles) */
+  mobileTitle?: string
   /** data-testid value */
   testId?: string
 }
@@ -37,40 +54,85 @@ export function Popover({
   onClose,
   x,
   y,
+  triggerRef,
+  placement = 'bottom-start',
+  offset = 8,
   children,
   className,
   delayClickOutside = false,
+  mobileSheet = false,
+  mobileTitle,
   testId,
 }: PopoverProps) {
+  const isMobile = useIsMobile()
+  const asSheet = mobileSheet && isMobile
   const menuRef = useRef<HTMLDivElement>(null)
+  // Measure-then-reveal: the anchored node is measured while hidden, then its
+  // final position is written and it is revealed — all inside a pre-paint
+  // useLayoutEffect, so a trigger-anchored menu never paints a top-left frame
+  // before flying into place.
+  const [positioned, setPositioned] = useState(false)
 
+  // In sheet mode BottomSheet (via Dialog) owns Esc/click-outside/scroll lock.
   useModalBehavior({
-    isOpen,
+    isOpen: isOpen && !asSheet,
     onClose,
     ref: menuRef,
     delayClickOutside,
   })
 
-  // Viewport clamping
-  useEffect(() => {
-    if (!isOpen || !menuRef.current || x === undefined || y === undefined) return
+  useLayoutEffect(() => {
+    if (!isOpen || asSheet) {
+      // Re-hide so a reopened menu is measured again before it reveals.
+      setPositioned(false)
+      return
+    }
+    if (!menuRef.current) return
 
     const rect = menuRef.current.getBoundingClientRect()
-    let adjustedX = x
-    let adjustedY = y
+    const triggerRect = triggerRef?.current?.getBoundingClientRect()
+    let nextX = x
+    let nextY = y
 
-    if (x + rect.width > window.innerWidth) {
-      adjustedX = window.innerWidth - rect.width - 8
-    }
-    if (y + rect.height > window.innerHeight) {
-      adjustedY = window.innerHeight - rect.height - 8
+    if (triggerRect) {
+      const isTop = placement.startsWith('top')
+      const isEnd = placement.endsWith('end')
+      nextX = isEnd ? triggerRect.right - rect.width : triggerRect.left
+      nextY = isTop ? triggerRect.top - rect.height - offset : triggerRect.bottom + offset
     }
 
-    menuRef.current.style.left = `${adjustedX}px`
-    menuRef.current.style.top = `${adjustedY}px`
-  }, [isOpen, x, y])
+    if (nextX !== undefined && nextY !== undefined) {
+      let adjustedX = nextX
+      let adjustedY = nextY
+
+      if (nextX + rect.width > window.innerWidth) {
+        adjustedX = window.innerWidth - rect.width - 8
+      }
+      if (nextY + rect.height > window.innerHeight) {
+        adjustedY = window.innerHeight - rect.height - 8
+      }
+
+      menuRef.current.style.left = `${Math.max(8, adjustedX)}px`
+      menuRef.current.style.top = `${Math.max(8, adjustedY)}px`
+    }
+
+    // Reveal in the same pre-paint commit that wrote the position.
+    setPositioned(true)
+  }, [asSheet, isOpen, offset, placement, triggerRef, x, y])
 
   if (!isOpen) return null
+
+  if (asSheet) {
+    return (
+      <BottomSheet isOpen={isOpen} onClose={onClose} title={mobileTitle} data-testid={testId}>
+        {children}
+      </BottomSheet>
+    )
+  }
+
+  const hasPosition = x !== undefined && y !== undefined
+  const hasTrigger = Boolean(triggerRef?.current)
+  const positionStyle = hasPosition ? { left: x, top: y } : hasTrigger ? { left: 0, top: 0 } : {}
 
   return createPortal(
     <div
@@ -81,7 +143,7 @@ export function Popover({
         'animate-in fade-in-0 zoom-in-95 duration-100',
         className,
       )}
-      style={x !== undefined && y !== undefined ? { left: x, top: y } : undefined}
+      style={{ ...positionStyle, visibility: positioned ? undefined : 'hidden' }}
       data-testid={testId}
     >
       {children}

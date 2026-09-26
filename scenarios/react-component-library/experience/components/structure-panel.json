@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": { "id": "structure-panel", "title": "Catalog Structure Panel", "purpose": "Orient maintainers with rung population, graph invariants, and largest blast radii.", "storyRef": "../../library/components/TreeView/versions/1.0.7/story.json" },
+  "states": [
+    { "id": "loading", "example": "default", "description": "Structure data is loading." },
+    { "id": "empty", "example": "empty", "description": "No structure projection is available." },
+    { "id": "partial", "example": "default", "description": "The panel shows available structure while a supporting source is unavailable." },
+    { "id": "error", "example": "default", "description": "The structure service failed and explains the failure." },
+    { "id": "success", "example": "default", "description": "Population, invariants, and blast radius are readable." }
+  ],
+  "elements": [],
+  "claims": [
+    { "id": "structure-present", "type": "custom", "statement": "The dashboard exposes a named structure region.", "tier": "manual", "states": ["success"] },
+    { "id": "structure-states", "type": "custom", "statement": "The structure region explains loading, empty, partial, error, and success states.", "tier": "manual", "states": ["loading", "empty", "partial", "error", "success"] }
+  ],
+  "bindings": {}
+}

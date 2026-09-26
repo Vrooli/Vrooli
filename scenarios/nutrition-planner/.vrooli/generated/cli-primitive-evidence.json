@@ -1,0 +1,32 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "nutrition-planner",
+  "generator": "v1.0.0",
+  "manifest_hash": "56e87ae8421575e0de1178de20e563cafecaf27e83dead7067178b7bb0e02995",
+  "commands": [
+    {
+      "path": "recipe create",
+      "group": "recipe",
+      "command": "create",
+      "binding": "RecipeService.CreateRecipe",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "recipe list",
+      "group": "recipe",
+      "command": "list",
+      "binding": "RecipeService.ListRecipes",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "workspace list",
+      "group": "workspace",
+      "command": "list",
+      "binding": "WorkspaceService.ListWorkspaces"
+    }
+  ]
+}

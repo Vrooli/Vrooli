@@ -1,0 +1,126 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Quality Health are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Quality Health",
+    "eyebrow": "Static quality authority",
+    "description": "Audit lint, type-safety, configuration guardrails, command execution, and autofix readiness for Vrooli scenarios."
+  },
+  "layout": {
+    "sidebarLabel": "Sidebar navigation",
+    "bottomNavLabel": "Mobile navigation",
+    "mainLabel": "Main content",
+    "nav": {
+      "dashboard": "Dashboard",
+      "settings": "Settings"
+    }
+  },
+  "theme": {
+    "switcherLabel": "Theme",
+    "choice": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Quality audit",
+      "description": "Inspect the selected scenario's static quality contracts, discovered surfaces, findings, and safe remediation paths."
+    },
+    "settings": {
+      "title": "Settings",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language"
+    }
+  },
+  "health": {
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
+  },
+  "quality": {
+    "title": "Scenario quality audit",
+    "scenarioLabel": "Scenario",
+    "scenarioPlaceholder": "quality-health",
+    "runAudit": "Run audit",
+    "running": "Running",
+    "refresh": "Refresh",
+    "loading": "Running static quality audit…",
+    "status": "Status",
+    "maturity": "Maturity",
+    "findings": "Findings",
+    "surfaces": "Surfaces",
+    "commands": "Commands",
+    "countSummary": "{{errors}} errors / {{warnings}} warnings / {{infos}} info",
+    "unknown": "Unknown",
+    "surfaceBreakdown": "Surface breakdown",
+    "noSurfaces": "No surfaces were discovered for this audit.",
+    "findingsWorkbench": "Findings workbench",
+    "severityFilter": "Severity",
+    "surfaceFilter": "Surface",
+    "ruleFilter": "Rule",
+    "allSeverities": "All severities",
+    "allSurfaces": "All surfaces",
+    "allRules": "All rules",
+    "errorSeverity": "Errors",
+    "warningSeverity": "Warnings",
+    "infoSeverity": "Info",
+    "autofixGroup": "Autofix",
+    "agentGroup": "Agent repair",
+    "manualGroup": "Manual review",
+    "noFindings": "No findings match the current filters.",
+    "contractDetail": "Contract detail",
+    "rule": "Rule",
+    "expected": "Expected",
+    "observed": "Observed",
+    "whyItMatters": "Why it matters",
+    "remediation": "Remediation",
+    "none": "None",
+    "selectFinding": "Select a finding to inspect the contract detail.",
+    "autofixPreview": "Autofix preview",
+    "previewFix": "Preview fix",
+    "applyFix": "Apply fix",
+    "applied": "Applied",
+    "dryRun": "Dry run",
+    "noAutofix": "Select an autofixable finding to preview deterministic config edits.",
+    "commandsTitle": "Command results",
+    "noCommands": "No command execution results were included in this audit."
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
+  }
+}

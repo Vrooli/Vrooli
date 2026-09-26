@@ -14,17 +14,7 @@ export function ToastContainer() {
   if (toasts.length === 0) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: 'var(--spacing-lg)',
-      right: 'var(--spacing-lg)',
-      zIndex: 9999,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 'var(--spacing-sm)',
-      maxWidth: '420px',
-      width: '100%',
-    }}>
+    <div data-sm-style="sm-style-81adfbc78d">
       {toasts.map(toast => {
         const colors = severityColors[toast.severity];
         return (
@@ -45,31 +35,19 @@ export function ToastContainer() {
             <span style={{ color: colors.text, flex: 1, fontSize: 'var(--text-sm)' }}>
               {toast.message}
             </span>
-            <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexShrink: 0 }}>
+            <div data-sm-style="sm-style-3fd8adeb01">
               {toast.retryFn && (
                 <button
                   onClick={() => { dismissToast(toast.id); toast.retryFn?.(); }}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--color-primary)',
-                    cursor: 'pointer',
-                    padding: '2px',
-                  }}
+                  data-sm-style="sm-style-f13784862f"
                   title="Retry"
                 >
                   <RotateCcw size={14} />
                 </button>
               )}
               <button
-                onClick={() => dismissToast(toast.id)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--color-text-secondary)',
-                  cursor: 'pointer',
-                  padding: '2px',
-                }}
+                onClick={() => { dismissToast(toast.id); }}
+                data-sm-style="sm-style-847600675b"
                 title="Dismiss"
               >
                 <X size={14} />

@@ -16,13 +16,22 @@
  */
 
 import type { Page, BrowserContext, Frame } from 'rebrowser-playwright';
+import { InvalidInstructionError } from '../utils/errors';
 import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
 import type winston from 'winston';
+import type { AppTargetSpec } from '../types/session';
+import type { InteractionState } from '../session/interaction-state';
 
 // Import types from proto and outcome-builder
 import type { HandlerInstruction } from '../proto';
-import type { HandlerResult, Screenshot, DOMSnapshot, ConsoleLogEntry, NetworkEvent } from '../outcome/outcome-builder';
+import type {
+  HandlerResult,
+  Screenshot,
+  DOMSnapshot,
+  ConsoleLogEntry,
+  NetworkEvent,
+} from '../outcome/outcome-builder';
 
 // Re-export for handler use
 export type { HandlerResult, Screenshot, DOMSnapshot, ConsoleLogEntry, NetworkEvent };
@@ -81,6 +90,10 @@ export interface HandlerContext {
   metrics: Metrics;
   /** Session identifier for logging and tracking */
   sessionId: string;
+  /** The admitted target identity, when this is a controlled Electron run. */
+  electronTarget?: AppTargetSpec;
+  /** Semantic interaction state requested by a validation capture, if any. */
+  interactionState?: InteractionState;
 
   // -------------------------------------------------------------------------
   // OPTIONAL FIELDS - Populated when relevant features are used
@@ -117,6 +130,22 @@ export interface HandlerContext {
   networkEvents?: NetworkEvent[];
 }
 
+/** A selected document owns DOM operations; Page still owns physical input and capture. */
+export type BrowserDocument = Page | Frame;
+
+export function getDocument(context: HandlerContext): BrowserDocument {
+  const frames = context.frameStack;
+  if (!frames?.length) return context.page;
+  let parent = context.page.mainFrame();
+  for (const frame of frames) {
+    if (frame.isDetached() || frame.page() !== context.page || frame.parentFrame() !== parent) {
+      throw new InvalidInstructionError('Selected frame is detached or belongs to another document; select a frame again');
+    }
+    parent = frame;
+  }
+  return parent;
+}
+
 /**
  * Base handler interface
  *
@@ -131,10 +160,7 @@ export interface InstructionHandler {
   /**
    * Execute instruction
    */
-  execute(
-    instruction: CompiledInstruction,
-    context: HandlerContext
-  ): Promise<HandlerResult>;
+  execute(instruction: CompiledInstruction, context: HandlerContext): Promise<HandlerResult>;
 }
 
 /**
@@ -154,11 +180,7 @@ export abstract class BaseHandler implements InstructionHandler {
   /**
    * Wait for element with timeout
    */
-  protected async waitForElement(
-    page: Page,
-    selector: string,
-    timeoutMs?: number
-  ): Promise<void> {
+  protected async waitForElement(page: Page, selector: string, timeoutMs?: number): Promise<void> {
     await page.waitForSelector(selector, {
       timeout: timeoutMs,
       state: 'visible',
@@ -190,10 +212,7 @@ export abstract class BaseHandler implements InstructionHandler {
   /**
    * Extract text from page
    */
-  protected async extractText(
-    page: Page,
-    selector?: string
-  ): Promise<string> {
+  protected async extractText(page: Page, selector?: string): Promise<string> {
     if (selector) {
       const element = page.locator(selector).first();
       const text = await element.textContent();
@@ -221,15 +240,11 @@ export abstract class BaseHandler implements InstructionHandler {
    * Throws an error if the instruction doesn't have a typed action - this indicates
    * an execution path that hasn't been migrated to populate the Action field.
    */
-  protected requireTypedParams<T>(
-    params: T | undefined,
-    handlerType: string,
-    nodeId: string
-  ): T {
+  protected requireTypedParams<T>(params: T | undefined, handlerType: string, nodeId: string): T {
     if (!params) {
       throw new Error(
         `[${handlerType}] Missing typed action params for node ${nodeId}. ` +
-        `This indicates an unmigrated execution path - all instructions should have action populated.`
+          `This indicates an unmigrated execution path - all instructions should have action populated.`
       );
     }
     return params;

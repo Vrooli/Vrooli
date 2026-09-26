@@ -26,6 +26,8 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+
+	filesSchema "file-tools/internal/files"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
@@ -97,9 +99,11 @@ type MetadataResponse struct {
 // NewServer creates a new server instance
 func NewServer() (*Server, error) {
 	config := &Config{
-		Port:        getEnv("API_PORT", "8080"),
-		DatabaseURL: getEnv("DATABASE_URL", getEnv("POSTGRES_URL", "postgres://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/vrooli?sslmode=disable")),
-		N8NURL:      getEnv("N8N_BASE_URL", "http://localhost:5678"),
+		Port: getEnv("API_PORT", "8080"),
+		// database.Connect owns Postgres environment resolution; keep this
+		// field only for compatibility with existing test fixtures.
+		DatabaseURL: "",
+		N8NURL:      "",
 		APIToken:    getEnv("API_TOKEN", "API_TOKEN_PLACEHOLDER"),
 	}
 
@@ -110,6 +114,11 @@ func NewServer() (*Server, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
+	}
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(filesSchema.Schema)); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("database schema initialization failed: %w", err)
 	}
 
 	server := &Server{

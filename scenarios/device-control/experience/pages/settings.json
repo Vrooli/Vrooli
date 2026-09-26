@@ -1,0 +1,269 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": [
+      "/settings"
+    ],
+    "purpose": "Expose the configuration that governs how much of a personal device this scenario may see and retain — redaction policy, retention, consumer grants, and the bridge connection.",
+    "prd_refs": [
+      "OT-P0-008",
+      "OT-P0-009",
+      "OT-P0-003"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The redaction policy in force, and what it does not cover, are stated before any other setting.",
+      "notes": "This is the setting that decides whether a personal device's screen can end up in a shared evidence store. It outranks connection details."
+    },
+    {
+      "statement": "Which consumers may hold a lease is shown as an explicit list, never implied by a global toggle.",
+      "notes": "A capability that can drive a personal phone deserves credential-grade treatment, which means named grants rather than on/off."
+    },
+    {
+      "statement": "Retention for captures is shown with what pins a run beyond it.",
+      "notes": "Release-referenced runs are exempt from expiry; an operator who does not know that will believe captures are gone when they are not."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Settings loaded with a redaction policy in force and at least one consumer grant.",
+      "setup": {
+        "route": "/settings"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "Configuration is being fetched; no policy is asserted yet.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No redaction policy has been defined and no consumer has been granted. Stated as an unsafe default rather than a neutral blank form.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "A redaction policy exists but does not cover every capture kind; the uncovered kinds are named.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "The bridge connection was last confirmed longer ago than the health interval; shown as unconfirmed rather than connected.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "Configuration could not be loaded. No policy is presented as in force while its actual value is unknown.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "A submitted setting was rejected; the field and the reason are named and the prior value remains in force.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "redaction-policy",
+      "role": "region",
+      "name": "Redaction",
+      "description": "The policy applied to captures before they leave the producer, and which capture kinds it covers."
+    },
+    {
+      "id": "redaction-coverage-gap",
+      "role": "alert",
+      "description": "Names capture kinds the current policy does not cover, including the case where no policy exists at all."
+    },
+    {
+      "id": "consumer-grants",
+      "role": "table",
+      "name": "Consumer grants",
+      "description": "Which consumers may acquire a lease, scoped by device and verb class."
+    },
+    {
+      "id": "retention-policy",
+      "role": "region",
+      "name": "Retention",
+      "description": "How long captures, audit, and run records are kept, and what pins a run past expiry."
+    },
+    {
+      "id": "bridge-connection",
+      "role": "status",
+      "description": "Reach-plane connection status and when it was last confirmed."
+    },
+    {
+      "id": "revoke-grant",
+      "role": "button",
+      "name": "Revoke",
+      "description": "Removes a consumer's ability to acquire new leases."
+    }
+  ],
+  "claims": [
+    {
+      "id": "redaction-reads-before-connection",
+      "type": "reading-order",
+      "statement": "The redaction policy reads before connection and retention configuration.",
+      "tier": "machine",
+      "elements": [
+        "redaction-policy",
+        "bridge-connection"
+      ],
+      "locales": [
+        "en",
+        "ar"
+      ],
+      "rationale": "Priority 1. This is the setting with the highest consequence on the page, and settings pages default to ordering by system layer rather than by risk."
+    },
+    {
+      "id": "absent-policy-is-announced",
+      "type": "state-covered",
+      "statement": "When no redaction policy is defined, the page states that captures are unprotected rather than presenting a neutral empty form.",
+      "tier": "machine",
+      "states": [
+        "empty"
+      ],
+      "elements": [
+        "redaction-coverage-gap"
+      ],
+      "rationale": "SECURITY.md records the undefined redaction policy as a high-severity gap. A blank form communicates 'nothing configured yet'; the truth is 'nothing is protecting these frames'."
+    },
+    {
+      "id": "policy-gaps-are-named",
+      "type": "element-present",
+      "statement": "Capture kinds not covered by the current redaction policy are named individually.",
+      "tier": "machine",
+      "elements": [
+        "redaction-coverage-gap"
+      ],
+      "states": [
+        "partial"
+      ],
+      "rationale": "A partially applied policy reads as full protection unless the uncovered kinds are enumerated — device logs and clipboard are the likely omissions."
+    },
+    {
+      "id": "grants-are-a-named-list",
+      "type": "element-present",
+      "statement": "Consumers permitted to hold a lease are presented as an enumerable list with their scope.",
+      "tier": "machine",
+      "elements": [
+        "consumer-grants"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "Priority 2. A global enable toggle cannot express per-device or per-verb scope, and SECURITY.md flags all-or-nothing granting as a medium gap."
+    },
+    {
+      "id": "revocation-is-reachable-per-consumer",
+      "type": "keyboard-reachable",
+      "statement": "Each grant can be revoked from the keyboard.",
+      "tier": "machine",
+      "elements": [
+        "revoke-grant"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "Revocation is the control an operator reaches for under time pressure; it should not depend on a pointer."
+    },
+    {
+      "id": "retention-states-what-pins",
+      "type": "element-present",
+      "statement": "Retention shows both the expiry window and what exempts a run from it.",
+      "tier": "machine",
+      "elements": [
+        "retention-policy"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "Priority 3. DATA.md pins release-referenced runs; an operator who does not know that will believe captures are deleted when they are retained."
+    },
+    {
+      "id": "unconfirmed-connection-is-not-connected",
+      "type": "state-distinct",
+      "statement": "A bridge connection not confirmed within the health interval is perceivably different from a confirmed one.",
+      "tier": "machine",
+      "states": [
+        "default",
+        "stale"
+      ],
+      "elements": [
+        "bridge-connection"
+      ],
+      "rationale": "Consistent with D-002 at the connection scale: last-known-good is not the same claim as currently-reachable."
+    },
+    {
+      "id": "rejected-setting-keeps-prior-value",
+      "type": "state-covered",
+      "statement": "A rejected setting names the field and reason, and the previously effective value remains stated.",
+      "tier": "machine",
+      "states": [
+        "validation-error"
+      ],
+      "elements": [
+        "redaction-policy"
+      ],
+      "rationale": "Leaving a rejected form in an ambiguous state is how an operator comes to believe a policy is in force when it is not."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "redaction-policy": {
+        "testid": "settings-redaction"
+      },
+      "redaction-coverage-gap": {
+        "testid": "settings-redaction-gap"
+      },
+      "consumer-grants": {
+        "testid": "settings-grants"
+      },
+      "retention-policy": {
+        "testid": "settings-retention"
+      },
+      "bridge-connection": {
+        "testid": "settings-bridge-connection"
+      },
+      "revoke-grant": {
+        "testid": "settings-revoke-grant"
+      }
+    }
+  }
+}

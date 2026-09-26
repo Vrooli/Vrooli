@@ -4,24 +4,39 @@
   "teamId": "meta-optimization",
   "roles": [
     {
-      "id": "lead",
-      "name": "Lead",
-      "description": "Triages development health across the full capability chain (P1-P5), escalates critical issues, and orchestrates optimization cycles for highest-leverage improvements."
+      "id": "toolchain-validator",
+      "name": "Toolchain Validator",
+      "description": "Runs development-toolchain-validator (or manual fallback: scenario-auditor + test-genie + tidiness-manager) against a gold-star reference scenario each heartbeat; investigates violations the tool returns. On a longer cadence (default: monthly per registered template), audits the template each reference is generated from using the `reference-pattern-fitness` skill (canon: docs/agent-system/REFERENCE_PATTERN_FITNESS.md); files findings as proposed template patches under `meta-self-improvement` work type. No visited tracker needed — the tool surfaces current issues."
     },
     {
-      "id": "skill-specialist",
-      "name": "Skill Specialist",
-      "description": "Resolves cross-skill conflicts, audits and improves the skill library, and increases skill maturity."
+      "id": "skill-optimizer",
+      "name": "Skill Optimizer",
+      "description": "Identifies high-usage skills and pushes deterministic execution toward Actions over Vrooli-controlled CLIs. Also audits skill and Action drift and proposes deprecation of unused skills or obsolete Actions."
     },
     {
-      "id": "agent-specialist",
-      "name": "Agent Specialist",
-      "description": "Audits and improves agent configurations for clarity, effectiveness, and appropriate skill references."
+      "id": "team-agent-optimizer",
+      "name": "Team & Agent Optimizer",
+      "description": "Audits team structures and agent files together (they co-evolve). Maintains team-audit and agent-audit artifacts, proposes structural/prompt changes, detects capability architecture gaps across docs, skills, intake, collection, analysis, and promotion/routing, and proposes deprecation of unused agents or empty teams."
     },
     {
-      "id": "team-specialist",
-      "name": "Team Specialist",
-      "description": "Audits and improves team structures, role definitions, and cross-team coordination."
+      "id": "run-introspector",
+      "name": "Run Introspector",
+      "description": "Inspects recent agent-manager runs since last heartbeat (errored → retried → slow → random-success triage). Captures lessons and proposes skill/agent/prompt changes grounded in what actually happened in execution, not what's documented."
+    },
+    {
+      "id": "friction-curator",
+      "name": "Friction Curator",
+      "description": "Drains the universal friction-inbox intake, validates each report's scope against the friction-report taxonomy, reclassifies when evidence supports it, and routes entries to the owning member's friction-report topic."
+    },
+    {
+      "id": "meta-contrarian",
+      "name": "Meta-Contrarian",
+      "description": "Mandatory skeptic across all other members' proposals. Defends against polishing, sprawl, premature conversion, churn-without-benefit, too-fast deprecation, scope creep, and conversion-without-measurement. Owns the aging scan for the work queue."
+    },
+    {
+      "id": "debt-curator",
+      "name": "Debt Curator",
+      "description": "Applies the team's own evolutionary-pressure principles to itself. Scans typed evidence topics for prose workarounds that have stabilized into promotable patterns; proposes promotion into permanent structure (canon under docs/agent-system/, skills, scenario features, team-config changes) or retirement when already obsoleted. Proposes only — never implements."
     }
   ]
 }

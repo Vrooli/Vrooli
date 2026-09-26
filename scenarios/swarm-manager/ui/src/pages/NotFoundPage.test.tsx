@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { screen, fireEvent } from "@testing-library/react";
 import { NotFoundPage } from "./NotFoundPage";
 import { selectors } from "../consts/selectors";
+import { renderWithProviders } from "../test-utils";
 
 // Mock react-router-dom navigation
 const mockNavigate = vi.fn();
@@ -31,23 +31,19 @@ describe("NotFoundPage", () => {
     mockNavigate.mockClear();
   });
 
+  function renderPage() {
+    return renderWithProviders(<NotFoundPage />);
+  }
+
   describe("page structure", () => {
     it("renders the page container with correct test ID", () => {
-      render(
-        <MemoryRouter>
-          <NotFoundPage />
-        </MemoryRouter>
-      );
+      renderPage();
 
       expect(screen.getByTestId(selectors.notFound.page)).toBeInTheDocument();
     });
 
     it("renders user-friendly title", () => {
-      render(
-        <MemoryRouter>
-          <NotFoundPage />
-        </MemoryRouter>
-      );
+      renderPage();
 
       const title = screen.getByTestId(selectors.notFound.title);
       expect(title).toHaveTextContent("Page not found");
@@ -56,11 +52,7 @@ describe("NotFoundPage", () => {
     });
 
     it("renders helpful message", () => {
-      render(
-        <MemoryRouter>
-          <NotFoundPage />
-        </MemoryRouter>
-      );
+      renderPage();
 
       const message = screen.getByTestId(selectors.notFound.message);
       expect(message).toHaveTextContent("doesn't exist");
@@ -68,21 +60,13 @@ describe("NotFoundPage", () => {
     });
 
     it("renders home button with correct test ID", () => {
-      render(
-        <MemoryRouter>
-          <NotFoundPage />
-        </MemoryRouter>
-      );
+      renderPage();
 
       expect(screen.getByTestId(selectors.notFound.homeButton)).toBeInTheDocument();
     });
 
     it("home button displays correct text", () => {
-      render(
-        <MemoryRouter>
-          <NotFoundPage />
-        </MemoryRouter>
-      );
+      renderPage();
 
       const button = screen.getByTestId(selectors.notFound.homeButton);
       expect(button).toHaveTextContent("Go to Backlog");
@@ -91,11 +75,7 @@ describe("NotFoundPage", () => {
 
   describe("navigation", () => {
     it("navigates to /backlog when home button clicked", () => {
-      render(
-        <MemoryRouter>
-          <NotFoundPage />
-        </MemoryRouter>
-      );
+      renderPage();
 
       const button = screen.getByTestId(selectors.notFound.homeButton);
       fireEvent.click(button);
@@ -105,11 +85,7 @@ describe("NotFoundPage", () => {
     });
 
     it("uses replace navigation to prevent back-to-404 loop", () => {
-      render(
-        <MemoryRouter>
-          <NotFoundPage />
-        </MemoryRouter>
-      );
+      renderPage();
 
       const button = screen.getByTestId(selectors.notFound.homeButton);
       fireEvent.click(button);
@@ -121,22 +97,14 @@ describe("NotFoundPage", () => {
 
   describe("accessibility", () => {
     it("has proper heading hierarchy", () => {
-      render(
-        <MemoryRouter>
-          <NotFoundPage />
-        </MemoryRouter>
-      );
+      renderPage();
 
       const heading = screen.getByRole("heading", { level: 1 });
       expect(heading).toHaveTextContent("Page not found");
     });
 
     it("button is focusable", () => {
-      render(
-        <MemoryRouter>
-          <NotFoundPage />
-        </MemoryRouter>
-      );
+      renderPage();
 
       const button = screen.getByTestId(selectors.notFound.homeButton);
       expect(button.tagName.toLowerCase()).toBe("button");

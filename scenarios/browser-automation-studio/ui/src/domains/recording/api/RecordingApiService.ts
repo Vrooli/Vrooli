@@ -11,9 +11,12 @@
  */
 
 import { z } from 'zod';
+import { ConnectError } from '@connectrpc/connect';
 import { safeParse } from '@/shared/api/safeParse';
 import { getApiBase } from '@/config';
 import { logger } from '@/utils/logger';
+import { visionNavigationClient } from '@/api/visionNavigation';
+import type { StartNavigationResponse } from '@/api/visionNavigation';
 import * as schemas from './schemas';
 
 // ============================================================================
@@ -73,7 +76,7 @@ export class RecordingApiService {
    * Validate data with Zod schema, returning ApiResult.
    */
   private validate<T>(
-    schema: z.ZodSchema<T>,
+    schema: z.ZodType<T, z.ZodTypeDef, unknown>,
     data: unknown,
     context: string
   ): ApiResult<T> {
@@ -156,55 +159,19 @@ export class RecordingApiService {
 
       const payload = await this.parseJson(response, 'startRecording');
 
-      // Handle 409 Conflict: Recording already in progress
-      // This happens on page refresh - treat as successful state sync
+      // Recover refresh/retry only from the driver's actual active receipt.
       if (response.status === 409) {
-        // Backend returns error format {code, message} for 409, not StartRecordingResponse
-        // Check if it's the expected RECORDING_IN_PROGRESS error
-        const errorResult = schemas.ApiErrorResponseSchema.safeParse(payload);
-        if (errorResult.success && errorResult.data.code === 'RECORDING_IN_PROGRESS') {
-          // Recording is active - return synthetic success for session restoration
-          const data: schemas.StartRecordingResponse = {
-            recording_id: `restored-${sessionId}-${Date.now()}`,
-            session_id: sessionId,
-            started_at: new Date().toISOString(),
-          };
-          logger.info('Recording already in progress, syncing state', {
-            component: 'RecordingApiService',
-            recordingId: data.recording_id,
-          });
-          return { success: true, data };
+        const error = schemas.ApiErrorResponseSchema.safeParse(payload);
+        if (error.success && error.data.code === 'RECORDING_IN_PROGRESS') {
+          const current = await fetch(`${this.apiUrl}/recordings/live/${sessionId}/status`, { signal: options?.signal });
+          const statusPayload = await this.parseJson(current, 'recordingStatus');
+          if (!current.ok) return { success: false, error: this.extractErrorMessage(statusPayload, current.statusText) };
+          const status = this.validate(schemas.ActiveRecordingStatusSchema, statusPayload, 'ActiveRecordingStatus');
+          if (!status.success) return status;
+          if (status.data.session_id !== sessionId) return { success: false, error: 'Recording status belongs to another session' };
+          const { recording_id, session_id, started_at } = status.data;
+          return { success: true, data: { recording_id, session_id, started_at } };
         }
-
-        // Fallback: try parsing as relaxed StartRecordingResponse
-        const relaxedSchema = schemas.StartRecordingResponseSchema.extend({
-          recording_id: z.string().optional(),
-          session_id: z.string().optional(),
-          started_at: z.string().optional(),
-        });
-        const validated = this.validate(relaxedSchema, payload, 'StartRecording (409)');
-        if (validated.success) {
-          const data: schemas.StartRecordingResponse = {
-            recording_id: validated.data.recording_id ?? `restored-${sessionId}-${Date.now()}`,
-            session_id: validated.data.session_id ?? sessionId,
-            started_at: validated.data.started_at ?? new Date().toISOString(),
-          };
-          return { success: true, data };
-        }
-
-        // If all parsing fails, still treat as success since 409 means recording is active
-        logger.warn('409 response format unexpected, treating as active recording', {
-          component: 'RecordingApiService',
-          payload,
-        });
-        return {
-          success: true,
-          data: {
-            recording_id: `restored-${sessionId}-${Date.now()}`,
-            session_id: sessionId,
-            started_at: new Date().toISOString(),
-          },
-        };
       }
 
       if (!response.ok) {
@@ -465,7 +432,11 @@ export class RecordingApiService {
   // ==========================================================================
 
   /**
-   * Start AI-driven navigation.
+   * Start AI-driven navigation via the VisionNavigationService Connect-RPC.
+   *
+   * Returns the proto StartNavigationResponse directly on success. On error
+   * the connect error is serialized as enriched JSON (code/message) so the
+   * useAINavigation hook can reconstruct an AINavigationError.
    */
   async startAINavigation(
     params: {
@@ -476,63 +447,39 @@ export class RecordingApiService {
     },
     headers: HeadersInit,
     options?: RequestOptions
-  ): Promise<ApiResult<schemas.AINavigateResponse>> {
+  ): Promise<ApiResult<StartNavigationResponse>> {
     try {
-      const response = await fetch(`${this.apiUrl}/ai-navigate`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          session_id: params.sessionId,
+      const resp = await visionNavigationClient.startNavigation(
+        {
+          sessionId: params.sessionId,
           prompt: params.prompt,
           model: params.model,
-          max_steps: params.maxSteps ?? 20,
-        }),
-        signal: options?.signal,
-      });
-
-      const payload = await this.parseJson(response, 'startAINavigation');
-
-      if (!response.ok) {
-        const message = this.extractErrorMessage(payload, response.statusText);
-        const errorResult = schemas.ApiErrorResponseSchema.safeParse(payload);
-        const code = errorResult.success ? errorResult.data.code : undefined;
-        const details = errorResult.success ? errorResult.data.details : undefined;
-
-        // Return enriched error for AINavigationError construction
-        return {
-          success: false,
-          error: JSON.stringify({ code: code ?? 'UNKNOWN_ERROR', message, details }),
-        };
-      }
-
-      return this.validate(schemas.AINavigateResponseSchema, payload, 'AINavigate');
+          maxSteps: params.maxSteps ?? 20,
+          clientSource: this.extractClientSource(headers),
+        },
+        { signal: options?.signal },
+      );
+      return { success: true, data: resp };
     } catch (err) {
-      return this.handleError(err, 'startAINavigation');
+      return this.handleConnectError(err, 'startAINavigation', true);
     }
   }
 
   /**
-   * Abort AI navigation.
+   * Abort AI navigation via VisionNavigationService.
    */
   async abortAINavigation(
     navigationId: string,
     options?: RequestOptions
   ): Promise<ApiResult<void>> {
     try {
-      const response = await fetch(`${this.apiUrl}/ai-navigate/${navigationId}/abort`, {
-        method: 'POST',
-        signal: options?.signal,
-      });
-
-      if (!response.ok) {
-        const payload = await this.parseJson(response, 'abortAINavigation');
-        const message = this.extractErrorMessage(payload, response.statusText);
-        return { success: false, error: message };
-      }
-
+      await visionNavigationClient.abortNavigation(
+        { navigationId },
+        { signal: options?.signal },
+      );
       return { success: true, data: undefined };
     } catch (err) {
-      return this.handleError(err, 'abortAINavigation');
+      return this.handleConnectError(err, 'abortAINavigation', false);
     }
   }
 
@@ -544,96 +491,68 @@ export class RecordingApiService {
     options?: RequestOptions
   ): Promise<ApiResult<void>> {
     try {
-      const response = await fetch(`${this.apiUrl}/ai-navigate/${navigationId}/resume`, {
-        method: 'POST',
-        signal: options?.signal,
+      await visionNavigationClient.resumeNavigation(
+        { navigationId },
+        { signal: options?.signal },
+      );
+      return { success: true, data: undefined };
+    } catch (err) {
+      return this.handleConnectError(err, 'resumeAINavigation', false);
+    }
+  }
+
+  /**
+   * Pull X-Client-Source out of a HeadersInit blob so the StartNavigation
+   * proto field can carry it. We accept both Headers and plain objects since
+   * callers vary.
+   */
+  private extractClientSource(headers: HeadersInit | undefined): string {
+    if (!headers) return '';
+    if (headers instanceof Headers) {
+      return headers.get('X-Client-Source') ?? '';
+    }
+    if (Array.isArray(headers)) {
+      const entry = headers.find(([k]) => k.toLowerCase() === 'x-client-source');
+      return entry ? entry[1] : '';
+    }
+    // Record<string, string>
+    const rec = headers as Record<string, string>;
+    return rec['X-Client-Source'] ?? rec['x-client-source'] ?? '';
+  }
+
+  /**
+   * Convert a Connect error into our ApiResult shape. When `enriched` is
+   * true the error string is a JSON envelope { code, message, details } so
+   * useAINavigation can reconstruct an AINavigationError.
+   */
+  private handleConnectError<T>(
+    err: unknown,
+    context: string,
+    enriched: boolean,
+  ): ApiResult<T> {
+    if (err instanceof ConnectError) {
+      logger.warn(`Connect error in ${context}`, {
+        component: 'RecordingApiService',
+        code: err.code,
+        message: err.rawMessage,
       });
-
-      if (!response.ok) {
-        const payload = await this.parseJson(response, 'resumeAINavigation');
-        const message = this.extractErrorMessage(payload, response.statusText);
-        return { success: false, error: message };
-      }
-
-      return { success: true, data: undefined };
-    } catch (err) {
-      return this.handleError(err, 'resumeAINavigation');
-    }
-  }
-
-  // ==========================================================================
-  // History APIs
-  // ==========================================================================
-
-  /**
-   * Update history settings.
-   */
-  async updateHistorySettings(
-    profileId: string,
-    settings: {
-      maxEntries?: number;
-      retentionDays?: number;
-      captureThumbnails?: boolean;
-    },
-    options?: RequestOptions
-  ): Promise<ApiResult<void>> {
-    try {
-      const response = await fetch(
-        `${this.apiUrl}/recordings/sessions/${profileId}/history/settings`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            maxEntries: settings.maxEntries,
-            retentionDays: settings.retentionDays,
-            captureThumbnails: settings.captureThumbnails,
+      if (enriched) {
+        return {
+          success: false,
+          error: JSON.stringify({
+            code: String(err.code),
+            message: err.rawMessage,
           }),
-          signal: options?.signal,
-        }
-      );
-
-      if (!response.ok) {
-        const payload = await this.parseJson(response, 'updateHistorySettings');
-        const message = this.extractErrorMessage(payload, response.statusText);
-        return { success: false, error: message };
+        };
       }
-
-      return { success: true, data: undefined };
-    } catch (err) {
-      return this.handleError(err, 'updateHistorySettings');
+      return { success: false, error: err.rawMessage };
     }
+    return this.handleError(err, context);
   }
 
-  /**
-   * Navigate to URL from history.
-   */
-  async navigateToHistoryUrl(
-    profileId: string,
-    url: string,
-    options?: RequestOptions
-  ): Promise<ApiResult<void>> {
-    try {
-      const response = await fetch(
-        `${this.apiUrl}/recordings/sessions/${profileId}/history/navigate`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url }),
-          signal: options?.signal,
-        }
-      );
-
-      if (!response.ok) {
-        const payload = await this.parseJson(response, 'navigateToHistoryUrl');
-        const message = this.extractErrorMessage(payload, response.statusText);
-        return { success: false, error: message };
-      }
-
-      return { success: true, data: undefined };
-    } catch (err) {
-      return this.handleError(err, 'navigateToHistoryUrl');
-    }
-  }
+  // History APIs (updateHistorySettings, navigateToHistoryUrl) moved to
+  // RecordingsService over Connect-RPC during the Phase 8 migration. See
+  // ui/src/api/recordings.ts and ui/src/domains/recording/hooks/useHistory.ts.
 }
 
 // ============================================================================

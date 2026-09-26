@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.api;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+// EvidenceService is the typed owner-neutral evidence ledger surface. Domain
+// services retain mutation authority; this service only queries links, retries
+// producers, and records explicit operator attestations.
+service EvidenceService {
+  rpc ListRun(EvidenceListRunRequest) returns (EvidenceListResponse);
+  rpc ListEntity(EvidenceListEntityRequest) returns (EvidenceListResponse);
+  rpc Reconcile(EvidenceReconcileRequest) returns (EvidenceReconcileResponse);
+  rpc RecordOperatorVerification(EvidenceOperatorVerificationRequest) returns (EvidenceRecord);
+}
+
+message EvidenceRecord {
+  string owner_kind = 1;
+  string owner_id = 2;
+  int32 owner_round = 3;
+  string source_system = 4;
+  string source_event_id = 5;
+  string run_id = 6;
+  string subject_kind = 7;
+  string subject_id = 8;
+  string action = 9;
+  string confidence = 10;
+  string verification = 11;
+  string content_digest = 12;
+  google.protobuf.Struct metadata = 13;
+  string observed_at = 14;
+  string linked_at = 15;
+}
+
+message EvidenceListRunRequest {
+  string run_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message EvidenceListEntityRequest {
+  string subject_kind = 1 [(buf.validate.field).string.min_len = 1];
+  string subject_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message EvidenceListResponse {
+  repeated EvidenceRecord records = 1;
+}
+
+message EvidenceReconcileRequest {
+  string run_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message EvidenceReconcileResponse {
+  string run_id = 1;
+  string status = 2;
+}
+
+message EvidenceOperatorVerificationRequest {
+  string owner_kind = 1 [(buf.validate.field).string.min_len = 1];
+  string owner_id = 2 [(buf.validate.field).string.min_len = 1];
+  int32 owner_round = 3;
+  string event_id = 4 [(buf.validate.field).string.min_len = 1];
+  string run_id = 5 [(buf.validate.field).string.min_len = 1];
+  string subject_kind = 6 [(buf.validate.field).string.min_len = 1];
+  string subject_id = 7 [(buf.validate.field).string.min_len = 1];
+  string action = 8 [(buf.validate.field).string.min_len = 1];
+  string actor = 9 [(buf.validate.field).string.min_len = 1];
+  string reason = 10 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Struct metadata = 11;
+}

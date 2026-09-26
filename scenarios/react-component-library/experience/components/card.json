@@ -1,0 +1,46 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "primitives-card",
+    "title": "Card",
+    "purpose": "A structured surface that consumes a shared elevation context and remains flat when rendered standalone.",
+    "storyRef": "../../library/components/Card/versions/1.3.0/story.json"
+  },
+  "states": [
+    {
+      "id": "card-grid-raised",
+      "example": "card-grid-raised",
+      "description": "The card honors the raised context supplied by CardGrid."
+    }
+  ],
+  "elements": [
+    {
+      "id": "card",
+      "role": "region",
+      "description": "The card surface whose computed elevation is compared between contexts."
+    }
+  ],
+  "claims": [
+    {
+      "id": "card-grid-present",
+      "type": "element-present",
+      "statement": "The current Card specimen renders as a named region inside its raised grid context.",
+      "tier": "machine",
+      "elements": [
+        "card"
+      ],
+      "states": [
+        "card-grid-raised"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "card": {
+        "testid": "rcl-card"
+      }
+    }
+  }
+}

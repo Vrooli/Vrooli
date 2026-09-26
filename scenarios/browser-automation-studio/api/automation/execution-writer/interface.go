@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/config"
-	"github.com/vrooli/browser-automation-studio/database"
 )
 
 // ExecutionWriter normalizes and persists artifacts derived from engine output.
@@ -28,24 +27,30 @@ type ExecutionWriter interface {
 	// Respects CollectTelemetry setting in artifact config.
 	RecordTelemetry(ctx context.Context, plan contracts.ExecutionPlan, telemetry contracts.StepTelemetry) error
 
-	// MarkCrash records a crash event and updates the execution index to failed status.
-	MarkCrash(ctx context.Context, executionID uuid.UUID, failure contracts.StepFailure) error
-
-	// UpdateCheckpoint persists the current execution progress for resumability.
-	// stepIndex is the last successfully completed step (-1 for none).
-	// totalSteps is the total number of steps in the workflow for progress calculation.
-	UpdateCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, totalSteps int) error
+	// RecordCheckpoint commits the completed cursor and actual mutable store.
+	// This private recovery state is independent of artifact collection settings.
+	RecordCheckpoint(ctx context.Context, checkpoint Checkpoint) error
 
 	// RecordExecutionArtifacts persists execution-level artifacts (such as video/trace files).
 	RecordExecutionArtifacts(ctx context.Context, plan contracts.ExecutionPlan, artifacts []ExternalArtifact) error
 
-	// SetArtifactConfig updates the artifact collection settings for this writer.
-	// Call this before starting execution to configure what artifacts are collected.
-	// If not called, defaults to "full" profile (all artifacts collected).
+	// SetArtifactConfig updates the writer-wide artifact collection settings.
+	// This is the fallback used when no per-execution config is set; prefer
+	// SetArtifactConfigForExecution for concurrency-safe per-run configuration.
 	SetArtifactConfig(cfg *config.ArtifactCollectionSettings)
 
-	// GetArtifactConfig returns the current artifact collection settings.
+	// GetArtifactConfig returns the writer-wide artifact collection settings.
 	GetArtifactConfig() config.ArtifactCollectionSettings
+
+	// SetArtifactConfigForExecution scopes artifact collection settings to a
+	// single execution so concurrent executions sharing this recorder cannot
+	// leak configuration. Pass nil to clear the override for that execution.
+	SetArtifactConfigForExecution(executionID uuid.UUID, cfg *config.ArtifactCollectionSettings)
+
+	// ForgetExecution releases outcome, timeline and configuration accumulators
+	// after all execution writes finish. Persisted artifacts remain available.
+	// Callers must join their writers before invoking this terminal operation.
+	ForgetExecution(executionID uuid.UUID)
 }
 
 // ExternalArtifact captures an execution-level artifact to persist.
@@ -60,8 +65,6 @@ type ExternalArtifact struct {
 // ExecutionIndexRepository captures the minimal persistence surface needed by the writer.
 // This updates the database index only; detailed execution data is written to JSON files.
 type ExecutionIndexRepository interface {
-	GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error)
-	UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error
 	UpdateExecutionResultPath(ctx context.Context, id uuid.UUID, resultPath string, updatedAt time.Time) error
 }
 

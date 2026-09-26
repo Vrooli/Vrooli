@@ -1,0 +1,442 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "ai-gateway",
+  "phase": "ai-conformance",
+  "displayName": "AI Conformance",
+  "description": "Validates AI-using scenarios for provider-neutral routing, resource boundary hygiene, embedding metadata safety, and AI Gateway adoption readiness.",
+  "source": "validation-provider",
+  "runtimeClass": "execution",
+  "orderHint": 18,
+  "timeout": "90s",
+  "findingSource": null,
+  "validation": {
+    "contract": "scenario-validation/v1"
+  },
+  "targets": {
+    "kinds": [
+      "scenario"
+    ],
+    "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires scenario-owned AI resource declarations and routing metadata; the control plane has no scenario AI consumer manifest."
+      }
+    ]
+  },
+  "applicability": {
+    "default": "not_applicable",
+    "any": [
+      {
+        "targetKind": "project"
+      },
+      {
+        "serviceCapability": "ai"
+      },
+      {
+        "serviceCapability": "ai-search"
+      }
+    ]
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": {
+    "needsAPI": false,
+    "needsUI": false,
+    "mutatesLifecycle": false,
+    "dbIsolation": "none"
+  },
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/ai-conformance/README.md"
+  },
+  "concurrency": {
+    "mode": "provider-serial"
+  },
+  "determinism": {
+    "default": "observational",
+    "reason": "Gateway conformance probes live model providers for reachability and declared capability. Provider availability and model catalogs change continuously and independently of the scenario's files."
+  },
+  "maturity": {
+    "version": "2.0.0",
+    "levels": [
+      {
+        "id": "L0",
+        "name": "AI inventory unavailable",
+        "description": "The target appears to use AI but AI Gateway cannot produce a trustworthy inventory of its provider, model, resource, or embedding coupling.",
+        "entry_criteria": [
+          "AI applicability is declared or detected."
+        ],
+        "exit_criteria": [
+          "AI-relevant source, config, and persistence surfaces can be scanned."
+        ]
+      },
+      {
+        "id": "L1",
+        "name": "Resource boundary hygiene",
+        "description": "Direct provider HTTP calls and provider credential ownership are absent or explicitly flagged.",
+        "entry_criteria": [
+          "AI inventory is inspectable."
+        ],
+        "exit_criteria": [
+          "No direct provider HTTP calls or provider-owned secret/url settings remain in scenario code."
+        ]
+      },
+      {
+        "id": "L2",
+        "name": "Role and policy conformance",
+        "description": "AI usage avoids concrete model catalog coupling and routes through role/profile policy rather than provider-specific names.",
+        "entry_criteria": [
+          "Resource boundary hygiene is clean."
+        ],
+        "exit_criteria": [
+          "Concrete model slugs and direct resource calls are either removed or covered by reviewed role-policy exceptions."
+        ]
+      },
+      {
+        "id": "L3",
+        "name": "Embedding data correctness",
+        "description": "Embedding/vector persistence records enough role, dimension, content-version, and migration metadata to survive model changes.",
+        "entry_criteria": [
+          "Role and policy conformance is clean."
+        ],
+        "exit_criteria": [
+          "Embedding-backed stores have explicit metadata and retarget strategy."
+        ]
+      },
+      {
+        "id": "L4",
+        "name": "Gateway adoption",
+        "description": "Generic text AI usage adopts AI Gateway profile contracts where those contracts cover the operation.",
+        "entry_criteria": [
+          "Embedding and role-policy checks are clean."
+        ],
+        "exit_criteria": [
+          "Gateway adoption signals exist or reviewed low-level exceptions are present."
+        ]
+      },
+      {
+        "id": "L5",
+        "name": "Operational assurance",
+        "description": "AI usage is clean, gateway-adopted, and ready for production assurance gates.",
+        "entry_criteria": [
+          "Gateway adoption is clean."
+        ],
+        "exit_criteria": [
+          "Maximum AI conformance maturity."
+        ]
+      }
+    ],
+    "capabilities": [
+      {
+        "id": "resource_boundary",
+        "label": "Resource Boundary",
+        "description": "Provider HTTP, provider secret/url ownership, and resource-policy boundary hygiene.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Boundary unknown",
+            "status_label": "Unknown",
+            "description": "AI boundary posture cannot be inspected.",
+            "capability_summary": "Provider coupling may be hidden.",
+            "next_unlock": "Readable AI source/config surfaces."
+          },
+          {
+            "id": "L1",
+            "name": "Boundary unsafe",
+            "status_label": "Unsafe",
+            "description": "Direct provider HTTP or provider credentials are scenario-owned.",
+            "capability_summary": "Provider/resource boundaries are violated.",
+            "next_unlock": "Move provider calls and credentials behind resources or AI Gateway."
+          },
+          {
+            "id": "L2",
+            "name": "Boundary governed",
+            "status_label": "Governed",
+            "description": "Provider boundary findings are absent.",
+            "capability_summary": "Provider access is governed by resource/gateway surfaces."
+          }
+        ]
+      },
+      {
+        "id": "model_policy",
+        "label": "Model Policy",
+        "description": "Concrete model slug and role-policy coupling checks.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Model policy unknown",
+            "status_label": "Unknown",
+            "description": "Model policy posture cannot be inspected.",
+            "capability_summary": "Model catalog coupling may be hidden.",
+            "next_unlock": "Readable AI source/config surfaces."
+          },
+          {
+            "id": "L1",
+            "name": "Model policy coupled",
+            "status_label": "Coupled",
+            "description": "Scenario code hard-codes concrete model slugs or direct resource roles without reviewed policy.",
+            "capability_summary": "Provider catalog changes can break the scenario.",
+            "next_unlock": "Use role/profile requests or resource-owned policy."
+          },
+          {
+            "id": "L2",
+            "name": "Model policy clean",
+            "status_label": "Clean",
+            "description": "Model catalog coupling checks are clean.",
+            "capability_summary": "Model selection can evolve behind policy."
+          }
+        ]
+      },
+      {
+        "id": "embedding_safety",
+        "label": "Embedding Safety",
+        "description": "Embedding/vector dimension and metadata safety.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Embedding posture unknown",
+            "status_label": "Unknown",
+            "description": "Embedding/vector persistence cannot be inspected.",
+            "capability_summary": "Stored vector compatibility may be hidden.",
+            "next_unlock": "Readable schema, migration, or vector-store configuration."
+          },
+          {
+            "id": "L1",
+            "name": "Embedding metadata unsafe",
+            "status_label": "Unsafe",
+            "description": "Embedding dimensions or vector stores lack required metadata signals.",
+            "capability_summary": "Embedding model changes can silently corrupt retrieval.",
+            "next_unlock": "Record role/model/dimension/content-version and retarget strategy."
+          },
+          {
+            "id": "L2",
+            "name": "Embedding metadata clean",
+            "status_label": "Clean",
+            "description": "Embedding safety checks are clean.",
+            "capability_summary": "Vector stores can be migrated intentionally."
+          }
+        ]
+      },
+      {
+        "id": "gateway_adoption",
+        "label": "Gateway Adoption",
+        "description": "AI Gateway adoption and exception posture.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Gateway adoption unknown",
+            "status_label": "Unknown",
+            "description": "AI Gateway adoption cannot be determined.",
+            "capability_summary": "Migration readiness is unknown.",
+            "next_unlock": "Expose gateway calls or reviewed exception metadata."
+          },
+          {
+            "id": "L1",
+            "name": "Gateway migration recommended",
+            "status_label": "Recommended",
+            "description": "AI signals exist without AI Gateway adoption evidence.",
+            "capability_summary": "Scenario may need migration to AI Gateway profiles.",
+            "next_unlock": "Adopt AI Gateway or document a low-level exception."
+          },
+          {
+            "id": "L2",
+            "name": "Gateway adoption clean",
+            "status_label": "Clean",
+            "description": "Gateway adoption checks are clean.",
+            "capability_summary": "Covered AI usage is routed through AI Gateway."
+          }
+        ]
+      }
+    ],
+    "findings": {
+      "AI_OLLAMA_GATEWAY_ONLY": {
+        "capability_id": "gateway_adoption",
+        "local_level_impact": "L1",
+        "global_impact": "safety_blocker",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Ollama calls must remain behind the resource gateway boundary."
+      },
+      "AI_OLLAMA_POLICY_FACTS": {
+        "capability_id": "model_policy",
+        "local_level_impact": "L1",
+        "global_impact": "safety_blocker",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Ollama model and embedding facts belong to resource policy."
+      },
+      "AI_OPENROUTER_POLICY_FACTS": {
+        "capability_id": "model_policy",
+        "local_level_impact": "L1",
+        "global_impact": "safety_blocker",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "OpenRouter model selection belongs to role policy."
+      },
+      "ai.direct_ollama_http": {
+        "capability_id": "resource_boundary",
+        "local_level_impact": "L1",
+        "global_impact": "safety_blocker",
+        "dimension": "security",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "Provider call migration needs scenario-specific role/profile intent."
+      },
+      "ai.direct_openrouter_http": {
+        "capability_id": "resource_boundary",
+        "local_level_impact": "L1",
+        "global_impact": "safety_blocker",
+        "dimension": "security",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "Hosted provider migration must preserve credential and routing policy."
+      },
+      "ai.invalid_provider_secret_env": {
+        "capability_id": "resource_boundary",
+        "local_level_impact": "L1",
+        "global_impact": "safety_blocker",
+        "dimension": "security",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "security"
+        ],
+        "fix_class": "manual",
+        "reason": "Secret ownership changes require operator review."
+      },
+      "ai.invalid_provider_url_env": {
+        "capability_id": "resource_boundary",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "Provider topology replacement depends on the scenario's operation contract."
+      },
+      "ai.concrete_model_slug": {
+        "capability_id": "model_policy",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "Model role/profile mapping is a policy decision."
+      },
+      "ai.hardcoded_context_window": {
+        "capability_id": "model_policy",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "control-surface-tunable-levers-design"
+        ],
+        "fix_class": "manual",
+        "reason": "Context budget migration depends on operation semantics."
+      },
+      "ai.hardcoded_embedding_dimensions": {
+        "capability_id": "embedding_safety",
+        "local_level_impact": "L1",
+        "global_impact": "safety_blocker",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Embedding schema migration requires data-retention judgment."
+      },
+      "ai.embedding_metadata_missing": {
+        "capability_id": "embedding_safety",
+        "local_level_impact": "L1",
+        "global_impact": "safety_blocker",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Vector metadata repair depends on the stored corpus and migration plan."
+      },
+      "ai.resource_gateway_missing_role": {
+        "capability_id": "model_policy",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "Role policy must be added to the owning resource."
+      },
+      "ai.gateway_not_adopted": {
+        "capability_id": "gateway_adoption",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "Gateway adoption requires scenario-owner migration review."
+      },
+      "ai.unreviewed_exception": {
+        "capability_id": "gateway_adoption",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "requirements-traceability-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Exception approval needs human ownership, expiry, and replacement-plan review."
+      }
+    },
+    "fallback": {
+      "capability_id": "gateway_adoption",
+      "local_level_impact": "L1",
+      "global_impact": "advisory",
+      "dimension": "operational-targets",
+      "severity_default": "SEVERITY_INFO",
+      "clean_requirement": "advisory"
+    }
+  }
+}

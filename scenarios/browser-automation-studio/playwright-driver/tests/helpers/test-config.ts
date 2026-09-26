@@ -17,6 +17,7 @@ export function createTestConfig(overrides?: DeepPartial<Config>): Config {
     server: {
       port: 39400,
       host: '127.0.0.1',
+      adminSecret: '',
       requestTimeout: 300000,
       maxRequestSize: 5 * 1024 * 1024,
     },

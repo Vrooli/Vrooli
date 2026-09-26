@@ -1,0 +1,23 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+const generatePlan = vi.hoisted(() => vi.fn());
+const applyPlan = vi.hoisted(() => vi.fn());
+const previewSwap = vi.hoisted(() => vi.fn());
+const getShoppingPreview = vi.hoisted(() => vi.fn());
+const setShoppingChecked = vi.hoisted(() => vi.fn());
+const recordFeedback = vi.hoisted(() => vi.fn());
+const undoFeedback = vi.hoisted(() => vi.fn());
+vi.mock("@connectrpc/connect", () => ({ createClient: () => ({ generatePlan, applyPlan, previewSwap, getShoppingPreview, setShoppingChecked, recordFeedback, undoFeedback }) }));
+vi.mock("./client", () => ({ transport: {} }));
+import { applyPlan as apply, generatePlan as generate, getShoppingPreview as shopping, previewSwap as preview, recordFeedback as record, setShoppingChecked as check, undoFeedback as undo } from "./planning";
+describe("planning API", () => {
+  beforeEach(() => vi.clearAllMocks());
+  it("decodes a generated draft", async () => { generatePlan.mockResolvedValue({ draftJson: JSON.stringify({ runId: "seed-0", occurrences: [], unresolved: [], inputReferences: [], seed: 0 }) }); await expect(generate({ workspaceId: "w1", dates: ["2026-09-21"] })).resolves.toMatchObject({ runId: "seed-0" }); expect(generatePlan).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: "w1", dates: ["2026-09-21"] })); });
+  it("encodes configured meal slots", async () => { generatePlan.mockResolvedValue({ draftJson: JSON.stringify({ runId: "seed-0", occurrences: [], unresolved: [], inputReferences: [], seed: 0 }) }); await generate({ workspaceId: "w1", dates: ["2026-09-21"], mealSlots: [{ date: "2026-09-21", slotName: "breakfast", mode: "fixed", quantity: "1" }] }); expect(generatePlan).toHaveBeenCalledWith(expect.objectContaining({ mealSlots: [{ date: "2026-09-21", slotName: "breakfast", mode: "fixed", quantity: "1", lockedRecipeId: "" }] })); });
+  it("passes locked dinner ids to generation", async () => { generatePlan.mockResolvedValue({ draftJson: JSON.stringify({ runId: "seed-0", occurrences: [], unresolved: [], inputReferences: [], seed: 0 }) }); await generate({ workspaceId: "w1", dates: ["2026-09-21"], lockedRecipeIds: { "2026-09-21": "r1" } }); expect(generatePlan).toHaveBeenCalledWith(expect.objectContaining({ lockedRecipeIds: { "2026-09-21": "r1" } })); });
+  it("rejects an unreadable draft", async () => { generatePlan.mockResolvedValue({ draftJson: "not-json" }); await expect(generate({ workspaceId: "w1", dates: [] })).rejects.toThrow("unreadable"); });
+  it("applies a draft and returns its revision", async () => { applyPlan.mockResolvedValue({ revision: 1n }); const draft = { runId: "seed-0", occurrences: [], unresolved: [], inputReferences: [], seed: 0, currentRevision: 0n }; await expect(apply({ workspaceId: "w1", expectedRevision: 0n, draft })).resolves.toEqual({ revision: 1n }); expect(applyPlan).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: "w1", expectedRevision: 0n })); });
+  it("decodes a swap preview", async () => { previewSwap.mockResolvedValue({ revision: 2n, previewJson: JSON.stringify({ draft: { runId: "seed-0", occurrences: [], unresolved: [], inputReferences: [], seed: 0 }, changes: [{ date: "2026-09-21", beforeName: "A", afterName: "B" }] }), affectedDates: ["2026-09-21"] }); await expect(preview({ workspaceId: "w1", expectedRevision: 2n, date: "2026-09-21", replacementRecipeId: "b" })).resolves.toMatchObject({ revision: 2n, affectedDates: ["2026-09-21"] }); });
+  it("rejects an unreadable swap preview", async () => { previewSwap.mockResolvedValue({ revision: 2n, previewJson: "bad", affectedDates: [] }); await expect(preview({ workspaceId: "w1", expectedRevision: 2n, date: "2026-09-21", replacementRecipeId: "b" })).rejects.toThrow("unreadable swap"); });
+  it("reads and checks shopping lines", async () => { getShoppingPreview.mockResolvedValue({ revision: 2n, lines: [{ key: "ingredient:rice", label: "rice", need: "unknown", stock: "unknown", missing: "unknown", packageCount: "unknown", price: "unknown", sourceRecipeIds: [], checked: false }] }); setShoppingChecked.mockResolvedValue({ checked: true }); await expect(shopping({ workspaceId: "w1", expectedRevision: 2n })).resolves.toMatchObject({ lines: [{ key: "ingredient:rice" }] }); await expect(check({ workspaceId: "w1", lineKey: "ingredient:rice", checked: true })).resolves.toBe(true); });
+  it("records and undoes explicit feedback", async () => { recordFeedback.mockResolvedValue({}); undoFeedback.mockResolvedValue({}); await expect(record({ workspaceId: "w1", expectedRevision: 2n, date: "2026-09-21", recipeId: "r1" })).resolves.toBeUndefined(); await expect(undo({ workspaceId: "w1", date: "2026-09-21" })).resolves.toBeUndefined(); });
+});

@@ -1,0 +1,143 @@
+{
+  "record": "BAS-WORK-047",
+  "issues": [
+    "BAS-RF-080",
+    "BAS-RF-081"
+  ],
+  "status": "deployed_scoped_checks_passed",
+  "controlled_probe": {
+    "before": "/tmp/bas-page-callback-red4-047.log",
+    "after": "/tmp/bas-page-callback-final-green-047.log",
+    "failed_before": 4,
+    "passed_after": 4,
+    "listeners_after_cleanup_before": 2,
+    "listeners_after_cleanup_after": 0,
+    "late_callback_cases_before": 3,
+    "late_callback_cases_after": 0,
+    "single_tab_registry_count_before": 2,
+    "single_tab_registry_count_after": 1,
+    "callback_response_ids_match_before": false,
+    "callback_response_ids_match_after": true
+  },
+  "maintained_red": [
+    {
+      "failed": 6,
+      "controls_passed": 3,
+      "seconds": 0.483,
+      "receipt": "/tmp/bas-page-callback-maintained-red-047.txt"
+    },
+    {
+      "failed": 3,
+      "seconds": 1.377,
+      "receipt": "/tmp/bas-page-callback-session-red-047.txt",
+      "note": "End-of-Jest handle warning retained; command exited naturally."
+    },
+    {
+      "failed": 1,
+      "seconds": 0.821,
+      "receipt": "/tmp/bas-page-callback-initial-red-047.txt"
+    }
+  ],
+  "focused": {
+    "tests": 107,
+    "suites": 5,
+    "seconds": 15.126,
+    "receipt": "/tmp/bas-page-callback-focused-final-047.txt"
+  },
+  "native": {
+    "test_seconds": 0.367,
+    "suite_seconds": 1.188,
+    "receipt": "/tmp/bas-page-callback-native-047.txt",
+    "oracle": "SDK browser emits page event while real route creates tab; callback and response IDs match, registry has one entry per page, native listener counts return to baseline after cleanup. Initial and popup callbacks share owner. Included again in final107case run."
+  },
+  "types": "passed",
+  "build": "passed",
+  "runtime_lines": [
+    {
+      "path": "playwright-driver/src/routes/record-mode/page-events.ts",
+      "before": 235,
+      "after": 202,
+      "net": -33
+    },
+    {
+      "path": "playwright-driver/src/routes/record-mode/recording-pages.ts",
+      "before": 273,
+      "after": 281,
+      "net": 8
+    },
+    {
+      "path": "playwright-driver/src/routes/record-mode/recording-lifecycle.ts",
+      "before": 480,
+      "after": 411,
+      "net": -69
+    },
+    {
+      "path": "playwright-driver/src/session/session-reset.ts",
+      "before": 61,
+      "after": 63,
+      "net": 2
+    },
+    {
+      "path": "playwright-driver/src/session/session-teardown.ts",
+      "before": 91,
+      "after": 95,
+      "net": 4
+    }
+  ],
+  "source_sha256": {
+    "playwright-driver/src/routes/record-mode/page-events.ts": "e8166f5ed80116b5a04edcd696ea5155b8035937c53ab16427e61380fc741fc9",
+    "playwright-driver/src/routes/record-mode/recording-pages.ts": "8409fb0e1bb4eabea3674d8b79ba1df4a5931cc09890896251dd992cf325beec",
+    "playwright-driver/src/routes/record-mode/recording-lifecycle.ts": "fa20c54e4cd5de7360133ac927e2ba534594e5a022e887eaf1397b22c4af4590",
+    "playwright-driver/src/session/session-reset.ts": "b1cb2b7e8ae0514ff7cb882c8ecd2cb624b9d524d1af4f0a3d2168ed3989d351",
+    "playwright-driver/src/session/session-teardown.ts": "4c0d9f39b88584312f90544e1804a5c5d0182a7be2832666bea3d70c67c5c568",
+    "playwright-driver/tests/unit/routes/page-events.test.ts": "af0906f035d35dc8ed506b3ec6e6e7ceb74e76fde97265b37ed311ac0369d83c",
+    "playwright-driver/tests/unit/session/manager.test.ts": "bc0cfa612751dfd7a5cff6c67798b5727e2fa5eaa1195692ac8e07c999957ca9",
+    "playwright-driver/tests/integration/pipeline-e2e.test.ts": "f700a98f04ac301e4e4db507c2fd56050e923a0411f56ab38c66a579a5e88ae9"
+  },
+  "pending_operations": [],
+  "limitations": [
+    "Previously sent HTTP callbacks keep existing deadlines; cleanup cannot retract remote commits.",
+    "RF038 delayed request/lease fencing remains separate and open.",
+    "Pending SDK page lookups retain their existing bounded waits; full cancellation/soak qualification is unclaimed.",
+    "TypeScript cyclomatic measurement remains unavailable under RF064.",
+    "Shared dirty tree: whole-product debt changes cannot all be attributed to this cycle."
+  ],
+  "runtime_net_lines": -88,
+  "tidiness": {
+    "run_id": "20260922-195731-b5b9b555",
+    "status": "failed",
+    "quiet_wait_consumed": true,
+    "summary": {
+      "totalFindings": 1118,
+      "longFiles": 104,
+      "complexity": 387,
+      "duplication": 608,
+      "coupling": 18,
+      "duplicationLineDebt": 32643
+    }
+  },
+  "board": {
+    "required": 17,
+    "unmet": 17,
+    "product_qualified": false,
+    "receipt": "/tmp/bas-board-047.txt"
+  },
+  "driver_owner": {
+    "run_id": "uh-20260922-195727-36a0b68a336331dfc08f6ca9f11000fc",
+    "status": "passed",
+    "receipt": "/tmp/bas-page-callback-owner-047.json",
+    "command_duration_ms": "357329",
+    "tests_passed": 1623,
+    "suites_passed": 124,
+    "tests_skipped": 2,
+    "suites_skipped": 1,
+    "jest_seconds": 356.268
+  },
+  "deployment": {
+    "build_identity": "sha256:c95c97174f73f200ecb8c0486ec86a114ccfb54fe27f5db8f0eeb4074002d7cf",
+    "health_receipt": "/tmp/bas-live-health-047.json",
+    "profile_receipt": "/tmp/bas-profile-final-047.txt",
+    "complete_profile_reads_matched": 3,
+    "profile_metadata_matches_046": true
+  }
+}

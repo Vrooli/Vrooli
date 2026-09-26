@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "stage": "seed",
+  "observedAt": "2026-09-24T18:48:59.041Z",
+  "apiUrl": "http://127.0.0.1:17116",
+  "contractSha256": "4ec793e57754a709183024dd9a8a6cfa683c42c4a8c96541ed120897bccfc54a",
+  "harnessSha256": "70173eb21193f402cd0510dd9b86e4c1d5f104446a78dcd6d0bba35e9df09d69",
+  "beforeHealth": {
+    "status": "healthy",
+    "service": "browser-automation-studio-api",
+    "timestamp": "2026-09-24T18:48:57Z",
+    "readiness": true,
+    "version": "1.0.0",
+    "build_identity": "sha256:43bbd665129c3f02008d576b6124b43442b5b2a0754cb2e0eeeb8a1a27a3c6b4",
+    "uptime_seconds": 370.91482489,
+    "dependencies": {
+      "automation_engine": {
+        "connected": true
+      },
+      "database": {
+        "connected": true,
+        "latency_ms": 0.027
+      },
+      "playwright_driver": {
+        "connected": true,
+        "latency_ms": 0.501
+      },
+      "profile_checkpoints": {
+        "connected": true,
+        "latency_ms": 0.001
+      },
+      "storage": {
+        "connected": true,
+        "latency_ms": 0.095
+      }
+    },
+    "metrics": {
+      "goroutines": 33,
+      "heap_mb": 13.462043762207031,
+      "uptime_seconds": 370.91482489
+    }
+  },
+  "afterHealth": {
+    "status": "healthy",
+    "service": "browser-automation-studio-api",
+    "timestamp": "2026-09-24T18:48:59Z",
+    "readiness": true,
+    "version": "1.0.0",
+    "build_identity": "sha256:43bbd665129c3f02008d576b6124b43442b5b2a0754cb2e0eeeb8a1a27a3c6b4",
+    "uptime_seconds": 371.964691707,
+    "dependencies": {
+      "automation_engine": {
+        "connected": true
+      },
+      "database": {
+        "connected": true,
+        "latency_ms": 0.034
+      },
+      "playwright_driver": {
+        "connected": true,
+        "latency_ms": 0.403
+      },
+      "profile_checkpoints": {
+        "connected": true,
+        "latency_ms": 0
+      },
+      "storage": {
+        "connected": true,
+        "latency_ms": 0.095
+      }
+    },
+    "metrics": {
+      "goroutines": 37,
+      "heap_mb": 16.776138305664062,
+      "uptime_seconds": 371.964691707
+    }
+  },
+  "results": [
+    {
+      "check": "alpha cookie/localStorage/IndexedDB fixture writes",
+      "passed": true
+    },
+    {
+      "check": "automatic checkpoint visible within 5000ms of committed fixture writes",
+      "observedAfterMs": 273.78231200000005,
+      "sampleCount": 6,
+      "passed": true
+    },
+    {
+      "check": "alpha identity survives close/reopen",
+      "passed": true
+    },
+    {
+      "check": "beta identity seeds independently",
+      "passed": true
+    },
+    {
+      "check": "beta profile activity does not replace alpha identity",
+      "passed": true
+    }
+  ],
+  "samples": [
+    {
+      "elapsedMs": 3.703782999999987,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 57.674402999999984,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 110.80509199999997,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 164.511241,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 219.693142,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 273.78231200000005,
+      "hasStorageState": true
+    }
+  ],
+  "cleanup": [],
+  "manifest": {
+    "profiles": {
+      "alpha": "5b9d396a-06c2-4e22-965d-3ad34cd98ec3",
+      "beta": "5a410d07-7af6-4610-8086-b7f9dea88cce"
+    },
+    "identities": {
+      "alpha": "95dcc39c-1630-4ded-b321-d9b96af45255",
+      "beta": "57f7dae5-1469-4ddd-8bfa-5624bf62b3c8"
+    },
+    "fixturePort": 43651
+  }
+}

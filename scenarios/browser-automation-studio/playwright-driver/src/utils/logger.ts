@@ -64,7 +64,8 @@ export function createLogger(config: Config): winston.Logger {
 
 // Default logger instance (can be replaced via setLogger)
 let loggerInstance: winston.Logger = winston.createLogger({
-  level: 'info',
+  level: process.env.NODE_ENV === 'test' ? 'silent' : 'info',
+  silent: process.env.NODE_ENV === 'test',
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.errors({ stack: true }),
@@ -85,6 +86,11 @@ export const logger: winston.Logger = new Proxy({} as winston.Logger, {
 
 export function setLogger(newLogger: winston.Logger): void {
   loggerInstance = newLogger;
+}
+
+/** Update the active Winston logger's threshold without replacing transports. */
+export function setLogLevel(level: string): void {
+  loggerInstance.level = level;
 }
 
 /**

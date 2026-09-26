@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"scenario-to-desktop-runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 func ptrBool(v bool) *bool { return &v }
@@ -74,12 +74,12 @@ func TestValidator_Validate_DefaultRequiredIsTrue(t *testing.T) {
 func TestValidator_Validate_FormatValid(t *testing.T) {
 	m := &manifest.Manifest{
 		Secrets: []manifest.Secret{
-			{ID: "api_key", Required: ptrBool(true), Format: `^[A-Za-z0-9]{10,}$`},
+			{ID: "service_credential", Required: ptrBool(true), Format: `^[A-Za-z0-9]{10,}$`},
 		},
 	}
 
 	v := NewValidator(m)
-	errs := v.Validate(map[string]string{"api_key": "abcdefghij1234"})
+	errs := v.Validate(map[string]string{"service_credential": "fixturevalue1234"})
 	if len(errs) != 0 {
 		t.Fatalf("expected no errors for valid format, got %v", errs)
 	}

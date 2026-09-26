@@ -1,0 +1,990 @@
+{
+  "schemaVersion": 1,
+  "contractRow": "resource-budget",
+  "result": "passed",
+  "managedBuildIdentityBefore": "sha256:56989be5aade350331b4a417406079ffe69408d53414363b6f1e49df5915cc5a",
+  "managedBuildIdentityAfter": "sha256:56989be5aade350331b4a417406079ffe69408d53414363b6f1e49df5915cc5a",
+  "platform": {
+    "os": "linux",
+    "arch": "x64",
+    "windowsPrivateMemory": {
+      "status": "not_measured",
+      "reason": "This owner uses Linux /proc; run the Windows private-memory comparison on a Windows BAS candidate."
+    }
+  },
+  "processes": {
+    "api": 1807636,
+    "driver": 1807755
+  },
+  "idleSampling": {
+    "startedAt": "2026-09-26T03:18:50.386Z",
+    "endedAt": "2026-09-26T03:19:51.373Z",
+    "durationMs": 60987,
+    "sampleIntervalMs": 1000,
+    "sampleCount": 62,
+    "sessionsThroughout": 0,
+    "recordingsThroughout": 0,
+    "maxCombinedPssKiB": 217056,
+    "maxAllowedCombinedPssKiB": 307200,
+    "averageCombinedCPUPercent": 0.41009820820478005,
+    "p95CombinedCPUPercent": 1.0027319341299503,
+    "maxCombinedCPUPercent": 3.001379019607109,
+    "samples": [
+      {
+        "observedAt": "2026-09-26T03:18:50.386Z",
+        "pssKiB": {
+          "api": 77010,
+          "driver": 139543
+        },
+        "combinedPssKiB": 216553,
+        "cpuPercent": null,
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:18:51.390Z",
+        "pssKiB": {
+          "api": 77010,
+          "driver": 139635
+        },
+        "combinedPssKiB": 216645,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:18:52.385Z",
+        "pssKiB": {
+          "api": 77014,
+          "driver": 139723
+        },
+        "combinedPssKiB": 216737,
+        "cpuPercent": {
+          "api": 1.0044659601231676,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:18:53.386Z",
+        "pssKiB": {
+          "api": 77014,
+          "driver": 139815
+        },
+        "combinedPssKiB": 216829,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:18:54.385Z",
+        "pssKiB": {
+          "api": 77014,
+          "driver": 139907
+        },
+        "combinedPssKiB": 216921,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 1.0012528165854997
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:18:55.385Z",
+        "pssKiB": {
+          "api": 77014,
+          "driver": 140042
+        },
+        "combinedPssKiB": 217056,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:18:56.387Z",
+        "pssKiB": {
+          "api": 76858,
+          "driver": 137885
+        },
+        "combinedPssKiB": 214743,
+        "cpuPercent": {
+          "api": 0.9975672049254666,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:18:57.386Z",
+        "pssKiB": {
+          "api": 75290,
+          "driver": 137066
+        },
+        "combinedPssKiB": 212356,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 1.0016144030965255
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:18:58.385Z",
+        "pssKiB": {
+          "api": 75286,
+          "driver": 136502
+        },
+        "combinedPssKiB": 211788,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:18:59.385Z",
+        "pssKiB": {
+          "api": 75286,
+          "driver": 136598
+        },
+        "combinedPssKiB": 211884,
+        "cpuPercent": {
+          "api": 0.9995295793996911,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:00.386Z",
+        "pssKiB": {
+          "api": 75286,
+          "driver": 136722
+        },
+        "combinedPssKiB": 212008,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:01.385Z",
+        "pssKiB": {
+          "api": 75286,
+          "driver": 136810
+        },
+        "combinedPssKiB": 212096,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:02.383Z",
+        "pssKiB": {
+          "api": 75286,
+          "driver": 136902
+        },
+        "combinedPssKiB": 212188,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 1.0021263849187467
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:03.384Z",
+        "pssKiB": {
+          "api": 75286,
+          "driver": 136998
+        },
+        "combinedPssKiB": 212284,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:04.384Z",
+        "pssKiB": {
+          "api": 75286,
+          "driver": 136206
+        },
+        "combinedPssKiB": 211492,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:05.382Z",
+        "pssKiB": {
+          "api": 75290,
+          "driver": 136210
+        },
+        "combinedPssKiB": 211500,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:06.384Z",
+        "pssKiB": {
+          "api": 75290,
+          "driver": 136210
+        },
+        "combinedPssKiB": 211500,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:07.383Z",
+        "pssKiB": {
+          "api": 75398,
+          "driver": 136210
+        },
+        "combinedPssKiB": 211608,
+        "cpuPercent": {
+          "api": 2.0009193464047392,
+          "driver": 1.0004596732023696
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:08.384Z",
+        "pssKiB": {
+          "api": 70693,
+          "driver": 136214
+        },
+        "combinedPssKiB": 206907,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:09.383Z",
+        "pssKiB": {
+          "api": 70694,
+          "driver": 136214
+        },
+        "combinedPssKiB": 206908,
+        "cpuPercent": {
+          "api": 1.001224271006754,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:10.384Z",
+        "pssKiB": {
+          "api": 70694,
+          "driver": 136226
+        },
+        "combinedPssKiB": 206920,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:11.383Z",
+        "pssKiB": {
+          "api": 70694,
+          "driver": 136226
+        },
+        "combinedPssKiB": 206920,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:12.384Z",
+        "pssKiB": {
+          "api": 70693,
+          "driver": 135298
+        },
+        "combinedPssKiB": 205991,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:13.383Z",
+        "pssKiB": {
+          "api": 70694,
+          "driver": 135458
+        },
+        "combinedPssKiB": 206152,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 1.0012385481038242
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:14.380Z",
+        "pssKiB": {
+          "api": 70694,
+          "driver": 135546
+        },
+        "combinedPssKiB": 206240,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:15.379Z",
+        "pssKiB": {
+          "api": 70694,
+          "driver": 135670
+        },
+        "combinedPssKiB": 206364,
+        "cpuPercent": {
+          "api": 1.0007444297634316,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:16.380Z",
+        "pssKiB": {
+          "api": 70694,
+          "driver": 135762
+        },
+        "combinedPssKiB": 206456,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:17.377Z",
+        "pssKiB": {
+          "api": 70694,
+          "driver": 135850
+        },
+        "combinedPssKiB": 206544,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:18.379Z",
+        "pssKiB": {
+          "api": 70694,
+          "driver": 135946
+        },
+        "combinedPssKiB": 206640,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:19.379Z",
+        "pssKiB": {
+          "api": 70694,
+          "driver": 136038
+        },
+        "combinedPssKiB": 206732,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:20.377Z",
+        "pssKiB": {
+          "api": 70694,
+          "driver": 135382
+        },
+        "combinedPssKiB": 206076,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 1.0023522611476792
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:21.378Z",
+        "pssKiB": {
+          "api": 70694,
+          "driver": 135470
+        },
+        "combinedPssKiB": 206164,
+        "cpuPercent": {
+          "api": 0.998596776802222,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:22.377Z",
+        "pssKiB": {
+          "api": 70694,
+          "driver": 135562
+        },
+        "combinedPssKiB": 206256,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:23.376Z",
+        "pssKiB": {
+          "api": 70694,
+          "driver": 135654
+        },
+        "combinedPssKiB": 206348,
+        "cpuPercent": {
+          "api": 1.0010362026044057,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:24.377Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135742
+        },
+        "combinedPssKiB": 206440,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:25.378Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135866
+        },
+        "combinedPssKiB": 206564,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:26.376Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135958
+        },
+        "combinedPssKiB": 206656,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:27.376Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 136050
+        },
+        "combinedPssKiB": 206748,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:28.375Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135354
+        },
+        "combinedPssKiB": 206052,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 1.000359459164461
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:29.376Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135450
+        },
+        "combinedPssKiB": 206148,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:30.374Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135570
+        },
+        "combinedPssKiB": 206268,
+        "cpuPercent": {
+          "api": 1.0013914765164507,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:31.373Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135670
+        },
+        "combinedPssKiB": 206368,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:32.374Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135762
+        },
+        "combinedPssKiB": 206460,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:33.375Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135846
+        },
+        "combinedPssKiB": 206544,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0.9997696340806852
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:34.374Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135934
+        },
+        "combinedPssKiB": 206632,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:35.373Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 136054
+        },
+        "combinedPssKiB": 206752,
+        "cpuPercent": {
+          "api": 1.0000933007042145,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:36.373Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 136142
+        },
+        "combinedPssKiB": 206840,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:37.372Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135370
+        },
+        "combinedPssKiB": 206068,
+        "cpuPercent": {
+          "api": 1.0004612766780658,
+          "driver": 1.0004612766780658
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:38.372Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135450
+        },
+        "combinedPssKiB": 206148,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:39.371Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135522
+        },
+        "combinedPssKiB": 206220,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:40.372Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135618
+        },
+        "combinedPssKiB": 206316,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:41.374Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135690
+        },
+        "combinedPssKiB": 206388,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:42.371Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135770
+        },
+        "combinedPssKiB": 206468,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:43.371Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135838
+        },
+        "combinedPssKiB": 206536,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:44.374Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135922
+        },
+        "combinedPssKiB": 206620,
+        "cpuPercent": {
+          "api": 0.9972770755612468,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:45.371Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 136026
+        },
+        "combinedPssKiB": 206724,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 1.0027319341299503
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:46.372Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 136094
+        },
+        "combinedPssKiB": 206792,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:47.370Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 136274
+        },
+        "combinedPssKiB": 206972,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:48.371Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135386
+        },
+        "combinedPssKiB": 206084,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:49.373Z",
+        "pssKiB": {
+          "api": 70698,
+          "driver": 135463
+        },
+        "combinedPssKiB": 206161,
+        "cpuPercent": {
+          "api": 0,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:50.375Z",
+        "pssKiB": {
+          "api": 70702,
+          "driver": 135563
+        },
+        "combinedPssKiB": 206265,
+        "cpuPercent": {
+          "api": 0.9981256736961566,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      },
+      {
+        "observedAt": "2026-09-26T03:19:51.373Z",
+        "pssKiB": {
+          "api": 70686,
+          "driver": 135631
+        },
+        "combinedPssKiB": 206317,
+        "cpuPercent": {
+          "api": 1.0021917351977572,
+          "driver": 0
+        },
+        "sessions": 0,
+        "activeRecordings": 0
+      }
+    ]
+  },
+  "fixtureBrowserAndShell": {
+    "url": "http://127.0.0.1:33869/",
+    "browserProcessCount": 17,
+    "browserPids": [
+      {
+        "pid": 1807770,
+        "pssKiB": 41874
+      },
+      {
+        "pid": 1807777,
+        "pssKiB": 7541
+      },
+      {
+        "pid": 1807778,
+        "pssKiB": 9557
+      },
+      {
+        "pid": 1807801,
+        "pssKiB": 25173
+      },
+      {
+        "pid": 1807802,
+        "pssKiB": 23096
+      },
+      {
+        "pid": 1807803,
+        "pssKiB": 10746
+      },
+      {
+        "pid": 1810082,
+        "pssKiB": 20589
+      },
+      {
+        "pid": 1810265,
+        "pssKiB": 71038
+      },
+      {
+        "pid": 1810273,
+        "pssKiB": 8137
+      },
+      {
+        "pid": 1810274,
+        "pssKiB": 6971
+      },
+      {
+        "pid": 1810297,
+        "pssKiB": 33344
+      },
+      {
+        "pid": 1810298,
+        "pssKiB": 25469
+      },
+      {
+        "pid": 1810301,
+        "pssKiB": 8607
+      },
+      {
+        "pid": 1822761,
+        "pssKiB": 55855
+      },
+      {
+        "pid": 1826663,
+        "pssKiB": 57064
+      },
+      {
+        "pid": 1847327,
+        "pssKiB": 15319
+      },
+      {
+        "pid": 1847328,
+        "pssKiB": 44904
+      }
+    ],
+    "browserPssKiB": 465284,
+    "shellPid": 1842187,
+    "shellPssKiB": 28986,
+    "combinedPssKiB": 494270,
+    "maxAllowedCombinedPssKiB": 1048576
+  },
+  "cleanup": {
+    "fixtureSessionClosed": true,
+    "apiHealthy": true
+  },
+  "source_sha256": {
+    "docs/internal/REFRACTOR_CONTRACT.json": "8a9da35f075fb09bbe5f16fdb3785426a2c69b5643e49dd8d6a6b319d6948011",
+    "api/cmd/resource-budget-cohort/qualification.mjs": "676209910242d2bfc5b71d9a04af00ff709dad89f46cf223137522fff34a7fb2",
+    "api/automation/driver/client.go": "e70cab91f0bdb5ce598c6ae2c630316a13117674ad63610272cc94e6f2a066a3",
+    "playwright-driver/src/routes/session-start.ts": "e1dd6485b35dc72791849c29c03bd25be6dde28903b36bc9dd4d69d69d885d11",
+    "playwright-driver/src/session/manager.ts": "6de195afa51085d1e6eb52f70e4822a0ac70282a3601065518ea5f0adca4cfb7"
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "date": "2026-09-24",
+  "issue": "BAS-RF-119",
+  "producer": {
+    "test": "TestRecordStepOutcomeReportsScreenshotStorageWait",
+    "storage_adapter": "screenshotReceiptStore with a controlled 30ms delay",
+    "requested_wait_ms": 30,
+    "reported_store_span_ms": 30.380697,
+    "measurement_boundary": "Immediately before StorageInterface.StoreScreenshot through its return; excludes image validation and later projection.",
+    "durable_field": "TimelineArtifact.payload.storage_duration_ns"
+  },
+  "failed_storage_producer": {
+    "test": "TestFailedScreenshotStorageDurationSurvivesOutcome",
+    "storage_adapter_cases": [
+      "30ms wait then storage error",
+      "30ms wait then return context.Canceled"
+    ],
+    "durable_field": "TimelineArtifact.payload.outcome.notes.screenshot_storage_duration_ns",
+    "preserves_failed_step": true,
+    "suppresses_completed_record_result": true,
+    "limitation": "Adapter returns context.Canceled after a delay; this does not simulate a caller cancel race or managed filesystem fault."
+  },
+  "validation": {
+    "execution_writer_package": "passed",
+    "executor_package": "passed",
+    "producer_test": "passed",
+    "contract_preparation": {
+      "valid": true,
+      "preservation_journeys": 24,
+      "errors": 0,
+      "product_qualification": false
+    },
+    "governed_setpoint": {
+      "program_run_id": "prog_70c9d848-4ba5-4926-9547-1b45688e4c06",
+      "status": "ok",
+      "readable_outcomes": 1,
+      "required_outcomes": 17,
+      "unavailable_outcomes": 16,
+      "capture_in_band": true,
+      "product_qualified": false
+    },
+    "source_inventory": {
+      "include_untracked": true,
+      "digest_sha256": "c4eb8566938a7bd02b9e0517340bd05c0df3fdb5c8e456621cacca09fb676c81"
+    },
+    "scoped_diff_check": "passed"
+  },
+  "qualification": {
+    "managed_build_identity": "sha256:484089a05a799a8b78a9995fac6cc43c8f23d58d11f646a099580e8ae9ddd006",
+    "managed_build_contains_success_span_instrumentation": true,
+    "managed_build_contains_failure_span_instrumentation": true,
+    "lifecycle": "managed restart healthy; optional Claude credential unavailable; zero required credential gaps",
+    "preserved_profile": {
+      "id": "305e1254-28fc-4bfb-8774-a46aa0bc0d1d",
+      "name": "channel-manager-synthetic-p1",
+      "created_at": "2026-07-29T05:23:43.765844593Z",
+      "updated_at": "2026-07-29T05:25:18.787004553Z",
+      "last_used_at": "2026-07-29T05:25:18.787004553Z"
+    },
+    "declared_capture_workload": {
+      "operation_id": "53effc0eb113d0168a69df0318c88217",
+      "receipt_sha256": "bb69463bff852236f8ca4df12b56582eb17b223ec4baa2efeb3d292ab9715e7a",
+      "attempts": 101,
+      "warmups": 1,
+      "service_p95_ms": 421,
+      "wall_p95_ms": 636.983294,
+      "budget_ms": 2000,
+      "within_budget": true
+    },
+    "managed_viewport_span_sample": {
+      "screenshots": 10,
+      "artifact_size_bytes": "14748-14754",
+      "minimum_ns": 115201,
+      "median_ns": 123640,
+      "nearest_rank_p95_ns": 217030,
+      "maximum_ns": 217030
+    },
+    "managed_concurrent_fullpage_png_cohort": {
+      "workflow_persisted": false,
+      "executions_completed": 10,
+      "fullpage_dimensions": "2560x6400",
+      "artifact_size_bytes_each": 62022,
+      "minimum_ns": 105160,
+      "median_ns": 129735.5,
+      "nearest_rank_p95_ns": 3732705,
+      "maximum_ns": 3732705,
+      "execution_ids": [
+        "617718e0-c5a5-487c-beb2-68b0d7540da5",
+        "8c77e604-20c0-4da7-bc46-f83deb8824cd",
+        "c34d76a2-92d6-4449-a7a7-b72a9ac3156b",
+        "37b95aa4-311e-42bc-a6b3-0c6d8f898ce3",
+        "7de46aab-de7c-4b1d-92db-af189ebc5b15",
+        "a6f4edae-6d34-417e-af74-58436a50327a",
+        "3c42475b-10db-49d0-9102-4ddb91b40222",
+        "1741776c-e5b3-43cc-9f51-9b9e1c26692f",
+        "d428c18d-1856-4f3b-b2d5-fc3c0d228f58",
+        "062c47eb-f3bb-4417-9c51-9eb345da420d"
+      ],
+      "span_samples_ns": [
+        3313074,
+        114360,
+        3598205,
+        105931,
+        106550,
+        125020,
+        134451,
+        3732705,
+        3123044,
+        105160
+      ]
+    },
+    "minio_span": "unmeasured",
+    "windows_macos": "unverified",
+    "long_soak": "unverified",
+    "failed_store_span_reporting": "deployed on managed build; controlled owner tests confirm durable failed-outcome timing; managed failure fault injection remains unqualified",
+    "product_qualified": false,
+    "preserved_profile_after_restart": {
+      "id": "305e1254-28fc-4bfb-8774-a46aa0bc0d1d",
+      "name": "channel-manager-synthetic-p1",
+      "created_at": "2026-07-29T05:23:43.765844593Z",
+      "updated_at": "2026-07-29T05:25:18.787004553Z",
+      "last_used_at": "2026-07-29T05:25:18.787004553Z",
+      "unchanged_across_restart": true
+    },
+    "latest_declared_capture_workload": {
+      "operation_id": "ab699d199e203075055b3fa2caa2a23b",
+      "receipt_sha256": "0fe299c1f886ae43d6085fcebb5f7253edbb08809778a3638d3d640cf0797aec",
+      "attempts": 101,
+      "warmups": 1,
+      "service_p95_ms": 444,
+      "wall_p95_ms": 617.836227,
+      "budget_ms": 2000,
+      "within_budget": true
+    }
+  },
+  "change_cost": {
+    "runtime_result_field_added": 0,
+    "event_payload_key_added": 0,
+    "durable_artifact_payload_key_added": 1,
+    "regression_tests_added": 1,
+    "net_complexity_reduction_claimed": false
+  },
+  "result": "Successful FileStorage call spans remain in screenshot artifact metadata; when storage fails, positive call duration is retained in the durable failed step outcome without creating a successful RecordResult. The failure path is deployed on the managed Linux build and covered by controlled owner tests. Latest declared capture workload passes within budget. This is bounded evidence, not managed fault-injection, MinIO, cross-platform, long-soak, or product qualification."
+}

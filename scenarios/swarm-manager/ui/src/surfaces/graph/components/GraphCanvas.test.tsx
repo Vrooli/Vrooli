@@ -2,43 +2,76 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
+const { mockUseGoalMembershipIndex } = vi.hoisted(() => ({
+  mockUseGoalMembershipIndex: vi.fn(() => new Map()),
+}));
+
 const mockNavigate = vi.fn();
 vi.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }));
 
+vi.mock("../hooks/useGoalMembership", () => ({
+  nodeIdToGoalRef: (nodeId: string) => {
+    if (nodeId.startsWith("backlog-item/")) return nodeId.slice("backlog-item/".length);
+    if (nodeId.startsWith("goal/")) return nodeId;
+    return null;
+  },
+  useGoalMembershipIndex: mockUseGoalMembershipIndex,
+}));
+
+// Module-scoped spies so tests can assert on React Flow interactions.
+const mockFitView = vi.fn();
+const mockSetCenter = vi.fn();
+const mockGetViewport = vi.fn(() => ({ x: 0, y: 0, zoom: 1 }));
+
 vi.mock("@xyflow/react", async () => {
   const ReactModule = await import("react");
   interface MockGraphNode {
     id: string;
+    data?: { goalBadges?: unknown[] };
     style?: Record<string, unknown>;
   }
   interface MockGraphEdge {
     id: string;
+    type?: string;
+    data?: { relationshipType?: unknown };
     style?: Record<string, unknown>;
   }
   interface MockReactFlowProps {
     nodes: MockGraphNode[];
     edges: MockGraphEdge[];
     children?: React.ReactNode;
-    onInit?: (instance: { fitView: ReturnType<typeof vi.fn> }) => void;
+    onlyRenderVisibleElements?: boolean;
+    onInit?: (instance: {
+      fitView: typeof mockFitView;
+      setCenter: typeof mockSetCenter;
+      getViewport: typeof mockGetViewport;
+    }) => void;
     fitView?: boolean;
-    defaultViewport?: { x: number; y: number; zoom: number };
   }
 
   return {
-    ReactFlow: ({ nodes, edges, children, onInit, fitView, defaultViewport }: MockReactFlowProps) => {
+    ReactFlow: ({ nodes, edges, children, onInit, fitView, onlyRenderVisibleElements }: MockReactFlowProps) => {
       ReactModule.useEffect(() => {
-        onInit?.({ fitView: vi.fn() });
+        onInit?.({ fitView: mockFitView, setCenter: mockSetCenter, getViewport: mockGetViewport });
       }, [onInit]);
 
       return (
         <div data-testid="mock-react-flow">
           <div data-testid="fit-view-flag">{String(fitView)}</div>
-          <div data-testid="default-viewport">{JSON.stringify(defaultViewport ?? null)}</div>
+          <div data-testid="only-render-visible-elements">{String(Boolean(onlyRenderVisibleElements))}</div>
           <div data-testid="rendered-node-ids">{nodes.map((node) => node.id).join(",")}</div>
           <div data-testid="rendered-edge-ids">{edges.map((edge) => edge.id).join(",")}</div>
+          <div data-testid="rendered-edge-types">{edges.map((edge) => edge.type ?? "").join(",")}</div>
+          <div data-testid="rendered-edge-relationship-types">{edges.map((edge) => String(edge.data?.relationshipType ?? "")).join(",")}</div>
+          <div data-testid="node-goal-badge-counts">{JSON.stringify(
+            nodes.reduce<Record<string, number>>((acc, n) => {
+              acc[n.id] = n.data?.goalBadges?.length ?? 0;
+              return acc;
+            }, {}),
+          )}</div>
           <div data-testid="node-opacities">{JSON.stringify(
             nodes.reduce<Record<string, number | undefined>>((acc, n) => {
               acc[n.id] = n.style?.opacity as number | undefined;
@@ -79,7 +112,7 @@ import { cloneGraphUIInitialState, useGraphUIStore } from "../stores/graph-ui-st
 import {
   makeExecutionNode,
   makeGraphEdge,
-  makeInitiativeNode,
+  makeGoalNode,
   makeBacklogNode,
   makeCaptureNode,
   makeScenarioNode,
@@ -94,68 +127,17 @@ function resetStores() {
 describe("GraphCanvas", () => {
   beforeEach(() => {
     resetStores();
+    mockFitView.mockClear();
+    mockSetCenter.mockClear();
+    mockGetViewport.mockClear();
+    mockUseGoalMembershipIndex.mockReset();
+    mockUseGoalMembershipIndex.mockReturnValue(new Map());
+    mockGetViewport.mockReturnValue({ x: 0, y: 0, zoom: 1 });
     vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
       cb(0);
       return 1;
     });
     vi.stubGlobal("cancelAnimationFrame", vi.fn());
-  });
-
-  it("renders initiative clusters collapsed on the first paint", async () => {
-    useGraphSettingsStore.setState((state) => ({
-      ...state,
-      activeLens: "topology",
-      settingsByLens: {
-        ...state.settingsByLens,
-        topology: {
-          ...state.settingsByLens.topology,
-          groupingMode: "initiative",
-        },
-      },
-    }));
-    useGraphDataStore.setState((state) => ({
-      ...state,
-      lens: "topology",
-      nodes: [
-        makeInitiativeNode("initiative/graph-adoption", {
-          label: "Graph Adoption",
-          status: "active",
-          rollup: { total: 2, completed: 0, in_progress: 1, failed: 0, pending: 1 },
-        }),
-        makeBacklogNode("backlog-item/execute/task-a", {
-          label: "Task A",
-          status: "queued",
-        }),
-        makeBacklogNode("backlog-item/execute/task-b", {
-          label: "Task B",
-          status: "queued",
-        }),
-      ],
-      edges: [
-        makeGraphEdge(
-          "member_of:a",
-          "backlog-item/execute/task-a",
-          "initiative/graph-adoption",
-          "member_of",
-        ),
-        makeGraphEdge(
-          "member_of:b",
-          "backlog-item/execute/task-b",
-          "initiative/graph-adoption",
-          "member_of",
-        ),
-      ],
-    }));
-
-    render(<GraphCanvas />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId("rendered-node-ids").textContent).toContain("initiative/graph-adoption");
-    });
-
-    const renderedNodeIds = screen.getByTestId("rendered-node-ids").textContent ?? "";
-    expect(renderedNodeIds).not.toContain("backlog-item/execute/task-a");
-    expect(renderedNodeIds).not.toContain("backlog-item/execute/task-b");
   });
 
   it("keeps backlog items visible in flat topology view", async () => {
@@ -166,7 +148,6 @@ describe("GraphCanvas", () => {
         ...state.settingsByLens,
         topology: {
           ...state.settingsByLens.topology,
-          groupingMode: "none",
         },
       },
     }));
@@ -174,7 +155,7 @@ describe("GraphCanvas", () => {
       ...state,
       lens: "topology",
       nodes: [
-        makeInitiativeNode("initiative/graph-adoption", {
+        makeGoalNode("goal/graph-adoption", {
           label: "Graph Adoption",
           status: "active",
         }),
@@ -191,7 +172,7 @@ describe("GraphCanvas", () => {
         makeGraphEdge(
           "member_of:a",
           "backlog-item/execute/task-a",
-          "initiative/graph-adoption",
+          "goal/graph-adoption",
           "member_of",
         ),
       ],
@@ -205,7 +186,7 @@ describe("GraphCanvas", () => {
 
     const renderedNodeIds = screen.getByTestId("rendered-node-ids").textContent ?? "";
     expect(renderedNodeIds).toContain("backlog-item/execute/task-a");
-    expect(renderedNodeIds).toContain("initiative/graph-adoption");
+    expect(renderedNodeIds).toContain("goal/graph-adoption");
     expect(renderedNodeIds).toContain("scenario/swarm-manager");
   });
 
@@ -255,18 +236,18 @@ describe("GraphCanvas", () => {
     expect(screen.getByTestId("rendered-edge-ids").textContent).toBe("");
   });
 
-  it("does not reuse another lens viewport when the active lens has no saved camera", async () => {
+  it("does not reuse another lens intent when the active lens has no saved intent", async () => {
     useGraphUIStore.setState((state) => ({
       ...state,
-      viewportByLens: {
-        ...state.viewportByLens,
-        topology: { x: 120, y: 80, zoom: 0.9 },
+      viewportIntentByLens: {
+        ...state.viewportIntentByLens,
+        topology: { nodeId: "scenario/swarm-manager", zoom: 0.9 },
       },
     }));
 
     useGraphDataStore.setState((state) => ({
       ...state,
-      lens: "operations",
+      lens: "focus",
       nodes: [
         makeExecutionNode("execution-record/exec-1", {
           label: "Execution 1",
@@ -282,10 +263,71 @@ describe("GraphCanvas", () => {
       expect(screen.getByTestId("rendered-node-ids").textContent).toContain("execution-record/exec-1");
     });
 
-    expect(screen.getByTestId("fit-view-flag").textContent).toBe("true");
-    expect(screen.getByTestId("default-viewport").textContent).toBe(
-      JSON.stringify({ x: 0, y: 0, zoom: 1 }),
-    );
+    // No intent for `operations` lens → should fit-view, not set-center.
+    expect(mockFitView).toHaveBeenCalled();
+    expect(mockSetCenter).not.toHaveBeenCalled();
+  });
+
+  it("restores viewport intent when the node still exists", async () => {
+    useGraphUIStore.setState((state) => ({
+      ...state,
+      viewportIntentByLens: {
+        ...state.viewportIntentByLens,
+        focus: { nodeId: "execution-record/exec-1", zoom: 1.4 },
+      },
+    }));
+
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "focus",
+      nodes: [
+        makeExecutionNode("execution-record/exec-1", {
+          label: "Execution 1",
+          status: "running",
+        }),
+      ],
+      edges: [],
+    }));
+
+    render(<GraphCanvas />);
+
+    await waitFor(() => {
+      expect(mockSetCenter).toHaveBeenCalled();
+    });
+
+    const [, , options] = mockSetCenter.mock.calls[0] ?? [];
+    expect(options).toMatchObject({ zoom: 1.4, duration: 0 });
+  });
+
+  it("falls back to fitView when intent's node is no longer present", async () => {
+    useGraphUIStore.setState((state) => ({
+      ...state,
+      viewportIntentByLens: {
+        ...state.viewportIntentByLens,
+        operations: { nodeId: "execution-record/exec-does-not-exist", zoom: 1.4 },
+      },
+    }));
+
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "focus",
+      nodes: [
+        makeExecutionNode("execution-record/exec-1", {
+          label: "Execution 1",
+          status: "running",
+        }),
+      ],
+      edges: [],
+    }));
+
+    render(<GraphCanvas />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rendered-node-ids").textContent).toContain("execution-record/exec-1");
+    });
+
+    expect(mockSetCenter).not.toHaveBeenCalled();
+    expect(mockFitView).toHaveBeenCalled();
   });
 
   it("dims non-highlighted nodes and edges when a node is selected", async () => {
@@ -296,7 +338,6 @@ describe("GraphCanvas", () => {
         ...state.settingsByLens,
         topology: {
           ...state.settingsByLens.topology,
-          groupingMode: "none",
         },
       },
     }));
@@ -348,7 +389,6 @@ describe("GraphCanvas", () => {
         ...state.settingsByLens,
         topology: {
           ...state.settingsByLens.topology,
-          groupingMode: "none",
         },
       },
     }));
@@ -392,7 +432,6 @@ describe("GraphCanvas", () => {
         ...state.settingsByLens,
         topology: {
           ...state.settingsByLens.topology,
-          groupingMode: "none",
         },
       },
     }));
@@ -426,5 +465,137 @@ describe("GraphCanvas", () => {
     const nodeOpacities: Record<string, number | undefined> = JSON.parse(screen.getByTestId("node-opacities").textContent ?? "{}") as Record<string, number | undefined>;
     expect(nodeOpacities["backlog-item/execute/task-a"]).toBeUndefined();
     expect(nodeOpacities["scenario/app"]).toBeUndefined();
+  });
+
+  it("injects precomputed goal badges once at the canvas boundary", async () => {
+    mockUseGoalMembershipIndex.mockReturnValue(new Map([
+      ["execute/task-a", [{ name: "goal-a", title: "Goal A", priority: 3 }]],
+    ]));
+
+    useGraphSettingsStore.setState((state) => ({
+      ...state,
+      activeLens: "topology",
+    }));
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "topology",
+      nodes: [
+        makeBacklogNode("backlog-item/execute/task-a", { label: "A", status: "queued" }),
+        makeScenarioNode("scenario/app", { label: "App", status: "running" }),
+      ],
+      edges: [],
+    }));
+
+    render(<GraphCanvas />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rendered-node-ids").textContent).toContain("backlog-item/execute/task-a");
+    });
+
+    const badgeCounts = JSON.parse(
+      screen.getByTestId("node-goal-badge-counts").textContent ?? "{}",
+    ) as Record<string, number>;
+    expect(badgeCounts["backlog-item/execute/task-a"]).toBe(1);
+    expect(badgeCounts["scenario/app"]).toBe(0);
+  });
+
+  it("uses straight edge rendering for large graphs without losing relationship metadata", async () => {
+    const nodes = [
+      makeBacklogNode("backlog-item/execute/task-a", { label: "A", status: "queued" }),
+      makeBacklogNode("backlog-item/execute/task-b", { label: "B", status: "queued" }),
+    ];
+    const edges = Array.from({ length: 300 }, (_, i) =>
+      makeGraphEdge(`member_of:${i}`, "backlog-item/execute/task-a", "backlog-item/execute/task-b", "member_of"),
+    );
+
+    useGraphSettingsStore.setState((state) => ({
+      ...state,
+      activeLens: "topology",
+    }));
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "topology",
+      nodes,
+      edges,
+    }));
+
+    render(<GraphCanvas />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rendered-edge-ids").textContent).toContain("member_of:0");
+    });
+
+    expect(screen.getByTestId("rendered-edge-types").textContent?.split(",")).toEqual(
+      Array(300).fill("straight"),
+    );
+    expect(screen.getByTestId("rendered-edge-relationship-types").textContent?.split(",")).toEqual(
+      Array(300).fill("member_of"),
+    );
+  });
+
+  it("keeps small graphs on full rendering without large-graph overlay overhead", async () => {
+    useGraphSettingsStore.setState((state) => ({
+      ...state,
+      activeLens: "topology",
+    }));
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "topology",
+      nodes: [
+        makeBacklogNode("backlog-item/execute/task-a", { label: "A", status: "queued" }),
+        makeScenarioNode("scenario/app", { label: "App", status: "running" }),
+      ],
+      edges: [
+        makeGraphEdge("e1", "backlog-item/execute/task-a", "scenario/app", "targets"),
+      ],
+    }));
+
+    render(<GraphCanvas />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rendered-node-ids").textContent).toContain("scenario/app");
+    });
+
+    expect(screen.getByTestId("only-render-visible-elements").textContent).toBe("false");
+    expect(screen.getByTestId("background")).toBeInTheDocument();
+    expect(screen.queryByTestId("graph-topology-summary")).toBeNull();
+  });
+
+  it("enables viewport rendering and topology scope for large graphs", async () => {
+    const nodes = Array.from({ length: 300 }, (_, i) =>
+      makeBacklogNode(`backlog-item/execute/task-${i}`, { label: `Task ${i}`, status: "queued" }),
+    );
+    const edges = nodes.slice(1).map((node, i) =>
+      makeGraphEdge(`depends_on:${i}`, nodes[i]!.id, node.id, "depends_on"),
+    );
+
+    mockUseGoalMembershipIndex.mockReturnValue(new Map([
+      ["execute/task-42", [{ name: "goal-a", title: "Goal A", priority: 3 }]],
+    ]));
+    useGraphSettingsStore.setState((state) => ({
+      ...state,
+      activeLens: "topology",
+    }));
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "topology",
+      nodes,
+      edges,
+    }));
+
+    render(<GraphCanvas />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rendered-node-ids").textContent).toContain("backlog-item/execute/task-42");
+    });
+
+    expect(screen.getByTestId("only-render-visible-elements").textContent).toBe("true");
+    expect(screen.queryByTestId("background")).toBeNull();
+    expect(screen.getByTestId("graph-topology-summary")).toHaveTextContent("300 nodes / 299 edges");
+
+    const badgeCounts = JSON.parse(
+      screen.getByTestId("node-goal-badge-counts").textContent ?? "{}",
+    ) as Record<string, number>;
+    expect(badgeCounts["backlog-item/execute/task-42"]).toBe(1);
   });
 });

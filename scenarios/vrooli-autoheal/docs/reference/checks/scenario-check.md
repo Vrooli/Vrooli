@@ -6,22 +6,28 @@ Monitors running Vrooli scenarios to ensure they remain healthy and responsive.
 
 | Property | Value |
 |----------|-------|
-| Check ID | `scenario-{name}` (e.g., `scenario-landing-manager`) |
+| Check ID | `scenario-{name}` (e.g., `scenario-template-manager`) |
 | Category | Scenario |
 | Interval | 60 seconds |
 | Platforms | All |
 
 ## What It Monitors
 
-Scenario checks run `vrooli scenario status {name}` and interpret the output:
+Scenario checks run `vrooli scenario status {name} --json` and parse only the current Go-native contract:
+
+- `success`
+- `scenario.status`
+- `scenario.health_status`
+
+`scenario_data.*` is not supported.
 
 ```mermaid
 flowchart TD
-    A[Run vrooli scenario status] --> B{Exit Code?}
+    A[Run vrooli scenario status --json] --> B{Exit Code?}
     B -->|Non-zero| C[Warning: Command Failed]
     B -->|Zero| D{Output Contains?}
     D -->|"running"| E[OK: Scenario Healthy]
-    D -->|"not running"/"stopped"| F[Warning: Scenario Stopped]
+    D -->|not running or stopped| F[Warning: Scenario Stopped]
     D -->|Other| G[Warning: Unclear Status]
 ```
 
@@ -30,8 +36,8 @@ flowchart TD
 | Status | Meaning |
 |--------|---------|
 | **OK** | Scenario is running and healthy |
-| **Warning** | Scenario is stopped or status unclear |
-| **Critical** | Scenario health check failed (e.g., health endpoint returned error) |
+| **Warning** | Scenario is stopped, degraded, or status parsing failed |
+| **Critical** | Critical scenario is unhealthy or the status command failed |
 
 Unlike resources, scenarios that are simply "stopped" return Warning (not Critical) because it may be intentional.
 
@@ -58,13 +64,12 @@ vrooli scenario restart my-scenario
 
 ### 2. Port Already In Use
 ```bash
-# Check ports
-vrooli scenario port my-scenario
+# Diagnose the conflict using core maintenance logic
+vrooli diagnose-port 3000 my-scenario
 
-# Find what's using the port
-sudo ss -tlnp | grep 3000
-
-# Kill conflicting process or restart scenario on different port
+# Inspect authoritative maintenance state
+vrooli locks --json
+vrooli orphans --json
 ```
 
 ### 3. Resource Dependencies Down
@@ -172,6 +177,13 @@ Scenario checks are auto-registered when scenarios are started. Configuration is
 | **Cleanup Ports** | Kill processes holding scenario ports | High - may kill unrelated processes |
 | **View Logs** | View recent scenario logs | Safe |
 | **Diagnose** | Get detailed diagnostic information | Safe |
+
+## Contract Ownership
+
+- Scenario status authority lives in the core `vrooli scenario status --json` contract.
+- Orphan process authority lives in `vrooli orphans --json` and `vrooli cleanup orphans`.
+- Port lock authority lives in `vrooli locks --json`, `vrooli cleanup locks`, and `vrooli diagnose-port`.
+- Autoheal does not keep fallback orphan or stale-lock heuristics.
 
 ### Clean Stale Restart
 

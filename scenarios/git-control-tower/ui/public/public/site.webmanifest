@@ -1,0 +1,41 @@
+{
+  "_brand": {
+    "slug": "rigel",
+    "version": 6
+  },
+  "background_color": "#0f172a",
+  "description": "Immutable regression baselines, change review, and governed git operations.",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any",
+      "sizes": "192x192",
+      "src": "icon-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any",
+      "sizes": "512x512",
+      "src": "icon-512.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "192x192",
+      "src": "maskable-icon-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "512x512",
+      "src": "maskable-icon-512.png",
+      "type": "image/png"
+    }
+  ],
+  "id": "/",
+  "name": "Rigel",
+  "scope": "/",
+  "short_name": "Rigel",
+  "start_url": "/",
+  "theme_color": "#0f172a"
+}

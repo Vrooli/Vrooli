@@ -1,0 +1,2365 @@
+{
+  "baseline": {
+    "startedAt": "2026-09-25T04:17:11.951Z",
+    "durationMs": 15000,
+    "receivedFrames": 335,
+    "decodedFrames": 335,
+    "renderedFrames": 335,
+    "uniqueFixtureFrames": 335,
+    "maxConcurrentDecodes": 1,
+    "stallCount": 0,
+    "samples": [
+      {
+        "capturedAt": "2026-09-25T04:17:11.972Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6797,
+        "decodeMs": 2.299999952316284,
+        "marker": 13
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.023Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6794,
+        "decodeMs": 2.4000000953674316,
+        "marker": 14
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.056Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6793,
+        "decodeMs": 2.5,
+        "marker": 15
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.105Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6746,
+        "decodeMs": 2.299999952316284,
+        "marker": 16
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.154Z",
+        "frameAgeMs": 10,
+        "frameBytes": 6768,
+        "decodeMs": 2.5999999046325684,
+        "marker": 17
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.192Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6768,
+        "decodeMs": 2.9000000953674316,
+        "marker": 18
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.242Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6774,
+        "decodeMs": 2.299999952316284,
+        "marker": 19
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.289Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6805,
+        "decodeMs": 2.3999998569488525,
+        "marker": 20
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.338Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6821,
+        "decodeMs": 2.3000001907348633,
+        "marker": 21
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.392Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6821,
+        "decodeMs": 2.299999952316284,
+        "marker": 22
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.441Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6831,
+        "decodeMs": 2.5,
+        "marker": 23
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.49Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6802,
+        "decodeMs": 2.299999952316284,
+        "marker": 24
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.522Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6821,
+        "decodeMs": 2.299999952316284,
+        "marker": 25
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.571Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6819,
+        "decodeMs": 2.299999952316284,
+        "marker": 26
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.624Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6826,
+        "decodeMs": 2.5,
+        "marker": 27
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.676Z",
+        "frameAgeMs": 4,
+        "frameBytes": 6785,
+        "decodeMs": 2.299999952316284,
+        "marker": 28
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.724Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6800,
+        "decodeMs": 2.200000047683716,
+        "marker": 29
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.757Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6800,
+        "decodeMs": 2.4000000953674316,
+        "marker": 30
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.807Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6807,
+        "decodeMs": 2.200000047683716,
+        "marker": 31
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.858Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6747,
+        "decodeMs": 2.5,
+        "marker": 32
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.908Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6765,
+        "decodeMs": 2.5,
+        "marker": 33
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:12.954Z",
+        "frameAgeMs": 10,
+        "frameBytes": 6766,
+        "decodeMs": 2.4000000953674316,
+        "marker": 34
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.005Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6777,
+        "decodeMs": 3.5,
+        "marker": 35
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.055Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6799,
+        "decodeMs": 2.5,
+        "marker": 36
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.105Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6821,
+        "decodeMs": 2.5,
+        "marker": 37
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.155Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6820,
+        "decodeMs": 2.5,
+        "marker": 38
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.206Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6829,
+        "decodeMs": 2.299999952316284,
+        "marker": 39
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.26Z",
+        "frameAgeMs": 20,
+        "frameBytes": 6799,
+        "decodeMs": 2.5999999046325684,
+        "marker": 40
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.313Z",
+        "frameAgeMs": 17,
+        "frameBytes": 6824,
+        "decodeMs": 3.3000001907348633,
+        "marker": 41
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.36Z",
+        "frameAgeMs": 20,
+        "frameBytes": 6821,
+        "decodeMs": 3.3000001907348633,
+        "marker": 42
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.391Z",
+        "frameAgeMs": 23,
+        "frameBytes": 6829,
+        "decodeMs": 2.4000000953674316,
+        "marker": 43
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.443Z",
+        "frameAgeMs": 4,
+        "frameBytes": 6790,
+        "decodeMs": 2.5999999046325684,
+        "marker": 44
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.474Z",
+        "frameAgeMs": 23,
+        "frameBytes": 6805,
+        "decodeMs": 2.4000000953674316,
+        "marker": 45
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.522Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6800,
+        "decodeMs": 2.799999952316284,
+        "marker": 46
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.578Z",
+        "frameAgeMs": 19,
+        "frameBytes": 6806,
+        "decodeMs": 2.8000001907348633,
+        "marker": 47
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.605Z",
+        "frameAgeMs": 25,
+        "frameBytes": 6762,
+        "decodeMs": 2.3000001907348633,
+        "marker": 48
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.656Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6782,
+        "decodeMs": 2.4000000953674316,
+        "marker": 49
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.688Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6779,
+        "decodeMs": 2.4000000953674316,
+        "marker": 50
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.739Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6784,
+        "decodeMs": 2.4000000953674316,
+        "marker": 51
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.789Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6816,
+        "decodeMs": 2.4000000953674316,
+        "marker": 52
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.821Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6834,
+        "decodeMs": 2.5999999046325684,
+        "marker": 53
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.872Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6831,
+        "decodeMs": 2.4000000953674316,
+        "marker": 54
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.921Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6839,
+        "decodeMs": 2.9000000953674316,
+        "marker": 55
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:13.957Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6812,
+        "decodeMs": 2.8999998569488525,
+        "marker": 56
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.006Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6833,
+        "decodeMs": 2.299999952316284,
+        "marker": 57
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.056Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6828,
+        "decodeMs": 2.799999952316284,
+        "marker": 58
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.091Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6837,
+        "decodeMs": 3.1000001430511475,
+        "marker": 59
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.141Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6791,
+        "decodeMs": 2.299999952316284,
+        "marker": 60
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.188Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6811,
+        "decodeMs": 2.4000000953674316,
+        "marker": 61
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.238Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6810,
+        "decodeMs": 2.4000000953674316,
+        "marker": 62
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.273Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6813,
+        "decodeMs": 3.200000047683716,
+        "marker": 63
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.321Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6791,
+        "decodeMs": 2.700000047683716,
+        "marker": 64
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.355Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6805,
+        "decodeMs": 3,
+        "marker": 65
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.405Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6802,
+        "decodeMs": 2.4000000953674316,
+        "marker": 66
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.456Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6817,
+        "decodeMs": 2.5,
+        "marker": 67
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.489Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6835,
+        "decodeMs": 2.5999999046325684,
+        "marker": 68
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.538Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6851,
+        "decodeMs": 2.3999998569488525,
+        "marker": 69
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.575Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6848,
+        "decodeMs": 2.5,
+        "marker": 70
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.611Z",
+        "frameAgeMs": 19,
+        "frameBytes": 6854,
+        "decodeMs": 3.200000047683716,
+        "marker": 71
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.662Z",
+        "frameAgeMs": 18,
+        "frameBytes": 6836,
+        "decodeMs": 2.700000047683716,
+        "marker": 72
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.705Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6852,
+        "decodeMs": 2.5,
+        "marker": 73
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.738Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6851,
+        "decodeMs": 2.5999999046325684,
+        "marker": 74
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.788Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6858,
+        "decodeMs": 2.5999999046325684,
+        "marker": 75
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.84Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6821,
+        "decodeMs": 2.3000001907348633,
+        "marker": 76
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.891Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6837,
+        "decodeMs": 2.299999952316284,
+        "marker": 77
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.925Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6837,
+        "decodeMs": 2.5,
+        "marker": 78
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:14.971Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6845,
+        "decodeMs": 2.4000000953674316,
+        "marker": 79
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.005Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6805,
+        "decodeMs": 2.200000047683716,
+        "marker": 80
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.055Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6825,
+        "decodeMs": 2.5,
+        "marker": 81
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.088Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6828,
+        "decodeMs": 2.5,
+        "marker": 82
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.138Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6827,
+        "decodeMs": 2.5,
+        "marker": 83
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.191Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6844,
+        "decodeMs": 2.299999952316284,
+        "marker": 84
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.242Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6862,
+        "decodeMs": 2.700000047683716,
+        "marker": 85
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.288Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6862,
+        "decodeMs": 2.3999998569488525,
+        "marker": 86
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.321Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6866,
+        "decodeMs": 2.0999999046325684,
+        "marker": 87
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.371Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6843,
+        "decodeMs": 3,
+        "marker": 88
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.404Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6863,
+        "decodeMs": 2.6000001430511475,
+        "marker": 89
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.454Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6860,
+        "decodeMs": 2.299999952316284,
+        "marker": 90
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.504Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6866,
+        "decodeMs": 2.6000001430511475,
+        "marker": 91
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.554Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6830,
+        "decodeMs": 2.200000047683716,
+        "marker": 92
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.604Z",
+        "frameAgeMs": 10,
+        "frameBytes": 6851,
+        "decodeMs": 3,
+        "marker": 93
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.654Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6850,
+        "decodeMs": 2.200000047683716,
+        "marker": 94
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.689Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6853,
+        "decodeMs": 2.3999998569488525,
+        "marker": 95
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.741Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6799,
+        "decodeMs": 2.4000000953674316,
+        "marker": 96
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.788Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6821,
+        "decodeMs": 2.200000047683716,
+        "marker": 97
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.821Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6824,
+        "decodeMs": 2.299999952316284,
+        "marker": 98
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.871Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6830,
+        "decodeMs": 2.3000001907348633,
+        "marker": 99
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.905Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6844,
+        "decodeMs": 2.5999999046325684,
+        "marker": 100
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:15.96Z",
+        "frameAgeMs": 3,
+        "frameBytes": 6865,
+        "decodeMs": 2.3999998569488525,
+        "marker": 101
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.008Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6856,
+        "decodeMs": 2.3999998569488525,
+        "marker": 102
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.059Z",
+        "frameAgeMs": 4,
+        "frameBytes": 6868,
+        "decodeMs": 2.5999999046325684,
+        "marker": 103
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.105Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6842,
+        "decodeMs": 2.3000001907348633,
+        "marker": 104
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.154Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6864,
+        "decodeMs": 2.5,
+        "marker": 105
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.187Z",
+        "frameAgeMs": 10,
+        "frameBytes": 6858,
+        "decodeMs": 2.299999952316284,
+        "marker": 106
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.238Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6868,
+        "decodeMs": 2.5,
+        "marker": 107
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.273Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6829,
+        "decodeMs": 2.299999952316284,
+        "marker": 108
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.323Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6849,
+        "decodeMs": 2.3999998569488525,
+        "marker": 109
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.372Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6848,
+        "decodeMs": 3.0999999046325684,
+        "marker": 110
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.421Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6853,
+        "decodeMs": 2.299999952316284,
+        "marker": 111
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.471Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6819,
+        "decodeMs": 2.700000047683716,
+        "marker": 112
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.525Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6831,
+        "decodeMs": 2.6999998092651367,
+        "marker": 113
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.559Z",
+        "frameAgeMs": 4,
+        "frameBytes": 6827,
+        "decodeMs": 2.4000000953674316,
+        "marker": 114
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.605Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6839,
+        "decodeMs": 2.299999952316284,
+        "marker": 115
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.639Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6854,
+        "decodeMs": 2.5,
+        "marker": 116
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.693Z",
+        "frameAgeMs": 4,
+        "frameBytes": 6872,
+        "decodeMs": 2.4000000953674316,
+        "marker": 117
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.738Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6873,
+        "decodeMs": 2.3000001907348633,
+        "marker": 118
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.774Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6875,
+        "decodeMs": 2.4000000953674316,
+        "marker": 119
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.821Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6850,
+        "decodeMs": 2.4000000953674316,
+        "marker": 120
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.871Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6867,
+        "decodeMs": 2.4000000953674316,
+        "marker": 121
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.922Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6867,
+        "decodeMs": 2.5,
+        "marker": 122
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:16.959Z",
+        "frameAgeMs": 4,
+        "frameBytes": 6876,
+        "decodeMs": 2.6999998092651367,
+        "marker": 123
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.005Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6839,
+        "decodeMs": 2.4000000953674316,
+        "marker": 124
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.055Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6854,
+        "decodeMs": 2.4000000953674316,
+        "marker": 125
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.088Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6854,
+        "decodeMs": 2.3999998569488525,
+        "marker": 126
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.138Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6861,
+        "decodeMs": 2.4000000953674316,
+        "marker": 127
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.174Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6790,
+        "decodeMs": 2.5,
+        "marker": 128
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.225Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6808,
+        "decodeMs": 2.5999999046325684,
+        "marker": 129
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.273Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6803,
+        "decodeMs": 2.5,
+        "marker": 130
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.321Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6816,
+        "decodeMs": 2.3000001907348633,
+        "marker": 131
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.356Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6829,
+        "decodeMs": 2.3999998569488525,
+        "marker": 132
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.409Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6849,
+        "decodeMs": 2.3999998569488525,
+        "marker": 133
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.457Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6847,
+        "decodeMs": 2.799999952316284,
+        "marker": 134
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.506Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6855,
+        "decodeMs": 3.0999999046325684,
+        "marker": 135
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.555Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6832,
+        "decodeMs": 2.700000047683716,
+        "marker": 136
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.593Z",
+        "frameAgeMs": 4,
+        "frameBytes": 6851,
+        "decodeMs": 2.5,
+        "marker": 137
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.638Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6846,
+        "decodeMs": 2.299999952316284,
+        "marker": 138
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.688Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6858,
+        "decodeMs": 2.4000000953674316,
+        "marker": 139
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.722Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6817,
+        "decodeMs": 2.5,
+        "marker": 140
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.776Z",
+        "frameAgeMs": 4,
+        "frameBytes": 6835,
+        "decodeMs": 2.299999952316284,
+        "marker": 141
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.809Z",
+        "frameAgeMs": 21,
+        "frameBytes": 6834,
+        "decodeMs": 3,
+        "marker": 142
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.858Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6844,
+        "decodeMs": 2.5,
+        "marker": 143
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.904Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6805,
+        "decodeMs": 2.299999952316284,
+        "marker": 144
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.94Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6822,
+        "decodeMs": 2.5,
+        "marker": 145
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:17.992Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6824,
+        "decodeMs": 2.299999952316284,
+        "marker": 146
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.02Z",
+        "frameAgeMs": 27,
+        "frameBytes": 6827,
+        "decodeMs": 2.3000001907348633,
+        "marker": 147
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.071Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6844,
+        "decodeMs": 2.3999998569488525,
+        "marker": 148
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.105Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6863,
+        "decodeMs": 2.4000000953674316,
+        "marker": 149
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.154Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6861,
+        "decodeMs": 2.299999952316284,
+        "marker": 150
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.205Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6866,
+        "decodeMs": 2.5,
+        "marker": 151
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.238Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6840,
+        "decodeMs": 2.299999952316284,
+        "marker": 152
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.288Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6862,
+        "decodeMs": 2.8000001907348633,
+        "marker": 153
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.339Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6863,
+        "decodeMs": 2.4000000953674316,
+        "marker": 154
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.389Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6866,
+        "decodeMs": 2.4000000953674316,
+        "marker": 155
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.438Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6831,
+        "decodeMs": 2.4000000953674316,
+        "marker": 156
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.472Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6851,
+        "decodeMs": 2.700000047683716,
+        "marker": 157
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.524Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6848,
+        "decodeMs": 2.799999952316284,
+        "marker": 158
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.573Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6851,
+        "decodeMs": 2.5,
+        "marker": 159
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.621Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6798,
+        "decodeMs": 2.4000000953674316,
+        "marker": 160
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.671Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6821,
+        "decodeMs": 2.299999952316284,
+        "marker": 161
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.721Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6820,
+        "decodeMs": 2.5,
+        "marker": 162
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.771Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6823,
+        "decodeMs": 2.5,
+        "marker": 163
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.807Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6842,
+        "decodeMs": 2.3999998569488525,
+        "marker": 164
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.855Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6862,
+        "decodeMs": 3,
+        "marker": 165
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.91Z",
+        "frameAgeMs": 3,
+        "frameBytes": 6862,
+        "decodeMs": 2.299999952316284,
+        "marker": 166
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.938Z",
+        "frameAgeMs": 25,
+        "frameBytes": 6868,
+        "decodeMs": 2.5,
+        "marker": 167
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:18.972Z",
+        "frameAgeMs": 25,
+        "frameBytes": 6845,
+        "decodeMs": 2.5,
+        "marker": 168
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.021Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6863,
+        "decodeMs": 2.4000000953674316,
+        "marker": 169
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.071Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6863,
+        "decodeMs": 2.200000047683716,
+        "marker": 170
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.12Z",
+        "frameAgeMs": 10,
+        "frameBytes": 6868,
+        "decodeMs": 2.299999952316284,
+        "marker": 171
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.17Z",
+        "frameAgeMs": 10,
+        "frameBytes": 6830,
+        "decodeMs": 2.299999952316284,
+        "marker": 172
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.206Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6854,
+        "decodeMs": 2.4000000953674316,
+        "marker": 173
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.255Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6847,
+        "decodeMs": 2.5,
+        "marker": 174
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.288Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6856,
+        "decodeMs": 2.200000047683716,
+        "marker": 175
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.343Z",
+        "frameAgeMs": 4,
+        "frameBytes": 6815,
+        "decodeMs": 2.299999952316284,
+        "marker": 176
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.391Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6833,
+        "decodeMs": 2.5,
+        "marker": 177
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.439Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6829,
+        "decodeMs": 2.3999998569488525,
+        "marker": 178
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.475Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6842,
+        "decodeMs": 2.5,
+        "marker": 179
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.521Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6854,
+        "decodeMs": 2.5,
+        "marker": 180
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.572Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6875,
+        "decodeMs": 2.8000001907348633,
+        "marker": 181
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.621Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6870,
+        "decodeMs": 2.6000001430511475,
+        "marker": 182
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.671Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6876,
+        "decodeMs": 2.4000000953674316,
+        "marker": 183
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.721Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6856,
+        "decodeMs": 2.5,
+        "marker": 184
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.774Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6870,
+        "decodeMs": 2.3999998569488525,
+        "marker": 185
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.824Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6869,
+        "decodeMs": 2.3999998569488525,
+        "marker": 186
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.874Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6874,
+        "decodeMs": 2.4000000953674316,
+        "marker": 187
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.904Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6840,
+        "decodeMs": 2.5999999046325684,
+        "marker": 188
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.954Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6858,
+        "decodeMs": 2.4000000953674316,
+        "marker": 189
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:19.988Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6856,
+        "decodeMs": 2.4000000953674316,
+        "marker": 190
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.038Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6864,
+        "decodeMs": 2.4000000953674316,
+        "marker": 191
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.088Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6771,
+        "decodeMs": 2.4000000953674316,
+        "marker": 192
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.121Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6792,
+        "decodeMs": 2.6999998092651367,
+        "marker": 193
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.171Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6790,
+        "decodeMs": 2.4000000953674316,
+        "marker": 194
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.226Z",
+        "frameAgeMs": 4,
+        "frameBytes": 6794,
+        "decodeMs": 2.5,
+        "marker": 195
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.277Z",
+        "frameAgeMs": 20,
+        "frameBytes": 6821,
+        "decodeMs": 2.6000001430511475,
+        "marker": 196
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.308Z",
+        "frameAgeMs": 22,
+        "frameBytes": 6835,
+        "decodeMs": 2.3999998569488525,
+        "marker": 197
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.341Z",
+        "frameAgeMs": 22,
+        "frameBytes": 6834,
+        "decodeMs": 2.5,
+        "marker": 198
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.393Z",
+        "frameAgeMs": 20,
+        "frameBytes": 6844,
+        "decodeMs": 2.4000000953674316,
+        "marker": 199
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.422Z",
+        "frameAgeMs": 25,
+        "frameBytes": 6818,
+        "decodeMs": 2.299999952316284,
+        "marker": 200
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.475Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6836,
+        "decodeMs": 2.3000001907348633,
+        "marker": 201
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.522Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6836,
+        "decodeMs": 2.4000000953674316,
+        "marker": 202
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.573Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6849,
+        "decodeMs": 2.5,
+        "marker": 203
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.609Z",
+        "frameAgeMs": 4,
+        "frameBytes": 6803,
+        "decodeMs": 2.5999999046325684,
+        "marker": 204
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.638Z",
+        "frameAgeMs": 25,
+        "frameBytes": 6821,
+        "decodeMs": 2.3999998569488525,
+        "marker": 205
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.693Z",
+        "frameAgeMs": 4,
+        "frameBytes": 6814,
+        "decodeMs": 2.4000000953674316,
+        "marker": 206
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.739Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6824,
+        "decodeMs": 2.5,
+        "marker": 207
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.787Z",
+        "frameAgeMs": 10,
+        "frameBytes": 6791,
+        "decodeMs": 2.3999998569488525,
+        "marker": 208
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.822Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6804,
+        "decodeMs": 3,
+        "marker": 209
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.871Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6807,
+        "decodeMs": 2.700000047683716,
+        "marker": 210
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.921Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6811,
+        "decodeMs": 3.1000001430511475,
+        "marker": 211
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:20.971Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6829,
+        "decodeMs": 2.5,
+        "marker": 212
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.022Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6852,
+        "decodeMs": 2.6000001430511475,
+        "marker": 213
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.071Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6852,
+        "decodeMs": 2.700000047683716,
+        "marker": 214
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.122Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6857,
+        "decodeMs": 2.5,
+        "marker": 215
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.175Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6832,
+        "decodeMs": 2.4000000953674316,
+        "marker": 216
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.226Z",
+        "frameAgeMs": 4,
+        "frameBytes": 6847,
+        "decodeMs": 2.5,
+        "marker": 217
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.273Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6853,
+        "decodeMs": 2.3999998569488525,
+        "marker": 218
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.31Z",
+        "frameAgeMs": 3,
+        "frameBytes": 6853,
+        "decodeMs": 2.5,
+        "marker": 219
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.356Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6811,
+        "decodeMs": 2.6000001430511475,
+        "marker": 220
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.404Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6829,
+        "decodeMs": 2.4000000953674316,
+        "marker": 221
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.439Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6827,
+        "decodeMs": 2.700000047683716,
+        "marker": 222
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.488Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6833,
+        "decodeMs": 2.5,
+        "marker": 223
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.539Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6785,
+        "decodeMs": 2.9000000953674316,
+        "marker": 224
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.589Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6799,
+        "decodeMs": 2.5999999046325684,
+        "marker": 225
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.638Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6800,
+        "decodeMs": 2.3000001907348633,
+        "marker": 226
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.671Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6805,
+        "decodeMs": 2.5999999046325684,
+        "marker": 227
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.722Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6830,
+        "decodeMs": 2.3000001907348633,
+        "marker": 228
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.755Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6848,
+        "decodeMs": 2.3999998569488525,
+        "marker": 229
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.804Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6845,
+        "decodeMs": 2.4000000953674316,
+        "marker": 230
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.838Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6853,
+        "decodeMs": 2.299999952316284,
+        "marker": 231
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.887Z",
+        "frameAgeMs": 10,
+        "frameBytes": 6829,
+        "decodeMs": 2.5,
+        "marker": 232
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.938Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6852,
+        "decodeMs": 2.0999999046325684,
+        "marker": 233
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:21.988Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6848,
+        "decodeMs": 2.4000000953674316,
+        "marker": 234
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.021Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6853,
+        "decodeMs": 2.4000000953674316,
+        "marker": 235
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.055Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6810,
+        "decodeMs": 3,
+        "marker": 236
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.105Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6828,
+        "decodeMs": 2.299999952316284,
+        "marker": 237
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.137Z",
+        "frameAgeMs": 10,
+        "frameBytes": 6823,
+        "decodeMs": 2.4000000953674316,
+        "marker": 238
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.188Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6829,
+        "decodeMs": 2.4000000953674316,
+        "marker": 239
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.222Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6793,
+        "decodeMs": 2.6000001430511475,
+        "marker": 240
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.254Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6811,
+        "decodeMs": 2.4000000953674316,
+        "marker": 241
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.304Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6813,
+        "decodeMs": 2.5,
+        "marker": 242
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.358Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6817,
+        "decodeMs": 3.200000047683716,
+        "marker": 243
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.388Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6844,
+        "decodeMs": 3.200000047683716,
+        "marker": 244
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.438Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6858,
+        "decodeMs": 2.4000000953674316,
+        "marker": 245
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.488Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6854,
+        "decodeMs": 2.3999998569488525,
+        "marker": 246
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.538Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6864,
+        "decodeMs": 2.5999999046325684,
+        "marker": 247
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.572Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6842,
+        "decodeMs": 2.5,
+        "marker": 248
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.621Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6856,
+        "decodeMs": 2.299999952316284,
+        "marker": 249
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.654Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6856,
+        "decodeMs": 2.5,
+        "marker": 250
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.709Z",
+        "frameAgeMs": 4,
+        "frameBytes": 6862,
+        "decodeMs": 2.3999998569488525,
+        "marker": 251
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.737Z",
+        "frameAgeMs": 26,
+        "frameBytes": 6815,
+        "decodeMs": 2.3999998569488525,
+        "marker": 252
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.792Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6836,
+        "decodeMs": 2.3999998569488525,
+        "marker": 253
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.821Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6834,
+        "decodeMs": 2.299999952316284,
+        "marker": 254
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.871Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6831,
+        "decodeMs": 2.5,
+        "marker": 255
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.922Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6749,
+        "decodeMs": 2.700000047683716,
+        "marker": 256
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:22.972Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6746,
+        "decodeMs": 2.9000000953674316,
+        "marker": 257
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.022Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6770,
+        "decodeMs": 2.799999952316284,
+        "marker": 258
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.055Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6755,
+        "decodeMs": 2.5,
+        "marker": 259
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.088Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6807,
+        "decodeMs": 2.299999952316284,
+        "marker": 260
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.137Z",
+        "frameAgeMs": 10,
+        "frameBytes": 6805,
+        "decodeMs": 2.5,
+        "marker": 261
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.171Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6823,
+        "decodeMs": 2.299999952316284,
+        "marker": 262
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.221Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6811,
+        "decodeMs": 2.299999952316284,
+        "marker": 263
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.271Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6805,
+        "decodeMs": 3.6999998092651367,
+        "marker": 264
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.322Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6806,
+        "decodeMs": 2.4000000953674316,
+        "marker": 265
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.355Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6828,
+        "decodeMs": 2.4000000953674316,
+        "marker": 266
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.405Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6810,
+        "decodeMs": 2.4000000953674316,
+        "marker": 267
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.454Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6796,
+        "decodeMs": 2.4000000953674316,
+        "marker": 268
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.504Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6786,
+        "decodeMs": 2.4000000953674316,
+        "marker": 269
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.554Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6805,
+        "decodeMs": 2.6000001430511475,
+        "marker": 270
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.587Z",
+        "frameAgeMs": 10,
+        "frameBytes": 6797,
+        "decodeMs": 2.3999998569488525,
+        "marker": 271
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.638Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6770,
+        "decodeMs": 2.5,
+        "marker": 272
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.671Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6764,
+        "decodeMs": 2.299999952316284,
+        "marker": 273
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.725Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6786,
+        "decodeMs": 2.3000001907348633,
+        "marker": 274
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.77Z",
+        "frameAgeMs": 10,
+        "frameBytes": 6771,
+        "decodeMs": 2.299999952316284,
+        "marker": 275
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.804Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6822,
+        "decodeMs": 2.3999998569488525,
+        "marker": 276
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.854Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6819,
+        "decodeMs": 2.3999998569488525,
+        "marker": 277
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.887Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6837,
+        "decodeMs": 2.299999952316284,
+        "marker": 278
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.924Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6824,
+        "decodeMs": 2.0999999046325684,
+        "marker": 279
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:23.976Z",
+        "frameAgeMs": 4,
+        "frameBytes": 6821,
+        "decodeMs": 2.3000001907348633,
+        "marker": 280
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.021Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6816,
+        "decodeMs": 2.299999952316284,
+        "marker": 281
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.054Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6835,
+        "decodeMs": 2.5,
+        "marker": 282
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.104Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6825,
+        "decodeMs": 2.3999998569488525,
+        "marker": 283
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.14Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6801,
+        "decodeMs": 2.5,
+        "marker": 284
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.191Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6800,
+        "decodeMs": 2.5,
+        "marker": 285
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.221Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6814,
+        "decodeMs": 2.5,
+        "marker": 286
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.274Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6811,
+        "decodeMs": 2.3999998569488525,
+        "marker": 287
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.304Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6767,
+        "decodeMs": 2.5,
+        "marker": 288
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.354Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6765,
+        "decodeMs": 2.299999952316284,
+        "marker": 289
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.404Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6783,
+        "decodeMs": 2.3999998569488525,
+        "marker": 290
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.456Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6773,
+        "decodeMs": 2.5,
+        "marker": 291
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.488Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6821,
+        "decodeMs": 2.4000000953674316,
+        "marker": 292
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.538Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6818,
+        "decodeMs": 2.3999998569488525,
+        "marker": 293
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.589Z",
+        "frameAgeMs": 7,
+        "frameBytes": 6834,
+        "decodeMs": 2.5,
+        "marker": 294
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.642Z",
+        "frameAgeMs": 4,
+        "frameBytes": 6823,
+        "decodeMs": 2.4000000953674316,
+        "marker": 295
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.671Z",
+        "frameAgeMs": 25,
+        "frameBytes": 6820,
+        "decodeMs": 2.8999998569488525,
+        "marker": 296
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.721Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6817,
+        "decodeMs": 2.3000001907348633,
+        "marker": 297
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.771Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6834,
+        "decodeMs": 2.1999998092651367,
+        "marker": 298
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.821Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6824,
+        "decodeMs": 2.200000047683716,
+        "marker": 299
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.854Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6801,
+        "decodeMs": 2.5,
+        "marker": 300
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.905Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6800,
+        "decodeMs": 2.299999952316284,
+        "marker": 301
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.938Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6819,
+        "decodeMs": 2.3999998569488525,
+        "marker": 302
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:24.988Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6815,
+        "decodeMs": 2.299999952316284,
+        "marker": 303
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.024Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6782,
+        "decodeMs": 2.299999952316284,
+        "marker": 304
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.07Z",
+        "frameAgeMs": 10,
+        "frameBytes": 6777,
+        "decodeMs": 2.5999999046325684,
+        "marker": 305
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.12Z",
+        "frameAgeMs": 10,
+        "frameBytes": 6796,
+        "decodeMs": 2.5,
+        "marker": 306
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.171Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6784,
+        "decodeMs": 2.4000000953674316,
+        "marker": 307
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.221Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6832,
+        "decodeMs": 2.5,
+        "marker": 308
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.271Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6829,
+        "decodeMs": 2.4000000953674316,
+        "marker": 309
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.327Z",
+        "frameAgeMs": 19,
+        "frameBytes": 6846,
+        "decodeMs": 2.4000000953674316,
+        "marker": 310
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.374Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6837,
+        "decodeMs": 2.299999952316284,
+        "marker": 311
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.421Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6829,
+        "decodeMs": 2.3999998569488525,
+        "marker": 312
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.455Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6827,
+        "decodeMs": 2.5,
+        "marker": 313
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.492Z",
+        "frameAgeMs": 4,
+        "frameBytes": 6844,
+        "decodeMs": 3,
+        "marker": 314
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.542Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6836,
+        "decodeMs": 2.6999998092651367,
+        "marker": 315
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.577Z",
+        "frameAgeMs": 19,
+        "frameBytes": 6810,
+        "decodeMs": 2.4000000953674316,
+        "marker": 316
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.625Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6812,
+        "decodeMs": 2.700000047683716,
+        "marker": 317
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.674Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6828,
+        "decodeMs": 2.5999999046325684,
+        "marker": 318
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.724Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6813,
+        "decodeMs": 2.3999998569488525,
+        "marker": 319
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.757Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6806,
+        "decodeMs": 2.3999998569488525,
+        "marker": 320
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.81Z",
+        "frameAgeMs": 20,
+        "frameBytes": 6805,
+        "decodeMs": 2.5999999046325684,
+        "marker": 321
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.857Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6824,
+        "decodeMs": 2.5,
+        "marker": 322
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.887Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6815,
+        "decodeMs": 2.299999952316284,
+        "marker": 323
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.942Z",
+        "frameAgeMs": 4,
+        "frameBytes": 6846,
+        "decodeMs": 2.299999952316284,
+        "marker": 324
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:25.971Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6843,
+        "decodeMs": 2.3999998569488525,
+        "marker": 325
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.021Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6862,
+        "decodeMs": 2.3999998569488525,
+        "marker": 326
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.054Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6852,
+        "decodeMs": 2.4000000953674316,
+        "marker": 327
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.104Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6849,
+        "decodeMs": 2.5,
+        "marker": 328
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.137Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6845,
+        "decodeMs": 2.3000001907348633,
+        "marker": 329
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.188Z",
+        "frameAgeMs": 8,
+        "frameBytes": 6867,
+        "decodeMs": 2.3999998569488525,
+        "marker": 330
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.221Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6854,
+        "decodeMs": 2.4000000953674316,
+        "marker": 331
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.271Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6841,
+        "decodeMs": 2.4000000953674316,
+        "marker": 332
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.308Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6836,
+        "decodeMs": 2.5,
+        "marker": 333
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.36Z",
+        "frameAgeMs": 20,
+        "frameBytes": 6853,
+        "decodeMs": 2.3000001907348633,
+        "marker": 334
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.409Z",
+        "frameAgeMs": 21,
+        "frameBytes": 6840,
+        "decodeMs": 2.4000000953674316,
+        "marker": 335
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.458Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6827,
+        "decodeMs": 2.5,
+        "marker": 336
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.493Z",
+        "frameAgeMs": 3,
+        "frameBytes": 6820,
+        "decodeMs": 2.5,
+        "marker": 337
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.543Z",
+        "frameAgeMs": 3,
+        "frameBytes": 6838,
+        "decodeMs": 2.299999952316284,
+        "marker": 338
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.576Z",
+        "frameAgeMs": 20,
+        "frameBytes": 6827,
+        "decodeMs": 2.5,
+        "marker": 339
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.624Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6863,
+        "decodeMs": 2.5,
+        "marker": 340
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.675Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6866,
+        "decodeMs": 2.4000000953674316,
+        "marker": 341
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.725Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6877,
+        "decodeMs": 2.299999952316284,
+        "marker": 342
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.771Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6869,
+        "decodeMs": 2.5,
+        "marker": 343
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.807Z",
+        "frameAgeMs": 6,
+        "frameBytes": 6861,
+        "decodeMs": 2.4000000953674316,
+        "marker": 344
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.858Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6865,
+        "decodeMs": 2.3999998569488525,
+        "marker": 345
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.891Z",
+        "frameAgeMs": 5,
+        "frameBytes": 6876,
+        "decodeMs": 2.6000001430511475,
+        "marker": 346
+      },
+      {
+        "capturedAt": "2026-09-25T04:17:26.921Z",
+        "frameAgeMs": 9,
+        "frameBytes": 6866,
+        "decodeMs": 2.4000000953674316,
+        "marker": 347
+      }
+    ],
+    "renderedFps": 22.333333333333332,
+    "p95FrameAgeMs": 20,
+    "maxFrameAgeMs": 27,
+    "maxFrameBytes": 6877,
+    "p95DecodeMs": 3,
+    "maxDecodeMs": 3.6999998092651367
+  }
+}

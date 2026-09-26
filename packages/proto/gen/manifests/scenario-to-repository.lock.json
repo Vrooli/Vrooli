@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "scenario": "scenario-to-repository",
+  "input_digest": "sha256:dea320a7737f8bedcb29dadd43ead32a4f030487cd29a72f1b0b7d77ca743923",
+  "input_files": [
+    "schemas/scenario-to-repository/v1/shared/errors.proto",
+    "schemas/scenario-to-repository/v1/shared/health.proto",
+    "schemas/scenario-to-repository/v1/source/source.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/scenario-to-repository/v1/shared/errors.pb.go": "sha256:e87f6e5e7c5d796f5ac1008c3008329a1239d5e22d024002bd90ca80784a1373",
+    "gen/go/scenario-to-repository/v1/shared/health.pb.go": "sha256:9d1ddbdfe7ec347a70aa50175d2c006796b1ce0809833f9a45ccdff8a31a9a78",
+    "gen/go/scenario-to-repository/v1/source/source.pb.go": "sha256:4d28e98449f3a5bdfe4c26ca8b9b130770654faa2a0ef9d4d0ecfa8b36152a6e",
+    "gen/go/scenario-to-repository/v1/source/source_v1connect/source.connect.go": "sha256:95ec998883989d227de0a9d3504df7fc19a8a35cbbeec445afa59c742cdb4d2f",
+    "gen/python/scenario_to_repository/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_to_repository/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_to_repository/v1/shared/errors_pb2.py": "sha256:a17cd8683dd9f5137dd6f5ccc71932256642b588e86cc7bc8ca13dbf279b54df",
+    "gen/python/scenario_to_repository/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/scenario_to_repository/v1/shared/health_pb2.py": "sha256:7ae4622e4b4924dcc0d72600bfd20887a7ce12ea4cf3c309ea11d0eb174b7937",
+    "gen/python/scenario_to_repository/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/scenario_to_repository/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_to_repository/v1/source/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_to_repository/v1/source/source_pb2.py": "sha256:a99ccee841d909fb0c20ba22bed6935f66fc9197f377e4ba81422f83dc5812c9",
+    "gen/python/scenario_to_repository/v1/source/source_pb2.pyi": "sha256:6ad0e694baf4d40161763bd608e4a379acc7fa0e9de97ad905334541ac20153e",
+    "gen/typescript/scenario-to-repository/v1/shared/errors_pb.ts": "sha256:923802b87d0a07189fa04b729af75594a80dbfe01f546c5d0585e4a4f96e2085",
+    "gen/typescript/scenario-to-repository/v1/shared/health_pb.ts": "sha256:a35caa5d7bfefa059b54294cb1f0c09cac578124f494e221a5f73214763a7ecb",
+    "gen/typescript/scenario-to-repository/v1/source/source_pb.ts": "sha256:2dd2546d08e2f54140261309b65c240ca2aaeea901cd659465ba2e6ed5bd8c5d"
+  }
+}

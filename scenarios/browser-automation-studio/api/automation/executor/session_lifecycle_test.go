@@ -1,0 +1,876 @@
+package executor
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/automation/events"
+	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
+	"github.com/vrooli/browser-automation-studio/config"
+	"github.com/vrooli/browser-automation-studio/internal/cancellationqualification"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	"google.golang.org/protobuf/proto"
+
+	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/engine"
+)
+
+type priorNavigationState string
+
+const (
+	noNavigation     priorNavigationState = "none"
+	navigated        priorNavigationState = "navigated"
+	failedNavigation priorNavigationState = "failed_navigate"
+)
+
+func TestDecideLifecycleNavigationStateMatrix(t *testing.T) {
+	t.Parallel()
+
+	for _, mode := range []engine.SessionReuseMode{engine.ReuseModeReuse, engine.ReuseModeClean, engine.ReuseModeFresh} {
+		for _, tc := range []struct {
+			name       string
+			boundary   executionBoundary
+			hasSession bool
+			prior      priorNavigationState
+			reset      bool
+		}{
+			{name: "start", boundary: executionStart, hasSession: false, prior: noNavigation, reset: true},
+			{name: "start_after_navigation", boundary: executionStart, hasSession: true, prior: navigated, reset: true},
+			{name: "between_live", boundary: betweenSteps, hasSession: true, prior: navigated, reset: false},
+			{name: "between_live_failed_navigation", boundary: betweenSteps, hasSession: true, prior: failedNavigation, reset: false},
+			{name: "between_missing_session", boundary: betweenSteps, hasSession: false, prior: navigated, reset: true},
+			{name: "end", boundary: executionEnd, hasSession: true, prior: navigated, reset: false},
+		} {
+			tc := tc
+			t.Run(string(mode)+"/"+tc.name, func(t *testing.T) {
+				t.Parallel()
+				state := navigationFor(tc.prior)
+				decision := decideLifecycle(mode, tc.boundary, tc.hasSession)
+				if decision.ResetNavigation != tc.reset {
+					t.Fatalf("reset navigation = %t, want %t", decision.ResetNavigation, tc.reset)
+				}
+				if decision.ResetNavigation {
+					resetNavigation(state)
+				}
+				if tc.reset && (state.hasNavigated || state.lastAttempt != nil) {
+					t.Fatalf("reset decision left navigation state behind: %+v", state)
+				}
+				if !tc.reset && tc.prior == navigated && !state.hasNavigated {
+					t.Fatal("live session lost successful navigation between workflow steps")
+				}
+				if !tc.reset && tc.prior == failedNavigation && state.lastAttempt == nil {
+					t.Fatal("live session lost failed-navigation diagnosis between workflow steps")
+				}
+			})
+		}
+	}
+}
+
+func navigationFor(prior priorNavigationState) *navigationState {
+	state := &navigationState{}
+	switch prior {
+	case navigated:
+		markNavigation(state)
+	case failedNavigation:
+		recordFailedNavigate(state, contracts.CompiledInstruction{NodeID: "navigate"}, "network unavailable")
+	}
+	return state
+}
+
+// These faults cross the public Execute boundary, not just the cleanup helper.
+type finalizationSession struct {
+	stubEngineSession
+	closeErr        error
+	closeCtx        context.Context
+	closeContextErr error
+	closeCalls      int
+	cancel          context.CancelFunc
+}
+
+func (s *finalizationSession) Close(ctx context.Context) error {
+	s.closeCalls++
+	s.closeCtx = ctx
+	s.closeContextErr = ctx.Err()
+	return s.closeErr
+}
+
+func (s *finalizationSession) Run(ctx context.Context, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+	if s.cancel != nil {
+		s.cancel()
+		return contracts.StepOutcome{}, ctx.Err()
+	}
+	return s.stubEngineSession.Run(ctx, instruction)
+}
+
+type finalizationArtifacts struct {
+	*finalizationSession
+	artifacts *driver.CloseSessionResponse
+}
+
+func (s *finalizationArtifacts) CloseWithArtifacts(ctx context.Context) (*driver.CloseSessionResponse, error) {
+	return s.artifacts, s.Close(ctx)
+}
+
+type finalizationEngine struct{ session engine.EngineSession }
+
+func (*finalizationEngine) Name() string { return "finalization" }
+func (*finalizationEngine) Capabilities(context.Context) (contracts.EngineCapabilities, error) {
+	return contracts.EngineCapabilities{SchemaVersion: contracts.CapabilitiesSchemaVersion, Engine: "finalization", MaxConcurrentSessions: 1}, nil
+}
+
+func (e *finalizationEngine) StartSession(context.Context, engine.SessionSpec) (engine.EngineSession, error) {
+	return e.session, nil
+}
+
+type finalizationWriter struct {
+	stubExecutionWriter
+	writeErr error
+	writes   int
+	onWrite  func([]executionwriter.ExternalArtifact) error
+}
+
+func (w *finalizationWriter) RecordExecutionArtifacts(_ context.Context, _ contracts.ExecutionPlan, artifacts []executionwriter.ExternalArtifact) error {
+	w.writes++
+	if w.onWrite != nil {
+		return w.onWrite(artifacts)
+	}
+	return w.writeErr
+}
+
+func executeFinalizationFixture(ctx context.Context, s engine.EngineSession, w executionwriter.ExecutionWriter) error {
+	e := &finalizationEngine{session: s}
+	return NewSimpleExecutor(nil).Execute(ctx, Request{
+		EngineName: e.Name(), EngineFactory: engine.NewStaticFactory(e), Recorder: w,
+		EventSink: events.NewMemorySink(contracts.DefaultEventBufferLimits),
+		Plan: contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Instructions: []contracts.CompiledInstruction{{
+			NodeID: "navigate", Action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+				Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid"}},
+			},
+		}}},
+	})
+}
+
+func TestExecuteIncludesFinalizationFailure(t *testing.T) {
+	failure := errors.New("synthetic finalization failure")
+	for _, artifacts := range []bool{false, true} {
+		t.Run(map[bool]string{false: "ordinary close", true: "artifact close"}[artifacts], func(t *testing.T) {
+			s := &finalizationSession{closeErr: failure}
+			var session engine.EngineSession = s
+			if artifacts {
+				session = &finalizationArtifacts{finalizationSession: s}
+			}
+			err := executeFinalizationFixture(context.Background(), session, &stubExecutionWriter{})
+			require.ErrorIs(t, err, failure)
+			require.Equal(t, 1, s.closeCalls)
+		})
+	}
+}
+
+func TestExecuteIncludesArtifactWriteFailure(t *testing.T) {
+	failure := errors.New("synthetic artifact write failure")
+	source := filepath.Join(t.TempDir(), "trace.zip")
+	require.NoError(t, os.WriteFile(source, []byte("original trace"), 0o600))
+	s := &finalizationArtifacts{finalizationSession: &finalizationSession{}, artifacts: &driver.CloseSessionResponse{TracePath: source}}
+	w := &finalizationWriter{writeErr: failure}
+	err := executeFinalizationFixture(context.Background(), s, w)
+	require.ErrorIs(t, err, failure)
+	require.Equal(t, 1, w.writes)
+	data, readErr := os.ReadFile(source)
+	require.NoError(t, readErr)
+	require.Equal(t, "original trace", string(data))
+}
+
+func TestExecuteRejectsMissingArtifact(t *testing.T) {
+	s := &finalizationArtifacts{finalizationSession: &finalizationSession{}, artifacts: &driver.CloseSessionResponse{TracePath: filepath.Join(t.TempDir(), "missing.zip")}}
+	w := &finalizationWriter{}
+	require.Error(t, executeFinalizationFixture(context.Background(), s, w))
+	require.Zero(t, w.writes, "a missing source cannot become an artifact reference")
+}
+
+func TestFinalizationRetainsContextAfterCancellation(t *testing.T) {
+	type storageKey struct{}
+	parent := context.WithValue(context.Background(), storageKey{}, "routed-test-storage")
+	ctx, cancel := context.WithCancel(parent)
+	defer cancel()
+	s := &finalizationSession{cancel: cancel, closeErr: errors.New("close also failed")}
+	err := executeFinalizationFixture(ctx, s, &stubExecutionWriter{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "close also failed")
+	require.Equal(t, "routed-test-storage", s.closeCtx.Value(storageKey{}))
+	require.NoError(t, s.closeContextErr)
+	deadline, ok := s.closeCtx.Deadline()
+	require.True(t, ok)
+	require.WithinDuration(t, time.Now(), deadline, 31*time.Second)
+}
+
+type finalizationDownloader struct {
+	*finalizationArtifacts
+	download func(context.Context, string) (*driver.ArtifactDownload, error)
+}
+
+func (s *finalizationDownloader) DownloadArtifact(ctx context.Context, path string) (*driver.ArtifactDownload, error) {
+	return s.download(ctx, path)
+}
+
+func TestFinalizationPersistsAvailableArtifactBytesAndFailures(t *testing.T) {
+	downloadFailure := errors.New("synthetic remote download failure")
+	closeFailure := errors.New("synthetic partial close failure")
+	video := filepath.Join(t.TempDir(), "video.webm")
+	require.NoError(t, os.WriteFile(video, []byte("video bytes"), 0o600))
+	s := &finalizationDownloader{
+		finalizationArtifacts: &finalizationArtifacts{finalizationSession: &finalizationSession{closeErr: closeFailure}, artifacts: &driver.CloseSessionResponse{
+			VideoPaths: []string{video, "remote-unavailable-video.webm"}, TracePath: "remote-available-trace.zip", HARPath: "remote-available-network.har",
+		}},
+		download: func(_ context.Context, path string) (*driver.ArtifactDownload, error) {
+			if strings.Contains(path, "unavailable") {
+				return nil, downloadFailure
+			}
+			return &driver.ArtifactDownload{Reader: io.NopCloser(strings.NewReader(path + " bytes")), ContentType: "application/octet-stream"}, nil
+		},
+	}
+	var importedPaths []string
+	w := &finalizationWriter{onWrite: func(artifacts []executionwriter.ExternalArtifact) error {
+		require.Len(t, artifacts, 3)
+		for i, expected := range []struct{ kind, label, source, contents string }{
+			{"video_meta", "video-1", video, "video bytes"},
+			{"trace_meta", "trace", "remote-available-trace.zip", "remote-available-trace.zip bytes"},
+			{"har_meta", "har", "remote-available-network.har", "remote-available-network.har bytes"},
+		} {
+			artifact := artifacts[i]
+			require.Equal(t, expected.kind, artifact.ArtifactType)
+			require.Equal(t, expected.label, artifact.Label)
+			require.Equal(t, expected.source, artifact.Payload["source_path"])
+			data, err := os.ReadFile(artifact.Path)
+			require.NoError(t, err)
+			require.Equal(t, expected.contents, string(data))
+			importedPaths = append(importedPaths, artifact.Path)
+		}
+		require.Equal(t, 0, artifacts[0].Payload["page_index"])
+		return nil
+	}}
+	err := executeFinalizationFixture(context.Background(), s, w)
+	require.ErrorIs(t, err, downloadFailure)
+	require.ErrorIs(t, err, closeFailure)
+	require.Equal(t, 1, w.writes)
+	require.FileExists(t, video)
+	for _, path := range importedPaths[1:] {
+		require.NoFileExists(t, path, "temporary imports must not leak after persistence")
+	}
+}
+
+func TestFinalizationRejectsDirectoriesAsArtifacts(t *testing.T) {
+	s := &finalizationArtifacts{finalizationSession: &finalizationSession{}, artifacts: &driver.CloseSessionResponse{TracePath: t.TempDir()}}
+	w := &finalizationWriter{}
+	err := executeFinalizationFixture(context.Background(), s, w)
+	require.ErrorContains(t, err, "not a regular file")
+	require.Zero(t, w.writes)
+}
+
+func TestExecutePropagatesRealArtifactWriterFailure(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "malformed.har")
+	require.NoError(t, os.WriteFile(source, []byte("malformed HAR"), 0o600))
+	session := &finalizationArtifacts{finalizationSession: &finalizationSession{}, artifacts: &driver.CloseSessionResponse{HARPath: source}}
+	writer := executionwriter.NewFileWriter(nil, nil, nil, executionwriter.NewStaticRoot(dir))
+	err := executeFinalizationFixture(context.Background(), session, writer)
+	require.ErrorContains(t, err, "import har_meta artifact")
+	require.FileExists(t, source)
+}
+
+func TestExecuteFinalizationSuccessControl(t *testing.T) {
+	s := &finalizationSession{}
+	require.NoError(t, executeFinalizationFixture(context.Background(), s, &stubExecutionWriter{}))
+	require.Equal(t, 1, s.closeCalls)
+}
+
+type outcomeRootKey struct{}
+
+type cancellationRoot struct {
+	dir string
+}
+
+func (r *cancellationRoot) Root(ctx context.Context) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	if ctx.Value(outcomeRootKey{}) != r.dir {
+		return "", errors.New("lost storage routing value")
+	}
+	return r.dir, nil
+}
+func (*cancellationRoot) RecordWrite(context.Context) {}
+
+type outcomeSink struct {
+	*events.MemorySink
+	contextErrors []error
+	deadlines     []time.Time
+}
+
+func (s *outcomeSink) Publish(ctx context.Context, event contracts.EventEnvelope) error {
+	if event.Kind == contracts.EventKindStepCompleted || event.Kind == contracts.EventKindStepFailed {
+		s.contextErrors = append(s.contextErrors, ctx.Err())
+		deadline, _ := ctx.Deadline()
+		s.deadlines = append(s.deadlines, deadline)
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+	}
+	return s.MemorySink.Publish(ctx, event)
+}
+
+type cancellationWriter struct {
+	*executionwriter.FileWriter
+	contexts []context.Context
+}
+
+func (w *cancellationWriter) RecordStepOutcome(ctx context.Context, plan contracts.ExecutionPlan, outcome contracts.StepOutcome) (executionwriter.RecordResult, error) {
+	w.contexts = append(w.contexts, ctx)
+	return w.FileWriter.RecordStepOutcome(ctx, plan, outcome)
+}
+
+// [REQ:BAS-RH-J18] A canceled action retains queryable evidence through the real
+// file writer, including nested steps. Disk failure must preserve both causes.
+func TestExecuteCancellationPersistsRealOutcomes(t *testing.T) {
+	for _, shape := range []string{"linear", "graph", "loop", "subflow"} {
+		for _, diskFailure := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/diskFailure=%t", shape, diskFailure), func(t *testing.T) {
+				root := &cancellationRoot{dir: t.TempDir()}
+				if diskFailure {
+					root.dir = filepath.Join(root.dir, "not-a-directory")
+					require.NoError(t, os.WriteFile(root.dir, []byte("preserve original"), 0o600))
+				}
+				ctx, cancel := context.WithCancel(context.WithValue(context.Background(), outcomeRootKey{}, root.dir))
+				defer cancel()
+				sess := &finalizationSession{cancel: cancel}
+				eng := &finalizationEngine{session: sess}
+				writer := &cancellationWriter{FileWriter: executionwriter.NewFileWriter(nil, nil, nil, root)}
+				action := &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid"}}}
+				instruction := contracts.CompiledInstruction{Index: 1, NodeID: "action", Action: action}
+				plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Instructions: []contracts.CompiledInstruction{instruction}}
+				sink := &outcomeSink{MemorySink: events.NewMemorySink(contracts.DefaultEventBufferLimits)}
+				req := Request{Plan: plan, EngineName: eng.Name(), EngineFactory: engine.NewStaticFactory(eng), Recorder: writer, EventSink: sink}
+				expectedEntries := 1
+				if shape != "linear" {
+					step := contracts.PlanStep{Index: 1, NodeID: "action", Action: action}
+					if shape == "loop" {
+						count := int32(2)
+						step = contracts.PlanStep{Index: 0, NodeID: "parent", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_LOOP, Params: &basactions.ActionDefinition_Loop{Loop: &basactions.LoopParams{LoopType: basactions.LoopType_LOOP_TYPE_REPEAT, Count: &count}}}, Loop: &contracts.PlanGraph{Steps: []contracts.PlanStep{step}}}
+						expectedEntries = 2
+					}
+					if shape == "subflow" {
+						childID := uuid.New()
+						req.WorkflowResolver = &stubWorkflowResolver{workflows: map[uuid.UUID]*basapi.WorkflowSummary{childID: {Id: childID.String(), Name: "child"}}}
+						req.PlanCompiler = PlanCompilerFunc(func(context.Context, uuid.UUID, *basapi.WorkflowSummary) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error) {
+							child := plan
+							child.WorkflowID = childID
+							return child, child.Instructions, nil
+						})
+						step = contracts.PlanStep{Index: 0, NodeID: "parent", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_SUBFLOW, Params: &basactions.ActionDefinition_Subflow{Subflow: &basactions.SubflowParams{Target: &basactions.SubflowParams_WorkflowId{WorkflowId: childID.String()}}}}}
+						expectedEntries = 2
+					}
+					req.Plan.Instructions = nil
+					req.Plan.Graph = &contracts.PlanGraph{Steps: []contracts.PlanStep{step}}
+				}
+				err := NewSimpleExecutor(nil).Execute(ctx, req)
+				require.ErrorIs(t, err, context.Canceled)
+				require.Equal(t, 1, sess.closeCalls)
+				require.NotEmpty(t, writer.contexts)
+				for _, persistCtx := range writer.contexts {
+					deadline, ok := persistCtx.Deadline()
+					require.True(t, ok, "persistence must have a finite budget")
+					require.WithinDuration(t, time.Now(), deadline, 31*time.Second)
+					require.Equal(t, root.dir, persistCtx.Value(outcomeRootKey{}))
+				}
+				if diskFailure {
+					require.Empty(t, sink.contextErrors, "failed writes cannot emit completion receipts")
+					require.Contains(t, err.Error(), "not a directory")
+					bytes, readErr := os.ReadFile(root.dir)
+					require.NoError(t, readErr)
+					require.Equal(t, "preserve original", string(bytes))
+					return
+				}
+				data, readErr := os.ReadFile(filepath.Join(root.dir, plan.ExecutionID.String(), "result.json"))
+				require.NoError(t, readErr)
+				var result struct {
+					Entries []struct {
+						Context struct {
+							Success bool   `json:"success"`
+							Error   string `json:"error"`
+						} `json:"context"`
+					} `json:"entries"`
+				}
+				require.NoError(t, json.Unmarshal(data, &result))
+				require.Len(t, result.Entries, expectedEntries)
+				require.Len(t, sink.contextErrors, expectedEntries)
+				for i, contextErr := range sink.contextErrors {
+					require.NoError(t, contextErr)
+					require.WithinDuration(t, time.Now(), sink.deadlines[i], 31*time.Second)
+				}
+				for _, event := range sink.Events() {
+					if event.Kind == contracts.EventKindStepFailed {
+						require.Equal(t, 1, *event.Attempt)
+						payload := event.Payload.(map[string]any)
+						require.NotNil(t, payload["timeline_artifact_id"])
+					}
+				}
+				for _, entry := range result.Entries {
+					require.False(t, entry.Context.Success)
+					require.Contains(t, entry.Context.Error, "context canceled")
+				}
+			})
+		}
+	}
+}
+
+func TestExecuteSyntheticOutcomeRespectsCancellation(t *testing.T) {
+	for _, graph := range []bool{false, true} {
+		for _, canceled := range []bool{false, true} {
+			t.Run(fmt.Sprintf("graph=%t/canceled=%t", graph, canceled), func(t *testing.T) {
+				root := &cancellationRoot{dir: t.TempDir()}
+				ctx, cancel := context.WithCancel(context.WithValue(context.Background(), outcomeRootKey{}, root.dir))
+				defer cancel()
+				if canceled {
+					cancel()
+				}
+				session := &finalizationSession{}
+				eng := &finalizationEngine{session: session}
+				writer := executionwriter.NewFileWriter(nil, nil, nil, root)
+				sink := &outcomeSink{MemorySink: events.NewMemorySink(contracts.DefaultEventBufferLimits)}
+				action := &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_SET_VARIABLE, Params: &basactions.ActionDefinition_SetVariable{SetVariable: &basactions.SetVariableParams{Name: "sentinel"}}}
+				plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Instructions: []contracts.CompiledInstruction{{Index: 0, NodeID: "variable", Action: action}}}
+				if graph {
+					plan.Instructions = nil
+					plan.Graph = &contracts.PlanGraph{Steps: []contracts.PlanStep{{Index: 0, NodeID: "variable", Action: action}}}
+				}
+				err := NewSimpleExecutor(nil).Execute(ctx, Request{Plan: plan, EngineName: eng.Name(), EngineFactory: engine.NewStaticFactory(eng), Recorder: writer, EventSink: sink})
+				if canceled {
+					require.ErrorIs(t, err, context.Canceled)
+					require.Zero(t, session.closeCalls, "canceled-before-admission must not create a browser")
+				} else {
+					require.NoError(t, err)
+				}
+				terminal := sink.Events()
+				require.Len(t, terminal, 1)
+				require.NoError(t, sink.contextErrors[0])
+				outcome := terminal[0].Payload.(map[string]any)["outcome"].(contracts.StepOutcome)
+				require.Equal(t, !canceled, outcome.Success)
+				require.Equal(t, "variable", outcome.NodeID)
+				require.FileExists(t, filepath.Join(root.dir, plan.ExecutionID.String(), "result.json"))
+			})
+		}
+	}
+}
+
+// Exercise the public executor through the real HTTP client/session boundary.
+func TestExecutePreservesInvocationAndTransportOwnership(t *testing.T) {
+	for _, mode := range []string{"retry", "loop", "lost-response", "malformed-response"} {
+		t.Run(mode, func(t *testing.T) {
+			var mu sync.Mutex
+			var packets []map[string]any
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				defer mu.Unlock()
+				switch {
+				case strings.HasSuffix(r.URL.Path, "/start"):
+					io.WriteString(w, `{"session_id":"wire-session","lease_id":"wire-lease"}`)
+				case strings.HasSuffix(r.URL.Path, "/run"):
+					var body map[string]any
+					if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+						t.Error(err)
+						return
+					}
+					body["header"] = r.Header.Get("X-Idempotency-Key")
+					packets = append(packets, body)
+					switch mode {
+					case "retry":
+						if len(packets) == 1 {
+							io.WriteString(w, `{"success":false,"failure":{"kind":"engine","code":"TRANSIENT","retryable":true}}`)
+							return
+						}
+					case "malformed-response":
+						io.WriteString(w, `{"success":`)
+						return
+					case "lost-response":
+						conn, _, err := w.(http.Hijacker).Hijack()
+						if err != nil {
+							t.Error(err)
+							return
+						}
+						conn.Close()
+						return
+					}
+					io.WriteString(w, `{"success":true}`)
+				default:
+					io.WriteString(w, `{"success":true}`)
+				}
+			}))
+			defer server.Close()
+			eng, err := engine.NewPlaywrightEngineWithHTTPClient(server.URL, server.Client(), nil)
+			require.NoError(t, err)
+			action := &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+				Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid"}},
+			}
+			plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Instructions: []contracts.CompiledInstruction{{
+				NodeID: "same-node", Action: action, Context: map[string]any{"resilience": map[string]any{"maxAttempts": 2, "delayMs": 0}},
+			}}}
+			if mode == "loop" {
+				count := int32(2)
+				plan.Instructions = nil
+				plan.Graph = &contracts.PlanGraph{Steps: []contracts.PlanStep{{NodeID: "repeat", Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_LOOP, Params: &basactions.ActionDefinition_Loop{Loop: &basactions.LoopParams{LoopType: basactions.LoopType_LOOP_TYPE_REPEAT, Count: &count}},
+				}, Loop: &contracts.PlanGraph{Steps: []contracts.PlanStep{{NodeID: "same-node", Index: 1, Action: action}}}}}}
+			}
+			err = NewSimpleExecutor(nil).Execute(context.Background(), Request{Plan: plan, EngineName: "playwright", EngineFactory: engine.NewStaticFactory(eng), Recorder: &stubExecutionWriter{}, EventSink: events.NewMemorySink(contracts.DefaultEventBufferLimits)})
+			mu.Lock()
+			defer mu.Unlock()
+			if mode == "lost-response" || mode == "malformed-response" {
+				require.Error(t, err)
+				// The HTTP transport may repeat a replayable packet; a new operation
+				// would authorize another browser effect and is forbidden.
+				require.NotEmpty(t, packets)
+				for _, packet := range packets {
+					require.Equal(t, packets[0], packet)
+				}
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, packets, 2)
+			require.NotEmpty(t, packets[0]["invocation_id"])
+			require.Equal(t, float64(1), packets[0]["operation_sequence"])
+			require.Equal(t, float64(2), packets[1]["operation_sequence"])
+			require.Equal(t, "wire-lease:1", packets[0]["header"])
+			require.Equal(t, "wire-lease:2", packets[1]["header"])
+			if mode == "retry" {
+				require.Equal(t, packets[0]["invocation_id"], packets[1]["invocation_id"])
+				require.Equal(t, float64(2), packets[1]["attempt"])
+			} else {
+				require.NotEqual(t, packets[0]["invocation_id"], packets[1]["invocation_id"])
+				require.Equal(t, float64(1), packets[1]["attempt"])
+			}
+		})
+	}
+}
+
+// [REQ:BAS-RH-J07] A live instruction timeout retains uncertainty, rejects a
+// retry, and still tears down the owned driver session.
+func TestExecuteTimeoutDuringLiveInstructionClosesSessionWithoutReplay(t *testing.T) {
+	var mu sync.Mutex
+	var releaseRun sync.Once
+	runResponseReleased := make(chan struct{})
+	packets := 0
+	effects := 0
+	liveSessions := 0
+	closeCalls := 0
+	resourcesBeforeClose := 0
+	inputStoppedAt := time.Time{}
+	runCanceled := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/health":
+			w.WriteHeader(http.StatusOK)
+		case strings.HasSuffix(r.URL.Path, "/start"):
+			mu.Lock()
+			liveSessions++
+			mu.Unlock()
+			io.WriteString(w, `{"session_id":"timeout-session","lease_id":"timeout-lease"}`)
+		case strings.HasSuffix(r.URL.Path, "/run"):
+			mu.Lock()
+			packets++
+			effects++ // The independent fixture accepts the effect before withholding its response.
+			mu.Unlock()
+			select {
+			case <-r.Context().Done():
+			case <-runResponseReleased:
+			}
+		case strings.HasSuffix(r.URL.Path, "/close"):
+			mu.Lock()
+			closeCalls++
+			resourcesBeforeClose = liveSessions
+			inputStoppedAt = time.Now()
+			liveSessions--
+			mu.Unlock()
+			releaseRun.Do(func() {
+				close(runCanceled)
+				close(runResponseReleased)
+			})
+			io.WriteString(w, `{"success":true}`)
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	eng, err := engine.NewPlaywrightEngineWithHTTPClient(server.URL, server.Client(), nil)
+	require.NoError(t, err)
+	action := &basactions.ActionDefinition{
+		Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+		Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid/effect"}},
+	}
+	plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Instructions: []contracts.CompiledInstruction{{
+		NodeID: "timed-navigation", Action: action,
+		Context: map[string]any{"resilience": map[string]any{"maxAttempts": 3, "delayMs": 0}},
+	}}}
+	sink := events.NewMemorySink(contracts.DefaultEventBufferLimits)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	startedAt := time.Now()
+	err = NewSimpleExecutor(nil).Execute(ctx, Request{
+		Plan: plan, EngineName: "playwright", EngineFactory: engine.NewStaticFactory(eng),
+		Recorder: &stubExecutionWriter{}, EventSink: sink,
+	})
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	select {
+	case <-runCanceled:
+	case <-time.After(time.Second):
+		t.Fatal("timeout did not stop the live driver request within1s")
+	}
+
+	mu.Lock()
+	gotPackets, gotEffects, gotCloseCalls, gotLiveSessions := packets, effects, closeCalls, liveSessions
+	gotResourcesBeforeClose, gotInputStoppedAt := resourcesBeforeClose, inputStoppedAt
+	mu.Unlock()
+	require.Equal(t, 1, gotPackets, "a timed-out uncertain instruction must not be replayed")
+	require.Equal(t, 1, gotEffects, "the fixture accepted exactly one effect before the response timed out")
+	require.Equal(t, 1, gotCloseCalls, "executor finalization must close the owned session")
+	require.Zero(t, gotLiveSessions, "the session must be detached before Execute returns")
+	require.Less(t, time.Since(startedAt), time.Second, "timeout must stop the owned request and finish cleanup within the J07 band")
+
+	var failed *contracts.StepOutcome
+	for _, event := range sink.Events() {
+		if event.Kind != contracts.EventKindStepFailed {
+			continue
+		}
+		payload, ok := event.Payload.(map[string]any)
+		require.True(t, ok, "failure event payload should include the step outcome")
+		outcome, ok := payload["outcome"].(contracts.StepOutcome)
+		require.True(t, ok, "failure event should retain a typed step outcome")
+		failed = &outcome
+	}
+	require.NotNil(t, failed, "timeout must retain a terminal step failure")
+	require.NotNil(t, failed.Failure)
+	require.Equal(t, contracts.FailureCodeInstructionOutcomeUncertain, failed.Failure.Code)
+	require.Equal(t, contracts.FailureKindTimeout, failed.Failure.Kind)
+	require.False(t, failed.Failure.Retryable)
+	inputStoppedMS := float64(gotInputStoppedAt.Sub(startedAt).Microseconds()) / 1000
+	cleanupMS := float64(time.Since(gotInputStoppedAt).Microseconds()) / 1000
+	require.GreaterOrEqual(t, inputStoppedMS, float64(0))
+	require.LessOrEqual(t, inputStoppedMS, float64(1000))
+	require.LessOrEqual(t, cleanupMS, float64(5000))
+	require.NoError(t, cancellationqualification.RecordObservation(t.Name(), "timeout", cancellationqualification.CaseObservation{
+		Observed: true, Passed: true, ExternalEffects: gotEffects, TerminalStatus: "failed",
+		LiveResourcesBeforeClose: gotResourcesBeforeClose, LiveResourcesAfterClose: gotLiveSessions,
+		InputStoppedMS: inputStoppedMS, CleanupMS: cleanupMS, RecoveryMS: 0,
+		UncertainEffect: failed.Failure.Code == contracts.FailureCodeInstructionOutcomeUncertain,
+		RetryAdmitted:   failed.Failure.Retryable,
+	}))
+}
+
+// [REQ:BAS-RH-J07] Driver process loss releases its resources while the API
+// retains the uncertain outcome and does not replay the browser effect.
+func TestExecuteDriverDeathRetainsUncertainEffectWithoutReplay(t *testing.T) {
+	var mu sync.Mutex
+	packets := 0
+	effects := 0
+	liveSessions := 0
+	closeCalls := 0
+	resourcesBeforeDeath := 0
+	processDeathAt := time.Time{}
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/health":
+			w.WriteHeader(http.StatusOK)
+		case strings.HasSuffix(r.URL.Path, "/start"):
+			mu.Lock()
+			liveSessions++
+			mu.Unlock()
+			io.WriteString(w, `{"session_id":"death-session","lease_id":"death-lease"}`)
+		case strings.HasSuffix(r.URL.Path, "/run"):
+			mu.Lock()
+			packets++
+			effects++ // The external fixture commits before the driver disappears.
+			resourcesBeforeDeath = liveSessions
+			processDeathAt = time.Now()
+			liveSessions = 0 // Driver process death terminates all process-owned browser resources.
+			mu.Unlock()
+			conn, _, err := w.(http.Hijacker).Hijack()
+			if err != nil {
+				t.Errorf("hijack driver response: %v", err)
+				return
+			}
+			_ = conn.Close()
+			_ = server.Listener.Close()
+		case strings.HasSuffix(r.URL.Path, "/close"):
+			mu.Lock()
+			closeCalls++
+			mu.Unlock()
+			io.WriteString(w, `{"success":true}`)
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	eng, err := engine.NewPlaywrightEngineWithHTTPClient(server.URL, server.Client(), nil)
+	require.NoError(t, err)
+	action := &basactions.ActionDefinition{
+		Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+		Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid/effect"}},
+	}
+	plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Instructions: []contracts.CompiledInstruction{{
+		NodeID: "driver-death-navigation", Action: action,
+		Context: map[string]any{"resilience": map[string]any{"maxAttempts": 3, "delayMs": 0}},
+	}}}
+	sink := events.NewMemorySink(contracts.DefaultEventBufferLimits)
+	startedAt := time.Now()
+	err = NewSimpleExecutor(nil).Execute(context.Background(), Request{
+		Plan: plan, EngineName: "playwright", EngineFactory: engine.NewStaticFactory(eng),
+		Recorder: &stubExecutionWriter{}, EventSink: sink,
+	})
+	require.Error(t, err, "driver loss must fail the workflow")
+
+	mu.Lock()
+	require.Equal(t, 1, packets, "uncertain instruction must not be replayed")
+	require.Equal(t, 1, effects, "independent fixture observed exactly one browser effect")
+	require.Equal(t, 0, liveSessions, "driver death must release process-owned browser resources")
+	require.Zero(t, closeCalls, "the dead driver cannot acknowledge an API close request")
+	gotEffects, gotResourcesBeforeDeath, gotResourcesAfterDeath := effects, resourcesBeforeDeath, liveSessions
+	gotProcessDeathAt := processDeathAt
+	mu.Unlock()
+
+	var failed *contracts.StepOutcome
+	for _, event := range sink.Events() {
+		if event.Kind != contracts.EventKindStepFailed {
+			continue
+		}
+		payload, ok := event.Payload.(map[string]any)
+		require.True(t, ok)
+		outcome, ok := payload["outcome"].(contracts.StepOutcome)
+		require.True(t, ok)
+		failed = &outcome
+	}
+	require.NotNil(t, failed, "driver loss must retain a terminal step failure")
+	require.NotNil(t, failed.Failure)
+	require.Equal(t, contracts.FailureCodeInstructionOutcomeUncertain, failed.Failure.Code)
+	require.Equal(t, contracts.FailureKindInfra, failed.Failure.Kind)
+	require.False(t, failed.Failure.Retryable)
+	inputStoppedMS := float64(gotProcessDeathAt.Sub(startedAt).Microseconds()) / 1000
+	cleanupMS := float64(time.Since(gotProcessDeathAt).Microseconds()) / 1000
+	require.LessOrEqual(t, inputStoppedMS, float64(1000))
+	require.LessOrEqual(t, cleanupMS, float64(5000))
+	require.NoError(t, cancellationqualification.RecordObservation(t.Name(), "driverDeath", cancellationqualification.CaseObservation{
+		Observed: true, Passed: true, ExternalEffects: gotEffects, TerminalStatus: "failed",
+		LiveResourcesBeforeClose: gotResourcesBeforeDeath, LiveResourcesAfterClose: gotResourcesAfterDeath,
+		InputStoppedMS: inputStoppedMS, CleanupMS: cleanupMS, RecoveryMS: 0,
+		UncertainEffect: failed.Failure.Code == contracts.FailureCodeInstructionOutcomeUncertain,
+		RetryAdmitted:   failed.Failure.Retryable,
+	}))
+}
+
+type checkpointFixtureSession struct {
+	stubEngineSession
+	observed string
+}
+
+func (s *checkpointFixtureSession) Run(_ context.Context, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+	if instruction.Action.GetEvaluate() != nil {
+		return contracts.StepOutcome{Success: true, ExtractedData: map[string]any{"result": map[string]any{"value": "extracted"}}}, nil
+	}
+	if instruction.Action.GetExtract() != nil {
+		return contracts.StepOutcome{Success: true, ExtractedData: map[string]any{"value": "extracted"}}, nil
+	}
+	if nav := instruction.Action.GetNavigate(); nav != nil && strings.Contains(nav.Url, "/gate/") {
+		s.observed = nav.Url
+		return contracts.StepOutcome{}, errors.New("fixture gate unavailable")
+	}
+	return contracts.StepOutcome{Success: true}, nil
+}
+
+// [REQ:BAS-RH-J07] Recovery state is actual runtime state, independent of
+// collected artifacts. Public evidence must not expose private store values.
+func TestExecutePersistsCompletedStoreWithoutTelemetry(t *testing.T) {
+	for _, graph := range []bool{false, true} {
+		for _, profile := range []string{config.ProfileFull, config.ProfileNone} {
+			for _, method := range []string{"extract", "evaluate"} {
+				t.Run(fmt.Sprintf("graph=%t/%s/%s", graph, profile, method), func(t *testing.T) {
+					root := t.TempDir()
+					session := &checkpointFixtureSession{}
+					eng := &finalizationEngine{session: session}
+					writer := executionwriter.NewFileWriter(nil, nil, nil, executionwriter.NewStaticRoot(root))
+					settings := config.DefaultArtifactSettingsForProfile(profile)
+					extraction := &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_EXTRACT, Params: &basactions.ActionDefinition_Extract{Extract: &basactions.ExtractParams{Selector: "#fixture", StoreAs: proto.String("result")}}}
+					if method == "evaluate" {
+						extraction = &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_EVALUATE, Params: &basactions.ActionDefinition_Evaluate{Evaluate: &basactions.EvaluateParams{Expression: "fixture result", StoreResult: proto.String("result")}}}
+					}
+					instructions := []contracts.CompiledInstruction{
+						{Index: 0, NodeID: "start", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid"}}}},
+						{Index: 1, NodeID: "store", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_SET_VARIABLE, Params: &basactions.ActionDefinition_SetVariable{SetVariable: &basactions.SetVariableParams{Name: "token", Value: &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: "updated"}}}}}},
+						{Index: 2, NodeID: "extract", Action: extraction},
+						{Index: 3, NodeID: "gate", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid/gate/${@store/token}/${@store/result.value}/${@params/input}/${@env/region}"}}}},
+					}
+					plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Instructions: instructions, Metadata: map[string]any{"variables": map[string]any{"default": "plan", "token": "default"}}}
+					if graph {
+						steps := make([]contracts.PlanStep, len(instructions))
+						for i, inst := range instructions {
+							steps[i] = contracts.PlanStep{Index: inst.Index, NodeID: inst.NodeID, Action: inst.Action}
+							if i+1 < len(instructions) {
+								steps[i].Outgoing = []contracts.PlanEdge{{Target: instructions[i+1].NodeID}}
+							}
+						}
+						plan.Graph = &contracts.PlanGraph{Steps: steps}
+					}
+					err := NewSimpleExecutor(nil).Execute(context.Background(), Request{Plan: plan, EngineName: eng.Name(), EngineFactory: engine.NewStaticFactory(eng), Recorder: writer, EventSink: events.NewMemorySink(contracts.DefaultEventBufferLimits), ArtifactConfig: &settings, InitialStore: map[string]any{"token": "original", "secret": "private-only"}, InitialParams: map[string]any{"input": "argument"}, Env: map[string]any{"region": "local"}})
+					require.ErrorContains(t, err, "fixture gate unavailable")
+					require.Equal(t, "https://fixture.invalid/gate/updated/extracted/argument/local", session.observed)
+					raw, err := os.ReadFile(filepath.Join(root, plan.ExecutionID.String(), "checkpoint.json"))
+					require.NoError(t, err, "completed cursor and mutable store require durable recovery evidence")
+					var saved struct {
+						LastStepIndex int            `json:"last_step_index"`
+						Store         map[string]any `json:"store"`
+					}
+					require.NoError(t, json.Unmarshal(raw, &saved))
+					require.Equal(t, 2, saved.LastStepIndex)
+					require.Equal(t, map[string]any{"token": "updated", "result": map[string]any{"value": "extracted"}, "secret": "private-only", "default": "plan"}, saved.Store)
+					for _, name := range []string{"result.json", "timeline.proto.json"} {
+						b, e := os.ReadFile(filepath.Join(root, plan.ExecutionID.String(), name))
+						require.NoError(t, e)
+						require.NotContains(t, string(b), "private-only")
+					}
+				})
+			}
+		}
+	}
+}
+
+type failingCheckpointWriter struct{ stubExecutionWriter }
+
+func (*failingCheckpointWriter) RecordCheckpoint(context.Context, executionwriter.Checkpoint) error {
+	return errors.New("checkpoint commit unavailable")
+}
+
+func TestExecuteFailsWhenCompletedStateCannotCommit(t *testing.T) {
+	session := &finalizationSession{}
+	err := executeFinalizationFixture(context.Background(), session, &failingCheckpointWriter{})
+	require.ErrorContains(t, err, "checkpoint commit unavailable")
+	require.Equal(t, 1, session.closeCalls, "checkpoint failure still owns session teardown")
+}

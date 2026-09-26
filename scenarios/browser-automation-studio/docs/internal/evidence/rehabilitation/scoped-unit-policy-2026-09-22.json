@@ -1,0 +1,161 @@
+{
+  "cycle": "031",
+  "issue": "BAS-RF-067",
+  "status": "repaired_validated_deployed",
+  "recorded_at": "2026-09-22T13:14:26.091632+00:00",
+  "scope": "Necessary Unit Health owner repair for BAS scoped validation",
+  "hypothesis": "Workspace selection erased observed roles before global policy resolution.",
+  "red": "/tmp/bas-workspace-policy-red-031.txt",
+  "repair": "Retain full discovery for required-role/governance checks; selected inventory still bounds commands and analysis. All five direct test callers updated; no role/floor/waiver changes.",
+  "verification": {
+    "race": "validation package passed 2.282s",
+    "build": "/tmp/unit-health-build-031.txt",
+    "owner_run": "20260922-131130-e1ccd657",
+    "owner_unit": {
+      "status": "passed",
+      "findings": 0,
+      "commands": [
+        {
+          "name": "go test",
+          "status": "passed",
+          "durationMs": "4362",
+          "workingDirectory": "/home/matthalloran8/Vrooli/scenarios/unit-health/api"
+        },
+        {
+          "name": "go test",
+          "status": "passed",
+          "durationMs": "707",
+          "workingDirectory": "/home/matthalloran8/Vrooli/scenarios/unit-health/cli"
+        },
+        {
+          "name": "typescript test",
+          "status": "passed",
+          "durationMs": "4043",
+          "workingDirectory": "/home/matthalloran8/Vrooli/scenarios/unit-health/ui"
+        },
+        {
+          "name": "typescript typecheck",
+          "status": "passed",
+          "durationMs": "3135",
+          "workingDirectory": "/home/matthalloran8/Vrooli/scenarios/unit-health/ui"
+        }
+      ]
+    },
+    "owner_tidiness": {
+      "status": "failed",
+      "total_findings": 238,
+      "long_files": 6,
+      "complexity": 154,
+      "duplication": 77,
+      "duplication_line_debt": 961,
+      "native": "/tmp/unit-health-tidiness-native-031.json"
+    },
+    "bas_scoped": {
+      "run_id": "uh-20260922-131124-df0a5c7240f633a383dd64888c744bee",
+      "status": "passed",
+      "workspace_ids": [
+        "api",
+        "cli"
+      ],
+      "commands": [
+        {
+          "name": "go test",
+          "status": "passed",
+          "duration_ms": "35493",
+          "working_directory": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api"
+        },
+        {
+          "name": "go test",
+          "status": "passed",
+          "duration_ms": "2069",
+          "working_directory": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/cli"
+        }
+      ],
+      "required_role_findings": 0,
+      "warnings": 55,
+      "native": "/tmp/bas-scoped-unit-owner-031.json"
+    },
+    "contract": "preparation valid; no product verdict",
+    "board": "prog_5aa897fe-7574-49a7-9bdf-3ade00a960ca: 17 pending; product_qualified false"
+  },
+  "complexity": {
+    "before": {
+      "files": 2,
+      "lines": 1639,
+      "functions": 39,
+      "cyclomatic": 272
+    },
+    "after": {
+      "files": 2,
+      "lines": 1641,
+      "functions": 39,
+      "cyclomatic": 272
+    }
+  },
+  "cumulative_affected_go_cyclomatic_delta": -258,
+  "deployment": {
+    "unit_health": {
+      "status": "healthy",
+      "service": "unit-health-api",
+      "timestamp": "2026-09-22T13:11:24Z",
+      "readiness": true,
+      "version": "1.0.0",
+      "build_identity": "sha256:9417ede3ff59c1d34424e19a5b4ea97f26f93b4a2ff3dbea381bfe79ae4e8b09",
+      "uptime_seconds": 13.791260843,
+      "dependencies": {
+        "database": {
+          "connected": true,
+          "latency_ms": 0.09
+        }
+      },
+      "metrics": {
+        "goroutines": 15,
+        "heap_mb": 2.2822647094726562,
+        "uptime_seconds": 13.791260843
+      }
+    },
+    "bas_cycles": "001-030",
+    "bas": {
+      "status": "healthy",
+      "service": "browser-automation-studio-api",
+      "timestamp": "2026-09-22T13:12:35Z",
+      "readiness": true,
+      "version": "1.0.0",
+      "build_identity": "sha256:087c3dc3cb79976718da56635b00b01d6a4b765737474183d97e9937769e4c60",
+      "uptime_seconds": 27.888335638,
+      "dependencies": {
+        "automation_engine": {
+          "connected": true
+        },
+        "database": {
+          "connected": true,
+          "latency_ms": 0.027
+        },
+        "playwright_driver": {
+          "connected": true,
+          "latency_ms": 0.895
+        },
+        "storage": {
+          "connected": true,
+          "latency_ms": 0.116
+        }
+      },
+      "metrics": {
+        "goroutines": 31,
+        "heap_mb": 6.051849365234375,
+        "uptime_seconds": 27.888335638
+      }
+    },
+    "gate": "/tmp/bas-drain-gate-031.json",
+    "gate_summary": "2833 rows: 2435 completed, 393 failed, five exact unchanged historical RUNNING; zero driver sessions/recordings",
+    "gate_limit": "Observational, not atomic admission lock",
+    "profile_preservation": "API metadata identical to027; three repository reads preserve every original field against untouched rollback"
+  },
+  "limitations": [
+    "Scoped BAS API/CLI success is not fresh whole-product certification; driver029 remains applicable with source unchanged.",
+    "UI coverage, native platform matrix, whole journeys, active artifact preservation and soaks remain unqualified.",
+    "Unit Health tidiness budget still fails.",
+    "Initial test invocation from repo root failed module resolution; red receipt came from correct API module."
+  ],
+  "pending_operations": []
+}

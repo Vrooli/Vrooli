@@ -2,34 +2,53 @@
 
 Visual browser automation workflow builder with AI-powered generation and debugging.
 
+> **Current authority (2026-07-26):** Use `make start|test|logs|stop` or the `vrooli scenario` lifecycle commands. The historical component-by-component commands later in this file are retained for context only and must not be used to launch API or driver binaries directly.
+
+## What You Get
+
+Create visual browser workflows, execute typed V2 actions through the managed Playwright driver, and retain replayable execution evidence for end-to-end validation. See [the documentation map](#documentation-map) for the authoritative engineering and operations material.
+
+## Documentation Map
+
+- [Start here](docs/START-HERE.md)
+- [Architecture](docs/concepts/ARCHITECTURE.md) and [domain map](docs/concepts/DOMAINS.md)
+- [V2 workflow status](docs/concepts/V2-WORKFLOW-STATUS.md)
+- [Operations runbook](docs/operations/RUNBOOK.md)
+- [Commercial-readiness constraints](docs/business/MONETIZATION.md)
+
+## Customize Safely
+
+Add browser capabilities through typed proto contracts, API compilation, driver handlers, UI authoring, and behavioral tests. Do not add parallel legacy instruction fields, direct process launches, or ungoverned dependencies.
+
 ## 🎯 Overview
 
 Vrooli Ascension transforms browser automation from code-based scripts to visual, self-healing workflows. It provides a drag-and-drop interface for creating browser automation workflows, real-time execution monitoring with screenshots, and AI assistance for both generation and debugging.
 
-### Engine selection (Browserless vs Playwright)
-- Default: Browserless (`ENGINE=browserless` or unset).
-- Playwright: set `ENGINE=playwright` (or `ENGINE_OVERRIDE=playwright`). If `PLAYWRIGHT_DRIVER_URL` is unset, the lifecycle starts the local Playwright driver from `resources/playwright` and exports `PLAYWRIGHT_DRIVER_URL=http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT:-39400}` automatically. Stop hooks clean it up.
+### Engine selection (Playwright driver)
+- Default: the in-repo Playwright driver (`ENGINE=playwright` or unset). The legacy Browserless engine has been removed.
+- Playwright: `ENGINE=playwright` is the default. If `PLAYWRIGHT_DRIVER_URL` is unset, the lifecycle starts the local Playwright driver (`playwright-driver/`, a Node HTTP server) automatically and exports `PLAYWRIGHT_DRIVER_URL=http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}` (allocated from 24400-24499). Stop hooks clean it up.
 - Desktop/Electron: bundle `resources/playwright/driver/server.js`, spawn it from Electron main (allowing `PORT=0` for a free port), capture the port, and launch the bundled API with `ENGINE=playwright` and `PLAYWRIGHT_DRIVER_URL=<captured>`. To avoid bundling another Chromium (~80–120 MB), align Playwright with the Electron Chromium version and set `PLAYWRIGHT_CHROMIUM_PATH` to that binary.
 
-### Database backend (Postgres vs SQLite)
-- Default backend is Postgres (`BAS_DB_BACKEND` unset or `postgres`), using `DATABASE_URL` or the `POSTGRES_*` envs.
-- SQLite is available for desktop/Electron or lightweight runs: set `BAS_DB_BACKEND=sqlite` and optionally `BAS_SQLITE_PATH` (or `DATABASE_URL=file:/abs/path.db`). If unset, the path defaults to the shared sqlite resource path (`~/.vrooli/data/sqlite/databases/browser-automation-studio.db`) with resource-style pragmas (WAL, busy_timeout, cache_size, page_size, synchronous=NORMAL, temp_store=MEMORY, mmap).
-- On sqlite startup we best-effort call `resource-sqlite manage install` to prep directories; it’s safe to continue if the CLI isn’t present. Set `BAS_SKIP_SQLITE_TESTS=true` to skip sqlite smoke tests in CI.
+### Database storage (SQLite)
+- Storage is embedded SQLite via `modernc.org/sqlite` (pure Go, no CGO). The DB file is resolved through `api-core/storage` with `ProfileAuto` — typically `~/.local/share/vrooli/browser-automation-studio/browser-automation-studio.db` on Linux.
+- Override the path with `BAS_SQLITE_PATH=/abs/path.db`. `api-core/storage` resolves the DSN and applies WAL, busy-timeout, and cache pragmas. A generic `DATABASE_URL` is deliberately NOT honored: a variable that does not name a scenario cannot be scoped to one, so an inherited value would redirect every scenario started by the same process.
+- Schema lives in `api/internal/<domain>/storage/sqlite/schemas/` and is applied idempotently on first startup.
+- **Migrating from a previous postgres-backed install**: persistent data is not retained — start fresh. The postgres backend has been removed and there is no migration tool.
 
 ### Screenshot storage
 - Default: local filesystem (`BAS_SCREENSHOT_STORAGE=local` or unset) rooted at `scenarios/browser-automation-studio/data/recordings`.
 - Object storage: set `BAS_SCREENSHOT_STORAGE=minio` and supply `MINIO_*` env vars. If MinIO init fails, the API automatically falls back to local storage so desktop/offline builds stay functional.
 
 ## ⚠️ Current Implementation Status (2025-11-14)
-- The automation executor/engine stack (`api/automation/{executor,engine,recorder,events}`) now drives Browserless via the `BrowserlessEngine`, emitting normalized `StepOutcome` payloads through `WSHubSink` and persisting through `DBRecorder`. It covers `navigate`, `wait`, `click`, `type`, `extract`, `loop`, and `screenshot` nodes with console/network telemetry, bounding boxes, click coordinates, cursor trails, extracted payloads, and focus/highlight/mask/zoom metadata recorded in `execution_steps` and `execution_artifacts` (timeline frames included). Success/failure/else branching, runtime loop execution (for-each, repeat, while), and per-node retry/backoff policies record attempt history alongside screenshots and telemetry.
-- Assertion nodes now evaluate selector existence/text/attributes directly in Browserless, emitting structured assertion artifacts, timeline metadata, and CLI/UI logs that short-circuit executions on failure.
+- The automation executor/engine stack (`api/automation/{executor,engine,recorder,events}`) now drives the in-repo Playwright driver, emitting normalized `StepOutcome` payloads through `WSHubSink` and persisting through `DBRecorder`. It covers `navigate`, `wait`, `click`, `type`, `extract`, `loop`, and `screenshot` nodes with console/network telemetry, bounding boxes, click coordinates, cursor trails, extracted payloads, and focus/highlight/mask/zoom metadata recorded in `execution_steps` and `execution_artifacts` (timeline frames included). Success/failure/else branching, runtime loop execution (for-each, repeat, while), and per-node retry/backoff policies record attempt history alongside screenshots and telemetry.
+- Assertion nodes now evaluate selector existence/text/attributes directly via the Playwright driver, emitting structured assertion artifacts, timeline metadata, and CLI/UI logs that short-circuit executions on failure.
 - Structured WebSocket events (`execution.*`, `step.*`) now include mid-step `step.heartbeat` telemetry. The UI panel surfaces the latest heartbeat with elapsed timing while console/network payloads continue streaming via `step.telemetry` events.
 - The CLI watcher attaches to the WebSocket stream when Node.js is available, echoing heartbeats alongside step events and retaining HTTP polling + timeline summary fallbacks. The `execution export` command now streams replay-export packages and can write the JSON payload to disk for automation tooling.
-- Replay tooling offers a Replay tab with highlight/mask overlays, zoom anchoring, animated cursor trails, and storyboard navigation, and the API now serves structured `/executions/{id}/export` packages with transition hints, theme presets, and asset references. DOM snapshots are captured alongside screenshots, surface in the UI replay inspector, and ship as embedded HTML in export bundles. The CLI now includes `execution render-video`, which asks the API’s Browserless renderer to capture each frame from the composer iframe and streams MP4/WEBM bundles back to disk, while richer motion presets remain roadmap work.
-- The composer now sends its fully decorated `ReplayMovieSpec` to the export API, so Browserless captures exactly what the iframe shows while still supporting JSON exports and CLI automation.
-- Chrome extension recordings can be ingested via `POST /api/v1/recordings/import`, which normalises manifest + frame archives into executions, timeline artifacts, and replay assets served from `/api/v1/recordings/assets/{executionID}/…`. Automated extension packaging remains to be productised, but imported runs now appear alongside Browserless executions.
+- Replay tooling offers a Replay tab with highlight/mask overlays, zoom anchoring, animated cursor trails, and storyboard navigation, and the API now serves structured `/executions/{id}/export` packages with transition hints, theme presets, and asset references. DOM snapshots are captured alongside screenshots, surface in the UI replay inspector, and ship as embedded HTML in export bundles. The CLI now includes `execution render-video`, which asks the API’s Playwright renderer to capture each frame from the composer iframe and streams MP4/WEBM bundles back to disk, while richer motion presets remain roadmap work.
+- The composer now sends its fully decorated `ReplayMovieSpec` to the export API, so the Playwright driver captures exactly what the iframe shows while still supporting JSON exports and CLI automation.
+- Chrome extension recordings can be ingested via `POST /api/v1/recordings/import`, which normalises manifest + frame archives into executions, timeline artifacts, and replay assets served from `/api/v1/recordings/assets/{executionID}/…`. Automated extension packaging remains to be productised, but imported runs now appear alongside Playwright-driven executions.
 - Requirements tracking continues through `requirements/index.json` (v0.2.0 modular registry) and `vrooli scenario requirements report browser-automation-studio`, now reflecting telemetry/replay progress; automated CI hooks remain pending.
-- Automated coverage exercises the compiler/runtime helpers and executor telemetry persistence; WebSocket contract, handler integration, and end-to-end Browserless tests remain gaps.
+- Automated coverage exercises the compiler/runtime helpers and executor telemetry persistence; WebSocket contract, handler integration, and end-to-end Playwright-driver tests remain gaps.
 - Documentation across README/PRD/action-plan matches the current executor and replay capabilities while calling out remaining milestones.
 
 > See `docs/action-plan.md` for the full backlog and execution roadmap.
@@ -57,14 +76,14 @@ Vrooli Ascension transforms browser automation from code-based scripts to visual
 
 Status legend: ✅ scaffolding exists • 🚧 active development • 🌀 planned polish
 
-- ✅ **Visual Workflow Builder**: React Flow UI stores node/edge JSON and project folders in Postgres.
-- ✅ **API/CLI Scaffolding**: REST handlers and CLI commands exist for workflows/executions; the API executes sequential Browserless steps with per-step telemetry while the CLI opens a live WebSocket stream (when Node.js is available) and prints execution timeline summaries after runs.
+- ✅ **Visual Workflow Builder**: React Flow UI stores node/edge JSON in workflow files on disk; SQLite indexes the file metadata for fast project/workflow lookups.
+- ✅ **API/CLI Scaffolding**: REST handlers and CLI commands exist for workflows/executions; the API executes sequential Playwright-driver steps with per-step telemetry while the CLI opens a live WebSocket stream (when Node.js is available) and prints execution timeline summaries after runs.
 - ✅ **Execution History Viewer**: Full-featured execution history viewer in the UI (Project Detail → Executions tab) with filtering by status (all/completed/failed/running), execution details, timeline replay, and refresh functionality. CLI provides `execution list` command for programmatic access.
 - ✅ **Execution Timeline API**: `/api/v1/executions/{id}/timeline` now assembles per-step `timeline_frame` artifacts with screenshot metadata, highlights, masks, and console/network references for replay consumers.
-- 🚧 **Real-time Execution Stream**: Structured WebSocket events deliver per-step logs, mid-step heartbeats, telemetry, and screenshots; the execution viewer now surfaces last-heartbeat timing while rendering `step.telemetry` console/network output. Tune heartbeat cadence with `BAS_EXECUTION_HEARTBEAT_INTERVAL_MS` (or `BROWSERLESS_HEARTBEAT_INTERVAL` for Go-duration strings, `0` disables). Cursor trails render inside the Replay tab; richer CLI overlays remain on the roadmap.
+- 🚧 **Real-time Execution Stream**: Structured WebSocket events deliver per-step logs, mid-step heartbeats, telemetry, and screenshots; the execution viewer now surfaces last-heartbeat timing while rendering `step.telemetry` console/network output. Tune heartbeat cadence with `BAS_EXECUTION_HEARTBEAT_INTERVAL_MS` (`0` disables). Cursor trails render inside the Replay tab; richer CLI overlays remain on the roadmap.
 - 🚧 **AI Workflow Generation**: Prompt pipeline calls OpenRouter but lacks validation against a runnable executor.
 - 🚧 **AI Debugging Loop**: Endpoint stubs exist; needs real telemetry + replay artifacts to be effective.
-- 🚧 **Replay & Marketing Renderer**: Timeline artifacts feed the replay UI, `/executions/{id}/export` packages expose animation/transition hints (including DOM snapshot HTML), and the CLI offers `execution render` (HTML bundle) plus `execution render-video` (MP4/WEBM capture streamed through the API’s Browserless pipeline). Advanced motion presets and GIF exporters remain on the roadmap.
+- 🚧 **Replay & Marketing Renderer**: Timeline artifacts feed the replay UI, `/executions/{id}/export` packages expose animation/transition hints (including DOM snapshot HTML), and the CLI offers `execution render` (HTML bundle) plus `execution render-video` (MP4/WEBM capture streamed through the API’s Playwright pipeline). Advanced motion presets and GIF exporters remain on the roadmap.
 
 ## 🚀 Quick Start
 
@@ -73,9 +92,7 @@ Status legend: ✅ scaffolding exists • 🚧 active development • 🌀 plann
 ### Prerequisites
 
 ```bash
-# Ensure required resources are running
-vrooli resource browserless start
-vrooli resource postgres start
+# Ensure required resources are running (the Playwright driver starts automatically with the scenario)
 vrooli resource minio start
 ```
 
@@ -88,9 +105,7 @@ cd cli
 ./install.sh
 source ~/.bashrc
 
-# Setup database
-cd ../api
-go run cmd/migrate/main.go up
+# Database schema is created on first API startup (no migration step needed).
 
 # Install UI dependencies
 cd ../ui
@@ -146,19 +161,17 @@ curl -X POST "http://localhost:${API_PORT}/api/v1/recordings/import" \
 
 - If no project is supplied, the importer tries `project_id`, then `project_name`, falling back to creating **Extension Recordings** on demand.
 - Assets are stored under `scenarios/browser-automation-studio/data/recordings/<execution-id>/frames/` and exposed via `/api/v1/recordings/assets/{executionID}/frames/{filename}` so the UI Replay tab and CLI renderer can fetch frames without touching MinIO.
-- Imported runs appear in the dashboard alongside Browserless executions with `trigger_type = extension`, complete with replay timeline, console/network artifacts, and export support.
+- Imported runs appear in the dashboard alongside Playwright-driven executions with `trigger_type = extension`, complete with replay timeline, console/network artifacts, and export support.
 
-## Using the Playwright engine (optional)
+## Playwright driver engine
 
-Browserless remains the default engine. To run with Playwright instead:
+The in-repo Playwright driver (`playwright-driver/`) is the default and only engine (`ENGINE=playwright` or unset); the legacy Browserless engine has been removed. The driver starts automatically with the scenario — there is no separate resource CLI to run.
 
-1) Start the Playwright driver resource (non-Docker): `resource-playwright start` (installs node deps first time; uses the vendored Chromium or `PLAYWRIGHT_CHROMIUM_PATH` if set).
-2) Export engine env vars: `eval "$(resource-playwright env)"` (sets `ENGINE=playwright` and `PLAYWRIGHT_DRIVER_URL` for the current shell).
-3) Start the scenario normally: `vrooli scenario start browser-automation-studio` (or `make start`/`vrooli develop`); the API will resolve the Playwright engine via those envs.
-4) Stop the driver when done: `resource-playwright stop`.
+1) Start the scenario normally: `vrooli scenario start browser-automation-studio` (or `make start`/`vrooli develop`). The API sidecar supervisor launches the local Playwright driver, sets `PLAYWRIGHT_DRIVER_URL`, and resolves `ENGINE=playwright` automatically.
+2) To point at an already-running driver, export `PLAYWRIGHT_DRIVER_URL=<url>` before starting; the API will use it instead of spawning its own. Set `PLAYWRIGHT_CHROMIUM_PATH` to reuse an existing Chromium binary and avoid a second download.
 
 Notes:
-- The driver must be running and reachable for health checks to pass when `ENGINE=playwright`.
+- The driver must be running and reachable for health checks to pass.
 - For desktop/Electron bundles, start the driver from Electron main (PORT=0), read the chosen port, and inject `PLAYWRIGHT_DRIVER_URL`/`ENGINE=playwright` into the bundled API before launching the UI.
 
 ## 🏗️ Architecture
@@ -185,7 +198,7 @@ Notes:
 
 ### Workflow Node Types
 
-- **Navigate**: Executes via Browserless for sequential flows; edges/branching are ignored and each step shares a single page context.
+- **Navigate**: Executes via the Playwright driver for sequential flows; edges/branching are ignored and each step shares a single page context.
 - **Click**: Supported for visible selectors; emits bounding boxes and synthetic click coordinates and now honours node-level retry/backoff policies.
 - **Hover**: Smoothly moves the pointer to any selector (no clicks) with configurable glide duration so dropdowns, tooltips, and mega-menus stay open for follow-up steps.
 - **Scroll**: Supports page/element/position scrolls plus "scroll until visible" sweeps with retry limits for lazy-loaded content.
@@ -194,8 +207,8 @@ Notes:
 - **Screenshot**: Captures full-page PNGs (MinIO/local fallback) with optional focus, highlight, mask, background, and zoom controls while preserving cursor trails for replay animation.
 - **Wait**: Time waits execute; element waits leverage configurable retry/backoff instrumentation, though richer loop constructs are still pending.
 - **Extract**: Supported for text/value/html/attribute payloads and persists results (no schema enforcement yet).
-- **Assert**: Evaluate selector existence, text, or attribute conditions directly in Browserless, surfacing assertion artifacts, execution logs, and replay metadata; failures halt the run unless future branching allows continuations.
-- **Shortcut**: Emits high-level combinations such as `Ctrl+K` or `Cmd+Enter` using Browserless helpers—ideal for triggering global shortcuts or menu accelerators on the focused element.
+- **Assert**: Evaluate selector existence, text, or attribute conditions directly via the Playwright driver, surfacing assertion artifacts, execution logs, and replay metadata; failures halt the run unless future branching allows continuations.
+- **Shortcut**: Emits high-level combinations such as `Ctrl+K` or `Cmd+Enter` using the Playwright driver—ideal for triggering global shortcuts or menu accelerators on the focused element.
 - **Keyboard**: Dispatches low-level `keydown`/`keyup`/`keypress` events with optional modifier toggles and hold delays, enabling granular navigation (e.g., arrow keys, Enter on dialogs) without recording a full shortcut sequence.
 - **Tab Switch**: Jumps between existing tabs, OAuth popups, or new windows by newest/oldest ordering, explicit index, title regex, or URL match while optionally waiting for a brand-new tab and closing the previous context after the switch.
 - **Script**: Runs custom JavaScript in the current page context with configurable timeouts, returning values for later nodes and paving the way for variable storage.
@@ -212,15 +225,11 @@ Notes:
 
 The end-to-end regression `TestVariableFlowEndToEnd` in `api/automation/executor/integration_test.go` mirrors this flow to ensure variables are interpolated, aliased, and snapshotted correctly.
 
-### Scenario Registry Overrides
+### Scenario Discovery
 
-Set the `SCENARIO_REGISTRY` environment variable to pin scenario names to explicit URLs/ports during testing or when orchestrating multiple scenarios locally. The value can be inline JSON or `@/path/to/registry.json`. Example inline payload:
+Vrooli Ascension resolves `destinationType: "scenario"` navigations and scenario-port API calls through the shared `api-core/discovery` path. That path shells out to `vrooli scenario port`, so browser automation uses the same lifecycle-managed runtime discovery as other scenarios instead of a scenario-specific environment override.
 
-```bash
-export SCENARIO_REGISTRY='{"browser-automation-studio":{"url":"http://127.0.0.1:4173","ports":{"UI_PORT":4173,"API_PORT":4174}}}'
-```
-
-When present, Vrooli Ascension resolves `destinationType: "scenario"` navigations and scenario-port API calls using this registry instead of shelling out to `vrooli`, which keeps CI and isolated test runs deterministic.
+For deterministic tests, inject the `scenarioport.ScenarioCLI` seam or use the testing helpers in `api-core/discovery`. Do not bypass lifecycle discovery with per-scenario runtime registry environment variables.
 
 ## 🤖 AI Integration
 
@@ -303,7 +312,7 @@ cd api && go test ./...
 cd ../ui && pnpm test        # runs sharded Vitest suites (stores + component smoke tests)
 
 # Optional: heavyweight WorkflowBuilder Vitest suite (requires lots of RAM)
-pnpm test:workflow-builder   # still memory hungry; pair with Browserless workflow smoke checks for end-to-end coverage
+pnpm test:workflow-builder   # still memory hungry; pair with Playwright-driver workflow smoke checks for end-to-end coverage
 
 > Note: The WorkflowBuilder Vitest suite currently requires >10GB of heap because of React Flow + Monaco mocks. The default `pnpm test` command runs the lighter shards and skips the builder suite to keep CI stable.
 
@@ -324,13 +333,31 @@ Planned metrics include:
 
 ## 🔒 Security
 
-> Security features are design targets. Current implementation uses development settings without auth or encryption. Harden after executor MVP.
+Subscription identity is anchored at Landing Page Business Suite (LPBS). BAS and
+bundled scenarios use the shared `vrooli/lpbs-account:refresh-token` credential
+authority; only short-lived RS256 access tokens are held in process memory or
+browser session storage. Refresh tokens are never returned by BAS APIs and are
+never written to browser storage, workflow definitions, logs, or command-line
+arguments.
 
-Planned controls:
-- Screenshots encrypted at rest in MinIO
-- Role-based access to workflows
-- Audit trail for all executions
-- No secrets in workflow definitions
+The web flow validates a state/CSRF value, strips callback fragments from the
+history immediately, and provisions the refresh token only through the same
+origin BAS API. The desktop flow uses Electron safeStorage plus the native
+credential authority and recovers after an encrypted profile reset without
+accepting plaintext token files. Entitlement and AI metering requests use the
+verified consumer identity from the LPBS token; caller-supplied identity values
+cannot select another account.
+
+LPBS signing keys are private server-side and exposed to consumers only through
+the public JWKS endpoint. Production requires an explicitly configured key ID;
+local development uses a persistent local key only when production mode is not
+enabled. Control-plane tier/source overrides are loopback-only.
+
+The remaining deployment boundary is intentional: AI Gateway APIs are
+operator-local unless a deployment adds an authenticated edge. Remote exposure
+must use TLS and an authenticated reverse proxy or equivalent API identity
+layer; the local subscription credential is not a substitute for multi-user
+edge authentication.
 
 ## 🚧 Known Limitations
 

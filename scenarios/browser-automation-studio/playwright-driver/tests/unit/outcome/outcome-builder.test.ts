@@ -17,6 +17,17 @@ import {
 import { createTestInstruction } from '../../helpers';
 
 describe('Outcome Builder', () => {
+  it.each([true, false])('preserves typed condition truth and values: %s', truth => {
+    const result = { success: true, condition: { type: 'expression', outcome: truth, negated: true, actual: false, expected: true } };
+    const now = new Date();
+    const outcome = buildStepOutcome({ instruction: createTestInstruction({ index: 0, nodeId: 'condition' }),
+      result, startedAt: now, completedAt: now });
+    const wire = toDriverOutcome(outcome);
+    expect(wire.condition).toMatchObject({ type: 'expression', negated: true,
+      actual: { boolValue: false }, expected: { boolValue: true } });
+    expect((wire.condition as { outcome?: boolean }).outcome ?? false).toBe(truth);
+  });
+
   it('builds a StepOutcome with telemetry, focus, and failure details', () => {
     const instruction = createTestInstruction({
       index: -1,

@@ -1,0 +1,49 @@
+{
+  "work": "BAS-WORK-180",
+  "captured_at": "2026-09-24T19:52:41Z",
+  "scope": "targeted API recording-service SQLite journal fault/reopen owner; partial passive-fidelity evidence",
+  "contractRow": "passive-fidelity",
+  "owner": {
+    "name": "disk-backed 10,000 action journal with transient rejection, same-ID retry and reopen",
+    "command": "go test ./services/recording -run '^TestJournalHistorySurvivesPaginationReopenAndConcurrentWriters$' -count=1",
+    "working_directory": "scenarios/browser-automation-studio/api",
+    "result": "passed",
+    "tests": "1/1",
+    "duration_seconds": 3.107,
+    "actions": 10000,
+    "observed": [
+      "independently generated action IDs were committed in order",
+      "one SQLite trigger rejected the midpoint append and the write returned an error",
+      "retry used the same event identity and was committed once",
+      "all 100 pages preserved the expected action IDs and sequence order before and after database close/reopen through new service instances",
+      "two concurrent writers appended 40 actions without corrupting the terminal sequence"
+    ],
+    "limitation": "The owner reopens the disk journal through fresh service instances within one Go test process; it does not restart the API process or ingest real Chromium events."
+  },
+  "related_owner": "docs/internal/evidence/rehabilitation/passive-fidelity-10k-2026-09-24.json",
+  "source_sha256": {
+    "docs/internal/REFRACTOR_CONTRACT.json": "4ec793e57754a709183024dd9a8a6cfa683c42c4a8c96541ed120897bccfc54a",
+    "api/services/recording/service.go": "c05b3b78dcd324c62cbaa717d8a0e533a3a318b3b6b848ea453a8d61a6d3b84d",
+    "api/services/recording/service_test.go": "ba3acc945b84b8ada4350f06a6709ef4eea68bf683d2ae292de7fe5ad3bc61bf",
+    "api/services/recording/persistence/sqlite.go": "7ba6fb8bbf7a683022b6af24efc284d55d85c9be55abd4d4f8061019b073d753"
+  },
+  "test_genie_phase_run": false,
+  "managed_build_identity": null,
+  "qualification": {
+    "score_credit_claimed": false,
+    "remaining": [
+      "driver-process death/reconnect fault",
+      "actual API-process restart during an active recording",
+      "one integrated 10,000-action Chromium-to-durable-API-journal journey",
+      "supported event-semantics corpus",
+      "current-build retained receipt validation and governed passive-fidelity sensor"
+    ]
+  },
+  "latest_setpoint": {
+    "program_run_id": "prog_c0afa0c2-dc0a-4585-82e5-2950f2869d08",
+    "in_band": "3/17",
+    "unavailable": 14,
+    "unavailable_reason": "pending_telemetry",
+    "product_qualified": false
+  }
+}

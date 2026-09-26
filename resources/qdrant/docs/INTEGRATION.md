@@ -20,22 +20,18 @@ Text → Ollama (embed) → Vector[1536] → Qdrant (store)
 # Ollama endpoint
 OLLAMA_URL="http://localhost:11434"
 
-# Embedding model
-EMBEDDING_MODEL="mxbai-embed-large"
+# Embedding role
+EMBEDDING_ROLE="embedding.default"
 
 # Generate embeddings
-curl -X POST "$OLLAMA_URL/api/embed" \
-  -d '{
-    "model": "mxbai-embed-large",
-    "input": ["text to embed"]
-  }'
+printf 'text to embed' | resource-ollama gateway embed --role "$EMBEDDING_ROLE" --json --input-stdin
 ```
 
 **Usage Example:**
 ```bash
 # Generate and store embeddings
 text="Understanding vector databases"
-embedding=$(ollama embed "$text")
+embedding=$(printf '%s' "$text" | resource-ollama gateway embed --role embedding.default --json --input-stdin)
 qdrant store "$embedding" --collection knowledge
 ```
 

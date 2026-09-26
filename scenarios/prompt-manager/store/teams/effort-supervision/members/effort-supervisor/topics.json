@@ -1,0 +1,7 @@
+{
+  "loop_kind": "reactive",
+  "required_read": [{ "prefix": "supervision-assessment/*", "comment": "Prior bounded assessments and owner references; admission state remains with PM/AM." }],
+  "output": [{ "prefix": "supervision-assessment/*", "destination_kind": "knowledge" }],
+  "external_producers": ["Agent Manager effort board and Prompt Manager standing wake admission"],
+  "raises_work_items": false
+}

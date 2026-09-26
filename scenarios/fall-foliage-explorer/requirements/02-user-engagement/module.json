@@ -1,0 +1,76 @@
+{
+  "description": "P1 targets that make the scenario useful for reports, photos, timeline exploration, and trip planning.",
+  "module_id": "MOD-P1-001",
+  "prd_ref": "Operational Targets > P1",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "Accept and display crowd-sourced foliage reports via GET/POST endpoints.",
+      "id": "REQ-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "passed",
+      "title": "User Reports",
+      "validation": [
+        {
+          "notes": "Report submission and listing persist through the API.",
+          "phase": "integration",
+          "ref": "api/integration_test.go:TestSubmitReportIntegration",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "description": "Navigate through past/present/future foliage states in UI.",
+      "id": "REQ-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "passed",
+      "title": "Time Slider",
+      "validation": [
+        {
+          "notes": "UI smoke loads the browser experience containing the time slider workflow.",
+          "phase": "smoke",
+          "ref": "coverage/runs/20260531-213717-1ad730a0/ui-smoke/README.md",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Save and manage multi-region trip plans with backend storage.",
+      "id": "REQ-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "passed",
+      "title": "Trip Planning",
+      "validation": [
+        {
+          "notes": "Trip planning integration persists and retrieves multi-region trip plans.",
+          "phase": "integration",
+          "ref": "api/integration_test.go:TestTripPlanningIntegration",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "description": "Display user-submitted photos by region and date with filtering.",
+      "id": "REQ-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "passed",
+      "title": "Photo Gallery",
+      "validation": [
+        {
+          "notes": "Report integration persists optional photo URLs used by the gallery.",
+          "phase": "integration",
+          "ref": "api/integration_test.go:TestSubmitReportIntegration",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ]
+}

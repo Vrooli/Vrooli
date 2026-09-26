@@ -1,0 +1,244 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "whisper",
+  "storage": {"entries": {
+    "models": {"rung": "relocatable", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/whisper/models", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/whisper/models", "windows": "$USER_HOME/AppData/Local/vrooli/resources/whisper/models"}, "kind": "dir", "class": "cache", "regenerable": true, "relocation": {"key": "WHISPER_MODELS_DIR", "scope": "container"}, "rationale": "Whisper model files are re-downloadable and bind-mounted into the service."},
+    "uploads": {"rung": "owned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/whisper/uploads", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/whisper/uploads", "windows": "$USER_HOME/AppData/Local/vrooli/resources/whisper/uploads"}, "kind": "dir", "class": "data", "regenerable": false, "sensitive": true, "rationale": "Uploaded audio is operator input and remains until explicitly removed by the resource workflow."}
+  }},
+  "display_name": "Whisper",
+  "description": "Managed Whisper speech-to-text service with native compose-backed lifecycle and shell-retained transcription workflows.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-whisper",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-whisper_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-whisper"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "template": "compose-service",
+  "driver": "compose-service",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Compose images, storage, and networking remain host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        }
+      }
+    }
+  },
+  "compose_file": "docker/docker-compose.yml",
+  "runtime_env_command": {
+    "command": "resource-whisper",
+    "args": [
+      "recommend-model",
+      "--env",
+      "--budget-pct",
+      "60"
+    ],
+    "timeout_seconds": 5
+  },
+  "gpu": {
+    "probe": "nvidia",
+    "compose_overlay": "docker/docker-compose.gpu.yml",
+    "env_overrides": {
+      "WHISPER_IMAGE": "onerahmet/openai-whisper-asr-webservice@sha256:1132aa08c6eb9b440408864e8c25733d22a197ffea7c6975d60a4f4b6fd7b08b"
+    }
+  },
+  "capacity": {
+    "resource_kind": "vram",
+    "gpu_index": 0,
+    "preferred_bytes": 5368709120,
+    "floor_bytes": 2147483648,
+    "priority": "interactive",
+    "yield_when_idle": true,
+    "idle_grace_seconds": 900,
+    "profile": {
+      "steps": [
+        {
+          "label": "large-v3",
+          "amount_bytes": 5368709120
+        },
+        {
+          "label": "medium",
+          "amount_bytes": 4294967296
+        },
+        {
+          "label": "small",
+          "amount_bytes": 2147483648
+        }
+      ],
+      "apply": {
+        "verb": "capacity-degrade",
+        "argv": [
+          "--to",
+          "{label}"
+        ]
+      },
+      "upshift": true
+    }
+  },
+  "companions": [
+    {
+      "name": "activity-edge",
+      "command": "resource-whisper",
+      "args": [
+        "activity-proxy"
+      ],
+      "port": 8090
+    }
+  ],
+  "portability_tier": "partial",
+  "category": "ai",
+  "platforms": {
+    "linux": "supported",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "hostTools": [
+    {
+      "name": "ffmpeg",
+      "required": false,
+      "reason": "Enable local audio format conversion before transcription when source media is not already Whisper-ready",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "notes": "Whisper can run without ffmpeg, but conversion workflows are limited"
+    }
+  ],
+  "ports": [
+    {
+      "name": "http",
+      "container": 9000,
+      "host": 8090
+    },
+    {
+      "name": "upstream",
+      "container": 9000,
+      "host": 18090
+    }
+  ],
+  "orchestration": {
+    "startup_order": 550,
+    "startup_timeout_seconds": 45,
+    "startup_time_estimate": "15-30s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "environment_exports": {
+    "static": {
+      "WHISPER_HOST": "localhost"
+    },
+    "from_ports": {
+      "WHISPER_PORT": "http",
+      "WHISPER_UPSTREAM_PORT": "upstream"
+    },
+    "derived": {
+      "WHISPER_URL": {
+        "template": "http://${WHISPER_HOST}:${WHISPER_PORT}"
+      },
+      "WHISPER_BASE_URL": {
+        "template": "${WHISPER_URL}"
+      },
+      "WHISPER_STT_URL": {
+        "template": "${WHISPER_URL}"
+      }
+    }
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8090/",
+      "kind": "readiness",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
+}

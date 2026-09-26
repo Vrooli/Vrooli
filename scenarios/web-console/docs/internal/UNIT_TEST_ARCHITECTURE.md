@@ -125,5 +125,5 @@ Provides a consistent QueryClient-backed render path with retries disabled.
 ## Remaining Improvements
 
 1. **Testcontainers for PG stores** — `PGShortcutStore` and `PGAIConfigStore` still rely on interface-level coverage rather than DB-backed seam tests
-2. **UI test placement** — tests are centralized in `__tests__/`; future refactors can incrementally co-locate tests with source modules
+2. **UI test placement** — existing tests remain centralized in `__tests__/` for compatibility, but new tests are co-located with the source module they protect (for example `lib/clipboard.test.ts` and `hooks/useSecureContextCapabilities.test.ts`). Future refactors may migrate older tests incrementally; this phase does not move the existing suite.
 3. **Low-coverage entry files** — `App.tsx` and `main.tsx` remain unexercised by unit tests

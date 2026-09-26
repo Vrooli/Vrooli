@@ -26,7 +26,7 @@ type BuildProvenance struct {
 	// BuiltAt is the timestamp when the build was initiated.
 	BuiltAt time.Time `json:"built_at"`
 
-	// Version is the scenario version that was built (from Config or service.json).
+	// Version is the scenario version that was built (from PipelineConfig or service.json).
 	Version string `json:"version"`
 }
 

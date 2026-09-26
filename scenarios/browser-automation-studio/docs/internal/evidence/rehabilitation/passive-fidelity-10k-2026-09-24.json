@@ -1,0 +1,86 @@
+{
+  "work": "BAS-WORK-179",
+  "captured_at": "2026-09-24T19:43:01Z",
+  "scope": "targeted local real-Chromium passive-fidelity boundary; partial evidence, not the governed qualification producer",
+  "owners": [
+    {
+      "name": "10,000 acknowledged fixture actions with one rejected journal delivery",
+      "command": "pnpm exec jest tests/integration/pipeline-e2e.test.ts --runInBand --coverage=false --silent=false --testNamePattern='retains (10000 unique fixture actions|a rejected browser event)'",
+      "result": "passed",
+      "tests": "1/1",
+      "duration_seconds": 11.637,
+      "observed": [
+        "10,000 unique event IDs reached the journal in strict sequence order",
+        "one rejected delivery was retried exactly once with the same event identity"
+      ],
+      "producer": "real Chromium clicks paced in acknowledgement-driven batches"
+    },
+    {
+      "name": "pending browser event survives page reload",
+      "command": "pnpm exec jest tests/integration/pipeline-e2e.test.ts --runInBand --coverage=false --silent=false --testNamePattern='retains (10000 unique fixture actions|a rejected browser event)'",
+      "result": "passed",
+      "tests": "1/1",
+      "duration_seconds": 1.286,
+      "observed": [
+        "browser delivery rejected with HTTP 503",
+        "pending event identity remained in session storage across reload",
+        "the same event identity was later acknowledged"
+      ]
+    },
+    {
+      "name": "unpaced admission-boundary probe",
+      "result": "failed_closed_as_expected",
+      "observed": "101/1000 clicks delivered before capture stopped with delivery capacity exceeded",
+      "limit": "This is beyond the recorder declared 100-event pending bound; it is not evidence of loss among acknowledged observations."
+    },
+    {
+      "name": "SQLite journal commit and reopen boundary",
+      "command": "go test ./services/recording -run TestJournalFailedCommitIsNotAcknowledgedOrPublished|TestJournalHistorySurvivesPaginationReopenAndConcurrentWriters -count=1",
+      "working_directory": "scenarios/browser-automation-studio/api",
+      "result": "passed",
+      "tests": "2/2",
+      "duration_seconds": 0.339,
+      "observed": [
+        "failed SQLite commit was neither acknowledged nor published",
+        "1,001 committed actions survived closing the SQLite handle and reopening the same disk journal through fresh service instances with pagination order intact"
+      ],
+      "limit": "The test reopens service/database instances in one test process; it does not terminate or restart the API process."
+    }
+  ],
+  "validation": {
+    "refactor_contract": "passed: 17 outcomes, 24 journeys, 0 errors",
+    "test_genie_phase_run": false,
+    "scoped_eslint": "file-wide run reports 7 pre-existing errors outside the added cases; no added-case error remains",
+    "managed_build_identity": null
+  },
+  "qualification": {
+    "setpoint_row": "passive-fidelity",
+    "score_credit_claimed": false,
+    "producer_and_governed_sensor": "not implemented",
+    "limitations": [
+      "does not kill or restart the driver process",
+      "does not terminate or restart the API process; the focused Go owner reopens the disk journal through fresh service instances only",
+      "does not cover all supported event semantics",
+      "therefore does not satisfy the >=10000 actions plus crash/reconnect contract band"
+    ]
+  },
+  "source_sha256": {
+    "playwright-driver/tests/integration/pipeline-e2e.test.ts": "f84c0add3f7b6daee89c24cfc8b5d86bbd5a574d4af988056d4701c4eaf2bf9f",
+    "playwright-driver/src/recording/capture/browser-scripts/recording-script.js": "440e6c84eab36cb7b6ec66caa277ee92b070b3764e5c982c5645772fd0322dd3",
+    "playwright-driver/src/recording/io/buffer.ts": "dc96a410d9b824364378c07f194e7e7f2562bbb8a0e4d8c1f79243350c8f2fe9",
+    "playwright-driver/src/recording/orchestration/pipeline-manager.ts": "543fa6f60c453f465fefff6fb5529b6b7050d32eb2c04f64c76fb8cab4b55cdc",
+    "playwright-driver/src/recording/io/event-route.ts": "a6515b47f404a40ccadced1efeaca550b5e2111c35eb270e913a5b6611e8959a"
+  },
+  "setpoint": {
+    "program_run_id": "prog_238090e2-3429-4d2b-83d2-a55a18080d13",
+    "in_band": "3/17",
+    "unavailable": 14,
+    "unavailable_reason": "pending_telemetry",
+    "product_qualified": false,
+    "readable_rows": [
+      "capture",
+      "profile-durability",
+      "cancellation-recovery"
+    ]
+  }
+}

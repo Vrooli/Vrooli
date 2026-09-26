@@ -5,8 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/healing"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/elevation"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/healing"
 )
 
 // mockExecutor implements checks.CommandExecutor for testing.
@@ -16,9 +17,13 @@ type mockExecutor struct {
 	outputResult         []byte
 	outputErr            error
 	runErr               error
+	lastCommand          string
+	lastArgs             []string
 }
 
 func (m *mockExecutor) CombinedOutput(ctx context.Context, name string, args ...string) ([]byte, error) {
+	m.lastCommand = name
+	m.lastArgs = append([]string(nil), args...)
 	return m.combinedOutputResult, m.combinedOutputErr
 }
 
@@ -90,6 +95,20 @@ func TestResourceHealer_Actions(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("companion down result", func(t *testing.T) {
+		result := &checks.Result{
+			Status:  checks.StatusCritical,
+			Details: map[string]interface{}{"companionDown": true},
+		}
+		actions := h.Actions(result)
+		if len(actions) == 0 || actions[0].ID != "respawn-companion" {
+			t.Fatalf("first action = %#v, want respawn-companion", actions)
+		}
+		if actions[0].Dangerous {
+			t.Fatal("respawn-companion must be safe for autoheal")
+		}
+	})
 }
 
 func TestResourceHealer_Execute(t *testing.T) {
@@ -120,6 +139,19 @@ func TestResourceHealer_Execute(t *testing.T) {
 		result := h.Execute(context.Background(), "restart", nil)
 		if !result.Success {
 			t.Errorf("expected success, got error: %s", result.Error)
+		}
+	})
+
+	t.Run("respawn companion", func(t *testing.T) {
+		result := h.Execute(context.Background(), "respawn-companion", nil)
+		if !result.Success {
+			t.Errorf("expected success, got error: %s", result.Error)
+		}
+		if result.ActionID != "respawn-companion" {
+			t.Errorf("ActionID = %q, want respawn-companion", result.ActionID)
+		}
+		if exec.lastCommand != "vrooli" || len(exec.lastArgs) < 3 || exec.lastArgs[0] != "resource" || exec.lastArgs[1] != "start" || exec.lastArgs[2] != "postgres" {
+			t.Errorf("expected 'vrooli resource start postgres', got %s %v", exec.lastCommand, exec.lastArgs)
 		}
 	})
 
@@ -165,14 +197,14 @@ func TestResourceHealer_ImplementsHealer(t *testing.T) {
 // --- ScenarioHealer Tests ---
 
 func TestScenarioHealer_CheckID(t *testing.T) {
-	h := NewScenarioHealer("landing-manager", nil)
-	if h.CheckID() != "scenario-landing-manager" {
-		t.Errorf("CheckID() = %q, want %q", h.CheckID(), "scenario-landing-manager")
+	h := NewScenarioHealer("template-manager", nil)
+	if h.CheckID() != "scenario-template-manager" {
+		t.Errorf("CheckID() = %q, want %q", h.CheckID(), "scenario-template-manager")
 	}
 }
 
 func TestScenarioHealer_Actions(t *testing.T) {
-	h := NewScenarioHealer("landing-manager", nil)
+	h := NewScenarioHealer("template-manager", nil)
 
 	t.Run("nil result", func(t *testing.T) {
 		actions := h.Actions(nil)
@@ -211,7 +243,7 @@ func TestScenarioHealer_Actions(t *testing.T) {
 
 func TestScenarioHealer_Execute(t *testing.T) {
 	exec := &mockExecutor{combinedOutputResult: []byte("ok")}
-	h := NewScenarioHealer("landing-manager", exec)
+	h := NewScenarioHealer("template-manager", exec)
 
 	actions := []string{"start", "stop", "restart", "restart-clean", "logs", "diagnose"}
 	for _, actionID := range actions {
@@ -301,6 +333,8 @@ func TestSystemdHealer_Actions(t *testing.T) {
 }
 
 func TestSystemdHealer_Execute(t *testing.T) {
+	restore := elevation.SetGrantPathForTest("test-vrooli-autoheal-grant", func() bool { return true })
+	t.Cleanup(restore)
 	exec := &mockExecutor{combinedOutputResult: []byte("ok")}
 	h := NewSystemdHealer("infra-cloudflared", "cloudflared", exec)
 
@@ -332,7 +366,7 @@ func TestHealerRegistration(t *testing.T) {
 	registry := healing.NewRegistry()
 
 	resourceHealer := NewResourceHealer("postgres", nil)
-	scenarioHealer := NewScenarioHealer("landing-manager", nil)
+	scenarioHealer := NewScenarioHealer("template-manager", nil)
 	systemdHealer := NewSystemdHealer("infra-cloudflared", "cloudflared", nil)
 
 	registry.Register(resourceHealer)
@@ -342,8 +376,8 @@ func TestHealerRegistration(t *testing.T) {
 	if !registry.IsHealable("resource-postgres") {
 		t.Error("expected resource-postgres to be healable")
 	}
-	if !registry.IsHealable("scenario-landing-manager") {
-		t.Error("expected scenario-landing-manager to be healable")
+	if !registry.IsHealable("scenario-template-manager") {
+		t.Error("expected scenario-template-manager to be healable")
 	}
 	if !registry.IsHealable("infra-cloudflared") {
 		t.Error("expected infra-cloudflared to be healable")

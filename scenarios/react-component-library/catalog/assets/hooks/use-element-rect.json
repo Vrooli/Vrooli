@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "hooks.use-element-rect",
+    "name": "useElementRect",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A measured-layout primitive that batches reads and exposes a stable element rectangle without forcing layout on every render.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "hook",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-resize-observer",
+        "reason": "Rect measurement subscribes to the shared resize observer rather than opening its own."
+      }
+    ]
+  }
+}

@@ -36,6 +36,9 @@ export function AdminHome() {
     healthLoading,
     stripeSettings,
     stripeLoading,
+    emailReadiness,
+    emailReadinessLoading,
+    deliveryReport,
     resettingDemoData,
     resetMessage,
     resetError,
@@ -52,7 +55,7 @@ export function AdminHome() {
 
   // Compute quick stats
   const activeVariants = healthLoading ? '...' : (healthSnapshot?.activeCount ?? 0);
-  const trafficAllocated = healthLoading ? '...' : `${Math.max(0, Math.round(healthSnapshot?.totalWeight ?? 0))}%`;
+  const trafficAllocated = healthLoading ? '...' : `${String(Math.max(0, Math.round(healthSnapshot?.totalWeight ?? 0)))}%`;
   const stripeConfigured = stripeLoading
     ? '...'
     : isStripeFullyConfigured(stripeSettings)
@@ -64,8 +67,7 @@ export function AdminHome() {
     <AdminLayout maxWidth="wide">
       <div className={LAYOUT.sectionSpacing}>
         <PageHeader
-          variant="icon-title"
-          title="Landing Manager Admin"
+          title="Landing Page Business Suite Admin"
           icon={Home}
           iconBgClass="bg-slate-500/10"
           iconColorClass="text-slate-400"
@@ -95,6 +97,22 @@ export function AdminHome() {
           </div>
         </div>
 
+        <section className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-5" aria-label="Sign-in email readiness" data-testid="admin-email-readiness">
+          <div className="flex items-center justify-between gap-4">
+            <div><h2 className="text-lg font-semibold text-white">Sign-in email readiness</h2><p className="text-sm text-slate-400">Read-only DNS and webhook checks</p></div>
+            <span className="text-xs text-slate-500">{emailReadinessLoading ? 'Checking…' : `${emailReadiness?.Providers.filter((check) => check.Status === 'pass').length ?? 0} providers authorized`}</span>
+          </div>
+          {!emailReadinessLoading && <div className="mt-4 flex flex-wrap gap-2">{emailReadiness?.Providers.map((check) => <span key={check.Provider} className={`rounded-full px-3 py-1 text-xs ${check.Status === 'pass' ? 'bg-emerald-500/20 text-emerald-200' : check.Status === 'warn' ? 'bg-amber-500/20 text-amber-200' : 'bg-rose-500/20 text-rose-200'}`}>{check.Provider}: {check.Status}</span>)}</div>}
+          {deliveryReport?.delivery_24h && <>
+            <dl className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-6">{(['sent', 'failed', 'delivered', 'bounced', 'deferred', 'dropped'] as const).map((key) => <div key={key}><dt className="text-slate-500">{key}</dt><dd className="text-lg font-semibold text-white">{deliveryReport.delivery_24h?.[key] ?? 0}</dd></div>)}</dl>
+            <dl className="mt-4 grid gap-2 text-sm text-slate-400 md:grid-cols-2">
+              <div><dt className="text-slate-500">Last webhook event</dt><dd>{deliveryReport.delivery_24h.last_webhook_event ? new Date(deliveryReport.delivery_24h.last_webhook_event).toLocaleString() : 'None recorded'}</dd></div>
+              <div><dt className="text-slate-500">Last delivery error</dt><dd>{deliveryReport.delivery_24h.last_error || 'None recorded'}</dd></div>
+            </dl>
+            {deliveryReport.outbox && <div className="mt-4 text-sm text-slate-400"><span className="text-slate-500">Outbox:</span>{Object.entries(deliveryReport.outbox).map(([status, count]) => <span key={status} className="ml-3">{status} {count}</span>)}</div>}
+          </>}
+        </section>
+
         {/* Quick Flows - One per dropdown group */}
         <div className="mb-8" data-testid="admin-quick-flows">
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-4">
@@ -107,7 +125,7 @@ export function AdminHome() {
               icon={Palette}
               iconBg="bg-purple-500/20"
               iconColor="text-purple-300"
-              onClick={() => navigate('/admin/landing')}
+              onClick={() => { navigate('/admin/landing'); }}
               testId="flow-landing"
             />
             <QuickFlowCard
@@ -116,7 +134,7 @@ export function AdminHome() {
               icon={CreditCard}
               iconBg="bg-amber-500/20"
               iconColor="text-amber-300"
-              onClick={() => navigate('/admin/billing-home')}
+              onClick={() => { navigate('/admin/billing-home'); }}
               testId="flow-billing"
             />
             <QuickFlowCard
@@ -125,7 +143,7 @@ export function AdminHome() {
               icon={AppWindow}
               iconBg="bg-blue-500/20"
               iconColor="text-blue-300"
-              onClick={() => navigate('/admin/apps')}
+              onClick={() => { navigate('/admin/apps'); }}
               testId="flow-apps"
             />
             <QuickFlowCard
@@ -134,7 +152,7 @@ export function AdminHome() {
               icon={Users}
               iconBg="bg-emerald-500/20"
               iconColor="text-emerald-300"
-              onClick={() => navigate('/admin/users')}
+              onClick={() => { navigate('/admin/users'); }}
               testId="flow-users"
             />
           </div>
@@ -188,7 +206,7 @@ export function AdminHome() {
         >
           <button
             type="button"
-            onClick={() => setDangerExpanded(!dangerExpanded)}
+            onClick={() => { setDangerExpanded(!dangerExpanded); }}
             className="w-full p-4 flex items-center justify-between text-left hover:bg-rose-500/10 transition-colors rounded-2xl"
             data-testid="admin-danger-toggle"
           >
@@ -219,7 +237,7 @@ export function AdminHome() {
                 <Button
                   variant="outline"
                   className="gap-2 border-rose-500/50 text-rose-200 hover:bg-rose-500/10"
-                  onClick={() => setShowResetConfirm(true)}
+                  onClick={() => { setShowResetConfirm(true); }}
                   disabled={resettingDemoData}
                   data-testid="admin-reset-demo-btn"
                 >
@@ -248,14 +266,14 @@ export function AdminHome() {
                     <Button
                       variant="outline"
                       className="gap-2"
-                      onClick={() => setShowResetConfirm(false)}
+                      onClick={() => { setShowResetConfirm(false); }}
                       disabled={resettingDemoData}
                     >
                       Cancel
                     </Button>
                     <Button
                       className="gap-2 bg-rose-600 hover:bg-rose-700 text-white"
-                      onClick={handleResetDemoData}
+                      onClick={() => { void handleResetDemoData(); }}
                       disabled={resettingDemoData}
                       data-testid="admin-reset-confirm-btn"
                     >

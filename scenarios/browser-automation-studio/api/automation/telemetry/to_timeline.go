@@ -211,6 +211,8 @@ func buildEventContext(tel *ActionTelemetry) *basbase.EventContext {
 			Configured:     origin.Attempt > 0,
 		}
 
+		ctx.Condition = typeconv.ConditionOutcomeToProto(origin.Condition)
+
 		// Assertion result
 		if origin.Assertion != nil {
 			ctx.Assertion = &basbase.AssertionResult{

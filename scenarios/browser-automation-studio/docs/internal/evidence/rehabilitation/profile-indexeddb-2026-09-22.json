@@ -1,0 +1,434 @@
+{
+  "schema_version": 1,
+  "record": "BAS-WORK-008",
+  "observed_at": "2026-09-22T05:18:33.667830+00:00",
+  "head": "7d1c7531d057c061c5ad5a67fbecb97ebe2eb194",
+  "source_sha256": {
+    "playwright-driver/src/session/manager.ts": "bdf55fea106ce473f876e77c5b8f5f7eb1b7e9954b4a8496038e5f414f99fd82",
+    "playwright-driver/src/types/session.ts": "37bd62444133a7ea2952244840ef7bedb18c82d704f5a2eb65938e2c42cf40ee",
+    "playwright-driver/tests/integration/profile-storage-continuity.test.ts": "1179ee275602ca791c15401ab3a7ca13a042a6f632afd5829a222e226dbade9f",
+    "api/handlers/recordings/service.go": "b4f0adfb09665edc5379f2719a7b29b0de9755cc30db60fa850821a67eba3ed6",
+    "api/handlers/recordings/service_test.go": "dafb28cdb8797896093f1794079d61c8900aa431bba25cf70b2c6730213bc684"
+  },
+  "scope": "Real Chromium synthetic browser-context storage continuity; not full API/file/restart or native OS qualification",
+  "checks": {
+    "browser_red": "FAIL tests/integration/profile-storage-continuity.test.ts\n  profile authentication continuity\n    \u2715 restores authentication after close while a second profile stays distinct (2338 ms)\n\n  \u25cf profile authentication continuity \u203a restores authentication after close while a second profile stays distinct\n\n    expect(received).toEqual(expected) // deep equality\n\n    - Expected  - 1\n    + Received  + 1\n\n      Object {\n        \"cookie\": \"fixture_identity=alpha\",\n    -   \"indexedDB\": \"alpha\",\n    +   \"indexedDB\": null,\n        \"localStorage\": \"alpha\",\n      }\n\n      90 |     const restored = await start(snapshot as SessionSpec['storage_state']);\n      91 |\n    > 92 |     expect(await readIdentity(restored.page)).toEqual({\n         |                                               ^\n      93 |       cookie: 'fixture_identity=alpha', localStorage: 'alpha', indexedDB: 'alpha',\n      94 |     });\n      95 |     expect(await readIdentity(second.page)).toEqual({\n\n      at Object.<anonymous> (tests/integration/profile-storage-continuity.test.ts:92:47)\n\nTest Suites: 1 failed, 1 total\nTests:       1 failed, 1 total\nSnapshots:   0 total\nTime:        3.2 s\nRan all test suites matching /tests\\/integration\\/profile-storage-continuity.test.ts/i.\n",
+    "browser_and_session_green": "PASS tests/integration/profile-storage-continuity.test.ts\nPASS tests/unit/session/context-builder.test.ts\nPASS tests/unit/session/manager.test.ts\n\nTest Suites: 3 passed, 3 total\nTests:       59 passed, 59 total\nSnapshots:   0 total\nTime:        4.687 s, estimated 10 s\nRan all test suites matching /tests\\/integration\\/profile-storage-continuity.test.ts|tests\\/unit\\/session\\/manager.test.ts|tests\\/unit\\/session\\/context-builder.test.ts/i.\nJest did not exit one second after the test run has completed.\n\n'This usually means that there are asynchronous operations that weren't stopped in your tests. Consider running Jest with `--detectOpenHandles` to troubleshoot this issue.\n",
+    "open_handle_investigation": "PASS tests/integration/profile-storage-continuity.test.ts (5.342 s)\nPASS tests/unit/session/context-builder.test.ts\nPASS tests/unit/session/manager.test.ts\n\nTest Suites: 3 passed, 3 total\nTests:       59 passed, 59 total\nSnapshots:   0 total\nTime:        7.627 s\nRan all test suites matching /tests\\/integration\\/profile-storage-continuity.test.ts|tests\\/unit\\/session\\/manager.test.ts|tests\\/unit\\/session\\/context-builder.test.ts/i.\n",
+    "tab_error_red": "--- FAIL: TestDeleteSessionTab_NotFound (0.00s)\n    service_test.go:769: \n        \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/handlers/recordings/service_test.go:769\n        \tError:      \tError message not equal:\n        \t            \texpected: \"not_found: tab not found\"\n        \t            \tactual  : \"not_found: session profile not found\"\n        \tTest:       \tTestDeleteSessionTab_NotFound\nFAIL\nFAIL\tgithub.com/vrooli/browser-automation-studio/handlers/recordings\t0.008s\nFAIL\n",
+    "recordings_race_green": "ok  \tgithub.com/vrooli/browser-automation-studio/handlers/recordings\t1.123s\n",
+    "typescript": "",
+    "contract": "{\n  \"contract\": \"bas-rehabilitation-v1\",\n  \"preparation_valid\": true,\n  \"product_qualified\": false,\n  \"meaning\": \"Preparation consistency only; owner-produced behavioral evidence is required for product qualification\",\n  \"required_outcomes\": 17,\n  \"preservation_journeys\": 24,\n  \"errors\": []\n}\n"
+  },
+  "build_passed": true,
+  "deployed": true,
+  "removed": [
+    "15 lines of duplicate provider storage schema"
+  ],
+  "runtime_lines": {
+    "api": 94119,
+    "api_cycle_delta": 4,
+    "api_original_delta": -46,
+    "driver": 55552,
+    "driver_cycle_delta": -15,
+    "ui": 131518,
+    "ui_original_delta": -14
+  },
+  "owner": {
+    "run_id": "20260922-051505-58a226c1",
+    "verdict": "failed",
+    "duration_seconds": 96,
+    "unit_failure": "UI coverage command; driver absent from discovery",
+    "tidiness": {
+      "failure_class": "test_failure",
+      "findingSource": "tidiness",
+      "finding_count": 1107,
+      "findings_artifact": "coverage/runs/20260922-051505-58a226c1/findings.json",
+      "observation_count": 1111,
+      "phase": "tidiness",
+      "remediation": "Run `tidiness-manager validate scenario browser-automation-studio` for details.",
+      "scenario": "browser-automation-studio",
+      "status": "failed",
+      "summary": {
+        "scenario": "browser-automation-studio",
+        "status": "failed",
+        "blockers": 0,
+        "errors": 1,
+        "warnings": 237,
+        "infos": 869,
+        "local_current_level": "L2",
+        "local_next_level": "L3",
+        "local_clean": false,
+        "local_unknown_count": 291,
+        "capabilities": [
+          {
+            "id": "scan_contract",
+            "label": "Scan Contract",
+            "current_level": "L2",
+            "current_summary": "The maintainability scan contract is clean.",
+            "clean": true,
+            "priority_rank": 5,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "local_debt_control",
+            "label": "Local Debt Control",
+            "current_level": "L3",
+            "next_level": "L4",
+            "current_summary": "Local maintainability debt has open work.",
+            "clean": false,
+            "blocking_finding_count": 82,
+            "priority_rank": 3,
+            "priority_reason": "lowest current level with required/blocking findings WARNING hardening_gap debt=82"
+          },
+          {
+            "id": "complexity_coupling",
+            "label": "Complexity And Coupling",
+            "current_level": "L3",
+            "next_level": "L4",
+            "current_summary": "Complexity and coupling have open work.",
+            "clean": false,
+            "blocking_finding_count": 396,
+            "priority_rank": 2,
+            "priority_reason": "lowest current level with required/blocking findings WARNING evolvability_gap debt=396"
+          },
+          {
+            "id": "duplication_control",
+            "label": "Duplication Control",
+            "current_level": "L2",
+            "next_level": "L3",
+            "current_summary": "Duplication is controlled.",
+            "next_unlock": "Resolve opportunity-class duplication findings.",
+            "clean": false,
+            "unknown_count": 291,
+            "blocking_finding_count": 1,
+            "priority_rank": 1,
+            "priority_reason": "lowest current level with required/blocking findings ERROR evolvability_gap debt=337"
+          },
+          {
+            "id": "seam_control",
+            "label": "Canonical Seam Control",
+            "current_level": "L4",
+            "current_summary": "Canonical seam posture is clean.",
+            "clean": true,
+            "priority_rank": 4,
+            "priority_reason": "lowest current level"
+          }
+        ],
+        "highest_priority_capability": {
+          "capability_id": "duplication_control",
+          "capability_label": "Duplication Control",
+          "current_level": "L2",
+          "next_level": "L3",
+          "reason": "lowest current level with required/blocking findings ERROR evolvability_gap debt=337"
+        }
+      },
+      "updated_at": "2026-09-22T05:16:40Z"
+    },
+    "artifact_catalog": {
+      "schema_version": 1,
+      "digest": "ac:sha256:88be4b24eafa1b6d060e55ced57159a9799be65b5dd1600306c62425036da02c",
+      "artifacts": [
+        {
+          "id": "artifact_85415a7157435899b7a66050dd1afa7a",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "tidiness.log",
+          "producing_phase": "tidiness",
+          "size_bytes": "449724",
+          "created_at": "2026-09-22T05:16:40.990849Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-051505-58a226c1/artifacts/artifact_85415a7157435899b7a66050dd1afa7a",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_fa078c5fdf6ac74b8b8f1aea7470584d",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "unit.log",
+          "producing_phase": "unit",
+          "size_bytes": "28227",
+          "created_at": "2026-09-22T05:16:37.03784079Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-051505-58a226c1/artifacts/artifact_fa078c5fdf6ac74b8b8f1aea7470584d",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_c099a3ccc36315ac9363564e11a7f5fa",
+          "kind": "findings.report",
+          "media_type": "application/json",
+          "label": "findings.json",
+          "size_bytes": "7837556",
+          "created_at": "2026-09-22T05:16:41.266849575Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-051505-58a226c1/artifacts/artifact_c099a3ccc36315ac9363564e11a7f5fa",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_77457406d6c9d43f5680a96d2346d086",
+          "kind": "generic.file",
+          "media_type": "application/json",
+          "label": "evidence-manifest.json",
+          "size_bytes": "94271",
+          "created_at": "2026-09-22T05:16:41.279849603Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-051505-58a226c1/artifacts/artifact_77457406d6c9d43f5680a96d2346d086",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_c71b29b860d92842406099764a7e579e",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "tidiness.json",
+          "producing_phase": "tidiness",
+          "size_bytes": "2987",
+          "created_at": "2026-09-22T05:16:40.989848998Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-051505-58a226c1/artifacts/artifact_c71b29b860d92842406099764a7e579e",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_f31c1437701d1703ed57bb6bfac4d9f0",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "unit.json",
+          "producing_phase": "unit",
+          "size_bytes": "3038",
+          "created_at": "2026-09-22T05:16:37.03784079Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-051505-58a226c1/artifacts/artifact_f31c1437701d1703ed57bb6bfac4d9f0",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        }
+      ]
+    }
+  },
+  "board": {
+    "program": "browser-automation-studio.setpoint-read",
+    "version": "1",
+    "status": "ok",
+    "phase": "report",
+    "inputs": {
+      "window": 100,
+      "evidence_sample": 5,
+      "profile": "rehabilitation"
+    },
+    "signals": {
+      "rows": [
+        {
+          "row": "preservation",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#preservation",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "interactive-feedback",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#interactive-feedback",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "motion",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#motion",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "readiness",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#readiness",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "capture",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#capture",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "passive-fidelity",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#passive-fidelity",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "profile-durability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#profile-durability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "known-flow-reliability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#known-flow-reliability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "cancellation-recovery",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#cancellation-recovery",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "resource-budget",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#resource-budget",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "soak-stability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#soak-stability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "evidence-completeness",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#evidence-completeness",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "desktop-portability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#desktop-portability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "agent-usefulness",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#agent-usefulness",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "structural-debt",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#structural-debt",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "workspace-usability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#workspace-usability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "adversarial-review",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#adversarial-review",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        }
+      ],
+      "readable": 0,
+      "unavailable": 17,
+      "required": 17,
+      "unmet": 17,
+      "product_qualified": false
+    },
+    "errors": [],
+    "evidence": [
+      "scenarios/browser-automation-studio/docs/internal/REFRACTOR_CONTRACT.json"
+    ]
+  },
+  "source_inventory_digest": "d359400b95700b200108a938d90a24b1b26a3618b05ebe96323851d510c2fa4b",
+  "limitations": [
+    "Browser context capture/restore proof only; no crash, process restart, sessionStorage or service-worker cache guarantee",
+    "Existing Jest exit-delay warning was not reproduced with detectOpenHandles; no identified leak or forced exit added",
+    "Driver absent from Code Facts surfaces despite manifest declaration; repair in BAS-WORK-009",
+    "No live restart yet; bundle publication can accompany validation ownership repair"
+  ],
+  "deployment": {
+    "build_identity": "sha256:3c0e62a11289d56a838a06f72e452c7b9b49e4466c051e29ebf9a9e2ea6de6aa",
+    "health": "healthy",
+    "drain": {
+      "checked_at": "2026-09-22T05:53:44.744049+00:00",
+      "rows": 2813,
+      "states": {
+        "EXECUTION_STATUS_FAILED": 360,
+        "EXECUTION_STATUS_COMPLETED": 2448,
+        "EXECUTION_STATUS_RUNNING": 5
+      },
+      "historical_orphans": [
+        {
+          "executionId": "879c542b-d9cd-481b-82d2-6b6c7c11ebf1",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-16T13:18:42.087757908Z",
+          "createdAt": "2026-09-16T13:18:42Z",
+          "updatedAt": "2026-09-16T13:19:10.005000924Z"
+        },
+        {
+          "executionId": "d19bd80e-2624-4874-ab9f-eab0cda42286",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-09T19:30:12.784163869Z",
+          "createdAt": "2026-09-09T19:30:12Z",
+          "updatedAt": "2026-09-09T19:30:18.302018879Z"
+        },
+        {
+          "executionId": "b74ec692-da21-42f7-a86c-f33d436ecfbb",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-09T06:30:44.282585140Z",
+          "createdAt": "2026-09-09T06:30:44Z",
+          "updatedAt": "2026-09-09T06:30:45.060249200Z"
+        },
+        {
+          "executionId": "e0d33e05-297d-4867-aee0-783d59882fa8",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-07T20:36:44.551353663Z",
+          "createdAt": "2026-09-07T20:36:44Z",
+          "updatedAt": "2026-09-07T20:36:45.625164771Z"
+        },
+        {
+          "executionId": "206d68cf-a72c-4838-872b-f913a6a8def6",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-07T20:36:44.551265983Z",
+          "createdAt": "2026-09-07T20:36:44Z",
+          "updatedAt": "2026-09-07T20:36:45.663485899Z"
+        }
+      ],
+      "driver_sessions": 0,
+      "driver_recordings": 0,
+      "seconds": 0.4065010950434953,
+      "limitation": "Observation before stop, not atomic global admission lock",
+      "decision": "admit stop; preserve orphan history"
+    },
+    "profile_all_fields": "read 1: complete identity preserved; elapsed_ms=1218.35\nread 2: complete identity preserved; elapsed_ms=0.36\nread 3: complete identity preserved; elapsed_ms=0.31\n",
+    "lifecycle": "make stop then make start; both exit0"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "agent-manager.supervision-observation-read",
+  "version": "1",
+  "helpers": {"program": "1"},
+  "purpose": "Project one bounded Agent Manager owner observation into selected supervision evidence without rereading the board or transcripts.",
+  "inputs": {
+    "owner_observation": {
+      "type": "object",
+      "required": true,
+      "description": "One owner-produced EffortDiscovery join containing selected effort rows and references."
+    },
+    "selected_effort_refs": {
+      "type": "array",
+      "required": true,
+      "description": "The exact effort references selected for this wake; at most 16."
+    }
+  },
+  "assumptions": [
+    "Agent Manager owns the supplied observation and its detail references.",
+    "The observation contains bounded metadata and references, never transcript bodies or credentials."
+  ],
+  "invariants": [
+    "Read-only finite projection; no owner calls, inference, launches, assessments or promotions.",
+    "Selection is exact and order-preserving; missing selected rows remain explicit uncertainty.",
+    "Prior assessment, changed evidence, usage, named waits and typed repair links remain joined with detail references.",
+    "The output is bounded to 16 selected rows and 32 total detail references."
+  ],
+  "verbs": ["gather"],
+  "outputs": {
+    "status": {"enum": ["ok", "failed", "unavailable", "refused"]},
+    "phase": {"enum": ["validate", "project", "report"]},
+    "signals": {"summary": "Selected compact owner rows and their bounded detail references"},
+    "errors": {"classes": ["invalid_input", "identity_mismatch", "output_budget_exhausted", "kernel_runtime"]},
+    "evidence": "Selected owner and detail references"
+  },
+  "budget": {"wall_ms": 1000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 16},
+  "fixtures": [
+    {"id": "missing-selection", "inputs": {"owner_observation": {}, "selected_effort_refs": []}, "expect": {"status": ["failed"]}, "requires": []}
+  ],
+  "rung": "S3",
+  "owner_skill": "agent-manager"
+}

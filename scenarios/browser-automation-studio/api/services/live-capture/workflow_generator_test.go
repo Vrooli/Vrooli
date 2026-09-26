@@ -1,9 +1,18 @@
 package livecapture
 
 import (
+	"context"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+
+	"github.com/vrooli/browser-automation-studio/automation/compiler"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/domain"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 )
 
 func TestMergeConsecutiveActions_EmptySlice(t *testing.T) {
@@ -16,6 +25,202 @@ func TestMergeConsecutiveActions_EmptySlice(t *testing.T) {
 	if len(result) != 0 {
 		t.Errorf("Expected empty slice for empty input, got %v", result)
 	}
+}
+
+func TestGenerateWorkflowWithPagesReplaysPopupTabAlternation(t *testing.T) {
+	initialPageID := uuid.New()
+	popupPageID := uuid.New()
+	createdAt, err := time.Parse(time.RFC3339Nano, "2026-09-24T12:00:02Z")
+	require.NoError(t, err)
+	initialPage := &domain.Page{
+		ID: initialPageID, DriverPageID: "main", URL: "https://fixture.invalid",
+		IsInitial: true, Status: domain.PageStatusActive,
+	}
+	popupPage := &domain.Page{
+		ID: popupPageID, DriverPageID: "popup", URL: "https://fixture.invalid",
+		OpenerID: &initialPageID, CreatedAt: createdAt, Status: domain.PageStatusActive,
+	}
+	selector := &driver.SelectorSet{Primary: "#same"}
+	recorded := []driver.RecordedAction{
+		{ActionType: "click", DriverPageID: "main", URL: "https://fixture.invalid", Timestamp: "2026-09-24T12:00:01Z", Selector: selector},
+		{ActionType: "click", DriverPageID: "popup", URL: "https://fixture.invalid", Timestamp: "2026-09-24T12:00:03Z", Selector: selector},
+		{ActionType: "click", DriverPageID: "main", URL: "https://fixture.invalid", Timestamp: "2026-09-24T12:00:04Z", Selector: selector},
+	}
+
+	workflow, err := NewWorkflowGenerator().GenerateWorkflowWithPages(recorded, []*domain.Page{initialPage, popupPage})
+	require.NoError(t, err)
+	require.Len(t, workflow.Nodes, 7)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_CLICK, workflow.Nodes[0].Action.Type)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_TAB_SWITCH, workflow.Nodes[1].Action.Type)
+	require.Equal(t, basactions.TabSwitchAction_TAB_SWITCH_ACTION_SWITCH, workflow.Nodes[1].Action.GetTabSwitch().Action)
+	require.EqualValues(t, 1, workflow.Nodes[1].Action.GetTabSwitch().GetIndex())
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_WAIT, workflow.Nodes[2].Action.Type)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_CLICK, workflow.Nodes[3].Action.Type)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_TAB_SWITCH, workflow.Nodes[4].Action.Type)
+	require.Equal(t, basactions.TabSwitchAction_TAB_SWITCH_ACTION_SWITCH, workflow.Nodes[4].Action.GetTabSwitch().Action)
+	require.EqualValues(t, 0, workflow.Nodes[4].Action.GetTabSwitch().GetIndex())
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_WAIT, workflow.Nodes[5].Action.Type)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_CLICK, workflow.Nodes[6].Action.Type)
+	_, instructions, err := compiler.CompileWorkflowToContracts(context.Background(), uuid.New(), &basapi.WorkflowSummary{
+		Id: uuid.NewString(), FlowDefinition: workflow,
+	})
+	require.NoError(t, err)
+	require.Len(t, instructions, len(workflow.Nodes))
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_TAB_SWITCH, instructions[1].Action.Type)
+	require.EqualValues(t, 1, instructions[1].Action.GetTabSwitch().GetIndex())
+}
+
+func TestGenerateWorkflowWithPagesClosesPopupBetweenRecordedActions(t *testing.T) {
+	mainID := uuid.New()
+	popupID := uuid.New()
+	createdAt, err := time.Parse(time.RFC3339Nano, "2026-09-24T12:00:02Z")
+	require.NoError(t, err)
+	closedAt, err := time.Parse(time.RFC3339Nano, "2026-09-24T12:00:04Z")
+	require.NoError(t, err)
+	mainPage := &domain.Page{
+		ID: mainID, DriverPageID: "main", URL: "https://fixture.invalid",
+		IsInitial: true, Status: domain.PageStatusActive,
+	}
+	popupPage := &domain.Page{
+		ID: popupID, DriverPageID: "popup", URL: "https://fixture.invalid/popup",
+		OpenerID: &mainID, CreatedAt: createdAt, ClosedAt: &closedAt, Status: domain.PageStatusClosed,
+	}
+	selector := &driver.SelectorSet{Primary: "#same"}
+	recorded := []driver.RecordedAction{
+		{ActionType: "click", DriverPageID: "main", URL: mainPage.URL, Timestamp: "2026-09-24T12:00:01Z", Selector: selector},
+		{ActionType: "click", DriverPageID: "popup", URL: popupPage.URL, Timestamp: "2026-09-24T12:00:03Z", Selector: selector},
+		{ActionType: "click", DriverPageID: "main", URL: mainPage.URL, Timestamp: "2026-09-24T12:00:05Z", Selector: selector},
+	}
+	workflow, err := NewWorkflowGenerator().GenerateWorkflowWithPages(recorded, []*domain.Page{mainPage, popupPage})
+	require.NoError(t, err)
+	require.Len(t, workflow.Nodes, 7)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_TAB_SWITCH, workflow.Nodes[4].Action.Type)
+	require.Equal(t, basactions.TabSwitchAction_TAB_SWITCH_ACTION_CLOSE, workflow.Nodes[4].Action.GetTabSwitch().Action)
+	require.EqualValues(t, 1, workflow.Nodes[4].Action.GetTabSwitch().GetIndex())
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_CLICK, workflow.Nodes[6].Action.Type)
+	_, instructions, err := compiler.CompileWorkflowToContracts(context.Background(), uuid.New(), &basapi.WorkflowSummary{
+		Id: uuid.NewString(), FlowDefinition: workflow,
+	})
+	require.NoError(t, err)
+	require.Len(t, instructions, len(workflow.Nodes))
+	require.Equal(t, basactions.TabSwitchAction_TAB_SWITCH_ACTION_CLOSE, instructions[4].Action.GetTabSwitch().Action)
+
+	recorded = append(recorded, driver.RecordedAction{
+		ActionType: "click", DriverPageID: "popup", URL: popupPage.URL,
+		Timestamp: "2026-09-24T12:00:06Z", Selector: selector,
+	})
+	_, err = NewWorkflowGenerator().GenerateWorkflowWithPages(recorded, []*domain.Page{mainPage, popupPage})
+	require.ErrorContains(t, err, "is not replayable")
+}
+
+func TestGenerateWorkflowWithPagesRejectsUnreplayableCloseOrdering(t *testing.T) {
+	cases := []struct {
+		name          string
+		secondCreated string
+		secondAction  string
+		wantError     string
+	}{
+		{name: "close shares action time", secondCreated: "2026-09-24T12:00:02Z", secondAction: "2026-09-24T12:00:04Z", wantError: "is ambiguous"},
+		{name: "action timestamp missing", secondCreated: "2026-09-24T12:00:02Z", secondAction: "", wantError: "is ambiguous"},
+		{name: "close would remove last replay tab", secondCreated: "2026-09-24T12:00:05Z", secondAction: "2026-09-24T12:00:05Z", wantError: "last replay tab"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mainID, secondID := uuid.New(), uuid.New()
+			closedAt, err := time.Parse(time.RFC3339Nano, "2026-09-24T12:00:04Z")
+			require.NoError(t, err)
+			createdAt, err := time.Parse(time.RFC3339Nano, tc.secondCreated)
+			require.NoError(t, err)
+			mainPage := &domain.Page{ID: mainID, DriverPageID: "main", IsInitial: true, Status: domain.PageStatusClosed, ClosedAt: &closedAt}
+			secondPage := &domain.Page{ID: secondID, DriverPageID: "second", URL: "https://second.invalid", Status: domain.PageStatusActive, CreatedAt: createdAt}
+			_, err = NewWorkflowGenerator().GenerateWorkflowWithPages([]driver.RecordedAction{
+				{ActionType: "click", DriverPageID: "main", URL: "https://main.invalid", Timestamp: "2026-09-24T12:00:01Z", Selector: &driver.SelectorSet{Primary: "#same"}},
+				{ActionType: "click", DriverPageID: "second", URL: secondPage.URL, Timestamp: tc.secondAction, Selector: &driver.SelectorSet{Primary: "#same"}},
+			}, []*domain.Page{mainPage, secondPage})
+			require.ErrorContains(t, err, tc.wantError)
+		})
+	}
+}
+
+func TestGenerateWorkflowWithPagesRejectsSimultaneousOpenPageCloses(t *testing.T) {
+	mainID, popupID, thirdID := uuid.New(), uuid.New(), uuid.New()
+	createdAt, err := time.Parse(time.RFC3339Nano, "2026-09-24T12:00:02Z")
+	require.NoError(t, err)
+	thirdCreatedAt, err := time.Parse(time.RFC3339Nano, "2026-09-24T12:00:03.500Z")
+	require.NoError(t, err)
+	closedAt, err := time.Parse(time.RFC3339Nano, "2026-09-24T12:00:04Z")
+	require.NoError(t, err)
+	mainPage := &domain.Page{ID: mainID, DriverPageID: "main", IsInitial: true, Status: domain.PageStatusClosed, ClosedAt: &closedAt}
+	popupPage := &domain.Page{ID: popupID, DriverPageID: "popup", OpenerID: &mainID, CreatedAt: createdAt, Status: domain.PageStatusClosed, ClosedAt: &closedAt}
+	thirdPage := &domain.Page{ID: thirdID, DriverPageID: "third", URL: "https://third.invalid", CreatedAt: thirdCreatedAt, Status: domain.PageStatusActive}
+	_, err = NewWorkflowGenerator().GenerateWorkflowWithPages([]driver.RecordedAction{
+		{ActionType: "click", DriverPageID: "main", Timestamp: "2026-09-24T12:00:01Z", Selector: &driver.SelectorSet{Primary: "#same"}},
+		{ActionType: "click", DriverPageID: "popup", Timestamp: "2026-09-24T12:00:03Z", Selector: &driver.SelectorSet{Primary: "#same"}},
+		{ActionType: "click", DriverPageID: "third", Timestamp: "2026-09-24T12:00:05Z", Selector: &driver.SelectorSet{Primary: "#same"}},
+	}, []*domain.Page{mainPage, popupPage, thirdPage})
+	require.ErrorContains(t, err, "share an ambiguous timestamp")
+}
+
+func TestGenerateWorkflowWithPagesOpensIndependentTabAtFirstUse(t *testing.T) {
+	initialPageID := uuid.New()
+	secondPageID := uuid.New()
+	selector := &driver.SelectorSet{Primary: "#same"}
+	workflow, err := NewWorkflowGenerator().GenerateWorkflowWithPages([]driver.RecordedAction{
+		{ActionType: "click", DriverPageID: "main", URL: "https://fixture.invalid", Timestamp: "2026-09-24T12:00:01Z", Selector: selector},
+		{ActionType: "click", DriverPageID: "second", URL: "https://second.invalid", Timestamp: "2026-09-24T12:00:02Z", Selector: selector},
+	}, []*domain.Page{
+		{ID: initialPageID, DriverPageID: "main", IsInitial: true, Status: domain.PageStatusActive},
+		{ID: secondPageID, DriverPageID: "second", URL: "https://second.invalid", Status: domain.PageStatusActive},
+	})
+	require.NoError(t, err)
+	require.Len(t, workflow.Nodes, 4)
+	open := workflow.Nodes[1].Action.GetTabSwitch()
+	require.NotNil(t, open)
+	require.Equal(t, basactions.TabSwitchAction_TAB_SWITCH_ACTION_OPEN, open.Action)
+	require.Equal(t, "https://second.invalid", open.GetUrl())
+}
+
+func TestGenerateWorkflowWithPagesBindsInitialNavigationToInitialPage(t *testing.T) {
+	initialPageID := uuid.New()
+	workflow, err := NewWorkflowGenerator().GenerateWorkflowWithPages([]driver.RecordedAction{
+		{ActionType: "navigate", URL: "https://fixture.invalid", Timestamp: "2026-09-25T12:00:00Z"},
+		{ActionType: "input", DriverPageID: "main", Timestamp: "2026-09-25T12:00:01Z", Selector: &driver.SelectorSet{Primary: "#input"}, Payload: map[string]any{"text": "intermediate value"}},
+		{ActionType: "input", DriverPageID: "main", Timestamp: "2026-09-25T12:00:02Z", Selector: &driver.SelectorSet{Primary: "#input"}, Payload: map[string]any{"text": "final value"}},
+	}, []*domain.Page{{ID: initialPageID, DriverPageID: "main", URL: "https://fixture.invalid", IsInitial: true, Status: domain.PageStatusActive}})
+	require.NoError(t, err)
+	require.Len(t, workflow.Nodes, 3)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_NAVIGATE, workflow.Nodes[0].Action.Type)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_WAIT, workflow.Nodes[1].Action.Type)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_INPUT, workflow.Nodes[2].Action.Type)
+	require.Equal(t, "final value", workflow.Nodes[2].Action.GetInput().GetValue())
+	require.True(t, workflow.Nodes[2].Action.GetInput().GetClearFirst())
+}
+
+func TestGenerateWorkflowWithPagesRejectsAmbiguousPopupTiming(t *testing.T) {
+	initialPageID := uuid.New()
+	popupPageID := uuid.New()
+	oldCreation := time.Date(2026, time.September, 24, 11, 59, 0, 0, time.UTC)
+	_, err := NewWorkflowGenerator().GenerateWorkflowWithPages([]driver.RecordedAction{
+		{ActionType: "click", DriverPageID: "main", Timestamp: "2026-09-24T12:00:01Z", Selector: &driver.SelectorSet{Primary: "#open"}},
+		{ActionType: "click", DriverPageID: "popup", Timestamp: "2026-09-24T12:00:03Z", Selector: &driver.SelectorSet{Primary: "#same"}},
+	}, []*domain.Page{
+		{ID: initialPageID, DriverPageID: "main", IsInitial: true, Status: domain.PageStatusActive},
+		{ID: popupPageID, DriverPageID: "popup", OpenerID: &initialPageID, CreatedAt: oldCreation, Status: domain.PageStatusActive},
+	})
+	require.ErrorContains(t, err, "ambiguous opener timing")
+}
+
+func TestGenerateWorkflowWithPagesRejectsMissingActionIdentity(t *testing.T) {
+	initialPageID := uuid.New()
+	popupPageID := uuid.New()
+	_, err := NewWorkflowGenerator().GenerateWorkflowWithPages([]driver.RecordedAction{
+		{ActionType: "click", Selector: &driver.SelectorSet{Primary: "#same"}},
+		{ActionType: "click", Selector: &driver.SelectorSet{Primary: "#same"}},
+	}, []*domain.Page{
+		{ID: initialPageID, DriverPageID: "main", IsInitial: true, Status: domain.PageStatusActive},
+		{ID: popupPageID, DriverPageID: "popup", OpenerID: &initialPageID, Status: domain.PageStatusActive},
+	})
+	require.ErrorContains(t, err, "missing its logical page identity")
 }
 
 func TestMergeConsecutiveActions_SingleAction(t *testing.T) {
@@ -32,8 +237,8 @@ func TestMergeConsecutiveActions_MergesConsecutiveTypeActions(t *testing.T) {
 	selector := &driver.SelectorSet{Primary: "#input"}
 	actions := []driver.RecordedAction{
 		{ActionType: "type", Selector: selector, Payload: map[string]interface{}{"text": "Hello"}},
-		{ActionType: "type", Selector: selector, Payload: map[string]interface{}{"text": " "}},
-		{ActionType: "type", Selector: selector, Payload: map[string]interface{}{"text": "World"}},
+		{ActionType: "type", Selector: selector, Payload: map[string]interface{}{"text": "Hello "}},
+		{ActionType: "type", Selector: selector, Payload: map[string]interface{}{"text": "Hello World"}},
 	}
 
 	result := MergeConsecutiveActions(actions)
@@ -113,7 +318,7 @@ func TestMergeConsecutiveActions_MixedActions(t *testing.T) {
 		{ActionType: "click", Selector: &driver.SelectorSet{Primary: "#btn"}},
 		{ActionType: "focus", Selector: inputSelector},
 		{ActionType: "type", Selector: inputSelector, Payload: map[string]interface{}{"text": "Hello"}},
-		{ActionType: "type", Selector: inputSelector, Payload: map[string]interface{}{"text": " World"}},
+		{ActionType: "type", Selector: inputSelector, Payload: map[string]interface{}{"text": "Hello World"}},
 		{ActionType: "scroll", Payload: map[string]interface{}{"scrollY": 100.0}},
 		{ActionType: "scroll", Payload: map[string]interface{}{"scrollY": 300.0}},
 		{ActionType: "click", Selector: &driver.SelectorSet{Primary: "#submit"}},
@@ -219,55 +424,6 @@ func TestApplyActionRange_FullRange(t *testing.T) {
 	}
 }
 
-func TestSelectorsMatch(t *testing.T) {
-	tests := []struct {
-		name     string
-		a        *driver.SelectorSet
-		b        *driver.SelectorSet
-		expected bool
-	}{
-		{
-			name:     "both nil",
-			a:        nil,
-			b:        nil,
-			expected: false,
-		},
-		{
-			name:     "first nil",
-			a:        nil,
-			b:        &driver.SelectorSet{Primary: "#test"},
-			expected: false,
-		},
-		{
-			name:     "second nil",
-			a:        &driver.SelectorSet{Primary: "#test"},
-			b:        nil,
-			expected: false,
-		},
-		{
-			name:     "matching selectors",
-			a:        &driver.SelectorSet{Primary: "#input"},
-			b:        &driver.SelectorSet{Primary: "#input"},
-			expected: true,
-		},
-		{
-			name:     "different selectors",
-			a:        &driver.SelectorSet{Primary: "#input1"},
-			b:        &driver.SelectorSet{Primary: "#input2"},
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := selectorsMatch(tt.a, tt.b)
-			if result != tt.expected {
-				t.Errorf("selectorsMatch(%v, %v) = %v, expected %v", tt.a, tt.b, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestGenerateWorkflow_CreatesNodesAndEdges(t *testing.T) {
 	gen := NewWorkflowGenerator()
 	actions := []driver.RecordedAction{
@@ -275,17 +431,9 @@ func TestGenerateWorkflow_CreatesNodesAndEdges(t *testing.T) {
 		{ActionType: "click", Selector: &driver.SelectorSet{Primary: "#btn"}},
 	}
 
-	result := gen.GenerateWorkflow(actions)
-
-	nodes, ok := result["nodes"].([]map[string]interface{})
-	if !ok {
-		t.Fatal("Expected nodes to be []map[string]interface{}")
-	}
-
-	edges, ok := result["edges"].([]map[string]interface{})
-	if !ok {
-		t.Fatal("Expected edges to be []map[string]interface{}")
-	}
+	result, err := gen.GenerateWorkflow(actions)
+	require.NoError(t, err)
+	nodes, edges := result.Nodes, result.Edges
 
 	// Should have at least 2 action nodes (may have wait nodes inserted)
 	if len(nodes) < 2 {
@@ -300,15 +448,10 @@ func TestGenerateWorkflow_CreatesNodesAndEdges(t *testing.T) {
 
 func TestGenerateWorkflow_EmptyActions(t *testing.T) {
 	gen := NewWorkflowGenerator()
-	result := gen.GenerateWorkflow([]driver.RecordedAction{})
-
-	// Verify the result has nodes and edges keys (may be nil or empty)
-	if _, ok := result["nodes"]; !ok {
-		t.Error("Expected result to have 'nodes' key")
-	}
-	if _, ok := result["edges"]; !ok {
-		t.Error("Expected result to have 'edges' key")
-	}
+	result, err := gen.GenerateWorkflow(nil)
+	require.NoError(t, err)
+	require.Empty(t, result.Nodes)
+	require.Empty(t, result.Edges)
 }
 
 func TestTruncateString(t *testing.T) {
@@ -403,4 +546,88 @@ func TestGenerateClickLabel(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMergeSnapshotsPreservesHistoryAndTarget(t *testing.T) {
+	first := driver.RecordedAction{ActionType: "type", PageID: "one", FrameID: "main", Selector: &driver.SelectorSet{Primary: "#input"}, Payload: map[string]any{"text": "first"}}
+	for _, value := range []string{"replacement", ""} {
+		next := first
+		next.Payload = map[string]any{"text": value}
+		result := MergeConsecutiveActions([]driver.RecordedAction{first, next})
+		require.Len(t, result, 1)
+		require.Equal(t, value, result[0].Payload["text"])
+		require.Equal(t, "first", first.Payload["text"])
+	}
+	for _, field := range []string{"page", "driver page", "frame", "frame path", "selector", "url", "submit"} {
+		t.Run(field, func(t *testing.T) {
+			next := first
+			next.Payload = map[string]any{"text": "second"}
+			previous := first
+			switch field {
+			case "page":
+				next.PageID = "two"
+			case "driver page":
+				next.DriverPageID = "two"
+			case "frame":
+				next.FrameID = "child"
+			case "frame path":
+				previous.FrameID, next.FrameID = "frame", "frame"
+				previous.FramePath = []string{"#left"}
+				next.FramePath = []string{"#right"}
+			case "selector":
+				next.Selector = &driver.SelectorSet{Primary: "#other"}
+			case "url":
+				next.URL = "https://next.invalid"
+			case "submit":
+				previous.Payload = map[string]any{"text": "first", "submit": true}
+			}
+			require.Len(t, MergeConsecutiveActions([]driver.RecordedAction{previous, next}), 2)
+		})
+	}
+}
+
+func TestGenerateWorkflowSwitchesBetweenMainAndChildFrameForSameSelector(t *testing.T) {
+	selector := &driver.SelectorSet{Primary: "#submit"}
+	recorded := []driver.RecordedAction{
+		{ActionType: "click", PageID: "page", DriverPageID: "driver-page", URL: "https://fixture.invalid", Selector: selector},
+		{ActionType: "click", PageID: "page", DriverPageID: "driver-page", URL: "https://fixture.invalid", FrameID: "child", FramePath: []string{"#child"}, Selector: selector},
+		{ActionType: "click", PageID: "page", DriverPageID: "driver-page", URL: "https://fixture.invalid", Selector: selector},
+	}
+
+	workflow, err := NewWorkflowGenerator().GenerateWorkflow(recorded)
+	require.NoError(t, err)
+	require.Len(t, workflow.Nodes, 7)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_CLICK, workflow.Nodes[0].Action.Type)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_FRAME_SWITCH, workflow.Nodes[1].Action.Type)
+	require.Equal(t, basactions.FrameSwitchAction_FRAME_SWITCH_ACTION_ENTER, workflow.Nodes[1].Action.GetFrameSwitch().Action)
+	require.Equal(t, "#child", workflow.Nodes[1].Action.GetFrameSwitch().GetSelector())
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_WAIT, workflow.Nodes[2].Action.Type)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_CLICK, workflow.Nodes[3].Action.Type)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_FRAME_SWITCH, workflow.Nodes[4].Action.Type)
+	require.Equal(t, basactions.FrameSwitchAction_FRAME_SWITCH_ACTION_PARENT, workflow.Nodes[4].Action.GetFrameSwitch().Action)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_WAIT, workflow.Nodes[5].Action.Type)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_CLICK, workflow.Nodes[6].Action.Type)
+}
+
+func TestMergeScrollKeepsAxesAndSeparateTargets(t *testing.T) {
+	first := driver.RecordedAction{ActionType: "scroll", PageID: "one", Selector: &driver.SelectorSet{Primary: "#pane"}, Payload: map[string]any{"scrollX": 10.0, "scrollY": 20.0}}
+	next := first
+	next.Payload = map[string]any{"scrollX": 30.0, "scrollY": 40.0}
+	merged := MergeConsecutiveActions([]driver.RecordedAction{first, next})
+	require.Len(t, merged, 1)
+	require.Equal(t, next.Payload, merged[0].Payload)
+	require.Equal(t, 10.0, first.Payload["scrollX"])
+	next.PageID = "two"
+	require.Len(t, MergeConsecutiveActions([]driver.RecordedAction{first, next}), 2)
+	next.PageID = "one"
+	next.Selector = &driver.SelectorSet{Primary: "#other"}
+	require.Len(t, MergeConsecutiveActions([]driver.RecordedAction{first, next}), 2)
+}
+
+func TestMergeScrollDoesNotLosePartialAxisUpdates(t *testing.T) {
+	first := driver.RecordedAction{ActionType: "scroll", Payload: map[string]any{"scrollX": 100.0, "scrollY": 200.0}}
+	next := driver.RecordedAction{ActionType: "scroll", Payload: map[string]any{"scrollY": 300.0}}
+	require.Len(t, MergeConsecutiveActions([]driver.RecordedAction{first, next}), 2)
+	next.Payload = map[string]any{"deltaY": 10.0}
+	require.Len(t, MergeConsecutiveActions([]driver.RecordedAction{next, next}), 2)
 }

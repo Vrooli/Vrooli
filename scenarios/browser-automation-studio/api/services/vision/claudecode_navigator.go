@@ -23,6 +23,8 @@ import (
 // minClaudeVersion is the minimum Claude CLI version required for Chrome MCP support.
 var minClaudeVersion = semver.MustParse("1.0.18")
 
+const resourceClaudeCommand = "resource-claude-code"
+
 // CommandRunner abstracts command execution for testing.
 type CommandRunner interface {
 	LookPath(file string) (string, error)
@@ -139,7 +141,7 @@ func (n *ClaudeCodeVisionNavigator) Description() string {
 
 // IsAvailable checks if Claude CLI is available and meets version requirements.
 func (n *ClaudeCodeVisionNavigator) IsAvailable(ctx context.Context) bool {
-	claudePath, err := n.cmdRunner.LookPath("claude")
+	claudePath, err := n.cmdRunner.LookPath(resourceClaudeCommand)
 	if err != nil {
 		return false
 	}
@@ -154,7 +156,7 @@ func (n *ClaudeCodeVisionNavigator) IsAvailable(ctx context.Context) bool {
 
 // UnavailableReason returns why the navigator is unavailable.
 func (n *ClaudeCodeVisionNavigator) UnavailableReason(ctx context.Context) string {
-	claudePath, err := n.cmdRunner.LookPath("claude")
+	claudePath, err := n.cmdRunner.LookPath(resourceClaudeCommand)
 	if err != nil {
 		return "claude CLI not found in PATH"
 	}
@@ -173,7 +175,7 @@ func (n *ClaudeCodeVisionNavigator) UnavailableReason(ctx context.Context) strin
 
 // getClaudeVersion runs `claude --version` and parses the version string.
 func (n *ClaudeCodeVisionNavigator) getClaudeVersion(ctx context.Context, claudePath string) (*semver.Version, error) {
-	cmd := n.cmdRunner.CommandContext(ctx, claudePath, "--version")
+	cmd := n.cmdRunner.CommandContext(ctx, claudePath, "run", "--", "--version")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("run claude --version: %w", err)
@@ -221,6 +223,9 @@ func (n *ClaudeCodeVisionNavigator) ClientSourcePolicy() ClientSourcePolicy {
 
 // Navigate starts an AI navigation session using Claude Code CLI.
 func (n *ClaudeCodeVisionNavigator) Navigate(ctx context.Context, req NavigationRequest) (NavigationHandle, error) {
+	if req.EffectPolicy == "read_only" || len(req.Postconditions) > 0 || len(req.Extraction) > 0 {
+		return nil, fmt.Errorf("claude_code navigator does not support enforced task contracts")
+	}
 	// Verify availability
 	if !n.IsAvailable(ctx) {
 		reason := n.UnavailableReason(ctx)
@@ -241,14 +246,14 @@ func (n *ClaudeCodeVisionNavigator) Navigate(ctx context.Context, req Navigation
 
 	// Create session
 	session := &NavigationSession{
-		NavigationID:  navigationID,
-		SessionID:     req.SessionID,
-		UserID:        req.UserID,
-		Model:         req.Model,
-		StartedAt:     time.Now(),
-		Status:        StatusNavigating,
-		IsBYOK:        false, // Claude Code uses local execution
-		NavigatorType: NavigatorClaudeCode,
+		NavigationID:         navigationID,
+		SessionID:            req.SessionID,
+		UserID:               req.UserID,
+		Model:                req.Model,
+		StartedAt:            time.Now(),
+		Status:               StatusNavigating,
+		CredentialProvenance: CredentialProvenanceNone, // Claude Code uses local execution
+		NavigatorType:        NavigatorClaudeCode,
 	}
 
 	ccSession := &claudeCodeSession{
@@ -262,7 +267,7 @@ func (n *ClaudeCodeVisionNavigator) Navigate(ctx context.Context, req Navigation
 	n.mu.Unlock()
 
 	// Find claude CLI path
-	claudePath, err := n.cmdRunner.LookPath("claude")
+	claudePath, err := n.cmdRunner.LookPath(resourceClaudeCommand)
 	if err != nil {
 		n.removeNavigation(navigationID)
 		return nil, fmt.Errorf("claude CLI not found: %w", err)
@@ -286,7 +291,8 @@ func (n *ClaudeCodeVisionNavigator) Navigate(ctx context.Context, req Navigation
 		"--allowedTools", "mcp__claude-in-chrome__*",
 	}
 
-	cmd := n.cmdRunner.CommandContext(cmdCtx, claudePath, args...)
+	cmdArgs := append([]string{"run", "--"}, args...)
+	cmd := n.cmdRunner.CommandContext(cmdCtx, claudePath, cmdArgs...)
 	ccSession.cmd = cmd
 
 	// Set up stdin pipe to pass the prompt
@@ -417,6 +423,7 @@ func (n *ClaudeCodeVisionNavigator) parseOutput(session *claudeCodeSession, stdo
 			// Track MCP Chrome tool calls
 			if strings.HasPrefix(event.Name, "mcp__claude-in-chrome__") {
 				stepNumber++
+				n.recordStep(session, &event, stepNumber, lastReasoning)
 				n.reportActionToRecording(session, &event, stepNumber, lastReasoning)
 				n.broadcastStep(session, &event, stepNumber, lastReasoning)
 				lastReasoning = "" // Clear after use
@@ -429,7 +436,7 @@ func (n *ClaudeCodeVisionNavigator) parseOutput(session *claudeCodeSession, stdo
 		case "error":
 			n.log.WithField("error", event.Error).Error("claude cli error")
 			session.mu.Lock()
-			session.Status = StatusFailed
+			session.SetStatus(StatusFailed)
 			session.mu.Unlock()
 			return
 
@@ -437,7 +444,7 @@ func (n *ClaudeCodeVisionNavigator) parseOutput(session *claudeCodeSession, stdo
 			// Navigation completed
 			session.mu.Lock()
 			if session.Status == StatusNavigating {
-				session.Status = StatusCompleted
+				session.SetStatus(StatusCompleted)
 			}
 			session.mu.Unlock()
 			n.broadcastComplete(session)
@@ -478,6 +485,44 @@ func (n *ClaudeCodeVisionNavigator) extractReasoning(content json.RawMessage) st
 	}
 
 	return ""
+}
+
+// recordStep appends the MCP tool call to the session's bounded step history
+// and bumps StepCount. The stream-json output only exposes the tool call
+// (not its result), so Success is always true here and Error is empty; a
+// failed tool call still surfaces through the final navigation status.
+func (n *ClaudeCodeVisionNavigator) recordStep(
+	session *claudeCodeSession,
+	event *claudeStreamEvent,
+	stepNumber int,
+	reasoning string,
+) {
+	actionType, url, selector := n.mapMCPToolToAction(event)
+
+	var input map[string]interface{}
+	if len(event.Input) > 0 {
+		_ = json.Unmarshal(event.Input, &input)
+	}
+	value := ""
+	for _, key := range []string{"text", "value", "key", "query"} {
+		if v, ok := input[key].(string); ok && v != "" {
+			value = v
+			break
+		}
+	}
+
+	session.mu.Lock()
+	session.StepCount = stepNumber
+	session.RecordStep(NavigationStepRecord{
+		Index:       stepNumber,
+		ActionType:  actionType,
+		Selector:    selector,
+		Value:       value,
+		URL:         url,
+		Description: reasoning,
+		Success:     true,
+	})
+	session.mu.Unlock()
 }
 
 // reportActionToRecording creates a RecordedNavigationAction and invokes the callback.
@@ -680,14 +725,14 @@ func (n *ClaudeCodeVisionNavigator) finalizeSession(session *claudeCodeSession, 
 		if errors.As(err, &exitErr) {
 			if exitErr.ExitCode() == -1 {
 				// Killed by signal (likely our abort)
-				session.Status = StatusAborted
+				session.SetStatus(StatusAborted)
 				return
 			}
 		}
-		session.Status = StatusFailed
+		session.SetStatus(StatusFailed)
 		n.log.WithError(err).WithField("navigation_id", session.NavigationID).Error("claude process exited with error")
 	} else {
-		session.Status = StatusCompleted
+		session.SetStatus(StatusCompleted)
 	}
 }
 
@@ -698,15 +743,19 @@ func (n *ClaudeCodeVisionNavigator) removeNavigation(navigationID string) {
 	n.mu.Unlock()
 }
 
-// GetSession returns a navigation session by ID.
+// GetSession returns a snapshot of a navigation session by ID. The snapshot
+// carries the session's Changed() channel so callers can wait on the next
+// status transition without holding any lock.
 func (n *ClaudeCodeVisionNavigator) GetSession(navigationID string) (*NavigationSession, bool) {
 	n.mu.RLock()
-	defer n.mu.RUnlock()
 	session, exists := n.activeNavigations[navigationID]
+	n.mu.RUnlock()
 	if !exists {
 		return nil, false
 	}
-	return session.NavigationSession, true
+	session.mu.Lock()
+	defer session.mu.Unlock()
+	return session.Snapshot(), true
 }
 
 // AbortNavigation sends a signal to stop the Claude CLI process.
@@ -753,7 +802,7 @@ func (n *ClaudeCodeVisionNavigator) AbortNavigation(ctx context.Context, navigat
 		}
 	}
 
-	session.Status = StatusAborted
+	session.SetStatus(StatusAborted)
 
 	n.log.WithField("navigation_id", navigationID).Info("vision_navigation: claude code navigation aborted")
 	return nil

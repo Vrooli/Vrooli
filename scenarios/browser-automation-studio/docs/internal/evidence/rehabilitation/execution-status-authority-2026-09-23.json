@@ -1,0 +1,297 @@
+{
+  "cycle": "BAS-WORK-095",
+  "issues": [
+    "BAS-RF-117"
+  ],
+  "journeys": [
+    "BAS-RH-J07",
+    "BAS-RH-J18"
+  ],
+  "prior_art": "BAS-WORK-085/RF105 owns synchronous completion; new scope covers effect admission and terminal notifications",
+  "baseline": "/tmp/bas-before-095/manifest.json",
+  "changes": [
+    "Persist running before executor effects",
+    "One terminal persistence/notification policy for normal, compile and target failures",
+    "Return/log write errors; only committed terminal statuses broadcast",
+    "Panic unwinds retain failure and propagate original panic",
+    "Remove unused MarkCrash plus no-op implementations and writer read/status repository requirements"
+  ],
+  "metrics": {
+    "runtime_lines": [
+      {
+        "path": "scenarios/browser-automation-studio/api/services/workflow/executions.go",
+        "before": 772,
+        "after": 775
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/automation/execution-writer/file_writer.go",
+        "before": 1481,
+        "after": 1416
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/automation/execution-writer/interface.go",
+        "before": 82,
+        "after": 76
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/handlers/ai/automation_helpers.go",
+        "before": 260,
+        "after": 256
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/services/export/render/playwright_client.go",
+        "before": 315,
+        "after": 311
+      }
+    ],
+    "go": {
+      "before": {
+        "complexity": 520,
+        "functions": 85,
+        "max": 56
+      },
+      "after": {
+        "complexity": 516,
+        "functions": 83,
+        "max": 53
+      }
+    },
+    "totals": {
+      "before": 2910,
+      "after": 2834
+    }
+  },
+  "go_cumulative_delta": 331,
+  "checks": {
+    "red": {
+      "receipt": "/tmp/bas-status-persistence-red-095.txt",
+      "failed": 4,
+      "healthy_controls": 2
+    },
+    "race": {
+      "session": 76433,
+      "exit_code": 0,
+      "packages": 5,
+      "receipt": "/tmp/bas-status-persistence-race-095.txt"
+    },
+    "final_workflow_race": {
+      "session": 51810,
+      "exit_code": 0,
+      "receipt": "/tmp/bas-status-workflow-final-race-095.txt"
+    },
+    "api_build": {
+      "session": 31165,
+      "exit_code": 0
+    },
+    "restart": {
+      "session": 75581,
+      "status": "healthy",
+      "exit_code": 0
+    },
+    "native": {
+      "session": 67312,
+      "exit_code": 0,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "receipt": "/tmp/bas-recording-e2e-A3Qn1P/result.json",
+      "sha256": "71d0130e16c058cbccfe16043a54ae58dabb9908e35eed2da2af714c58463659"
+    },
+    "preservation": {
+      "session": 32808,
+      "exit_code": 0,
+      "profiles": 1,
+      "reads": 3,
+      "complete_state_equal": true
+    }
+  },
+  "frozen": {
+    "path": "/tmp/bas-frozen-owner-095.json",
+    "paths": 339,
+    "unchanged_after_native": true,
+    "unchanged_through_terminal": true
+  },
+  "limitations": [
+    "Database failure injection uses isolated repository fixtures; no live database faults",
+    "Permanent database outages may leave durable status pending/running; no reconciliation/retry worker added",
+    "A propagated Go panic is not process crash recovery qualification",
+    "Affected workflow runner remainsCC53 and FileWriter methodCC50; scope reduction is not full debt qualification",
+    "Initial095wallp95+23.9% versus094singlecohort; repeated quiescent cohort required before attribution under5%relative rule"
+  ],
+  "native_producer": {
+    "path": "playwright-driver/tests/e2e/record-mode-e2e.mjs",
+    "sha256": "b8e1d175131aeb522735e071ab29d52fcc684bbaba21777d516ab183969d0f6c"
+  },
+  "qualification": {
+    "performance": {
+      "scenario": "browser-automation-studio",
+      "workload": "capture",
+      "operation_id": "1d722c86882de4f527ffe518028892a2",
+      "outcome": "WORKLOAD_OUTCOME_MEASURED",
+      "within_budget": true,
+      "p95_ms": 499,
+      "wall_p95_ms": 756.742401,
+      "budget_ms": 2000,
+      "sample_count": 100,
+      "attempt_count": 101,
+      "declared_warmups": 1,
+      "captured_at": "2026-09-23T16:43:13.241233578Z",
+      "build_identity": "sha256:b92db9cfbf434a85d6c9d7f69ed2c29624723c4afaec9a01ba3ea4912ed85953",
+      "producer_digest": "62456dbce61bba14f9feb78efc1e806448fc482e734c2e8a18bf2938b6ed4a52",
+      "contract_digest": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+      "configuration_digest": "1a2776b5338b0074036293f43952bd03d3be2ef1ccabfef38787e06d4a63b167",
+      "fixture_revision": "dcabe2e264925a3c8264eef9ecd37b0b7b16ee11ce3c57bb1310a80ede1e3367",
+      "receipt_path": "/home/matthalloran8/.vrooli/test-runs/performance-health/workloads/1d722c86882de4f527ffe518028892a2/producer/receipt.json",
+      "receipt_sha256": "d4a5e7e480916311b1b72ec2bfc455196f0a6555e91f1d67a2504696737d54e6"
+    },
+    "board": {
+      "receipt": "/tmp/bas-setpoint-repeat-095.json",
+      "qualified": 1,
+      "unknown": 16,
+      "product_ready": false,
+      "capture_operation": "4011fc450443324647b1e5a1dec1fe89"
+    },
+    "test_genie": {
+      "id": "20260923-164451-777d257b",
+      "status": "failed",
+      "session": 35466,
+      "exit_code": 1,
+      "performance": "passed",
+      "tidiness": "failed",
+      "summary": {
+        "totalFindings": 1159,
+        "longFiles": 104,
+        "complexity": 424,
+        "duplication": 607,
+        "coupling": 23,
+        "duplicationLineDebt": 34644
+      },
+      "exact_ph_receipt": true
+    },
+    "performance_repeat": {
+      "scenario": "browser-automation-studio",
+      "workload": "capture",
+      "operation_id": "4011fc450443324647b1e5a1dec1fe89",
+      "outcome": "WORKLOAD_OUTCOME_MEASURED",
+      "within_budget": true,
+      "p95_ms": 469,
+      "wall_p95_ms": 681.528072,
+      "budget_ms": 2000,
+      "sample_count": 100,
+      "attempt_count": 101,
+      "declared_warmups": 1,
+      "captured_at": "2026-09-23T16:46:49.500569084Z",
+      "build_identity": "sha256:b92db9cfbf434a85d6c9d7f69ed2c29624723c4afaec9a01ba3ea4912ed85953",
+      "producer_digest": "62456dbce61bba14f9feb78efc1e806448fc482e734c2e8a18bf2938b6ed4a52",
+      "contract_digest": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+      "configuration_digest": "1a2776b5338b0074036293f43952bd03d3be2ef1ccabfef38787e06d4a63b167",
+      "fixture_revision": "dcabe2e264925a3c8264eef9ecd37b0b7b16ee11ce3c57bb1310a80ede1e3367",
+      "receipt_path": "/home/matthalloran8/.vrooli/test-runs/performance-health/workloads/4011fc450443324647b1e5a1dec1fe89/producer/receipt.json",
+      "receipt_sha256": "d92ca786d5ed4c4967c6243de0fc6dee65a9c23beff85f883f0cfcf0a183b637"
+    },
+    "relative_analysis": {
+      "bootstrap": {
+        "seed": 95,
+        "bootstrap_replicates": 10000,
+        "resample": "IID100observations per retained cohort, nearest rank p95",
+        "limitation": "Exploratory CI assumes independent identically distributed samples; shared host and sequential timing may violate it; does not establish source causality",
+        "comparisons": [
+          {
+            "p95_ratio_bootstrap_95ci": [
+              1.0960809987602864,
+              1.2778691504268207
+            ]
+          },
+          {
+            "p95_ratio_bootstrap_95ci": [
+              1.0401797133488262,
+              1.2377437114010041
+            ]
+          }
+        ]
+      },
+      "steps": {
+        "094": {
+          "navigation_duration_ms": {
+            "mean": 21.94,
+            "p95": 28
+          },
+          "readiness_wait_duration_ms": {
+            "mean": 15.32,
+            "p95": 19
+          },
+          "step0": {
+            "mean": 21.94,
+            "p95": 28
+          },
+          "step1": {
+            "mean": 15.32,
+            "p95": 19
+          },
+          "step2": {
+            "mean": 6.73,
+            "p95": 9
+          },
+          "step3": {
+            "mean": 128.99,
+            "p95": 141
+          }
+        },
+        "095": {
+          "navigation_duration_ms": {
+            "mean": 24.83,
+            "p95": 34
+          },
+          "readiness_wait_duration_ms": {
+            "mean": 17.18,
+            "p95": 22
+          },
+          "step0": {
+            "mean": 24.83,
+            "p95": 34
+          },
+          "step1": {
+            "mean": 17.18,
+            "p95": 22
+          },
+          "step2": {
+            "mean": 7.78,
+            "p95": 11
+          },
+          "step3": {
+            "mean": 129.57,
+            "p95": 149
+          }
+        },
+        "095repeat": {
+          "navigation_duration_ms": {
+            "mean": 23.92,
+            "p95": 32
+          },
+          "readiness_wait_duration_ms": {
+            "mean": 16.41,
+            "p95": 22
+          },
+          "step0": {
+            "mean": 23.92,
+            "p95": 32
+          },
+          "step1": {
+            "mean": 16.41,
+            "p95": 22
+          },
+          "step2": {
+            "mean": 7.32,
+            "p95": 10
+          },
+          "step3": {
+            "mean": 130.04,
+            "p95": 147
+          }
+        }
+      },
+      "disposition": "Slower end-to-end cohorts are real observations; source attribution and relative regression qualification remain unresolved. No slowdown dismissed as noise. Action duration means differ by less than3ms per step; most extra latency lies outside individual actions. Next discriminator is correlated admission/session/finalization/CLI-spawn timing or controlled paired baseline, not another unchanged single cohort."
+    }
+  },
+  "build_identity": "sha256:b92db9cfbf434a85d6c9d7f69ed2c29624723c4afaec9a01ba3ea4912ed85953"
+}

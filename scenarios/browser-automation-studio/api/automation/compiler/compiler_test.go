@@ -1,17 +1,28 @@
 package compiler
 
 import (
+	"context"
+	"reflect"
 	"strings"
 	"testing"
+
+	"google.golang.org/protobuf/proto"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
+	"github.com/vrooli/browser-automation-studio/internal/scenarioport"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
+
+func assertCompiledStepType(t testing.TB, step ExecutionStep, want StepType) {
+	t.Helper()
+	assert.Equal(t, enums.StringToActionType(string(want)), step.Action.GetType())
+}
 
 // Helper to create a test workflow with proto types
 func makeTestWorkflow(id uuid.UUID, name string, nodes []*basworkflows.WorkflowNodeV2, edges []*basworkflows.WorkflowEdgeV2) *basapi.WorkflowSummary {
@@ -86,12 +97,89 @@ func TestCompileWorkflowSequential(t *testing.T) {
 		t.Fatalf("unexpected step order: %+v", plan.Steps)
 	}
 
-	if plan.Steps[0].Type != StepNavigate {
-		t.Fatalf("expected first step to be navigate, got %s", plan.Steps[0].Type)
-	}
+	assertCompiledStepType(t, plan.Steps[0], StepNavigate)
 
 	if got := plan.Steps[0].OutgoingEdges; len(got) != 1 || got[0].TargetNode != "node-2" {
 		t.Fatalf("unexpected outgoing edges: %+v", got)
+	}
+}
+
+func TestCompileWorkflowWithScenarioRootResolvesGeneratedScenarioPort(t *testing.T) {
+	cli := scenarioport.NewMockScenarioCLI()
+	cli.Ports["generated"] = map[string]int{"API_PORT": 6123}
+	restore := scenarioport.SetScenarioCLIForTests(cli)
+	defer restore()
+
+	route := "/notes"
+	workflow := makeTestWorkflow(uuid.New(), "generated-flow", []*basworkflows.WorkflowNodeV2{{
+		Id: "navigate",
+		Action: &basactions.ActionDefinition{
+			Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+			Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{
+				Scenario:     ptr("generated"),
+				ScenarioPath: &route,
+			}},
+		},
+	}}, nil)
+
+	plan, err := CompileWorkflowWithOptions(workflow, &CompileOptions{ScenarioRoot: "/tmp/workspace/scenarios/generated"})
+	if err != nil {
+		t.Fatalf("CompileWorkflowWithOptions: %v", err)
+	}
+	if got, want := plan.Steps[0].Action.GetNavigate().GetUrl(), "http://localhost:6123/notes"; got != want {
+		t.Fatalf("resolved URL = %#v, want %q", got, want)
+	}
+}
+
+func TestCompileWorkflowWithScenarioRootResolvesSelfScenarioPort(t *testing.T) {
+	cli := scenarioport.NewMockScenarioCLI()
+	cli.Ports["device-control"] = map[string]int{"API_PORT": 16465}
+	restore := scenarioport.SetScenarioCLIForTests(cli)
+	defer restore()
+
+	route := "/flows"
+	workflow := makeTestWorkflow(uuid.New(), "self-flow", []*basworkflows.WorkflowNodeV2{{
+		Id: "navigate",
+		Action: &basactions.ActionDefinition{
+			Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+			Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{
+				DestinationType: ptr(basactions.NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_SCENARIO),
+				Scenario:        ptr("@scenario/self"),
+				ScenarioPath:    &route,
+			}},
+		},
+	}}, nil)
+
+	plan, err := CompileWorkflowWithOptions(workflow, &CompileOptions{ScenarioRoot: "/tmp/workspace/scenarios/device-control"})
+	if err != nil {
+		t.Fatalf("CompileWorkflowWithOptions: %v", err)
+	}
+	if got, want := plan.Steps[0].Action.GetNavigate().GetUrl(), "http://localhost:16465/flows"; got != want {
+		t.Fatalf("resolved self URL = %#v, want %q", got, want)
+	}
+}
+
+func TestCompileWorkflowDefersTargetOwnedScenarioURLResolution(t *testing.T) {
+	route := "/"
+	workflow := makeTestWorkflow(uuid.New(), "android-flow", []*basworkflows.WorkflowNodeV2{{
+		Id: "navigate",
+		Action: &basactions.ActionDefinition{
+			Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+			Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{
+				DestinationType: ptr(basactions.NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_SCENARIO),
+				Scenario:        ptr("not-running"),
+				ScenarioPath:    &route,
+			}},
+		},
+	}}, nil)
+
+	plan, err := CompileWorkflowWithOptions(workflow, &CompileOptions{DeferScenarioURLResolution: true})
+	if err != nil {
+		t.Fatalf("CompileWorkflowWithOptions: %v", err)
+	}
+	navigate := plan.Steps[0].Action.GetNavigate()
+	if navigate.GetUrl() != "" || navigate.GetScenario() != "not-running" {
+		t.Fatalf("deferred navigate = %+v, want typed scenario destination without URL", navigate)
 	}
 }
 
@@ -178,6 +266,13 @@ func TestCompileWorkflowLoopExtractsBody(t *testing.T) {
 		},
 	)
 
+	before := proto.Clone(workflow.FlowDefinition)
+	entry, exits, boundaryErr := WorkflowBoundaries(workflow.FlowDefinition)
+	require.NoError(t, boundaryErr)
+	require.Equal(t, "loop-1", entry)
+	require.Equal(t, []string{"loop-1"}, exits)
+	require.True(t, proto.Equal(before, workflow.FlowDefinition))
+
 	plan, err := CompileWorkflow(workflow)
 	require.NoError(t, err)
 	require.NotNil(t, plan)
@@ -188,17 +283,17 @@ func TestCompileWorkflowLoopExtractsBody(t *testing.T) {
 
 	loopStep := plan.Steps[0]
 	assert.Equal(t, "loop-1", loopStep.NodeID)
-	assert.Equal(t, StepLoop, loopStep.Type)
+	assertCompiledStepType(t, loopStep, StepLoop)
 
 	// Verify loop body was extracted
 	require.NotNil(t, loopStep.LoopPlan, "loop step should have a body plan")
 	require.Len(t, loopStep.LoopPlan.Steps, 1, "loop body should have 1 step")
 	assert.Equal(t, "body-click", loopStep.LoopPlan.Steps[0].NodeID)
-	assert.Equal(t, StepClick, loopStep.LoopPlan.Steps[0].Type)
+	assertCompiledStepType(t, loopStep.LoopPlan.Steps[0], StepClick)
 
 	// Verify loop params were extracted
-	assert.Equal(t, "${items}", loopStep.Params["array_source"])
-	assert.Equal(t, "item", loopStep.Params["item_variable"])
+	assert.Equal(t, "${items}", loopStep.Action.GetLoop().GetArraySource())
+	assert.Equal(t, "item", loopStep.Action.GetLoop().GetItemVariable())
 }
 
 func TestCompileWorkflowEntryMetadata(t *testing.T) {
@@ -239,6 +334,38 @@ func TestCompileWorkflowEntryMetadata(t *testing.T) {
 	default:
 		t.Fatalf("unexpected entrySelectorTimeoutMs: %v (type %T)", plan.Metadata["entrySelectorTimeoutMs"], plan.Metadata["entrySelectorTimeoutMs"])
 	}
+}
+
+func TestCompileWorkflowExecutionTimeoutMetadata(t *testing.T) {
+	timeoutMs := int32(3900000)
+	workflow := makeTestWorkflowWithSettings(
+		uuid.New(),
+		"long-running-flow",
+		[]*basworkflows.WorkflowNodeV2{{Id: "a", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}}}}},
+		[]*basworkflows.WorkflowEdgeV2{},
+		&basworkflows.WorkflowSettingsV2{TimeoutMs: &timeoutMs},
+	)
+
+	plan, err := CompileWorkflow(workflow)
+	require.NoError(t, err)
+	require.NotNil(t, plan.Metadata)
+	assert.Equal(t, 3900000, plan.Metadata["executionTimeoutMs"])
+}
+
+func TestCompileWorkflowMapsSessionReuseLabelToExecutionPolicy(t *testing.T) {
+	workflow := makeTestWorkflow(
+		uuid.New(),
+		"isolated-validation",
+		[]*basworkflows.WorkflowNodeV2{
+			{Id: "navigate", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}}}},
+		},
+		[]*basworkflows.WorkflowEdgeV2{},
+	)
+	workflow.FlowDefinition.Metadata = &basworkflows.WorkflowMetadataV2{Labels: map[string]string{"session_reuse_mode": "fresh"}}
+
+	plan, err := CompileWorkflow(workflow)
+	require.NoError(t, err)
+	assert.Equal(t, "fresh", plan.Metadata["sessionReuseMode"])
 }
 
 // =============================================================================
@@ -391,6 +518,17 @@ func TestCompileWorkflow_AllSupportedActionTypes(t *testing.T) {
 			},
 			expected: StepExtract,
 		},
+		{
+			name: "gesture",
+			action: &basactions.ActionDefinition{
+				Type: basactions.ActionType_ACTION_TYPE_GESTURE,
+				Params: &basactions.ActionDefinition_Gesture{Gesture: &basactions.GestureParams{
+					GestureType: basactions.GestureType_GESTURE_TYPE_SWIPE,
+					Selector:    ptr("[data-testid='graph-canvas']"),
+				}},
+			},
+			expected: StepGesture,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -410,9 +548,83 @@ func TestCompileWorkflow_AllSupportedActionTypes(t *testing.T) {
 			plan, err := CompileWorkflow(workflow)
 			require.NoError(t, err, "action type %s should be supported", tc.name)
 			require.Len(t, plan.Steps, 1)
-			assert.Equal(t, tc.expected, plan.Steps[0].Type)
+			assertCompiledStepType(t, plan.Steps[0], tc.expected)
 		})
 	}
+}
+
+func TestBuildActionDefinition_Gesture(t *testing.T) {
+	action, err := BuildActionDefinition("gesture", map[string]any{
+		"gesture_type":  "GESTURE_TYPE_SWIPE",
+		"selector":      "[data-testid='graph-canvas']",
+		"direction":     "SWIPE_DIRECTION_RIGHT",
+		"steps":         float64(40),
+		"step_delay_ms": float64(25),
+		"trace_label":   "graph-sustained-pan",
+	})
+	require.NoError(t, err)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_GESTURE, action.GetType())
+	gesture := action.GetGesture()
+	require.NotNil(t, gesture)
+	assert.Equal(t, basactions.GestureType_GESTURE_TYPE_SWIPE, gesture.GetGestureType())
+	assert.Equal(t, basactions.SwipeDirection_SWIPE_DIRECTION_RIGHT, gesture.GetDirection())
+	assert.Equal(t, "[data-testid='graph-canvas']", gesture.GetSelector())
+	assert.EqualValues(t, 40, gesture.GetSteps())
+	assert.EqualValues(t, 25, gesture.GetStepDelayMs())
+	assert.Equal(t, "graph-sustained-pan", gesture.GetTraceLabel())
+}
+
+func TestBuildActionDefinition_CoversEveryTypedActionBuilder(t *testing.T) {
+	tests := []struct {
+		stepType      string
+		actionType    basactions.ActionType
+		paramsVariant string
+	}{
+		{"navigate", basactions.ActionType_ACTION_TYPE_NAVIGATE, "ActionDefinition_Navigate"},
+		{"click", basactions.ActionType_ACTION_TYPE_CLICK, "ActionDefinition_Click"},
+		{"input", basactions.ActionType_ACTION_TYPE_INPUT, "ActionDefinition_Input"},
+		{"wait", basactions.ActionType_ACTION_TYPE_WAIT, "ActionDefinition_Wait"},
+		{"assert", basactions.ActionType_ACTION_TYPE_ASSERT, "ActionDefinition_Assert"},
+		{"scroll", basactions.ActionType_ACTION_TYPE_SCROLL, "ActionDefinition_Scroll"},
+		{"select", basactions.ActionType_ACTION_TYPE_SELECT, "ActionDefinition_SelectOption"},
+		{"evaluate", basactions.ActionType_ACTION_TYPE_EVALUATE, "ActionDefinition_Evaluate"},
+		{"keyboard", basactions.ActionType_ACTION_TYPE_KEYBOARD, "ActionDefinition_Keyboard"},
+		{"dragDrop", basactions.ActionType_ACTION_TYPE_DRAG_DROP, "ActionDefinition_DragDrop"},
+		{"hover", basactions.ActionType_ACTION_TYPE_HOVER, "ActionDefinition_Hover"},
+		{"screenshot", basactions.ActionType_ACTION_TYPE_SCREENSHOT, "ActionDefinition_Screenshot"},
+		{"focus", basactions.ActionType_ACTION_TYPE_FOCUS, "ActionDefinition_Focus"},
+		{"blur", basactions.ActionType_ACTION_TYPE_BLUR, "ActionDefinition_Blur"},
+		{"subflow", basactions.ActionType_ACTION_TYPE_SUBFLOW, "ActionDefinition_Subflow"},
+		{"extract", basactions.ActionType_ACTION_TYPE_EXTRACT, "ActionDefinition_Extract"},
+		{"shortcut", basactions.ActionType_ACTION_TYPE_SHORTCUT, "ActionDefinition_Shortcut"},
+		{"gesture", basactions.ActionType_ACTION_TYPE_GESTURE, "ActionDefinition_Gesture"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.stepType, func(t *testing.T) {
+			action, err := BuildActionDefinition(tc.stepType, map[string]any{})
+			require.NoError(t, err)
+			require.Equal(t, tc.actionType, action.Type)
+			require.NotNil(t, action.Params)
+			require.Equal(t, tc.paramsVariant, reflect.TypeOf(action.Params).Elem().Name())
+		})
+	}
+}
+
+func TestBuildActionDefinition_RejectsRecognizedActionsWithoutTypedBuilders(t *testing.T) {
+	for _, stepType := range []string{"set_variable", "loop", "conditional"} {
+		t.Run(stepType, func(t *testing.T) {
+			action, err := BuildActionDefinition(stepType, map[string]any{})
+			require.ErrorContains(t, err, "no params builder")
+			require.Nil(t, action)
+		})
+	}
+}
+
+func TestBuildActionDefinition_RejectsUnknownAction(t *testing.T) {
+	action, err := BuildActionDefinition("unknown", map[string]any{})
+	require.ErrorContains(t, err, `unknown action type: "unknown"`)
+	require.Nil(t, action)
 }
 
 func TestCompileWorkflow_EmptyStepTypeError(t *testing.T) {
@@ -434,7 +646,7 @@ func TestCompileWorkflow_EmptyStepTypeError(t *testing.T) {
 
 	_, err := CompileWorkflow(workflow)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "missing action.type")
+	require.Contains(t, err.Error(), "unspecified action type")
 }
 
 func TestCompileWorkflow_MissingActionRejected(t *testing.T) {
@@ -737,10 +949,19 @@ func TestCompileWorkflow_MissingPosition(t *testing.T) {
 // =============================================================================
 
 func TestCompileWorkflow_EdgeConditions(t *testing.T) {
-	// Note: V2 edges don't have a "data.condition" field in the same way V1 did.
-	// Edge conditions in V2 are handled via edge type or label.
-	// Skip this test until V2 edge conditions are properly defined.
-	t.Skip("V2 edge conditions require different structure - skip until implemented")
+	for _, label := range []string{"success", "failure", "true", "false", "  error  ", ""} {
+		t.Run(label, func(t *testing.T) {
+			workflow := makeTestWorkflow(uuid.New(), "edge-condition", []*basworkflows.WorkflowNodeV2{
+				{Id: "first", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_EVALUATE, Params: &basactions.ActionDefinition_Evaluate{Evaluate: &basactions.EvaluateParams{Expression: "true"}}}},
+				{Id: "last", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_EVALUATE, Params: &basactions.ActionDefinition_Evaluate{Evaluate: &basactions.EvaluateParams{Expression: "true"}}}},
+			}, []*basworkflows.WorkflowEdgeV2{{Id: "edge", Source: "first", Target: "last", Label: ptr(label)}})
+			plan, err := CompileWorkflow(workflow)
+			require.NoError(t, err)
+			require.Equal(t, strings.TrimSpace(label), plan.Steps[0].OutgoingEdges[0].Condition)
+			graph := toContractsGraph(plan)
+			require.Equal(t, strings.TrimSpace(label), graph.Steps[0].Outgoing[0].Condition)
+		})
+	}
 }
 
 // =============================================================================
@@ -966,7 +1187,7 @@ func TestCompileWorkflow_LoopWithMultipleBodySteps(t *testing.T) {
 
 	loopStep := plan.Steps[0]
 	assert.Equal(t, "loop-main", loopStep.NodeID)
-	assert.Equal(t, StepLoop, loopStep.Type)
+	assertCompiledStepType(t, loopStep, StepLoop)
 
 	// Loop body should have all 3 steps in correct order
 	require.NotNil(t, loopStep.LoopPlan, "loop step should have a body plan")
@@ -974,18 +1195,18 @@ func TestCompileWorkflow_LoopWithMultipleBodySteps(t *testing.T) {
 
 	// Verify step order (topological sort should maintain edge order)
 	assert.Equal(t, "body-step-1", loopStep.LoopPlan.Steps[0].NodeID)
-	assert.Equal(t, StepClick, loopStep.LoopPlan.Steps[0].Type)
+	assertCompiledStepType(t, loopStep.LoopPlan.Steps[0], StepClick)
 
 	assert.Equal(t, "body-step-2", loopStep.LoopPlan.Steps[1].NodeID)
-	assert.Equal(t, StepWait, loopStep.LoopPlan.Steps[1].Type)
+	assertCompiledStepType(t, loopStep.LoopPlan.Steps[1], StepWait)
 
 	assert.Equal(t, "body-step-3", loopStep.LoopPlan.Steps[2].NodeID)
-	assert.Equal(t, StepScreenshot, loopStep.LoopPlan.Steps[2].Type)
+	assertCompiledStepType(t, loopStep.LoopPlan.Steps[2], StepScreenshot)
 
 	// Verify loop params
-	assert.Equal(t, "${users}", loopStep.Params["array_source"])
-	assert.Equal(t, "user", loopStep.Params["item_variable"])
-	assert.Equal(t, "idx", loopStep.Params["index_variable"])
+	assert.Equal(t, "${users}", loopStep.Action.GetLoop().GetArraySource())
+	assert.Equal(t, "user", loopStep.Action.GetLoop().GetItemVariable())
+	assert.Equal(t, "idx", loopStep.Action.GetLoop().GetIndexVariable())
 }
 
 // =============================================================================
@@ -1018,10 +1239,10 @@ func TestCompileWorkflow_ParamsPreserved(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, plan.Steps, 1)
 
-	params := plan.Steps[0].Params
-	assert.Equal(t, "#input", params["selector"])
-	assert.Equal(t, "hello world", params["value"])
-	assert.Equal(t, true, params["submit"])
+	input := plan.Steps[0].Action.GetInput()
+	assert.Equal(t, "#input", input.GetSelector())
+	assert.Equal(t, "hello world", input.GetValue())
+	assert.Equal(t, true, input.GetSubmit())
 }
 
 func TestCompileWorkflow_WorkflowIDPreserved(t *testing.T) {
@@ -1039,4 +1260,189 @@ func TestCompileWorkflow_WorkflowIDPreserved(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, workflowID, plan.WorkflowID)
 	assert.Equal(t, "id-test", plan.WorkflowName)
+}
+
+// The compiler marshals flow definitions with UseProtoNames (snake_case) while
+// the param builders consume protojson-default camelCase. These tests pin the
+// compilation seam: typed proto node → compiled typed ActionDefinition.
+// Regression: wait durations were silently dropped and the driver fell back to
+// its 1000ms default (scenario-qa knw-1784773788743993536).
+func TestCompileWorkflow_WaitDurationSurvivesProtoNamesMarshal(t *testing.T) {
+	timeout := int32(20000)
+	workflow := makeTestWorkflow(
+		uuid.New(),
+		"wait-duration-flow",
+		[]*basworkflows.WorkflowNodeV2{
+			{
+				Id: "nav",
+				Action: &basactions.ActionDefinition{
+					Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+					Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}},
+				},
+			},
+			{
+				Id: "wait",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_WAIT,
+					Params: &basactions.ActionDefinition_Wait{Wait: &basactions.WaitParams{
+						WaitFor:   &basactions.WaitParams_DurationMs{DurationMs: 15000},
+						TimeoutMs: &timeout,
+					}},
+				},
+			},
+		},
+		[]*basworkflows.WorkflowEdgeV2{
+			{Id: "e1", Source: "nav", Target: "wait"},
+		},
+	)
+
+	plan, err := CompileWorkflow(workflow)
+	require.NoError(t, err)
+	require.Len(t, plan.Steps, 2)
+
+	waitStep := plan.Steps[1]
+	assertCompiledStepType(t, waitStep, StepWait)
+
+	waitParams := waitStep.Action.GetWait()
+	require.NotNil(t, waitParams)
+	assert.Equal(t, int32(15000), waitParams.GetDurationMs(), "wait duration must survive the snake_case marshal/compile roundtrip")
+	assert.Equal(t, int32(20000), waitParams.GetTimeoutMs())
+}
+
+func TestCompileWorkflow_MultiWordParamsSurviveProtoNamesMarshal(t *testing.T) {
+	clickCount := int32(2)
+	delayMs := int32(250)
+	clearFirst := true
+	workflow := makeTestWorkflow(
+		uuid.New(),
+		"multi-word-params-flow",
+		[]*basworkflows.WorkflowNodeV2{
+			{
+				Id: "click",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_CLICK,
+					Params: &basactions.ActionDefinition_Click{Click: &basactions.ClickParams{
+						Selector:   "#btn",
+						ClickCount: &clickCount,
+						DelayMs:    &delayMs,
+					}},
+				},
+			},
+			{
+				Id: "input",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_INPUT,
+					Params: &basactions.ActionDefinition_Input{Input: &basactions.InputParams{
+						Selector:   "#field",
+						Value:      "hello",
+						ClearFirst: &clearFirst,
+					}},
+				},
+			},
+		},
+		[]*basworkflows.WorkflowEdgeV2{
+			{Id: "e1", Source: "click", Target: "input"},
+		},
+	)
+
+	plan, err := CompileWorkflow(workflow)
+	require.NoError(t, err)
+	require.Len(t, plan.Steps, 2)
+
+	clickParams := plan.Steps[0].Action.GetClick()
+	require.NotNil(t, clickParams)
+	assert.Equal(t, int32(2), clickParams.GetClickCount())
+	assert.Equal(t, int32(250), clickParams.GetDelayMs())
+
+	inputParams := plan.Steps[1].Action.GetInput()
+	require.NotNil(t, inputParams)
+	assert.True(t, inputParams.GetClearFirst())
+}
+
+func TestCompileWorkflowToContractsUsesCompiledTypedActions(t *testing.T) {
+	executionID := uuid.New()
+	workflow := makeTestWorkflow(
+		uuid.New(),
+		"typed-contract-flow",
+		[]*basworkflows.WorkflowNodeV2{{
+			Id: "wait",
+			Action: &basactions.ActionDefinition{
+				Type: basactions.ActionType_ACTION_TYPE_WAIT,
+				Params: &basactions.ActionDefinition_Wait{Wait: &basactions.WaitParams{
+					WaitFor: &basactions.WaitParams_DurationMs{DurationMs: 4321},
+				}},
+			},
+		}},
+		nil,
+	)
+
+	plan, instructions, err := CompileWorkflowToContracts(context.Background(), executionID, workflow)
+	require.NoError(t, err)
+	require.Len(t, instructions, 1)
+	require.NotNil(t, instructions[0].Action)
+	assert.Equal(t, int32(4321), instructions[0].Action.GetWait().GetDurationMs())
+	require.NotNil(t, plan.Graph)
+	require.Len(t, plan.Graph.Steps, 1)
+	require.NotNil(t, plan.Graph.Steps[0].Action)
+	assert.Equal(t, int32(4321), plan.Graph.Steps[0].Action.GetWait().GetDurationMs())
+}
+
+func TestCompileWorkflowToContractsPreservesNodeExecutionSettings(t *testing.T) {
+	continueOnError := true
+	workflow := makeTestWorkflow(
+		uuid.New(),
+		"recoverable-contract-flow",
+		[]*basworkflows.WorkflowNodeV2{{
+			Id: "recoverable-click",
+			Action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_CLICK,
+				Params: &basactions.ActionDefinition_Click{Click: &basactions.ClickParams{Selector: ".missing"}},
+			},
+			ExecutionSettings: &basworkflows.NodeExecutionSettings{ContinueOnError: &continueOnError},
+		}},
+		nil,
+	)
+
+	plan, instructions, err := CompileWorkflowToContracts(context.Background(), uuid.New(), workflow)
+	require.NoError(t, err)
+	require.Len(t, instructions, 1)
+	require.NotNil(t, plan.Graph)
+	require.Len(t, plan.Graph.Steps, 1)
+	assert.Equal(t, true, instructions[0].Context["continueOnError"])
+	assert.Equal(t, true, plan.Graph.Steps[0].Context["continueOnError"])
+}
+
+func TestWorkflowBoundariesRejectMalformedGraphs(t *testing.T) {
+	node := func(id string) *basworkflows.WorkflowNodeV2 {
+		return &basworkflows.WorkflowNodeV2{Id: id, Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_EVALUATE, Params: &basactions.ActionDefinition_Evaluate{Evaluate: &basactions.EvaluateParams{Expression: "true"}}}}
+	}
+	for name, flow := range map[string]*basworkflows.WorkflowDefinitionV2{
+		"nil": nil, "empty": {}, "empty ID": {Nodes: []*basworkflows.WorkflowNodeV2{node("")}},
+		"duplicate ID":   {Nodes: []*basworkflows.WorkflowNodeV2{node("a"), node("a")}},
+		"missing action": {Nodes: []*basworkflows.WorkflowNodeV2{{Id: "a"}}},
+		"missing target": {Nodes: []*basworkflows.WorkflowNodeV2{node("a")}, Edges: []*basworkflows.WorkflowEdgeV2{{Source: "a", Target: "missing"}}},
+		"missing source": {Nodes: []*basworkflows.WorkflowNodeV2{node("a")}, Edges: []*basworkflows.WorkflowEdgeV2{{Source: "missing", Target: "a"}}},
+		"cycle":          {Nodes: []*basworkflows.WorkflowNodeV2{node("a")}, Edges: []*basworkflows.WorkflowEdgeV2{{Source: "a", Target: "a"}}},
+		"disconnected":   {Nodes: []*basworkflows.WorkflowNodeV2{node("a"), node("b")}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			entry, exits, err := WorkflowBoundaries(flow)
+			require.Error(t, err)
+			require.Empty(t, entry)
+			require.Nil(t, exits)
+		})
+	}
+}
+
+func TestWorkflowBoundariesUsesTopologyWithoutResolvingTargets(t *testing.T) {
+	flow := &basworkflows.WorkflowDefinitionV2{Nodes: []*basworkflows.WorkflowNodeV2{
+		{Id: "click", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_CLICK, Params: &basactions.ActionDefinition_Click{Click: &basactions.ClickParams{Selector: "@selector/not-resolved-by-topology"}}}},
+		{Id: "navigate", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{DestinationType: ptr(basactions.NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_SCENARIO), Scenario: ptr("not-resolved-by-topology")}}}},
+	}, Edges: []*basworkflows.WorkflowEdgeV2{{Source: "navigate", Target: "click"}}}
+	before := proto.Clone(flow)
+	entry, exits, err := WorkflowBoundaries(flow)
+	require.NoError(t, err)
+	require.Equal(t, "navigate", entry)
+	require.Equal(t, []string{"click"}, exits)
+	require.True(t, proto.Equal(before, flow), "topology queries must preserve caller action and edge definitions")
 }

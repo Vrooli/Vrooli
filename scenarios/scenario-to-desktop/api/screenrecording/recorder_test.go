@@ -11,9 +11,13 @@ import (
 type mockExecutor struct {
 	executeResult *ExecutionResult
 	executeErr    error
+	command       string
+	args          []string
+	timeout       time.Duration
 }
 
-func (m *mockExecutor) ExecuteWithResult(_ context.Context, _, _ string, _, _ []string, _ time.Duration) (*ExecutionResult, error) {
+func (m *mockExecutor) ExecuteWithResult(_ context.Context, _, command string, args, _ []string, timeout time.Duration) (*ExecutionResult, error) {
+	m.command, m.args, m.timeout = command, append([]string(nil), args...), timeout
 	return m.executeResult, m.executeErr
 }
 
@@ -135,4 +139,28 @@ func TestStartCapture_WithOutputPath(t *testing.T) {
 	if id != "rec-custom" {
 		t.Fatalf("unexpected capture ID: %s", id)
 	}
+	if executor.command != "resource-ffmpeg" || executor.timeout != 30*time.Second || fmt.Sprint(executor.args) != "[screen-capture start --display :99 --resolution 640x480 --framerate 10 --output /tmp/test.mp4]" {
+		t.Fatalf("capture command = %q %v (timeout %v)", executor.command, executor.args, executor.timeout)
+	}
+}
+
+func TestRecorderReturnsDiagnosticsAndRejectsMissingCaptureID(t *testing.T) {
+	t.Run("start error preserves stderr", func(t *testing.T) {
+		r := NewRecorder(&mockExecutor{executeResult: &ExecutionResult{Stderr: "permission denied", ExitCode: 17}, executeErr: fmt.Errorf("exit status 17")})
+		if _, err := r.StartCapture(context.Background(), CaptureConfig{}); err == nil || err.Error() != "screen capture start failed (exit code 17): permission denied" {
+			t.Fatalf("start error = %v", err)
+		}
+	})
+	t.Run("missing id", func(t *testing.T) {
+		r := NewRecorder(&mockExecutor{executeResult: &ExecutionResult{ExitCode: 0}})
+		if _, err := r.StartCapture(context.Background(), CaptureConfig{}); err == nil {
+			t.Fatal("expected missing capture ID error")
+		}
+	})
+	t.Run("stop error preserves stderr", func(t *testing.T) {
+		r := NewRecorder(&mockExecutor{executeResult: &ExecutionResult{Stderr: "not found", ExitCode: 3}, executeErr: fmt.Errorf("exit status 3")})
+		if _, err := r.StopCapture(context.Background(), "missing"); err == nil || err.Error() != "screen capture stop failed (exit code 3): not found" {
+			t.Fatalf("stop error = %v", err)
+		}
+	})
 }

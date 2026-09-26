@@ -1,54 +1,58 @@
-import { buildUrl, throwIfNotOk } from "./client";
+import type {
+  EvidenceCapture,
+  EvidenceCapturesSummary,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/domain/evidence_pb";
+import { evidenceConnectClient } from "./connect";
+import { buildUrl } from "./client";
 
-export interface Capture {
-  id: string;
-  scenario_name: string;
-  type: "screenshot" | "recording";
-  filename: string;
-  file_size_bytes: number;
-  width?: number;
-  height?: number;
-  duration_ms?: number;
-  source_session: string;
-  created_at: string;
+export async function listCaptures(
+  scenario: string,
+): Promise<EvidenceCapture[]> {
+  return (
+    await evidenceConnectClient.listEvidenceCaptures({
+      scenarioName: scenario,
+    })
+  ).captures;
 }
 
-export interface CapturesSummary {
-  count: number;
-  total_bytes: number;
+export async function getCapturesSummary(
+  scenario: string,
+): Promise<EvidenceCapturesSummary> {
+  return evidenceConnectClient.getEvidenceCapturesSummary({
+    scenarioName: scenario,
+  });
 }
 
-export async function listCaptures(scenario: string): Promise<Capture[]> {
-  const res = await fetch(buildUrl(`/captures/${encodeURIComponent(scenario)}`));
-  await throwIfNotOk(res);
-  return (await res.json()) as Capture[];
-}
-
-export async function getCapturesSummary(scenario: string): Promise<CapturesSummary> {
-  const res = await fetch(buildUrl(`/captures/${encodeURIComponent(scenario)}/summary`));
-  await throwIfNotOk(res);
-  return (await res.json()) as CapturesSummary;
-}
-
-export function buildCaptureFileUrl(scenario: string, captureId: string): string {
-  return buildUrl(`/captures/${encodeURIComponent(scenario)}/${encodeURIComponent(captureId)}/file`);
-}
-
-export async function deleteCapture(scenario: string, captureId: string): Promise<void> {
-  const res = await fetch(
-    buildUrl(`/captures/${encodeURIComponent(scenario)}/${encodeURIComponent(captureId)}`),
-    { method: "DELETE" },
+export function buildCaptureFileUrl(
+  scenario: string,
+  captureId: string,
+): string {
+  return buildUrl(
+    `/captures/${encodeURIComponent(scenario)}/${encodeURIComponent(captureId)}/file`,
   );
-  await throwIfNotOk(res);
+}
+
+export async function deleteCapture(
+  scenario: string,
+  captureId: string,
+): Promise<void> {
+  await evidenceConnectClient.deleteEvidenceCapture({
+    scenarioName: scenario,
+    captureId,
+  });
 }
 
 export async function deleteAllCaptures(scenario: string): Promise<void> {
-  const res = await fetch(buildUrl(`/captures/${encodeURIComponent(scenario)}`), {
-    method: "DELETE",
+  await evidenceConnectClient.deleteAllEvidenceCaptures({
+    scenarioName: scenario,
   });
-  await throwIfNotOk(res);
 }
 
-export function buildCapturesDownloadUrl(scenario: string, ids: string[]): string {
-  return buildUrl(`/captures/${encodeURIComponent(scenario)}/download?ids=${ids.map(encodeURIComponent).join(",")}`);
+export function buildCapturesDownloadUrl(
+  scenario: string,
+  ids: string[],
+): string {
+  return buildUrl(
+    `/captures/${encodeURIComponent(scenario)}/download?ids=${ids.map(encodeURIComponent).join(",")}`,
+  );
 }

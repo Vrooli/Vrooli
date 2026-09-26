@@ -19,6 +19,7 @@ import {
 import type { SessionManager } from '../../src/session';
 import type { Config } from '../../src/config';
 import { createTestConfig } from '../helpers/test-config';
+import { SessionNotFoundError } from '../../src/utils';
 
 // Helper to create mock request
 function createMockRequest(options: {
@@ -112,6 +113,7 @@ const getBooleanField = (data: Record<string, unknown>, key: string): boolean | 
 
 interface MockPipelineManager {
   isRecording: jest.Mock<boolean, []>;
+  getGeneration: jest.Mock<number, []>;
   getRecordingId: jest.Mock<string | undefined, []>;
   getRecordingData: jest.Mock<{ startedAt: string } | undefined, []>;
   getState: jest.Mock<{
@@ -149,9 +151,11 @@ function createMockPipelineManager(overrides?: Partial<{
     startedAt: '2024-01-01T00:00:00.000Z',
   };
   const config = { ...defaults, ...overrides };
+  let generation = config.isRecording ? 1 : 0;
 
   return {
-    isRecording: jest.fn<boolean, []>().mockReturnValue(config.isRecording),
+    isRecording: jest.fn<boolean, []>().mockImplementation(() => config.isRecording),
+    getGeneration: jest.fn<number, []>().mockImplementation(() => generation),
     getRecordingId: jest.fn<string | undefined, []>().mockReturnValue(config.recordingId),
     getRecordingData: jest.fn<{ startedAt: string } | undefined, []>().mockReturnValue(
       config.isRecording ? { startedAt: config.startedAt } : undefined
@@ -159,16 +163,20 @@ function createMockPipelineManager(overrides?: Partial<{
     getState: jest.fn<{
       phase: string;
       recording?: { recordingId?: string; actionCount: number; startedAt: string };
-    }, []>().mockReturnValue({
+    }, []>().mockImplementation(() => ({
       phase: config.isRecording ? 'capturing' : config.phase,
       recording: config.isRecording ? {
         recordingId: config.recordingId,
         actionCount: config.actionCount,
         startedAt: config.startedAt,
       } : undefined,
-    }),
+    })),
     startRecording: jest.fn<Promise<string>, []>()
-      .mockResolvedValue(config.recordingId || 'recording-123'),
+      .mockImplementation(async () => {
+        config.isRecording = true;
+        generation++;
+        return config.recordingId || 'recording-123';
+      }),
     stopRecording: jest.fn<Promise<{ recordingId: string; actionCount: number }>, []>()
       .mockResolvedValue({
       recordingId: config.recordingId || 'recording-123',
@@ -198,7 +206,7 @@ function createMockPipelineManager(overrides?: Partial<{
 
 // Helper to create mock session manager
 function createMockSessionManager(session?: unknown): SessionManager {
-  const mockSession = session || {
+  const mockSession = { phase: 'ready', ownerExecutionId: 'record-owner', leaseId: 'record-lease', ...(isRecord(session) ? session : {
     page: {
       url: jest.fn().mockReturnValue('https://example.com'),
       locator: jest.fn().mockReturnValue({
@@ -207,11 +215,15 @@ function createMockSessionManager(session?: unknown): SessionManager {
       evaluate: jest.fn().mockResolvedValue(1),
     },
     pipelineManager: createMockPipelineManager(),
-    phase: 'ready',
-  };
+  }) };
 
   return {
     getSession: jest.fn().mockReturnValue(mockSession),
+    getSessionForLease: jest.fn((id: string, owner: string, lease: string) => {
+      if (owner !== mockSession.ownerExecutionId || lease !== mockSession.leaseId) throw new SessionNotFoundError(id);
+      return mockSession;
+    }),
+    updateActivity: jest.fn(),
     setSessionPhase: jest.fn(),
   } as unknown as SessionManager;
 }
@@ -242,7 +254,7 @@ describe('Record Mode Routes', () => {
       };
 
       const sessionManager = createMockSessionManager(mockSession);
-      const req = createMockRequest({ body: {} });
+      const req = createMockRequest({ body: { execution_id: 'record-owner', lease_id: 'record-lease' } });
       const res = createMockResponse();
 
       await handleRecordStart(req, res, sessionId, sessionManager, config);
@@ -265,7 +277,7 @@ describe('Record Mode Routes', () => {
       };
 
       const sessionManager = createMockSessionManager(mockSession);
-      const req = createMockRequest({ body: {} });
+      const req = createMockRequest({ body: { execution_id: 'record-owner', lease_id: 'record-lease' } });
       const res = createMockResponse();
 
       await handleRecordStart(req, res, sessionId, sessionManager, config);
@@ -289,7 +301,7 @@ describe('Record Mode Routes', () => {
       };
 
       const sessionManager = createMockSessionManager(mockSession);
-      const req = createMockRequest({ body: {} });
+      const req = createMockRequest({ body: { execution_id: 'record-owner', lease_id: 'record-lease' } });
       const res = createMockResponse();
 
       await handleRecordStart(req, res, sessionId, sessionManager, config);
@@ -313,7 +325,7 @@ describe('Record Mode Routes', () => {
       };
 
       const sessionManager = createMockSessionManager(mockSession);
-      const req = createMockRequest({});
+      const req = createMockRequest({ body: { execution_id: 'record-owner', lease_id: 'record-lease' } });
       const res = createMockResponse();
 
       await handleRecordStop(req, res, sessionId, sessionManager);
@@ -340,7 +352,7 @@ describe('Record Mode Routes', () => {
       };
 
       const sessionManager = createMockSessionManager(mockSession);
-      const req = createMockRequest({});
+      const req = createMockRequest({ body: { execution_id: 'record-owner', lease_id: 'record-lease' } });
       const res = createMockResponse();
 
       await handleRecordStop(req, res, sessionId, sessionManager);
@@ -420,7 +432,7 @@ describe('Record Mode Routes', () => {
       expect(typeof count).toBe('number');
     });
 
-    it('should clear buffer when clear=true', () => {
+    it('rejects destructive reads without an explicit acknowledgement', () => {
       const sessionManager = createMockSessionManager();
 
       const req = createMockRequest({
@@ -431,10 +443,8 @@ describe('Record Mode Routes', () => {
 
       handleRecordActions(req, res, sessionId, sessionManager);
 
-      expect(res._getStatusCode()).toBe(200);
-      const data = parseResponse(res);
-      // Now returns 'entries' (TimelineEntry format) instead of 'actions'
-      expect(data.entries).toEqual([]);
+      expect(res._getStatusCode()).toBeGreaterThanOrEqual(400);
+      expect(JSON.stringify(parseResponse(res))).toContain('entry_ids');
     });
   });
 

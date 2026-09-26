@@ -68,8 +68,16 @@ function InvestigationItem({
   const label = isFixApplication ? "Fix Application" : "Investigation";
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      }}
       className={cn(
         "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors",
         "hover:bg-white/5 border border-transparent hover:border-white/10",
@@ -100,7 +108,7 @@ function InvestigationItem({
       </div>
       <StatusIcon status={investigation.status} />
       <ChevronRight className="h-4 w-4 text-slate-500" />
-    </button>
+    </div>
   );
 }
 

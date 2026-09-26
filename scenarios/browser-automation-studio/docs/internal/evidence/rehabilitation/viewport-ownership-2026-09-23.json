@@ -1,0 +1,300 @@
+{
+  "schema_version": 1,
+  "cycle": "BAS-WORK-080",
+  "date": "2026-09-23",
+  "issues": [
+    "BAS-RF-038",
+    "BAS-RF-047",
+    "BAS-RF-007"
+  ],
+  "status": "viewport ownership qualified; load-sensitive device streaming failure remains open",
+  "build_identity": "sha256:bb416759b29cb75a6d32e0ec097b231fb4f49effd2455cc72717fbbe01306e65",
+  "source_freeze": {
+    "api/handlers/record_mode.go": {
+      "sha256": "ccbac0ca7b72c594901a485e684e9acb485bc052b0e61a0036a1ec2937eafe4c",
+      "lines": 1014
+    },
+    "api/handlers/record_mode_navigation.go": {
+      "sha256": "d6ac3aaadc9b8464d921222eead5a46919d0e7c8d560955dfc1d040bc06b1a0d",
+      "lines": 164
+    },
+    "api/handlers/record_mode_types.go": {
+      "sha256": "3cbbd9b50b40f94896907e7f863e6491776694d0f7beff0ad2ccabca7e863fc6",
+      "lines": 278
+    },
+    "api/handlers/record_mode_integration_test.go": {
+      "sha256": "70692da54e6547579b86e55daec1522456fcec0ed11abca8b965a8d963578609",
+      "lines": 1086
+    },
+    "api/handlers/record_mode_test.go": {
+      "sha256": "4645d0d02da435b220213480914f1106cae89ccd30bc1df1c248061257a9ded6",
+      "lines": 1199
+    },
+    "api/handlers/testutil_mock_services.go": {
+      "sha256": "b352d65d80ca42504e53691dad625c5e76ba8c85ddce6bdd00c8f7fc46d1c911",
+      "lines": 1470
+    },
+    "api/automation/driver/client.go": {
+      "sha256": "ff19fedf126eaa537dcb37e55373aad718bee7c978718d3ec42aa4520e70c17c",
+      "lines": 1234
+    },
+    "api/automation/driver/types.go": {
+      "sha256": "8e89b4aa0059bdd02ebac0c67eb38cf26012f394c65532f3d2d665773f28cbd9",
+      "lines": 617
+    },
+    "api/automation/session/session.go": {
+      "sha256": "01417a22f55b1cd95cb824d08304b38de1e22285973dc6288a50e93e8e9eb7a1",
+      "lines": 482
+    },
+    "api/automation/session/session_test.go": {
+      "sha256": "7df6a37dd8995e7a6d9729b940147f2833b9cdff8e0ef32dbb9f1f41f8a20fe9",
+      "lines": 1578
+    },
+    "playwright-driver/src/routes/record-mode/recording-input.ts": {
+      "sha256": "3aae87ea71abfe462991e4301d307dae81afb44aacf655f3d7b70636f184d813",
+      "lines": 161
+    },
+    "playwright-driver/src/routes/record-mode/types.ts": {
+      "sha256": "069fd7d0143b326676aa2bbb6f5eb9845c87f0efb98572a30ce4700492ac57e5",
+      "lines": 371
+    },
+    "playwright-driver/tests/unit/routes/record-input.test.ts": {
+      "sha256": "d9fbcb0f2e70c9354eb582caddfa28210cb78d44eaa6e974f9c241afed4df9c1",
+      "lines": 223
+    },
+    "playwright-driver/src/frame-streaming/manager.ts": {
+      "sha256": "f2ac852c0739559ce2d2fcb5ef4a6b6cf99d1ca99e6ee0442775bb6d4ff65372",
+      "lines": 336
+    },
+    "playwright-driver/src/frame-streaming/index.ts": {
+      "sha256": "258e8370173d0e1aaa6e6550925860066c781ccf55c27a5350071731a823ad5f",
+      "lines": 55
+    },
+    "playwright-driver/src/frame-streaming/types.ts": {
+      "sha256": "fd657b6d8543f01466ee88a4ffefd7dabaab25fb1b3b04186265bb9744e71c1e",
+      "lines": 96
+    },
+    "playwright-driver/src/frame-streaming/strategies/interface.ts": {
+      "sha256": "ade859512e72f657d3af1b38148cd73b5ea2c89034af0015543222a730ce0a6b",
+      "lines": 173
+    },
+    "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts": {
+      "sha256": "c7f4a7a5f171d056b305fc589e99875e7ef47e04a1dd8ffe7aab4eb703e94bb0",
+      "lines": 341
+    },
+    "playwright-driver/src/frame-streaming/strategies/polling.ts": {
+      "sha256": "aefd96f68513032d4391d156f04252ef6c8fc0a3a6a4df1ebe5be1fdf60823b3",
+      "lines": 349
+    },
+    "playwright-driver/tests/unit/frame-streaming/manager.test.ts": {
+      "sha256": "0821f28d4f4392e209ae7e16252d4e48bb9d247fbf6e6f337432241c4681d96d",
+      "lines": 379
+    },
+    "playwright-driver/tests/unit/frame-streaming/cdp-screencast-strategy.test.ts": {
+      "sha256": "802d090d2397f556aaf35497917cfa849ccbff30ac7b303133939fd521582cf5",
+      "lines": 669
+    },
+    "ui/src/domains/recording/RecordingSession.tsx": {
+      "sha256": "0f72e4c646317fa80b124effb4f7a025cdd7601fc1050977948e8365e64a907a",
+      "lines": 1429
+    },
+    "ui/src/domains/recording/context/ViewportProvider.tsx": {
+      "sha256": "03846d7ff6d2dc6ce44b45060295611f66f72218f3f3124668b12ec186f0bb97",
+      "lines": 174
+    },
+    "ui/src/domains/recording/context/ViewportProvider.test.tsx": {
+      "sha256": "3bc778b75efae3062ad01d7ce04c9c4a232ee7e9020c6e16d076e3169b389b5f",
+      "lines": 584
+    },
+    "ui/src/domains/recording/utils/ViewportSyncManager.ts": {
+      "sha256": "1d66d0f5170a80e7ff5d3e573c37f3e4901c1630967d5a1bcf5f5fa69fe112f3",
+      "lines": 216
+    },
+    "ui/src/domains/recording/utils/ViewportSyncManager.test.ts": {
+      "sha256": "39677d2d9a762043d5021fa6cfe93a7447b2241bc01fd4cad57896cf9853650d",
+      "lines": 418
+    }
+  },
+  "change": "Immutable Session and canonical selected page own one SDK viewport mutation. API returns actual dimensions. Stream observes the captured page and awaits capture replacement. UI cancels obsolete requests, validates receipts, reuses retained bounds on selection, and compensates for aborted mutations that may have applied.",
+  "retired": [
+    "Direct ownerless API viewport call",
+    "Unused nested ActualViewport driver response",
+    "Second SDK viewport mutation in CDP capture",
+    "Small-change suppression and dropping pending viewport updates",
+    "Public pending/result wrappers and polling no-op updater"
+  ],
+  "red": {
+    "native": "/tmp/bas-viewport-native-red3-080/receipt.json:7pass/3fail",
+    "driver": "/tmp/bas-viewport-driver-red-080.txt:7fail",
+    "go": "/tmp/bas-viewport-go-red-080.txt:4subcases fail",
+    "ui": "/tmp/bas-viewport-ui-red-080.txt:4fail",
+    "capture": "/tmp/bas-viewport-capture-red-080.txt:4fail",
+    "capture_attachment_order": "/tmp/bas-viewport-capture-order-red-080.txt",
+    "capture_start_order": "/tmp/bas-viewport-capture-order-red2-080.txt",
+    "ui_aborted_effect_reversion": "/tmp/bas-viewport-ui-revert-red-080.txt"
+  },
+  "qualification": {
+    "driver": {
+      "run_id": "uh-20260923-094610-84bf0f09b2bb4a06a734530123e6e849",
+      "passed": 1867,
+      "suites_passed": 123,
+      "existing_skips": {
+        "tests": 2,
+        "suites": 1
+      },
+      "artifact": "/tmp/bas-driver-owner-080.json"
+    },
+    "ui": "574/29; /tmp/bas-ui-record-mode-080.txt; UI and driver type checks pass",
+    "go": "four race packages and go build ./... pass; /tmp/bas-go-races-080.txt, /tmp/bas-go-build-080.txt",
+    "native_original": "10/10 /tmp/bas-viewport-native-green-080/receipt.json",
+    "native_css": "63/63 /tmp/bas-preview-geometry-native-css-080/receipt.json",
+    "native_small_rapid": "63/63 /tmp/bas-preview-geometry-native-css-small-rapid-080/receipt.json; one/ten-pixel and rapid return-to-original viewer changes",
+    "native_device_initial": "59pass/4fail /tmp/bas-preview-geometry-native-device-080/receipt.json; wide/restored stream old dimensions while HTTP/canvas correct",
+    "native_device_instrumented": "63/63 /tmp/bas-preview-geometry-native-device-trace-080/receipt.json; no timeout counter; does not erase initial failure",
+    "workflow": {
+      "passed": 12,
+      "independent_effects": 3,
+      "execution_id": "9596b4d4-6703-4333-891e-ecfb10efb4f4",
+      "artifact_dir": "/tmp/bas-recording-e2e-fkecyd"
+    },
+    "profiles": "Three complete original rollback reads; API equals079. /tmp/bas-profile-final-080.txt, /tmp/bas-profile-api-final-080.json",
+    "tidiness": {
+      "run_id": "20260923-094617-3a6877a1",
+      "totalFindings": 1145,
+      "longFiles": 103,
+      "complexity": 408,
+      "duplication": 612,
+      "coupling": 21,
+      "duplicationLineDebt": 31065,
+      "verdict": "existing budgets fail"
+    },
+    "board": "17 outcomes unknown; contract and inventory pass"
+  },
+  "measurements": {
+    "runtime_and_go": {
+      "files": {
+        "api/handlers/record_mode.go": {
+          "before": 1010,
+          "after": 1014,
+          "delta": 4
+        },
+        "api/handlers/record_mode_navigation.go": {
+          "before": 161,
+          "after": 164,
+          "delta": 3
+        },
+        "api/handlers/record_mode_types.go": {
+          "before": 277,
+          "after": 278,
+          "delta": 1
+        },
+        "api/automation/driver/client.go": {
+          "before": 1223,
+          "after": 1234,
+          "delta": 11
+        },
+        "api/automation/driver/types.go": {
+          "before": 618,
+          "after": 617,
+          "delta": -1
+        },
+        "api/automation/session/session.go": {
+          "before": 486,
+          "after": 482,
+          "delta": -4
+        },
+        "playwright-driver/src/routes/record-mode/recording-input.ts": {
+          "before": 185,
+          "after": 161,
+          "delta": -24
+        },
+        "playwright-driver/src/routes/record-mode/types.ts": {
+          "before": 369,
+          "after": 371,
+          "delta": 2
+        },
+        "playwright-driver/src/frame-streaming/manager.ts": {
+          "before": 395,
+          "after": 336,
+          "delta": -59
+        },
+        "playwright-driver/src/frame-streaming/index.ts": {
+          "before": 58,
+          "after": 55,
+          "delta": -3
+        },
+        "playwright-driver/src/frame-streaming/types.ts": {
+          "before": 118,
+          "after": 96,
+          "delta": -22
+        },
+        "playwright-driver/src/frame-streaming/strategies/interface.ts": {
+          "before": 182,
+          "after": 173,
+          "delta": -9
+        },
+        "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts": {
+          "before": 354,
+          "after": 341,
+          "delta": -13
+        },
+        "playwright-driver/src/frame-streaming/strategies/polling.ts": {
+          "before": 360,
+          "after": 349,
+          "delta": -11
+        },
+        "ui/src/domains/recording/RecordingSession.tsx": {
+          "before": 1429,
+          "after": 1429,
+          "delta": 0
+        },
+        "ui/src/domains/recording/context/ViewportProvider.tsx": {
+          "before": 170,
+          "after": 174,
+          "delta": 4
+        },
+        "ui/src/domains/recording/utils/ViewportSyncManager.ts": {
+          "before": 292,
+          "after": 216,
+          "delta": -76
+        }
+      },
+      "runtime_before": 7687,
+      "runtime_after": 7490,
+      "go_before": {
+        "sum": 549,
+        "functions": 131
+      },
+      "go_after": {
+        "sum": 563,
+        "functions": 132
+      },
+      "go_delta": 14,
+      "cumulative_affected_go_delta": -65
+    },
+    "scoped_typescript": {
+      "before": {
+        "code_path_count": 195,
+        "sum": 665
+      },
+      "after": {
+        "code_path_count": 194,
+        "sum": 679
+      },
+      "delta": 14,
+      "artifact": "/tmp/bas-frame-complexity-080.json"
+    },
+    "claim_limit": "Runtime -197; Go +14 (cumulative -65); scoped TS +14. Removed duplicate mutation and obsolete facades, but no net cyclomatic reduction for this slice. Shared-tree domain figures are not wholly attributable to it."
+  },
+  "cohesion_review": [
+    "New syncToBackend complexity21 joins one request lifetime, cancellation and receipt validation; extracting wrappers would not reduce its decisions. No new generic owner or parallel queue.",
+    "Unchanged record input21, stream settings22, polling loop30 remain ownership/policy hotspots; polling under load is the next evidence-driven investigation.",
+    "RecordingSession1429 lines/RecordModePage73 and Go handler/client/type modules above500 lines retain broader composition debt; no wrapper extraction claimed. New Go viewport path is below15; existing creation42, frame19, workflow18, driver decode18, callback16 remain explicit hotspots."
+  ],
+  "limitations": [
+    "Device streaming load failure is actionable RF007 evidence. Failed session metrics retain20 timeout skips,10delivered frames,4unchanged; /tmp/bas-device-failed-session-metrics-080.txt. Instrumented pass had no timeouts. Concurrent RCL workload was observed, not controlled; causal attribution requires controlled capture experiments.",
+    "No full recovery, sustained performance, native OS or release qualification.",
+    "Rapid native viewer changes qualify eventual dimensions; maintained deferred tests separately prove aborted-but-applied and capture-start ordering."
+  ],
+  "pending_operations": []
+}

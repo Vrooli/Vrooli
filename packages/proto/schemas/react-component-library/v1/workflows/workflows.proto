@@ -1,0 +1,156 @@
+syntax = "proto3";
+
+package vrooli.react_component_library.v1.workflows;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/workflows;workflows_v1";
+
+// =============================================================================
+// WORKFLOWS DOMAIN — RCL-owned attribution and observation of assisted work
+// =============================================================================
+//
+// @layer 5
+// @stability stable
+//
+// Workflow records do not assert that a catalog mutation succeeded. RCL's
+// direct ingest/apply APIs remain authoritative; a terminal agent run is only
+// observable execution state until RCL has reconciled the target asset.
+
+service WorkflowsService {
+  rpc StartWorkflow(StartWorkflowRequest) returns (StartWorkflowResponse);
+  rpc ListWorkflows(ListWorkflowsRequest) returns (ListWorkflowsResponse);
+  rpc GetWorkflow(GetWorkflowRequest) returns (GetWorkflowResponse);
+  rpc RefreshWorkflow(RefreshWorkflowRequest) returns (RefreshWorkflowResponse);
+  rpc StopWorkflow(StopWorkflowRequest) returns (StopWorkflowResponse);
+  rpc RetryWorkflow(RetryWorkflowRequest) returns (RetryWorkflowResponse);
+  // Computes evidence required to call a source asset canonical. This is
+  // read-only: ingest and adoption apply/reapply remain the only write paths.
+  rpc GetPromotionReadiness(GetPromotionReadinessRequest) returns (GetPromotionReadinessResponse);
+}
+
+enum WorkflowKind {
+  WORKFLOW_KIND_UNSPECIFIED = 0;
+  WORKFLOW_KIND_EXTRACT = 1;
+  WORKFLOW_KIND_ADOPT = 2;
+}
+
+enum WorkflowStatus {
+  WORKFLOW_STATUS_UNSPECIFIED = 0;
+  WORKFLOW_STATUS_QUEUED = 1;
+  WORKFLOW_STATUS_RUNNING = 2;
+  WORKFLOW_STATUS_PARKED = 3;
+  WORKFLOW_STATUS_SUCCEEDED = 4;
+  WORKFLOW_STATUS_FAILED = 5;
+  WORKFLOW_STATUS_STOPPED = 6;
+  WORKFLOW_STATUS_UNAVAILABLE = 7;
+}
+
+message Workflow {
+  string id = 1;
+  WorkflowKind kind = 2;
+  string asset_id = 3;
+  string source_scenario = 4;
+  string target_scenario = 5;
+  string source_path = 6;
+  string requested_version = 7;
+  string agent_manager_task_id = 8;
+  string agent_manager_run_id = 9;
+  string idempotency_key = 10;
+  WorkflowStatus status = 11;
+  int64 last_event_sequence = 12;
+  string summary = 13;
+  string error = 14;
+  google.protobuf.Timestamp created_at = 15;
+  google.protobuf.Timestamp updated_at = 16;
+  google.protobuf.Timestamp completed_at = 17;
+  bool can_stop = 18;
+  bool can_retry = 19;
+  // Declared Agent Manager workflow execution identity. New records use this
+  // instead of the legacy task/run identifiers above.
+  string agent_manager_execution_id = 20;
+}
+
+message StartWorkflowRequest {
+  WorkflowKind kind = 1;
+  string asset_id = 2;
+  string source_scenario = 3;
+  string target_scenario = 4;
+  string source_path = 5;
+  string requested_version = 6;
+  string idempotency_key = 7;
+  bool confirm_overwrite = 8;
+  bool override_validation = 9;
+}
+
+message StartWorkflowResponse {
+  Workflow workflow = 1;
+  int32 queue_depth = 2;
+}
+
+message ListWorkflowsRequest {
+  string asset_id = 1;
+  string target_scenario = 2;
+  bool active_only = 3;
+  int32 limit = 4;
+}
+
+message ListWorkflowsResponse {
+  repeated Workflow workflows = 1;
+}
+
+message GetWorkflowRequest {
+  string id = 1;
+}
+message GetWorkflowResponse {
+  Workflow workflow = 1;
+}
+message RefreshWorkflowRequest {
+  string id = 1;
+}
+message RefreshWorkflowResponse {
+  Workflow workflow = 1;
+}
+message StopWorkflowRequest {
+  string id = 1;
+}
+message StopWorkflowResponse {
+  Workflow workflow = 1;
+}
+message RetryWorkflowRequest {
+  string id = 1;
+  string idempotency_key = 2;
+}
+message RetryWorkflowResponse {
+  Workflow workflow = 1;
+  int32 queue_depth = 2;
+}
+
+message GetPromotionReadinessRequest {
+  string asset_id = 1;
+  string origin_scenario = 2;
+  string version = 3;
+}
+
+message PromotionReadiness {
+  string asset_id = 1;
+  string library_id = 2;
+  string selected_version = 3;
+  string origin_scenario = 4;
+  repeated string dependency_library_ids = 5;
+  repeated string origin_files = 6;
+  int32 required_example_count = 7;
+  int32 available_example_count = 8;
+  bool parity_report_present = 9;
+  bool parity_waived = 10;
+  repeated string parity_findings = 11;
+  bool origin_replacement_present = 12;
+  bool origin_replacement_clean = 13;
+  repeated string blockers = 14;
+  bool ready = 15;
+  string next_validation_command = 16;
+}
+
+message GetPromotionReadinessResponse {
+  PromotionReadiness readiness = 1;
+}

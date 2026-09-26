@@ -1,0 +1,285 @@
+{
+  "record": "BAS-WORK-039",
+  "date": "2026-09-22",
+  "issues": [
+    "BAS-RF-038",
+    "BAS-RF-076"
+  ],
+  "status": "lease_admission_deployed_storage_reset_unrepaired",
+  "native_before": {
+    "results": [
+      {
+        "variant": "stale",
+        "status": 500,
+        "reply": {
+          "error": {
+            "code": "INTERNAL_ERROR",
+            "message": "page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\n    at UtilityScript.evaluate (<anonymous>:315:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+            "kind": 1,
+            "retryable": false
+          }
+        },
+        "before": {
+          "url": "http://127.0.0.1:41425/",
+          "cookies": [
+            {
+              "name": "reset_sentinel",
+              "value": "preserve",
+              "domain": "127.0.0.1",
+              "path": "/",
+              "expires": -1,
+              "httpOnly": false,
+              "secure": false,
+              "sameSite": "Lax"
+            }
+          ],
+          "phase": "ready"
+        },
+        "after": {
+          "url": "about:blank",
+          "cookies": [],
+          "phase": "resetting"
+        },
+        "retainedLocalStorage": "preserve"
+      },
+      {
+        "variant": "missing",
+        "status": 500,
+        "reply": {
+          "error": {
+            "code": "INTERNAL_ERROR",
+            "message": "page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\n    at UtilityScript.evaluate (<anonymous>:315:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+            "kind": 1,
+            "retryable": false
+          }
+        },
+        "before": {
+          "url": "http://127.0.0.1:41425/",
+          "cookies": [
+            {
+              "name": "reset_sentinel",
+              "value": "preserve",
+              "domain": "127.0.0.1",
+              "path": "/",
+              "expires": -1,
+              "httpOnly": false,
+              "secure": false,
+              "sameSite": "Lax"
+            }
+          ],
+          "phase": "ready"
+        },
+        "after": {
+          "url": "about:blank",
+          "cookies": [],
+          "phase": "resetting"
+        },
+        "retainedLocalStorage": "preserve"
+      },
+      {
+        "variant": "current",
+        "status": 500,
+        "reply": {
+          "error": {
+            "code": "INTERNAL_ERROR",
+            "message": "page.evaluate: SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document.\n    at UtilityScript.evaluate (<anonymous>:315:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+            "kind": 1,
+            "retryable": false
+          }
+        },
+        "before": {
+          "url": "http://127.0.0.1:41425/",
+          "cookies": [
+            {
+              "name": "reset_sentinel",
+              "value": "preserve",
+              "domain": "127.0.0.1",
+              "path": "/",
+              "expires": -1,
+              "httpOnly": false,
+              "secure": false,
+              "sameSite": "Lax"
+            }
+          ],
+          "phase": "ready"
+        },
+        "after": {
+          "url": "about:blank",
+          "cookies": [],
+          "phase": "resetting"
+        },
+        "retainedLocalStorage": "preserve"
+      }
+    ]
+  },
+  "scope": "Reset admission; successful clean storage reset remains unqualified and is separately proven defective (RF076).",
+  "native_maintained_red": {
+    "failed_cases": 3,
+    "seconds": 3.204,
+    "receipt": "/tmp/bas-reset-maintained-red-039.txt"
+  },
+  "go_red": "/tmp/bas-reset-go-red-039.txt",
+  "focused": {
+    "tests": 9,
+    "suites": 2,
+    "seconds": 4.248,
+    "status": "passed",
+    "detect_open_handles": true,
+    "receipt": "/tmp/bas-reset-final-focused-039.txt"
+  },
+  "go_race": {
+    "status": "passed",
+    "packages": [
+      "automation/driver",
+      "automation/session",
+      "automation/engine"
+    ],
+    "receipt": "/tmp/bas-reset-final-go-039.txt"
+  },
+  "runtime_line_counts": [
+    {
+      "path": "playwright-driver/src/routes/session-reset.ts",
+      "before_lines": 130,
+      "after_lines": 42
+    },
+    {
+      "path": "api/automation/driver/client.go",
+      "before_lines": 1162,
+      "after_lines": 1173
+    },
+    {
+      "path": "api/automation/session/session.go",
+      "before_lines": 426,
+      "after_lines": 426
+    }
+  ],
+  "runtime_net_lines": -77,
+  "go_metrics": {
+    "before": {
+      "functions": 99,
+      "cyclomatic": 290
+    },
+    "after": {
+      "functions": 99,
+      "cyclomatic": 292
+    }
+  },
+  "source_sha256": {
+    "playwright-driver/src/routes/session-reset.ts": "38fde6fe9f53b5c96a47ef77ee8570217132dc2115bd7fd86ceeff764758d5f2",
+    "api/automation/driver/client.go": "a22637c7e898263122d3ae57c247e51bb273c3c4f1402b752143cc5c5750852c",
+    "api/automation/session/session.go": "ebc33b14eb9a4232db583e0ceb774597fa28d76eff2b98af40676f4b55de4a0d"
+  },
+  "pending_operations": [],
+  "live_build_unchanged": "sha256:8129e9e98743f51dfb61a568315b0662dd69c312ca63beff80197474745a2e80",
+  "api_owner": {
+    "run_id": "uh-20260922-173337-7982c7926e5e83a27ee25627d788697f",
+    "status": "passed",
+    "duration_ms": "36661",
+    "receipt": "/tmp/bas-reset-api-owner-039.json"
+  },
+  "tidiness": {
+    "run_id": "20260922-173343-048f3e9f",
+    "status": "failed",
+    "quiet_wait_consumed": true,
+    "summary": {
+      "totalFindings": 1118,
+      "longFiles": 104,
+      "complexity": 387,
+      "duplication": 608,
+      "coupling": 18,
+      "duplicationLineDebt": 32643
+    },
+    "receipt": "/tmp/bas-reset-tidiness-native-039.json",
+    "attribution": "Whole dirty scenario observation; duplication debt reduction is not attributed solely to039."
+  },
+  "builds": {
+    "api_ui": "passed",
+    "driver": "passed",
+    "types": "passed"
+  },
+  "board": {
+    "program_id": "prog_41d40642-91c9-4e08-9fe0-90a6ffc4d7f4",
+    "required": 17,
+    "pending": 17,
+    "product_qualified": false
+  },
+  "cumulative_affected_go_cyclomatic_delta": -246,
+  "driver_owner": {
+    "run_id": "uh-20260922-173337-68e0fa749361097f6a4aa0c9df53bc49",
+    "status": "passed",
+    "duration_ms": "342144",
+    "jest_seconds": 337.637,
+    "tests_passed": 1565,
+    "suites_passed": 124,
+    "tests_skipped": 2,
+    "suites_skipped": 1,
+    "receipt": "/tmp/bas-reset-driver-owner-039.json",
+    "limitation": "Jest warned of an open handle after one second, then exited naturally. Focused --detectOpenHandles emitted no handle report; absence of lifecycle leaks is not established."
+  },
+  "publication_gate": {
+    "checked_at": "2026-09-22T17:40:45.568255+00:00",
+    "rows": 2618,
+    "states": {
+      "EXECUTION_STATUS_COMPLETED": 2239,
+      "EXECUTION_STATUS_FAILED": 374,
+      "EXECUTION_STATUS_RUNNING": 5
+    },
+    "historical_orphans": [
+      {
+        "executionId": "879c542b-d9cd-481b-82d2-6b6c7c11ebf1",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-16T13:18:42.087757908Z",
+        "createdAt": "2026-09-16T13:18:42Z",
+        "updatedAt": "2026-09-16T13:19:10.005000924Z"
+      },
+      {
+        "executionId": "d19bd80e-2624-4874-ab9f-eab0cda42286",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-09T19:30:12.784163869Z",
+        "createdAt": "2026-09-09T19:30:12Z",
+        "updatedAt": "2026-09-09T19:30:18.302018879Z"
+      },
+      {
+        "executionId": "b74ec692-da21-42f7-a86c-f33d436ecfbb",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-09T06:30:44.282585140Z",
+        "createdAt": "2026-09-09T06:30:44Z",
+        "updatedAt": "2026-09-09T06:30:45.060249200Z"
+      },
+      {
+        "executionId": "e0d33e05-297d-4867-aee0-783d59882fa8",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-07T20:36:44.551353663Z",
+        "createdAt": "2026-09-07T20:36:44Z",
+        "updatedAt": "2026-09-07T20:36:45.625164771Z"
+      },
+      {
+        "executionId": "206d68cf-a72c-4838-872b-f913a6a8def6",
+        "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+        "status": "EXECUTION_STATUS_RUNNING",
+        "startedAt": "2026-09-07T20:36:44.551265983Z",
+        "createdAt": "2026-09-07T20:36:44Z",
+        "updatedAt": "2026-09-07T20:36:45.663485899Z"
+      }
+    ],
+    "driver_sessions": 0,
+    "driver_recordings": 0,
+    "seconds": 0.3515162148978561,
+    "build_before": "sha256:8129e9e98743f51dfb61a568315b0662dd69c312ca63beff80197474745a2e80",
+    "limitation": "Observation before stop, not atomic global admission lock",
+    "decision": "admit stop; preserve orphan history"
+  },
+  "deployment": {
+    "build_identity": "sha256:aa7f6efbe4a4ee3e194865259087c40720dd50b2d2e8412b43c89effe7f3f66e",
+    "healthy_at": "2026-09-22T17:43:49Z",
+    "health_receipt": "/tmp/bas-live-health-039.json",
+    "start_receipt": "/tmp/bas-start-039.txt",
+    "profile_api_metadata_unchanged": true,
+    "complete_original_profile_reads": 3,
+    "profile_receipt": "/tmp/bas-profile-final-039.txt"
+  }
+}

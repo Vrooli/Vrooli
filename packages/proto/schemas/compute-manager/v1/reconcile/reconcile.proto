@@ -1,0 +1,15 @@
+syntax = "proto3";
+package vrooli.compute_manager.v1.reconcile;
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/compute-manager/v1/reconcile;reconcile_v1";
+import "google/protobuf/timestamp.proto";
+enum FindingKind { FINDING_KIND_UNSPECIFIED = 0; FINDING_KIND_UNACCOUNTED_AT_PROVIDER = 1; FINDING_KIND_DESTROYED_OUT_OF_BAND = 2; FINDING_KIND_STATE_DIVERGENCE = 3; FINDING_KIND_COST_DIVERGENCE = 4; }
+message Finding { string id = 1; FindingKind kind = 2; string provider = 3; string provider_instance_id = 4; string instance_id = 5; string status = 6; string detail = 7; google.protobuf.Timestamp observed_at = 8; }
+message RunReconciliationRequest {}
+message RunReconciliationResponse { repeated Finding findings = 1; }
+message ListFindingsRequest { string status = 1; }
+message ListFindingsResponse { repeated Finding findings = 1; }
+message GetFindingRequest { string id = 1; }
+message GetFindingResponse { Finding finding = 1; }
+message QuarantineFindingRequest { string id = 1; }
+message QuarantineFindingResponse { Finding finding = 1; }
+service ReconcileService { rpc RunReconciliation(RunReconciliationRequest) returns (RunReconciliationResponse); rpc ListFindings(ListFindingsRequest) returns (ListFindingsResponse); rpc GetFinding(GetFindingRequest) returns (GetFindingResponse); rpc QuarantineFinding(QuarantineFindingRequest) returns (QuarantineFindingResponse); }

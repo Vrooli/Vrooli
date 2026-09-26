@@ -36,7 +36,6 @@ export function AppsManagement() {
     <AdminLayout maxWidth="wide">
       <div className={LAYOUT.sectionSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Apps Dashboard"
           icon={AppWindow}
           iconBgClass="bg-blue-500/10"
@@ -56,7 +55,7 @@ export function AppsManagement() {
               icon={Download}
               iconBg="bg-blue-500/20"
               iconColor="text-blue-300"
-              onClick={() => navigate('/admin/downloads')}
+              onClick={() => { navigate('/admin/downloads'); }}
               testId="flow-downloads"
             />
             <QuickFlowCard
@@ -65,7 +64,7 @@ export function AppsManagement() {
               icon={Activity}
               iconBg="bg-purple-500/20"
               iconColor="text-purple-300"
-              onClick={() => navigate('/admin/usage')}
+              onClick={() => { navigate('/admin/usage'); }}
               testId="flow-usage"
             />
             <QuickFlowCard
@@ -74,7 +73,7 @@ export function AppsManagement() {
               icon={Gauge}
               iconBg="bg-amber-500/20"
               iconColor="text-amber-300"
-              onClick={() => navigate('/admin/tier-limits')}
+              onClick={() => { navigate('/admin/tier-limits'); }}
               testId="flow-tier-limits"
             />
             <QuickFlowCard
@@ -83,7 +82,7 @@ export function AppsManagement() {
               icon={Gauge}
               iconBg="bg-emerald-500/20"
               iconColor="text-emerald-300"
-              onClick={() => navigate('/admin/app-limits')}
+              onClick={() => { navigate('/admin/app-limits'); }}
               testId="flow-app-limits"
             />
           </div>
@@ -107,14 +106,16 @@ export function AppsManagement() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={refreshDownloadsHealth}
+                onClick={() => {
+                  void refreshDownloadsHealth();
+                }}
                 className="gap-2"
                 data-testid="apps-downloads-refresh"
               >
                 <RefreshCw className="h-4 w-4" />
                 Refresh
               </Button>
-              <Button size="sm" onClick={() => navigate('/admin/downloads')}>
+              <Button size="sm" onClick={() => { navigate('/admin/downloads'); }}>
                 Configure downloads
               </Button>
             </div>
@@ -136,7 +137,7 @@ export function AppsManagement() {
                 iconBg="bg-blue-500/20"
                 description={
                   downloadsHealth.hasApps
-                    ? `${downloadsHealth.appCount} app${downloadsHealth.appCount !== 1 ? 's' : ''} in registry`
+                    ? `${String(downloadsHealth.appCount)} app${downloadsHealth.appCount !== 1 ? 's' : ''} in registry`
                     : 'No apps configured'
                 }
               />
@@ -148,7 +149,7 @@ export function AppsManagement() {
                 iconBg="bg-purple-500/20"
                 description={
                   downloadsHealth.platformsConfigured > 0
-                    ? `${downloadsHealth.platformsConfigured} platform${downloadsHealth.platformsConfigured !== 1 ? 's' : ''} with installers`
+                    ? `${String(downloadsHealth.platformsConfigured)} platform${downloadsHealth.platformsConfigured !== 1 ? 's' : ''} with installers`
                     : 'No platforms configured'
                 }
               />
@@ -160,7 +161,7 @@ export function AppsManagement() {
                 iconBg="bg-emerald-500/20"
                 description={
                   downloadsHealth.storefrontsConfigured > 0
-                    ? `${downloadsHealth.storefrontsConfigured} storefront${downloadsHealth.storefrontsConfigured !== 1 ? 's' : ''} linked`
+                    ? `${String(downloadsHealth.storefrontsConfigured)} storefront${downloadsHealth.storefrontsConfigured !== 1 ? 's' : ''} linked`
                     : 'No store links'
                 }
               />
@@ -169,7 +170,13 @@ export function AppsManagement() {
             <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100 flex items-center gap-3">
               <AlertTriangle className="h-4 w-4" />
               <span>Unable to load downloads status</span>
-              <Button size="sm" variant="ghost" onClick={refreshDownloadsHealth}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  void refreshDownloadsHealth();
+                }}
+              >
                 Retry
               </Button>
             </div>
@@ -196,7 +203,7 @@ export function AppsManagement() {
                 </p>
                 <Button
                   size="sm"
-                  onClick={() => navigate('/admin/downloads')}
+                  onClick={() => { navigate('/admin/downloads'); }}
                   data-testid="apps-add-first"
                 >
                   Configure downloads
@@ -227,14 +234,14 @@ export function AppsManagement() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => navigate('/admin/usage')}
+                  onClick={() => { navigate('/admin/usage'); }}
                 >
                   View usage dashboard
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => navigate('/admin/tier-limits')}
+                  onClick={() => { navigate('/admin/tier-limits'); }}
                 >
                   Configure tier limits
                 </Button>

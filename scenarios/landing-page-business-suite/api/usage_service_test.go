@@ -8,6 +8,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // createTestUsageDB creates an in-memory SQLite database for testing.
@@ -56,6 +57,20 @@ func createTestUsageDB(t *testing.T) *sql.DB {
 
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_usage_records_operation_id ON usage_records(operation_id) WHERE operation_id IS NOT NULL;
 
+		CREATE TABLE IF NOT EXISTS usage_events (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			operation_id TEXT UNIQUE,
+			user_identity TEXT NOT NULL,
+			app_bundle_key TEXT NOT NULL DEFAULT 'unattributed',
+			model TEXT NOT NULL DEFAULT 'unknown',
+			credits INTEGER NOT NULL,
+			cost_micros INTEGER NOT NULL DEFAULT 0,
+			prompt_tokens INTEGER NOT NULL DEFAULT 0,
+			completion_tokens INTEGER NOT NULL DEFAULT 0,
+			provider TEXT NOT NULL DEFAULT 'local',
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+
 		CREATE TABLE IF NOT EXISTS credit_reservations (
 			id TEXT PRIMARY KEY,
 			user_identity TEXT NOT NULL,
@@ -79,36 +94,17 @@ func createTestUsageDB(t *testing.T) *sql.DB {
 }
 
 // createTestUsageService creates a usage service for testing.
-func createTestUsageService(t *testing.T) (*UsageService, *LimitsService, *sql.DB) {
+func createTestUsageService(t *testing.T) (*commerce.UsageService, *commerce.LimitsService, *sql.DB) {
 	t.Helper()
 
 	db := createTestUsageDB(t)
 	limitsSvc := NewLimitsService(db, "sqlite")
 
-	// Create usage service without service token for basic tests (with SQLite dialect)
-	usageSvc := &UsageService{
-		db:           db,
-		limitsSvc:    limitsSvc,
-		serviceToken: "",
-		dialect:      "sqlite",
-	}
-
-	return usageSvc, limitsSvc, db
-}
-
-// createTestUsageServiceWithToken creates a usage service with a service token.
-func createTestUsageServiceWithToken(t *testing.T, token string) (*UsageService, *LimitsService, *sql.DB) {
-	t.Helper()
-
-	db := createTestUsageDB(t)
-	limitsSvc := NewLimitsService(db, "sqlite")
-
-	usageSvc := &UsageService{
-		db:           db,
-		limitsSvc:    limitsSvc,
-		serviceToken: token,
-		dialect:      "sqlite",
-	}
+	// Construct the domain service directly so unit tests never inherit a
+	// process-level production secret from the composition root.
+	usageSvc := commerce.NewUsageServiceWithOptions(commerce.UsageServiceOptions{
+		DB: db, LimitsService: limitsSvc, Dialect: "sqlite",
+	})
 
 	return usageSvc, limitsSvc, db
 }
@@ -147,8 +143,8 @@ func getCurrentBillingPeriodTest() string {
 
 // MockLimitsService implements LimitsServicer for testing.
 type MockLimitsService struct {
-	GetLimitFn      func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error)
-	GetTierLimitsFn func(ctx context.Context, tierID string) ([]TierLimit, error)
+	GetLimitFn      func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*commerce.TierLimit, error)
+	GetTierLimitsFn func(ctx context.Context, tierID string) ([]commerce.TierLimit, error)
 	GetLimitCalls   []struct {
 		TierID       string
 		LimitKey     string
@@ -156,7 +152,7 @@ type MockLimitsService struct {
 	}
 }
 
-func (m *MockLimitsService) GetLimit(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
+func (m *MockLimitsService) GetLimit(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*commerce.TierLimit, error) {
 	m.GetLimitCalls = append(m.GetLimitCalls, struct {
 		TierID       string
 		LimitKey     string
@@ -166,31 +162,28 @@ func (m *MockLimitsService) GetLimit(ctx context.Context, tierID, limitKey strin
 		return m.GetLimitFn(ctx, tierID, limitKey, appBundleKey)
 	}
 	// Default: unlimited
-	return &TierLimit{LimitValue: -1, LimitType: "cost_based", CostMultiplier: 1000000}, nil
+	return &commerce.TierLimit{LimitValue: -1, LimitType: "cost_based", CostMultiplier: 1000000}, nil
 }
 
-func (m *MockLimitsService) GetTierLimits(ctx context.Context, tierID string) ([]TierLimit, error) {
+func (m *MockLimitsService) GetTierLimits(ctx context.Context, tierID string) ([]commerce.TierLimit, error) {
 	if m.GetTierLimitsFn != nil {
 		return m.GetTierLimitsFn(ctx, tierID)
 	}
-	return []TierLimit{}, nil
+	return []commerce.TierLimit{}, nil
 }
 
 // Compile-time check
-var _ LimitsServicer = (*MockLimitsService)(nil)
+var _ commerce.LimitsServicer = (*MockLimitsService)(nil)
 
 // createTestUsageServiceWithMock creates a usage service with a mock limits service.
-func createTestUsageServiceWithMock(t *testing.T, mock *MockLimitsService) (*UsageService, *sql.DB) {
+func createTestUsageServiceWithMock(t *testing.T, mock *MockLimitsService) (*commerce.UsageService, *sql.DB) {
 	t.Helper()
 
 	db := createTestUsageDB(t)
 
-	usageSvc := &UsageService{
-		db:           db,
-		limitsSvc:    mock,
-		serviceToken: "",
-		dialect:      "sqlite",
-	}
+	usageSvc := commerce.NewUsageServiceWithOptions(commerce.UsageServiceOptions{
+		DB: db, LimitsService: mock, Dialect: "sqlite",
+	})
 
 	return usageSvc, db
 }
@@ -206,7 +199,7 @@ func TestUsageService_RecordUsage_InsertsNewRecord(t *testing.T) {
 	ctx := context.Background()
 	currentPeriod := getCurrentBillingPeriodTest()
 
-	req := UsageReportRequest{
+	req := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -240,7 +233,7 @@ func TestUsageService_RecordUsage_IncrementsExisting(t *testing.T) {
 	ctx := context.Background()
 
 	// First usage
-	req := UsageReportRequest{
+	req := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -281,7 +274,7 @@ func TestUsageService_RecordUsage_BYOK_ZeroAmount(t *testing.T) {
 	ctx := context.Background()
 
 	// BYOK request with positive amount (should be recorded as 0)
-	req := UsageReportRequest{
+	req := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000, // This should be ignored because IsBYOK is true
@@ -315,7 +308,7 @@ func TestUsageService_RecordUsage_EmptyUserIdentity_ReturnsError(t *testing.T) {
 
 	ctx := context.Background()
 
-	req := UsageReportRequest{
+	req := commerce.UsageReportRequest{
 		UserIdentity: "",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -333,7 +326,7 @@ func TestUsageService_RecordUsage_EmptyLimitKey_ReturnsError(t *testing.T) {
 
 	ctx := context.Background()
 
-	req := UsageReportRequest{
+	req := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "",
 		Amount:       100000,
@@ -351,7 +344,7 @@ func TestUsageService_RecordUsage_ZeroAmount_NonBYOK_ReturnsError(t *testing.T) 
 
 	ctx := context.Background()
 
-	req := UsageReportRequest{
+	req := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       0, // Should error because IsBYOK is false
@@ -632,116 +625,40 @@ func TestUsageService_CheckLimit_NoTier_AllowsAll(t *testing.T) {
 	}
 }
 
-// ============================================================================
-// ValidateServiceToken Tests
-// ============================================================================
-
-func TestUsageService_ValidateServiceToken_ValidToken(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "secret-token-123")
-	defer db.Close()
-
-	valid := svc.ValidateServiceToken("secret-token-123")
-	if !valid {
-		t.Error("Expected valid=true for correct token")
-	}
-}
-
-func TestUsageService_ValidateServiceToken_InvalidToken(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "secret-token-123")
-	defer db.Close()
-
-	valid := svc.ValidateServiceToken("wrong-token")
-	if valid {
-		t.Error("Expected valid=false for incorrect token")
-	}
-}
-
-func TestUsageService_ValidateServiceToken_EmptyConfigured_RejectsAll(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "")
-	defer db.Close()
-
-	// When no token is configured, should reject all tokens
-	valid := svc.ValidateServiceToken("any-token")
-	if valid {
-		t.Error("Expected valid=false when no service token configured")
-	}
-
-	valid = svc.ValidateServiceToken("")
-	if valid {
-		t.Error("Expected valid=false for empty token when none configured")
-	}
-}
-
-// TestUsageService_ValidateServiceToken_ConstantTime tests that token validation
-// works correctly with constant-time comparison (functional test, not timing test).
-// This verifies that subtle.ConstantTimeCompare is used correctly.
-func TestUsageService_ValidateServiceToken_ConstantTime(t *testing.T) {
-	// Test with various token lengths to ensure constant-time compare works
-	testCases := []struct {
+func TestUsageService_HealthCheck_ReportsServiceAuthState(t *testing.T) {
+	cases := []struct {
 		name       string
-		configured string
-		provided   string
-		expectOK   bool
+		configured func() bool
+		want       bool
+		wantMode   string
 	}{
-		{"exact match", "secret-token-123", "secret-token-123", true},
-		{"same length different content", "secret-token-123", "secret-token-456", false},
-		{"shorter provided", "secret-token-123", "short", false},
-		{"longer provided", "secret-token-123", "secret-token-123-extra-long", false},
-		{"prefix match only", "secret-token-123", "secret-token", false},
-		{"suffix match only", "secret-token-123", "token-123", false},
-		{"case sensitive", "Secret-Token-123", "secret-token-123", false},
-		{"empty provided", "secret-token-123", "", false},
-		{"single char match", "x", "x", true},
-		{"single char mismatch", "x", "y", false},
-		{"unicode tokens", "tökën-123", "tökën-123", true},
-		{"unicode mismatch", "tökën-123", "token-123", false},
+		{"unconfigured seam", nil, false, "disabled"},
+		{"configured", func() bool { return true }, true, "enabled"},
+		{"explicitly disabled", func() bool { return false }, false, "disabled"},
 	}
-
-	for _, tc := range testCases {
+	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			svc, _, db := createTestUsageServiceWithToken(t, tc.configured)
+			db := createTestUsageDB(t)
 			defer db.Close()
 
-			valid := svc.ValidateServiceToken(tc.provided)
-			if valid != tc.expectOK {
-				t.Errorf("ValidateServiceToken(%q) = %v, expected %v (configured: %q)",
-					tc.provided, valid, tc.expectOK, tc.configured)
+			svc := commerce.NewUsageServiceWithOptions(commerce.UsageServiceOptions{
+				DB:                    db,
+				LimitsService:         NewLimitsService(db, "sqlite"),
+				Dialect:               "sqlite",
+				ServiceAuthConfigured: tc.configured,
+			})
+
+			status, err := svc.HealthCheck(context.Background())
+			if err != nil {
+				t.Fatalf("HealthCheck() returned error: %v", err)
+			}
+			if status.ServiceAuthConfigured != tc.want {
+				t.Fatalf("service_auth_configured = %v, want %v", status.ServiceAuthConfigured, tc.want)
+			}
+			if status.ServiceAuthMode != tc.wantMode {
+				t.Fatalf("service_auth_mode = %q, want %q", status.ServiceAuthMode, tc.wantMode)
 			}
 		})
-	}
-}
-
-func TestUsageService_HealthCheck_ServiceAuthConfigured_True(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "service-secret")
-	defer db.Close()
-
-	status, err := svc.HealthCheck(context.Background())
-	if err != nil {
-		t.Fatalf("HealthCheck() returned error: %v", err)
-	}
-
-	if !status.ServiceAuthConfigured {
-		t.Fatal("expected service_auth_configured=true")
-	}
-	if status.ServiceAuthMode != "token" {
-		t.Fatalf("expected service_auth_mode=token, got %q", status.ServiceAuthMode)
-	}
-}
-
-func TestUsageService_HealthCheck_ServiceAuthConfigured_False(t *testing.T) {
-	svc, _, db := createTestUsageServiceWithToken(t, "")
-	defer db.Close()
-
-	status, err := svc.HealthCheck(context.Background())
-	if err != nil {
-		t.Fatalf("HealthCheck() returned error: %v", err)
-	}
-
-	if status.ServiceAuthConfigured {
-		t.Fatal("expected service_auth_configured=false")
-	}
-	if status.ServiceAuthMode != "disabled" {
-		t.Fatalf("expected service_auth_mode=disabled, got %q", status.ServiceAuthMode)
 	}
 }
 
@@ -816,7 +733,7 @@ func TestUsageService_RecordUsage_WithOperationID_FirstTime_RecordsUsage(t *test
 	ctx := context.Background()
 	operationID := "test-operation-id-12345"
 
-	req := UsageReportRequest{
+	req := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -851,7 +768,7 @@ func TestUsageService_RecordUsage_WithOperationID_Duplicate_NoIncrement(t *testi
 	ctx := context.Background()
 	operationID := "test-idempotent-operation-12345"
 
-	req := UsageReportRequest{
+	req := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -901,7 +818,7 @@ func TestUsageService_RecordUsage_WithOperationID_DifferentUser_BothRecorded(t *
 	operationID2 := "operation-user2-67890"
 
 	// First user
-	req1 := UsageReportRequest{
+	req1 := commerce.UsageReportRequest{
 		UserIdentity: "user1@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -914,7 +831,7 @@ func TestUsageService_RecordUsage_WithOperationID_DifferentUser_BothRecorded(t *
 	}
 
 	// Second user with different operation_id
-	req2 := UsageReportRequest{
+	req2 := commerce.UsageReportRequest{
 		UserIdentity: "user2@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       50000,
@@ -952,7 +869,7 @@ func TestUsageService_RecordUsage_NoOperationID_BackwardCompatible(t *testing.T)
 	ctx := context.Background()
 
 	// Request without operation_id (backward compatibility)
-	req := UsageReportRequest{
+	req := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -995,7 +912,7 @@ func TestUsageService_RecordUsage_EmptyOperationID_TreatedAsNil(t *testing.T) {
 	emptyID := ""
 
 	// Request with empty operation_id (should behave like nil)
-	req := UsageReportRequest{
+	req := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -1039,7 +956,7 @@ func TestUsageService_RecordUsage_DifferentOperationIDs_BothRecorded(t *testing.
 	operationID2 := "operation-2-67890"
 
 	// Same user, different operation_ids
-	req1 := UsageReportRequest{
+	req1 := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -1051,7 +968,7 @@ func TestUsageService_RecordUsage_DifferentOperationIDs_BothRecorded(t *testing.
 		t.Fatalf("First RecordUsage() returned error: %v", err)
 	}
 
-	req2 := UsageReportRequest{
+	req2 := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       50000,
@@ -1085,8 +1002,8 @@ func TestUsageService_RecordUsage_DifferentOperationIDs_BothRecorded(t *testing.
 
 func TestUsageService_ReserveAndCharge_Success_WithSufficientCredits(t *testing.T) {
 	mock := &MockLimitsService{
-		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
-			return &TierLimit{LimitValue: 500000000, LimitType: "cost_based", CostMultiplier: 1000000}, nil
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*commerce.TierLimit, error) {
+			return &commerce.TierLimit{LimitValue: 500000000, LimitType: "cost_based", CostMultiplier: 1000000}, nil
 		},
 	}
 	svc, db := createTestUsageServiceWithMock(t, mock)
@@ -1094,11 +1011,18 @@ func TestUsageService_ReserveAndCharge_Success_WithSufficientCredits(t *testing.
 
 	ctx := context.Background()
 
-	err := svc.ReserveAndCharge(ctx, "user@example.com", "solo", "ai_credits", 100000000, UsageReportRequest{
+	err := svc.ReserveAndCharge(ctx, "user@example.com", "solo", "ai_credits", 100000000, commerce.UsageReportRequest{
 		AppBundleKey: "test-app",
 	})
 	if err != nil {
 		t.Fatalf("ReserveAndCharge() returned error: %v", err)
+	}
+	var eventAppKey, eventModel string
+	if err := db.QueryRow(`SELECT app_bundle_key, model FROM usage_events ORDER BY id DESC LIMIT 1`).Scan(&eventAppKey, &eventModel); err != nil {
+		t.Fatalf("read default usage event: %v", err)
+	}
+	if eventAppKey != "test-app" || eventModel != "unknown" {
+		t.Fatalf("unexpected usage event defaults: app=%q model=%q", eventAppKey, eventModel)
 	}
 
 	// Verify usage was recorded
@@ -1114,8 +1038,8 @@ func TestUsageService_ReserveAndCharge_Success_WithSufficientCredits(t *testing.
 
 func TestUsageService_ReserveAndCharge_InsufficientCredits_ReturnsError(t *testing.T) {
 	mock := &MockLimitsService{
-		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
-			return &TierLimit{LimitValue: 100000000, LimitType: "cost_based", CostMultiplier: 1000000}, nil
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*commerce.TierLimit, error) {
+			return &commerce.TierLimit{LimitValue: 100000000, LimitType: "cost_based", CostMultiplier: 1000000}, nil
 		},
 	}
 	svc, db := createTestUsageServiceWithMock(t, mock)
@@ -1124,9 +1048,9 @@ func TestUsageService_ReserveAndCharge_InsufficientCredits_ReturnsError(t *testi
 	ctx := context.Background()
 
 	// Try to charge more than limit
-	err := svc.ReserveAndCharge(ctx, "user@example.com", "solo", "ai_credits", 200000000, UsageReportRequest{})
+	err := svc.ReserveAndCharge(ctx, "user@example.com", "solo", "ai_credits", 200000000, commerce.UsageReportRequest{})
 	if err == nil {
-		t.Error("Expected ErrInsufficientCredits, got nil")
+		t.Error("Expected intelligence.ErrInsufficientCredits, got nil")
 	}
 }
 
@@ -1136,7 +1060,7 @@ func TestUsageService_ReserveAndCharge_EmptyUserIdentity_ReturnsError(t *testing
 
 	ctx := context.Background()
 
-	err := svc.ReserveAndCharge(ctx, "", "solo", "ai_credits", 100000, UsageReportRequest{})
+	err := svc.ReserveAndCharge(ctx, "", "solo", "ai_credits", 100000, commerce.UsageReportRequest{})
 	if err == nil {
 		t.Error("Expected error for empty user_identity, got nil")
 	}
@@ -1148,7 +1072,7 @@ func TestUsageService_ReserveAndCharge_EmptyLimitKey_ReturnsError(t *testing.T) 
 
 	ctx := context.Background()
 
-	err := svc.ReserveAndCharge(ctx, "user@example.com", "solo", "", 100000, UsageReportRequest{})
+	err := svc.ReserveAndCharge(ctx, "user@example.com", "solo", "", 100000, commerce.UsageReportRequest{})
 	if err == nil {
 		t.Error("Expected error for empty limit_key, got nil")
 	}
@@ -1160,7 +1084,7 @@ func TestUsageService_ReserveAndCharge_ZeroAmount_ReturnsError(t *testing.T) {
 
 	ctx := context.Background()
 
-	err := svc.ReserveAndCharge(ctx, "user@example.com", "solo", "ai_credits", 0, UsageReportRequest{})
+	err := svc.ReserveAndCharge(ctx, "user@example.com", "solo", "ai_credits", 0, commerce.UsageReportRequest{})
 	if err == nil {
 		t.Error("Expected error for zero amount, got nil")
 	}
@@ -1172,7 +1096,7 @@ func TestUsageService_ReserveAndCharge_NegativeAmount_ReturnsError(t *testing.T)
 
 	ctx := context.Background()
 
-	err := svc.ReserveAndCharge(ctx, "user@example.com", "solo", "ai_credits", -100000, UsageReportRequest{})
+	err := svc.ReserveAndCharge(ctx, "user@example.com", "solo", "ai_credits", -100000, commerce.UsageReportRequest{})
 	if err == nil {
 		t.Error("Expected error for negative amount, got nil")
 	}
@@ -1180,8 +1104,8 @@ func TestUsageService_ReserveAndCharge_NegativeAmount_ReturnsError(t *testing.T)
 
 func TestUsageService_ReserveAndCharge_UnlimitedTier_AllowsAnyAmount(t *testing.T) {
 	mock := &MockLimitsService{
-		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
-			return &TierLimit{LimitValue: -1, LimitType: "cost_based", CostMultiplier: 1000000}, nil // unlimited
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*commerce.TierLimit, error) {
+			return &commerce.TierLimit{LimitValue: -1, LimitType: "cost_based", CostMultiplier: 1000000}, nil // unlimited
 		},
 	}
 	svc, db := createTestUsageServiceWithMock(t, mock)
@@ -1190,7 +1114,7 @@ func TestUsageService_ReserveAndCharge_UnlimitedTier_AllowsAnyAmount(t *testing.
 	ctx := context.Background()
 
 	// Should allow very large amount for unlimited tier
-	err := svc.ReserveAndCharge(ctx, "user@example.com", "business", "ai_credits", 9999999999, UsageReportRequest{})
+	err := svc.ReserveAndCharge(ctx, "user@example.com", "business", "ai_credits", 9999999999, commerce.UsageReportRequest{})
 	if err != nil {
 		t.Fatalf("ReserveAndCharge() returned error for unlimited tier: %v", err)
 	}
@@ -1202,8 +1126,8 @@ func TestUsageService_ReserveAndCharge_UnlimitedTier_AllowsAnyAmount(t *testing.
 
 func TestUsageService_ReserveCredits_Success_ReturnsReservationID(t *testing.T) {
 	mock := &MockLimitsService{
-		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
-			return &TierLimit{LimitValue: 500000000, LimitType: "cost_based"}, nil
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*commerce.TierLimit, error) {
+			return &commerce.TierLimit{LimitValue: 500000000, LimitType: "cost_based"}, nil
 		},
 	}
 	svc, db := createTestUsageServiceWithMock(t, mock)
@@ -1232,8 +1156,8 @@ func TestUsageService_ReserveCredits_Success_ReturnsReservationID(t *testing.T) 
 
 func TestUsageService_ReserveCredits_PendingReservationsCountedAgainstLimit(t *testing.T) {
 	mock := &MockLimitsService{
-		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
-			return &TierLimit{LimitValue: 100000000, LimitType: "cost_based"}, nil
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*commerce.TierLimit, error) {
+			return &commerce.TierLimit{LimitValue: 100000000, LimitType: "cost_based"}, nil
 		},
 	}
 	svc, db := createTestUsageServiceWithMock(t, mock)
@@ -1256,8 +1180,8 @@ func TestUsageService_ReserveCredits_PendingReservationsCountedAgainstLimit(t *t
 
 func TestUsageService_ReserveCredits_InsufficientCredits_ReturnsError(t *testing.T) {
 	mock := &MockLimitsService{
-		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
-			return &TierLimit{LimitValue: 50000000, LimitType: "cost_based"}, nil
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*commerce.TierLimit, error) {
+			return &commerce.TierLimit{LimitValue: 50000000, LimitType: "cost_based"}, nil
 		},
 	}
 	svc, db := createTestUsageServiceWithMock(t, mock)
@@ -1267,7 +1191,7 @@ func TestUsageService_ReserveCredits_InsufficientCredits_ReturnsError(t *testing
 
 	_, err := svc.ReserveCredits(ctx, "user@example.com", "solo", "ai_credits", 100000000)
 	if err == nil {
-		t.Error("Expected ErrInsufficientCredits, got nil")
+		t.Error("Expected intelligence.ErrInsufficientCredits, got nil")
 	}
 }
 
@@ -1285,8 +1209,8 @@ func TestUsageService_ReserveCredits_EmptyUserIdentity_ReturnsError(t *testing.T
 
 func TestUsageService_ReserveCredits_ReservationExpiresAtSetCorrectly(t *testing.T) {
 	mock := &MockLimitsService{
-		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
-			return &TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil // unlimited
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*commerce.TierLimit, error) {
+			return &commerce.TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil // unlimited
 		},
 	}
 	svc, db := createTestUsageServiceWithMock(t, mock)
@@ -1321,8 +1245,8 @@ func TestUsageService_ReserveCredits_ReservationExpiresAtSetCorrectly(t *testing
 
 func TestUsageService_FinalizeReservation_Success_RecordsUsage(t *testing.T) {
 	mock := &MockLimitsService{
-		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
-			return &TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*commerce.TierLimit, error) {
+			return &commerce.TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
 		},
 	}
 	svc, db := createTestUsageServiceWithMock(t, mock)
@@ -1358,6 +1282,45 @@ func TestUsageService_FinalizeReservation_Success_RecordsUsage(t *testing.T) {
 	if usageAmount != 80000 {
 		t.Errorf("Expected usage 80000, got %d", usageAmount)
 	}
+
+	// A reservation without an app key must reuse the same aggregate row. An
+	// omitted app_bundle_key would be NULL and SQLite/Postgres both allow
+	// multiple NULLs through a composite unique constraint.
+	secondReservation, err := svc.ReserveCredits(ctx, "user@example.com", "solo", "ai_credits", 10000)
+	if err != nil {
+		t.Fatalf("second ReserveCredits() returned error: %v", err)
+	}
+	if err := svc.FinalizeReservation(ctx, secondReservation, 10000); err != nil {
+		t.Fatalf("second FinalizeReservation() returned error: %v", err)
+	}
+	var usageRows int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM usage_records WHERE user_identity = ? AND limit_key = ?`, "user@example.com", "ai_credits").Scan(&usageRows); err != nil {
+		t.Fatalf("count usage rows: %v", err)
+	}
+	if usageRows != 1 {
+		t.Fatalf("expected one usage row for an empty app key, got %d", usageRows)
+	}
+	if err := db.QueryRow(`SELECT usage_amount FROM usage_records WHERE user_identity = ? AND limit_key = ?`, "user@example.com", "ai_credits").Scan(&usageAmount); err != nil {
+		t.Fatalf("read aggregated usage: %v", err)
+	}
+	if usageAmount != 90000 {
+		t.Errorf("expected aggregated usage 90000, got %d", usageAmount)
+	}
+
+	metadataReservation, err := svc.ReserveCredits(ctx, "user@example.com", "solo", "ai_credits", 5000)
+	if err != nil {
+		t.Fatalf("metadata ReserveCredits() returned error: %v", err)
+	}
+	if err := svc.FinalizeReservationWithMetadata(ctx, metadataReservation, 5000, "bundle-a", "model-a"); err != nil {
+		t.Fatalf("FinalizeReservationWithMetadata() returned error: %v", err)
+	}
+	var appKey, model string
+	if err := db.QueryRow(`SELECT app_bundle_key, model FROM usage_events WHERE operation_id = ?`, metadataReservation).Scan(&appKey, &model); err != nil {
+		t.Fatalf("read metadata usage event: %v", err)
+	}
+	if appKey != "bundle-a" || model != "model-a" {
+		t.Fatalf("unexpected metadata usage event: app=%q model=%q", appKey, model)
+	}
 }
 
 func TestUsageService_FinalizeReservation_EmptyReservationID_ReturnsError(t *testing.T) {
@@ -1369,6 +1332,49 @@ func TestUsageService_FinalizeReservation_EmptyReservationID_ReturnsError(t *tes
 	err := svc.FinalizeReservation(ctx, "", 100000)
 	if err == nil {
 		t.Error("Expected error for empty reservation_id, got nil")
+	}
+}
+
+func TestUsageService_FinalizeReservationWithMetadata_RollsBackAtomically(t *testing.T) {
+	svc, db := createTestUsageServiceWithMock(t, &MockLimitsService{})
+	defer db.Close()
+	ctx := context.Background()
+
+	reservationID, err := svc.ReserveCredits(ctx, "atomic@example.com", "solo", "ai_credits", 1000)
+	if err != nil {
+		t.Fatalf("ReserveCredits() returned error: %v", err)
+	}
+	if _, err := db.Exec(`CREATE TRIGGER fail_usage_event BEFORE INSERT ON usage_events BEGIN SELECT RAISE(ABORT, 'forced usage event failure'); END`); err != nil {
+		t.Fatalf("create failure trigger: %v", err)
+	}
+	if err := svc.FinalizeReservationWithMetadata(ctx, reservationID, 900, "bundle-a", "model-a"); err == nil {
+		t.Fatal("expected metadata finalization to fail")
+	}
+	var status string
+	if err := db.QueryRow(`SELECT status FROM credit_reservations WHERE id = ?`, reservationID).Scan(&status); err != nil {
+		t.Fatalf("read reservation status: %v", err)
+	}
+	if status != "pending" {
+		t.Fatalf("expected failed finalization to remain pending, got %q", status)
+	}
+	var usageRows int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM usage_records WHERE user_identity = ?`, "atomic@example.com").Scan(&usageRows); err != nil {
+		t.Fatalf("count rolled-back usage rows: %v", err)
+	}
+	if usageRows != 0 {
+		t.Fatalf("expected no usage row after rollback, got %d", usageRows)
+	}
+	if _, err := db.Exec(`DROP TRIGGER fail_usage_event`); err != nil {
+		t.Fatalf("drop failure trigger: %v", err)
+	}
+	if err := svc.FinalizeReservationWithMetadata(ctx, reservationID, 900, "bundle-a", "model-a"); err != nil {
+		t.Fatalf("retry metadata finalization: %v", err)
+	}
+	if err := db.QueryRow(`SELECT status FROM credit_reservations WHERE id = ?`, reservationID).Scan(&status); err != nil {
+		t.Fatalf("read retried reservation status: %v", err)
+	}
+	if status != "finalized" {
+		t.Fatalf("expected retried reservation to be finalized, got %q", status)
 	}
 }
 
@@ -1386,8 +1392,8 @@ func TestUsageService_FinalizeReservation_NotFound_ReturnsError(t *testing.T) {
 
 func TestUsageService_FinalizeReservation_AlreadyFinalized_ReturnsError(t *testing.T) {
 	mock := &MockLimitsService{
-		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
-			return &TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*commerce.TierLimit, error) {
+			return &commerce.TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
 		},
 	}
 	svc, db := createTestUsageServiceWithMock(t, mock)
@@ -1408,8 +1414,8 @@ func TestUsageService_FinalizeReservation_AlreadyFinalized_ReturnsError(t *testi
 
 func TestUsageService_FinalizeReservation_AlreadyReleased_ReturnsError(t *testing.T) {
 	mock := &MockLimitsService{
-		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
-			return &TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*commerce.TierLimit, error) {
+			return &commerce.TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
 		},
 	}
 	svc, db := createTestUsageServiceWithMock(t, mock)
@@ -1430,8 +1436,8 @@ func TestUsageService_FinalizeReservation_AlreadyReleased_ReturnsError(t *testin
 
 func TestUsageService_FinalizeReservation_NegativeAmount_ReturnsError(t *testing.T) {
 	mock := &MockLimitsService{
-		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
-			return &TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*commerce.TierLimit, error) {
+			return &commerce.TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
 		},
 	}
 	svc, db := createTestUsageServiceWithMock(t, mock)
@@ -1453,8 +1459,8 @@ func TestUsageService_FinalizeReservation_NegativeAmount_ReturnsError(t *testing
 
 func TestUsageService_ReleaseReservation_Success_NoUsageRecorded(t *testing.T) {
 	mock := &MockLimitsService{
-		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
-			return &TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*commerce.TierLimit, error) {
+			return &commerce.TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
 		},
 	}
 	svc, db := createTestUsageServiceWithMock(t, mock)
@@ -1506,8 +1512,8 @@ func TestUsageService_ReleaseReservation_EmptyID_ReturnsError(t *testing.T) {
 
 func TestUsageService_ReleaseReservation_AlreadyFinalized_LogsNoop(t *testing.T) {
 	mock := &MockLimitsService{
-		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
-			return &TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*commerce.TierLimit, error) {
+			return &commerce.TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
 		},
 	}
 	svc, db := createTestUsageServiceWithMock(t, mock)
@@ -1552,8 +1558,8 @@ func TestUsageService_ReleaseReservation_NotFound_LogsNoop(t *testing.T) {
 
 func TestUsageService_CleanupExpiredReservations_ExpiresOldPending(t *testing.T) {
 	mock := &MockLimitsService{
-		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
-			return &TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*commerce.TierLimit, error) {
+			return &commerce.TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
 		},
 	}
 	svc, db := createTestUsageServiceWithMock(t, mock)

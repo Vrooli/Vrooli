@@ -1,0 +1,172 @@
+{
+  "_metadata": {
+    "description": "Deterministic bounded planning and replanning: draft generation, target evaluation, and transactional apply.",
+    "module": "planning-engine",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "PLAN-001",
+      "title": "The planner is bounded, deterministic, and seed-reproducible",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "service",
+      "criticality": "P0",
+      "description": "The scenario shall run a bounded candidate search that, given the same input snapshot, seed, and algorithm version, produces a reproducible result, and it shall record the solver and scoring versions plus the input references it used.",
+      "tags": [
+        "planner",
+        "determinism",
+        "seed"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: two runs over identical inputs return the same draft, and FIX-10 Balanced weights rank the new salad first while Save more ranks the familiar bowl first (ACT-045)."
+        }
+      ]
+    },
+    {
+      "id": "PLAN-002",
+      "title": "A draft exposes occurrences, evaluations, costs, and reasons",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "service",
+      "criticality": "P0",
+      "description": "The planner output shall be a draft containing concrete occurrences and preparation tasks, target evaluations, costs and completeness, effort schedule, shopping requirements, calculation-backed reasons, unresolved slots or conflicts, and input references.",
+      "tags": [
+        "planner",
+        "draft",
+        "explainability"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: every output field is populated by domain calculation, and no field accepts a model's free-text assertion in place of an evaluated result."
+        }
+      ]
+    },
+    {
+      "id": "PLAN-003",
+      "title": "Generation is separate from transactional apply",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "contract",
+      "criticality": "P0",
+      "description": "The scenario shall keep plan generation separate from a transactional apply that checks the expected plan and input revisions, and shall reject a draft as stale when profile, prices, recipes, stock, or the current plan changed materially.",
+      "tags": [
+        "contract",
+        "stale-inputs",
+        "transaction"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: applying against a stale input revision returns a structured STALE_INPUTS conflict with the changed entity and a suggested revalidate action (ACT-019)."
+        }
+      ]
+    },
+    {
+      "id": "PLAN-004",
+      "title": "A timeout is never proven infeasibility",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "resilience",
+      "criticality": "P0",
+      "description": "If the bounded search exhausts its budget without a fully evaluable plan, then the scenario shall return No feasible plan found in this search with the best validated partial draft, and shall reserve proven infeasibility for a computation that actually established it.",
+      "tags": [
+        "infeasibility",
+        "diagnostics",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a forced timeout returns structured domain data with search status rather than an empty success or a generic server error (ACT-047)."
+        }
+      ]
+    },
+    {
+      "id": "PLAN-005",
+      "title": "The weekly plan is dated and slot-aware",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "The scenario shall produce a plan of consecutive local days with configurable slots, routine anchors, open or social slots, locks, and an explicit single-meal versus full-day scope, persisted as dated occurrences with stable identities so Today and Week read the same saved plan, and past uneaten slots shall remain unrecorded rather than automatically consumed.",
+      "tags": [
+        "weekly-plan",
+        "slots",
+        "timezone"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: planned portions respect serving bounds, batch yield, and viable methods; an open slot contributes unknown future intake rather than zero (ACT-046)."
+        }
+      ]
+    },
+    {
+      "id": "PLAN-006",
+      "title": "Replan previews against captured inputs and preserves locks",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "service",
+      "criticality": "P0",
+      "description": "When replanning, the scenario shall preview changed, unchanged, and locked rows against the input revision captured at generation, apply only to selected unlocked future occurrences, and invalidate the preview when its inputs changed.",
+      "tags": [
+        "replan",
+        "preview",
+        "locks"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: replan preserves valid locks, reports unknown cost/nutrient/time contributions, and rejects an invalidated preview with an updated one (ACT-018, ACT-019)."
+        }
+      ]
+    },
+    {
+      "id": "PLAN-007",
+      "title": "The applied plan is persisted and readable",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "contract",
+      "criticality": "P0",
+      "description": "The scenario shall persist an applied plan as occurrence records with stable identities and revisions, validate occurrences server-side at apply rather than storing client-authored plan text, and expose a read operation so pages show the saved plan instead of generating a fresh draft on every visit.",
+      "tags": [
+        "planning",
+        "persistence",
+        "read-model"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: applying a one-day change does not overwrite other days' occurrences, and apply rejects an occurrence that references a recipe revision outside the workspace (blockers B4 and B5 in docs/internal/REDESIGN_PLAN.md §3.2)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: after Plan my week and apply, reloading Today and Week shows the saved occurrences without calling generation."
+        }
+      ]
+    }
+  ]
+}

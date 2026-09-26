@@ -18,7 +18,7 @@ import { BrowserUrlBar } from './BrowserUrlBar';
 import { StreamSettings, type StreamSettingsValues, type StreamPreset } from './StreamSettings';
 import { FrameStatsDisplay } from './FrameStatsDisplay';
 import type { FrameStats } from '../hooks/useFrameStats';
-import type { FrameStatsAggregated } from '../hooks/usePerfStats';
+import type { FrameStatsAggregated } from '../frame-streaming/types';
 
 /** Connection/recording status */
 export type ConnectionStatus = 'recording' | 'connected' | 'disconnected' | 'error';

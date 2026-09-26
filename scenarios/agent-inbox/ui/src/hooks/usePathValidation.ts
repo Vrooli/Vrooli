@@ -53,7 +53,7 @@ export function usePathValidation(
         .then((res) => {
           setResult(res);
         })
-        .catch((err) => {
+        .catch((err: unknown) => {
           // Ignore abort errors
           if (err instanceof Error && err.name === "AbortError") return;
           setResult({ valid: false, message: "Validation failed" });

@@ -2,6 +2,7 @@ package typeconv
 
 import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 )
 
 // ToAssertionOutcome converts various types to *contracts.AssertionOutcome.
@@ -220,4 +221,54 @@ func ToPointSlice(value any) []*contracts.Point {
 		}
 	}
 	return points
+}
+
+// ConditionOutcomeToProto converts a native ConditionOutcome to proto.
+func ConditionOutcomeToProto(condition *contracts.ConditionOutcome) *basbase.ConditionOutcome {
+	if condition == nil {
+		return nil
+	}
+
+	pb := &basbase.ConditionOutcome{
+		Outcome: condition.Outcome,
+		Negated: condition.Negated,
+	}
+
+	if condition.Type != "" {
+		pb.Type = &condition.Type
+	}
+	if condition.Operator != "" {
+		pb.Operator = &condition.Operator
+	}
+	if condition.Variable != "" {
+		pb.Variable = &condition.Variable
+	}
+	if condition.Selector != "" {
+		pb.Selector = &condition.Selector
+	}
+	if condition.Expression != "" {
+		pb.Expression = &condition.Expression
+	}
+	if condition.Actual != nil {
+		pb.Actual = AnyToJsonValue(condition.Actual)
+	}
+	if condition.Expected != nil {
+		pb.Expected = AnyToJsonValue(condition.Expected)
+	}
+
+	return pb
+}
+
+// ProtoToConditionOutcome converts a proto ConditionOutcome to native.
+func ProtoToConditionOutcome(pb *basbase.ConditionOutcome) *contracts.ConditionOutcome {
+	if pb == nil {
+		return nil
+	}
+
+	return &contracts.ConditionOutcome{
+		Type: pb.GetType(), Outcome: pb.GetOutcome(), Negated: pb.GetNegated(),
+		Operator: pb.GetOperator(), Variable: pb.GetVariable(), Selector: pb.GetSelector(),
+		Expression: pb.GetExpression(), Actual: JsonValueToAny(pb.GetActual()),
+		Expected: JsonValueToAny(pb.GetExpected()),
+	}
 }

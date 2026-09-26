@@ -1,7 +1,30 @@
 # Security Posture
 
 ## Last Updated
-2026-04-06
+2026-07-26
+
+## Deployment Boundary
+
+scenario-to-desktop is a trusted-local-host deployment tool. Its build,
+signing, task, and live-desktop APIs intentionally do not implement human
+identity because the API is operated by the local Vrooli control plane. The
+Electron-to-supervisor bearer token authenticates the shell to the local
+supervisor; it is not a human identity or a scenario authorization grant.
+This does not authorize LAN or public exposure. A LAN/public posture, or a
+desktop bundle with local multi-user/remote/shared-provider access, requires
+the explicit identity and authorization contract in
+[Identity and Authentication](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md).
+
+The default bundled mode is `personal_local`: private to the current OS user
+and usable without an LPBS website sign-in. The ramp must preserve an
+explicit manifest mode (`personal_local`, `local_multi_user`, `remote_vrooli`,
+or `shared_provider`) and must not silently add a login, expose a local
+service, or convert a missing remote provider into an unauthenticated route.
+
+The live-desktop backend is more restrictive than the API: x11vnc and
+websockify bind only to `127.0.0.1`, and browser access is mediated by the API
+VNC proxy. This prevents an unauthenticated VNC listener from being reachable
+on the host network.
 
 ## Defense Layers
 
@@ -10,6 +33,7 @@
 | Mechanism | Location | Status |
 |-----------|----------|--------|
 | CORS middleware | [CODE: api/shared/http/middleware.go] | Active — restricts to localhost origins by default |
+| Baseline security headers | `SecurityHeaders` middleware | Active — nosniff, DENY framing, XSS protection disabled, and HSTS stamped on REST and Connect responses |
 | Request ID propagation | `RequestIDMiddleware` | Active — `X-Request-ID` header on all responses |
 | Structured logging | `StructuredLoggingMiddleware` | Active — all requests logged with slog |
 | Recovery middleware | `RecoveryMiddleware` | Active — panic recovery prevents crash |
@@ -39,11 +63,21 @@
 - Certificates are runtime-generated, not bundled
 - P1 roadmap: Automated notarization for macOS and Windows
 
+### Scanner-reviewed credential boundaries
+
+The default `APPLE_ID_PASSWORD` string in the notarization generator names an
+environment variable; it is never a credential value. Vault recovery material
+is loaded from platform secure storage and is neither logged nor emitted to the
+UI. The small network adapter deliberately centralizes runtime dialing so
+callers can be tested and destination policy stays visible at the boundary.
+Security scanner annotations at these locations are narrow explanations of
+those facts, rather than rule-wide exclusions.
+
 ## Known Gaps
 
 | Gap | Severity | Mitigation | Tracking |
 |-----|----------|------------|----------|
-| No rate limiting on API endpoints | Low | Localhost-only access, no public exposure | P2 |
+| No rate limiting on API endpoints | Low | Trusted-local-host API; do not expose to LAN/public networks | P2 |
 | CORS wildcards on tool protocol handlers | Low | Intentional for tool execution protocol | Documented as acceptable |
 | No CSP headers on API responses | Low | API serves JSON only, no HTML rendering | — |
 | Electron auto-updater signature verification | Medium | electron-updater supports signatures; needs certificate setup | OT-P1-001 |

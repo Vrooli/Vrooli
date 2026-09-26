@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "capture-search-triage",
+    "title": "Capture, retrieve, and triage a signal",
+    "purpose": "An operator captures external material, can find it in the permanent journal, and controls its ambient handling without deleting it.",
+    "prd_refs": ["OT-P0-002", "OT-P0-009", "OT-P0-013"]
+  },
+  "steps": [
+    {"page": "signals", "state": "default", "intent": "Capture a URL, note, image, or local archive and inspect the resulting journal record.", "via": "signal inbox capture and source adapter surfaces"},
+    {"page": "signals", "state": "default", "intent": "Search the full immutable journal, including dropped material, with structured filters and continuation pages.", "via": "signal journal search"},
+    {"page": "signals", "state": "default", "intent": "Review an ambient signal, inspect extracted text and annotations, then classify, annotate, accept, or drop it from ambient review.", "via": "triage queue"}
+  ]
+}

@@ -1,0 +1,204 @@
+{
+  "_metadata": {
+    "module": "surfaces-and-integrations",
+    "description": "Requirements for CLI, UI, and quality-loop integration.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PROTO-SURFACES-001",
+      "title": "Provide CLI validation and describe commands",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "cli",
+      "criticality": "P0",
+      "description": "CLI manifest declares validate scenario and describe scenario commands with read/run_eligible governance and generated Connect bindings.",
+      "tags": ["cli", "manifest", "connect"],
+      "validation": [
+        {
+          "type": "scenario-test",
+          "status": "planned",
+          "notes": "Run `vrooli scenario test proto-health` and cli-health once commands are implemented."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURFACES-002",
+      "title": "Wire proto findings into test-genie",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "test-genie receives FINDING_SOURCE_PROTO findings from the optional proto phase and preserves stable finding IDs.",
+      "tags": ["test-genie", "findings", "proto-phase"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Add test-genie phase tests that parse proto-health output and map findings to FINDING_SOURCE_PROTO."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURFACES-003",
+      "title": "Map proto findings to maturity",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "swarm-manager maps FINDING_SOURCE_PROTO and the proto test-genie phase to an R2 proto-health maturity dimension.",
+      "tags": ["swarm-manager", "maturity", "r2"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Add maturity map anti-drift tests for source and phase mappings."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURFACES-004",
+      "title": "Ship direct UI inspection surface",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "UI shows fleet proto-health status and per-scenario finding/surface details with loading, error, and empty states.",
+      "tags": ["ui", "accessibility", "direct-ui"],
+      "validation": [
+        {
+          "type": "ui",
+          "status": "planned",
+          "notes": "Vitest + a11y coverage for loading/error/empty and populated states."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURFACES-005",
+      "title": "Publish proto contract audit skill",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "skill",
+      "criticality": "P1",
+      "description": "proto-contract-audit loads through prompt-manager and delegates broader API/interoperability decisions to existing steer skills.",
+      "tags": ["prompt-manager", "skill", "audit"],
+      "validation": [
+        {
+          "type": "cli",
+          "status": "planned",
+          "notes": "Run `prompt-manager skill read proto-contract-audit` and skill validation checks."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURFACES-006",
+      "title": "Verify generated proto artifacts in CI",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "ci",
+      "criticality": "P1",
+      "description": "CI runs the packages/proto generated-artifact check so committed generated files cannot drift from schema sources.",
+      "tags": ["ci", "proto", "generated-artifacts"],
+      "validation": [
+        {
+          "type": "ci",
+          "status": "planned",
+          "notes": "Workflow includes `cd packages/proto && make verify-committed-gen`."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURFACES-007",
+      "title": "Use code-facts for implementation proof",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "integration",
+      "criticality": "P0",
+      "description": "proto-health delegates source-level proto adoption and REST endpoint proof to code-facts and maps proof status into stable proto findings.",
+      "tags": ["code-facts", "integration", "proof"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Run `code-facts describe proto-health --include proto_adoption,endpoint_proofs --json` and `proto-health validate scenario proto-health --json`."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURFACES-008",
+      "title": "Report proto contract impact",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "cli",
+      "criticality": "P1",
+      "description": "proto-health exposes an impact command and RPC that compare a scenario's current proto surface against a git or git-control-tower baseline, classify breaking changes, and report file-level unreconciled consumers.",
+      "tags": ["impact", "buf", "baseline", "reconciliation"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "ref": "api/internal/impact/service_test.go",
+          "notes": "Impact service tests cover buf finding parsing, scope metadata, and unreconciled consumer derivation."
+        },
+        {
+          "type": "cli",
+          "status": "planned",
+          "notes": "Run `proto-health impact scenario proto-health --against HEAD` and `cd packages/proto && make breaking SCENARIO=proto-health`."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURFACES-009",
+      "title": "Handoff proto surface facts to dependency analysis",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "integration",
+      "criticality": "P2",
+      "description": "scenario-dependency-analyzer can consume DescribeScenarioProtos for fleet graph analysis instead of re-reading descriptor images.",
+      "tags": ["dependency-analyzer", "protosurface", "future"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Future integration test in scenario-dependency-analyzer should prove it reads proto-health surface facts."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURFACES-010",
+      "title": "Enable semantic proto reuse search",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "search",
+      "criticality": "P2",
+      "description": "A future provider can index ProtoSurface facts and suggest existing proto types for reuse.",
+      "tags": ["search", "reuse", "future"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Future search provider tests should prove indexed ProtoSurface facts return reusable type suggestions."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURFACES-011",
+      "title": "Ratchet warning checks after fleet migration",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "maturity",
+      "criticality": "P2",
+      "description": "Warning-level maturity checks can be promoted after fleet migration evidence shows the warning debt is intentionally resolved.",
+      "tags": ["maturity", "ratchet", "future"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Future ratchet decision should cite fleet migration evidence and rerun shared health consumers."
+        }
+      ]
+    }
+  ]
+}

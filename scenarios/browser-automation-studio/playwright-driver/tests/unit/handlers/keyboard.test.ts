@@ -9,7 +9,7 @@ import {
 import { KeyboardHandler } from '../../../src/handlers/keyboard';
 import type { HandlerContext } from '../../../src/handlers/base';
 import type { HandlerInstruction } from '../../../src/types';
-import { createMockContext, createTestConfig } from '../../helpers';
+import { createMockContext, createMockPage, createTestConfig } from '../../helpers';
 import { logger, metrics } from '../../../src/utils';
 
 function buildKeyboardInstruction(params: {
@@ -62,6 +62,8 @@ describe('KeyboardHandler', () => {
   let handler: KeyboardHandler;
   let context: HandlerContext;
   const keyboard = {
+    type: jest.fn().mockResolvedValue(undefined),
+    insertText: jest.fn().mockResolvedValue(undefined),
     press: jest.fn().mockResolvedValue(undefined),
     down: jest.fn().mockResolvedValue(undefined),
     up: jest.fn().mockResolvedValue(undefined),
@@ -69,8 +71,9 @@ describe('KeyboardHandler', () => {
 
   beforeEach(() => {
     handler = new KeyboardHandler();
+    const page = createMockPage({ keyboard });
     context = {
-      page: { keyboard } as HandlerContext['page'],
+      page,
       browserContext: createMockContext(),
       config: createTestConfig(),
       logger,
@@ -146,8 +149,9 @@ describe('KeyboardHandler', () => {
     const instruction: HandlerInstruction = {
       index: 0,
       nodeId: 'node-2',
-      type: 'keyboard-unknown',
-      params: {},
+      action: create(ActionDefinitionSchema, {
+        type: ActionType.UNSPECIFIED,
+      }),
     };
 
     const result = await handler.execute(instruction, context);

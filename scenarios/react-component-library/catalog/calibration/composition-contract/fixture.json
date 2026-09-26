@@ -1,0 +1,11 @@
+{
+  "gate": "composition-contract",
+  "assetId": "calibration-composition-contract",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.composition_contract_contexts_differ",
+  "catalogAsset": "asset.json",
+  "source": "broken.tsx",
+  "mutation": "hard-coded-context",
+  "description": "Declares a shared elevation consumer but hard-codes the raised shadow, making the differential contexts equal."
+}

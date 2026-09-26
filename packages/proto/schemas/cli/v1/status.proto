@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — `status` output contract (summary subset)
+// =============================================================================
+//
+// @stability experimental
+//
+// Typed view of the unified `vrooli status --json`. The command's `status`
+// object carries full `resources`/`scenarios` arrays plus a `summary` rollup
+// and a `maintenance` block; this contract models the `summary` rollup that
+// dashboards consume for at-a-glance counts. protojson with DiscardUnknown
+// ignores the heavyweight arrays. Add the arrays (reusing ResourceStatus /
+// ScenarioStatus) when a consumer needs per-item detail from this command.
+//
+// Consumer-decode contract: the producer is not (yet) migrated to emit from it.
+// =============================================================================
+
+// StatusResponse is the envelope of `vrooli status --json`.
+message StatusResponse {
+  // True when the status sweep completed.
+  bool success = 1;
+
+  // The unified status payload.
+  Status status = 2;
+}
+
+// Status is the unified status payload (summary subset).
+message Status {
+  // At-a-glance rollup counts across resources, scenarios, and maintenance.
+  StatusSummary summary = 1;
+}
+
+// StatusSummary is the rollup of fleet counts reported by `vrooli status`.
+message StatusSummary {
+  // Total resources discovered.
+  int32 resources_total = 1;
+
+  // Resources enabled for installation.
+  int32 resources_enabled = 2;
+
+  // Resources currently running.
+  int32 resources_running = 3;
+
+  // Resources reporting healthy.
+  int32 resources_healthy = 4;
+
+  // Total scenarios discovered.
+  int32 scenarios_total = 5;
+
+  // Scenarios currently running.
+  int32 scenarios_running = 6;
+
+  // Scenarios currently stopped.
+  int32 scenarios_stopped = 7;
+
+  // Processes tracked by the maintenance subsystem.
+  int32 maintenance_tracked_processes = 8;
+
+  // Orphaned processes detected by maintenance.
+  int32 maintenance_orphan_processes = 9;
+
+  // Stale locks detected by maintenance.
+  int32 maintenance_stale_locks = 10;
+
+  // Zombie processes detected by maintenance.
+  int32 maintenance_zombie_processes = 11;
+}

@@ -1,6 +1,6 @@
 import { logger } from '@/services/logger';
 import { create } from 'zustand';
-import { appService, type ScenarioIssuesSummary } from '@/services/api';
+import { appService, type ScenarioFixesSummary } from '@/services/api';
 import { normalizeIdentifier } from '@/utils/appPreview';
 import type { FetchStatus } from '@/components/report/reportTypes';
 
@@ -11,9 +11,9 @@ export type ScenarioIssuesStatus = FetchStatus;
 export interface ScenarioIssuesEntry {
   status: ScenarioIssuesStatus;
   fetchedAt: number | null;
-  summary: ScenarioIssuesSummary | null;
-  openCount: number | null;
+  summary: ScenarioFixesSummary | null;
   activeCount: number | null;
+  archivedCount: number | null;
   totalCount: number | null;
   stale: boolean;
   error: string | null;
@@ -29,8 +29,8 @@ const baseEntry: ScenarioIssuesEntry = {
   status: 'idle',
   fetchedAt: null,
   summary: null,
-  openCount: null,
   activeCount: null,
+  archivedCount: null,
   totalCount: null,
   stale: false,
   error: null,
@@ -89,22 +89,23 @@ export const useScenarioIssuesStore = create<ScenarioIssuesStoreState>((set, get
       }));
 
       try {
-        const summary = await appService.getScenarioIssues(identifier);
-        const issues = Array.isArray(summary?.issues) ? summary?.issues : [];
-        const openCount = typeof summary?.open_count === 'number'
-          ? summary?.open_count
-          : issues.reduce((count, issue) => (issue.status?.toLowerCase() === 'open' ? count + 1 : count), 0);
+        const summary = await appService.getScenarioFixes(identifier);
+        const active = Array.isArray(summary?.active) ? summary.active : [];
+        const archived = Array.isArray(summary?.archived) ? summary.archived : [];
         const activeCount = typeof summary?.active_count === 'number'
           ? summary?.active_count
-          : issues.reduce((count, issue) => (issue.status?.toLowerCase() === 'active' ? count + 1 : count), 0);
-        const totalCount = typeof summary?.total_count === 'number' ? summary?.total_count : issues.length;
+          : active.length;
+        const archivedCount = typeof summary?.archived_count === 'number'
+          ? summary.archived_count
+          : archived.length;
+        const totalCount = typeof summary?.total_count === 'number' ? summary?.total_count : activeCount + archivedCount;
 
         const nextEntry: ScenarioIssuesEntry = {
           status: 'ready',
           fetchedAt: Date.now(),
           summary: summary ?? null,
-          openCount,
           activeCount,
+          archivedCount,
           totalCount,
           stale: Boolean(summary?.stale),
           error: null,
@@ -119,16 +120,16 @@ export const useScenarioIssuesStore = create<ScenarioIssuesStoreState>((set, get
 
         return nextEntry;
       } catch (error) {
-        logger.warn('[scenarioIssuesStore] Failed to fetch issues', error);
+        logger.warn('[scenarioIssuesStore] Failed to fetch fixes', error);
         const nextEntry: ScenarioIssuesEntry = {
           status: 'error',
           fetchedAt: Date.now(),
           summary: null,
-          openCount: null,
           activeCount: null,
+          archivedCount: null,
           totalCount: null,
           stale: false,
-          error: (error as { message?: string })?.message ?? 'Failed to load issue status.',
+          error: (error as { message?: string })?.message ?? 'Failed to load fix status.',
         };
 
         set((state) => ({
@@ -163,8 +164,8 @@ export const useScenarioIssuesStore = create<ScenarioIssuesStoreState>((set, get
         status: 'ready',
         fetchedAt: existing.fetchedAt ?? resolvedTimestamp,
         summary: existing.summary,
-        openCount: Math.max(existing.openCount ?? 0, 1),
-        activeCount: existing.activeCount ?? 0,
+        activeCount: Math.max(existing.activeCount ?? 0, 1),
+        archivedCount: existing.archivedCount ?? 0,
         totalCount: existing.totalCount != null ? Math.max(existing.totalCount, 1) : 1,
         stale: true,
         error: null,

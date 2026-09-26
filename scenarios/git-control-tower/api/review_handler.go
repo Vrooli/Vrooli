@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -37,7 +40,7 @@ func (s *Server) handleReviewSummary(w http.ResponseWriter, r *http.Request) {
 		detailCount = 0
 	}
 
-	summary := s.buildReviewSummary(hctx.Ctx, hctx.RepoID, hctx.RepoDir, scenarioName, detailCount, DefaultReadinessThresholds())
+	summary := s.buildReviewSummary(hctx.Ctx, hctx.RepoID, hctx.RepoDir, scenarioName, detailCount, DefaultReadinessThresholds(), "", nil)
 	hctx.Resp.OK(summary)
 }
 
@@ -54,39 +57,62 @@ func (s *Server) handleReviewRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	response, err := s.startReviewRun(hctx.Ctx, hctx.RepoID, hctx.RepoDir, req)
+	if err != nil {
+		if conflict, ok := err.(*reviewRunConflictError); ok {
+			hctx.Resp.JSON(http.StatusConflict, errorResponse{
+				Error: "a review run is already in progress for this scenario",
+				JobID: conflict.JobID,
+			})
+			return
+		}
+		hctx.Resp.BadRequest(err.Error())
+		return
+	}
+	hctx.Resp.OK(response)
+}
+
+type reviewRunConflictError struct{ JobID string }
+
+func (e *reviewRunConflictError) Error() string { return "review run already in progress" }
+
+func (s *Server) startReviewRun(ctx context.Context, repoID int64, repoDir string, req ReviewRunRequest) (ReviewRunResponse, error) {
 	scenarioName := strings.TrimSpace(req.ScenarioName)
 	if scenarioName == "" {
-		hctx.Resp.BadRequest("scenarioName is required")
-		return
+		return ReviewRunResponse{}, fmt.Errorf("scenarioName is required")
 	}
 	if !IsValidScenarioName(scenarioName) {
-		hctx.Resp.BadRequest("scenarioName contains invalid characters")
-		return
+		return ReviewRunResponse{}, fmt.Errorf("scenarioName contains invalid characters")
 	}
-
 	checks, invalidCheck := resolveReviewChecks(req.Checks)
 	if invalidCheck != "" {
-		hctx.Resp.BadRequest("unknown check: " + invalidCheck)
-		return
+		return ReviewRunResponse{}, fmt.Errorf("unknown check: %s", invalidCheck)
 	}
-
-	if existingID := s.reviewJobStore.ActiveJobForScenario(scenarioName); existingID != "" {
-		hctx.Resp.JSON(http.StatusConflict, errorResponse{
-			Error: "a review run is already in progress for this scenario",
-			JobID: existingID,
-		})
-		return
-	}
-
 	detailCount := clampNonNegative(req.Details)
 	thresholds := resolveThresholds(req.Thresholds)
-
+	idempotencyKey := reviewRequestIdempotencyKey(strconv.FormatInt(repoID, 10), scenarioName, checks, detailCount, thresholds)
+	if existingID, ok := s.reviewJobStore.FindByIdempotency(idempotencyKey); ok {
+		return ReviewRunResponse{JobID: existingID}, nil
+	}
+	if existingID := s.reviewJobStore.ActiveJobForScenario(scenarioName); existingID != "" {
+		return ReviewRunResponse{}, &reviewRunConflictError{JobID: existingID}
+	}
 	jobID := uuid.New().String()
-	s.reviewJobStore.Create(jobID, checks, scenarioName, detailCount, thresholds)
+	s.reviewJobStore.CreateWithIdempotency(jobID, idempotencyKey, checks, scenarioName, detailCount, thresholds)
+	go s.executeReviewRun(jobID, scenarioName, checks, repoID, repoDir)
+	return ReviewRunResponse{JobID: jobID}, nil
+}
 
-	go s.executeReviewRun(jobID, scenarioName, checks, hctx.RepoID, hctx.RepoDir)
-
-	hctx.Resp.OK(ReviewRunResponse{JobID: jobID})
+func reviewRequestIdempotencyKey(repoID, scenario string, checks []string, details int, thresholds ReadinessThresholds) string {
+	payload := struct {
+		RepoID, Scenario string
+		Checks           []string
+		Details          int
+		Thresholds       ReadinessThresholds
+	}{repoID, scenario, checks, details, thresholds}
+	data, _ := json.Marshal(payload)
+	digest := sha256.Sum256(data)
+	return "review:" + hex.EncodeToString(digest[:])
 }
 
 // resolveReviewChecks returns the validated checks list and the first invalid check (if any).
@@ -144,7 +170,7 @@ func (s *Server) handleReviewJobStatus(w http.ResponseWriter, r *http.Request) {
 // buildReviewSummary fans out concurrently to available downstream services and
 // assembles a ReviewSummaryResponse. When detailCount > 0, each dimension
 // includes top-K detail items extracted from the already-fetched service data.
-func (s *Server) buildReviewSummary(ctx context.Context, repoID int64, repoDir, scenarioName string, detailCount int, thresholds ReadinessThresholds) *ReviewSummaryResponse {
+func (s *Server) buildReviewSummary(ctx context.Context, repoID int64, repoDir, scenarioName string, detailCount int, thresholds ReadinessThresholds, testExecutionID string, checkStatuses map[string]CheckStatus) *ReviewSummaryResponse {
 	var dims ReviewDimensions
 	caps := make(map[string]bool)
 	var mu sync.Mutex
@@ -161,7 +187,7 @@ func (s *Server) buildReviewSummary(ctx context.Context, repoID int64, repoDir, 
 	}()
 	go func() {
 		defer wg.Done()
-		dim, avail := s.fetchTestsDimension(ctx, scenarioName, detailCount)
+		dim, avail := s.fetchTestsDimension(ctx, scenarioName, testExecutionID, detailCount)
 		mu.Lock()
 		caps["test-genie"] = avail
 		dims.Tests = dim
@@ -203,6 +229,7 @@ func (s *Server) buildReviewSummary(ctx context.Context, repoID int64, repoDir, 
 		Dimensions:        dims,
 		DimensionStatuses: dimStatuses,
 		Capabilities:      caps,
+		CheckStatuses:     checkStatuses,
 		Timestamp:         time.Now().UTC().Format(time.RFC3339),
 	}
 }
@@ -230,7 +257,12 @@ func (s *Server) executeReviewRun(jobID, scenarioName string, checks []string, r
 
 	dc := s.reviewJobStore.DetailCount(jobID)
 	th := s.reviewJobStore.Thresholds(jobID)
-	summary := s.buildReviewSummary(ctx, repoID, repoDir, scenarioName, dc, th)
+	job, _ := s.reviewJobStore.Get(jobID)
+	var checkStatuses map[string]CheckStatus
+	if job != nil {
+		checkStatuses = job.Checks
+	}
+	summary := s.buildReviewSummary(ctx, repoID, repoDir, scenarioName, dc, th, s.reviewJobStore.CheckExecutionID(jobID, "tests"), checkStatuses)
 	s.reviewJobStore.Complete(jobID, summary)
 }
 
@@ -238,7 +270,7 @@ func (s *Server) executeReviewRun(jobID, scenarioName string, checks []string, r
 func (s *Server) runSingleCheck(ctx context.Context, jobID, check, scenarioName string) {
 	s.reviewJobStore.UpdateCheck(jobID, check, CheckRunning)
 
-	err := s.dispatchCheck(ctx, check, scenarioName)
+	executionID, err := s.dispatchCheck(ctx, check, scenarioName)
 	if err == errCheckSkipped {
 		s.reviewJobStore.UpdateCheck(jobID, check, CheckSkipped)
 		return
@@ -248,43 +280,53 @@ func (s *Server) runSingleCheck(ctx context.Context, jobID, check, scenarioName 
 		s.reviewJobStore.UpdateCheck(jobID, check, CheckFailed)
 		return
 	}
-	s.reviewJobStore.UpdateCheck(jobID, check, CheckCompleted)
+	s.reviewJobStore.UpdateCheckWithExecution(jobID, check, CheckCompleted, executionID)
 }
 
 // errCheckSkipped is a sentinel indicating the check was skipped.
 var errCheckSkipped = fmt.Errorf("check skipped")
 
 // dispatchCheck runs the appropriate check and returns an error or errCheckSkipped.
-func (s *Server) dispatchCheck(ctx context.Context, check, scenarioName string) error {
+func (s *Server) dispatchCheck(ctx context.Context, check, scenarioName string) (string, error) {
 	switch check {
 	case "tidiness":
 		if !s.capabilities.IsAvailable(ctx, "tidiness-manager") {
-			return errCheckSkipped
+			return "", errCheckSkipped
 		}
 		repoRoot := strings.TrimSpace(s.git.ResolveRepoRoot(ctx))
 		if repoRoot == "" {
-			return nil
+			return "", nil
 		}
-		_, err := s.tidinessClient.TriggerLightScan(ctx, TidinessLightScanRequest{
-			ScenarioPath: repoRoot + "/scenarios/" + scenarioName,
+		scenarioPath, err := resolveScenarioPath(repoRoot, scenarioName)
+		if err != nil {
+			return "", err
+		}
+		_, err = s.tidinessClient.TriggerLightScan(ctx, TidinessLightScanRequest{
+			ScenarioPath: scenarioPath,
 		})
-		return err
+		return "", err
 	case "tests":
 		if !s.capabilities.IsAvailable(ctx, "test-genie") {
-			return errCheckSkipped
+			return "", errCheckSkipped
 		}
-		_, err := s.testGenieClient.ExecuteSuite(ctx, TestExecutionRequest{
+		result, err := s.testGenieClient.ExecuteSuite(ctx, TestExecutionRequest{
 			ScenarioName: scenarioName,
 		})
-		return err
+		if result == nil {
+			return "", err
+		}
+		return result.ExecutionID, err
 	case "rules":
 		if !s.capabilities.IsAvailable(ctx, "scenario-auditor") {
-			return errCheckSkipped
+			return "", errCheckSkipped
 		}
-		_, err := s.auditorClient.StartCheck(ctx, scenarioName, "full")
-		return err
+		result, err := s.auditorClient.StartCheck(ctx, scenarioName, "full")
+		if result == nil {
+			return "", err
+		}
+		return result.JobID, err
 	default:
-		return errCheckSkipped
+		return "", errCheckSkipped
 	}
 }
 

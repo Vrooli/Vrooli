@@ -1,0 +1,16 @@
+{
+  "composition": "orbital-field",
+  "slots": {
+    "running": {
+      "shape": "scalar",
+      "role": "primary",
+      "whenUnbound": "decorative"
+    },
+    "healthy": {
+      "shape": "scalar",
+      "role": "secondary",
+      "whenUnbound": "decorative"
+    }
+  },
+  "generatedFrom": "ui/src/scenes"
+}

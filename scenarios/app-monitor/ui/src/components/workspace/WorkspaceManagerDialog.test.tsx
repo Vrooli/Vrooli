@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-utils';
 import WorkspaceManagerDialog from './WorkspaceManagerDialog';
 import { usePreviewWorkspaceStore } from '@/features/preview-workspace/state/previewWorkspaceStore';
 import { useAppsStore } from '@/state/appsStore';

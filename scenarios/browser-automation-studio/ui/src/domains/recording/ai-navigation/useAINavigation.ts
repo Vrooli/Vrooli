@@ -9,7 +9,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useWebSocket } from '@/contexts/WebSocketContext';
+import { useWebSocketMessage } from '@/contexts/WebSocketContext';
 import { getAIRequestHeadersSync } from '@/utils/apiHeaders';
 import { recordingApi } from '../api';
 import { logger } from '@/utils/logger';
@@ -281,7 +281,7 @@ const initialState: AINavigationState = {
   isNavigating: false,
   navigationId: null,
   prompt: '',
-  model: 'qwen3-vl-30b',
+  model: 'local_first',
   steps: [],
   status: 'idle',
   totalTokens: 0,
@@ -299,7 +299,7 @@ export function useAINavigation({
   onComplete,
 }: UseAINavigationOptions): UseAINavigationReturn {
   const [state, setState] = useState<AINavigationState>(initialState);
-  const { lastMessage } = useWebSocket();
+
 
   // Refs to track current navigation
   const navigationIdRef = useRef<string | null>(null);
@@ -319,8 +319,7 @@ export function useAINavigation({
   }, []);
 
   // Process WebSocket messages
-  useEffect(() => {
-    if (!lastMessage) return;
+  useWebSocketMessage((lastMessage) => {
 
     if (!isRecord(lastMessage) || typeof lastMessage.type !== 'string') return;
     const msg = lastMessage;
@@ -440,7 +439,7 @@ export function useAINavigation({
         humanIntervention: null,
       }));
     }
-  }, [lastMessage]);
+  });
 
   // Reset state when session changes
   useEffect(() => {
@@ -527,14 +526,14 @@ export function useAINavigation({
           throw new AINavigationError(code, message, details);
         }
 
-        navigationIdRef.current = result.data.navigation_id;
+        navigationIdRef.current = result.data.navigationId;
 
         setState((prev) => ({
           ...prev,
-          navigationId: result.data.navigation_id,
+          navigationId: result.data.navigationId,
         }));
 
-        return result.data.navigation_id;
+        return result.data.navigationId;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to start navigation';
         setState((prev) => ({

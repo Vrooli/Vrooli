@@ -1,0 +1,10 @@
+{
+  "module_id": "template-management",
+  "title": "Template Management & Generation",
+  "priority": "P0",
+  "description": "Factory-owned capability. Kept here only for traceability; runtime template does not validate these.",
+  "requirements": [],
+  "_metadata": {
+    "notes": "The landing runtime implementation lives in this template. This module is excluded from the template index."
+  }
+}

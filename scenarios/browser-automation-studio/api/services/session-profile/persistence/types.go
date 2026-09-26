@@ -26,12 +26,14 @@ type SessionProfile struct {
 
 // BrowserProfile contains anti-detection and fingerprint settings for browser automation.
 type BrowserProfile struct {
-	Preset        string                 `json:"preset,omitempty"`         // stealth, balanced, fast, none
-	Fingerprint   *FingerprintSettings   `json:"fingerprint,omitempty"`    // Browser identity settings
-	Behavior      *BehaviorSettings      `json:"behavior,omitempty"`       // Human-like behavior settings
-	AntiDetection *AntiDetectionSettings `json:"anti_detection,omitempty"` // Bot detection bypass settings
-	Proxy         *ProxySettings         `json:"proxy,omitempty"`          // Proxy configuration
-	ExtraHeaders  map[string]string      `json:"extra_headers,omitempty"`  // Custom HTTP headers sent with every request
+	Preset           string                 `json:"preset,omitempty"`            // stealth, balanced, fast, none
+	Fingerprint      *FingerprintSettings   `json:"fingerprint,omitempty"`       // Browser identity settings
+	Behavior         *BehaviorSettings      `json:"behavior,omitempty"`          // Human-like behavior settings
+	AntiDetection    *AntiDetectionSettings `json:"anti_detection,omitempty"`    // Bot detection bypass settings
+	Proxy            *ProxySettings         `json:"proxy,omitempty"`             // Proxy configuration
+	ExtraHeaders     map[string]string      `json:"extra_headers,omitempty"`     // Custom HTTP headers sent with every request
+	MotionPreference string                 `json:"motion_preference,omitempty"` // no-preference, reduce
+	InteractionState string                 `json:"interaction_state,omitempty"` // rest, hover, focus-visible, pressed, disabled
 }
 
 // FingerprintSettings controls browser identity and device characteristics.

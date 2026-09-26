@@ -1,0 +1,234 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "browser-automation-studio.navigate-intent",
+  "version": "4",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Start or resume one bounded vision-navigation, read its status once with an optional server-side wait, classify it, and turn a completed navigation's recorded steps into a typed V2 candidate flow.",
+  "inputs": {
+    "session": {
+      "type": "string",
+      "required": false,
+      "description": "Existing playwright-driver browser session id; required unless navigation_id resumes an earlier navigation."
+    },
+    "prompt": {
+      "type": "string",
+      "required": false,
+      "free_text": true,
+      "description": "Natural-language navigation instruction; required when starting, ignored when resuming by navigation_id."
+    },
+    "max_steps": {
+      "type": "integer",
+      "default": 10,
+      "description": "Step budget, 1..25 (the CLI allows up to 100; this program caps lower)."
+    },
+    "navigator": {
+      "type": "string",
+      "enum": [
+        "playwright",
+        "claude_code"
+      ],
+      "description": "Preferred navigator; auto-select when absent."
+    },
+    "model": {
+      "type": "string",
+      "required": false,
+      "description": "Vision model identifier; required when starting (the binding has no default and a caller must not hardcode a slug), ignored when resuming."
+    },
+    "navigation_id": {
+      "type": "string",
+      "description": "Resume: read the status of this navigation instead of starting a new one."
+    },
+    "wait_millis": {
+      "type": "integer",
+      "default": 0,
+      "description": "Server-side bounded wait (0..300000) for a terminal status before the single read returns; the wait is the vision-navigation status binding's own, not a client loop."
+    },
+    "postconditions": {
+      "type": "array",
+      "description": "Independent typed BAS assertion parameters defining task success; no synthetic body-exists fallback."
+    },
+    "knowledge": {
+      "type": "string",
+      "description": "Bounded recalled task knowledge, advisory only."
+    },
+    "extraction": {
+      "type": "array",
+      "description": "At most 16 named final-page DOM extractions {name, selector, attribute?, limit?}; at most 32768 output bytes."
+    },
+    "effect_policy": {
+      "type": "string",
+      "description": "explicit uses existing task authority; read_only rejects navigator actions other than wait/done before execution."
+    }
+  },
+  "assumptions": [
+    "browser-automation-studio is running and the session id names a live browser session",
+    "vision-navigation status accepts wait_millis and blocks server-side up to that long; without it a read right after start usually says navigating and the caller resumes with navigation_id",
+    "the navigator's credit policy may refuse the start; that is reported refused, not retried",
+    "an unknown session id surfaces as `driver error: status 404` from the driver and is classified session_not_found; an unknown navigation_id on resume is classified session_not_found"
+  ],
+  "invariants": [
+    "at most one navigation is started; a resume starts none; no abort, no retry",
+    "status is read exactly once; the wait is server-side, there is no client polling loop",
+    "a candidate flow is emitted only from a completed navigation with recorded steps, in the V2 shape nodes[].action.type plus edges; only caller postconditions become verification assertions",
+    "the envelope is printed exactly once, on every path"
+  ],
+  "bindings": [
+    {
+      "id": "browser-automation-studio/vision-navigation/start",
+      "effect": "write"
+    },
+    {
+      "id": "browser-automation-studio/vision-navigation/status",
+      "effect": "read",
+      "optional": true
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "act",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "navigation_id": "navigation session UUID",
+      "start_status": "lifecycle marker returned by start",
+      "status": "driver status at the single read: idle|navigating|awaiting_human|completed|failed|aborted|max_steps_reached|loop_detected",
+      "step_count": "steps taken at the read",
+      "total_tokens": "tokens consumed at the read",
+      "navigator_type": "navigator that took the session",
+      "outcome": "reached | human_pause | budget | in_progress | failed | unknown",
+      "candidate_flow": "V2 flow {nodes[{id, action{type, <params>}}], edges[{source,target,type}]} rebuilt from the navigation's recorded steps; absent unless the navigation completed with replayable steps",
+      "learning": "Durable feedback_ref identifies this task or exact artifact for later learn.feedback.",
+      "output": "Named arrays extracted from the final page; bounded to 32768 bytes.",
+      "qualification": "Recorded navigation flows remain candidate; task verification does not authorize replay.",
+      "candidate_flow_source": "Where the step mapping came from: cache | baseline | fallback | model | unavailable.",
+      "dropped_steps": "Recorded steps the mapping could not represent, each {index, kind, reason}; bounded to 16. Non-empty means the navigator emitted vocabulary this flow schema cannot replay."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "session_not_found",
+        "credits_required",
+        "budget_exhausted",
+        "navigation_failed",
+        "model_required",
+        "navigation_pending",
+        "remote_error",
+        "no_governed_binding",
+        "verification_required",
+        "verification_failed"
+      ]
+    },
+    "evidence": "navigation:<id>"
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 2,
+    "delegated_runs": 0,
+    "materialize_limit": 0
+  },
+  "fixtures": [
+    {
+      "id": "no-session",
+      "inputs": {
+        "prompt": "open the home page"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
+    },
+    {
+      "id": "no-model",
+      "inputs": {
+        "session": "00000000-0000-0000-0000-000000000000",
+        "prompt": "open the home page",
+        "max_steps": 1
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
+    },
+    {
+      "id": "live-valid",
+      "inputs": {
+        "session": "00000000-0000-0000-0000-000000000000",
+        "prompt": "fixture",
+        "max_steps": 10,
+        "model": "fixture-model"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable",
+          "refused",
+          "failed"
+        ]
+      },
+      "requires": [
+        "browser-automation-studio"
+      ],
+      "note": "Valid bounded exercise fixture added after admission-only fixtures left the contract unexercised."
+    },
+    {
+      "id": "resume-unknown",
+      "inputs": {
+        "navigation_id": "00000000-0000-0000-0000-000000000000",
+        "wait_millis": 0
+      },
+      "expect": {
+        "status": [
+          "failed",
+          "unavailable",
+          "partial"
+        ]
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "browser-automation-studio",
+  "verbs": [
+    "learn.task",
+    "learn.act",
+    "learn.note",
+    "learn.outcome",
+    "lib",
+    "learn.result"
+  ]
+}

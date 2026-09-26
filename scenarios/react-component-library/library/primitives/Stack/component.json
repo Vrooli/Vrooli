@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "primitive",
+  "catalogId": "primitives.stack",
+  "deprecatedVersions": [
+    "1.2.1"
+  ],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.2.1",
+    "1.2.2"
+  ],
+  "latest": "1.2.3",
+  "libraryId": "react-component-library:Stack"
+}

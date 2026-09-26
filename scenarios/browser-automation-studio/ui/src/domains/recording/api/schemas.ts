@@ -15,10 +15,12 @@ import { z } from 'zod';
  * Response from start recording endpoint.
  */
 export const StartRecordingResponseSchema = z.object({
-  recording_id: z.string(),
-  session_id: z.string(),
-  started_at: z.string(),
+  recording_id: z.string().min(1),
+  session_id: z.string().min(1),
+  started_at: z.string().datetime({ offset: true }),
 });
+
+export const ActiveRecordingStatusSchema = StartRecordingResponseSchema.extend({ is_recording: z.literal(true) });
 
 export type StartRecordingResponse = z.infer<typeof StartRecordingResponseSchema>;
 
@@ -26,10 +28,11 @@ export type StartRecordingResponse = z.infer<typeof StartRecordingResponseSchema
  * Response from stop recording endpoint.
  */
 export const StopRecordingResponseSchema = z.object({
-  recording_id: z.string(),
-  session_id: z.string(),
-  action_count: z.number(),
-  stopped_at: z.string(),
+  recording_id: z.string().min(1),
+  session_id: z.string().min(1),
+  // ProtoJSON omits scalar zero values.
+  action_count: z.number().int().min(0).max(2147483647).default(0),
+  completed_at: z.string().datetime({ offset: true }),
 });
 
 export type StopRecordingResponse = z.infer<typeof StopRecordingResponseSchema>;
@@ -276,19 +279,10 @@ export type TimelineResponse = z.infer<typeof TimelineResponseSchema>;
 // ============================================================================
 // AI Navigation Schemas
 // ============================================================================
-
-/**
- * AI navigation response from start navigation endpoint.
- */
-export const AINavigateResponseSchema = z.object({
-  navigation_id: z.string(),
-  status: z.string(),
-  model: z.string(),
-  max_steps: z.number(),
-  estimated_cost: z.number().optional(),
-});
-
-export type AINavigateResponse = z.infer<typeof AINavigateResponseSchema>;
+//
+// The legacy AINavigateResponseSchema/AINavigateResponse were removed in the
+// VisionNavigationService Connect-RPC migration. Callers should consume the
+// proto-typed StartNavigationResponse exported from src/api/visionNavigation.
 
 /**
  * Browser action types for AI navigation.

@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { getConfig } from '@/config';
+import { useCallback, useMemo, useState } from 'react';
+import { ConnectError } from '@connectrpc/connect';
+import { recordingsClient } from '@/api/recordings';
 import { logger } from '@/utils/logger';
 
 /**
- * Service worker info from the API
+ * Service worker info from the API.
  */
 export interface ServiceWorkerInfo {
   registrationId: string;
@@ -14,7 +15,7 @@ export interface ServiceWorkerInfo {
 }
 
 /**
- * Domain override for service worker control
+ * Domain override for service worker control.
  */
 export interface ServiceWorkerDomainOverride {
   domain: string;
@@ -22,7 +23,7 @@ export interface ServiceWorkerDomainOverride {
 }
 
 /**
- * Service worker control settings
+ * Service worker control settings.
  */
 export interface ServiceWorkerControl {
   mode: 'allow' | 'block' | 'block-on-domain' | 'unregister-all';
@@ -31,7 +32,7 @@ export interface ServiceWorkerControl {
 }
 
 /**
- * Service workers response from the API
+ * Service workers response from the API.
  */
 export interface ServiceWorkersResponse {
   session_id: string;
@@ -47,9 +48,16 @@ export interface UseServiceWorkersResult {
   deleting: boolean;
   fetchServiceWorkers: (profileId: string) => Promise<void>;
   clear: () => void;
-  // Delete operations
   unregisterAll: (profileId: string) => Promise<boolean>;
   unregisterWorker: (profileId: string, scopeURL: string) => Promise<boolean>;
+}
+
+const COMPONENT = 'useServiceWorkers';
+
+function describe(err: unknown): string {
+  if (err instanceof ConnectError) return err.message;
+  if (err instanceof Error) return err.message;
+  return 'Service worker operation failed';
 }
 
 export function useServiceWorkers(): UseServiceWorkersResult {
@@ -57,24 +65,37 @@ export function useServiceWorkers(): UseServiceWorkersResult {
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const currentProfileId = useRef<string | null>(null);
 
   const fetchServiceWorkers = useCallback(async (profileId: string) => {
-    currentProfileId.current = profileId;
     setLoading(true);
     setError(null);
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/recordings/sessions/${profileId}/service-workers`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch service workers (${response.status})`);
-      }
-      const data = (await response.json()) as ServiceWorkersResponse;
-      setServiceWorkers(data);
+      const resp = await recordingsClient.getServiceWorkers({ profileId });
+      const workers = (resp.workers ?? []).map((w) => ({
+        registrationId: w.registrationId,
+        scopeURL: w.scopeUrl,
+        scriptURL: w.scriptUrl,
+        status: (w.status || 'stopped') as ServiceWorkerInfo['status'],
+        versionId: w.versionId || undefined,
+      }));
+      const control: ServiceWorkerControl = {
+        mode: (resp.control?.mode || 'allow') as ServiceWorkerControl['mode'],
+        domainOverrides: (resp.control?.domainOverrides ?? []).map((d) => ({
+          domain: d.domain,
+          mode: (d.mode || 'allow') as 'allow' | 'block',
+        })),
+        blockedDomains: resp.control?.blockedDomains ?? [],
+      };
+      setServiceWorkers({
+        session_id: resp.sessionId,
+        workers,
+        control,
+        message: resp.message || undefined,
+      });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load service workers';
+      const message = describe(err);
       setError(message);
-      logger.error(message, { component: 'useServiceWorkers', action: 'fetchServiceWorkers' }, err);
+      logger.error(message, { component: COMPONENT, action: 'fetchServiceWorkers' }, err);
     } finally {
       setLoading(false);
     }
@@ -83,62 +104,42 @@ export function useServiceWorkers(): UseServiceWorkersResult {
   const clear = useCallback(() => {
     setServiceWorkers(null);
     setError(null);
-    currentProfileId.current = null;
   }, []);
 
-  // Helper for delete operations
-  const deleteRequest = useCallback(async (profileId: string, path: string): Promise<boolean> => {
-    setDeleting(true);
-    setError(null);
-    try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/recordings/sessions/${profileId}/service-workers${path}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        throw new Error(`Delete failed (${response.status})`);
+  const runMutation = useCallback(
+    async (profileId: string, op: () => Promise<unknown>, action: string): Promise<boolean> => {
+      setDeleting(true);
+      setError(null);
+      try {
+        await op();
+        await fetchServiceWorkers(profileId);
+        return true;
+      } catch (err) {
+        const message = describe(err);
+        setError(message);
+        logger.error(message, { component: COMPONENT, action }, err);
+        return false;
+      } finally {
+        setDeleting(false);
       }
-      // Refetch service workers to update UI
-      await fetchServiceWorkers(profileId);
-      return true;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Delete operation failed';
-      setError(message);
-      logger.error(message, { component: 'useServiceWorkers', action: 'deleteRequest', path }, err);
-      return false;
-    } finally {
-      setDeleting(false);
-    }
-  }, [fetchServiceWorkers]);
+    },
+    [fetchServiceWorkers]
+  );
 
-  const unregisterAll = useCallback(async (profileId: string): Promise<boolean> => {
-    return deleteRequest(profileId, '');
-  }, [deleteRequest]);
+  const unregisterAll = useCallback(
+    (profileId: string) =>
+      runMutation(profileId, () => recordingsClient.clearAllServiceWorkers({ profileId }), 'unregisterAll'),
+    [runMutation]
+  );
 
-  const unregisterWorker = useCallback(async (profileId: string, scopeURL: string): Promise<boolean> => {
-    return deleteRequest(profileId, `/${encodeURIComponent(scopeURL)}`);
-  }, [deleteRequest]);
+  const unregisterWorker = useCallback(
+    (profileId: string, scopeURL: string) =>
+      runMutation(profileId, () => recordingsClient.deleteServiceWorker({ profileId, scopeUrl: scopeURL }), 'unregisterWorker'),
+    [runMutation]
+  );
 
   return useMemo(
-    () => ({
-      serviceWorkers,
-      loading,
-      error,
-      deleting,
-      fetchServiceWorkers,
-      clear,
-      unregisterAll,
-      unregisterWorker,
-    }),
-    [
-      serviceWorkers,
-      loading,
-      error,
-      deleting,
-      fetchServiceWorkers,
-      clear,
-      unregisterAll,
-      unregisterWorker,
-    ]
+    () => ({ serviceWorkers, loading, error, deleting, fetchServiceWorkers, clear, unregisterAll, unregisterWorker }),
+    [serviceWorkers, loading, error, deleting, fetchServiceWorkers, clear, unregisterAll, unregisterWorker]
   );
 }

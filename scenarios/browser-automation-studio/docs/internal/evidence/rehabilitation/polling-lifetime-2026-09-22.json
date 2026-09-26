@@ -1,0 +1,122 @@
+{
+  "record": "BAS-WORK-046",
+  "issues": [
+    "BAS-RF-079",
+    "BAS-RF-046",
+    "BAS-RF-047"
+  ],
+  "status": "deployed_scoped_checks_passed",
+  "controlled_protocol": {
+    "before": "/tmp/bas-polling-lifetime-red-046.log",
+    "after": "/tmp/bas-polling-lifetime-green2-046.log",
+    "settled_waits": 20,
+    "listeners_before": 20,
+    "listeners_after": 1,
+    "listeners_after_stop": 0,
+    "private_sessions_remaining_before": 1,
+    "private_sessions_remaining_after": 0,
+    "capture_deadlines_remaining_before": 1,
+    "capture_deadlines_remaining_after": 0,
+    "fixture_correction": "First after probe produced a fresh socket identity on every lookup; canceled its own tool57023, stabilized fixture socket identity, and reran. No production workaround."
+  },
+  "maintained_red": {
+    "failed": 7,
+    "passed_controls": 2,
+    "seconds": 0.825,
+    "receipt": "/tmp/bas-polling-maintained-red-046.txt"
+  },
+  "native_red": {
+    "failed": 2,
+    "seconds": 5.138,
+    "receipt": "/tmp/bas-polling-native-red-046.txt"
+  },
+  "focused": {
+    "tests": 42,
+    "suites": 3,
+    "seconds": 13.047,
+    "receipt": "/tmp/bas-polling-focused-final-046.txt"
+  },
+  "types": "passed",
+  "build": "passed",
+  "native_oracle": "DPR2 browser; public CDP acquisition unavailable; decoded JPEG centre blue and dimensions320x240CSS/640x480device. SDK+strategy fixture, not full API/UI journey.",
+  "runtime_lines": {
+    "before": 424,
+    "after": 372,
+    "net": -52
+  },
+  "deleted_owners": [
+    "global weak CDP session cache",
+    "private capture deadline/race",
+    "duplicate SDK fallback selection"
+  ],
+  "source_sha256": {
+    "playwright-driver/src/frame-streaming/strategies/polling.ts": "076a6529a4d29568e80763a6cdfa7c25847b1db839d4f7ff9211bb02385a2c03",
+    "playwright-driver/tests/unit/frame-streaming/polling-strategy.test.ts": "bfe3c33bbce1bc4f931da0e0fc92ce47d9e89b68f34684ed3f390e31c7c5ac1a",
+    "playwright-driver/tests/integration/pipeline-e2e.test.ts": "bc2404af0ec98aa07b776f914b19e8a8be1712cf01e87b78957f81799b978b17"
+  },
+  "pending_operations": [],
+  "limitations": [
+    "20pair1280x720DPR1 warm capture observation is not release performance or soak qualification.",
+    "Browser SDK owns the200ms screenshot timeout; pathological SDK cancellation bounds remain unqualified.",
+    "Native Firefox/WebKit/OS device matrices remain unqualified.",
+    "Effective FPS/performance-header controls remain RF047.",
+    "TypeScript cyclomatic measurement remains unavailable under RF064."
+  ],
+  "native_capture_cost": {
+    "cohort": "warm 1280x720 DPR1 JPEG65; alternating order; concurrent full driver tests; not release performance",
+    "readings": [
+      {
+        "kind": "cdp",
+        "n": 20,
+        "median_ms": 33.388474499999916,
+        "min_ms": 31.997376999999915,
+        "max_ms": 34.64687099999992
+      },
+      {
+        "kind": "sdk",
+        "n": 20,
+        "median_ms": 33.225148999999874,
+        "min_ms": 31.394796000000042,
+        "max_ms": 35.2778229999999
+      }
+    ],
+    "receipt": "/tmp/bas-polling-capture-cost-046.log"
+  },
+  "driver_owner": {
+    "run_id": "uh-20260922-193836-6bc3f69d892b9948027fa4427f92b0f5",
+    "status": "passed",
+    "receipt": "/tmp/bas-polling-owner-046.json",
+    "command_duration_ms": "374920",
+    "tests_passed": 1612,
+    "suites_passed": 124,
+    "tests_skipped": 2,
+    "suites_skipped": 1,
+    "jest_seconds": 374.013
+  },
+  "tidiness": {
+    "run_id": "20260922-193841-affe382a",
+    "status": "failed",
+    "quiet_wait_consumed": true,
+    "summary": {
+      "totalFindings": 1118,
+      "longFiles": 104,
+      "complexity": 387,
+      "duplication": 608,
+      "coupling": 18,
+      "duplicationLineDebt": 32643
+    }
+  },
+  "board": {
+    "required": 17,
+    "unmet": 17,
+    "product_qualified": false
+  },
+  "deployment": {
+    "build_identity": "sha256:687f82ccf2cb92f618739d898303cfc422fa0b2e2d3cc9d1790bd766fdd83538",
+    "restart_tool_session": 2856,
+    "health_receipt": "/tmp/bas-live-health-046.json",
+    "profiles_receipt": "/tmp/bas-profile-final-046.txt",
+    "complete_profile_reads_matched": 3,
+    "profile_metadata_matches_045": true
+  }
+}

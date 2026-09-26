@@ -1,0 +1,67 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "emergency_watchdog",
+  "storage": {
+    "entries": {},
+    "rationale": "The safeguard installs the standalone watchdog binary into the invoking user's native scheduler (systemd, launchd, or Task Scheduler); it writes only user-scoped state and needs no privilege."
+  },
+  "description": "Install the portable emergency watchdog and its native user scheduler entry so setup owns the last line of defense instead of a hand-placed unit",
+  "handler": "emergency_watchdog",
+  "risk": "low",
+  "privilege": "user",
+  "bundling": "prohibited",
+  "capability": "process-containment",
+  "capability_role": "control",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "setpoint_path": {
+        "type": "string",
+        "description": "Optional path to the shared reliability setpoint. Pressure and sustain bars are read from this contract by the installed watchdog binary."
+      }
+    }
+  },
+  "notes": "The watchdog's pressure thresholds are declared in infrastructure-manager/setpoint/reliability-setpoint.json; this manifest intentionally carries no private CPU deadband. The portable report-only decision binary reads hostpressure directly. Platform scheduling remains owned by each host's native scheduler.",
+  "verificationCheck": {
+    "files": [
+      "$USER_HOME/.vrooli/libexec/vrooli-watchdog"
+    ]
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  },
+  "risk_class": "restore_absent"
+}

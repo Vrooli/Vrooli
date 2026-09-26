@@ -1,0 +1,309 @@
+{
+  "cycle": "BAS-WORK-094",
+  "issues": [
+    "BAS-RF-112",
+    "BAS-RF-115",
+    "BAS-RF-116"
+  ],
+  "journeys": [
+    "BAS-RH-J03",
+    "BAS-RH-J17",
+    "BAS-RH-J24"
+  ],
+  "build_identity": "sha256:52b39732df53c8c3bb7c8a246a666ca97a11f837defda13545923389cb5851dd",
+  "frozen": {
+    "path": "/tmp/bas-frozen-owner-094.json",
+    "paths": 332,
+    "unchanged_after_native": true,
+    "unchanged_through_terminal": true
+  },
+  "changes": [
+    "Execute typed browser expression/element conditions and executor-owned variable conditions",
+    "Share local workflow-state dispatch between graph/linear executors",
+    "Route completed truth only to matching edge; evaluator failure only to explicit error edge",
+    "Prevent runtime syntax errors from repeating expression effects",
+    "Advertise implemented frame automation capability",
+    "Move existing ConditionOutcome schema into shared owner preserving FQN/old field numbers",
+    "Move and reuse existing converters in lower typeconv; remove narrower telemetry copy",
+    "Retain condition in actual file writer and capture/export output"
+  ],
+  "checks": {
+    "routing_red": "/tmp/bas-conditional-routing-red-094.txt",
+    "wire_red": "/tmp/bas-conditional-wire-red-094.txt",
+    "outcome_red": "/tmp/bas-conditional-outcome-red-094.txt",
+    "evidence_red": "/tmp/bas-conditional-evidence-red-094.txt",
+    "writer_red": "/tmp/bas-conditional-writer-red2-094.txt",
+    "driver": {
+      "tests": 175,
+      "exit_code": 0,
+      "receipt": "/tmp/bas-conditional-driver-refreshed-094.txt"
+    },
+    "driver_typecheck": "/tmp/bas-conditional-driver-typecheck-refreshed-094.txt",
+    "go_race_extended": "/tmp/bas-conditional-extended-race2-094.txt",
+    "go_race_writer": "/tmp/bas-conditional-writer-race-094.txt",
+    "api_build": {
+      "session": 2839,
+      "exit_code": 0
+    },
+    "restart": {
+      "session": 2692,
+      "exit_code": 0
+    },
+    "preservation": {
+      "session": 28445,
+      "exit_code": 0,
+      "profiles": 1,
+      "reads": 3,
+      "complete_state_equal": true,
+      "receipt": "/tmp/bas-profile-preservation-writer-094.txt"
+    },
+    "native_initial": {
+      "path": "/tmp/bas-conditional-native-094/receipt.json",
+      "sha256": "2755b8c944c4da01e8b03b14980ce16edb1c024c4911c141916ebe66215699ce",
+      "passed": 7,
+      "total": 53,
+      "before_build": "sha256:976eb5a37d02744dc5c5d46cbfb0303f5be86451677d64bd3438e90c88bf8edc",
+      "after_build": "sha256:976eb5a37d02744dc5c5d46cbfb0303f5be86451677d64bd3438e90c88bf8edc"
+    },
+    "native_second": {
+      "path": "/tmp/bas-conditional-native-qualified-094/receipt.json",
+      "sha256": "75bbd96ce68e311fef3adfefa2d6e99073e93a2ebbb5b093439a9465f709d258",
+      "passed": 7,
+      "total": 53,
+      "before_build": "sha256:6ee98ea023f71c7ebc876b792ad35343bca67b2f68d741f1ddd89c61906cd9f7",
+      "after_build": "sha256:6ee98ea023f71c7ebc876b792ad35343bca67b2f68d741f1ddd89c61906cd9f7"
+    },
+    "native_final": {
+      "path": "/tmp/bas-conditional-native-final-094/receipt.json",
+      "sha256": "55289eeb56e1c9cc18ed43fad4d06e729c9cb815cfa37cec273b0252737f852d",
+      "passed": 53,
+      "total": 53,
+      "before_build": "sha256:52b39732df53c8c3bb7c8a246a666ca97a11f837defda13545923389cb5851dd",
+      "after_build": "sha256:52b39732df53c8c3bb7c8a246a666ca97a11f837defda13545923389cb5851dd"
+    }
+  },
+  "proto": {
+    "generation": "/tmp/bas-conditional-proto-breaking-094.txt",
+    "breaking": {
+      "wire": 0,
+      "json": 0,
+      "unreconciled_consumers": 0,
+      "baseline": "merge-base 7b17b3985faa",
+      "limitation": "Historical immutable baseline incomplete; owner fallback is not baseline repair."
+    },
+    "consumer_refresh": "/tmp/bas-proto-consumer-refresh-stopped-094.json"
+  },
+  "metrics": {
+    "runtime_lines": [
+      {
+        "path": "scenarios/browser-automation-studio/playwright-driver/src/handlers/conditional.ts",
+        "before": 0,
+        "after": 83
+      },
+      {
+        "path": "scenarios/browser-automation-studio/playwright-driver/src/handlers/index.ts",
+        "before": 73,
+        "after": 74
+      },
+      {
+        "path": "scenarios/browser-automation-studio/playwright-driver/src/server.ts",
+        "before": 683,
+        "after": 684
+      },
+      {
+        "path": "scenarios/browser-automation-studio/playwright-driver/src/proto/action-type-utils.ts",
+        "before": 323,
+        "after": 326
+      },
+      {
+        "path": "scenarios/browser-automation-studio/playwright-driver/src/outcome/outcome-builder.ts",
+        "before": 494,
+        "after": 503
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/automation/driver/types.go",
+        "before": 617,
+        "after": 619
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/automation/driver/client.go",
+        "before": 1234,
+        "after": 1242
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/automation/executor/flow_executor.go",
+        "before": 753,
+        "after": 778
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/automation/executor/simple_executor.go",
+        "before": 1779,
+        "after": 1775
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/automation/executor/flow_utils.go",
+        "before": 438,
+        "after": 441
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/automation/state/interpolator.go",
+        "before": 589,
+        "after": 599
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/automation/actions/registry.go",
+        "before": 445,
+        "after": 445
+      },
+      {
+        "path": "scenarios/browser-automation-studio/ui/src/domains/workflows/nodes/ConditionalNode.tsx",
+        "before": 240,
+        "after": 240
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/automation/engine/playwright_engine.go",
+        "before": 266,
+        "after": 266
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/automation/telemetry/action_telemetry.go",
+        "before": 203,
+        "after": 195
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/automation/telemetry/from_execution.go",
+        "before": 186,
+        "after": 178
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/automation/telemetry/to_timeline.go",
+        "before": 256,
+        "after": 258
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/internal/protoconv/driver_convert.go",
+        "before": 1100,
+        "after": 1028
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/services/export/timeline_loader.go",
+        "before": 374,
+        "after": 375
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/services/export/types_timeline.go",
+        "before": 72,
+        "after": 73
+      },
+      {
+        "path": "scenarios/browser-automation-studio/playwright-driver/src/proto/index.ts",
+        "before": 308,
+        "after": 308
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/automation/contracts/contracts.go",
+        "before": 417,
+        "after": 417
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/internal/typeconv/contracts.go",
+        "before": 223,
+        "after": 274
+      },
+      {
+        "path": "scenarios/browser-automation-studio/api/automation/execution-writer/file_writer.go",
+        "before": 1481,
+        "after": 1481
+      }
+    ],
+    "go": {
+      "before": {
+        "complexity": 1794,
+        "functions": 296,
+        "max": 50
+      },
+      "after": {
+        "complexity": 1810,
+        "functions": 296,
+        "max": 50
+      }
+    },
+    "typescript": {
+      "before": {
+        "complexity": 241,
+        "functions": 110,
+        "max": 31
+      },
+      "after": {
+        "complexity": 267,
+        "functions": 115,
+        "max": 32
+      }
+    },
+    "limits": "Generated files/tests/schema bytes excluded from runtime counts. Same scoped owners before/after include moved converters at both old and new packages. Not a domain-wide TS measurement.",
+    "totals": {
+      "before": 12554,
+      "after": 12662
+    }
+  },
+  "go_cumulative_delta": 335,
+  "qualification": {
+    "performance": {
+      "scenario": "browser-automation-studio",
+      "workload": "capture",
+      "operation_id": "b1e6f95ba344b94458ee19f1a4c8b2c2",
+      "outcome": "WORKLOAD_OUTCOME_MEASURED",
+      "within_budget": true,
+      "p95_ms": 427,
+      "wall_p95_ms": 610.723788,
+      "budget_ms": 2000,
+      "sample_count": 100,
+      "attempt_count": 101,
+      "declared_warmups": 1,
+      "captured_at": "2026-09-23T16:28:34.605080827Z",
+      "build_identity": "sha256:52b39732df53c8c3bb7c8a246a666ca97a11f837defda13545923389cb5851dd",
+      "producer_digest": "62456dbce61bba14f9feb78efc1e806448fc482e734c2e8a18bf2938b6ed4a52",
+      "contract_digest": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+      "configuration_digest": "1a2776b5338b0074036293f43952bd03d3be2ef1ccabfef38787e06d4a63b167",
+      "fixture_revision": "dcabe2e264925a3c8264eef9ecd37b0b7b16ee11ce3c57bb1310a80ede1e3367",
+      "receipt_path": "/home/matthalloran8/.vrooli/test-runs/performance-health/workloads/b1e6f95ba344b94458ee19f1a4c8b2c2/producer/receipt.json",
+      "receipt_sha256": "6edbd377b8a1eea3df17fb7bb2a18466c8a781bf146d4c7b317bdc2d1df063a8"
+    },
+    "test_genie": {
+      "id": "20260923-163006-94c734ad",
+      "wait": "terminal",
+      "phases": [
+        "performance",
+        "tidiness"
+      ],
+      "session": 64085,
+      "exit_code": 1,
+      "verdict": "FAIL",
+      "performance": "passed",
+      "tidiness": "failed",
+      "findings": 1157,
+      "artifacts": "/tmp/bas-tg-artifacts-094.json",
+      "summary": {
+        "totalFindings": 1157,
+        "longFiles": 104,
+        "complexity": 422,
+        "duplication": 607,
+        "coupling": 23,
+        "duplicationLineDebt": 34644
+      },
+      "exact_ph_receipt": true
+    },
+    "board": {
+      "receipt": "/tmp/bas-setpoint-094.json",
+      "qualified": 1,
+      "unknown": 16,
+      "product_ready": false
+    }
+  },
+  "limits": [
+    "Not complete graph recovery, concurrency, soaks, platform or whole journey certification",
+    "New capability adds108runtime lines,16GoCC and26scopedTSCC; no net debt reduction claim",
+    "Existing FileWriter maximum CC50 and outcome-builderCC32 remain hotspots",
+    "Shared dirty workspace; preserve unrelated changes and original failed evidence"
+  ]
+}

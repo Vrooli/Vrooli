@@ -13,21 +13,22 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gorilla/mux"
-
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/fileops"
 	"swarm-manager/internal/httputil"
+
+	"github.com/gorilla/mux"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 )
 
 // FileNodesToProto converts a slice of fileops.FileNode to proto BacklogFile.
-func FileNodesToProto(nodes []fileops.FileNode) []*domainpb.BacklogFile {
+func FileNodesToProto(nodes []fileops.FileNode) []*sharedpb.BacklogFile {
 	if len(nodes) == 0 {
 		return nil
 	}
-	result := make([]*domainpb.BacklogFile, 0, len(nodes))
+	result := make([]*sharedpb.BacklogFile, 0, len(nodes))
 	for _, n := range nodes {
 		result = append(result, FileNodeToProto(n))
 	}
@@ -35,13 +36,13 @@ func FileNodesToProto(nodes []fileops.FileNode) []*domainpb.BacklogFile {
 }
 
 // FileNodeToProto converts a single fileops.FileNode to proto BacklogFile.
-func FileNodeToProto(n fileops.FileNode) *domainpb.BacklogFile {
+func FileNodeToProto(n fileops.FileNode) *sharedpb.BacklogFile {
 	children := FileNodesToProto(n.Children)
 	var size *int64
 	if n.Type == "file" {
 		size = &n.Size
 	}
-	return &domainpb.BacklogFile{
+	return &sharedpb.BacklogFile{
 		Name:     n.Name,
 		Path:     n.Path,
 		Type:     n.Type,
@@ -121,7 +122,7 @@ func Upload(w http.ResponseWriter, r *http.Request, rootDir, protectedFile, ctx 
 		return
 	}
 
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o750); err != nil {
 		slog.Error("failed to create upload directory", "path", fullPath, "err", err)
 		apierr.MapError(w, ctx+" upload file", apierr.Internal("failed to create directory"))
 		return
@@ -260,7 +261,7 @@ func operateDestination(
 		return false
 	}
 
-	if err := os.MkdirAll(filepath.Dir(destinationFullPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destinationFullPath), 0o750); err != nil {
 		apierr.MapError(w, ctx+" file operation", apierr.Internal("failed to create destination directory"))
 		return false
 	}

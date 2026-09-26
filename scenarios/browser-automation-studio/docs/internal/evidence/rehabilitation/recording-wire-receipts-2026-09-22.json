@@ -1,0 +1,304 @@
+{
+  "record": "BAS-WORK-051",
+  "issues": [
+    "BAS-RF-038",
+    "BAS-RF-082",
+    "BAS-RF-083"
+  ],
+  "status": "qualified_and_deployed",
+  "baseline": "/tmp/bas-before-051/manifest.json",
+  "source_sha256": {
+    "playwright-driver/src/routes/record-mode/recording-lifecycle.ts": "b75aa222b450c696b6cb3e7b55c32991d5b621f691074adbb791242b260260a8",
+    "playwright-driver/src/routes/record-mode/types.ts": "12b711055df97715056a4d346d23533001a42f1d346392e39b2e28c1afe2dbba",
+    "api/automation/driver/client.go": "41afbc3b1f76bb8e232be74508aa2bce5a90d62183c1133fbf59f15a22c863ab",
+    "api/automation/driver/types.go": "3c43339e9c8a25499e92c8dc8e9c2432d3441706298324a5c5192b0c82d2ea7c",
+    "api/automation/session/session.go": "aeb264ee60571ac2704b2003c78e916b6f44877b140698170c58b9295f566b8d",
+    "api/services/live-capture/service.go": "078913b25e656584210e0f5b81cffd57971b190657e4b165588c25a574130c3a",
+    "api/handlers/handler.go": "759a729d9690a169745b5def5a583edc99e015cabcb735eb18cf9620e9690d75",
+    "api/handlers/record_mode_lifecycle.go": "67b858836dc83a5115542cea739fa6ae119eb484a44158f1711df9f438da3cf5",
+    "api/handlers/record_mode_types.go": "1dbfa785ad8c17662717db23afd1c7aa2a3a9d2edf27bd6a037da0255bd66b24",
+    "api/handlers/testutil_mock_services.go": "15c44386d5d45c0680af1c0e7e75d32a79aff6d0257d9ff30f1d96a09738d0a4",
+    "api/internal/protoconv/record_mode.go": "160871d76ac2132f03e4842cdbb290c52a880cef05bcb35a29650a8d08b8a88a",
+    "ui/src/domains/recording/api/RecordingApiService.ts": "e3560b5da19d162a54e6ab395a14fb1ee51792d0197c12e17c109a7b05b11377",
+    "ui/src/domains/recording/api/schemas.ts": "7b15339c673377dbfcaa06c2fda39fa9b709d5931f6ec08a1096ed5bb746f34e",
+    "ui/src/domains/recording/types/types.ts": "1699f0a47b3f9c485d19a4aa0f68614ca2f2cd5def2b4c580da3e8a97d52c40c",
+    "ui/src/domains/recording/index.ts": "decd20923df2261eb8f793e4391e26e6c20de83868a80a3b2bd182d0115e8871",
+    "playwright-driver/tests/unit/routes/recording-lifecycle.test.ts": "92a4e1e9d452c34f63be7ab775d904c472561b415f66e0baf7dcfa45c3dc8953",
+    "playwright-driver/tests/unit/routes/page-events.test.ts": "3ea2aec093e5eca69252b79b994feb7f2dbc8d682747376ad1b60aedba4c982d",
+    "playwright-driver/tests/integration/record-mode.test.ts": "75c3697108233597a34ba9b86ff174582c7480a562d0766d2a53676879ff7990",
+    "playwright-driver/tests/integration/pipeline-e2e.test.ts": "48fd333bf858dbb8c824201b596f83c5ead304b59d531f22f92696ddbf8d4bfe",
+    "api/automation/session/session_test.go": "aeaf37da7efe1466df17a5642ac52663c5c87def120b73d974253fea0ec9d56c",
+    "api/automation/driver/client_payload_test.go": "2ce668079b0ab4ce9b04627cce6a8dfc773fc8f9d6a6196be99450ef957ac7ac",
+    "api/services/live-capture/service_test.go": "b1b4ef9867e020994ccd8c62ee14b65ca5679a324fef92d71af18d453befc063",
+    "api/handlers/record_mode_test.go": "bc9a220a17235a07191848824ee69410be135e260971e06f20322b816cbeeec4",
+    "api/internal/protoconv/convert_test.go": "633607b8551c490c2b5bd78469e9897685d4fbe101d36026b89a4192982b58e5",
+    "ui/src/domains/recording/api/RecordingApiService.test.ts": "b1fe8a37626cd52cbe79de048dd1b5df91812a66054b222b3e0e5c813f5065d3",
+    "playwright-driver/tests/unit/routes/record-mode.test.ts": "db31fb98259d15f89bbded92d42174f6d7df5adc7230913f804b1f267b38cf2e",
+    "ui/src/shared/api/safeParse.ts": "52bc38fd934161ebf09f45a193077a5773762e473329721fbf1ca6c7acab1bf5"
+  },
+  "runtime_lines": {
+    "playwright-driver/src/routes/record-mode/recording-lifecycle.ts": {
+      "before": 415,
+      "after": 437
+    },
+    "playwright-driver/src/routes/record-mode/types.ts": {
+      "before": 400,
+      "after": 402
+    },
+    "api/automation/driver/client.go": {
+      "before": 1173,
+      "after": 1185
+    },
+    "api/automation/driver/types.go": {
+      "before": 619,
+      "after": 620
+    },
+    "api/automation/session/session.go": {
+      "before": 426,
+      "after": 411
+    },
+    "api/services/live-capture/service.go": {
+      "before": 807,
+      "after": 822
+    },
+    "api/handlers/handler.go": {
+      "before": 502,
+      "after": 503
+    },
+    "api/handlers/record_mode_lifecycle.go": {
+      "before": 106,
+      "after": 105
+    },
+    "api/handlers/record_mode_types.go": {
+      "before": 360,
+      "after": 335
+    },
+    "api/internal/protoconv/record_mode.go": {
+      "before": 78,
+      "after": 112
+    },
+    "ui/src/domains/recording/api/RecordingApiService.ts": {
+      "before": 602,
+      "after": 566
+    },
+    "ui/src/domains/recording/api/schemas.ts": {
+      "before": 509,
+      "after": 512
+    },
+    "ui/src/domains/recording/types/types.ts": {
+      "before": 537,
+      "after": 518
+    },
+    "ui/src/domains/recording/index.ts": {
+      "before": 153,
+      "after": 153
+    },
+    "ui/src/shared/api/safeParse.ts": {
+      "before": 180,
+      "after": 180
+    }
+  },
+  "go_complexity": {
+    "before": {
+      "functions": 155,
+      "cyclomatic": 481,
+      "over15": [
+        {
+          "function": "(*Service).CreateSession",
+          "complexity": 20
+        },
+        {
+          "function": "decodeStepOutcome",
+          "complexity": 18
+        }
+      ]
+    },
+    "after": {
+      "functions": 157,
+      "cyclomatic": 502,
+      "over15": [
+        {
+          "function": "(*Service).CreateSession",
+          "complexity": 20
+        },
+        {
+          "function": "decodeStepOutcome",
+          "complexity": 18
+        }
+      ]
+    }
+  },
+  "evidence": {
+    "driver_red": "/tmp/bas-recording-lease-maintained-red-051.txt",
+    "go_red": "/tmp/bas-recording-go-maintained-red-051.txt",
+    "ui_red": "/tmp/bas-recording-ui-red-051.txt",
+    "driver_focused": "/tmp/bas-recording-lease-focused2-051.txt",
+    "go_focused": "/tmp/bas-recording-go-focused2-051.txt",
+    "go_race": "/tmp/bas-recording-go-race-051.txt",
+    "go_build": "/tmp/bas-recording-go-build-051.txt",
+    "ui_focused": "/tmp/bas-recording-ui-green-051.txt",
+    "ui_record_mode": "/tmp/bas-recording-ui-full-051.txt",
+    "driver_http": "/tmp/bas-recording-lease-wire-final-051.log",
+    "driver_types": "/tmp/bas-recording-final-types2-051.txt",
+    "driver_build": "/tmp/bas-recording-driver-build2-051.txt",
+    "ui_types": "/tmp/bas-recording-ui-types-051.txt"
+  },
+  "pending_operations": {},
+  "limitations": [
+    "Other mutating routes and operation-specific retries remain RF038 work.",
+    "Post-await rejection does not undo effects admitted while ownership was valid.",
+    "Full journey/crash/native-platform/performance qualification remains open.",
+    "Go branches increased21 due to explicit validation; cumulative affectedGo reduction now227 from prior248. TypeScript cyclomatic measurement gap persists."
+  ],
+  "runtime_net_lines": -6,
+  "tidiness": {
+    "run_id": "20260922-213405-21384775",
+    "status": "failed",
+    "quiet_wait_consumed": true,
+    "summary": {
+      "totalFindings": 1122,
+      "longFiles": 104,
+      "complexity": 389,
+      "duplication": 609,
+      "coupling": 19,
+      "duplicationLineDebt": 32663
+    },
+    "interpretation": "Shared-tree debt +20. New complexity findings are two tests (13 each); coupling is live-capture test21imports. Production additions match existing proto conversion boilerplate and a seven-line optional timestamp shape. No suppression or wrapper extraction to hide these. Whole modules remain existing cohesive large owners; touched runtime functions all <=15."
+  },
+  "ui_record_mode": {
+    "passed": 457,
+    "failed": 0,
+    "duration_seconds": 9.0
+  },
+  "board": {
+    "required": 17,
+    "unqualified": 17,
+    "product_qualified": false,
+    "artifact": "/tmp/bas-board-051.txt"
+  },
+  "next_native_smoke": {
+    "script": "/tmp/browser-automation-studio/recording-live-051.py",
+    "status": "prepared_not_run",
+    "storage": "new dedicated fixture profile, deleted after own session closes",
+    "oracle": "independent local HTTP click count plus canonical recording receipt consistency",
+    "limit": "Not full record/replay, recovery, platform or release qualification"
+  },
+  "first_full_driver": {
+    "run_id": "uh-20260922-213400-0c9c8b29cc4e9b10fdee494372853340",
+    "status": "failed",
+    "passed": 1666,
+    "failed": 1,
+    "duration_seconds": 379.053,
+    "artifact": "/tmp/bas-recording-owner-first-051.json",
+    "cause": "Existing terminal-retry test lacked caller lease/generation; preserve receipt assertions and convert fixture."
+  },
+  "activity_regression": {
+    "red": "/tmp/bas-recording-activity-red-051.txt",
+    "cause": "Valid recording stop did not refresh idle timestamp after replacing getSession with lease validation.",
+    "repair": "Call existing updateActivity only after owner admission."
+  },
+  "first_source_sha256": {
+    "playwright-driver/src/routes/record-mode/recording-lifecycle.ts": "02f175119bbc9b904efd0bb2292bbbf3de116714096cbc9fe41d74ba3a0e24c1",
+    "playwright-driver/src/routes/record-mode/types.ts": "12b711055df97715056a4d346d23533001a42f1d346392e39b2e28c1afe2dbba",
+    "api/automation/driver/client.go": "41afbc3b1f76bb8e232be74508aa2bce5a90d62183c1133fbf59f15a22c863ab",
+    "api/automation/driver/types.go": "3c43339e9c8a25499e92c8dc8e9c2432d3441706298324a5c5192b0c82d2ea7c",
+    "api/automation/session/session.go": "aeb264ee60571ac2704b2003c78e916b6f44877b140698170c58b9295f566b8d",
+    "api/services/live-capture/service.go": "078913b25e656584210e0f5b81cffd57971b190657e4b165588c25a574130c3a",
+    "api/handlers/handler.go": "759a729d9690a169745b5def5a583edc99e015cabcb735eb18cf9620e9690d75",
+    "api/handlers/record_mode_lifecycle.go": "67b858836dc83a5115542cea739fa6ae119eb484a44158f1711df9f438da3cf5",
+    "api/handlers/record_mode_types.go": "1dbfa785ad8c17662717db23afd1c7aa2a3a9d2edf27bd6a037da0255bd66b24",
+    "api/handlers/testutil_mock_services.go": "15c44386d5d45c0680af1c0e7e75d32a79aff6d0257d9ff30f1d96a09738d0a4",
+    "api/internal/protoconv/record_mode.go": "160871d76ac2132f03e4842cdbb290c52a880cef05bcb35a29650a8d08b8a88a",
+    "ui/src/domains/recording/api/RecordingApiService.ts": "458cebc9d353f987d6acca3597203b8d9fd8a70465eabad6bae06a82ab895f75",
+    "ui/src/domains/recording/api/schemas.ts": "69fd8ddd6c69c2d0f287d500ed5f307d499e45036a572c658f17ed2a1878dd0a",
+    "ui/src/domains/recording/types/types.ts": "1699f0a47b3f9c485d19a4aa0f68614ca2f2cd5def2b4c580da3e8a97d52c40c",
+    "ui/src/domains/recording/index.ts": "decd20923df2261eb8f793e4391e26e6c20de83868a80a3b2bd182d0115e8871",
+    "playwright-driver/tests/unit/routes/recording-lifecycle.test.ts": "7d6acc421b229d1b6b8efb892e48832b245f0dfa3a8f00fa7ab67a2ab39aa261",
+    "playwright-driver/tests/unit/routes/page-events.test.ts": "aa68a8987a2600c14f9581ef23cd9cc79fe3f3713d2af9c678b2b8993d6ecd54",
+    "playwright-driver/tests/integration/record-mode.test.ts": "b18e51289910c6e787526684a8b53d8f2e63905dca6df39f326429c18d64dd4f",
+    "playwright-driver/tests/integration/pipeline-e2e.test.ts": "1d61b6a0249f86a4e0d6a82b9f81e51a0d136ee8ed99b9d805e2500da434a9f5",
+    "api/automation/session/session_test.go": "aeaf37da7efe1466df17a5642ac52663c5c87def120b73d974253fea0ec9d56c",
+    "api/automation/driver/client_payload_test.go": "2ce668079b0ab4ce9b04627cce6a8dfc773fc8f9d6a6196be99450ef957ac7ac",
+    "api/services/live-capture/service_test.go": "b1b4ef9867e020994ccd8c62ee14b65ca5679a324fef92d71af18d453befc063",
+    "api/handlers/record_mode_test.go": "bc9a220a17235a07191848824ee69410be135e260971e06f20322b816cbeeec4",
+    "api/internal/protoconv/convert_test.go": "633607b8551c490c2b5bd78469e9897685d4fbe101d36026b89a4192982b58e5",
+    "ui/src/domains/recording/api/RecordingApiService.test.ts": "c8f9db92ec8e8ca89238537ad1e45dad7ba4c705a85d18e6a627ee57e391281b"
+  },
+  "final_focused": {
+    "tests_passed": 81,
+    "suites_passed": 5,
+    "duration_seconds": 15.96,
+    "artifact": "/tmp/bas-recording-lease-focused-final-051.txt"
+  },
+  "full_driver": {
+    "run_id": "uh-20260922-214339-29c7eefe3ef57778e98b523e71bf09fd",
+    "status": "passed",
+    "passed": 1668,
+    "skipped_tests": 2,
+    "suites_passed": 124,
+    "suites_skipped": 1,
+    "duration_seconds": 363.586,
+    "artifact": "/tmp/bas-recording-owner-final-051.json"
+  },
+  "zero_count_edge": {
+    "status": "repaired_verified_deployed",
+    "evidence": "/tmp/bas-recording-zero-red-051.log",
+    "cause": "ProtoJSON default zero count omitted; UI schema required it.",
+    "next": "Honor canonical default after managed51012 completes, qualify UI and deploy final.",
+    "green": "/tmp/bas-recording-zero-green-051.log"
+  },
+  "backend_qualified_source_sha256": {
+    "playwright-driver/src/routes/record-mode/recording-lifecycle.ts": "b75aa222b450c696b6cb3e7b55c32991d5b621f691074adbb791242b260260a8",
+    "playwright-driver/src/routes/record-mode/types.ts": "12b711055df97715056a4d346d23533001a42f1d346392e39b2e28c1afe2dbba",
+    "api/automation/driver/client.go": "41afbc3b1f76bb8e232be74508aa2bce5a90d62183c1133fbf59f15a22c863ab",
+    "api/automation/driver/types.go": "3c43339e9c8a25499e92c8dc8e9c2432d3441706298324a5c5192b0c82d2ea7c",
+    "api/automation/session/session.go": "aeb264ee60571ac2704b2003c78e916b6f44877b140698170c58b9295f566b8d",
+    "api/services/live-capture/service.go": "078913b25e656584210e0f5b81cffd57971b190657e4b165588c25a574130c3a",
+    "api/handlers/handler.go": "759a729d9690a169745b5def5a583edc99e015cabcb735eb18cf9620e9690d75",
+    "api/handlers/record_mode_lifecycle.go": "67b858836dc83a5115542cea739fa6ae119eb484a44158f1711df9f438da3cf5",
+    "api/handlers/record_mode_types.go": "1dbfa785ad8c17662717db23afd1c7aa2a3a9d2edf27bd6a037da0255bd66b24",
+    "api/handlers/testutil_mock_services.go": "15c44386d5d45c0680af1c0e7e75d32a79aff6d0257d9ff30f1d96a09738d0a4",
+    "api/internal/protoconv/record_mode.go": "160871d76ac2132f03e4842cdbb290c52a880cef05bcb35a29650a8d08b8a88a",
+    "ui/src/domains/recording/api/RecordingApiService.ts": "458cebc9d353f987d6acca3597203b8d9fd8a70465eabad6bae06a82ab895f75",
+    "ui/src/domains/recording/api/schemas.ts": "69fd8ddd6c69c2d0f287d500ed5f307d499e45036a572c658f17ed2a1878dd0a",
+    "ui/src/domains/recording/types/types.ts": "1699f0a47b3f9c485d19a4aa0f68614ca2f2cd5def2b4c580da3e8a97d52c40c",
+    "ui/src/domains/recording/index.ts": "decd20923df2261eb8f793e4391e26e6c20de83868a80a3b2bd182d0115e8871",
+    "playwright-driver/tests/unit/routes/recording-lifecycle.test.ts": "92a4e1e9d452c34f63be7ab775d904c472561b415f66e0baf7dcfa45c3dc8953",
+    "playwright-driver/tests/unit/routes/page-events.test.ts": "3ea2aec093e5eca69252b79b994feb7f2dbc8d682747376ad1b60aedba4c982d",
+    "playwright-driver/tests/integration/record-mode.test.ts": "75c3697108233597a34ba9b86ff174582c7480a562d0766d2a53676879ff7990",
+    "playwright-driver/tests/integration/pipeline-e2e.test.ts": "48fd333bf858dbb8c824201b596f83c5ead304b59d531f22f92696ddbf8d4bfe",
+    "api/automation/session/session_test.go": "aeaf37da7efe1466df17a5642ac52663c5c87def120b73d974253fea0ec9d56c",
+    "api/automation/driver/client_payload_test.go": "2ce668079b0ab4ce9b04627cce6a8dfc773fc8f9d6a6196be99450ef957ac7ac",
+    "api/services/live-capture/service_test.go": "b1b4ef9867e020994ccd8c62ee14b65ca5679a324fef92d71af18d453befc063",
+    "api/handlers/record_mode_test.go": "bc9a220a17235a07191848824ee69410be135e260971e06f20322b816cbeeec4",
+    "api/internal/protoconv/convert_test.go": "633607b8551c490c2b5bd78469e9897685d4fbe101d36026b89a4192982b58e5",
+    "ui/src/domains/recording/api/RecordingApiService.test.ts": "c8f9db92ec8e8ca89238537ad1e45dad7ba4c705a85d18e6a627ee57e391281b",
+    "playwright-driver/tests/unit/routes/record-mode.test.ts": "db31fb98259d15f89bbded92d42174f6d7df5adc7230913f804b1f267b38cf2e"
+  },
+  "live_backend": {
+    "build_identity": "sha256:de50c2f729c628409d2385346b306b0935b5ef9c2ae3c34e3b71d2672de27718",
+    "health": "/tmp/bas-live-health-first-051.json",
+    "native_api_checks_passed": 23,
+    "native_api_checks_failed": 0,
+    "native_api_artifact": "/tmp/bas-recording-live-051.json",
+    "profile_full_reads": "/tmp/bas-profile-first-051.txt",
+    "temporary_fixture_profile_deleted": true
+  },
+  "final_ui": {
+    "tests_passed": 593,
+    "failed": 0,
+    "record_mode_passed": 458,
+    "shared_passed": 135,
+    "duration_seconds": 12.7,
+    "artifact": "/tmp/bas-recording-ui-final-051.txt",
+    "types_passed": true
+  },
+  "deployment": {
+    "build_identity": "sha256:bdf9f35ac1782b71c71f9270dae0d657c814fcf990f69b7b0a6ab01a3f1392b0",
+    "managed_restart": 31664,
+    "health": "/tmp/bas-live-health-final-051.json",
+    "profile_metadata": "/tmp/bas-profile-api-final-051.json",
+    "profile_full_reads": "/tmp/bas-profile-final-051.txt",
+    "source_hashes_match": true
+  }
+}

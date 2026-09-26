@@ -1,6 +1,6 @@
 // DOC: docs/concepts/ARCHITECTURE.md#ui-surface
 import { type ReactNode, useEffect, useState } from "react";
-import { Activity, Database, FolderTree, GitGraph, Menu, Search, X } from "lucide-react";
+import { Activity, Database, FolderTree, GitGraph, ListChecks, Menu, Search, X } from "lucide-react";
 import { selectors } from "../../consts/selectors";
 import { routeToHash, type Route } from "../controllers/routeController";
 import { useIsMobile } from "../hooks/useViewportSize";
@@ -36,6 +36,12 @@ const NAV_ITEMS: Array<{ route: Route; label: string; icon: ReactNode; testId: s
     label: "Metrics",
     icon: <Database className="h-4 w-4" />,
     testId: selectors.nav.metrics,
+  },
+  {
+    route: "maintenance",
+    label: "Maintenance",
+    icon: <ListChecks className="h-4 w-4" />,
+    testId: "ko-nav-maintenance",
   },
 ];
 

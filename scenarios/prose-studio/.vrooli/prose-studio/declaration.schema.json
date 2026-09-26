@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Prose Studio consumer declaration",
+  "type": "object",
+  "required": ["schema_version", "kind", "key", "created_by", "record"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "1"},
+    "kind": {"type": "string", "enum": ["style", "profile", "axis_space"]},
+    "key": {"type": "string", "pattern": "^(?!local/)[a-z0-9][a-z0-9._/-]*$"},
+    "created_by": {"type": "string", "minLength": 1},
+    "record": {"type": "object"}
+  },
+  "additionalProperties": false
+}

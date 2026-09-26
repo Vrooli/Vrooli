@@ -1,0 +1,25 @@
+{
+  "metadata": {
+    "name": "forge-next-rung-beat",
+    "description": "Pins the Forge to its release-ladder beat and verifies the hero renders Next Rung: the next release's rank and name, its enabling work, and the funnel-cascade scene beside it.",
+    "labels": {"reset": "none", "requirements_json": "[\"CC-P1-016\"]"},
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {"viewport_width": 1440, "viewport_height": 900},
+  "nodes": [
+    {"id": "navigate", "action": {"type": "ACTION_TYPE_NAVIGATE", "navigate": {"destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "command-center", "scenario_path": "/forge?beat=4", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000}}},
+    {"id": "wait-beat", "action": {"type": "ACTION_TYPE_WAIT", "wait": {"selector": "[data-testid='room-composition'][data-beat='4'][data-layout='standard'][data-composition='funnel-cascade']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000}}},
+    {"id": "wait-hero", "action": {"type": "ACTION_TYPE_WAIT", "wait": {"selector": "[data-testid='room-hero'] [data-testid='ladder-next-rung']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000}}},
+    {"id": "assert-name", "action": {"type": "ACTION_TYPE_ASSERT", "assert": {"selector": "[data-testid='ladder-next-rung'] .cc-next-rung__name", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": 5000, "failure_message": "Expected Next Rung to name the next release"}}},
+    {"id": "assert-blockers", "action": {"type": "ACTION_TYPE_ASSERT", "assert": {"selector": "[data-testid='ladder-next-rung'] .cc-next-rung__blockers", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": 5000, "failure_message": "Expected Next Rung to list the enabling work due by its rank"}}},
+    {"id": "capture", "action": {"type": "ACTION_TYPE_SCREENSHOT", "screenshot": {"full_page": false}}}
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate", "target": "wait-beat", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id": "e2", "source": "wait-beat", "target": "wait-hero", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id": "e3", "source": "wait-hero", "target": "assert-name", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id": "e4", "source": "assert-name", "target": "assert-blockers", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id": "e5", "source": "assert-blockers", "target": "capture", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}
+  ]
+}

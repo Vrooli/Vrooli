@@ -1,0 +1,129 @@
+{
+  "cycle": "BAS-WORK-091",
+  "issues": [
+    "BAS-RF-016"
+  ],
+  "owner_reading": {
+    "scenario": "browser-automation-studio",
+    "workload": "capture",
+    "operation_id": "db72786edda2dc7cbd0281b470eeab97",
+    "outcome": "WORKLOAD_OUTCOME_MEASURED",
+    "within_budget": true,
+    "p95_ms": 428,
+    "wall_p95_ms": 622.8881,
+    "budget_ms": 2000,
+    "sample_count": 100,
+    "attempt_count": 101,
+    "declared_warmups": 1,
+    "captured_at": "2026-09-23T14:39:15.265079374Z",
+    "build_identity": "sha256:2457de8b3078a237d146cec0e6bb7fa7ea7129849735ffea985ab05b52dea9f0",
+    "producer_digest": "62456dbce61bba14f9feb78efc1e806448fc482e734c2e8a18bf2938b6ed4a52",
+    "contract_digest": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+    "configuration_digest": "1a2776b5338b0074036293f43952bd03d3be2ef1ccabfef38787e06d4a63b167",
+    "fixture_revision": "dcabe2e264925a3c8264eef9ecd37b0b7b16ee11ce3c57bb1310a80ede1e3367",
+    "receipt_path": "/home/matthalloran8/.vrooli/test-runs/performance-health/workloads/db72786edda2dc7cbd0281b470eeab97/producer/receipt.json",
+    "receipt_sha256": "e15de1ba96cbe3f334300c93aba70939456f793a6197eba717f725207c518219"
+  },
+  "cohorts": {
+    "090": {
+      "samples": 100,
+      "verified": 100,
+      "png_artifacts": 300,
+      "unique_png_hashes": 100,
+      "png_artifact_bytes": 4510698,
+      "dom_tree_artifacts": 100,
+      "service_p95_ms": 607,
+      "wall_p95_ms": 811.459737,
+      "raw_receipt": "/home/matthalloran8/.vrooli/test-runs/performance-health/workloads/1203c9afc9bad95b1c9d52f2e02185b3/producer/receipt.json",
+      "raw_sha256": "dd6b06e316687cb511d8b22ae0fc32f58a54e370f2695e44e81d648fe6c1ac49"
+    },
+    "091": {
+      "samples": 100,
+      "verified": 100,
+      "png_artifacts": 100,
+      "unique_png_hashes": 100,
+      "png_artifact_bytes": 1528027,
+      "dom_tree_artifacts": 100,
+      "service_p95_ms": 428,
+      "wall_p95_ms": 622.8881,
+      "raw_receipt": "/home/matthalloran8/.vrooli/test-runs/performance-health/workloads/db72786edda2dc7cbd0281b470eeab97/producer/receipt.json",
+      "raw_sha256": "e15de1ba96cbe3f334300c93aba70939456f793a6197eba717f725207c518219"
+    }
+  },
+  "metrics": {
+    "before": {
+      "runtime_lines": 3046,
+      "functions": 84,
+      "go_complexity": 554
+    },
+    "after": {
+      "runtime_lines": 3074,
+      "functions": 84,
+      "go_complexity": 557
+    },
+    "delta": {
+      "runtime_lines": 28,
+      "functions": 0,
+      "go_complexity": 3
+    },
+    "scope": [
+      "scenarios/browser-automation-studio/api/config/artifact_profiles.go",
+      "scenarios/browser-automation-studio/api/automation/executor/simple_executor.go",
+      "scenarios/browser-automation-studio/api/handlers/capture/service.go"
+    ]
+  },
+  "controlled": {
+    "red": "/tmp/bas-capture-policy-red-091.txt",
+    "race_pass": "/tmp/bas-capture-policy-race-091.txt",
+    "build_pass": "/tmp/bas-capture-policy-build-091.txt"
+  },
+  "native": {
+    "initial_oracle_limits": "/tmp/bas-capture-policy-native-091/receipt.json",
+    "qualified_six_cases": "/tmp/bas-capture-policy-native-qualified-091/receipt.json",
+    "DPR_program_and_CLI": "/tmp/bas-capture-dpr-native-091/receipt.json"
+  },
+  "board": {
+    "receipt": "/tmp/bas-board-owned-091.txt",
+    "readable": 1,
+    "unknown": 16,
+    "product_qualified": false,
+    "pending_receipt": "/tmp/bas-board-pending-091.txt"
+  },
+  "freeze": {
+    "path": "/tmp/bas-frozen-owner-091.json",
+    "paths": 110,
+    "changed": []
+  },
+  "test_genie": {
+    "run_id": "20260923-144032-15388892",
+    "phases": [
+      "unit",
+      "performance",
+      "tidiness"
+    ],
+    "status": "terminal",
+    "sole_wait_exec": 78010,
+    "verdict": "FAIL",
+    "unit": "failed",
+    "performance": "passed",
+    "tidiness": "failed",
+    "native_workload_verified": true,
+    "tidiness_summary": {
+      "totalFindings": 1155,
+      "longFiles": 103,
+      "complexity": 420,
+      "duplication": 608,
+      "coupling": 23,
+      "duplicationLineDebt": 34399
+    },
+    "unit_native": "/tmp/bas-tg-091-unit-native.json",
+    "findings": "/tmp/bas-tg-091-findings.json"
+  },
+  "limits": [
+    "One local cohort per candidate; latency difference is observational, not a repeated causal speedup claim.",
+    "Artifacts counted are returned per-step PNGs; exporter primary screenshot.png alias still copies the final PNG.",
+    "No net complexity reduction: runtime +28 lines, Go complexity +3; affected scoped cumulative Go now +309.",
+    "Sixteen release outcomes remain unknown.",
+    "Original profile preservation checks one rollback profile three times, not three profiles."
+  ]
+}

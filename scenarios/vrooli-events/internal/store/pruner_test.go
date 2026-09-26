@@ -225,9 +225,11 @@ func (m *mockPrunerStore) Insert(_ context.Context, _ Event) (int64, error) { re
 func (m *mockPrunerStore) Query(_ context.Context, _ QueryFilters) ([]Event, error) {
 	return nil, nil
 }
+
 func (m *mockPrunerStore) GetSince(_ context.Context, _ int64, _ int) ([]Event, error) {
 	return nil, nil
 }
+
 func (m *mockPrunerStore) Prune(ctx context.Context) (PruneResult, error) {
 	return m.pruneFunc(ctx)
 }

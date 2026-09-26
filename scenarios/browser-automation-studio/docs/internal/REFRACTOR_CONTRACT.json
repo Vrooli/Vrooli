@@ -1,0 +1,849 @@
+{
+  "schema_version": 1,
+  "id": "bas-rehabilitation-v1",
+  "authority": "Operator instruction 2026-09-21 to complete launch preparation for the previously discussed rehabilitation; implementation starts only on subsequent agent assignment.",
+  "design": "docs/concepts/ARCHITECTURE.md",
+  "assessment": "docs/internal/REFRACTOR_ASSESSMENT.md",
+  "issue_register": "docs/PROBLEMS.md",
+  "qualification_protocol": "docs/internal/TESTING.md",
+  "status": "implementation_target_not_achievement",
+  "rows": [
+    {
+      "id": "preservation",
+      "required": true,
+      "band": "All 24 preservation journeys pass their positive, negative and recovery cases on applicable targets.",
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "producer_owner": "test-genie with BAS fixture owners",
+      "producer_roots": [
+        "api",
+        "playwright-driver/src",
+        "ui/src"
+      ],
+      "producer_state": "qualification_required",
+      "sensor_state": "pending_telemetry",
+      "implementation_obligation": "Build or repair the owner qualification producer, retained receipt and governed sensor; execute the named protocol before closing this row."
+    },
+    {
+      "id": "interactive-feedback",
+      "required": true,
+      "band": "Local input-to-affected-paint p50 <=50 ms, p95 <=100 ms, p99 <=200 ms; remote p95 <=200 ms; >=1000 correlated inputs per cohort.",
+      "phases": [
+        "performance"
+      ],
+      "producer_owner": "test-genie with BAS fixture owners",
+      "producer_roots": [
+        "playwright-driver/src",
+        "ui/src"
+      ],
+      "producer_state": "qualification_required",
+      "sensor_state": "pending_telemetry",
+      "implementation_obligation": "Build or repair the owner qualification producer, retained receipt and governed sensor; execute the named protocol before closing this row."
+    },
+    {
+      "id": "motion",
+      "required": true,
+      "band": "Changing 30 FPS fixture renders >=30 FPS for 5 minutes, p95 frame age <=100 ms local; frame bytes/age/decode stay bounded with slow readers.",
+      "phases": [
+        "rehabilitation-evidence"
+      ],
+      "producer_owner": "test-genie with BAS fixture owners",
+      "producer_roots": [
+        "api/automation/driver",
+        "api/handlers",
+        "api/handlers/profilevalidation",
+        "api/internal/motionqualification",
+        "api/websocket",
+        "playwright-driver/tests/integration",
+        "playwright-driver/src",
+        "ui/src"
+      ],
+      "producer_state": "qualification_required",
+      "sensor_state": "pending_telemetry",
+      "implementation_obligation": "Build or repair the owner qualification producer, retained receipt and governed sensor; execute the named protocol before closing this row."
+    },
+    {
+      "id": "readiness",
+      "required": true,
+      "band": "Warm usable tab p95 <=1 s over 100 trials; cold usable browser p95 <=5 s over 30 trials per required platform.",
+      "phases": [
+        "performance"
+      ],
+      "producer_owner": "test-genie with BAS fixture owners",
+      "producer_roots": [
+        "api/automation/executor",
+        "api/automation/session",
+        "playwright-driver/src"
+      ],
+      "producer_state": "qualification_required",
+      "sensor_state": "pending_telemetry",
+      "implementation_obligation": "Build or repair the owner qualification producer, retained receipt and governed sensor; execute the named protocol before closing this row."
+    },
+    {
+      "id": "capture",
+      "required": true,
+      "band": "Warm screenshot plus computed snapshot p95 <=2 s over 100 fixed-fixture captures; exact viewport and DPR.",
+      "phases": [
+        "performance",
+        "workflow"
+      ],
+      "producer_owner": "test-genie with BAS fixture owners",
+      "producer_roots": [
+        "api/automation/execution-writer",
+        "api/services"
+      ],
+      "producer_state": "qualification_required",
+      "sensor_state": "pending_telemetry",
+      "implementation_obligation": "Build or repair the owner qualification producer, retained receipt and governed sensor; execute the named protocol before closing this row."
+    },
+    {
+      "id": "passive-fidelity",
+      "required": true,
+      "band": "Zero lost or duplicated acknowledged observations and correct supported semantics over >=10000 fixture actions plus crash/reconnect faults.",
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "producer_owner": "test-genie with BAS fixture owners",
+      "producer_roots": [
+        "playwright-driver/src/recording",
+        "api/services/recording",
+        "ui/src/domains/recording"
+      ],
+      "producer_state": "qualification_required",
+      "sensor_state": "pending_telemetry",
+      "implementation_obligation": "Build or repair the owner qualification producer, retained receipt and governed sensor; execute the named protocol before closing this row."
+    },
+    {
+      "id": "profile-durability",
+      "required": true,
+      "band": "Cookies/localStorage/IndexedDB fixture state survives close/reopen and API/driver restart; no cross-profile state; recovery window for unacknowledged checkpoints <=5 s.",
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "producer_owner": "test-genie with BAS fixture owners",
+      "producer_roots": [
+        "api/services/session-profile",
+        "playwright-driver/src/session"
+      ],
+      "producer_state": "qualification_required",
+      "sensor_state": "pending_telemetry",
+      "implementation_obligation": "Build or repair the owner qualification producer, retained receipt and governed sensor; execute the named protocol before closing this row."
+    },
+    {
+      "id": "known-flow-reliability",
+      "required": true,
+      "band": "Observed first-attempt success >=99% and flake <=1% over >=1000 representative same-revision runs; publish counts and confidence intervals; every preservation journey passes.",
+      "phases": [
+        "workflow"
+      ],
+      "producer_owner": "test-genie with BAS fixture owners",
+      "producer_roots": [
+        "api/automation/executor",
+        "api/automation/session",
+        "playwright-driver/src"
+      ],
+      "producer_state": "qualification_required",
+      "sensor_state": "pending_telemetry",
+      "implementation_obligation": "Build or repair the owner qualification producer, retained receipt and governed sensor; execute the named protocol before closing this row."
+    },
+    {
+      "id": "cancellation-recovery",
+      "required": true,
+      "band": "Accepted cancel stops new input <=1 s, terminal cleanup/detach <=5 s, session recovery <=10 s; uncertain side effects are reconciled before replay.",
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "producer_owner": "test-genie with BAS fixture owners",
+      "producer_roots": [
+        "api/automation/executor",
+        "api/automation/session",
+        "playwright-driver/src"
+      ],
+      "producer_state": "qualification_required",
+      "sensor_state": "pending_telemetry",
+      "implementation_obligation": "Build or repair the owner qualification producer, retained receipt and governed sensor; execute the named protocol before closing this row."
+    },
+    {
+      "id": "resource-budget",
+      "required": true,
+      "band": "Controlled steady state: API+driver idle <=300 MiB PSS, one fixture browser+shell <=1 GiB PSS, idle CPU <2% of one core; comparable Windows private-memory data reported separately.",
+      "phases": [
+        "performance"
+      ],
+      "producer_owner": "test-genie with BAS fixture owners",
+      "producer_roots": [
+        "api/automation/executor",
+        "api/automation/session",
+        "playwright-driver/src"
+      ],
+      "producer_state": "qualification_required",
+      "sensor_state": "pending_telemetry",
+      "implementation_obligation": "Build or repair the owner qualification producer, retained receipt and governed sensor; execute the named protocol before closing this row."
+    },
+    {
+      "id": "soak-stability",
+      "required": true,
+      "band": "8-hour workload after warm-up: retained memory growth <=50 MiB/hour, zero orphan sessions/processes after 1000 open/close cycles; concurrency 1/5/10 and slow-reader cases.",
+      "phases": [
+        "performance"
+      ],
+      "producer_owner": "test-genie with BAS fixture owners",
+      "producer_roots": [
+        "api/automation/executor",
+        "api/automation/session",
+        "playwright-driver/src"
+      ],
+      "producer_state": "qualification_required",
+      "sensor_state": "pending_telemetry",
+      "implementation_obligation": "Build or repair the owner qualification producer, retained receipt and governed sensor; execute the named protocol before closing this row."
+    },
+    {
+      "id": "evidence-completeness",
+      "required": true,
+      "band": "Every required artifact is attributable and hash-verifiable, or execution is explicitly failed/degraded; fault-injected screenshot/log/network/video/trace cases and retention protections pass.",
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "producer_owner": "test-genie with BAS fixture owners",
+      "producer_roots": [
+        "api/automation/execution-writer",
+        "api/services"
+      ],
+      "producer_state": "qualification_required",
+      "sensor_state": "pending_telemetry",
+      "implementation_obligation": "Build or repair the owner qualification producer, retained receipt and governed sensor; execute the named protocol before closing this row."
+    },
+    {
+      "id": "desktop-portability",
+      "required": true,
+      "band": "Clean native Linux x64, Windows x64, macOS x64 and macOS arm64 install/start/profile/capture/record/replay/update/rollback/cleanup receipts; preserve native Android and external Electron attach/detach identity.",
+      "phases": [
+        "portability",
+        "workflow"
+      ],
+      "producer_owner": "scenario-to-desktop / scenario-to-android / device-control",
+      "producer_roots": [
+        "scenarios/scenario-to-desktop",
+        "scenarios/scenario-to-android",
+        "scenarios/device-control"
+      ],
+      "producer_state": "qualification_required",
+      "sensor_state": "pending_telemetry",
+      "implementation_obligation": "Build or repair the owner qualification producer, retained receipt and governed sensor; execute the named protocol before closing this row."
+    },
+    {
+      "id": "agent-usefulness",
+      "required": true,
+      "band": "Known workflow reuse avoids rediscovery; fresh-session and unfamiliar-navigation cohorts prove caller postconditions; record effort/time/cost and action counts separately.",
+      "phases": [
+        "programs",
+        "workflow"
+      ],
+      "producer_owner": "test-genie with BAS fixture owners",
+      "producer_roots": [
+        "api/services",
+        "playwright-driver/src/ai"
+      ],
+      "producer_state": "qualification_required",
+      "sensor_state": "pending_telemetry",
+      "implementation_obligation": "Build or repair the owner qualification producer, retained receipt and governed sensor; execute the named protocol before closing this row."
+    },
+    {
+      "id": "structural-debt",
+      "required": true,
+      "band": "Existing tidiness budgets pass without relaxed scope/rules, with material net reduction of domain-wide complexity, duplicated policy and coupling against the retained baseline. Eight named responsibilities each have one policy owner; replaced paths, dead code and temporary adapters are removed; no new dependency cycle. Record cumulative and per-intervention deltas, including shared and moved source. Barely passing the initial ratchet or rearranging files is insufficient.",
+      "phases": [
+        "tidiness"
+      ],
+      "producer_owner": "test-genie with BAS fixture owners",
+      "producer_roots": [
+        "api",
+        "playwright-driver/src",
+        "ui/src"
+      ],
+      "producer_state": "qualification_required",
+      "sensor_state": "pending_telemetry",
+      "implementation_obligation": "Build or repair the owner qualification producer, retained receipt and governed sensor; execute the named protocol before closing this row."
+    },
+    {
+      "id": "workspace-usability",
+      "required": true,
+      "band": "Restored browser is the primary workspace; passive recording, tabs, navigation and keyboard input work without entering authoring mode; evidence/AI work does not rerender or stall frames; required desktop/mobile viewport, keyboard, focus, contrast and reduced-motion checks pass.",
+      "phases": [
+        "workflow",
+        "ui-health"
+      ],
+      "producer_owner": "test-genie with BAS fixture owners",
+      "producer_roots": [
+        "playwright-driver/src",
+        "ui/src"
+      ],
+      "producer_state": "qualification_required",
+      "sensor_state": "pending_telemetry",
+      "implementation_obligation": "Build or repair the owner qualification producer, retained receipt and governed sensor; execute the named protocol before closing this row."
+    },
+    {
+      "id": "adversarial-review",
+      "required": true,
+      "band": "Repeated fresh materially different reviews exercise behavior, faults, maintainability, performance and UX with evidence and resolved actionable findings. Two consecutive clean reviews are a dated confidence observation on a candidate, never a stop condition; continue into a new investigation angle.",
+      "phases": [],
+      "producer_owner": "test-genie with BAS fixture owners",
+      "producer_roots": [
+        "api",
+        "playwright-driver/src",
+        "ui/src"
+      ],
+      "producer_state": "qualification_required",
+      "sensor_state": "pending_telemetry",
+      "implementation_obligation": "Build or repair the owner qualification producer, retained receipt and governed sensor; execute the named protocol before closing this row."
+    }
+  ],
+  "journeys": [
+    {
+      "id": "BAS-RH-J01",
+      "requirement_id": "BAS-RH-J01",
+      "description": "Given a saved signed-in profile, when the operator closes/reopens BAS, then supported sign-in state and tabs return without crossing into another profile.",
+      "owner": "profile",
+      "producer_roots": [
+        "api/services/session-profile",
+        "playwright-driver/src/session"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": [
+        "api/services/live-capture/workflow_generator_test.go :: TestGenerateWorkflowWithPagesReplaysPopupTabAlternation",
+        "playwright-driver/tests/integration/pipeline-e2e.test.ts :: preserves distinct tab identities for equal selectors in the recording timeline",
+        "playwright-driver/tests/integration/saved-workflow-fresh-context.test.ts :: saves the generated alternating-tab workflow and replays its same-selector actions (managed build sha256:f3d0bb4e3d94a6abb6c879e6bb4777d614ec6b315207e68cb5f11cbc8c1e8d54)"
+      ]
+    },
+    {
+      "id": "BAS-RH-J02",
+      "requirement_id": "BAS-RH-J02",
+      "description": "Given passive recording, when the operator types with pauses, replaces/selects/deletes text, pastes, uses IME, and clears a field, then the selected workflow reproduces the final values.",
+      "owner": "recording",
+      "producer_roots": [
+        "playwright-driver/src/recording",
+        "api/services/recording",
+        "ui/src/domains/recording"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J03",
+      "requirement_id": "BAS-RH-J03",
+      "description": "Given equal selectors in two tabs/frames, when actions alternate between them and replay in a fresh browser context, then each action retains its logical target identity and order.",
+      "owner": "recording",
+      "producer_roots": [
+        "playwright-driver/src/recording",
+        "api/services/recording",
+        "ui/src/domains/recording"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J04",
+      "requirement_id": "BAS-RH-J04",
+      "description": "Given a redirect, SPA route, popup, shadow DOM, or service worker, when navigation completes, then capture resumes and the timeline reports any unsupported gap.",
+      "owner": "recording",
+      "producer_roots": [
+        "playwright-driver/src/recording",
+        "api/services/recording",
+        "ui/src/domains/recording"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J05",
+      "requirement_id": "BAS-RH-J05",
+      "description": "Given a slow/disconnected frame viewer, when inputs and capture continue, then compressed queues and active decoding stay bounded, fallback supplies current frames, and old tab/session work cannot paint after a switch or revive a disposed connection.",
+      "owner": "frames",
+      "producer_roots": [
+        "playwright-driver/src",
+        "ui/src"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J06",
+      "requirement_id": "BAS-RH-J06",
+      "description": "Given a persistence or disk failure, when recording/profile writes occur, then success is not reported as durable and existing data remains recoverable.",
+      "owner": "profile",
+      "producer_roots": [
+        "api/services/session-profile",
+        "playwright-driver/src/session"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J07",
+      "requirement_id": "BAS-RH-J07",
+      "description": "Given an active workflow, when timeout, cancellation, driver death, API restart or a retried start overlaps a live instruction, then terminal state, last evidence, leases and cleanup have one consistent result, with no concurrent owner created by retry.",
+      "owner": "execution",
+      "producer_roots": [
+        "api/automation/executor",
+        "api/automation/session",
+        "playwright-driver/src"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": [
+        "playwright-driver/tests/integration/typed-action-semantics.test.ts :: [REQ:BAS-RH-J07] close keeps a completed click uncertain while denying retry admission",
+        "playwright-driver/tests/integration/typed-action-semantics.test.ts :: [REQ:BAS-RH-J07] close interrupts a pending browser wait and retains an uncertain receipt",
+        "api/services/workflow/execution_results_test.go :: TestStopExecutionRetainsUncertainOutcomeAndJoinsLeasedDriverClose"
+      ]
+    },
+    {
+      "id": "BAS-RH-J08",
+      "requirement_id": "BAS-RH-J08",
+      "description": "Given required screenshots/logs/network/video/trace, when supported collection or teardown completes or fails, then manifest completeness and reasons match the returned outcome and unresolved browser resources retain a recovery owner.",
+      "owner": "evidence",
+      "producer_roots": [
+        "api/automation/execution-writer",
+        "api/services"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J09",
+      "requirement_id": "BAS-RH-J09",
+      "description": "Given a desktop/Android target issued by its owner, when BAS attaches, acts and detaches, then renderer/isolation/recording identity is preserved and target lifecycle remains owner-controlled.",
+      "owner": "platform",
+      "producer_roots": [
+        "scenarios/scenario-to-desktop",
+        "scenarios/scenario-to-android",
+        "scenarios/device-control"
+      ],
+      "phases": [
+        "portability",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J10",
+      "requirement_id": "BAS-RH-J10",
+      "description": "Given a bundled clean-machine install, when Node/Chromium are absent from developer PATH/cache, then the package runs from its declared inventory or reports a precise missing capability.",
+      "owner": "platform",
+      "producer_roots": [
+        "scenarios/scenario-to-desktop",
+        "scenarios/scenario-to-android",
+        "scenarios/device-control"
+      ],
+      "phases": [
+        "portability",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J11",
+      "requirement_id": "BAS-RH-J11",
+      "description": "Given selected human history, when AI proposes a workflow, then original observations are retained, secrets are referenced safely, a typed candidate is validated, and repeat-effect authorization precedes qualification.",
+      "owner": "agent",
+      "producer_roots": [
+        "api/services",
+        "playwright-driver/src/ai"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J12",
+      "requirement_id": "BAS-RH-J12",
+      "description": "Given ordinary authorized human browsing, when a site presents an authentication or challenge step, then human control and profile continuity remain available and the state is reported honestly.",
+      "owner": "profile",
+      "producer_roots": [
+        "api/services/session-profile",
+        "playwright-driver/src/session"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J13",
+      "requirement_id": "BAS-RH-J13",
+      "description": "Given browser shortcuts, modified clicks, double-clicks, blur, drag/drop and horizontal scroll, when a person performs and derives those actions, then live input and supported replay preserve their meaning; unsupported actions produce explicit errors without replacement clicks.",
+      "owner": "recording",
+      "producer_roots": [
+        "playwright-driver/src/recording",
+        "api/services/recording",
+        "ui/src/domains/recording"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J14",
+      "requirement_id": "BAS-RH-J14",
+      "description": "Given a saved encrypted profile, when tab/history/storage saves overlap, a write fails, or its key/protected bytes become unavailable, then the prior committed identity and state remain recoverable and incomplete recovery is visible.",
+      "owner": "profile",
+      "producer_roots": [
+        "api/services/session-profile",
+        "playwright-driver/src/session"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J15",
+      "requirement_id": "BAS-RH-J15",
+      "description": "Given a declared session capacity and fresh/clean reuse policy, when starts overlap, reset fails, or the active page is not the first tab, then reservations stay bounded, retained pages are open, page maps are coherent and failed reset has an explicit recovery path. Test isolation must cover the declared origin/storage matrix.",
+      "owner": "execution",
+      "producer_roots": [
+        "api/automation/executor",
+        "api/automation/session",
+        "playwright-driver/src"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J16",
+      "requirement_id": "BAS-RH-J16",
+      "description": "Given active executions and a per-workflow keep_latest policy, when bounded retention repeats or applies a preview subset, then actual protected evidence survives and eligible older evidence is eventually removed.",
+      "owner": "evidence",
+      "producer_roots": [
+        "api/automation/execution-writer",
+        "api/services"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J17",
+      "requirement_id": "BAS-RH-J17",
+      "description": "Given loops, declared safe retries, repeated transport delivery and changed-payload conflicts, when workflow execution proceeds, then an independent fixture counter matches intended dynamic invocations; uncertain effects are reconciled before repetition and old leases cannot mutate a new owner.",
+      "owner": "execution",
+      "producer_roots": [
+        "api/automation/executor",
+        "api/automation/session",
+        "playwright-driver/src"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J18",
+      "requirement_id": "BAS-RH-J18",
+      "description": "Given a cancelled graph/linear execution or a thrown handler error, when termination completes, then available failure context and terminal step evidence remain queryable, required capture failures affect the verdict, and cleanup failures retain explicit ownership.",
+      "owner": "execution",
+      "producer_roots": [
+        "api/automation/executor",
+        "api/automation/session",
+        "playwright-driver/src"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J19",
+      "requirement_id": "BAS-RH-J19",
+      "description": "Given a released session, when the next owner requests a different profile, proxy, locale, viewport or clean state, then reuse rejects or satisfies the effective configuration; independent signed-in identity cannot disagree with the admission receipt. Compatible continuation, fresh mode and unreleased-owner controls remain correct.",
+      "owner": "execution",
+      "producer_roots": [
+        "api/automation/executor",
+        "api/automation/session",
+        "playwright-driver/src"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J20",
+      "requirement_id": "BAS-RH-J20",
+      "description": "Given two executions sharing a compatible browsing context, when evidence requirements or output destinations change, then each capture has a verifiable boundary and its own manifest; required evidence starts before ready, and no returned artifact mixes execution ownership.",
+      "owner": "evidence",
+      "producer_roots": [
+        "api/automation/execution-writer",
+        "api/services"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J21",
+      "requirement_id": "BAS-RH-J21",
+      "description": "Given released managed, desktop or Android sessions, when a caller requests another target or supplies missing/mismatched validation context, then every admission path validates the exact target and isolation lease and cannot silently substitute the retained renderer.",
+      "owner": "platform",
+      "producer_roots": [
+        "scenarios/scenario-to-desktop",
+        "scenarios/scenario-to-android",
+        "scenarios/device-control"
+      ],
+      "phases": [
+        "portability",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J22",
+      "requirement_id": "BAS-RH-J22",
+      "description": "Given pending capture startup, replacement or resize, when stop, failure or a page switch overlaps it, then each generation disposes late resources, old cleanup cannot remove the current owner, and stale page frames cannot publish. Every retained handle/socket remains stoppable.",
+      "owner": "frames",
+      "producer_roots": [
+        "playwright-driver/src",
+        "ui/src"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J23",
+      "requirement_id": "BAS-RH-J23",
+      "description": "Given active CDP or polling capture, when quality/FPS/header settings change or the transport reconnects on a stable page, then effective settings and measured rates match receipts, unsupported controls are explicit, and the latest valid frame is delivered without another paint.",
+      "owner": "frames",
+      "producer_roots": [
+        "playwright-driver/src",
+        "ui/src"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    },
+    {
+      "id": "BAS-RH-J24",
+      "requirement_id": "BAS-RH-J24",
+      "description": "Given typed step outcomes and public assertion-validation flags, when a workflow is validated, executed and read through timeline/replay, then enforcement flags reach the server and structured outcome fields survive projection. Client parsing errors and debug strings cannot count as valid evidence.",
+      "owner": "execution",
+      "producer_roots": [
+        "api/automation/executor",
+        "api/automation/session",
+        "playwright-driver/src"
+      ],
+      "phases": [
+        "unit",
+        "workflow"
+      ],
+      "oracle": "Independent fixture state and fault sentinels; protocol in docs/internal/TESTING.md.",
+      "state": "planned",
+      "evidence": []
+    }
+  ],
+  "reference_cohort": {
+    "local": "Loopback; >=4 modern CPU cores, 16 GiB RAM; 1280x720 DPR1 fixed fixture; pinned browser/runtime; one interactive session unless concurrency stated.",
+    "remote": "Same fixture with declared 50 ms RTT / 10 Mbps link.",
+    "receipt_fields": [
+      "source_digest",
+      "dirty_inputs",
+      "build_identity",
+      "contract_digest",
+      "fixture_revision",
+      "owner",
+      "operation_id",
+      "sample_count",
+      "hardware",
+      "os_arch",
+      "runtime_versions",
+      "concurrency",
+      "capture_policy",
+      "network",
+      "cache_state",
+      "raw_artifact_refs",
+      "limitations"
+    ]
+  },
+  "platforms": [
+    "linux-x64",
+    "windows-x64",
+    "darwin-x64",
+    "darwin-arm64"
+  ],
+  "protected_tidiness_budgets": {
+    "ratchet": true,
+    "duplication_line_debt": 35302,
+    "baseline_duplication_line_debt": 35303,
+    "long_files": 80,
+    "baseline_long_files": 81,
+    "complexity_over_threshold": 362,
+    "baseline_complexity_over_threshold": 363,
+    "coupling_over_threshold": 9,
+    "baseline_coupling_over_threshold": 10,
+    "reserve": 1,
+    "reserve_reason": "Measured fleet seed reserves one observed unit while successor cleanup earns each stricter budget."
+  },
+  "ownership_domains": [
+    "session admission and lease",
+    "runtime adapter and target validation",
+    "interactive transport",
+    "recording journal",
+    "profile commits",
+    "workflow derivation",
+    "evidence and retention",
+    "workspace UI"
+  ],
+  "relative_performance_rule": "No >5% regression in unaffected metrics on comparable low-noise fixtures without a recorded causal explanation; target relaxation requires operator amendment.",
+  "evidence_policy": "Owner-produced applicable receipts establish passing outcomes. Unavailable qualification is non-blocking under continuation_policy and retains its explicit unverified disposition. No self-entered pass flags, historical wrappers, skipped cases or simulations may be relabeled as native passes.",
+  "continuation_policy": {
+    "kind": "continuous_improvement_until_operator_stop",
+    "authority": "Operator clarification 2026-09-21 local: no Plan Manager plan, no human approval loop, continuous improvement and fresh adversarial investigation; unavailable validation never blocks.",
+    "unavailable_validation": "Attempt reasonable authorized diagnosis/remediation, record the unverified disposition and recheck trigger in the progress file, and continue useful work. Do not repeat unchanged failed prerequisites.",
+    "disposition_fields": [
+      "outcome_id",
+      "check_or_operation",
+      "observed_failure_or_missing_capability",
+      "attempted_remedy_and_evidence",
+      "remaining_limitation",
+      "next_validation_action"
+    ],
+    "actual_product_defects": "Repair actionable in-scope defects revealed by available evidence. A valid failing assertion is not an unavailable check.",
+    "status_policy": "Never return blocked. Defer only the unavailable or unauthorized operation, retain uncertainty and continue useful repairs or fresh investigation. An empty known issue list or clean review is not completion.",
+    "claim_limit": "Product readiness claims require applicable evidence. Unverified outcomes retain reading=null and in_band=null. Green outcomes and two clean reviews are dated observations, not a finish line.",
+    "unknown_evidence_counts_as_pass": false,
+    "unavailable_validation_stops_work": false,
+    "auto_complete_on_green": false,
+    "auto_complete_after_clean_reviews": false,
+    "stop_condition": "Only operator stop/redirection or enforced runtime interruption stops this engagement. At interruption preserve a resumable checkpoint; do not claim achievement or blocked status."
+  },
+  "work_model": {
+    "kind": "file_based_continuous_improvement",
+    "plan_manager_allowed": false,
+    "phased_plan_allowed": false,
+    "goal_file": "docs/internal/REFRACTOR_GOAL.md",
+    "progress_file": "docs/internal/REFRACTOR_PROGRESS.md",
+    "feedback_file": "docs/internal/OPERATOR_FEEDBACK.md",
+    "decisions_file": "docs/internal/DECISIONS.md",
+    "evidence_directory": "docs/internal/evidence/rehabilitation",
+    "acceptance_allow": [
+      "scenarios/browser-automation-studio/**",
+      "packages/cli-core/**",
+      "packages/api-core/**",
+      "packages/delivery-ramp-go/**",
+      "scenarios/scenario-to-desktop/api/**",
+      "scenarios/scenario-to-desktop/docs/**",
+      "scenarios/scenario-to-android/api/**",
+      "scenarios/scenario-to-android/docs/**",
+      "scenarios/device-control/api/**",
+      "scenarios/device-control/docs/**",
+      "scenarios/test-genie/api/internal/orchestrator/**",
+      "scenarios/test-genie/docs/**",
+      "packages/proto/schemas/browser-automation-studio/**",
+      "packages/proto/gen/go/browser-automation-studio/**",
+      "packages/proto/gen/typescript/browser-automation-studio/**",
+      "packages/proto/gen/python/browser_automation_studio/**",
+      "packages/proto/gen/manifests/browser-automation-studio.lock.json"
+    ],
+    "scope_policy": "Necessary BAS-facing owner repairs may extend these paths after recording cause, owner, changed boundary and validation in the progress file; no per-repair approval. Unrelated changes, commercial publishing, new paid access and unauthorized real-account effects remain excluded."
+  },
+  "quality_policy": {
+    "objective": "A substantially more reliable, fast, professional, maintainable and production-ready BAS with material net reduction of technical debt and complexity.",
+    "evidence": "Compare retained baseline and current affected domains, including moved/shared/untracked source. Record complexity, duplicated policy, coupling, ownership and performance; explain eliminated maintenance obligations. Passing the original ratchet alone is insufficient.",
+    "replacement_rule": "Complete caller conversion and remove obsolete implementations, dead code, temporary adapters and runtime migration paths. Preserve supported behavior and user data; do not delete functionality to reduce counts.",
+    "anti_accretion": "No wrapper shuffling, unnecessary generic framework, exported debt, weak tests or unexplained abstractions. When justified code changes are exhausted, investigate fresh cases without manufacturing churn."
+  }
+}

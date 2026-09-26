@@ -1,0 +1,87 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "backdrop-studio",
+  "description": "L0 experience contract for Backdrop Studio. The workbench is a specimen sheet, not a gallery: chrome stays achromatic so the only saturated colour on screen is inside the artwork under judgement. Every route states its purpose, its priorities, and the states it must render. Claims and bindings are added as each route becomes real.",
+  "pages": [
+    {
+      "id": "catalog",
+      "path": "pages/catalog.json",
+      "title": "Catalog",
+      "status": "draft"
+    },
+    {
+      "id": "surfaces",
+      "path": "pages/surfaces.json",
+      "title": "Surfaces",
+      "status": "draft"
+    },
+    {
+      "id": "style",
+      "path": "pages/style.json",
+      "title": "Style",
+      "status": "draft"
+    },
+    {
+      "id": "compose",
+      "path": "pages/compose.json",
+      "title": "Composer",
+      "status": "draft"
+    },
+    {
+      "id": "candidates",
+      "path": "pages/candidates.json",
+      "title": "Candidates",
+      "status": "draft"
+    },
+    {
+      "id": "placements",
+      "path": "pages/placements.json",
+      "title": "Placement Preview",
+      "status": "draft"
+    },
+    {
+      "id": "sweep",
+      "path": "pages/sweep.json",
+      "title": "Contact Sheet",
+      "status": "draft"
+    },
+    {
+      "id": "backdrops",
+      "path": "pages/backdrops.json",
+      "title": "Released Backdrops",
+      "status": "draft"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "draft"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "produce-a-hero-backdrop",
+      "path": "journeys/produce-a-hero-backdrop.json",
+      "title": "Produce a hero backdrop with no model and no spend",
+      "status": "draft"
+    },
+    {
+      "id": "guided-backdrop-with-disclosure",
+      "path": "journeys/guided-backdrop-with-disclosure.json",
+      "title": "Produce a guided backdrop, and understand what it cost and what it discloses",
+      "status": "draft"
+    },
+    {
+      "id": "recover-from-a-failed-gate",
+      "path": "journeys/recover-from-a-failed-gate.json",
+      "title": "Recover from a backdrop the headline cannot survive",
+      "status": "draft"
+    }
+  ]
+}

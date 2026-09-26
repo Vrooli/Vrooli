@@ -2,6 +2,8 @@ package typeconv
 
 import (
 	"encoding/json"
+	"math"
+	"reflect"
 	"testing"
 	"time"
 
@@ -564,3 +566,57 @@ func TestToFloat64Func(t *testing.T) {
 }
 
 // ActionType tests moved to internal/protoconv/enum_convert_test.go
+
+func TestEncodeJsonValuePreservesRawData(t *testing.T) {
+	large := int64(9007199254740993)
+	for _, tc := range []struct {
+		name            string
+		input, expected any
+	}{
+		{"envelope-shaped-object", map[string]any{"string_value": "ordinary data"}, map[string]any{"string_value": "ordinary data"}},
+		{"nested-bytes", map[string]any{"bytes": []byte{0, 1, 255}}, map[string]any{"bytes": []byte{0, 1, 255}}},
+		{"large-integer", map[string]any{"number": large}, map[string]any{"number": large}},
+		{"typed-pointer", &struct {
+			Identity int64 `json:"identity"`
+		}{large}, map[string]any{"identity": large}},
+		{"unsigned-safe", uint64(large), large},
+		{"float", map[string]any{"number": float64(42)}, map[string]any{"number": float64(42)}},
+		{"nil-map", map[string]any(nil), nil}, {"empty-map", map[string]any{}, map[string]any{}},
+		{"nil-list", []any(nil), nil}, {"empty-list", []any{}, []any{}},
+		{"nil-proto", (*commonv1.JsonValue)(nil), nil},
+		{"typed-proto", &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: large}}, large},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			encoded, err := EncodeJsonValue(tc.input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := JsonValueToAny(encoded); !reflect.DeepEqual(tc.expected, got) {
+				t.Fatalf("want %#v (%T), got %#v (%T)", tc.expected, tc.expected, got, got)
+			}
+		})
+	}
+	// Serialized proto interpretation remains an explicit compatibility input behavior.
+	if got := AnyToJsonValue(map[string]any{"string_value": "wire value"}); got.GetStringValue() != "wire value" {
+		t.Fatalf("serialized input lost: %v", got)
+	}
+}
+
+func TestEncodeJsonValueRejectsWholeInvalidPayload(t *testing.T) {
+	cycle := map[string]any{}
+	cycle["self"] = cycle
+	for _, tc := range []struct {
+		name  string
+		value any
+	}{
+		{"cycle", cycle}, {"function", map[string]any{"valid": 1, "invalid": func() {}}},
+		{"overflow", uint64(math.MaxUint64)}, {"nan", math.NaN()}, {"invalid-number", json.Number("oops")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			encoded, err := EncodeJsonValue(tc.value)
+			if err == nil || encoded != nil {
+				t.Fatalf("invalid data acknowledged: value=%v error=%v", encoded, err)
+			}
+		})
+	}
+}

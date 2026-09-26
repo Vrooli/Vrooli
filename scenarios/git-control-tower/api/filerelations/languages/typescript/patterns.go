@@ -5,7 +5,7 @@ import "regexp"
 // Patterns for TypeScript/JavaScript import statements
 var (
 	// Static imports: import X from 'source', import { X } from 'source', import * as X from 'source'
-	staticImportPattern = regexp.MustCompile(`(?m)^\s*import\s+(?:(?:[\w*{}\s,]+)\s+from\s+)?['"]([^'"]+)['"]`)
+	staticImportPattern = regexp.MustCompile(`(?m)^\s*import\s+(?:type\s+)?(?:[\w*{}\s,]+)\s+from\s+['"]([^'"]+)['"]`)
 
 	// Dynamic imports: import('source'), import("source")
 	dynamicImportPattern = regexp.MustCompile(`import\s*\(\s*['"]([^'"]+)['"]\s*\)`)

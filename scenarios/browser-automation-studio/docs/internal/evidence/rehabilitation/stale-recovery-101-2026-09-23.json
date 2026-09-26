@@ -1,0 +1,128 @@
+{
+  "cycle": "101",
+  "issues": [
+    "BAS-RF-055"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "deployed_partial_repair",
+  "scope": "BAS startup recovery of active rows orphaned shortly before restart",
+  "root_cause": {
+    "hypotheses": [
+      {
+        "claim": "An execution orphaned less than five minutes before startup survives the one-time recovery sweep indefinitely.",
+        "result": "confirmed: a red regression with one-second-old RUNNING and PENDING rows recovered zero before the change"
+      },
+      {
+        "claim": "A durable database heartbeat updates UpdatedAt and proves a fresh active row still has a live owner.",
+        "result": "falsified by source inspection: executor heartbeats are timeline telemetry and do not update the execution row"
+      },
+      {
+        "claim": "A periodic recovery sweep eventually handles active rows skipped at startup.",
+        "result": "falsified by source inspection: the single production recovery call occurs before serving and has no periodic caller"
+      }
+    ],
+    "lifecycle_invariant": "In the managed single-API lifecycle, startup recovery runs before the router and scheduler admit new work, so every persisted RUNNING or PENDING row belongs to the previous process. UpdatedAt is not an ownership signal."
+  },
+  "changes": {
+    "implementation": "Renamed startup recovery to RecoverInterruptedExecutions and now queries all RUNNING and PENDING rows separately with unbounded status-filtered queries; every returned row is marked interrupted before requests are served, without an age threshold.",
+    "simplification": "Removed the five-minute threshold, its configurable option, and unused per-execution result detail fields. Recovery results now retain only active, recovered, and failed counts consumed by the startup caller.",
+    "regressions": [
+      "One-second-old RUNNING and PENDING rows must both be interrupted at startup.",
+      "1,000 newer completed rows do not hide older active rows; the same test confirms a one-minute-old active row is also interrupted."
+    ],
+    "contract_or_schema_changes": "none",
+    "complexity": {
+      "function": "findActiveExecutions versus the prior cycle's findStaleExecutions",
+      "gocyclo_before": 5,
+      "gocyclo_after": 3,
+      "result": "two-point local helper reduction; no domain-wide debt reduction claimed"
+    },
+    "duplication_and_coupling": "No package dependency edges changed; no domain-wide reduction claimed."
+  },
+  "checks": {
+    "red_regression": {
+      "command": "go test ./services/recovery -run TestRecoverStaleExecutions_RecoversRecentRowsFromPreviousProcess -count=1",
+      "result": "failed before the implementation change: expected recent rows from the previous process to be recovered, got total=0 recovered=0"
+    },
+    "focused_go_tests": {
+      "command": "go test ./services/recovery ./database",
+      "result": "passed"
+    },
+    "api_build": {
+      "command": "go build ./...",
+      "result": "passed"
+    },
+    "owner_test_genie_unit": {
+      "run_id": "20260923-203045-3e5d2e12",
+      "verdict": "failed",
+      "duration_seconds": 509,
+      "observation_count": 0,
+      "blocking_finding": "TEST_EXECUTION_FAILURE: ui command /usr/bin/pnpm run test:coverage failed",
+      "limitations": "No recovery assertion failure was reported; unit phase remains unqualified. The same UI coverage command blocked the previous cycle; no unchanged retry was started.",
+      "findings_artifact": "artifact_932f8d8621f0f1f12714fbb625ed21fe"
+    },
+    "repository_contract_check": {
+      "command": "vrooli contract validate",
+      "result": "canceled after structure-health reported unavailable; no contract or schema files changed"
+    },
+    "targeted_diff_check": {
+      "command": "git diff --check -- scenarios/browser-automation-studio/api/main.go scenarios/browser-automation-studio/api/services/recovery/service.go scenarios/browser-automation-studio/api/services/recovery/service_test.go",
+      "result": "passed"
+    }
+  },
+  "deployment": {
+    "command": "make restart",
+    "result": "completed; managed lifecycle healthy",
+    "api_pid": 1189538,
+    "startup_log": {
+      "message": "No interrupted executions found during recovery",
+      "observed_at": "2026-09-23T16:30:00-04:00",
+      "interpretation": "New recovery path executed; no active rows were present to mutate during this startup."
+    },
+    "build_identity": "sha256:0da400807449f9ae90fade170c03225ef71859f8ebf21bdfa8177543847cf9c4",
+    "prior_cycle_live_rows": "The five September 7–16 rows were interrupted by the previous recovery repair; subsequent live reads returned zero RUNNING and zero PENDING."
+  },
+  "performance_capture": {
+    "operation_id": "1e9fc96f5be8bc29ab6ef9599f28b301",
+    "outcome": "measured_within_budget",
+    "sample_count": 100,
+    "attempt_count": 101,
+    "warmups": 1,
+    "p95_ms": 419,
+    "wall_p95_ms": 598.636585,
+    "budget_ms": 2000,
+    "build_identity": "sha256:0da400807449f9ae90fade170c03225ef71859f8ebf21bdfa8177543847cf9c4",
+    "producer_digest": "62456dbce61bba14f9feb78efc1e806448fc482e734c2e8a18bf2938b6ed4a52",
+    "contract_digest": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+    "configuration_digest": "1a2776b5338b0074036293f43952bd03d3be2ef1ccabfef38787e06d4a63b167",
+    "fixture_revision": "dcabe2e264925a3c8264eef9ecd37b0b7b16ee11ce3c57bb1310a80ede1e3367",
+    "receipt_path": "/home/matthalloran8/.vrooli/test-runs/performance-health/workloads/1e9fc96f5be8bc29ab6ef9599f28b301/producer/receipt.json",
+    "receipt_sha256": "dfeb266e676b55ef76f51e9c165324e673cae1ed1b824e79320a22d68a5bffa2"
+  },
+  "setpoint_read": {
+    "program_run": "prog_ae4df731-a173-40a7-87aa-2fa2339a6134",
+    "program": "browser-automation-studio.setpoint-read",
+    "profile": "rehabilitation",
+    "required": 17,
+    "qualified": 1,
+    "unavailable": 16,
+    "product_qualified": false,
+    "capture_in_band": true
+  },
+  "source_inventory": {
+    "command": "python3 scenarios/browser-automation-studio/docs/internal/refactor_inventory.py --include-untracked",
+    "observed_at": "2026-09-23T20:33:54.498934+00:00",
+    "source_digest_sha256": "87051e6d47d519905c8a34ef22b834c3340be68e9a21c3723bedcccfd6497059",
+    "interpretation": "Selected-source inventory digest; not a code-quality, coverage, or full-domain complexity score."
+  },
+  "remaining": [
+    "Concurrent or duplicate API process ownership is not qualified beyond the managed single-process startup boundary.",
+    "Test Genie owner unit phase remains unqualified because UI pnpm run test:coverage failed.",
+    "The rehabilitation board has 16 unavailable rows; product qualification remains false."
+  ],
+  "tracking": {
+    "operator_feedback": "The continuation repeats BAS-FB-008 verbatim; no duplicate feedback entry was created.",
+    "issue_register": "docs/PROBLEMS.md BAS-RF-055 updated to reflect the recent-row repair and remaining multi-process boundary."
+  },
+  "pending_operations": {}
+}

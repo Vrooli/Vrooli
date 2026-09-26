@@ -17,17 +17,6 @@ export {
 } from './circuit-breaker';
 
 export {
-  createIdempotencyCache,
-  getIdempotencyCache,
-  shutdownIdempotencyCache,
-  DEFAULT_IDEMPOTENCY_CACHE_CONFIG,
-  type IdempotencyCache,
-  type IdempotencyCacheConfig,
-  type CachedEntry,
-  type CacheStats,
-} from './idempotency-cache';
-
-export {
   registerSessionCleanup,
   cleanupSession,
   getRegistrationCount,
@@ -36,7 +25,6 @@ export {
 
 export {
   createOperationTracker,
-  downloadTracker,
   uploadTracker,
   tabTracker,
   type OperationTracker,

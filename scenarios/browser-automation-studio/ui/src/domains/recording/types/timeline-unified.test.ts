@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  attachTimelinePageIdentities,
   mergeActionsWithAISteps,
   recordedActionToTimelineItem,
   useTimelineEntryToTimelineItem,
@@ -30,6 +31,53 @@ function createRecordedAction(
     ...overrides,
   };
 }
+
+describe('attachTimelinePageIdentities', () => {
+  it('joins driver actions to durable logical page identities by action ID', () => {
+    const actions = [
+      createRecordedAction({ id: 'main-1', actionType: 'click' }),
+      createRecordedAction({ id: 'popup-1', actionType: 'click' }),
+      createRecordedAction({ id: 'unmatched', actionType: 'click', pageId: 'driver-fallback' }),
+    ];
+    const entries: UseTimelineEntry[] = [
+      {
+        id: 'timeline-main-1',
+        type: 'action',
+        timestamp: '2026-09-24T00:00:00Z',
+        pageId: 'logical-main',
+        action: {
+          id: 'main-1',
+          actionType: 'click',
+          sequenceNum: 1,
+          timestamp: '2026-09-24T00:00:00Z',
+          confidence: 1,
+        },
+      },
+      {
+        id: 'timeline-popup-1',
+        type: 'action',
+        timestamp: '2026-09-24T00:00:01Z',
+        pageId: 'logical-popup',
+        action: {
+          id: 'popup-1',
+          actionType: 'click',
+          sequenceNum: 2,
+          timestamp: '2026-09-24T00:00:01Z',
+          confidence: 1,
+        },
+      },
+    ];
+
+    const identified = attachTimelinePageIdentities(actions, entries);
+
+    expect(identified.map((action) => action.pageId)).toEqual([
+      'logical-main',
+      'logical-popup',
+      'driver-fallback',
+    ]);
+    expect(actions[0]?.pageId).toBeUndefined();
+  });
+});
 
 // Helper to create test AI steps
 interface AIStepForTest {
@@ -586,13 +634,11 @@ describe('workflowNodesToTimelineItems', () => {
     const nodes = [
       {
         id: 'node-1',
-        type: 'navigate',
-        data: { label: 'Go to homepage', url: 'https://example.com' },
+        action: { type: 'ACTION_TYPE_NAVIGATE', metadata: { label: 'Go to homepage' }, navigate: { url: 'https://example.com' } },
       },
       {
         id: 'node-2',
-        type: 'click',
-        data: { label: 'Click login', selector: 'button#login' },
+        action: { type: 'ACTION_TYPE_CLICK', metadata: { label: 'Click login' }, click: { selector: 'button#login' } },
       },
     ];
 
@@ -612,9 +658,9 @@ describe('workflowNodesToTimelineItems', () => {
 
   it('filters out non-action nodes (start, end, etc.)', () => {
     const nodes = [
-      { id: 'start-1', type: 'start', data: {} },
-      { id: 'node-1', type: 'click', data: { selector: 'button' } },
-      { id: 'end-1', type: 'end', data: {} },
+      { id: 'start-1' },
+      { id: 'node-1', action: { type: 'ACTION_TYPE_CLICK', click: { selector: 'button' } } },
+      { id: 'end-1' },
     ];
 
     const result = workflowNodesToTimelineItems(nodes, []);
@@ -650,9 +696,9 @@ describe('workflowNodesToTimelineItems', () => {
 
   it('assigns sequential sequence numbers', () => {
     const nodes = [
-      { id: 'node-1', type: 'click', data: {} },
-      { id: 'node-2', type: 'input', data: {} },
-      { id: 'node-3', type: 'click', data: {} },
+      { id: 'node-1', action: { type: 'ACTION_TYPE_CLICK', click: { selector: '.one' } } },
+      { id: 'node-2', action: { type: 'ACTION_TYPE_INPUT', input: { selector: '.two', value: 'text' } } },
+      { id: 'node-3', action: { type: 'ACTION_TYPE_CLICK', click: { selector: '.three' } } },
     ];
 
     const result = workflowNodesToTimelineItems(nodes, []);

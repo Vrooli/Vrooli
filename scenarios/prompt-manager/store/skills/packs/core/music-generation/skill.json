@@ -1,0 +1,37 @@
+{
+  "createdAt": "2026-09-18T20:00:00Z",
+  "description": "Retired pointer to the governed music-tools composition capability.",
+  "entry": "SKILL.md",
+  "icon": "music",
+  "id": "music-generation",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "tools"
+  ],
+  "name": "music-generation",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "music-tools styles list",
+      "music-tools compose run",
+      "music-tools jobs wait",
+      "music-tools takes list"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 3,
+  "schemaVersion": 1,
+  "status": "retired",
+  "tags": [
+    "marketing",
+    "audio",
+    "music",
+    "video"
+  ],
+  "updatedAt": "2026-09-19T00:00:00Z"
+}

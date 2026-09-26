@@ -1,21 +1,21 @@
 /**
  * Graph workspace keyboard shortcuts.
  *
- * 1-3: switch lenses
+ * 1-3: switch operator surfaces
  * L: cycle layout mode
- * Esc: close detail page or deselect node
+ * Esc: deselect graph node
  * Ctrl+K: preserved for host switcher
  */
 
-import { useEffect, useCallback } from "react";
+import { useCallback } from "react";
 import {
   emitShortcutIntent,
   HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
 } from "@vrooli/iframe-bridge";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
-import { useDetailSelectionStore } from "../../../stores/detail-selection-store";
-import type { GraphLens } from "../stores/graph-data-store";
+import { useGlobalKeyDown } from "../../../hooks/useGlobalKeyDown";
+import type { AppGraphLens } from "../../../app/routes/route-paths";
 
 function isInputElement(el: HTMLElement): boolean {
   return (
@@ -26,14 +26,14 @@ function isInputElement(el: HTMLElement): boolean {
   );
 }
 
-const LENS_MAP: Record<string, GraphLens> = {
-  "1": "focus",
-  "2": "topology",
-  "3": "operations",
+const LENS_MAP: Record<string, AppGraphLens> = {
+  "1": "plan",
+  "2": "graph",
+  "3": "stats",
 };
 
 interface GraphShortcutHandlers {
-  onLensChange: (lens: GraphLens) => void;
+  onLensChange: (lens: AppGraphLens) => void;
   onDeselectNode: () => void;
   onSettingsToggle: () => void;
   onReturnToAtlas: () => void;
@@ -45,8 +45,6 @@ export function useGraphKeyboardShortcuts(handlers: GraphShortcutHandlers): void
   const cycleLayoutMode = useGraphUIStore((s) => s.cycleLayoutMode);
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
   const lens = useGraphDataStore((s) => s.lens);
-  const detailSelection = useDetailSelectionStore((s) => s.selection);
-  const clearDetailSelection = useDetailSelectionStore((s) => s.clearSelection);
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
@@ -67,7 +65,7 @@ export function useGraphKeyboardShortcuts(handlers: GraphShortcutHandlers): void
         return;
       }
 
-      // Number keys 1-3 — Lens switching
+      // Number keys 1-3 — surface switching
       if (!mod && event.key in LENS_MAP) {
         const nextLens = LENS_MAP[event.key];
         if (nextLens) {
@@ -94,21 +92,16 @@ export function useGraphKeyboardShortcuts(handlers: GraphShortcutHandlers): void
         return;
       }
 
-      // Escape — Close detail page, or deselect node
+      // Escape — Deselect graph node.
       if (event.key === "Escape") {
-        if (detailSelection) {
-          clearDetailSelection();
-        } else if (selectedNodeId) {
+        if (selectedNodeId) {
           handlers.onDeselectNode();
         }
         return;
       }
     },
-    [handlers, cycleLayoutMode, lens, selectedNodeId, detailSelection, clearDetailSelection],
+    [handlers, cycleLayoutMode, lens, selectedNodeId],
   );
 
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
+  useGlobalKeyDown(handleKeyDown);
 }

@@ -1,0 +1,168 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "catalog",
+    "title": "Catalog",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Let the operator find a style by what it looks like rather than by remembering its name, using the five axes as facets. This is the entry point and the discovery surface, so it is never gated.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-003",
+      "OT-P0-018"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "A style is recognisable from its tile without opening it.",
+      "notes": "Each tile shows a rendered specimen against its own declared ground, plus its strategy and treatment chain. A catalog of names would be useless — the whole point is that these are judged visually."
+    },
+    {
+      "statement": "Filtering by axis is the primary navigation, not a secondary control.",
+      "notes": "The taxonomy is the product's contribution. Facets across role, subject, treatment, lineage and placement should be visible without opening a menu."
+    },
+    {
+      "statement": "Cost is legible before anything is opened.",
+      "notes": "A tile shows whether its strategy is free (procedural) or metered (model-backed), so the operator understands the consequence of a choice before making it."
+    },
+    {
+      "statement": "Availability is legible alongside cost.",
+      "notes": "A tile already shows whether a strategy is free or metered. On a machine with no capable backend and no configured route, a metered style is not merely costly — it cannot run at all. Cost legibility is not availability legibility, and on a local-first product the unavailable case is common rather than exceptional."
+    }
+  ],
+  "states": [
+    {
+      "id": "stale",
+      "description": "The last catalog remains visible with a freshness notice.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "Catalog failure states the cause and keeps previously loaded styles visible.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Available styles remain discoverable while some specimens are unavailable.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No styles exist yet. Offers to seed the starter catalog and explains what a style is, rather than showing a bare grid.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "Specimens render progressively; tiles hold their aspect so the grid does not reflow as images arrive.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "populated",
+      "description": "The full catalog with axis facets available and result count shown.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "filtered-empty",
+      "description": "A filter combination matches nothing. Names the constraining facets and offers to relax the narrowest one, rather than showing an unqualified empty state.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "treatment": "typographic_mosaic",
+          "lineage": "swiss_international"
+        }
+      }
+    },
+    {
+      "id": "error",
+      "description": "The catalog cannot be read. States the cause and keeps any previously loaded results visible.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "no-model-host",
+      "description": "Viewed on a host with no capable local backend and no configured route. Model-backed styles are marked unavailable with the reason; procedural styles are unaffected and the catalog stays useful.",
+      "setup": {
+        "route": "/"
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "specimen-grid",
+      "role": "list",
+      "description": "One tile per style, each holding a rendered specimen at the style's representative surface."
+    },
+    {
+      "id": "axis-facets",
+      "role": "group",
+      "name": "Filters",
+      "description": "Always-visible selects for role, subject, treatment, lineage and placement, plus a result count."
+    },
+    {
+      "id": "result-count",
+      "role": "status",
+      "description": "How many styles the current facet combination matches."
+    }
+  ],
+  "claims": [
+    {
+      "id": "specimens-present",
+      "type": "element-present",
+      "tier": "machine",
+      "statement": "The catalog shows a grid of rendered specimens rather than a list of names.",
+      "elements": [
+        "specimen-grid"
+      ]
+    },
+    {
+      "id": "facets-are-primary",
+      "type": "affordance-present",
+      "tier": "machine",
+      "statement": "Axis filtering is reachable without opening a menu, because the taxonomy is the navigation.",
+      "elements": [
+        "axis-facets"
+      ],
+      "params": {
+        "affordances": [
+          "filter"
+        ]
+      }
+    },
+    {
+      "id": "filtered-empty-recovers",
+      "type": "state-covered",
+      "tier": "machine",
+      "statement": "A facet combination matching nothing names the constraint and offers to relax it.",
+      "state": "filtered-empty"
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "specimen-grid": {
+        "testid": "catalog-grid"
+      },
+      "axis-facets": {
+        "testid": "catalog-axis-filters"
+      },
+      "result-count": {
+        "testid": "catalog-result-count"
+      }
+    }
+  }
+}

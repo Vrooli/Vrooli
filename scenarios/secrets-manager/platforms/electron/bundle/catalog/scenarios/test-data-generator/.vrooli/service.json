@@ -1,0 +1,216 @@
+{
+  "service": {
+    "name": "test-data-generator",
+    "displayName": "Test Data Generator",
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "generation",
+    "tags": [],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/test-data-generator"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "description": "Universal test data generator for all formats - JSON, YAML, CSV, XML, images, audio, video, PDFs",
+    "version": "1.0.0"
+  },
+  "version": "1.0.0",
+  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."},"logs":{"rung":"owned","path":"logs","kind":"dir","class":"logs","regenerable":true,"rationale":"Scenario operational logs observed in the canonical logs directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Test data generator API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Test data generator UI port",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "setup": {
+      "description": "Initialize Test Data Generator",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/test-data-generator-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "test-data-generator",
+            "targets": [
+              "test-data-generator"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-api-deps",
+          "run": "cd api && npm install",
+          "description": "Install API dependencies"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o test-data-generator-api .",
+          "description": "Build Go API binary",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start test-data-generator services",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./test-data-generator-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/test-data-generator-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop test-data-generator services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"test-data-generator-api\" || true; sleep 1; pkill -9 -f \"test-data-generator-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/test-data-generator.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/test-data-generator.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    },
+    "health": {
+      "description": "Test Data Generator health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "version": "2.0.0",
+    "test": {
+      "description": "Comprehensive phased testing for test-data-generator",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test-genie execute test-data-generator --preset comprehensive",
+          "description": "Execute phased scenario test suite"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "redis": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Caching frequently generated patterns",
+        "degraded_behavior": "Falls back to in-memory cache"
+      },
+      "minio": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Store generated files for retrieval",
+        "degraded_behavior": "Falls back to temporary filesystem storage"
+      }
+    }
+  },
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "cli": {
+    "enabled": true,
+    "command": "test-data-generator",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "test-data-generator"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "contractRow": "passive-fidelity",
+  "capturedAt": "2026-09-25T07:46:36.941Z",
+  "managedBuildIdentityBefore": "sha256:c77c94216efb214953c4ab6a8351fd42ebba8749aad357ae92495af619841613",
+  "managedBuildIdentityAfter": "sha256:c77c94216efb214953c4ab6a8351fd42ebba8749aad357ae92495af619841613",
+  "actions": 10000,
+  "fixtureEffects": 10000,
+  "uniqueJournalIds": 10000,
+  "strictlyIncreasingJournalSequence": true,
+  "appliedInputReceipts": 10000,
+  "strictlyIncreasingAppliedSequence": true,
+  "storageIsolation": {
+    "routedTestPool": true,
+    "testPoolRequests": 32444,
+    "primaryRequestsDuringTestMode": 0,
+    "temporaryDatabase": true
+  },
+  "elapsedMs": 43641
+}

@@ -146,7 +146,13 @@ export function ManifestToolbar({
           <Download className="h-3.5 w-3.5" />
           Export
         </Button>
-        <Button variant="ghost" size="sm" onClick={onClose} className="text-white/60 hover:text-white">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClose}
+          aria-label="Close manifest editor"
+          className="text-white/60 hover:text-white"
+        >
           <X className="h-4 w-4" />
         </Button>
       </div>

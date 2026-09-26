@@ -1,0 +1,32 @@
+syntax = "proto3";
+package vrooli.nutrition_planner.v1.routine;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/routine;routine_v1";
+
+service RoutineService {
+  rpc ListTemplates(ListTemplatesRequest) returns (ListTemplatesResponse);
+  rpc CreateTemplate(CreateTemplateRequest) returns (CreateTemplateResponse);
+  rpc UpdateTemplate(UpdateTemplateRequest) returns (UpdateTemplateResponse);
+  rpc GenerateOccurrences(GenerateOccurrencesRequest) returns (GenerateOccurrencesResponse);
+}
+message Template {
+  string id = 1;
+  int64 revision = 2;
+  string slot_name = 3;
+  string recipe_id = 4;
+  string quantity = 5;
+  repeated int32 weekdays = 6;
+  string start_date = 7;
+  string end_date = 8;
+  string mode = 9;
+  bool active = 10;
+}
+message Occurrence { string date = 1; string slot_name = 2; string recipe_id = 3; string quantity = 4; string template_id = 5; int64 template_revision = 6; string mode = 7; }
+message ListTemplatesRequest { string workspace_id = 1; }
+message ListTemplatesResponse { repeated Template templates = 1; }
+message CreateTemplateRequest { string workspace_id = 1; string slot_name = 2; string recipe_id = 3; string quantity = 4; repeated int32 weekdays = 5; string start_date = 6; string end_date = 7; string mode = 8; bool active = 9; }
+message CreateTemplateResponse { Template template = 1; }
+message UpdateTemplateRequest { string workspace_id = 1; string id = 2; int64 expected_revision = 3; string slot_name = 4; string recipe_id = 5; string quantity = 6; repeated int32 weekdays = 7; string start_date = 8; string end_date = 9; string mode = 10; bool active = 11; }
+message UpdateTemplateResponse { Template template = 1; }
+message GenerateOccurrencesRequest { string workspace_id = 1; string from_date = 2; string to_date = 3; }
+message GenerateOccurrencesResponse { repeated Occurrence occurrences = 1; }

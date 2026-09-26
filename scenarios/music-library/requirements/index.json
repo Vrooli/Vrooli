@@ -1,0 +1,17 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-library-playback/module.json",
+    "02-decomposition/module.json",
+    "03-preference-model/module.json",
+    "04-elicitation/module.json",
+    "05-ranking-explanation/module.json",
+    "06-exploration/module.json",
+    "07-generation-loop/module.json",
+    "08-provenance-blindness/module.json"
+  ]
+}

@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// Root scenario template/design/orientation contracts moved to
+// template-manager/v1 lifecycle services during the Template Manager hard
+// cutover. This package file stays only to preserve the schema path.

@@ -6,6 +6,7 @@ package sessionprofile
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -14,7 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/internal/clock"
+	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
 
@@ -23,13 +24,13 @@ type Service struct {
 	repo     persistence.Repository
 	sessions *ActiveSessionRegistry
 	log      *logrus.Logger
-	clock    clock.Clock
+	clock    schedule.Clock
 }
 
 // ServiceConfig configures the session profile service.
 type ServiceConfig struct {
-	// Clock provides time operations. If nil, uses the real system clock.
-	Clock clock.Clock
+	// Clock provides time operations. If nil, uses the real system schedule.
+	Clock schedule.Clock
 }
 
 // NewService creates a new session profile service.
@@ -41,7 +42,7 @@ func NewService(repo persistence.Repository, log *logrus.Logger) *Service {
 func NewServiceWithConfig(repo persistence.Repository, log *logrus.Logger, config ServiceConfig) *Service {
 	clk := config.Clock
 	if clk == nil {
-		clk = clock.New()
+		clk = schedule.System()
 	}
 	return &Service{
 		repo:     repo,
@@ -137,305 +138,309 @@ func (s *Service) DeleteProfile(id persistence.ProfileID) error {
 
 // RenameProfile updates the profile display name.
 func (s *Service) RenameProfile(id persistence.ProfileID, name string) (*persistence.SessionProfile, error) {
-	profile, err := s.GetProfile(id)
-	if err != nil {
-		return nil, err
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = s.generateProfileName()
 	}
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		profile.Name = name
+		return nil
+	})
+}
 
-	profile.Name = strings.TrimSpace(name)
-	if profile.Name == "" {
-		profile.Name = s.generateProfileName()
-	}
-	profile.UpdatedAt = s.clock.Now().UTC()
-
-	if err := s.repo.Save(profile); err != nil {
-		return nil, err
-	}
-	return profile, nil
+// UpdateProfile applies a field mutation to the latest profile under repository
+// write ownership. The timestamp is part of the same acknowledged snapshot.
+func (s *Service) UpdateProfile(id persistence.ProfileID, modify func(*persistence.SessionProfile) error) (*persistence.SessionProfile, error) {
+	return s.repo.Update(id, func(profile *persistence.SessionProfile) error {
+		if err := modify(profile); err != nil {
+			return err
+		}
+		profile.UpdatedAt = s.clock.Now().UTC()
+		return nil
+	})
 }
 
 // UpdateBrowserProfile updates the browser profile settings.
 func (s *Service) UpdateBrowserProfile(id persistence.ProfileID, browserProfile *persistence.BrowserProfile) (*persistence.SessionProfile, error) {
-	profile, err := s.GetProfile(id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate browser profile if provided
-	if browserProfile != nil {
-		if err := ValidateBrowserProfile(browserProfile); err != nil {
-			return nil, fmt.Errorf("invalid browser profile: %w", err)
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		// Validate browser profile if provided
+		if browserProfile != nil {
+			if err := ValidateBrowserProfile(browserProfile); err != nil {
+				return fmt.Errorf("invalid browser profile: %w", err)
+			}
 		}
-	}
 
-	profile.BrowserProfile = browserProfile
-	profile.UpdatedAt = s.clock.Now().UTC()
-
-	if err := s.repo.Save(profile); err != nil {
-		return nil, err
-	}
-	return profile, nil
+		profile.BrowserProfile = browserProfile
+		return nil
+	})
 }
 
-// StartSession associates a browser session with a profile.
-// This updates the profile's last_used_at timestamp.
-func (s *Service) StartSession(sessionID string, profileID persistence.ProfileID) error {
-	if sessionID == "" || profileID == "" {
+var ErrSessionBindingChanged = errors.New("session profile binding changed during capture; retry with the current session")
+
+var ErrAmbiguousProfileSession = errors.New("profile-scoped live operation requires exactly one active browser session")
+
+// PersistSessionState serializes complete browser snapshots for one active
+// binding. Detach/replacement invalidates any capture still awaiting browser I/O.
+func (s *Service) PersistSessionState(ctx context.Context, sessionID string, capture func(context.Context, string) (*persistence.SessionEndState, error)) error {
+	return s.persistSessionState(ctx, sessionID, capture, false)
+}
+
+func (s *Service) persistSessionState(ctx context.Context, sessionID string, capture func(context.Context, string) (*persistence.SessionEndState, error), automatic bool) (err error) {
+	r := s.sessions
+	r.mu.Lock()
+	binding := r.sessions[sessionID]
+	r.mu.Unlock()
+	if binding == nil {
 		return nil
 	}
-
-	s.sessions.Set(sessionID, string(profileID))
-
-	// Touch the profile to update last_used_at
-	profile, err := s.repo.Get(profileID)
+	if automatic {
+		defer func() { s.recordCheckpointError(sessionID, binding, err) }()
+	}
+	select {
+	case binding.capture <- struct{}{}:
+		defer func() { <-binding.capture }()
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	r.mu.Lock()
+	err = r.validateCaptureBinding(sessionID, binding, automatic)
+	r.mu.Unlock()
 	if err != nil {
 		return err
 	}
-	if profile == nil {
-		return nil // Profile doesn't exist, nothing to update
+	if err := ctx.Err(); err != nil {
+		return err
 	}
-
-	now := s.clock.Now().UTC()
-	profile.LastUsedAt = now
-	profile.UpdatedAt = now
-
-	return s.repo.Save(profile)
+	capturedAt := s.clock.Now()
+	state, err := capture(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if err := r.validateCaptureBinding(sessionID, binding, automatic); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	_, err = s.UpdateProfile(persistence.ProfileID(binding.profileID), func(profile *persistence.SessionProfile) error {
+		applySessionState(profile, state)
+		profile.LastUsedAt = s.clock.Now().UTC()
+		return nil
+	})
+	if err == nil {
+		binding.savedAt = capturedAt
+		binding.checkpointError = ""
+	}
+	return err
 }
 
-// EndSession persists session state to the profile and clears the association.
-// This is the single atomic save point that replaces scattered SaveX() calls.
-func (s *Service) EndSession(ctx context.Context, sessionID string, state *persistence.SessionEndState) error {
-	profileID := s.sessions.Get(sessionID)
-	if profileID == "" {
-		return nil // No profile associated
-	}
-
-	profile, err := s.repo.Get(persistence.ProfileID(profileID))
-	if err != nil {
-		return err
-	}
-	if profile == nil {
-		s.sessions.Clear(sessionID)
-		return nil // Profile doesn't exist
-	}
-
-	// Update profile with session end state
-	if state != nil {
-		if len(state.StorageState) > 0 {
-			profile.StorageState = state.StorageState
+// RunCheckpoints is owned and joined by the API lifecycle. Browser I/O is bounded
+// per binding; one slow profile does not delay captures for other profiles.
+func (s *Service) RunCheckpoints(ctx context.Context, capture func(context.Context, string) (*persistence.SessionEndState, error)) {
+	ticker := s.clock.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	for ctx.Err() == nil {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C():
 		}
-		// Limit tabs to prevent resource exhaustion
-		if len(state.OpenTabs) > persistence.MaxRestoredTabs {
-			state.OpenTabs = state.OpenTabs[:persistence.MaxRestoredTabs]
+		s.sessions.mu.Lock()
+		ids := make([]string, 0, len(s.sessions.sessions))
+		for id := range s.sessions.sessions {
+			ids = append(ids, id)
 		}
-		profile.OpenTabs = state.OpenTabs
+		s.sessions.mu.Unlock()
+		var captures sync.WaitGroup
+		for _, id := range ids {
+			captures.Go(func() {
+				captureCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+				defer cancel()
+				_ = s.persistSessionState(captureCtx, id, capture, true)
+			})
+		}
+		captures.Wait()
 	}
+}
 
-	now := s.clock.Now().UTC()
-	profile.UpdatedAt = now
-
-	// Single atomic save
-	if err := s.repo.Save(profile); err != nil {
-		return err
+func (s *Service) recordCheckpointError(sessionID string, binding *activeSessionBinding, err error) {
+	if err == nil {
+		return
 	}
+	s.sessions.mu.Lock()
+	current := s.sessions.sessions[sessionID] == binding
+	changed := current && binding.checkpointError != err.Error()
+	if current {
+		binding.checkpointError = err.Error()
+	}
+	s.sessions.mu.Unlock()
+	if changed && s.log != nil {
+		s.log.WithError(err).WithField("session_id", sessionID).Warn("Browser profile checkpoint unavailable")
+	}
+}
 
-	s.sessions.Clear(sessionID)
+// CheckpointHealth reports durability of active browser profiles, not just
+// availability of the profile repository. No active browser requires a checkpoint.
+func (s *Service) CheckpointHealth() error {
+	s.sessions.mu.Lock()
+	defer s.sessions.mu.Unlock()
+	stale := 0
+	for _, binding := range s.sessions.sessions {
+		latest := binding.savedAt
+		if latest.IsZero() {
+			latest = binding.attachedAt
+		}
+		if binding.checkpointError != "" || s.clock.Now().Sub(latest) > 5*time.Second {
+			stale++
+		}
+	}
+	if stale > 0 {
+		return fmt.Errorf("%d of %d active browser profiles lack a current checkpoint", stale, len(s.sessions.sessions))
+	}
 	return nil
 }
 
-// PersistSessionState saves storage state and tabs without ending the session.
-// Used for mid-session saves (e.g., beforeunload, manual persist).
-func (s *Service) PersistSessionState(profileID persistence.ProfileID, state *persistence.SessionEndState) error {
-	profile, err := s.GetProfile(profileID)
-	if err != nil {
-		return err
+func applySessionState(profile *persistence.SessionProfile, state *persistence.SessionEndState) {
+	if state == nil {
+		return
 	}
-
-	if state != nil {
-		if len(state.StorageState) > 0 {
-			profile.StorageState = state.StorageState
-		}
-		if len(state.OpenTabs) > persistence.MaxRestoredTabs {
-			state.OpenTabs = state.OpenTabs[:persistence.MaxRestoredTabs]
-		}
-		profile.OpenTabs = state.OpenTabs
+	if len(state.StorageState) > 0 {
+		profile.StorageState = state.StorageState
 	}
-
-	now := s.clock.Now().UTC()
-	profile.UpdatedAt = now
-	profile.LastUsedAt = now
-
-	return s.repo.Save(profile)
+	tabs := state.OpenTabs
+	if len(tabs) > persistence.MaxRestoredTabs {
+		tabs = tabs[:persistence.MaxRestoredTabs]
+	}
+	profile.OpenTabs = tabs
 }
 
 // SaveStorageState persists the storage state and bumps last_used_at.
 func (s *Service) SaveStorageState(id persistence.ProfileID, storageState []byte) (*persistence.SessionProfile, error) {
-	profile, err := s.GetProfile(id)
-	if err != nil {
-		return nil, err
-	}
+	return s.UpdateStorageState(id, func(current json.RawMessage) (json.RawMessage, error) {
+		if len(storageState) == 0 {
+			return current, nil
+		}
+		return storageState, nil
+	})
+}
 
-	if len(storageState) > 0 {
-		profile.StorageState = storageState
-	}
-	now := s.clock.Now().UTC()
-	profile.LastUsedAt = now
-	profile.UpdatedAt = now
-
-	if err := s.repo.Save(profile); err != nil {
-		return nil, err
-	}
-	return profile, nil
+// UpdateStorageState applies a storage edit to the latest identity and preserves
+// the same last-used policy as complete browser snapshots.
+func (s *Service) UpdateStorageState(id persistence.ProfileID, modify func(json.RawMessage) (json.RawMessage, error)) (*persistence.SessionProfile, error) {
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		state, err := modify(profile.StorageState)
+		if err != nil {
+			return err
+		}
+		profile.StorageState = state
+		profile.LastUsedAt = s.clock.Now().UTC()
+		return nil
+	})
 }
 
 // SaveOpenTabs persists the tab state for session restoration.
 func (s *Service) SaveOpenTabs(id persistence.ProfileID, tabs []persistence.TabState) (*persistence.SessionProfile, error) {
-	profile, err := s.GetProfile(id)
-	if err != nil {
-		return nil, err
-	}
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		// Limit tabs to prevent resource exhaustion
+		if len(tabs) > persistence.MaxRestoredTabs {
+			tabs = tabs[:persistence.MaxRestoredTabs]
+		}
 
-	// Limit tabs to prevent resource exhaustion
-	if len(tabs) > persistence.MaxRestoredTabs {
-		tabs = tabs[:persistence.MaxRestoredTabs]
-	}
-
-	profile.OpenTabs = tabs
-	profile.UpdatedAt = s.clock.Now().UTC()
-
-	if err := s.repo.Save(profile); err != nil {
-		return nil, err
-	}
-	return profile, nil
+		profile.OpenTabs = tabs
+		return nil
+	})
 }
 
 // Touch updates the last_used_at timestamp.
 func (s *Service) Touch(id persistence.ProfileID) (*persistence.SessionProfile, error) {
-	profile, err := s.GetProfile(id)
-	if err != nil {
-		return nil, err
-	}
-
-	now := s.clock.Now().UTC()
-	profile.LastUsedAt = now
-	profile.UpdatedAt = now
-
-	if err := s.repo.Save(profile); err != nil {
-		return nil, err
-	}
-	return profile, nil
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		now := s.clock.Now().UTC()
+		profile.LastUsedAt = now
+		return nil
+	})
 }
 
 // AddHistoryEntry appends a history entry to the profile.
 // Entries are stored newest-first. Pruning is applied automatically.
 func (s *Service) AddHistoryEntry(id persistence.ProfileID, entry persistence.HistoryEntry) (*persistence.SessionProfile, error) {
-	profile, err := s.GetProfile(id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get settings (use defaults if not set)
-	settings := profile.HistorySettings
-	if settings == nil {
-		settings = persistence.DefaultHistorySettings()
-	}
-
-	// Prepend new entry (newest first)
-	profile.History = append([]persistence.HistoryEntry{entry}, profile.History...)
-
-	// Prune to maxEntries
-	if settings.MaxEntries > 0 && len(profile.History) > settings.MaxEntries {
-		profile.History = profile.History[:settings.MaxEntries]
-	}
-
-	// Prune by TTL
-	profile.History = s.pruneHistoryByTTL(profile.History, settings)
-
-	profile.UpdatedAt = s.clock.Now().UTC()
-
-	if err := s.repo.Save(profile); err != nil {
-		return nil, err
-	}
-	return profile, nil
-}
-
-// ClearHistory removes all history entries from a profile.
-func (s *Service) ClearHistory(id persistence.ProfileID) (*persistence.SessionProfile, error) {
-	profile, err := s.GetProfile(id)
-	if err != nil {
-		return nil, err
-	}
-
-	profile.History = nil
-	profile.UpdatedAt = s.clock.Now().UTC()
-
-	if err := s.repo.Save(profile); err != nil {
-		return nil, err
-	}
-	return profile, nil
-}
-
-// DeleteHistoryEntry removes a single entry by ID.
-func (s *Service) DeleteHistoryEntry(id persistence.ProfileID, entryID string) (*persistence.SessionProfile, error) {
-	profile, err := s.GetProfile(id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Find and remove the entry
-	found := false
-	newHistory := make([]persistence.HistoryEntry, 0, len(profile.History))
-	for _, entry := range profile.History {
-		if entry.ID == entryID {
-			found = true
-			continue
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		// Get settings (use defaults if not set)
+		settings := profile.HistorySettings
+		if settings == nil {
+			settings = persistence.DefaultHistorySettings()
 		}
-		newHistory = append(newHistory, entry)
-	}
 
-	if !found {
-		return nil, fmt.Errorf("history entry not found: %s", entryID)
-	}
+		// Prepend new entry (newest first)
+		profile.History = append([]persistence.HistoryEntry{entry}, profile.History...)
 
-	profile.History = newHistory
-	profile.UpdatedAt = s.clock.Now().UTC()
-
-	if err := s.repo.Save(profile); err != nil {
-		return nil, err
-	}
-	return profile, nil
-}
-
-// UpdateHistorySettings updates the history configuration.
-func (s *Service) UpdateHistorySettings(id persistence.ProfileID, settings *persistence.HistorySettings) (*persistence.SessionProfile, error) {
-	profile, err := s.GetProfile(id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate settings
-	if err := ValidateHistorySettings(settings); err != nil {
-		return nil, err
-	}
-
-	profile.HistorySettings = settings
-
-	// Apply pruning if we have history and settings
-	if len(profile.History) > 0 && settings != nil {
 		// Prune to maxEntries
 		if settings.MaxEntries > 0 && len(profile.History) > settings.MaxEntries {
 			profile.History = profile.History[:settings.MaxEntries]
 		}
+
 		// Prune by TTL
 		profile.History = s.pruneHistoryByTTL(profile.History, settings)
-	}
+		return nil
+	})
+}
 
-	profile.UpdatedAt = s.clock.Now().UTC()
+// ClearHistory removes all history entries from a profile.
+func (s *Service) ClearHistory(id persistence.ProfileID) (*persistence.SessionProfile, error) {
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		profile.History = nil
+		return nil
+	})
+}
 
-	if err := s.repo.Save(profile); err != nil {
-		return nil, err
-	}
-	return profile, nil
+// DeleteHistoryEntry removes a single entry by ID.
+func (s *Service) DeleteHistoryEntry(id persistence.ProfileID, entryID string) (*persistence.SessionProfile, error) {
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		// Find and remove the entry
+		found := false
+		newHistory := make([]persistence.HistoryEntry, 0, len(profile.History))
+		for _, entry := range profile.History {
+			if entry.ID == entryID {
+				found = true
+				continue
+			}
+			newHistory = append(newHistory, entry)
+		}
+
+		if !found {
+			return fmt.Errorf("history entry not found: %s", entryID)
+		}
+
+		profile.History = newHistory
+		return nil
+	})
+}
+
+// UpdateHistorySettings updates the history configuration.
+func (s *Service) UpdateHistorySettings(id persistence.ProfileID, settings *persistence.HistorySettings) (*persistence.SessionProfile, error) {
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		// Validate settings
+		if err := ValidateHistorySettings(settings); err != nil {
+			return err
+		}
+
+		profile.HistorySettings = settings
+
+		// Apply pruning if we have history and settings
+		if len(profile.History) > 0 && settings != nil {
+			// Prune to maxEntries
+			if settings.MaxEntries > 0 && len(profile.History) > settings.MaxEntries {
+				profile.History = profile.History[:settings.MaxEntries]
+			}
+			// Prune by TTL
+			profile.History = s.pruneHistoryByTTL(profile.History, settings)
+		}
+		return nil
+	})
 }
 
 // GetHistoryWithPruning returns the history with TTL pruning applied (but doesn't save).
@@ -464,7 +469,7 @@ func (s *Service) GetActiveSession(browserSessionID string) string {
 // SetActiveSession associates a browser session with a profile.
 func (s *Service) SetActiveSession(browserSessionID, profileID string) {
 	if browserSessionID != "" && profileID != "" {
-		s.sessions.Set(browserSessionID, profileID)
+		s.sessions.Set(browserSessionID, profileID, s.clock.Now())
 	}
 }
 
@@ -475,9 +480,10 @@ func (s *Service) ClearActiveSession(browserSessionID string) string {
 	return profileID
 }
 
-// GetSessionForProfile returns the browser session ID associated with a profile.
-func (s *Service) GetSessionForProfile(profileID string) string {
-	return s.sessions.GetByProfile(profileID)
+// ResolveSessionForProfile returns a live browser only when the profile has a
+// unique active binding. Profile-scoped operations must not choose arbitrarily.
+func (s *Service) ResolveSessionForProfile(profileID string) (string, error) {
+	return s.sessions.ResolveByProfile(profileID)
 }
 
 // ClearSessionsForProfile removes all browser session associations for a given profile.
@@ -519,40 +525,73 @@ func (s *Service) pruneHistoryByTTL(entries []persistence.HistoryEntry, settings
 // ActiveSessionRegistry tracks browser session to profile ID mappings.
 type ActiveSessionRegistry struct {
 	mu       sync.Mutex
-	sessions map[string]string // browserSessionID -> profileID
+	sessions map[string]*activeSessionBinding
+}
+
+type activeSessionBinding struct {
+	profileID       string
+	capture         chan struct{}
+	attachedAt      time.Time
+	savedAt         time.Time
+	checkpointError string
+}
+
+// validateCaptureBinding requires the registry mutex; commit holds it through
+// the repository transaction, so detach cannot overtake an accepted snapshot.
+func (r *ActiveSessionRegistry) validateCaptureBinding(sessionID string, binding *activeSessionBinding, automatic bool) error {
+	if r.sessions[sessionID] != binding {
+		return ErrSessionBindingChanged
+	}
+	if automatic {
+		for id, current := range r.sessions {
+			if id != sessionID && current.profileID == binding.profileID {
+				return errors.New("automatic checkpoint requires one active browser for this profile; manual saving remains available")
+			}
+		}
+	}
+	return nil
 }
 
 // NewActiveSessionRegistry creates a new registry.
 func NewActiveSessionRegistry() *ActiveSessionRegistry {
 	return &ActiveSessionRegistry{
-		sessions: make(map[string]string),
+		sessions: make(map[string]*activeSessionBinding),
 	}
 }
 
 // Set associates a browser session with a profile.
-func (r *ActiveSessionRegistry) Set(browserSessionID, profileID string) {
+func (r *ActiveSessionRegistry) Set(browserSessionID, profileID string, attachedAt time.Time) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.sessions[browserSessionID] = profileID
+	r.sessions[browserSessionID] = &activeSessionBinding{profileID: profileID, capture: make(chan struct{}, 1), attachedAt: attachedAt}
 }
 
 // Get returns the profile ID for a browser session.
 func (r *ActiveSessionRegistry) Get(browserSessionID string) string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.sessions[browserSessionID]
-}
-
-// GetByProfile returns the browser session ID for a profile (reverse lookup).
-func (r *ActiveSessionRegistry) GetByProfile(profileID string) string {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	for sessionID, pid := range r.sessions {
-		if pid == profileID {
-			return sessionID
-		}
+	if binding := r.sessions[browserSessionID]; binding != nil {
+		return binding.profileID
 	}
 	return ""
+}
+
+// ResolveByProfile returns a session only when exactly one active binding
+// matches. Multiple bindings remain registered, but profile-scoped live calls
+// must not select one by map iteration order.
+func (r *ActiveSessionRegistry) ResolveByProfile(profileID string) (string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	foundSessionID := ""
+	for candidateSessionID, binding := range r.sessions {
+		if binding.profileID == profileID {
+			if foundSessionID != "" {
+				return "", ErrAmbiguousProfileSession
+			}
+			foundSessionID = candidateSessionID
+		}
+	}
+	return foundSessionID, nil
 }
 
 // Clear removes the association for a browser session.
@@ -566,8 +605,8 @@ func (r *ActiveSessionRegistry) Clear(browserSessionID string) {
 func (r *ActiveSessionRegistry) ClearForProfile(profileID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for sessionID, pid := range r.sessions {
-		if pid == profileID {
+	for sessionID, binding := range r.sessions {
+		if binding.profileID == profileID {
 			delete(r.sessions, sessionID)
 		}
 	}
@@ -580,9 +619,9 @@ func (r *ActiveSessionRegistry) ClearForProfile(profileID string) {
 // MaskedStorageState represents the storage state with httpOnly cookie values hidden.
 // This is used for the API response to prevent exposing sensitive session cookies.
 type MaskedStorageState struct {
-	Cookies []MaskedCookie        `json:"cookies"`
-	Origins []MaskedOrigin        `json:"origins"`
-	Stats   MaskedStorageStats    `json:"stats"`
+	Cookies []MaskedCookie     `json:"cookies"`
+	Origins []MaskedOrigin     `json:"origins"`
+	Stats   MaskedStorageStats `json:"stats"`
 }
 
 // MaskedCookie represents a cookie with optional value masking.

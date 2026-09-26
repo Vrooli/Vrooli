@@ -1,0 +1,421 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "code-facts",
+  "description": "Code Facts CLI surface. Commands are thin wrappers over CodeFactsService and return proto-shaped JSON with --json.",
+  "groups": [
+    {
+      "name": "facts",
+      "description": "Describe code targets and proof evidence",
+      "commands": [
+        {
+          "name": "search",
+          "description": "Search symbols, file domains, and contract evidence",
+          "positionals": [
+            {"name": "query", "required": true, "description": "Identifier or implementation question"},
+            {"name": "target", "required": false, "description": "Optional target path or scenario/project/package/control-plane prefix", "bind_waiver": "The CLI target syntax is intentionally parsed into CodeTarget by the handler; it supports typed prefixes and raw paths."}
+          ],
+          "flags": [
+            {"name": "include", "description": "Comma-separated families; defaults to symbols,file_domain,proto_adoption", "bind": {"field": "families"}},
+            {"name": "limit", "default": "10", "description": "Maximum result count"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "CodeFactsService", "method": "Search"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "describe",
+          "description": "Describe selected code fact families for a target",
+          "architecture": {"primitive": "proto_list"},
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Target path, scenario:<name>, project:<repo-root>, repo:<repo-root>, package:<name>, or control-plane:<repo-root>",
+              "bind_waiver": "The CLI target syntax is intentionally parsed into CodeTarget by the handler; it supports typed prefixes and raw paths."
+            }
+          ],
+          "flags": [
+            {
+              "name": "include",
+              "description": "Comma-separated fact families such as surfaces,parse_units,imports,all"
+            },
+            {
+              "name": "no-cache",
+              "bool": true,
+              "description": "Bypass cache lookup",
+              "bind": {
+                "field": "use_cache"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CodeFactsService",
+            "method": "DescribeCodeFacts"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "surfaces",
+          "description": "List target surfaces",
+          "architecture": {"primitive": "proto_list"},
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Target path, scenario:<name>, project:<repo-root>, repo:<repo-root>, package:<name>, or control-plane:<repo-root>",
+              "bind_waiver": "The CLI target syntax is intentionally parsed into CodeTarget by the handler; it supports typed prefixes and raw paths."
+            }
+          ],
+          "flags": [
+            {
+              "name": "no-cache",
+              "bool": true,
+              "description": "Bypass cache lookup",
+              "bind": {
+                "field": "use_cache"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CodeFactsService",
+            "method": "ListSurfaces"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "proto-adoption",
+          "description": "Check proto adoption evidence",
+          "architecture": {"primitive": "proto_list"},
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Target path, scenario:<name>, project:<repo-root>, repo:<repo-root>, package:<name>, or control-plane:<repo-root>",
+              "bind_waiver": "The CLI target syntax is intentionally parsed into CodeTarget by the handler; it supports typed prefixes and raw paths."
+            }
+          ],
+          "flags": [
+            {
+              "name": "surface",
+              "description": "Comma-separated surface ids to inspect",
+              "bind": {
+                "field": "surfaces"
+              }
+            },
+            {
+              "name": "no-cache",
+              "bool": true,
+              "description": "Bypass cache lookup",
+              "bind": {
+                "field": "use_cache"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CodeFactsService",
+            "method": "CheckProtoAdoption"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "endpoint-proof",
+          "description": "Check endpoint implementation evidence",
+          "architecture": {"primitive": "proto_list"},
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Target path, scenario:<name>, project:<repo-root>, repo:<repo-root>, package:<name>, or control-plane:<repo-root>",
+              "bind_waiver": "The CLI target syntax is intentionally parsed into CodeTarget by the handler; it supports typed prefixes and raw paths."
+            }
+          ],
+          "flags": [
+            {
+              "name": "endpoint",
+              "description": "Comma-separated endpoint ids to inspect",
+              "bind": {
+                "field": "endpoint_ids"
+              }
+            },
+            {
+              "name": "no-cache",
+              "bool": true,
+              "description": "Bypass cache lookup",
+              "bind": {
+                "field": "use_cache"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CodeFactsService",
+            "method": "CheckEndpointProof"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "cache",
+      "description": "Inspect and clear Code Facts cache entries",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Get cache status for a target",
+          "architecture": {"primitive": "proto_list"},
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Target path, scenario:<name>, project:<repo-root>, repo:<repo-root>, package:<name>, or control-plane:<repo-root>",
+              "bind_waiver": "The CLI target syntax is intentionally parsed into CodeTarget by the handler; it supports typed prefixes and raw paths."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CodeFactsService",
+            "method": "GetCacheStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "cache",
+            "intent": "How many derived cache entries exist for a Code Facts target.",
+            "questions": [
+              "how many code facts cache entries exist for this target",
+              "cache entries for scenario code-facts",
+              "how many derived graph and report cache entries are stored"
+            ],
+            "params": {
+              "target": {
+                "default": "scenario:code-facts"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "entries",
+              "unit": "entries",
+              "summary_template": "{entries} cache entries for {target}"
+            }
+          }
+        },
+        {
+          "name": "inspect",
+          "description": "Inspect cache entries for a target",
+          "architecture": {"primitive": "proto_list"},
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Target path, scenario:<name>, project:<repo-root>, repo:<repo-root>, package:<name>, or control-plane:<repo-root>",
+              "bind_waiver": "The CLI target syntax is intentionally parsed into CodeTarget by the handler; it supports typed prefixes and raw paths."
+            }
+          ],
+          "flags": [
+            {
+              "name": "cache-key",
+              "description": "Optional exact cache key to inspect"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CodeFactsService",
+            "method": "InspectCache"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "clear",
+          "description": "Clear cache entries for a target or all targets",
+          "architecture": {"primitive": "proto_mutation"},
+          "positionals": [
+            {
+              "name": "target",
+              "required": false,
+              "description": "Target path, scenario:<name>, project:<repo-root>, repo:<repo-root>, package:<name>, or control-plane:<repo-root>",
+              "bind_waiver": "The CLI target syntax is intentionally parsed into CodeTarget by the handler; it supports typed prefixes and raw paths."
+            }
+          ],
+          "flags": [
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Report matching entries without clearing them"
+            },
+            {
+              "name": "all",
+              "bool": true,
+              "description": "Clear cache entries for all targets"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CodeFactsService",
+            "method": "ClearCache"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "index",
+      "description": "Inspect and control the persistent Code Facts index",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show generations, counts, storage, drift, degradation, and active jobs",
+          "architecture": {"primitive": "proto_list"},
+          "binding": {"kind": "connect-rpc", "service": "CodeFactsService", "method": "GetIndexStatus"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "measure": {
+            "domain": "index",
+            "intent": "How many source files are present in the active Code Facts index generation.",
+            "questions": [
+              "how many source files are indexed by code facts",
+              "code facts active index size",
+              "how many files are in the current code facts generation"
+            ],
+            "result": {
+              "kind": "scalar",
+              "value_field": "source_files",
+              "unit": "files",
+              "summary_template": "{source_files} source files in active generation {active_generation}"
+            }
+          }
+        },
+        {
+          "name": "reconcile",
+          "description": "Apply bounded changed and deleted source work",
+          "architecture": {"primitive": "proto_mutation"},
+          "flags": [
+            {"name": "generation", "description": "Optional generation; defaults to active"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "CodeFactsService", "method": "ReconcileIndex"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "reindex",
+          "description": "Build a full shadow generation",
+          "architecture": {"primitive": "proto_mutation"},
+          "positionals": [{"name": "generation", "required": true, "description": "New shadow generation identifier"}],
+          "flags": [
+            {"name": "confirm", "bool": true, "description": "Confirm the full rebuild"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "CodeFactsService", "method": "Reindex"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "cancel",
+          "description": "Request durable cancellation of an index job",
+          "architecture": {"primitive": "proto_mutation"},
+          "positionals": [{"name": "job-id", "required": true, "description": "Index job identifier"}],
+          "binding": {"kind": "connect-rpc", "service": "CodeFactsService", "method": "CancelIndexJob"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "promote",
+          "description": "Validate and promote a complete shadow generation",
+          "architecture": {"primitive": "proto_mutation"},
+          "positionals": [{"name": "generation", "required": true, "description": "Shadow generation identifier"}],
+          "flags": [
+            {"name": "confirm", "bool": true, "description": "Confirm generation promotion"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "CodeFactsService", "method": "PromoteIndexGeneration"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "rollback",
+          "description": "Restore a retained complete generation",
+          "architecture": {"primitive": "proto_mutation"},
+          "positionals": [{"name": "generation", "required": true, "description": "Retained generation identifier"}],
+          "flags": [
+            {"name": "confirm", "bool": true, "description": "Confirm generation rollback"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "CodeFactsService", "method": "RollbackIndexGeneration"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "cleanup",
+          "description": "Plan or delete retired derived generations",
+          "architecture": {"primitive": "proto_mutation"},
+          "flags": [
+            {"name": "dry-run", "bool": true, "description": "Report cleanup without deleting"},
+            {"name": "confirm", "bool": true, "description": "Confirm deletion when dry-run is false"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "CodeFactsService", "method": "CleanupIndex"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        }
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "service": "CodeFactsService",
+      "method": "DescribeFleetImports",
+      "reason": "Fleet-wide bulk import scan exposed for programmatic/automation callers (consumed by SDA and fleet-planning tooling over Connect); it has no clean single-target CLI form alongside the per-target facts commands, so it is intentionally not bound to a CLI command."
+    }
+  ],
+  "measures": {
+    "domains": [
+      {
+        "domain": "facts",
+        "stateful": false,
+        "reason": "Fact queries are deterministic evidence reads; cache hit metadata records reuse without changing requested evidence semantics."
+      },
+      {
+        "domain": "cache",
+        "stateful": true,
+        "reason": "Cache status, inspect, and clear expose operational state and dry-run mutation counts."
+      },
+      {
+        "domain": "index",
+        "stateful": true,
+        "reason": "Index status and controls expose durable jobs, generations, cancellation, promotion, rollback, and cleanup."
+      }
+    ]
+  }
+}

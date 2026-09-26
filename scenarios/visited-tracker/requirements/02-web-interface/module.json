@@ -92,14 +92,7 @@
           "ref": "api/import_test.go",
           "phase": "unit",
           "status": "failing",
-          "notes": "TestImportHandler validates campaign import and data preservation [REQ:VT-REQ-008]"
-        },
-        {
-          "type": "test",
-          "ref": "test/api/http-api.bats",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "HTTP API integration tests validate export/import endpoints"
+          "notes": "TestImportHandler and TestCampaignHTTPExportImportPreservesVisitsWithoutClaims validate import and a real HTTP export/import round-trip through the production router; visit history is preserved and foreign review/claim state is discarded [REQ:VT-REQ-008]."
         }
       ]
     },

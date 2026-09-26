@@ -34,8 +34,8 @@ func setupTestLogger() func() {
 
 // TestEnvironment manages isolated test environment
 type TestEnvironment struct {
-	Server *Server
-	Config *Config
+	Server  *Server
+	Config  *Config
 	Cleanup func()
 }
 
@@ -43,8 +43,7 @@ type TestEnvironment struct {
 func setupTestServer(t *testing.T) *TestEnvironment {
 	config := &Config{
 		Port:        "8080",
-		DatabaseURL: "",  // Use mock database or in-memory
-		OllamaURL:   "http://localhost:11434",
+		DatabaseURL: "", // Use mock database or in-memory
 		RedisURL:    "redis://localhost:6379",
 	}
 

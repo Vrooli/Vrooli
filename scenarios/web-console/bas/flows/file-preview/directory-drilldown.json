@@ -1,0 +1,174 @@
+{
+  "id": "a4f1c7e2-9b3d-4c51-8e6a-2f0d7b9c4a13",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "directory-drilldown",
+  "folder_path": "/bas/cases/02-messages/02-file-preview",
+  "description": "From a seeded assistant message, click a directory link to open the file-preview viewer as a directory listing, verify hidden entries are filtered by default, walk into a nested directory, open a file inside it, then walk Back twice to the original listing.",
+  "metadata": {
+    "name": "directory-drilldown",
+    "description": "From a seeded assistant message, click a directory link to open the file-preview viewer as a directory listing, verify hidden entries are filtered by default, walk into a nested directory, open a file inside it, then walk Back twice to the original listing.",
+    "execution_mode": "mutating",
+    "reset": "none",
+    "labels": {
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    }
+  },
+  "tags": [
+    "reset:none"
+  ],
+  "version": 1,
+  "created_at": "2026-08-11T22:20:00.000000000Z",
+  "updated_at": "2026-08-11T22:20:00.000000000Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1440,
+      "viewport_height": 900
+    },
+    "nodes": [
+      {
+        "id": "open-workspace",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/open-workspace.json"
+          },
+          "metadata": {
+            "label": "Open workspace"
+          }
+        }
+      },
+      {
+        "id": "hydrate-wait",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 1500
+          },
+          "metadata": {
+            "label": "Allow sessions + conversation to hydrate"
+          }
+        }
+      },
+      {
+        "id": "find-and-open-directory",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const tabs = Array.from(document.querySelectorAll('[data-testid^=\"tab-\"]')).filter((el) => { const id = el.getAttribute('data-testid') || ''; return id !== 'tab-bar' && id !== 'tab-bar-new' && !id.startsWith('tab-group-') && !id.startsWith('tab-rename-input-'); }); let opened = false; let hiddenFiltered = false; for (const tab of tabs) { tab.click(); await sleep(400); const toggle = document.querySelector('[data-testid=\"workspace-toggle-view\"]'); if (toggle instanceof HTMLElement) { toggle.click(); await sleep(400); } const link = document.querySelector('a[href$=\"preview-dir\"]'); if (link instanceof HTMLElement) { link.click(); await sleep(1200); const panel = document.querySelector('[data-testid=\"messages-file-viewer-panel\"]'); const listing = document.querySelector('[data-testid=\"file-preview-directory\"]'); if (panel && listing) { opened = true; const names = Array.from(document.querySelectorAll('[data-testid=\"directory-entry\"]')).map((el) => (el.textContent || '').trim()); hiddenFiltered = names.some((n) => n.indexOf('nested') === 0) && names.some((n) => n.indexOf('top.md') === 0) && !names.some((n) => n.indexOf('.hidden-env') === 0); break; } } } document.body.setAttribute('data-dirpreview-opened', opened ? 'true' : 'false'); document.body.setAttribute('data-dirpreview-hidden-filtered', hiddenFiltered ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Open the seeded directory link"
+          }
+        }
+      },
+      {
+        "id": "assert-directory-listing",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-dirpreview-opened='true']",
+            "failure_message": "Expected the directory link to open the file-preview viewer with the directory renderer (this is the regression guard for 'Directories cannot be previewed')",
+            "timeout_ms": 6000
+          },
+          "metadata": {
+            "label": "Verify the directory listing rendered"
+          }
+        }
+      },
+      {
+        "id": "assert-hidden-filtered",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-dirpreview-hidden-filtered='true']",
+            "failure_message": "Expected the default listing to show nested/ and top.md but not .hidden-env",
+            "timeout_ms": 6000
+          },
+          "metadata": {
+            "label": "Verify dot-prefixed entries are hidden by default"
+          }
+        }
+      },
+      {
+        "id": "descend-into-nested",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); let descended = false; const rows = Array.from(document.querySelectorAll('[data-testid=\"directory-entry\"]')); const nested = rows.find((el) => (el.textContent || '').trim().indexOf('nested') === 0); if (nested instanceof HTMLElement) { nested.click(); await sleep(1200); const rows2 = Array.from(document.querySelectorAll('[data-testid=\"directory-entry\"]')).map((el) => (el.textContent || '').trim()); const back = document.querySelector('[data-testid=\"file-preview-back\"]'); descended = !!back && rows2.some((n) => n.indexOf('inner.md') === 0); } document.body.setAttribute('data-dirpreview-descended', descended ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Walk into the nested directory"
+          }
+        }
+      },
+      {
+        "id": "assert-descended",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-dirpreview-descended='true']",
+            "failure_message": "Expected clicking a directory row to list the nested directory and reveal the Back control",
+            "timeout_ms": 6000
+          },
+          "metadata": {
+            "label": "Verify the nested listing and the Back control"
+          }
+        }
+      },
+      {
+        "id": "open-nested-file",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); let openedFile = false; const rows = Array.from(document.querySelectorAll('[data-testid=\"directory-entry\"]')); const inner = rows.find((el) => (el.textContent || '').trim().indexOf('inner.md') === 0); if (inner instanceof HTMLElement) { inner.click(); await sleep(1200); openedFile = !!document.querySelector('[data-testid=\"file-preview-markdown\"]'); } document.body.setAttribute('data-dirpreview-opened-file', openedFile ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Open a file from inside the nested listing"
+          }
+        }
+      },
+      {
+        "id": "assert-opened-file",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-dirpreview-opened-file='true']",
+            "failure_message": "Expected clicking a file row inside a directory listing to render the markdown preview",
+            "timeout_ms": 6000
+          },
+          "metadata": {
+            "label": "Verify a file opens from a directory row"
+          }
+        }
+      },
+      {
+        "id": "walk-back-twice",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); let returned = false; for (let i = 0; i < 2; i++) { const back = document.querySelector('[data-testid=\"file-preview-back\"]'); if (!(back instanceof HTMLElement)) break; back.click(); await sleep(900); } const rows = Array.from(document.querySelectorAll('[data-testid=\"directory-entry\"]')).map((el) => (el.textContent || '').trim()); returned = !!document.querySelector('[data-testid=\"file-preview-directory\"]') && rows.some((n) => n.indexOf('top.md') === 0) && !document.querySelector('[data-testid=\"file-preview-back\"]'); document.body.setAttribute('data-dirpreview-returned', returned ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Walk Back to the original listing"
+          }
+        }
+      },
+      {
+        "id": "assert-returned",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-dirpreview-returned='true']",
+            "failure_message": "Expected two Back presses to return to the original directory listing with no history left",
+            "timeout_ms": 6000
+          },
+          "metadata": {
+            "label": "Verify Back returns to the original directory"
+          }
+        }
+      }
+    ]
+  }
+}

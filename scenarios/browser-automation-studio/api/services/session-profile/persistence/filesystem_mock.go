@@ -12,9 +12,10 @@ import (
 // MockFileSystem implements FileSystem for testing.
 // It stores files in memory and is safe for concurrent use.
 type MockFileSystem struct {
-	mu    sync.RWMutex
-	files map[string][]byte
-	dirs  map[string]bool
+	writeMu sync.Mutex
+	mu      sync.RWMutex
+	files   map[string][]byte
+	dirs    map[string]bool
 
 	// Error injection for testing error paths
 	ReadFileErr  error
@@ -24,6 +25,15 @@ type MockFileSystem struct {
 	ReadDirErr   error
 	MkdirAllErr  error
 	StatErr      error
+	LockErr      error
+}
+
+func (m *MockFileSystem) Lock(string) (func(), error) {
+	if m.LockErr != nil {
+		return nil, m.LockErr
+	}
+	m.writeMu.Lock()
+	return m.writeMu.Unlock, nil
 }
 
 // NewMockFileSystem creates a new mock file system for testing.
@@ -51,17 +61,18 @@ func (m *MockFileSystem) ReadFile(name string) ([]byte, error) {
 	return result, nil
 }
 
-// WriteFile writes data to a file in memory.
-func (m *MockFileSystem) WriteFile(name string, data []byte, perm fs.FileMode) error {
+// WriteFileAtomic preserves the previous document when publication fails.
+func (m *MockFileSystem) WriteFileAtomic(name string, data []byte, perm fs.FileMode) error {
+	if m.RenameErr != nil {
+		return m.RenameErr
+	}
 	if m.WriteFileErr != nil {
 		return m.WriteFileErr
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	// Store a copy to prevent mutation
-	stored := make([]byte, len(data))
-	copy(stored, data)
-	m.files[name] = stored
+	// Store a copy to prevent mutation.
+	m.files[name] = append([]byte(nil), data...)
 	return nil
 }
 
@@ -76,22 +87,6 @@ func (m *MockFileSystem) Remove(name string) error {
 		return fs.ErrNotExist
 	}
 	delete(m.files, name)
-	return nil
-}
-
-// Rename moves a file in memory.
-func (m *MockFileSystem) Rename(oldpath, newpath string) error {
-	if m.RenameErr != nil {
-		return m.RenameErr
-	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	data, ok := m.files[oldpath]
-	if !ok {
-		return fs.ErrNotExist
-	}
-	m.files[newpath] = data
-	delete(m.files, oldpath)
 	return nil
 }
 
@@ -255,7 +250,7 @@ type mockFileInfo struct {
 
 func (i *mockFileInfo) Name() string       { return i.name }
 func (i *mockFileInfo) Size() int64        { return i.size }
-func (i *mockFileInfo) Mode() fs.FileMode  { return 0644 }
+func (i *mockFileInfo) Mode() fs.FileMode  { return 0o644 }
 func (i *mockFileInfo) ModTime() time.Time { return time.Time{} }
 func (i *mockFileInfo) IsDir() bool        { return i.isDir }
 func (i *mockFileInfo) Sys() interface{}   { return nil }

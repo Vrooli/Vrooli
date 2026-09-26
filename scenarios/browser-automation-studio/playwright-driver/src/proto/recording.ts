@@ -69,6 +69,18 @@ import {
 // Import the canonical ACTION_TYPE_MAP from the single source of truth
 import { ACTION_TYPE_MAP } from './action-type-utils';
 
+const SENSITIVE_AUTOCOMPLETE_TOKENS = new Set([
+  'current-password',
+  'new-password',
+  'one-time-code',
+  'cc-name',
+  'cc-number',
+  'cc-exp',
+  'cc-exp-month',
+  'cc-exp-year',
+  'cc-csc',
+]);
+
 // =============================================================================
 // RAW TYPES (browser-originated, before conversion to proto)
 // =============================================================================
@@ -115,6 +127,8 @@ export interface RawSelectorSet {
  * This is the format received from page.exposeFunction() before conversion to proto.
  */
 export interface RawBrowserEvent {
+  id?: string;
+  recordingId?: string;
   actionType: string;
   timestamp: number;
   selector: RawSelectorSet;
@@ -123,6 +137,8 @@ export interface RawBrowserEvent {
   cursorPos?: { x: number; y: number };
   url: string;
   frameId?: string | null;
+  framePath?: string[];
+  driverPageId?: string;
   payload?: Record<string, unknown>;
 }
 
@@ -201,7 +217,7 @@ export function rawBrowserEventToTimelineEntry(
   ctx: ConversionContext
 ): TimelineEntry {
   // Generate unique ID
-  const id = uuidv4();
+  const id = raw.id ?? uuidv4();
 
   // Normalize timestamp
   const timestamp = normalizeTimestamp(raw.timestamp);
@@ -210,8 +226,9 @@ export function rawBrowserEventToTimelineEntry(
   const actionType = ACTION_TYPE_MAP[raw.actionType.toLowerCase()] ?? ActionType.UNSPECIFIED;
 
   // Convert raw types to proto
-  const selectorCandidates = rawSelectorSetToProtoCandidates(raw.selector);
-  const elementMeta = rawElementMetaToProto(raw.elementMeta);
+  const safeRaw = redactSensitiveFieldValues(raw);
+  const selectorCandidates = rawSelectorSetToProtoCandidates(safeRaw.selector);
+  const elementMeta = rawElementMetaToProto(safeRaw.elementMeta);
   const boundingBox = raw.boundingBox ? rawBoundingBoxToProto(raw.boundingBox) : undefined;
   const cursorPos = raw.cursorPos ? rawPointToProto(raw.cursorPos) : undefined;
 
@@ -225,7 +242,7 @@ export function rawBrowserEventToTimelineEntry(
   // Build action definition with params
   entry.action = buildActionDefinition(
     actionType,
-    raw,
+    safeRaw,
     selectorCandidates,
     elementMeta,
     boundingBox
@@ -238,6 +255,41 @@ export function rawBrowserEventToTimelineEntry(
   entry.context = buildEventContext(ctx.sessionId);
 
   return entry;
+}
+
+/**
+ * Keep secrets out of the canonical timeline even if a stale or alternate
+ * browser injector sends them to the driver.
+ */
+function redactSensitiveFieldValues(raw: RawBrowserEvent): RawBrowserEvent {
+  const meta = raw.elementMeta;
+  if (!isSensitiveField(meta)) return raw;
+
+  const attributes = { ...(meta.attributes ?? {}) };
+  delete attributes.value;
+  for (const name of Object.keys(attributes)) {
+    if (name.toLowerCase().startsWith('data-')) delete attributes[name];
+  }
+
+  return {
+    ...raw,
+    elementMeta: { ...meta, innerText: undefined, attributes },
+    payload: { ...(raw.payload ?? {}), text: '', value: '' },
+  };
+}
+
+function isSensitiveField(meta: RawElementMeta): boolean {
+  const tagName = meta.tagName?.toLowerCase();
+  if (tagName !== 'input' && tagName !== 'textarea') return false;
+
+  const attributes = meta.attributes ?? {};
+  const type = (attributes.type ?? '').toLowerCase();
+  if (type === 'password' || type === 'hidden') return true;
+
+  return (attributes.autocomplete ?? '')
+    .toLowerCase()
+    .split(/\s+/)
+    .some((token) => SENSITIVE_AUTOCOMPLETE_TOKENS.has(token));
 }
 
 /**
@@ -364,7 +416,7 @@ function buildActionDefinition(
         value: create(InputParamsSchema, {
           selector: primarySelector,
           value: (payload.text as string) ?? (payload.value as string) ?? '',
-          clearFirst: (payload.clearFirst as boolean) ?? false,
+          clearFirst: (payload.clearFirst as boolean) ?? true,
           delayMs: (payload.delay as number) ?? undefined,
         }),
       };
@@ -447,6 +499,8 @@ function buildActionTelemetry(
   return create(ActionTelemetrySchema, {
     url: raw.url || '',
     frameId: raw.frameId ?? undefined,
+    framePath: raw.framePath ?? [],
+    driverPageId: raw.driverPageId || undefined,
     elementBoundingBox: boundingBox,
     cursorPosition: cursorPos,
   });

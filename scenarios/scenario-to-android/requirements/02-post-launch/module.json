@@ -1,0 +1,115 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "Run the same conformance journey unchanged against a physical Android phone through the device-control `android-adb` strategy, with the adapter changing and the chapter set staying identical. Supports both USB and wireless transports, defaulting release-relevant runs to USB so evidence cannot fail for network reasons.",
+      "id": "S2A-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Physical-device conformance at semantic tier",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P1-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Dispatch an Android validation cell to a bridge node and receive evidence references back, proving the transport symmetry: the same ramp binary serves a local request here and a dispatched request on `minimouse`, with neither side being the client.",
+      "id": "S2A-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "Bridge-dispatched validation on a remote node",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P1-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Automate AAB upload to the Play internal testing track once the ladder rungs it depends on are satisfied, including release notes derived from scenario metadata and an evidence record of the upload identity.",
+      "id": "S2A-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "Play internal testing track upload",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P1-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "A dense operational surface showing the probed target matrix with honest dispositions, run review with chaptered evidence and video, and the release-readiness ladder as a walkthrough that names the next action at every rung.",
+      "id": "S2A-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "planned",
+      "title": "Operator UI for matrix, runs, and readiness",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P1-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Install version N, exercise state, install version N+1 over it, and assert user data survived — the mobile analog of the desktop updater journey, with the prior version's artifact retained as evidence.",
+      "id": "S2A-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Update and data-migration journey across versions",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P1-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Bounded, evidence-visible budgets for cold start time and artifact size, reported as assertions with observed values so a regression is a failed chapter rather than a subjective judgement.",
+      "id": "S2A-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "planned",
+      "title": "Performance budget chapters",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P1-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Generate store listing assets, screenshots from journey evidence, and a privacy policy from scenario metadata, leaving the data-safety declaration as an explicit owner action.",
+      "id": "S2A-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "planned",
+      "title": "Play production listing asset generation",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P1-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

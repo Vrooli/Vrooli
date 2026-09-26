@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.measurement-bar",
+    "name": "MeasurementBar",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "A labeled measured-versus-required bar for evidence panels.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ],
+    "suggests": []
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "non-color-status"
+  ],
+  "requiredStates": [
+    "default",
+    "passing"
+  ],
+  "qualityGates": [
+    "accessibility",
+    "surface-discipline",
+    "composition"
+  ],
+  "rationale": "A measurement must expose both the observation and its threshold."
+}

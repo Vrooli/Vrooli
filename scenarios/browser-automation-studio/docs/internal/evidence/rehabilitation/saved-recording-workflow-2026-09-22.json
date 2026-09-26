@@ -1,0 +1,137 @@
+{
+  "record": "BAS-WORK-054",
+  "status": "qualified_native_saved_workflow_case",
+  "baseline": "/tmp/bas-before-054/manifest.json",
+  "source_sha256": {
+    "playwright-driver/tests/e2e/record-mode-e2e.mjs": "24b829a4cd101559b8a2e7a02c6f8c2b915528d09212ded4c4ea200725eddc5e",
+    "playwright-driver/tests/e2e/record-mode-e2e.test.mjs": "7941c9af61a672048e09c6fc3799e303a5e9ee9cfc50f33617eecb952acdabef"
+  },
+  "test_infrastructure_lines": {
+    "playwright-driver/tests/e2e/record-mode-e2e.mjs": {
+      "before": 225,
+      "after": 257
+    },
+    "playwright-driver/tests/e2e/record-mode-e2e.test.mjs": {
+      "before": 161,
+      "after": 196
+    }
+  },
+  "runtime_delta": 0,
+  "native_result": {
+    "cases": [
+      {
+        "name": "driver prerequisite",
+        "status": "passed"
+      },
+      {
+        "name": "owned recording captures the independent fixture click",
+        "status": "passed"
+      },
+      {
+        "name": "API persists and reads the generated workflow",
+        "status": "passed"
+      },
+      {
+        "name": "committed entries receive an exact acknowledgement",
+        "status": "passed"
+      },
+      {
+        "name": "captured typed actions replay in a fresh browser context",
+        "status": "passed"
+      },
+      {
+        "name": "saved workflow executes through the API owner",
+        "status": "passed"
+      },
+      {
+        "name": "close owned session df5f458e-bc4c-48c7-bc3d-4bad9bb3bd8e",
+        "status": "passed"
+      },
+      {
+        "name": "close owned session 66b6ab54-92b7-4b0b-8389-fb6f2c7678ed",
+        "status": "passed"
+      },
+      {
+        "name": "remove only this fixture execution and artifacts",
+        "status": "passed"
+      },
+      {
+        "name": "delete fixture workflow",
+        "status": "passed"
+      },
+      {
+        "name": "delete fixture project and files",
+        "status": "passed"
+      }
+    ],
+    "effects": [
+      {
+        "sequence": 1,
+        "context": "fixture_context=bc8cd6ab-aa1a-46bf-ae82-1ca0d3cf0bbc",
+        "received_at": "2026-09-22T22:49:29.253Z"
+      },
+      {
+        "sequence": 2,
+        "context": "fixture_context=c3a8eea0-e6c2-4ce5-b373-01e186d480df",
+        "received_at": "2026-09-22T22:49:29.501Z"
+      },
+      {
+        "sequence": 3,
+        "context": "fixture_context=4bdbe1b4-96cd-4004-b7ac-f555251c9973",
+        "received_at": "2026-09-22T22:49:30.166Z"
+      }
+    ],
+    "execution_id": "63257377-f05d-48f7-8bc2-dca1ea41cda1",
+    "artifact_dir": "/tmp/bas-recording-e2e-nmZrN6",
+    "api_selected": true,
+    "passed": 11,
+    "failed": 0,
+    "skipped": 0
+  },
+  "artifact_sha256": {
+    "retention-preview.json": "e3d7f987330de06c39885c2bfbbb6e239d3a42a06a95acee1650507cfb336dea",
+    "execution-timeline.json": "1963d4a7bfc2a15b0ab91dffffa7edf42c259a767dc24a0cb72cd4d85a125f3f",
+    "execution-receipt.json": "a394c25386655586fb35bd852f51bed59f432844fecd8c5be4ca3123a3af2914",
+    "retention-result.json": "de20d1517888f6d1e19ff8b1cda7f8951103b387c4da715956123cabf0e4618e",
+    "entries.json": "666205ca80bfb7a6fc83c13e2ba2f3816c8c5bbd39addde06b77674d6d4c8239",
+    "result.json": "c5d38aaf829965c89c7868c3d2ddf6da86e9734eeeab8df927e3b8c8f4a96fb5"
+  },
+  "contract_tests": {
+    "passed": 15,
+    "failed": 0,
+    "duration_ms": 6490.761283
+  },
+  "evidence": {
+    "native_probe": "/tmp/bas-recording-workflow-first-054.txt",
+    "maintained_red": "/tmp/bas-workflow-harness-red-054.txt",
+    "contract_final": "/tmp/bas-workflow-harness-green-054.txt",
+    "native_final": "/tmp/bas-recording-workflow-final-054.txt"
+  },
+  "tidiness": {
+    "run_id": "20260922-225019-d7a9c1a5",
+    "status": "failed",
+    "quiet_wait_consumed": true,
+    "summary": {
+      "totalFindings": 1123,
+      "longFiles": 104,
+      "complexity": 391,
+      "duplication": 609,
+      "coupling": 18,
+      "duplicationLineDebt": 32663
+    }
+  },
+  "board": {
+    "required": 17,
+    "unqualified": 17,
+    "product_qualified": false,
+    "artifact": "/tmp/bas-board-054.txt"
+  },
+  "pending_operations": {},
+  "backend_build": "sha256:3c0dbef7d4bebe647501cde6a4b263cb66175dafc708498c34106d3d398b49f2",
+  "limitations": [
+    "One local navigation/click recording and generated navigation/wait/click workflow. Full UI, broad edits/input/tabs/frames, crash/recovery, native platforms, load and soak remain unqualified.",
+    "Fixture effects are independent of recorder output; no correlated painted-frame timing claim.",
+    "Only test infrastructure changed; no runtime complexity reduction and no required backend redeployment.",
+    "Execution/timeline/retention JSON retained before scoped artifact deletion; referenced screenshot bytes are not retained by this producer. Full artifact fidelity remains unqualified."
+  ]
+}

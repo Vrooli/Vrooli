@@ -1,0 +1,37 @@
+{
+  "contractRow": "passive-fidelity",
+  "result": "passed",
+  "source_sha256": {
+    "docs/internal/REFRACTOR_CONTRACT.json": "8a9da35f075fb09bbe5f16fdb3785426a2c69b5643e49dd8d6a6b319d6948011",
+    "playwright-driver/tests/integration/saved-workflow-fresh-context.test.ts": "915e3e30f9f19b3377dd285420a3583aeca12ea4bcfacfcb2afe4bca7ea46ff7",
+    "playwright-driver/src/recording/capture/browser-scripts/recording-script.js": "440e6c84eab36cb7b6ec66caa277ee92b070b3764e5c982c5645772fd0322dd3",
+    "playwright-driver/src/recording/orchestration/pipeline-manager.ts": "543fa6f60c453f465fefff6fb5529b6b7050d32eb2c04f64c76fb8cab4b55cdc",
+    "api/handlers/record_mode.go": "be8dabb3725b125393b10fdc28ade4fae43e9d16cd5a46c8ba7250a77b053b2b",
+    "api/services/recording/service.go": "c05b3b78dcd324c62cbaa717d8a0e533a3a318b3b6b848ea453a8d61a6d3b84d",
+    "api/services/recording/persistence/sqlite.go": "7ba6fb8bbf7a683022b6af24efc284d55d85c9be55abd4d4f8061019b073d753"
+  },
+  "owner_artifact": {
+    "path": ".vrooli/runtime/rehabilitation-evidence/passive-fidelity-managed-w273-20260926-0315.json",
+    "sha256": "59e3e47bb2377a82cea28a54dbc9152df6fcf280502b0d1541156b9dd78a747d"
+  },
+  "owner_receipt": {
+    "schemaVersion": 1,
+    "contractRow": "passive-fidelity",
+    "capturedAt": "2026-09-26T03:14:22.710Z",
+    "managedBuildIdentityBefore": "sha256:56989be5aade350331b4a417406079ffe69408d53414363b6f1e49df5915cc5a",
+    "managedBuildIdentityAfter": "sha256:56989be5aade350331b4a417406079ffe69408d53414363b6f1e49df5915cc5a",
+    "actions": 10000,
+    "fixtureEffects": 10000,
+    "uniqueJournalIds": 10000,
+    "strictlyIncreasingJournalSequence": true,
+    "appliedInputReceipts": 10000,
+    "strictlyIncreasingAppliedSequence": true,
+    "storageIsolation": {
+      "routedTestPool": true,
+      "testPoolRequests": 32444,
+      "primaryRequestsDuringTestMode": 0,
+      "temporaryDatabase": true
+    },
+    "elapsedMs": 47960
+  }
+}

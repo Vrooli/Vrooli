@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"path/filepath"
 	"strings"
 
 	"swarm-manager/internal/apierr"
@@ -22,11 +21,28 @@ import (
 // allowing tests to inject a mock without constructing a real execution service.
 type ExecutionQueuer interface {
 	ProcessPreflight(ctx context.Context, backlogKind, backlogName string) (execution.ProcessPreflight, error)
+	// ProcessPreflightForSpec answers the same question from an item the
+	// caller already loaded, so a list projection reads each spec once.
+	ProcessPreflightForSpec(ctx context.Context, spec execution.PreflightSpec) execution.ProcessPreflight
 	QueueBacklog(ctx context.Context, req execution.CreateRequest) (execution.Record, error)
+	// ManuallyAcceptLatestForBacklog flips the most recent failed/needs_fixup
+	// execution for the given backlog item to Completed and marks it manually
+	// accepted. Returns (executionID, true) on success.
+	ManuallyAcceptLatestForBacklog(ctx context.Context, backlogKind, backlogName, acceptor, reason string) (string, bool, error)
+	// RetryLatestForBacklog creates a new execution attempt parented to the
+	// most recent terminal execution for the given backlog item. Returns
+	// (Record{}, false, nil) when the item has no executions at all; the
+	// boolean false signals "no prior execution to retry" so handlers can
+	// map it to a 400 distinct from internal errors.
+	RetryLatestForBacklog(ctx context.Context, backlogKind, backlogName, note string) (execution.Record, bool, error)
 }
 
-// SetExecutionQueuer injects a custom execution queuer for batch queue operations.
-// If not set, BatchQueue constructs a default execution.Service inline.
+// SetExecutionQueuer injects the execution service the backlog handler queues
+// through. It is required for the queue/batch-queue/process-preflight paths: the
+// backlog domain package no longer constructs an execution service itself (that
+// path threaded a spawn-capable agent service into the domain; autonomous
+// launches now flow exclusively through the operation runner). An unset queuer
+// makes those endpoints return an Unavailable error rather than falling back.
 func (h *Handler) SetExecutionQueuer(eq ExecutionQueuer) {
 	h.executionQueuer = eq
 }
@@ -130,18 +146,11 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 	sortedOrder, _ := g.TopologicalSort()
 
 	// Phase 3: Process each item in topological order.
-	var eq ExecutionQueuer
-	if h.executionQueuer != nil {
-		eq = h.executionQueuer
-	} else {
-		eq = execution.NewService(execution.ServiceConfig{
-			RootDir:            h.rootDir,
-			StorePath:          filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
-			PolicyProvider:     h.policyProvider,
-			GovernanceProvider: h.governanceProvider,
-			AgentService:       h.agentService,
-		})
+	if h.executionQueuer == nil {
+		apierr.MapError(w, "[backlog] batch-queue", apierr.Unavailable("execution service is not available"))
+		return
 	}
+	eq := h.executionQueuer
 
 	results := make([]batchQueueItemResult, 0, len(loaded))
 
@@ -155,92 +164,11 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 			continue // not in our batch, skip
 		}
 
-		result := batchQueueItemResult{Item: ref}
-
-		// Check if item status is queueable.
-		if !isQueueableItem(item) {
-			result.Message = fmt.Sprintf("Cannot queue from current status: %s", item.Status)
-			results = append(results, result)
-			continue
-		}
-
-		// Check dependencies: all must be completed or queued in this batch.
-		unmet := computeUnmetDependencies(item.DependsOn, h.store, queuedInBatch)
-		if len(unmet) > 0 {
-			result.UnmetDependencies = unmet
-			result.Message = "Unmet dependencies"
-			results = append(results, result)
-			continue
-		}
-
-		// Preview mode: report as ready but don't actually queue.
-		if !req.Confirm {
-			result.Message = "Ready to queue (preview mode)"
-			results = append(results, result)
-			queuedInBatch[ref] = true
-			continue
-		}
-
-		// Run preflight check.
-		preflight, preflightErr := eq.ProcessPreflight(r.Context(), string(item.Kind), item.Name)
-		if preflightErr != nil {
-			slog.Error("batch-queue preflight failed", "item", ref, "err", preflightErr)
-			result.Message = "Preflight check failed: " + httputil.TruncateErrorMessage(preflightErr, 240)
-			results = append(results, result)
-			continue
-		}
-
-		// Check workshop feedback for additional blocking.
-		itemDir := h.store.ItemDir(item.Kind, item.Name)
-		latestRound, _, _ := LoadLatestRound(itemDir)
-		pendingDecisions := CountPendingDecisions(latestRound)
-		var blockingReasons []BlockingReason
-		for _, reason := range preflight.BlockingReasons {
-			blockingReasons = append(blockingReasons, BlockingReason{Message: reason, Forceable: false})
-		}
-		if pendingDecisions > 0 {
-			blockingReasons = append(blockingReasons, BlockingReason{
-				Message:   fmt.Sprintf("%d workshop decision(s) still pending", pendingDecisions),
-				Forceable: true,
-			})
-		}
-		blockingReasons = DedupeReasons(blockingReasons)
-
-		if len(blockingReasons) > 0 {
-			if !req.Force || HasNonForceableReasons(blockingReasons) {
-				msgs := make([]string, len(blockingReasons))
-				for i, r := range blockingReasons {
-					msgs[i] = r.Message
-				}
-				result.Message = "Blocked: " + strings.Join(msgs, "; ")
-				results = append(results, result)
-				continue
-			}
-		}
-
-		// Queue the item.
-		record, queueErr := eq.QueueBacklog(r.Context(), execution.CreateRequest{
-			BacklogKind: string(item.Kind),
-			BacklogName: item.Name,
-			Mode:        mode,
-			StartedBy:   "swarm-manager",
-			Operation:   "generator",
-			Force:       req.Force,
-		})
-		if queueErr != nil {
-			slog.Error("batch-queue failed to queue item", "item", ref, "err", queueErr)
-			result.Message = "Queue failed: " + httputil.TruncateErrorMessage(queueErr, 240)
-			results = append(results, result)
-			continue
-		}
-
-		result.Queued = true
-		result.ExecutionID = record.ExecutionID
-		result.Message = "Queued successfully"
+		result, queued := h.processBatchQueueItem(r.Context(), eq, ref, item, mode, req.Confirm, req.Force, queuedInBatch)
 		results = append(results, result)
-		queuedInBatch[ref] = true
-
-		slog.Info("batch-queue item queued", "item", ref, "execution_id", record.ExecutionID)
+		if queued {
+			queuedInBatch[ref] = true
+		}
 	}
 
 	resp := batchQueueResponse{
@@ -250,6 +178,91 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.JSON(w, resp); err != nil {
 		apierr.MapError(w, "[backlog] batch-queue", apierr.Internal("failed to encode response"))
 	}
+}
+
+// processBatchQueueItem evaluates and (unless preview) queues a single batch
+// item. The returned bool reports whether the item should be treated as
+// queued-in-batch for downstream dependency evaluation (true for both preview
+// "ready" and a successful queue).
+func (h *Handler) processBatchQueueItem(ctx context.Context, eq ExecutionQueuer, ref string, item BacklogItem, mode execution.Mode, confirm, force bool, queuedInBatch map[string]bool) (batchQueueItemResult, bool) {
+	result := batchQueueItemResult{Item: ref}
+
+	// Check if item status is queueable.
+	if !isQueueableItem(item) {
+		result.Message = fmt.Sprintf("Cannot queue from current status: %s", item.Status)
+		return result, false
+	}
+
+	// Check dependencies: all must be completed or queued in this batch.
+	unmet := computeUnmetDependencies(item.DependsOn, h.store, queuedInBatch)
+	if len(unmet) > 0 {
+		result.UnmetDependencies = unmet
+		result.Message = "Unmet dependencies"
+		return result, false
+	}
+
+	// Preview mode: report as ready but don't actually queue.
+	if !confirm {
+		result.Message = "Ready to queue (preview mode)"
+		return result, true
+	}
+
+	// Run preflight check.
+	preflight, preflightErr := eq.ProcessPreflight(ctx, string(item.Kind), item.Name)
+	if preflightErr != nil {
+		slog.Error("batch-queue preflight failed", "item", ref, "err", preflightErr)
+		result.Message = "Preflight check failed: " + httputil.TruncateErrorMessage(preflightErr, 240)
+		return result, false
+	}
+
+	if msg, blocked := h.batchQueueBlockingMessage(item, preflight, force); blocked {
+		result.Message = msg
+		return result, false
+	}
+
+	// Queue the item.
+	record, queueErr := eq.QueueBacklog(ctx, execution.CreateRequest{
+		BacklogKind: string(item.Kind),
+		BacklogName: item.Name,
+		Mode:        mode,
+		StartedBy:   "swarm-manager",
+		Operation:   "generator",
+		Force:       force,
+	})
+	if queueErr != nil {
+		slog.Error("batch-queue failed to queue item", "item", ref, "err", queueErr)
+		result.Message = "Queue failed: " + httputil.TruncateErrorMessage(queueErr, 240)
+		return result, false
+	}
+
+	result.Queued = true
+	result.ExecutionID = record.ExecutionID
+	result.Message = "Queued successfully"
+	slog.Info("batch-queue item queued", "item", ref, "execution_id", record.ExecutionID)
+	return result, true
+}
+
+// batchQueueBlockingMessage evaluates preflight + workshop blocking reasons for
+// a batch item. It returns a "Blocked: ..." message and true when the item must
+// not be queued (respecting the force override for forceable-only reasons).
+func (h *Handler) batchQueueBlockingMessage(item BacklogItem, preflight execution.ProcessPreflight, force bool) (string, bool) {
+	var blockingReasons []BlockingReason
+	for _, reason := range preflight.BlockingReasons {
+		blockingReasons = append(blockingReasons, BlockingReason{Message: reason, Forceable: false})
+	}
+	blockingReasons = DedupeReasons(blockingReasons)
+
+	if len(blockingReasons) == 0 {
+		return "", false
+	}
+	if force && !HasNonForceableReasons(blockingReasons) {
+		return "", false
+	}
+	msgs := make([]string, len(blockingReasons))
+	for i, r := range blockingReasons {
+		msgs[i] = r.Message
+	}
+	return "Blocked: " + strings.Join(msgs, "; "), true
 }
 
 // computeUnmetDependencies returns dependencies that are neither completed on

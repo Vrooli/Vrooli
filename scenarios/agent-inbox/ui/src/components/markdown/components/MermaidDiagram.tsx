@@ -35,7 +35,7 @@ async function getMermaid() {
         });
         return mermaid;
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         mermaidPromise = null;
         throw err;
       });
@@ -58,6 +58,7 @@ export const MermaidDiagram = memo(function MermaidDiagram({
 
   useEffect(() => {
     let cancelled = false;
+    const isCancelled = () => cancelled;
     setError(null);
 
     // Debounce rendering by 100ms to avoid thrashing during streaming
@@ -69,16 +70,16 @@ export const MermaidDiagram = memo(function MermaidDiagram({
       async function render() {
         try {
           const mermaid = await getMermaid();
-          if (cancelled) return;
+          if (isCancelled()) return;
 
           const id = `mermaid-${crypto.randomUUID()}`;
           const { svg } = await mermaid.render(id, code);
-          if (cancelled) return;
+          if (isCancelled()) return;
 
           setSvgHtml(svg);
           setError(null);
-        } catch (err) {
-          if (cancelled) return;
+        } catch (err: unknown) {
+          if (isCancelled()) return;
           const message =
             err instanceof Error ? err.message : "Failed to render diagram";
           setError(message);

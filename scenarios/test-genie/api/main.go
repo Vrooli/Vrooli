@@ -3,9 +3,9 @@ package main
 import (
 	"log"
 
-	"github.com/vrooli/api-core/preflight"
-
 	"test-genie/internal/app"
+
+	"github.com/vrooli/api-core/preflight"
 )
 
 func main() {

@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "manipulation.selection-tools",
+    "name": "SelectionTools",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "manipulation",
+    "description": "The selection family covering click, range, marquee, lasso, additive, subtractive, and keyboard selection over one shared selection model.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.selection-store",
+        "reason": "All selection modes write to the one model with stable identities."
+      },
+      {
+        "asset": "hooks.use-drag",
+        "reason": "Pointer capture, constraints, and velocity keep movement outside React rendering."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "gesture-alternative",
+    "status-announced",
+    "pointer-independence",
+    "reduced-motion",
+    "no-layout-animation",
+    "focus-order"
+  ],
+  "api": {
+    "levels": [
+      "controller",
+      "convenience"
+    ],
+    "variants": {
+      "mode": [
+        "click",
+        "range",
+        "marquee",
+        "lasso",
+        "keyboard"
+      ]
+    }
+  }
+}

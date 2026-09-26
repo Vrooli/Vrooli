@@ -1,9 +1,9 @@
 import type { Page } from 'rebrowser-playwright';
-import type winston from 'winston';
-import { BaseHandler, HandlerContext, HandlerResult } from './base';
+import { BaseHandler, getDocument, type BrowserDocument, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getDragDropParams, getGestureParams } from '../types';
 import { normalizeError } from '../utils/errors';
+import { getActionType } from '../proto';
 import { DEFAULT_DRAG_ANIMATION_STEPS } from '../constants';
 import { captureElementContext } from '../telemetry';
 import {
@@ -22,6 +22,12 @@ interface GestureParams {
   distance?: number;
   scale?: number;
   durationMs?: number;
+  steps?: number;
+  stepDelayMs?: number;
+  traceLabel?: string;
+  idleAfterMs?: number;
+  wheelDeltaY?: number;
+  ctrlKey?: boolean;
 }
 
 /**
@@ -64,7 +70,7 @@ export class GestureHandler extends BaseHandler {
    * - Otherwise → 'unknown'
    */
   private resolveGestureType(instruction: HandlerInstruction): GestureType {
-    const type = instruction.type.toLowerCase();
+		const type = getActionType(instruction).toLowerCase();
 
     // Direct drag types
     if (type.includes('drag')) {
@@ -111,7 +117,7 @@ export class GestureHandler extends BaseHandler {
           return {
             success: false,
             error: {
-              message: `Unknown or unsupported gesture type: ${instruction.type}`,
+				message: `Unknown or unsupported gesture type: ${getActionType(instruction)}`,
               code: 'INVALID_GESTURE',
               kind: 'user',
               retryable: false,
@@ -154,6 +160,7 @@ export class GestureHandler extends BaseHandler {
     const typedParams = instruction.action ? getDragDropParams(instruction.action) : undefined;
     const validated = this.requireTypedParams(typedParams, 'drag-drop', instruction.nodeId);
     const { page, logger } = context;
+    const target = getDocument(context);
 
     // Prefer param timeout, fallback to config, then hard-coded default
     const timeout = validated.timeoutMs || context.config.execution.defaultTimeoutMs || 30000;
@@ -172,10 +179,10 @@ export class GestureHandler extends BaseHandler {
     await applyPreActionDelay(behavior, (b) => b.getClickDelay());
 
     // Capture element context for source element BEFORE the drag (recording-quality telemetry)
-    const sourceElementContext = await captureElementContext(page, validated.sourceSelector, { timeout });
+    const sourceElementContext = await captureElementContext(target, validated.sourceSelector, { timeout });
 
     // Get source element with explicit timeout and wait for visible state
-    const sourceElement = await page.waitForSelector(validated.sourceSelector, {
+    const sourceElement = await target.waitForSelector(validated.sourceSelector, {
       timeout,
       state: 'visible'
     }).catch((error) => {
@@ -219,12 +226,13 @@ export class GestureHandler extends BaseHandler {
     let targetX: number;
     let targetY: number;
     let targetBoundingBox: { x: number; y: number; width: number; height: number } | null = null;
+    let targetElement: Awaited<ReturnType<typeof page.waitForSelector>> | null = null;
 
     // Determine target position
     if (validated.targetSelector) {
       // Drag to target element with explicit timeout
       // Target only needs to be attached (not necessarily visible) for drag operations
-      const targetElement = await page.waitForSelector(validated.targetSelector, {
+      targetElement = await target.waitForSelector(validated.targetSelector, {
         timeout,
         state: 'attached'
       }).catch((error) => {
@@ -261,8 +269,24 @@ export class GestureHandler extends BaseHandler {
         };
       }
 
-      targetX = targetBoundingBox.x + targetBoundingBox.width / 2;
-      targetY = targetBoundingBox.y + targetBoundingBox.height / 2;
+      targetX = targetBoundingBox.x + targetBoundingBox.width / 2 + (validated.targetOffsetX || 0);
+      targetY = targetBoundingBox.y + targetBoundingBox.height / 2 + (validated.targetOffsetY || 0);
+
+      const targetMinX = targetBoundingBox.x;
+      const targetMaxX = targetBoundingBox.x + targetBoundingBox.width;
+      const targetMinY = targetBoundingBox.y;
+      const targetMaxY = targetBoundingBox.y + targetBoundingBox.height;
+      if (targetX < targetMinX || targetX > targetMaxX || targetY < targetMinY || targetY > targetMaxY) {
+        return {
+          success: false,
+          error: {
+            message: `Target offset resolves outside target bounds: ${validated.targetSelector}`,
+            code: 'INVALID_TARGET_OFFSET',
+            kind: 'user',
+            retryable: false,
+          },
+        };
+      }
     } else if (validated.offsetX !== undefined || validated.offsetY !== undefined) {
       // Drag by offset
       targetX = sourceX + (validated.offsetX || 0);
@@ -277,6 +301,67 @@ export class GestureHandler extends BaseHandler {
           retryable: false,
         },
       };
+    }
+
+    // HTML5 draggable elements (such as workflow palette cards) need a
+    // DataTransfer-backed event sequence. Mouse-only dragging can leave
+    // Chromium in a native drag state and stall the driver request.
+    if (targetElement && validated.targetSelector) {
+      const usedHtml5Drag = await target.evaluate(
+        ({ sourceSelector, targetSelector, sourceX, sourceY, targetX, targetY }) => {
+          const source = document.querySelector<HTMLElement>(sourceSelector);
+          const target = document.querySelector<HTMLElement>(targetSelector);
+          if (!source?.draggable || !target) return false;
+
+          const dataTransfer = new DataTransfer();
+          const sourceEventInit: DragEventInit = {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer,
+            clientX: sourceX,
+            clientY: sourceY,
+          };
+          const targetEventInit: DragEventInit = {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer,
+            clientX: targetX,
+            clientY: targetY,
+          };
+
+          source.dispatchEvent(new DragEvent('dragstart', sourceEventInit));
+          target.dispatchEvent(new DragEvent('dragenter', targetEventInit));
+          target.dispatchEvent(new DragEvent('dragover', targetEventInit));
+          target.dispatchEvent(new DragEvent('drop', targetEventInit));
+          source.dispatchEvent(new DragEvent('dragend', targetEventInit));
+          return true;
+        },
+        {
+          sourceSelector: validated.sourceSelector,
+          targetSelector: validated.targetSelector,
+          sourceX,
+          sourceY,
+          targetX,
+          targetY,
+        },
+      );
+
+      if (usedHtml5Drag) {
+        logger.info('drag-drop: completed with HTML5 data transfer events', {
+          sourceSelector: validated.sourceSelector,
+          targetSelector: validated.targetSelector,
+        });
+        return {
+          success: true,
+          extracted_data: {
+            dragDrop: {
+              source: { x: sourceX, y: sourceY },
+              target: { x: targetX, y: targetY },
+              mode: 'html5',
+            },
+          },
+        };
+      }
     }
 
     // Perform drag-and-drop
@@ -392,24 +477,32 @@ export class GestureHandler extends BaseHandler {
       distance: gestureParams.distance,
       scale: gestureParams.scale,
       durationMs: gestureParams.durationMs,
+      steps: gestureParams.steps,
+      stepDelayMs: gestureParams.stepDelayMs,
+      traceLabel: gestureParams.traceLabel,
+      idleAfterMs: gestureParams.idleAfterMs,
+      wheelDeltaY: gestureParams.wheelDeltaY,
+      ctrlKey: gestureParams.ctrlKey,
     };
-    const { page, logger } = context;
+    const { logger } = context;
 
     logger.debug('Executing gesture', {
       type: validated.type,
       direction: validated.direction,
       distance: validated.distance,
       scale: validated.scale,
+      steps: validated.steps,
+      traceLabel: validated.traceLabel,
     });
 
     const behavior = getBehaviorFromContext(context);
 
     switch (validated.type) {
       case 'swipe':
-        return this.handleSwipe(page, validated, logger, context.config.recording.defaultSwipeDistance, behavior);
+        return this.handleSwipe(context, validated, behavior);
       case 'pinch':
       case 'zoom':
-        return this.handlePinchZoom(page, validated, logger, behavior);
+        return this.handlePinchZoom(context, validated, behavior);
       default:
         return {
           success: false,
@@ -427,14 +520,15 @@ export class GestureHandler extends BaseHandler {
    * Execute swipe gesture with human-like behavior support
    */
   private async handleSwipe(
-    page: Page,
+    context: HandlerContext,
     params: GestureParams,
-    logger: winston.Logger,
-    defaultDistance: number = 300,
-    behavior: HumanBehavior | null = null
+    behavior: HumanBehavior | null
   ): Promise<HandlerResult> {
-    const viewport = page.viewportSize();
-    if (!viewport) {
+    const { page, logger } = context;
+    const target = getDocument(context);
+    const defaultDistance = context.config.recording.defaultSwipeDistance;
+    const anchor = await this.resolveGestureAnchor(page, target, params.selector);
+    if (!anchor) {
       return {
         success: false,
         error: {
@@ -448,8 +542,8 @@ export class GestureHandler extends BaseHandler {
 
     // Prefer param distance, fallback to config default
     const distance = params.distance || defaultDistance;
-    const centerX = viewport.width / 2;
-    const centerY = viewport.height / 2;
+    const centerX = anchor.x;
+    const centerY = anchor.y;
 
     let startX = centerX;
     let startY = centerY;
@@ -487,11 +581,12 @@ export class GestureHandler extends BaseHandler {
 
     // Apply pre-swipe delay if behavior is enabled
     await applyPreActionDelay(behavior, (b) => b.getClickDelay() / 2);
+    await this.markGesture(target, params, 'start');
 
     // Calculate steps based on behavior scroll speed if available
     const scrollSpeed = behavior ? behavior.getScrollSpeed() : 100;
-    const steps = Math.max(5, Math.ceil(distance / scrollSpeed));
-    const stepDelay = behavior ? 10 : 0;
+    const steps = Math.max(1, params.steps || Math.max(5, Math.ceil(distance / scrollSpeed)));
+    const stepDelay = params.stepDelayMs ?? (params.durationMs && steps > 0 ? Math.floor(params.durationMs / steps) : behavior ? 10 : 0);
 
     // Execute swipe with human-like movement if behavior enabled
     await page.mouse.move(startX, startY);
@@ -516,20 +611,36 @@ export class GestureHandler extends BaseHandler {
         }
       }
     } else {
-      // Linear swipe
-      await page.mouse.move(endX, endY, { steps });
+      // Linear swipe. A configured cadence emits separate driver-level moves
+      // over time so perf traces see a sustained input window.
+      if (stepDelay > 0) {
+        for (let i = 1; i <= steps; i++) {
+          const ratio = i / steps;
+          await page.mouse.move(startX + (endX - startX) * ratio, startY + (endY - startY) * ratio);
+          await sleep(stepDelay);
+        }
+      } else {
+        await page.mouse.move(endX, endY, { steps });
+      }
     }
 
     await page.mouse.up();
+    await this.markGesture(target, params, 'end');
 
     // Apply post-swipe micro-pause
     await applyPostActionPause(behavior);
+    if (params.idleAfterMs && params.idleAfterMs > 0) {
+      await sleep(params.idleAfterMs);
+    }
 
     logger.info('Swipe completed', {
       direction: params.direction,
       from: { x: startX, y: startY },
       to: { x: endX, y: endY },
       humanBehavior: !!behavior,
+      steps,
+      stepDelayMs: stepDelay,
+      traceLabel: params.traceLabel,
     });
 
     return {
@@ -540,78 +651,92 @@ export class GestureHandler extends BaseHandler {
           distance,
           from: { x: startX, y: startY },
           to: { x: endX, y: endY },
+          steps,
+          stepDelayMs: stepDelay,
+          selector: params.selector,
+          traceLabel: params.traceLabel,
         },
       },
     };
   }
 
   /**
-   * Execute pinch/zoom gesture
-   *
-   * Note: This is a basic implementation using CSS transform.
-   * For true touch events, consider using touch APIs or CDP commands.
+   * Execute pinch/zoom gesture using driver-level wheel input. This keeps
+   * performance workflows honest: browser traces receive Wheel/EventDispatch
+   * work instead of a synchronous DOM/style mutation.
    */
   private async handlePinchZoom(
-    page: Page,
+    context: HandlerContext,
     params: GestureParams,
-    logger: winston.Logger,
-    behavior: HumanBehavior | null = null
+    behavior: HumanBehavior | null
   ): Promise<HandlerResult> {
-    const scale = params.scale || 1.0;
+    const { page, logger } = context;
+    const target = getDocument(context);
+    const scale = params.scale || (params.type === 'pinch' ? 0.8 : 1.2);
     const selector = params.selector;
 
     // Apply pre-action delay if behavior is enabled
     await applyPreActionDelay(behavior, (b) => b.getClickDelay() / 2);
+    await this.markGesture(target, params, 'start');
 
-    if (!selector) {
-      // Apply zoom to entire page via CSS transform
-      await page.evaluate((scaleValue: number) => {
-        if (!document.body) return;
-        document.body.style.transform = `scale(${scaleValue})`;
-        document.body.style.transformOrigin = 'center center';
-      }, scale);
-
-      // Apply post-action micro-pause
-      await applyPostActionPause(behavior);
-
-      logger.info('Page zoom applied', { scale, humanBehavior: !!behavior });
-
+    const anchor = await this.resolveGestureAnchor(page, target, selector);
+    if (!anchor) {
       return {
-        success: true,
-        extracted_data: {
-          zoom: {
-            scale,
-            applied: 'page',
-          },
+        success: false,
+        error: {
+          message: selector ? `Element not found or not visible: ${selector}` : 'Viewport size not available',
+          code: selector ? 'ELEMENT_NOT_FOUND' : 'NO_VIEWPORT',
+          kind: selector ? 'user' : 'engine',
+          retryable: false,
         },
       };
-    } else {
-      // Capture element context BEFORE the zoom (recording-quality telemetry)
-      const elementContext = await captureElementContext(page, selector);
+    }
 
-      // Apply zoom to specific element
-      const element = await page.$(selector);
-      if (!element) {
-        return {
-          success: false,
-          error: {
-            message: `Element not found: ${selector}`,
-            code: 'ELEMENT_NOT_FOUND',
-            kind: 'user',
-            retryable: false,
-          },
-        };
+    await page.mouse.move(anchor.x, anchor.y);
+
+    const defaultDelta = params.type === 'pinch' ? 180 : -180;
+    const wheelDeltaY = params.wheelDeltaY ?? defaultDelta;
+    const steps = Math.max(1, params.steps || 6);
+    const stepDelay = params.stepDelayMs ?? (params.durationMs && steps > 0 ? Math.floor(params.durationMs / steps) : 0);
+
+    const keyboard = page.keyboard as unknown as { down?(key: string): Promise<void>; up?(key: string): Promise<void> } | undefined;
+    if (params.ctrlKey) {
+      await keyboard?.down?.('Control');
+    }
+    try {
+      for (let i = 0; i < steps; i++) {
+        await page.mouse.wheel(0, wheelDeltaY);
+        if (stepDelay > 0) {
+          await sleep(stepDelay);
+        }
       }
+    } finally {
+      if (params.ctrlKey) {
+        await keyboard?.up?.('Control');
+      }
+    }
+    await this.markGesture(target, params, 'end');
 
-      await element.evaluate((el: HTMLElement, scaleValue: number) => {
-        el.style.transform = `scale(${scaleValue})`;
-        el.style.transformOrigin = 'center center';
-      }, scale);
+    if (params.idleAfterMs && params.idleAfterMs > 0) {
+      await sleep(params.idleAfterMs);
+    }
+
+    if (selector) {
+      // Capture element context BEFORE the zoom (recording-quality telemetry)
+      const elementContext = await captureElementContext(target, selector);
 
       // Apply post-action micro-pause
       await applyPostActionPause(behavior);
 
-      logger.info('Element zoom applied', { selector, scale, humanBehavior: !!behavior });
+      logger.info('Element wheel zoom completed', {
+        selector,
+        scale,
+        steps,
+        wheelDeltaY,
+        ctrlKey: !!params.ctrlKey,
+        traceLabel: params.traceLabel,
+        humanBehavior: !!behavior,
+      });
 
       return {
         success: true,
@@ -619,8 +744,13 @@ export class GestureHandler extends BaseHandler {
         extracted_data: {
           zoom: {
             scale,
-            applied: 'element',
+            applied: 'wheel',
             selector,
+            steps,
+            stepDelayMs: stepDelay,
+            wheelDeltaY,
+            ctrlKey: !!params.ctrlKey,
+            traceLabel: params.traceLabel,
           },
         },
         focus: elementContext.boundingBox ? {
@@ -634,5 +764,66 @@ export class GestureHandler extends BaseHandler {
         } : undefined,
       };
     }
+
+    // Apply post-action micro-pause
+    await applyPostActionPause(behavior);
+
+    logger.info('Page wheel zoom completed', {
+      scale,
+      steps,
+      wheelDeltaY,
+      ctrlKey: !!params.ctrlKey,
+      traceLabel: params.traceLabel,
+      humanBehavior: !!behavior,
+    });
+
+    return {
+      success: true,
+      extracted_data: {
+        zoom: {
+          scale,
+          applied: 'wheel',
+          steps,
+          stepDelayMs: stepDelay,
+          wheelDeltaY,
+          ctrlKey: !!params.ctrlKey,
+          traceLabel: params.traceLabel,
+        },
+      },
+    };
+  }
+
+  private async resolveGestureAnchor(page: Page, target: BrowserDocument, selector?: string): Promise<{ x: number; y: number } | null> {
+    if (selector) {
+      const element = await target.$(selector);
+      const box = await element?.boundingBox();
+      if (!box) {
+        return null;
+      }
+      return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    }
+    if ('frameElement' in target) {
+      const element = await target.frameElement();
+      try {
+        const box = await element.boundingBox();
+        return box ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null;
+      } finally { await element.dispose(); }
+    }
+    const viewport = page.viewportSize();
+    if (!viewport) {
+      return null;
+    }
+    return { x: viewport.width / 2, y: viewport.height / 2 };
+  }
+
+  private async markGesture(target: BrowserDocument, params: GestureParams, phase: 'start' | 'end'): Promise<void> {
+    const rawLabel = params.traceLabel || params.type || 'interaction';
+    const label = rawLabel.replace(/[^a-zA-Z0-9_.:-]+/g, '-').replace(/^-+|-+$/g, '') || 'interaction';
+    const markName = `bas.gesture.${label}.${phase}`;
+    await target.evaluate((name: string) => {
+      if (typeof performance !== 'undefined' && typeof performance.mark === 'function') {
+        performance.mark(name);
+      }
+    }, markName).catch(() => undefined);
   }
 }

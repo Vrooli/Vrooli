@@ -3,18 +3,25 @@ package ai
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/base64"
 	"errors"
+	"fmt"
+	"image"
+	"image/png"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
+	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/integration"
 )
 
 func TestNewElementAnalysisHandler(t *testing.T) {
@@ -29,176 +36,46 @@ func TestNewElementAnalysisHandler(t *testing.T) {
 	})
 }
 
-func TestAnalyzeElements_RequestValidation(t *testing.T) {
+func TestRunAnalyzeElements_RequestValidation(t *testing.T) {
 	log := logrus.New()
-	log.SetOutput(os.Stderr)
-	handler := NewElementAnalysisHandler(log)
+	log.SetOutput(io.Discard)
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects invalid JSON", func(t *testing.T) {
-		req := httptest.NewRequest("POST", "/api/v1/analyze-elements", bytes.NewBufferString("invalid json"))
-		w := httptest.NewRecorder()
-
-		handler.AnalyzeElements(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-
-		var response APIError
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
-		assert.Equal(t, "INVALID_REQUEST", response.Code)
+	t.Run("rejects empty URL", func(t *testing.T) {
+		handler := NewElementAnalysisHandler(log)
+		_, err := handler.RunAnalyzeElements(context.Background(), "", "", false)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrMissingURL)
 	})
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects missing URL", func(t *testing.T) {
-		reqBody := ElementAnalysisRequest{}
-		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest("POST", "/api/v1/analyze-elements", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.AnalyzeElements(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-
-		var response APIError
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
-		assert.Equal(t, "MISSING_REQUIRED_FIELD", response.Code)
-
-		// Check details contain field name
-		detailsMap, ok := response.Details.(map[string]interface{})
-		require.True(t, ok)
-		assert.Equal(t, "url", detailsMap["field"])
-	})
-
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects empty URL", func(t *testing.T) {
-		reqBody := ElementAnalysisRequest{URL: ""}
-		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest("POST", "/api/v1/analyze-elements", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.AnalyzeElements(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] normalizes URL without protocol", func(t *testing.T) {
-		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
-			t.Skip("Skipping integration test - PLAYWRIGHT_DRIVER_URL not set")
-		}
-
-		reqBody := ElementAnalysisRequest{URL: "example.com"}
-		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest("POST", "/api/v1/analyze-elements", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.AnalyzeElements(w, req)
-
-		// Will fail at driver step in unit test, but should accept the request
-		// and normalize URL to https://example.com - expect either 200 (success) or 500 (driver error)
-		assert.Contains(t, []int{http.StatusOK, http.StatusInternalServerError}, w.Code,
-			"Should accept request with normalized URL")
+	t.Run("errors when runner missing", func(t *testing.T) {
+		handler := &ElementAnalysisHandler{log: log}
+		_, err := handler.RunAnalyzeElements(context.Background(), "https://example.com", "", false)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrAutomationRunnerNotReady)
 	})
 }
 
-func TestGetElementAtCoordinate_RequestValidation(t *testing.T) {
+func TestRunGetElementAtCoordinate_RequestValidation(t *testing.T) {
 	log := logrus.New()
-	log.SetOutput(os.Stderr)
-	handler := NewElementAnalysisHandler(log)
+	log.SetOutput(io.Discard)
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects invalid JSON", func(t *testing.T) {
-		req := httptest.NewRequest("POST", "/api/v1/element-at-coordinate", bytes.NewBufferString("invalid json"))
-		w := httptest.NewRecorder()
-
-		handler.GetElementAtCoordinate(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-
-		var response APIError
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
-		assert.Equal(t, "INVALID_REQUEST", response.Code)
+	t.Run("rejects empty URL", func(t *testing.T) {
+		handler := NewElementAnalysisHandler(log)
+		_, err := handler.RunGetElementAtCoordinate(context.Background(), "", 0, 0)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrMissingURL)
 	})
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects missing URL", func(t *testing.T) {
-		reqBody := ElementAtCoordinateRequest{X: 100, Y: 200}
-		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest("POST", "/api/v1/element-at-coordinate", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.GetElementAtCoordinate(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-
-		var response APIError
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
-		assert.Equal(t, "MISSING_REQUIRED_FIELD", response.Code)
-	})
-
-	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] accepts zero coordinates", func(t *testing.T) {
-		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
-			t.Skip("Skipping integration test - PLAYWRIGHT_DRIVER_URL not set")
-		}
-
-		reqBody := ElementAtCoordinateRequest{
-			URL: "https://example.com",
-			X:   0,
-			Y:   0,
-		}
-		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest("POST", "/api/v1/element-at-coordinate", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.GetElementAtCoordinate(w, req)
-
-		// Will fail at driver in unit test, but should accept the request
-		assert.Contains(t, []int{http.StatusOK, http.StatusInternalServerError}, w.Code,
-			"Should accept valid request")
-	})
-
-	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] accepts negative coordinates", func(t *testing.T) {
-		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
-			t.Skip("Skipping integration test - PLAYWRIGHT_DRIVER_URL not set")
-		}
-
-		// Negative coordinates might be valid in some viewport scenarios
-		reqBody := ElementAtCoordinateRequest{
-			URL: "https://example.com",
-			X:   -10,
-			Y:   -10,
-		}
-		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest("POST", "/api/v1/element-at-coordinate", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.GetElementAtCoordinate(w, req)
-
-		// Will fail at driver, but request validation should pass
-		assert.Contains(t, []int{http.StatusOK, http.StatusInternalServerError}, w.Code,
-			"Should accept valid request")
-	})
-
-	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] normalizes URL without protocol", func(t *testing.T) {
-		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
-			t.Skip("Skipping integration test - PLAYWRIGHT_DRIVER_URL not set")
-		}
-
-		reqBody := ElementAtCoordinateRequest{
-			URL: "example.com",
-			X:   100,
-			Y:   200,
-		}
-		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest("POST", "/api/v1/element-at-coordinate", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.GetElementAtCoordinate(w, req)
-
-		// Should normalize to https://example.com
-		assert.Contains(t, []int{http.StatusOK, http.StatusInternalServerError}, w.Code,
-			"Should accept request with normalized URL")
+	t.Run("errors when runner missing", func(t *testing.T) {
+		handler := &ElementAnalysisHandler{log: log}
+		_, err := handler.RunGetElementAtCoordinate(context.Background(), "https://example.com", 0, 0)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrAutomationRunnerNotReady)
 	})
 }
 
 func TestGetElementAtCoordinate_DriverIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
+	integration.SkipShort(t, "driver coordinate integration")
 
 	log := logrus.New()
 	log.SetOutput(os.Stderr)
@@ -233,9 +110,7 @@ func TestGetElementAtCoordinate_DriverIntegration(t *testing.T) {
 }
 
 func TestExtractPageElements_Integration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
+	integration.SkipShort(t, "browser extraction integration")
 
 	log := logrus.New()
 	log.SetOutput(os.Stderr)
@@ -262,26 +137,111 @@ func TestExtractPageElements_Integration(t *testing.T) {
 		// Screenshot should be base64 encoded
 		assert.Contains(t, screenshot, "data:image")
 	})
+
+	t.Run("[REQ:BAS-RF-017] masks synthetic secret values before the AI screenshot", func(t *testing.T) {
+		var requestCount atomic.Int32
+		fixture := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/" {
+				http.NotFound(w, r)
+				return
+			}
+			variant := "ALPHA"
+			if requestCount.Add(1) == 2 {
+				variant = "BRAVO"
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = fmt.Fprintf(w, `<!doctype html><html><head><title>Local privacy fixture</title><style>
+				body { margin: 0; font: 16px sans-serif; }
+				input { width: 240px; height: 36px; font: inherit; }
+				</style></head><body>
+				<label for="otp">One-time code</label><input id="otp" type="text" autocomplete="one-time-code" data-token="SYNTHETIC_TOKEN_%s" value="SYNTHETIC_OTP_%s">
+				<label for="password">Password</label><input id="password" type="password" data-token="SYNTHETIC_TOKEN_%s" value="SYNTHETIC_PW_%s">
+				<label for="card">Card number</label><input id="card" type="text" autocomplete="cc-number" data-token="SYNTHETIC_TOKEN_%s" value="411111111111%s">
+				<label for="csc">Security code</label><input id="csc" type="text" autocomplete="cc-csc" data-token="SYNTHETIC_TOKEN_%s" value="%s">
+				<input id="hidden" type="hidden" data-token="SYNTHETIC_TOKEN_%s" value="SYNTHETIC_HID_%s">
+				<button type="button">Continue</button></body></html>`,
+				variant, variant, variant, variant,
+				variant, map[string]string{"ALPHA": "1111", "BRAVO": "4444"}[variant],
+				variant, map[string]string{"ALPHA": "123", "BRAVO": "987"}[variant],
+				variant, variant)
+		}))
+		defer fixture.Close()
+
+		firstElements, _, firstScreenshot, err := handler.extractPageElements(context.Background(), fixture.URL)
+		if err != nil {
+			t.Skipf("managed browser extraction unavailable: %v", err)
+		}
+		secondElements, _, secondScreenshot, err := handler.extractPageElements(context.Background(), fixture.URL)
+		if err != nil {
+			t.Skipf("managed browser extraction unavailable: %v", err)
+		}
+
+		sensitiveControls := func(elements []ElementInfo) []ElementInfo {
+			controls := make([]ElementInfo, 0, 4)
+			for _, id := range []string{"otp", "password", "card", "csc"} {
+				for _, element := range elements {
+					if element.Attributes["id"] == id {
+						controls = append(controls, element)
+						break
+					}
+				}
+			}
+			if len(controls) != 4 {
+				t.Fatalf("extraction returned %d of 4 visible synthetic sensitive controls", len(controls))
+			}
+			return controls
+		}
+		for _, element := range append(firstElements, secondElements...) {
+			assert.NotEqual(t, "hidden", element.Attributes["id"], "hidden control values must not be extracted")
+		}
+		for _, element := range append(sensitiveControls(firstElements), sensitiveControls(secondElements)...) {
+			for _, selector := range element.Selectors {
+				assert.NotEqual(t, "data-attr", selector.Type, "sensitive control selectors must not reveal data-* values")
+				assert.NotContains(t, selector.Selector, "SYNTHETIC_TOKEN_")
+			}
+		}
+
+		firstPixels, err := decodeScreenshotPixels(firstScreenshot)
+		require.NoError(t, err)
+		secondPixels, err := decodeScreenshotPixels(secondScreenshot)
+		require.NoError(t, err)
+		require.Equal(t, firstPixels.Bounds(), secondPixels.Bounds())
+		for y := firstPixels.Bounds().Min.Y; y < firstPixels.Bounds().Max.Y; y++ {
+			for x := firstPixels.Bounds().Min.X; x < firstPixels.Bounds().Max.X; x++ {
+				first := rgbaAt(firstPixels, x, y)
+				second := rgbaAt(secondPixels, x, y)
+				if first != second {
+					t.Fatalf("AI screenshots differ at (%d,%d) when only synthetic sensitive values change: %v != %v", x, y, first, second)
+				}
+			}
+		}
+	})
+}
+
+func decodeScreenshotPixels(dataURL string) (image.Image, error) {
+	encoded, ok := strings.CutPrefix(dataURL, "data:image/png;base64,")
+	if !ok {
+		return nil, fmt.Errorf("screenshot is not a PNG data URL")
+	}
+	data, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, err
+	}
+	return png.Decode(bytes.NewReader(data))
+}
+
+func rgbaAt(pixels image.Image, x, y int) [4]uint32 {
+	r, g, b, a := pixels.At(x, y).RGBA()
+	return [4]uint32{r, g, b, a}
 }
 
 func TestGenerateAISuggestions_Integration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
+	integration.SkipShort(t, "Ollama suggestions integration")
+	if _, err := exec.LookPath("resource-ollama"); err != nil {
+		t.Skip("resource-ollama not on PATH")
 	}
-
-	// Check if Ollama is available by checking both HTTP endpoint and CLI availability
-	ollamaAvailable := false
-	resp, err := http.Get("http://localhost:11434/api/tags")
-	if err == nil {
-		resp.Body.Close()
-		// Also verify OLLAMA_URL or OLLAMA_HOST is set
-		if os.Getenv("OLLAMA_URL") != "" || os.Getenv("OLLAMA_HOST") != "" {
-			ollamaAvailable = true
-		}
-	}
-
-	if !ollamaAvailable {
-		t.Skip("Ollama not available or not configured (OLLAMA_URL/OLLAMA_HOST not set), skipping integration test")
+	if err := exec.Command("resource-ollama", "status").Run(); err != nil {
+		t.Skipf("resource-ollama status failed: %v", err)
 	}
 
 	log := logrus.New()
@@ -322,9 +282,6 @@ func TestGenerateAISuggestions_Integration(t *testing.T) {
 		}
 
 		suggestions, err := handler.generateAISuggestions(ctx, elements, pageContext)
-		if err != nil {
-			t.Skipf("Ollama integration failed: %v", err)
-		}
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, suggestions)
@@ -348,13 +305,10 @@ func TestGenerateAISuggestions_Integration(t *testing.T) {
 		}
 
 		suggestions, err := handler.generateAISuggestions(ctx, elements, pageContext)
-		if err != nil {
-			t.Skipf("Ollama integration failed: %v", err)
-		}
 
-		// Should either return empty suggestions or fallback suggestions
 		require.NoError(t, err)
 		assert.NotNil(t, suggestions)
+		assert.Empty(t, suggestions)
 	})
 }
 
@@ -436,7 +390,7 @@ func TestElementAnalysisHandler_extractPageElements(t *testing.T) {
 				NodeID:   "analysis.evaluate",
 				StepType: "evaluate",
 				ExtractedData: map[string]any{
-					"value": map[string]any{
+					"result": map[string]any{
 						"elements": []any{
 							map[string]any{
 								"text":      "Login",
@@ -519,7 +473,7 @@ func TestElementAnalysisHandler_extractPageElements(t *testing.T) {
 				NodeID:   "analysis.evaluate",
 				StepType: "evaluate",
 				ExtractedData: map[string]any{
-					"value": map[string]any{
+					"result": map[string]any{
 						"elements": []any{
 							map[string]any{
 								"text":      "Login",

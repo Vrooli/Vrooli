@@ -1,0 +1,151 @@
+{
+  "_metadata": {
+    "description": "Honest save states, idempotent revision-checked mutations, atomic effects, versioned migrations, a bounded offline outbox, and conflict-safe retries.",
+    "module": "persistence-and-concurrency",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "SYS-001",
+      "title": "Save feedback reflects persisted state",
+      "status": "planned",
+      "prd_ref": "OT-P0-014",
+      "category": "resilience",
+      "criticality": "P0",
+      "description": "While an edit's save status is otherwise ambiguous, the scenario shall show Saving, Saved, or a clear failure state, shall not treat a successful local React update as a persisted save, and shall retain the local draft with a retry path on failure.",
+      "tags": [
+        "saving",
+        "feedback",
+        "resilience"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a saved edit survives refresh and a new session, and a failed save keeps the edited state visible with a pending marker (ACT-034)."
+        }
+      ]
+    },
+    {
+      "id": "SYS-002",
+      "title": "Mutations are idempotent and revision-checked",
+      "status": "planned",
+      "prd_ref": "OT-P0-014",
+      "category": "contract",
+      "criticality": "P0",
+      "description": "Every mutation shall accept an idempotency key scoped to workspace and operation type plus an expected revision, returning the original result when the same key and payload repeat and a conflict when the same key carries a materially different payload.",
+      "tags": [
+        "idempotency",
+        "revisions",
+        "contract"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: FIX-07 replays a record-intake request with no second portion, rejects a changed payload under the same key, and keeps revision 5 while returning a conflict to a client expecting revision 4 (ACT-035)."
+        }
+      ]
+    },
+    {
+      "id": "SYS-003",
+      "title": "Critical multi-step operations are all-or-nothing",
+      "status": "planned",
+      "prd_ref": "OT-P0-014",
+      "category": "storage",
+      "criticality": "P0",
+      "description": "The scenario shall give all-or-nothing domain effects to profile activation, plan application, catalog save plus plan, import and restore application, purchase plus stock update, preparation plus batch creation, intake correction plus batch adjustment, recipe create and update, and budget reservation, using database transactions and a durable outbox for external side effects rather than claiming unrelated writes are atomic.",
+      "tags": [
+        "transactions",
+        "atomicity",
+        "outbox"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: an induced failure in the second write of each pair leaves the prior state intact and no partial effect visible (ACT-035)."
+        }
+      ]
+    },
+    {
+      "id": "SYS-004",
+      "title": "Conflicts and retries never double-apply or lose work",
+      "status": "planned",
+      "prd_ref": "OT-P0-014",
+      "category": "resilience",
+      "criticality": "P0",
+      "description": "If two writes race, then the scenario shall not silently overwrite, and it shall preserve the local draft for comparison while retries and undo apply the logical operation at most once and a lost response after commit is resolved by the idempotency key or a read of the operation result.",
+      "tags": [
+        "conflict",
+        "retry",
+        "undo"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a stale second tab receives a conflict with the saved revision and local draft, and a lost save response followed by retry creates no duplicate (ACT-035)."
+        }
+      ]
+    },
+    {
+      "id": "SYS-005",
+      "title": "Versioned migrations preserve existing records",
+      "status": "planned",
+      "prd_ref": "OT-P0-014",
+      "category": "storage",
+      "criticality": "P0",
+      "description": "The scenario shall apply versioned, per-domain schema migrations that record the applied version, add new fields with conservative defaults, retain recipe identities, revisions, plans, intake, grocery state, preferences, and source provenance, remove obsolete template tables deliberately, and never reset an existing workspace to seed or demo data.",
+      "tags": [
+        "migrations",
+        "storage",
+        "preservation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: upgrading a populated prior database preserves ids, history, plans, and unknown values and reports the applied schema version (AT-051, ACT-054, blocker B13)."
+        }
+      ]
+    },
+    {
+      "id": "SYS-006",
+      "title": "A bounded offline outbox replays without double-applying",
+      "status": "planned",
+      "prd_ref": "OT-P0-014",
+      "category": "resilience",
+      "criticality": "P0",
+      "description": "While offline, the scenario shall let a previously loaded shopping list be viewed, checked, unchecked, and extended with manual items, and a loaded recipe or cooking session be read with timers controlled locally, queue those actions in a bounded outbox of desired-state operations with operation ids and base revisions, replay them idempotently on reconnect, surface conflicts without losing edits, and partition or clear private cached data by account on sign-out.",
+      "tags": [
+        "offline",
+        "outbox",
+        "sync",
+        "privacy"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: checking rows offline and reconnecting after a server change reconciles pending state with a visible conflict and no lost edit, and the same checkbox set true on two devices applies once (AT-035, R22)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: after sign-out, another user entering offline sees none of the previous user's cached data (AT-050)."
+        }
+      ]
+    }
+  ]
+}

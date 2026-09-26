@@ -7,22 +7,7 @@ import (
 
 // CORS middleware handles Cross-Origin Resource Sharing
 func CORS(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept")
-		w.Header().Set("Access-Control-Max-Age", "86400")
-
-		// Handle preflight requests
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		// Call the next handler
-		next.ServeHTTP(w, r)
-	})
+	return NewCORS(CORSConfig{})(next)
 }
 
 // CORSConfig holds CORS configuration
@@ -38,9 +23,6 @@ type CORSConfig struct {
 // NewCORS creates a configurable CORS middleware
 func NewCORS(config CORSConfig) func(http.Handler) http.Handler {
 	// Set defaults if not provided
-	if len(config.AllowedOrigins) == 0 {
-		config.AllowedOrigins = []string{"*"}
-	}
 	if len(config.AllowedMethods) == 0 {
 		config.AllowedMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"}
 	}
@@ -65,10 +47,14 @@ func NewCORS(config CORSConfig) func(http.Handler) http.Handler {
 			}
 
 			if allowed {
-				if origin != "" {
+				// A wildcard origin and credentialed requests are incompatible:
+				// browsers reject `*` when credentials are enabled. Echo only a
+				// concrete, validated origin in that mode and vary caches by Origin.
+				if config.AllowCredentials && origin == "" {
+					// Same-origin requests do not need an ACAO header.
+				} else if origin != "" {
 					w.Header().Set("Access-Control-Allow-Origin", origin)
-				} else {
-					w.Header().Set("Access-Control-Allow-Origin", "*")
+					w.Header().Add("Vary", "Origin")
 				}
 			}
 
@@ -85,6 +71,12 @@ func NewCORS(config CORSConfig) func(http.Handler) http.Handler {
 			}
 
 			w.Header().Set("Access-Control-Max-Age", strconv.Itoa(config.MaxAge))
+
+			// OWASP security header floor on every response, including preflight.
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("X-Frame-Options", "DENY")
+			w.Header().Set("X-XSS-Protection", "1; mode=block")
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000")
 
 			// Handle preflight requests
 			if r.Method == "OPTIONS" {

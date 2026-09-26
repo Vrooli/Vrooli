@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "templates.collection-page",
+    "name": "CollectionPage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The responsive collection workspace with page actions, filtering, a record collection, selected-item inspection, bulk actions, generic data states, and mobile collection-to-detail navigation.",
+    "targets": ["react-vite"],
+    "slot": "page-template",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
+    },
+    "kits": ["vrooli-default", "switchboard-console"]
+  },
+  "dependencies": {
+    "requires": [
+      { "asset": "navigation.page", "reason": "Route boundary, metadata, responsive gutters, and focus placement belong to the shared page." },
+      { "asset": "navigation.page-header", "reason": "Title, context, and actions use the shared page-header contract when the adopting scenario composes one." },
+      { "asset": "hooks.use-collection", "reason": "Collection selection and keyed interaction remain data-source-owned." },
+      { "asset": "feedback.async-boundary", "reason": "Loading, stale, empty, partial-error, fatal-error, and offline states are explicit template states." }
+    ]
+  },
+  "expects": [
+    { "capability": "router-adapter" },
+    { "capability": "ui-provider" },
+    { "capability": "data-source", "typeArguments": ["TRecord"] }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill", "no-horizontal-overflow", "responsive-transformation", "mobile-capability-parity",
+    "keyboard-operable", "focus-order", "heading-hierarchy", "semantic-structure", "content-reflow",
+    "recovery-path", "error-honesty", "partial-degradation", "offline-behavior", "status-announced",
+    "dark-parity", "text-scale-resilience", "card-restraint", "safe-area-respected"
+  ],
+  "requiredStates": ["default", "loading", "refreshing", "empty", "partial", "stale", "request-error", "offline", "retry"],
+  "regions": [
+    { "id": "header", "purpose": "Page title, context, and primary actions.", "required": false, "lifecycle": "static" },
+    { "id": "filters", "purpose": "Search and filter controls for the collection.", "required": false, "lifecycle": "static" },
+    { "id": "collection", "purpose": "The record collection and its selection affordances.", "required": true, "lifecycle": "async", "accepts": "data-display" },
+    { "id": "bulk-actions", "purpose": "Actions applying to selected records.", "required": false, "lifecycle": "static" },
+    { "id": "inspector", "purpose": "Selected record detail and contextual actions.", "required": false, "lifecycle": "async" }
+  ],
+  "beauty": {
+    "signatureMoment": { "description": "The collection and its selected detail remain one continuous workspace on desktop and become an explicit, reversible collection-to-detail flow on mobile." },
+    "avoid": ["uniform-card-grid", "modal-for-routine-inspection", "hidden-mobile-detail"]
+  },
+  "rationale": "Operational collection pages fail when filtering, selection, detail, and responsive behavior are left to each adopting scenario. This template makes the workspace contract explicit while keeping records and domain actions scenario-owned."
+}

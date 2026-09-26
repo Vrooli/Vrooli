@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "navigation.nav-link",
+    "name": "NavLink",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "navigation",
+    "description": "The router-adaptable navigation link with exact or partial active matching, pending state during navigation, prefetch policy, icons, badges, and disabled semantics.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.link",
+        "reason": "Link semantics, focus, and external treatment are shared."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "non-color-status",
+    "cursor-discipline",
+    "tap-target-size"
+  ],
+  "requiredStates": [
+    "default",
+    "loading"
+  ]
+}

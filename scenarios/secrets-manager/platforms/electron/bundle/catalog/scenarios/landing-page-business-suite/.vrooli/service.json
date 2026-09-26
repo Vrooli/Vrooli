@@ -1,0 +1,371 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "hostTools": [
+    {
+      "name": "stripe",
+      "required": false,
+      "reason": "Run local Stripe webhook forwarding and payment test flows for landing-page subscriptions, bundles, and coupons",
+      "when": [
+        "setup",
+        "develop",
+        "test"
+      ],
+      "environments": [
+        "development"
+      ],
+      "notes": "Use the Stripe CLI to forward /api/v1/webhooks/stripe and trigger test events during scenario validation"
+    }
+  ],
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "description": "Primary relational data store for generated landing pages (content, variants, metrics, subscriptions)",
+        "enabled": true,
+        "required": true,
+        "schema": "landing-page-business-suite",
+        "type": "postgres"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "landing-page-react-vite",
+      "version": "1.0.0"
+    },
+    "generated_at": "2025-12-06T20:24:47Z",
+    "adopted": true
+  },
+  "lifecycle": {
+    "develop": {
+      "description": "Launch API and production UI bundle",
+      "steps": [
+        {
+          "background": true,
+          "condition": {
+            "file_exists": "api/landing-page-business-suite-api"
+          },
+          "description": "Start Go API server",
+          "name": "start-api",
+          "run": "cd api && exec ./landing-page-business-suite-api"
+        },
+        {
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          },
+          "description": "Serve production UI bundle",
+          "name": "start-ui",
+          "run": "cd ui && node server.js"
+        }
+      ]
+    },
+    "health": {
+      "checks": [
+        {
+          "critical": true,
+          "interval": 30000,
+          "name": "api_endpoint",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "type": "http"
+        },
+        {
+          "critical": false,
+          "interval": 30000,
+          "name": "ui_endpoint",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "type": "http"
+        }
+      ],
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "startup_grace_period": 15000
+    },
+    "production": {
+      "description": "Production deployment with optimized settings",
+      "steps": [
+        {
+          "background": true,
+          "condition": {
+            "file_exists": "api/landing-page-business-suite-api"
+          },
+          "description": "Start Go API server in production mode",
+          "name": "start-api",
+          "run": "cd api && exec ./landing-page-business-suite-api"
+        },
+        {
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          },
+          "description": "Serve production UI bundle with optimized settings",
+          "name": "start-ui",
+          "run": "cd ui && node server.js"
+        }
+      ]
+    },
+    "setup": {
+      "condition": {
+        "checks": [
+          {
+            "targets": [
+              "api/landing-page-business-suite-api"
+            ],
+            "type": "binaries"
+          },
+          {
+            "command": "landing-page-business-suite",
+            "targets": [
+              "landing-page-business-suite"
+            ],
+            "type": "cli"
+          },
+          {
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src",
+            "type": "ui-bundle"
+          }
+        ]
+      },
+      "description": "Build API & UI for the generated landing scenario",
+      "steps": [
+        {
+          "description": "Build Go API binary (landing-page-business-suite-api) in api/ directory for reuse by start-api step",
+          "name": "build-api",
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o landing-page-business-suite-api ."
+        },
+        {
+          "description": "Install UI dependencies",
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi"
+        },
+        {
+          "description": "Build production UI bundle",
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "description": "Stop Go API",
+          "name": "stop-api",
+          "run": "pkill -f 'landing-page-business-suite-api' || true"
+        },
+        {
+          "description": "Stop UI server",
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.js' || true"
+        }
+      ]
+    },
+    "test": {
+      "description": "Execute phased test suite",
+      "steps": [
+        {
+          "description": "Run structure/unit/integration/business/performance phases",
+          "name": "run-tests",
+          "run": "test-genie execute landing-page-business-suite --preset comprehensive"
+        }
+      ]
+    },
+    "version": "2.0.0"
+  },
+  "ports": {
+    "api": {
+      "description": "Go API server",
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "description": "React UI",
+      "env_var": "UI_PORT",
+      "range": "20000-24999"
+    }
+  },
+  "service": {
+    "category": "business_tools",
+    "description": "Generated landing page scenario from template 'landing-page-business-suite'",
+    "displayName": "Silent Founder OS",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "license": "MIT",
+    "maintainers": [
+      {
+        "email": "support@vrooli.com",
+        "name": "Vrooli Team",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "name": "landing-page-business-suite",
+    "parent": "vrooli",
+    "repository": {
+      "directory": "/scenarios/landing-page-business-suite",
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli"
+    },
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "tags": [
+      "react-ui",
+      "go-api",
+      "landing-template",
+      "ab-testing",
+      "stripe",
+      "analytics",
+      "templates"
+    ],
+    "type": "application-template",
+    "version": "1.1.0"
+  },
+  "deployment": {
+    "tiers": {
+      "tier-1-local": {
+        "status": "ready",
+        "secrets": [
+          {
+            "secret_id": "ADMIN_DEFAULT_EMAIL",
+            "logical_id": "vrooli/landing-page-business-suite",
+            "field": "admin-default-email",
+            "env": "ADMIN_DEFAULT_EMAIL",
+            "classification": "user",
+            "label": "Admin Email",
+            "description": "Email address for the default admin account. Used for logging into the admin portal.",
+            "required": false,
+            "default_hint": "Defaults to admin@localhost if not set"
+          },
+          {
+            "secret_id": "ADMIN_DEFAULT_PASSWORD",
+            "logical_id": "vrooli/landing-page-business-suite",
+            "field": "admin-default-password",
+            "env": "ADMIN_DEFAULT_PASSWORD",
+            "classification": "user",
+            "label": "Admin Password",
+            "description": "Password for the default admin account. Should be a strong, unique password for production deployments.",
+            "required": false,
+            "default_hint": "Required in production; local development generates an ephemeral credential when not set"
+          },
+          {
+            "secret_id": "SESSION_SECRET",
+            "logical_id": "vrooli/landing-page-business-suite",
+            "field": "session-secret",
+            "env": "SESSION_SECRET",
+            "classification": "service",
+            "label": "Session Secret",
+            "description": "Secret key used for encrypting session cookies. Must be kept private and should be unique per deployment.",
+            "required": true,
+            "default_hint": "Generate with: openssl rand -base64 32"
+          },
+          {
+            "secret_id": "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY",
+            "logical_id": "vrooli/landing-page-business-suite",
+            "field": "remote-profile-encryption-key",
+            "env": "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY",
+            "classification": "service",
+            "label": "Remote Profile Encryption Key",
+            "description": "Encrypts stored remote admin sessions for remote profiles. Required in production deployments.",
+            "required": false,
+            "default_hint": "Generate with: openssl rand -base64 32"
+          },
+          {
+            "secret_id": "LPBS_SERVICE_SECRET",
+            "logical_id": "vrooli/landing-page-business-suite",
+            "field": "service-secret",
+            "env": "LPBS_SERVICE_SECRET",
+            "classification": "service",
+            "label": "Service Auth Secret",
+            "description": "Shared secret used for LPBS service-to-service authentication (for example scenario-to-desktop deploy target auth).",
+            "required": false,
+            "default_hint": "Set with scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario landing-page-business-suite --generate hex:64 --targets scenario,deployment --domain <domain>"
+          }
+        ]
+      }
+    }
+  },
+  "version": "1.1.0",
+  "storage": {
+    "entries": {
+      "logs": {
+        "rung": "owned",
+        "path": "logs",
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "Scenario operational logs observed in the canonical logs directory."
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "cli": {
+    "enabled": true,
+    "command": "landing-page-business-suite",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "landing-page-business-suite"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "session-secret",
+        "env": "SESSION_SECRET",
+        "label": "Session signing secret",
+        "description": "Signs session cookies. Without it the scenario generates an ephemeral key and sessions do not survive a restart.",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "service-secret",
+        "env": "LPBS_SERVICE_SECRET",
+        "label": "Service-to-service token",
+        "description": "Bearer token other scenarios present to reach LPBS admin endpoints; scenario-to-desktop uses it.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "api-key-encryption-key",
+        "env": "LPBS_API_KEY_ENCRYPTION_KEY",
+        "label": "API key encryption key",
+        "description": "Encrypts stored API keys at rest. Required in production; without it keys are stored unencrypted.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "remote-profile-encryption-key",
+        "env": "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY",
+        "label": "Remote profile encryption key",
+        "description": "Encrypts stored remote deployment profiles. Falls back to the API key encryption key when unset.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "admin-default-password",
+        "env": "ADMIN_DEFAULT_PASSWORD",
+        "label": "Seeded admin password",
+        "description": "Password for the seeded admin account. Required in production; development generates an ephemeral one.",
+        "required": false
+      }
+    ]
+  }
+}

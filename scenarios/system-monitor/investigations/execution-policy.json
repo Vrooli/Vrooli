@@ -1,0 +1,7 @@
+{
+  "version": "2.0.0",
+  "entries": {
+    "container-health": {"mode": "shell", "required_tools": ["bash", "jq", "docker"]},
+    "master-system-sweep": {"mode": "shell", "required_tools": ["bash", "jq"]}
+  }
+}

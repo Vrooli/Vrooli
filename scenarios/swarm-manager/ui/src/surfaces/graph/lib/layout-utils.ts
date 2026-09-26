@@ -48,7 +48,7 @@ export function getDagreConfig(mode: Exclude<LayoutMode, "grouped">, direction: 
  * row (TB) or column (LR).
  */
 const GROUPED_LANE_ORDER: GraphEntityType[] = [
-  "initiative",
+  "goal",
   "backlog",
   "scenario",
   "execution",
@@ -164,6 +164,88 @@ export function applyGroupedLayout<NodeType extends Node>(
   return layoutedNodes;
 }
 
+// Content-fingerprinted Dagre position cache. Dagre is the single most expensive
+// step in the canvas pipeline (~tens to hundreds of ms for 500 nodes / a few
+// thousand edges). React's useMemo keys on identity, so on quiet polls — where
+// the API returns structurally-identical data with fresh object refs — it still
+// re-runs Dagre. With the identity-preserving reconciliation in the data store,
+// useMemo catches the exact-same-ref case; this cache catches the same-content-
+// but-different-array case (which happens any time filtering or grouping runs).
+interface CachedLayout {
+  positions: Map<string, { x: number; y: number }>;
+}
+
+const LAYOUT_CACHE_MAX = 8;
+const layoutCache = new Map<string, CachedLayout>();
+
+function fingerprintLayoutInput<NodeType extends Node, EdgeType extends Edge>(
+  nodes: NodeType[],
+  edges: EdgeType[],
+  mode: Exclude<LayoutMode, "grouped">,
+  direction: LayoutDirection,
+): string {
+  // Node id + dimensions: dimension changes must bust the cache because Dagre
+  // positions account for node size.
+  const nodeKeys: string[] = [];
+  for (const node of nodes) {
+    const entityType = getNodeEntityType(node);
+    const shapeDims = entityType ? getShapeDimensions(entityType) : null;
+    const width = node.measured?.width ?? node.width ?? shapeDims?.width ?? DEFAULT_NODE_WIDTH;
+    const height = node.measured?.height ?? node.height ?? shapeDims?.height ?? DEFAULT_NODE_HEIGHT;
+    nodeKeys.push(`${node.id}:${width}x${height}`);
+  }
+  nodeKeys.sort();
+
+  const edgeKeys: string[] = [];
+  for (const edge of edges) {
+    edgeKeys.push(`${edge.source}>${edge.target}`);
+  }
+  edgeKeys.sort();
+
+  return `${mode}|${direction}|${nodeKeys.join(",")}|${edgeKeys.join(",")}`;
+}
+
+function rememberLayoutPositions<NodeType extends Node>(
+  key: string,
+  positioned: NodeType[],
+): void {
+  const positions = new Map<string, { x: number; y: number }>();
+  for (const node of positioned) {
+    positions.set(node.id, { x: node.position.x, y: node.position.y });
+  }
+  layoutCache.set(key, { positions });
+
+  if (layoutCache.size > LAYOUT_CACHE_MAX) {
+    // LRU-ish eviction: drop the oldest entry.
+    const oldest = layoutCache.keys().next().value;
+    if (oldest !== undefined) {
+      layoutCache.delete(oldest);
+    }
+  }
+}
+
+function applyCachedPositions<NodeType extends Node>(
+  nodes: NodeType[],
+  cached: CachedLayout,
+): NodeType[] {
+  return nodes.map((node) => {
+    const pos = cached.positions.get(node.id);
+    if (!pos) return node;
+    if (node.position && node.position.x === pos.x && node.position.y === pos.y) {
+      // Identity preservation: if the node already has the cached position
+      // (e.g., same ref carried through from the previous pipeline pass), do
+      // not allocate a new wrapper. Lets downstream memos stay warm.
+      return node;
+    }
+    return { ...node, position: { x: pos.x, y: pos.y } };
+  });
+}
+
+/** Exposed for tests — resets the module-level Dagre layout cache. */
+export function resetLayoutCache(): void {
+  layoutCache.clear();
+}
+
 /**
  * Apply Dagre layout to nodes and edges, returning new positioned nodes.
  *
@@ -172,6 +254,9 @@ export function applyGroupedLayout<NodeType extends Node>(
  *
  * Nodes with no edges are separated and arranged in a compact grid below
  * the connected subgraph to prevent Dagre's default single-line placement.
+ *
+ * Results are memoized in a content-fingerprinted cache so repeated calls with
+ * the same topology (common on quiet polls) skip Dagre entirely.
  */
 export function applyDagreLayout<NodeType extends Node, EdgeType extends Edge>(
   nodes: NodeType[],
@@ -186,6 +271,27 @@ export function applyDagreLayout<NodeType extends Node, EdgeType extends Edge>(
     return applyGroupedLayout(nodes, direction);
   }
 
+  // `mode` is narrowed here — the grouped branch returned above.
+  const fingerprint = fingerprintLayoutInput(nodes, edges, mode, direction);
+  const cached = layoutCache.get(fingerprint);
+  if (cached) {
+    // Refresh recency by re-inserting.
+    layoutCache.delete(fingerprint);
+    layoutCache.set(fingerprint, cached);
+    return applyCachedPositions(nodes, cached);
+  }
+
+  const result = runDagreLayout(nodes, edges, mode, direction);
+  rememberLayoutPositions(fingerprint, result);
+  return result;
+}
+
+function runDagreLayout<NodeType extends Node, EdgeType extends Edge>(
+  nodes: NodeType[],
+  edges: EdgeType[],
+  mode: Exclude<LayoutMode, "grouped">,
+  direction: LayoutDirection,
+): NodeType[] {
   // Partition nodes into connected (has ≥1 edge) and isolated (no edges).
   const connectedIds = new Set<string>();
   for (const edge of edges) {
@@ -222,8 +328,8 @@ export function applyDagreLayout<NodeType extends Node, EdgeType extends Edge>(
   for (const node of connectedNodes) {
     const entityType = getNodeEntityType(node);
     const shapeDims = entityType ? getShapeDimensions(entityType) : null;
-    const width = (node.measured?.width ?? node.width ?? shapeDims?.width ?? DEFAULT_NODE_WIDTH) as number;
-    const height = (node.measured?.height ?? node.height ?? shapeDims?.height ?? DEFAULT_NODE_HEIGHT) as number;
+    const width = (node.measured?.width ?? node.width ?? shapeDims?.width ?? DEFAULT_NODE_WIDTH);
+    const height = (node.measured?.height ?? node.height ?? shapeDims?.height ?? DEFAULT_NODE_HEIGHT);
     g.setNode(node.id, { width, height });
   }
 
@@ -239,8 +345,8 @@ export function applyDagreLayout<NodeType extends Node, EdgeType extends Edge>(
     const pos = g.node(node.id) as { x: number; y: number } | undefined;
     const entityType = getNodeEntityType(node);
     const shapeDims = entityType ? getShapeDimensions(entityType) : null;
-    const width = (node.measured?.width ?? node.width ?? shapeDims?.width ?? DEFAULT_NODE_WIDTH) as number;
-    const height = (node.measured?.height ?? node.height ?? shapeDims?.height ?? DEFAULT_NODE_HEIGHT) as number;
+    const width = (node.measured?.width ?? node.width ?? shapeDims?.width ?? DEFAULT_NODE_WIDTH);
+    const height = (node.measured?.height ?? node.height ?? shapeDims?.height ?? DEFAULT_NODE_HEIGHT);
     if (!pos) {
       return { ...node, position: { x: 0, y: 0 } };
     }
@@ -258,7 +364,7 @@ export function applyDagreLayout<NodeType extends Node, EdgeType extends Edge>(
     let maxY = -Infinity;
     let minX = Infinity;
     for (const node of positioned) {
-      const height = (node.measured?.height ?? node.height ?? DEFAULT_NODE_HEIGHT) as number;
+      const height = (node.measured?.height ?? node.height ?? DEFAULT_NODE_HEIGHT);
       maxY = Math.max(maxY, node.position.y + height);
       minX = Math.min(minX, node.position.x);
     }
@@ -287,8 +393,8 @@ function arrangeGrid<NodeType extends Node>(
   return nodes.map((node, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
-    const width = (node.measured?.width ?? node.width ?? DEFAULT_NODE_WIDTH) as number;
-    const height = (node.measured?.height ?? node.height ?? DEFAULT_NODE_HEIGHT) as number;
+    const width = (node.measured?.width ?? node.width ?? DEFAULT_NODE_WIDTH);
+    const height = (node.measured?.height ?? node.height ?? DEFAULT_NODE_HEIGHT);
     return {
       ...node,
       position: {

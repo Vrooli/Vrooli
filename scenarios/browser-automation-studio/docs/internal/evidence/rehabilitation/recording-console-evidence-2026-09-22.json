@@ -1,0 +1,154 @@
+{
+  "record": "BAS-WORK-055",
+  "issues": [
+    "BAS-RF-086"
+  ],
+  "status": "qualified_and_deployed",
+  "baseline": "/tmp/bas-before-055/manifest.json",
+  "source_sha256": {
+    "playwright-driver/src/recording/capture/browser-scripts/recording-script.js": "2dd17092004f363775cfa2b20d06eb390e93a9cb08c729fc86034990897f63f2",
+    "playwright-driver/tests/integration/pipeline-e2e.test.ts": "6ae9f3c28cf7dbf3b78e8ee027a7693a7c411ba166441ca67d56a63fba93bb07"
+  },
+  "runtime_lines": {
+    "before": 1518,
+    "after": 1503
+  },
+  "injected_script_bytes": {
+    "before": 49242,
+    "after": 48084
+  },
+  "routine_console_calls_removed": 15,
+  "go_complexity_delta": 0,
+  "evidence": {
+    "native_red": "/tmp/bas-console-native-red-055.txt",
+    "focused": "/tmp/bas-console-focused-055.txt",
+    "types": "/tmp/bas-console-types-055.txt",
+    "build": "/tmp/bas-console-build-055.txt",
+    "driver_owner": "/tmp/bas-console-driver-owner-055.json"
+  },
+  "focused": {
+    "passed": 56,
+    "suites_passed": 3,
+    "duration_seconds": 17.36
+  },
+  "native_api_baseline": {
+    "timeline": "/tmp/bas-recording-e2e-nmZrN6/execution-timeline.json",
+    "console_entries": 13,
+    "recorder_entries": 13,
+    "false_error_entries": 3
+  },
+  "limitations": [
+    "No throughput improvement claim; removal reduces routine calls/output and injected bytes. JS complexity measurement remains unavailable under RF064.",
+    "Other live workflow traffic was observed after054; global zero-session state cannot be attributed solely to this fixture."
+  ],
+  "pending_operations": {},
+  "tidiness": {
+    "run_id": "20260922-230018-5c4ce09a",
+    "status": "failed",
+    "quiet_wait_consumed": true,
+    "summary": {
+      "totalFindings": 1123,
+      "longFiles": 104,
+      "complexity": 391,
+      "duplication": 609,
+      "coupling": 18,
+      "duplicationLineDebt": 32663
+    }
+  },
+  "board": {
+    "required": 17,
+    "unqualified": 17,
+    "product_qualified": false,
+    "artifact": "/tmp/bas-board-055.txt"
+  },
+  "driver_owner": {
+    "run_id": "uh-20260922-230015-cc566afd8e6506631422fc356decb6cb",
+    "status": "passed",
+    "durations_ms": [
+      "386373"
+    ],
+    "tests_passed": 1677,
+    "suites_passed": 124,
+    "tests_skipped": 2,
+    "suites_skipped": 1
+  },
+  "deployment": {
+    "build_identity": "sha256:dcdb9940abc520d41d7808af27069f6869e3275cd07320b1d47517a4a9e01c5b",
+    "managed_restart_shell": 86971,
+    "health": "/tmp/bas-live-health-055.json",
+    "native_workflow": {
+      "cases": [
+        {
+          "name": "driver prerequisite",
+          "status": "passed"
+        },
+        {
+          "name": "owned recording captures the independent fixture click",
+          "status": "passed"
+        },
+        {
+          "name": "API persists and reads the generated workflow",
+          "status": "passed"
+        },
+        {
+          "name": "committed entries receive an exact acknowledgement",
+          "status": "passed"
+        },
+        {
+          "name": "captured typed actions replay in a fresh browser context",
+          "status": "passed"
+        },
+        {
+          "name": "saved workflow executes through the API owner",
+          "status": "passed"
+        },
+        {
+          "name": "close owned session 382fda2a-3df1-4b7e-aee4-1b23233bb6cc",
+          "status": "passed"
+        },
+        {
+          "name": "close owned session f5bbd056-d043-49e1-9c0a-8d8873fb30db",
+          "status": "passed"
+        },
+        {
+          "name": "remove only this fixture execution and artifacts",
+          "status": "passed"
+        },
+        {
+          "name": "delete fixture workflow",
+          "status": "passed"
+        },
+        {
+          "name": "delete fixture project and files",
+          "status": "passed"
+        }
+      ],
+      "effects": [
+        {
+          "sequence": 1,
+          "context": "fixture_context=313a2f9f-2ced-4337-9967-cc42280b8286",
+          "received_at": "2026-09-22T23:10:35.883Z"
+        },
+        {
+          "sequence": 2,
+          "context": "fixture_context=49bc5c10-11f6-4f61-b883-47b03f0764c0",
+          "received_at": "2026-09-22T23:10:36.135Z"
+        },
+        {
+          "sequence": 3,
+          "context": "fixture_context=7e8563af-f2be-469c-a8a4-07687041f978",
+          "received_at": "2026-09-22T23:10:36.865Z"
+        }
+      ],
+      "execution_id": "fbfbd6c1-52ee-406e-90ef-5a6c3267fd1d",
+      "artifact_dir": "/tmp/bas-recording-e2e-mC0rXk",
+      "api_selected": true,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0
+    },
+    "console_entries_after": 0,
+    "profile_metadata": "/tmp/bas-profile-api-final-055.json",
+    "profile_full_contents": "/tmp/bas-profile-final-055.txt"
+  }
+}

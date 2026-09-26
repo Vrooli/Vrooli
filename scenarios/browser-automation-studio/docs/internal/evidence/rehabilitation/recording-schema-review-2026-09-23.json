@@ -1,0 +1,82 @@
+{
+  "cycle": "102",
+  "recorded_at": "2026-09-23",
+  "status": "issue_register_reconciled",
+  "issues": [
+    "BAS-RF-058"
+  ],
+  "scope": "Verify the current BAS recording schema bootstrap and correct the stale RF058 issue row",
+  "prior_art": {
+    "evidence": "internal/evidence/rehabilitation/recording-schema-2026-09-22.json",
+    "original_red": "Canonical repository and production/routed bootstrap both failed with no such table: timeline_entries.",
+    "recorded_repair": "Cycle013 added timeline_entries to the embedded recording domain schema, registered the provider, removed private test DDL, and added a routed-pool append/read/reapply regression.",
+    "current_issue_row_was_stale": true
+  },
+  "hypotheses": [
+    {
+      "claim": "The code repair is present and only the issue register is stale.",
+      "result": "confirmed by current source and focused owner tests"
+    },
+    {
+      "claim": "The provider is registered but omitted from routed-pool bootstrap.",
+      "result": "falsified: the newly installed routed pool accepts an append and read, and schema reapplication preserves the row"
+    },
+    {
+      "claim": "A private repository-test schema still hides production drift.",
+      "result": "falsified: the routed-pool test uses NewConnection, ApplySchemaRegistry and the same embedded recording schema as production"
+    }
+  ],
+  "changes": {
+    "source": "none; current implementation and retained regression already implement the expected behavior",
+    "tracking": "Updated BAS-RF-058 to resolved, linked to the original receipt and this fresh verification, and retained RF-002/RF-024 as separate durability limitations.",
+    "complexity_duplication_coupling": "No source changes; no delta claimed."
+  },
+  "checks": {
+    "routed_production_schema": {
+      "command": "go test ./database -run 'TestNewConnectionRoutesRecordingWritesToLeasedTestPool|TestSchemaProvidersExposeCompleteEmbeddedSQL' -count=1",
+      "result": "passed",
+      "duration_seconds": 1.978,
+      "assertions": "fresh primary schema, newly leased test-pool schema, journal append/read, zero primary journal leakage, and retained row after schema reapplication"
+    },
+    "recording_repository": {
+      "command": "go test ./services/recording/persistence -count=1",
+      "result": "passed",
+      "duration_seconds": 0.014,
+      "assertions": "repository fixtures use the canonical recording schema provider"
+    },
+    "contract_preparation": {
+      "command": "python3 scenarios/browser-automation-studio/docs/internal/refactor_contract.py",
+      "result": "preparation_valid=true, product_qualified=false, 24 preservation journeys, zero errors",
+      "limitations": "Preparation consistency does not qualify product behavior."
+    },
+    "setpoint": {
+      "program_run": "prog_79af08a8-c1cd-45c7-8596-f9628c317313",
+      "qualified": 1,
+      "unavailable": 16,
+      "required": 17,
+      "product_qualified": false,
+      "capture_in_band": true,
+      "capture_source": "performance-health workload 1e9fc96f5be8bc29ab6ef9599f28b301, same unchanged source/build candidate"
+    },
+    "source_inventory": {
+      "command": "python3 scenarios/browser-automation-studio/docs/internal/refactor_inventory.py --include-untracked",
+      "observed_at": "2026-09-23T20:49:34.433360+00:00",
+      "source_digest_sha256": "87051e6d47d519905c8a34ef22b834c3340be68e9a21c3723bedcccfd6497059",
+      "interpretation": "Selected source inventory; no code changed in this cycle."
+    },
+    "owner_test_genie": {
+      "run_id": "20260923-203045-3e5d2e12",
+      "result": "previous cycle's terminal unit failure on UI pnpm run test:coverage; not repeated because the candidate source is unchanged"
+    }
+  },
+  "candidate": {
+    "managed_build_identity": "sha256:0da400807449f9ae90fade170c03225ef71859f8ebf21bdfa8177543847cf9c4",
+    "source_changed": false
+  },
+  "remaining": [
+    "The 24 product journeys remain unqualified except for the in-band capture row.",
+    "The Test Genie unit phase remains unqualified because its UI coverage command failed in the preceding cycle.",
+    "RF-002/RF-024 retain separate recording durability and pagination limitations."
+  ],
+  "next_review": "Adversarially test screenshot decoder resource bounds and measured allocation/latency before selecting a cap or optimization; do not infer a hostile-dimension defect without safe evidence."
+}

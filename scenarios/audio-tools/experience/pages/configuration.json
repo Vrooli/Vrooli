@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "configuration",
+    "title": "Configuration",
+    "routes": ["/configuration"],
+    "purpose": "Expose provider and local-runtime configuration with honest availability and precedence information.",
+    "prd_refs": ["OT-P0-004", "OT-P0-008", "OT-P0-009"]
+  },
+  "priorities": [
+    { "statement": "Separate global provider enablement from the user's processing destination, fallback consent and credit-spend policy." },
+    { "statement": "Expose missing model, incompatible host and batch-only capability without implying that an enabled tier or stored key is qualified." },
+    { "statement": "Show redacted credential metadata only; keep authorization and secret retrieval at the service boundary." }
+  ]
+}

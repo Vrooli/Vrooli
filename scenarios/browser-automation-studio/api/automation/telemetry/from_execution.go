@@ -160,16 +160,8 @@ func convertContractsCondition(c *contracts.ConditionOutcome) *ConditionOutcome 
 	if c == nil {
 		return nil
 	}
-	return &ConditionOutcome{
-		Type:     c.Type,
-		Outcome:  c.Outcome,
-		Negated:  c.Negated,
-		Operator: c.Operator,
-		Variable: c.Variable,
-		Selector: c.Selector,
-		Actual:   c.Actual,
-		Expected: c.Expected,
-	}
+	copy := *c
+	return &copy
 }
 
 func extractCursorPoints(trail []contracts.CursorPosition) []*basbase.Point {

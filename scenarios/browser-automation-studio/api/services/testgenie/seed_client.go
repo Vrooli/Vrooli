@@ -21,12 +21,12 @@ const (
 
 // SeedApplyResponse is returned by test-genie seed apply.
 type SeedApplyResponse struct {
-	Status       string                 `json:"status"`
-	Scenario     string                 `json:"scenario"`
-	RunID        string                 `json:"run_id"`
-	SeedState    map[string]any         `json:"seed_state"`
-	CleanupToken string                 `json:"cleanup_token"`
-	Resources    []map[string]any       `json:"resources"`
+	Status       string           `json:"status"`
+	Scenario     string           `json:"scenario"`
+	RunID        string           `json:"run_id"`
+	SeedState    map[string]any   `json:"seed_state"`
+	CleanupToken string           `json:"cleanup_token"`
+	Resources    []map[string]any `json:"resources"`
 }
 
 // SeedCleanupResponse is returned by test-genie seed cleanup.

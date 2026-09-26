@@ -2,97 +2,15 @@ import { useCallback, useContext, useEffect, useRef } from 'react';
 import { useLandingVariant } from '../../app/providers/useLandingVariant';
 import { MetricsModeContext } from './MetricsModeContext';
 import { trackMetric, type MetricEvent as APIMetricEvent } from '../api';
+import { getAttributionContext } from '../lib/attribution';
 
-const SESSION_STORAGE_KEY = 'metrics_session_id';
-const VISITOR_STORAGE_KEY = 'metrics_visitor_id';
+const activePageViews = new Map<string, number>();
+const trackedScrollDepth = new Map<string, Set<number>>();
+const activeScrollListeners = new Map<string, { count: number; handler: () => void }>();
 
-let fallbackSessionId: string | null = null;
-let fallbackVisitorId: string | null = null;
-let sessionWarningLogged = false;
-let visitorWarningLogged = false;
-
-function generateId(prefix: string) {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-}
-
-function logStorageWarning(kind: 'session' | 'local', error: unknown) {
-  if (kind === 'session') {
-    if (sessionWarningLogged) return;
-    sessionWarningLogged = true;
-  } else {
-    if (visitorWarningLogged) return;
-    visitorWarningLogged = true;
-  }
-  console.warn(`[useMetrics] Access to ${kind}Storage unavailable:`, error);
-}
-
-function getStorage(kind: 'session' | 'local') {
-  if (typeof window === 'undefined') {
-    return undefined;
-  }
-
-  try {
-    return kind === 'session' ? window.sessionStorage : window.localStorage;
-  } catch (error) {
-    logStorageWarning(kind, error);
-    return undefined;
-  }
-}
-
-// Generate session ID (persisted in sessionStorage)
-function getSessionID(): string {
-  const fallback = () => {
-    if (!fallbackSessionId) {
-      fallbackSessionId = generateId('session');
-    }
-    return fallbackSessionId;
-  };
-
-  const storage = getStorage('session');
-  if (!storage) {
-    return fallback();
-  }
-
-  try {
-    let sessionID = storage.getItem(SESSION_STORAGE_KEY);
-    if (!sessionID) {
-      sessionID = generateId('session');
-      storage.setItem(SESSION_STORAGE_KEY, sessionID);
-    }
-    fallbackSessionId = sessionID;
-    return sessionID;
-  } catch (error) {
-    logStorageWarning('session', error);
-    return fallback();
-  }
-}
-
-// Generate visitor ID (persisted in localStorage for cross-session tracking)
-function getVisitorID(): string {
-  const fallback = () => {
-    if (!fallbackVisitorId) {
-      fallbackVisitorId = generateId('visitor');
-    }
-    return fallbackVisitorId;
-  };
-
-  const storage = getStorage('local');
-  if (!storage) {
-    return fallback();
-  }
-
-  try {
-    let visitorID = storage.getItem(VISITOR_STORAGE_KEY);
-    if (!visitorID) {
-      visitorID = generateId('visitor');
-      storage.setItem(VISITOR_STORAGE_KEY, visitorID);
-    }
-    fallbackVisitorId = visitorID;
-    return visitorID;
-  } catch (error) {
-    logStorageWarning('local', error);
-    return fallback();
-  }
+function getPageMetricKey(variantSlug: string) {
+  const path = typeof window === 'undefined' ? '/' : `${window.location.pathname}${window.location.search}`;
+  return `${variantSlug}:${path}`;
 }
 
 type MetricEventPayload = APIMetricEvent & {
@@ -105,12 +23,11 @@ type MetricEventPayload = APIMetricEvent & {
  * Implements OT-P0-021 (METRIC-EVENTS): Emits page_view, scroll_depth, click, form_submit, conversion
  */
 export function useMetrics() {
-  const { variant } = useLandingVariant();
+  const { variant, visitorId: assignedVisitor } = useLandingVariant();
   const metricsMode = useContext(MetricsModeContext);
   const previewMode = metricsMode === 'preview';
-  const sessionID = useRef(getSessionID());
-  const visitorID = useRef(getVisitorID());
-  const scrollDepthTracked = useRef<Set<number>>(new Set());
+  const attributionRef = useRef<ReturnType<typeof getAttributionContext>>();
+  if (!previewMode && variant?.slug) attributionRef.current = getAttributionContext(variant.slug, assignedVisitor);
 
   // Track event to API
   const trackEvent = useCallback(async (
@@ -120,17 +37,20 @@ export function useMetrics() {
     if (previewMode) {
       return;
     }
-    if (!variant) {
+    if (!variant?.slug) {
       console.warn('[useMetrics] No variant selected, skipping event tracking');
       return;
     }
 
+    const attribution = attributionRef.current ?? getAttributionContext(variant.slug, assignedVisitor);
     const event: MetricEventPayload = {
       event_type: eventType,
-      variant_id: variant.id ?? 0,
-      session_id: sessionID.current,
-      visitor_id: visitorID.current,
+      variant_slug: variant.slug,
+      session_id: attribution.session_id,
+      visitor_id: attribution.visitor_id,
       event_data: eventData,
+      ...attribution,
+      referrer: eventType === 'page_view' ? attribution.referrer : '',
     };
 
     try {
@@ -138,77 +58,102 @@ export function useMetrics() {
     } catch (error) {
       console.error('[useMetrics] Error tracking event:', error);
     }
-  }, [previewMode, variant]);
+  }, [assignedVisitor, previewMode, variant]);
 
   // Track page view on mount
   useEffect(() => {
-    if (previewMode || !variant) {
+    if (previewMode || !variant?.slug) {
       return;
     }
-    if (variant) {
-      trackEvent('page_view', {
+    const pageKey = getPageMetricKey(variant.slug);
+    const currentCount = activePageViews.get(pageKey) ?? 0;
+    activePageViews.set(pageKey, currentCount + 1);
+    if (currentCount === 0) {
+      void trackEvent('page_view', {
         page: window.location.pathname,
         referrer: document.referrer,
       });
     }
+    return () => {
+      const nextCount = (activePageViews.get(pageKey) ?? 1) - 1;
+      if (nextCount <= 0) {
+        activePageViews.delete(pageKey);
+      } else {
+        activePageViews.set(pageKey, nextCount);
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [variant?.id, previewMode]);
+  }, [variant?.slug, previewMode]);
 
   // Track scroll depth (bands: 25%, 50%, 75%, 100%)
   useEffect(() => {
-    if (previewMode || !variant) return;
+    if (previewMode || !variant?.slug) return;
+
+    const pageKey = getPageMetricKey(variant.slug);
+    const existing = activeScrollListeners.get(pageKey);
+    if (existing) {
+      existing.count += 1;
+      return () => {
+        const current = activeScrollListeners.get(pageKey);
+        if (!current) return;
+        current.count -= 1;
+        if (current.count <= 0) {
+          window.removeEventListener('scroll', current.handler);
+          activeScrollListeners.delete(pageKey);
+          trackedScrollDepth.delete(pageKey);
+        }
+      };
+    }
 
     const handleScroll = () => {
       const scrollPercentage = (window.scrollY + window.innerHeight) / document.documentElement.scrollHeight * 100;
       const bands = [25, 50, 75, 100];
+      let trackedBands = trackedScrollDepth.get(pageKey);
+      if (!trackedBands) {
+        trackedBands = new Set();
+        trackedScrollDepth.set(pageKey, trackedBands);
+      }
 
       for (const band of bands) {
-        if (scrollPercentage >= band && !scrollDepthTracked.current.has(band)) {
-          scrollDepthTracked.current.add(band);
-          trackEvent('scroll_depth', { depth: band });
+        if (scrollPercentage >= band && !trackedBands.has(band)) {
+          trackedBands.add(band);
+          void trackEvent('scroll_depth', { depth: band });
         }
       }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    activeScrollListeners.set(pageKey, { count: 1, handler: handleScroll });
+    return () => {
+      const current = activeScrollListeners.get(pageKey);
+      if (!current) return;
+      current.count -= 1;
+      if (current.count <= 0) {
+        window.removeEventListener('scroll', current.handler);
+        activeScrollListeners.delete(pageKey);
+        trackedScrollDepth.delete(pageKey);
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [variant?.id, previewMode]);
+  }, [variant?.slug, previewMode]);
 
   // Track CTA clicks
-  const trackCTAClick = (elementId: string, elementData?: Record<string, unknown>) => {
+  const trackCTAClick = useCallback((elementId: string, elementData?: Record<string, unknown>) => {
     if (previewMode) return;
-    trackEvent('click', {
+    void trackEvent('click', {
       element_id: elementId,
       element_type: 'cta',
       ...elementData,
     });
-  };
+  }, [previewMode, trackEvent]);
 
-  // Track form submission
-  const trackFormSubmit = (formId: string, formData?: Record<string, unknown>) => {
+  const trackDownload = useCallback((downloadData?: Record<string, unknown>) => {
     if (previewMode) return;
-    trackEvent('form_submit', {
-      form_id: formId,
-      ...formData,
-    });
-  };
-
-  // Track conversion (e.g., Stripe checkout success)
-  const trackConversion = (conversionData?: Record<string, unknown>) => {
-    if (previewMode) return;
-    trackEvent('conversion', conversionData);
-  };
-
-  const trackDownload = (downloadData?: Record<string, unknown>) => {
-    if (previewMode) return;
-    trackEvent('download', downloadData);
-  };
+    void trackEvent('download', downloadData);
+  }, [previewMode, trackEvent]);
 
   return {
     trackCTAClick,
-    trackFormSubmit,
-    trackConversion,
     trackDownload,
     trackEvent, // Generic event tracker
   };

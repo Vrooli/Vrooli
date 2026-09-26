@@ -1,0 +1,50 @@
+{
+  "metadata": {
+    "name": "experience-fleet-spec-smoke",
+    "description": "Route-reachability smoke for the active experience page 'fleet' at '/'. Until the fleet console UI exists this asserts the generated placeholder shell renders at the route; replace the selector with the fleet device list when that surface is built.",
+    "requirement": "OT-P0-003",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "fleet",
+      "surface": "experience-fleet"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-fleet",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "device-control",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Fleet route"
+        }
+      }
+    },
+    {
+      "id": "wait-fleet-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.dashboard",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Fleet route renders (placeholder shell)"
+        }
+      }
+    }
+  ]
+}

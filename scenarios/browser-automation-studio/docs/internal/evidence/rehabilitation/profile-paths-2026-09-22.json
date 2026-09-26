@@ -1,0 +1,358 @@
+{
+  "schema_version": 1,
+  "record": "BAS-WORK-010",
+  "observed_at": "2026-09-22T05:40:46.097575+00:00",
+  "scope": "Disposable real-file profile CRUD confinement and actual recording RPC classification on Linux",
+  "source_sha256": {
+    "api/services/session-profile/persistence/file_repository.go": "14d1d1f2eaa8bf1e5743ee9b76ed448b12a43f1da2eaa39e0ffe833c9cbba95a",
+    "api/services/session-profile/persistence/repository.go": "721d8d8c51c4c6de9c045d920ce372c9c8bd2490634a214a6e47d6b82f3a5e99",
+    "api/services/session-profile/persistence/file_repository_test.go": "cb936d83975a42c0608615a3d603309075fea626d706f535537e36eb83240f2a",
+    "api/handlers/recordings/service.go": "7dbfb900fca635cd02dcfc0a80a6a19501fdf9a4e146ba9b4c17d5ed13ab40dc",
+    "api/handlers/recordings/service_test.go": "86d88498f752a118d85876e1fb334b8a363e31108dc4e3b69933ae5ac78dadaa"
+  },
+  "checks": {
+    "red_sibling_file": "delete_error=<nil> outside_file_preserved=false\nexit status 1\n",
+    "green_sibling_file": "delete_error=invalid profile id outside_file_preserved=true\n",
+    "maintained_red": "--- FAIL: TestFileRepositoryRejectsPathsBeforeIO (0.07s)\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/get/../outside (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tError \"unsupported or incomplete profile document; restore or convert the saved profile offline\" does not contain \"profile id\"\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/get/../outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/get/nested/../../outside (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tError \"unsupported or incomplete profile document; restore or convert the saved profile offline\" does not contain \"profile id\"\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/get/nested/../../outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/get/..\\outside (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tAn error is expected but got nil.\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/get/..\\outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/get//outside (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tAn error is expected but got nil.\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/get//outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/get/C:\\outside (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tAn error is expected but got nil.\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/get/C:\\outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/get/inside:stream (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tAn error is expected but got nil.\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/get/inside:stream\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/get/bad\\x00id (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tError \"read profile: open /home/matthalloran8/.vrooli/tmp/go-work/TestFileRepositoryRejectsPathsBeforeIOgetbadx00id26028602/001/profiles/bad\\x00id.json: invalid argument\" does not contain \"profile id\"\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/get/bad\\x00id\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/create/../outside (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tError \"unsupported or incomplete profile document; restore or convert the saved profile offline\" does not contain \"profile id\"\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/create/../outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/create/nested/../../outside (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tError \"unsupported or incomplete profile document; restore or convert the saved profile offline\" does not contain \"profile id\"\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/create/nested/../../outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/create/..\\outside (0.02s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tAn error is expected but got nil.\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/create/..\\outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/create//outside (0.02s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tAn error is expected but got nil.\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/create//outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/create/C:\\outside (0.02s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tAn error is expected but got nil.\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/create/C:\\outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/create/inside:stream (0.02s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tAn error is expected but got nil.\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/create/inside:stream\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/create/bad\\x00id (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tError \"read profile: open /home/matthalloran8/.vrooli/tmp/go-work/TestFileRepositoryRejectsPathsBeforeIOcreatebadx00id998030986/001/profiles/bad\\x00id.json: invalid argument\" does not contain \"profile id\"\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/create/bad\\x00id\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/update/ (0.00s)\n        file_repository_test.go:45: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:45\n            \tError:      \tShould be empty, but was [- .profiles.lock]\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/update/\n            \tMessages:   \tinvalid identity must not create a lock, key witness or profile\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/update/../outside (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tError \"unsupported or incomplete profile document; restore or convert the saved profile offline\" does not contain \"profile id\"\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/update/../outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/update/nested/../../outside (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tError \"unsupported or incomplete profile document; restore or convert the saved profile offline\" does not contain \"profile id\"\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/update/nested/../../outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/update/..\\outside (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tError \"profile not found\" does not contain \"profile id\"\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/update/..\\outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/update//outside (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tError \"profile not found\" does not contain \"profile id\"\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/update//outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/update/C:\\outside (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tError \"profile not found\" does not contain \"profile id\"\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/update/C:\\outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/update/inside:stream (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tError \"profile not found\" does not contain \"profile id\"\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/update/inside:stream\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/update/bad\\x00id (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tError \"read profile: open /home/matthalloran8/.vrooli/tmp/go-work/TestFileRepositoryRejectsPathsBeforeIOupdatebadx00id558739348/001/profiles/bad\\x00id.json: invalid argument\" does not contain \"profile id\"\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/update/bad\\x00id\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/delete/../outside (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tAn error is expected but got nil.\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/delete/../outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/delete/nested/../../outside (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tAn error is expected but got nil.\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/delete/nested/../../outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/delete/..\\outside (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tError \"profile not found\" does not contain \"profile id\"\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/delete/..\\outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/delete//outside (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tError \"profile not found\" does not contain \"profile id\"\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/delete//outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/delete/C:\\outside (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tError \"profile not found\" does not contain \"profile id\"\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/delete/C:\\outside\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/delete/inside:stream (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tError \"profile not found\" does not contain \"profile id\"\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/delete/inside:stream\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\n    --- FAIL: TestFileRepositoryRejectsPathsBeforeIO/delete/bad\\x00id (0.00s)\n        file_repository_test.go:39: \n            \tError Trace:\t/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api/services/session-profile/persistence/file_repository_test.go:39\n            \tError:      \tError \"delete profile: remove /home/matthalloran8/.vrooli/tmp/go-work/TestFileRepositoryRejectsPathsBeforeIOdeletebadx00id3990342269/001/profiles/bad\\x00id.json: invalid argument\" does not contain \"profile id\"\n            \tTest:       \tTestFileRepositoryRejectsPathsBeforeIO/delete/bad\\x00id\n            \tMessages:   \tinvalid identifier must fail at the identity boundary\nFAIL\nFAIL\tgithub.com/vrooli/browser-automation-studio/services/session-profile/persistence\t0.078s\nFAIL\n",
+    "maintained_green": "ok  \tgithub.com/vrooli/browser-automation-studio/services/session-profile/persistence\t1.397s\nok  \tgithub.com/vrooli/browser-automation-studio/handlers/recordings\t1.131s\n",
+    "related_race": "ok  \tgithub.com/vrooli/browser-automation-studio/services/session-profile\t1.349s\nok  \tgithub.com/vrooli/browser-automation-studio/services/session-profile/persistence\t1.518s\nok  \tgithub.com/vrooli/browser-automation-studio/handlers/recordings\t1.126s\nok  \tgithub.com/vrooli/browser-automation-studio/handlers/session_profiles\t1.044s\n",
+    "rpc": "ok  \tgithub.com/vrooli/browser-automation-studio/handlers/recordings\t1.035s\n"
+  },
+  "api_compile_passed": true,
+  "build_passed": true,
+  "deployed": true,
+  "owner_validation": {
+    "run_id": "20260922-054223-196bad55",
+    "verdict": "failed",
+    "duration_seconds": 167,
+    "commands_passed": [
+      "api",
+      "cli",
+      "playwright-driver",
+      "ui-typecheck"
+    ],
+    "driver_suites_passed": 125,
+    "driver_tests_passed": 1468,
+    "driver_suites_skipped": 1,
+    "driver_tests_skipped": 2,
+    "driver_duration_ms": 71543,
+    "driver_exit": "natural successful exit",
+    "remaining_failures": [
+      "UI coverage below unchanged85% floor",
+      "tidiness duplication35311 exceeds35302 budget"
+    ],
+    "artifact_catalog": {
+      "schema_version": 1,
+      "digest": "ac:sha256:de4cc63c4ddb1770811b9ca6cf355ce1a23598c11eee4f61a1e09c913236ce3c",
+      "artifacts": [
+        {
+          "id": "artifact_3225b7cd5e8bad8adcab567995538004",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "unit.log",
+          "producing_phase": "unit",
+          "size_bytes": "33037",
+          "created_at": "2026-09-22T05:45:06.09527748Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-054223-196bad55/artifacts/artifact_3225b7cd5e8bad8adcab567995538004",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_df871a1045437c4f11f62f4ca03f81d8",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "tidiness.log",
+          "producing_phase": "tidiness",
+          "size_bytes": "449724",
+          "created_at": "2026-09-22T05:45:10.04430071Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-054223-196bad55/artifacts/artifact_df871a1045437c4f11f62f4ca03f81d8",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_f44721bd4fe0883e5cf04da652a44e82",
+          "kind": "findings.report",
+          "media_type": "application/json",
+          "label": "findings.json",
+          "size_bytes": "7868892",
+          "created_at": "2026-09-22T05:45:10.321302337Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-054223-196bad55/artifacts/artifact_f44721bd4fe0883e5cf04da652a44e82",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_019b8a976a43627339acad2e4adea450",
+          "kind": "generic.file",
+          "media_type": "application/json",
+          "label": "evidence-manifest.json",
+          "size_bytes": "95886",
+          "created_at": "2026-09-22T05:45:10.326302367Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-054223-196bad55/artifacts/artifact_019b8a976a43627339acad2e4adea450",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_7b69202b04da3f0169bd05d571da53fc",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "unit.json",
+          "producing_phase": "unit",
+          "size_bytes": "3038",
+          "created_at": "2026-09-22T05:45:06.094277474Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-054223-196bad55/artifacts/artifact_7b69202b04da3f0169bd05d571da53fc",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_b56d4381dc267bd11d72590c5db47bca",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "tidiness.json",
+          "producing_phase": "tidiness",
+          "size_bytes": "2987",
+          "created_at": "2026-09-22T05:45:10.043300704Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-054223-196bad55/artifacts/artifact_b56d4381dc267bd11d72590c5db47bca",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        }
+      ]
+    }
+  },
+  "source_inventory_digest": "f47289eaa68a98042ac2f38043d1eb75136d226c121c52a89af083662098bb45",
+  "board": {
+    "program": "browser-automation-studio.setpoint-read",
+    "version": "1",
+    "status": "ok",
+    "phase": "report",
+    "inputs": {
+      "window": 100,
+      "evidence_sample": 5,
+      "profile": "rehabilitation"
+    },
+    "signals": {
+      "rows": [
+        {
+          "row": "preservation",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#preservation",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "interactive-feedback",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#interactive-feedback",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "motion",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#motion",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "readiness",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#readiness",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "capture",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#capture",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "passive-fidelity",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#passive-fidelity",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "profile-durability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#profile-durability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "known-flow-reliability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#known-flow-reliability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "cancellation-recovery",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#cancellation-recovery",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "resource-budget",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#resource-budget",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "soak-stability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#soak-stability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "evidence-completeness",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#evidence-completeness",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "desktop-portability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#desktop-portability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "agent-usefulness",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#agent-usefulness",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "structural-debt",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#structural-debt",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "workspace-usability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#workspace-usability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "adversarial-review",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#adversarial-review",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        }
+      ],
+      "readable": 0,
+      "unavailable": 17,
+      "required": 17,
+      "unmet": 17,
+      "product_qualified": false
+    },
+    "errors": [],
+    "evidence": [
+      "scenarios/browser-automation-studio/docs/internal/REFRACTOR_CONTRACT.json"
+    ]
+  },
+  "delta": {
+    "repository_lines_before": 210,
+    "repository_lines_after": 215,
+    "repository_cyclomatic_before": 44,
+    "repository_cyclomatic_after": 47,
+    "bas_changed_go_cyclomatic_original": 1105,
+    "bas_changed_go_cyclomatic_current": 1104,
+    "shared_owner_cycle009_cyclomatic_growth": 17
+  },
+  "limitations": [
+    "Public profile Delete RPC already requires UUIDs; no public Delete exploit claim",
+    "No native Windows/macOS or hostile symlink-root replacement qualification",
+    "Whole product and eight retained replay behaviors remain unqualified"
+  ],
+  "deployment": {
+    "build_identity": "sha256:3c0e62a11289d56a838a06f72e452c7b9b49e4466c051e29ebf9a9e2ea6de6aa",
+    "health": "healthy",
+    "drain": {
+      "checked_at": "2026-09-22T05:53:44.744049+00:00",
+      "rows": 2813,
+      "states": {
+        "EXECUTION_STATUS_FAILED": 360,
+        "EXECUTION_STATUS_COMPLETED": 2448,
+        "EXECUTION_STATUS_RUNNING": 5
+      },
+      "historical_orphans": [
+        {
+          "executionId": "879c542b-d9cd-481b-82d2-6b6c7c11ebf1",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-16T13:18:42.087757908Z",
+          "createdAt": "2026-09-16T13:18:42Z",
+          "updatedAt": "2026-09-16T13:19:10.005000924Z"
+        },
+        {
+          "executionId": "d19bd80e-2624-4874-ab9f-eab0cda42286",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-09T19:30:12.784163869Z",
+          "createdAt": "2026-09-09T19:30:12Z",
+          "updatedAt": "2026-09-09T19:30:18.302018879Z"
+        },
+        {
+          "executionId": "b74ec692-da21-42f7-a86c-f33d436ecfbb",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-09T06:30:44.282585140Z",
+          "createdAt": "2026-09-09T06:30:44Z",
+          "updatedAt": "2026-09-09T06:30:45.060249200Z"
+        },
+        {
+          "executionId": "e0d33e05-297d-4867-aee0-783d59882fa8",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-07T20:36:44.551353663Z",
+          "createdAt": "2026-09-07T20:36:44Z",
+          "updatedAt": "2026-09-07T20:36:45.625164771Z"
+        },
+        {
+          "executionId": "206d68cf-a72c-4838-872b-f913a6a8def6",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-07T20:36:44.551265983Z",
+          "createdAt": "2026-09-07T20:36:44Z",
+          "updatedAt": "2026-09-07T20:36:45.663485899Z"
+        }
+      ],
+      "driver_sessions": 0,
+      "driver_recordings": 0,
+      "seconds": 0.4065010950434953,
+      "limitation": "Observation before stop, not atomic global admission lock",
+      "decision": "admit stop; preserve orphan history"
+    },
+    "profile_all_fields": "read 1: complete identity preserved; elapsed_ms=1218.35\nread 2: complete identity preserved; elapsed_ms=0.36\nread 3: complete identity preserved; elapsed_ms=0.31\n",
+    "lifecycle": "make stop then make start; both exit0"
+  }
+}

@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "cycle": "BAS-WORK-078",
+  "date": "2026-09-23",
+  "issue": "BAS-RF-099",
+  "status": "qualified within stated scope",
+  "build_identity": "sha256:98640f86390eacca95a1aadd209d761c32e6c162c05389e6f9576a6fbc97758d",
+  "source_freeze": {
+    "ui/src/domains/recording/RecordingSession.tsx": {
+      "sha256": "6e299ae0434173be33159baa5ba220d92d8576a01290685f7066b4cf0956a2ed",
+      "lines": 1424
+    },
+    "ui/src/domains/recording/hooks/useBrowserNavigation.ts": {
+      "sha256": "66da384e8ec770b1b5e4b5b590658106add5eb70689698ca4d3dc4e23ee5f7c6",
+      "lines": 212
+    },
+    "ui/src/domains/recording/hooks/useBrowserNavigation.test.ts": {
+      "sha256": "e2284075f44d5411a93fbca876f946a0573df250f61c96dfef639038eecac858",
+      "lines": 394
+    },
+    "ui/src/domains/recording/hooks/usePages.ts": {
+      "sha256": "f1890ff45fedfca0c4a309c9edac8c919b90e4a7c97a4342babf7cfca61e5573",
+      "lines": 367
+    },
+    "ui/src/domains/recording/hooks/usePages.test.ts": {
+      "sha256": "12e80a82774d350efdb7b8d09eb26bf345dd6c06192d9cfeb393080844caa7ea",
+      "lines": 215
+    },
+    "ui/src/domains/recording/hooks/useRecordingSession.ts": {
+      "sha256": "edc881a71eed43f63262caf55fc8a06824ad9ceba5e10bdb4f6aa0d2d4fea0a8",
+      "lines": 333
+    },
+    "ui/src/domains/recording/stores/sessionStore.ts": {
+      "sha256": "93f0529637f872addcced42c57a0a937d866f762cf97659c25441180bfd63438",
+      "lines": 509
+    }
+  },
+  "change": "Display the selected validated canonical Page URL on snapshot admission, selection and metadata changes; remove callback-only URL assignments and restored/action shadow state. Explicit navigation intent and local typing draft remain separate.",
+  "red": {
+    "maintained": "/tmp/bas-address-observation-red-078.txt",
+    "maintained_failures": 3,
+    "native": "/tmp/bas-browser-address-native2-078/receipt.json",
+    "native_failed": 2,
+    "native_passed": 7
+  },
+  "validation": {
+    "focused": {
+      "passed": 54,
+      "suites": 2,
+      "artifact": "/tmp/bas-address-focused-078.txt"
+    },
+    "record_mode": {
+      "passed": 563,
+      "suites": 29,
+      "artifact": "/tmp/bas-ui-record-mode-078.txt"
+    },
+    "typescript": "pass /tmp/bas-ui-types-078.txt",
+    "native_original": {
+      "passed": 9,
+      "failed": 0,
+      "artifact": "/tmp/bas-browser-address-native-green-078/receipt.json"
+    },
+    "native_controls": {
+      "passed": 16,
+      "failed": 0,
+      "artifact": "/tmp/bas-browser-address-controls-078/receipt.json",
+      "cases": [
+        "attach",
+        "reload",
+        "new page",
+        "unchanged-page draft",
+        "selection",
+        "external navigation",
+        "close selected",
+        "profile close/reopen restoration",
+        "last-page clear",
+        "owned cleanup"
+      ]
+    },
+    "workflow": {
+      "passed": 12,
+      "effects": 3,
+      "execution_id": "8c80d922-1b39-46e3-adcc-2fe7b819de22",
+      "artifact_dir": "/tmp/bas-recording-e2e-UvBA1l"
+    },
+    "preservation": "Three full reads match original rollback; API metadata equals077. /tmp/bas-profile-final-078.txt and /tmp/bas-profile-api-final-078.json",
+    "retained_driver": "077 source-identical, 1842 tests/123 suites; 2 tests/1 suite existing skips",
+    "tidiness": {
+      "run_id": "20260923-090156-7d8ffb29",
+      "summary": {
+        "totalFindings": 1140,
+        "longFiles": 103,
+        "complexity": 405,
+        "duplication": 610,
+        "coupling": 21,
+        "duplicationLineDebt": 31210
+      },
+      "verdict": "existing budgets fail"
+    },
+    "board": "17 unknown; /tmp/bas-setpoint-078.txt; contract and inventory pass"
+  },
+  "measurements": {
+    "runtime": {
+      "files": {
+        "ui/src/domains/recording/RecordingSession.tsx": {
+          "before": 1469,
+          "after": 1424,
+          "delta": -45
+        },
+        "ui/src/domains/recording/hooks/useBrowserNavigation.ts": {
+          "before": 205,
+          "after": 212,
+          "delta": 7
+        },
+        "ui/src/domains/recording/hooks/usePages.ts": {
+          "before": 385,
+          "after": 367,
+          "delta": -18
+        },
+        "ui/src/domains/recording/hooks/useRecordingSession.ts": {
+          "before": 342,
+          "after": 333,
+          "delta": -9
+        },
+        "ui/src/domains/recording/stores/sessionStore.ts": {
+          "before": 513,
+          "after": 509,
+          "delta": -4
+        }
+      },
+      "before": 2914,
+      "after": 2845,
+      "go_cyclomatic_delta": 0,
+      "cumulative_affected_go_delta": -97
+    },
+    "scoped_complexity": {
+      "before": {
+        "code_path_count": 267,
+        "sum": 740
+      },
+      "after": {
+        "code_path_count": 261,
+        "sum": 715
+      },
+      "delta": -25,
+      "artifact": "/tmp/bas-frame-complexity-078.json"
+    },
+    "scope_limit": "Scoped TypeScript ESLint supplement, not scenario-wide authoritative JS/TS measurement. No Go change. No reduction inferred from unchanged domain tidiness."
+  },
+  "limitations": [
+    "Initial Back/Forward availability and history-read attribution are not qualified by this URL-display repair.",
+    "Broader recovery, sustained performance, native platform and full-release outcomes remain unqualified."
+  ],
+  "pending_operations": []
+}

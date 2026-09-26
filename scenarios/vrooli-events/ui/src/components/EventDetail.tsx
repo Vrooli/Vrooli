@@ -44,7 +44,12 @@ export function EventDetail({ event, onClose }: EventDetailProps) {
           <dd className="mt-0.5 font-mono text-xs text-[var(--text-secondary)]">
             {event.correlationId ? (
               <button
-                onClick={() => navigate(`/traces?cid=${encodeURIComponent(event.correlationId!)}`)}
+                onClick={() => {
+                  const correlationId = event.correlationId;
+                  if (correlationId) {
+                    navigate(`/traces?cid=${encodeURIComponent(correlationId)}`);
+                  }
+                }}
                 className="inline-flex items-center gap-1 text-[var(--text-accent)] hover:underline"
               >
                 {event.correlationId}

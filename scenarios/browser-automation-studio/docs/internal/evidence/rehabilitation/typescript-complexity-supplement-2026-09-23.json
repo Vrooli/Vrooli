@@ -1,0 +1,127 @@
+{
+  "recorded_at": "2026-09-23",
+  "status": "supplemental_scoped_measurement",
+  "method": "Installed ESLint complexity rule, classic variant, max zero reports all executable code paths; inline lint directives disabled. No type-aware or scenario-wide qualification is implied.",
+  "tool": {
+    "eslint": "9.39.4",
+    "typescript-eslint": "8.59.4"
+  },
+  "controls": [
+    "constant function sum1",
+    "single conditional sum2",
+    "malformed source rejected",
+    "inline complexity suppression cannot hide code"
+  ],
+  "cycles": {
+    "067": {
+      "before": {
+        "code_path_count": 247,
+        "sum": 714
+      },
+      "after": {
+        "code_path_count": 207,
+        "sum": 620
+      },
+      "delta": -94,
+      "files": {
+        "ui/src/domains/recording/capture/useFrameStream.ts": {
+          "before": 162,
+          "after": 138,
+          "delta": -24
+        },
+        "ui/vite.config.ts": {
+          "before": 43,
+          "after": 42,
+          "delta": -1
+        },
+        "ui/server.js": {
+          "before": 42,
+          "after": 41,
+          "delta": -1
+        },
+        "playwright-driver/src/frame-streaming/websocket/server.ts": {
+          "before": 44,
+          "after": 0,
+          "delta": -44
+        },
+        "playwright-driver/src/frame-streaming/websocket/index.ts": {
+          "before": 0,
+          "after": 0,
+          "delta": 0
+        },
+        "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts": {
+          "before": 103,
+          "after": 101,
+          "delta": -2
+        },
+        "playwright-driver/src/frame-streaming/strategies/polling.ts": {
+          "before": 54,
+          "after": 52,
+          "delta": -2
+        },
+        "playwright-driver/src/config.ts": {
+          "before": 72,
+          "after": 72,
+          "delta": 0
+        },
+        "playwright-driver/src/server.ts": {
+          "before": 139,
+          "after": 139,
+          "delta": 0
+        },
+        "playwright-driver/tests/helpers/test-config.ts": {
+          "before": 35,
+          "after": 35,
+          "delta": 0
+        },
+        "ui/src/utils/latencyLogger.ts": {
+          "before": 20,
+          "after": 0,
+          "delta": -20
+        }
+      },
+      "artifact": "/tmp/bas-viewer-complexity-supplement-067.json",
+      "producer": "/tmp/browser-automation-studio/viewer-complexity-supplement-067.cjs",
+      "producer_sha256": "b53938dfd4f7f33c3af01e71bf7435c7d4e1638524b29ed9982842cbb5845e56",
+      "baseline": "/tmp/bas-before-067/manifest.json"
+    },
+    "068": {
+      "before": {
+        "code_path_count": 141,
+        "sum": 437
+      },
+      "after": {
+        "code_path_count": 143,
+        "sum": 443
+      },
+      "delta": 6,
+      "files": {
+        "ui/src/domains/recording/RecordingSession.tsx": {
+          "before": 332,
+          "after": 314,
+          "delta": -18
+        },
+        "ui/src/domains/recording/hooks/useBrowserNavigation.ts": {
+          "before": 52,
+          "after": 70,
+          "delta": 18
+        },
+        "playwright-driver/src/routes/record-mode/page-events.ts": {
+          "before": 53,
+          "after": 59,
+          "delta": 6
+        }
+      },
+      "artifact": "/tmp/bas-navigation-complexity-068.json",
+      "producer": "/tmp/browser-automation-studio/navigation-complexity-068.cjs",
+      "producer_sha256": "a15ce0d32b558d0ea35947d81f54017d5045a37402cb2ea14f51226006674b9d",
+      "baseline": "/tmp/bas-before-068/manifest.json"
+    }
+  },
+  "limitations": [
+    "RF064 remains open: authoritative Tidiness Manager still explicitly skips TS/JS complexity.",
+    "The two cycles are scoped changes, not the original whole-scenario baseline.",
+    "Class initializers and function bodies are ESLint code paths; count is not a pure function count.",
+    "Cycle068 adds six units while removing39 lines; do not infer complexity reduction from line count."
+  ]
+}

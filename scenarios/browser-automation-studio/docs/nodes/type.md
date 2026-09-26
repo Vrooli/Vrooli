@@ -9,7 +9,7 @@
 | **Page URL override** | Optional absolute URL for the element picker | No | Defaults to the upstream Navigate node; stored as `data.url` if provided.
 | **Selector** | CSS selector for the input/element | Yes | Populated via the element picker or manual entry.
 | **Text** | String to type (supports newlines) | Yes | Stored as-is; interpolation works via Use Variable nodes.
-| **Delay (ms)** | Per-character delay | No | Optional `delayMs` property; when omitted the runtime uses Browserless defaults.
+| **Delay (ms)** | Per-character delay | No | Optional `delayMs` property; when omitted the runtime uses Playwright driver defaults.
 | **Clear field first** | Clears existing value before typing | No | Set `clear: true` via JSON editor / future UI toggle.
 | **Submit (Enter)** | Press Enter after typing | No | Set `submit: true` to trigger form submissions automatically.
 | **Timeout (ms)** | Wait for selector | No | Defaults to 30 000 in the runtime.
@@ -20,7 +20,7 @@ _The current UI exposes the primary URL/selector/text fields; advanced options (
 
 1. The compiler records the node as `StepTypeInput` and passes the raw data into the runtime.
 2. The automation executor forwards selector/text/timeout/delay/clear/submit params to the engine; validation is handled by the workflow validator.
-3. Browserless waits for the selector, optionally clears the field, types the text using the requested cadence, and presses Enter when `submit` is set.
+3. The Playwright driver waits for the selector, optionally clears the field, types the text using the requested cadence, and presses Enter when `submit` is set.
 4. Execution artifacts capture the typed value (masked for password fields) along with timing metadata for replay/debugging.
 
 ## Examples

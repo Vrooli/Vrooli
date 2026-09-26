@@ -77,8 +77,11 @@ services/
 
 hooks/
 ├── useBillingForm.ts      # Reactive billing form state
-├── useVariantForm.ts      # Reactive variant form state
-└── useSectionForm.ts      # Reactive section form state
+└── useVariantForm.ts      # Reactive variant metadata form state
+
+presentation/
+├── PresentationAdminPage.tsx # Authenticated variant selection and navigation guard
+└── usePresentationEditor.ts # Typed document, guarded save/publish/rollback/preview
 ```
 
 ## Example Usage

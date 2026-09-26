@@ -107,12 +107,13 @@ func TestComputeSummary(t *testing.T) {
 		{CheckID: "b", Status: StatusOK},
 		{CheckID: "c", Status: StatusWarning},
 		{CheckID: "d", Status: StatusCritical},
+		{CheckID: "e", Status: StatusNotApplicable},
 	}
 
 	summary := ComputeSummary(results)
 
-	if summary.TotalCount != 4 {
-		t.Errorf("TotalCount = %d, want 4", summary.TotalCount)
+	if summary.TotalCount != 5 {
+		t.Errorf("TotalCount = %d, want 5", summary.TotalCount)
 	}
 	if summary.OkCount != 2 {
 		t.Errorf("OkCount = %d, want 2", summary.OkCount)
@@ -123,11 +124,14 @@ func TestComputeSummary(t *testing.T) {
 	if summary.CritCount != 1 {
 		t.Errorf("CritCount = %d, want 1", summary.CritCount)
 	}
+	if summary.NotApplicableCount != 1 {
+		t.Errorf("NotApplicableCount = %d, want 1", summary.NotApplicableCount)
+	}
 	if summary.Status != StatusCritical {
 		t.Errorf("Status = %v, want %v", summary.Status, StatusCritical)
 	}
-	if len(summary.Checks) != 4 {
-		t.Errorf("Checks length = %d, want 4", len(summary.Checks))
+	if len(summary.Checks) != 5 {
+		t.Errorf("Checks length = %d, want 5", len(summary.Checks))
 	}
 }
 

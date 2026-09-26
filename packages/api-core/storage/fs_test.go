@@ -72,3 +72,49 @@ func TestWriteFileAtomic(t *testing.T) {
 		t.Fatalf("second write content = %q", string(data))
 	}
 }
+
+func TestWriteFileAtomicInRootContainsWrites(t *testing.T) {
+	dir := t.TempDir()
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	if err := WriteFileAtomicInRoot(root, "nested/state.json", []byte("first"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteFileAtomicInRoot(root, "nested/state.json", []byte("second"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	data, err := root.ReadFile("nested/state.json")
+	if err != nil || string(data) != "second" {
+		t.Fatalf("read: %q %v", data, err)
+	}
+	if err := WriteFileAtomicInRoot(root, "../escape", []byte("bad"), 0600); err == nil {
+		t.Fatal("traversal accepted")
+	}
+	outside := t.TempDir()
+	if err := root.Symlink(outside, "linked"); err != nil {
+		t.Skip(err)
+	}
+	if err := WriteFileAtomicInRoot(root, "linked/escape", []byte("bad"), 0600); err == nil {
+		t.Fatal("symlink escape accepted")
+	}
+	files, err := os.ReadDir(outside)
+	if err != nil || len(files) != 0 {
+		t.Fatalf("outside changed: %v %v", files, err)
+	}
+	files, err = rootEntries(root, "nested")
+	if err != nil || len(files) != 1 {
+		t.Fatalf("staging leaked: %v %v", files, err)
+	}
+}
+
+func rootEntries(root *os.Root, path string) ([]os.DirEntry, error) {
+	file, err := root.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return file.ReadDir(-1)
+}

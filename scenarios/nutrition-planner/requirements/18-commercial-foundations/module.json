@@ -1,0 +1,100 @@
+{
+  "_metadata": {
+    "description": "Configurable commercial-ready policies, resilient entitlements, and billing that never blocks owned data.",
+    "module": "commercial-foundations",
+    "prd_ref": "PRD.md",
+    "priority": "P2",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "BIZ-001",
+      "title": "Commercial policies are configurable and server-enforced",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "policy",
+      "criticality": "P2",
+      "description": "The scenario may build configurable policies, private workspace ownership, provider adapters, and entitlement boundaries suitable for commercial use, and it may enforce expensive-job limits on the server per workspace without hardcoding a single diet into the model or UI.",
+      "tags": [
+        "commercial",
+        "entitlements",
+        "configuration"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: entitlements are evaluated server-side and separate from local UI visibility (ACT-062)."
+        }
+      ]
+    },
+    {
+      "id": "BIZ-002",
+      "title": "Core data and required checks are never gated",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "policy",
+      "criticality": "P2",
+      "description": "If a model provider is unavailable or an AI allowance is exhausted, then the scenario should still allow viewing and editing recipes, accessing existing plans, and exporting owned data, and required restrictions and nutrition checks should never be an upsell.",
+      "tags": [
+        "resilience",
+        "data-ownership",
+        "policy"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: with the provider down and the allowance at zero, recipe editing, plan access, and full export still succeed (ACT-062)."
+        }
+      ]
+    },
+    {
+      "id": "BIZ-003",
+      "title": "Subscriptions are server-verified and webhook-safe",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "integration",
+      "criticality": "P2",
+      "description": "If billing is commissioned, the scenario may use the billing provider's server-verified entitlement state and handle webhook retries idempotently with out-of-order updates, cancellation, end dates, and provider outages defined.",
+      "tags": [
+        "billing",
+        "webhooks",
+        "idempotency"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: duplicate and out-of-order billing events cannot create inconsistent entitlements (ACT-063)."
+        }
+      ]
+    },
+    {
+      "id": "BIZ-004",
+      "title": "Billing identity never leaks into meal backups",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "security",
+      "criticality": "P2",
+      "description": "The scenario should exclude billing customer identifiers, secrets, and entitlement state from portable meal backups while still exporting owned food-domain data.",
+      "tags": [
+        "backup",
+        "secrets",
+        "privacy"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a full portable export contains no billing identifier or credential and remains importable for its food-domain records (ACT-063)."
+        }
+      ]
+    }
+  ]
+}

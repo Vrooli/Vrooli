@@ -21,7 +21,7 @@
  * @see pipeline-manager.ts - Handles navigation and route re-registration
  */
 
-import type { Page } from 'rebrowser-playwright';
+import type { Frame, Page } from 'rebrowser-playwright';
 import type winston from 'winston';
 import { shouldProcessEvent, formatDecisionForLog } from '../orchestration/decisions';
 import { LogContext, scopedLog } from '../../utils';
@@ -35,6 +35,54 @@ import type { RawBrowserEvent } from '../types';
 /** URL path for recording events */
 const RECORDING_EVENT_URL = '/__vrooli_recording_event__';
 
+async function frameSelectorPath(frame: Frame): Promise<string[]> {
+  const path: string[] = [];
+  let current: Frame | null = frame;
+
+  while (current && current.parentFrame()) {
+    const parent = current.parentFrame();
+    if (!parent) break;
+    const element = await current.frameElement();
+    try {
+      const selector = await element.evaluate((candidate) => {
+        const frameElement = candidate as HTMLIFrameElement;
+        const document = frameElement.ownerDocument;
+        if (!document) return '';
+        if (frameElement.id) {
+          const idSelector = `#${CSS.escape(frameElement.id)}`;
+          if (document.querySelectorAll(idSelector).length === 1) return idSelector;
+        }
+
+        const segments: string[] = [];
+        let currentElement: Element | null = frameElement;
+        while (currentElement && currentElement !== document.documentElement) {
+          const parentElement: Element | null = currentElement.parentElement;
+          if (!parentElement) return '';
+          let position = 0;
+          for (const sibling of parentElement.children) {
+            if (sibling.localName !== currentElement.localName) continue;
+            position++;
+            if (sibling === currentElement) break;
+          }
+          if (position < 1) return '';
+          segments.unshift(`${currentElement.localName}:nth-of-type(${position})`);
+          currentElement = parentElement;
+        }
+        return currentElement === document.documentElement && segments.length > 0
+          ? `html > ${segments.join(' > ')}`
+          : '';
+      });
+      if (!selector) return [];
+      path.unshift(selector);
+    } finally {
+      await element.dispose();
+    }
+    current = parent;
+  }
+
+  return path;
+}
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -42,7 +90,7 @@ const RECORDING_EVENT_URL = '/__vrooli_recording_event__';
 /**
  * Handler function for recording events received from the browser.
  */
-export type RecordingEventHandler = (event: RawBrowserEvent) => void;
+export type RecordingEventHandler = (event: RawBrowserEvent) => void | Promise<void>;
 
 /**
  * Statistics about route handler event processing.
@@ -105,6 +153,8 @@ export interface EventRouteOptions {
   logger: winston.Logger;
   /** Get current event handler (allows dynamic handler changes) */
   getEventHandler: () => RecordingEventHandler | null;
+  /** Resolve the stable session identity for the page that emitted an event. */
+  getDriverPageId?: (page: Page) => string | undefined;
 }
 
 /**
@@ -112,7 +162,7 @@ export interface EventRouteOptions {
  */
 export interface EventRouteManager {
   /** Set up event route on a page */
-  setupPageEventRoute: (page: Page, options?: { force?: boolean }) => Promise<void>;
+  setupPageEventRoute: (page: Page, options?: { force?: boolean; driverPageId?: string }) => Promise<void>;
   /** Get current stats */
   getStats: () => RouteHandlerStats;
   /** Reset stats to initial values (for clean test runs) */
@@ -137,7 +187,7 @@ export interface EventRouteManager {
  * @returns Event route manager instance
  */
 export function createEventRouteManager(options: EventRouteOptions): EventRouteManager {
-  const { logger, getEventHandler } = options;
+  const { logger, getEventHandler, getDriverPageId } = options;
 
   // Track statistics
   const stats = createRouteHandlerStats();
@@ -151,8 +201,14 @@ export function createEventRouteManager(options: EventRouteOptions): EventRouteM
   /**
    * Handle a recording event from the page route.
    */
-  function handleRecordingEvent(postData: string): void {
+  async function handleRecordingEvent(
+    postData: string,
+    framePath: string[],
+    driverPageId: string | undefined
+  ): Promise<string | undefined> {
     const rawEvent = JSON.parse(postData) as RawBrowserEvent;
+    rawEvent.framePath = framePath;
+    rawEvent.driverPageId = driverPageId;
     stats.lastEventType = rawEvent.actionType;
 
     const eventHandler = getEventHandler();
@@ -171,14 +227,16 @@ export function createEventRouteManager(options: EventRouteOptions): EventRouteM
 
     if (decision.shouldProcess && eventHandler) {
       try {
-        eventHandler(rawEvent);
+        await eventHandler(rawEvent);
         stats.eventsProcessed++;
+        return rawEvent.id;
       } catch (error) {
         stats.eventsWithErrors++;
         logger.error(scopedLog(LogContext.RECORDING, 'event handler error'), {
           error: error instanceof Error ? error.message : String(error),
           actionType: rawEvent.actionType,
         });
+        throw error;
       }
     } else {
       stats.eventsDroppedNoHandler++;
@@ -186,6 +244,7 @@ export function createEventRouteManager(options: EventRouteOptions): EventRouteM
         scopedLog(LogContext.RECORDING, `event dropped: ${decision.reason}`),
         formatDecisionForLog(decision)
       );
+      throw new Error('Recording event has no active consumer');
     }
   }
 
@@ -210,7 +269,7 @@ export function createEventRouteManager(options: EventRouteOptions): EventRouteM
    */
   async function setupPageEventRoute(
     page: Page,
-    routeOptions: { force?: boolean } = {}
+    routeOptions: { force?: boolean; driverPageId?: string } = {}
   ): Promise<void> {
     const { force = false } = routeOptions;
 
@@ -249,15 +308,19 @@ export function createEventRouteManager(options: EventRouteOptions): EventRouteM
           });
 
           const postData = request.postData();
-          if (postData) {
-            handleRecordingEvent(postData);
-          }
+          if (!postData) throw new Error('Recording event body is required');
+          const framePath = await frameSelectorPath(request.frame());
+          const entryId = await handleRecordingEvent(
+            postData,
+            framePath,
+            routeOptions.driverPageId ?? getDriverPageId?.(page)
+          );
 
-          // Respond immediately to not block the page
+          // Acknowledge only after the recording consumer accepts the entry.
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: '{"ok":true}',
+            body: JSON.stringify({ ok: true, entry_id: entryId }),
           });
         } catch (error) {
           logger.error(scopedLog(LogContext.RECORDING, 'page event route handler error'), {

@@ -1,0 +1,19 @@
+{
+  "name": "Deployment Manager",
+  "short_name": "Deployments",
+  "description": "Evidence-backed deployment governance for Vrooli scenarios.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "icons": [
+    {
+      "src": "/public/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

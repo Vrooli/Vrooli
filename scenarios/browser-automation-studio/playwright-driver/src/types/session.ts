@@ -3,6 +3,9 @@ import type { RecordingContextInitializer, RecordingPipelineManager } from '../r
 import type { BrowserProfile } from './browser-profile';
 import type { ServiceWorkerControl } from './service-worker';
 import type { ServiceWorkerController } from '../service-worker';
+import type { PerformanceTracer, AccessibilitySnapshotter } from '../tracing';
+import type { AudioStrategy, HostAudioCapability } from '../session/audio';
+import type { BrowserCaptureDeviceEvidence } from '../session/audio/device-evidence';
 
 export type ReuseMode = 'fresh' | 'clean' | 'reuse';
 
@@ -14,6 +17,10 @@ export interface SessionSpec {
     height: number;
   };
   reuse_mode: ReuseMode;
+  /** Stable BAS session-profile identity/revision; prevents cross-profile pooling. */
+  session_profile_version?: string;
+  /** Preview bitmap scale, retained for this admitted lease. Defaults to CSS pixels. */
+  frame_scale?: 'css' | 'device';
   base_url?: string;
   labels?: Record<string, string>;
   required_capabilities?: {
@@ -24,6 +31,10 @@ export interface SessionSpec {
     har?: boolean;
     video?: boolean;
     tracing?: boolean;
+    /** CDP performance trace + web-vitals capture (Tier 0). */
+    performance_trace?: boolean;
+    /** CDP accessibility-tree snapshot capture. */
+    accessibility?: boolean;
     viewport_width?: number;
     viewport_height?: number;
   };
@@ -32,6 +43,10 @@ export interface SessionSpec {
     video_dir?: string;
     har_path?: string;
     trace_path?: string;
+    /** Directory the perf trace + web-vitals JSON are written to. */
+    perf_dir?: string;
+    /** Directory the accessibility.json snapshot is written to. */
+    accessibility_dir?: string;
   };
   // Browser context configuration
   user_agent?: string;
@@ -43,22 +58,24 @@ export interface SessionSpec {
     accuracy?: number;
   };
   permissions?: string[];
-  storage_state?: {
-    cookies: Array<{
-      name: string;
-      value: string;
-      domain: string;
-      path: string;
-      expires: number;
-      httpOnly: boolean;
-      secure: boolean;
-      sameSite: 'Strict' | 'Lax' | 'None';
-    }>;
-    origins: Array<{
-      origin: string;
-      localStorage: Array<{ name: string; value: string }>;
-    }>;
+  /**
+   * Deterministic fake media devices for this session.
+   * Chromium serves fake capture devices process-wide, so the driver pools a
+   * dedicated browser instance per distinct microphone WAV path.
+   */
+  fake_media?: {
+    /** Absolute WAV path used as the fake microphone capture source. */
+    microphone_wav?: string;
   };
+  /** Optional inter-clip pause for host-device qualification playback. */
+  audio_playback_pause_ms?: number;
+  /** Optional delay before host-device qualification playback begins. */
+  audio_playback_start_delay_ms?: number;
+  /** Create host playback control without emitting audio until restart is called. */
+  audio_playback_defer_start?: boolean;
+  /** Opt this session into the user-owned PipeWire capture qualification device. */
+  audio_device_evidence?: boolean;
+  storage_state?: Awaited<ReturnType<BrowserContext['storageState']>>;
   /**
    * Service worker control configuration.
    * Controls how service workers are managed during the session.
@@ -67,6 +84,39 @@ export interface SessionSpec {
   service_worker_control?: ServiceWorkerControl;
   // Anti-detection and human-like behavior configuration
   browser_profile?: BrowserProfile;
+  /**
+   * Optional controlled Electron target supplied by scenario-to-desktop.
+   * Target-backed sessions attach to the existing renderer and never launch
+   * or terminate the desktop application.
+   */
+  app_target?: AppTargetSpec;
+  /** Run-bound identity used to prove the Electron session belongs to one cell. */
+  validation_context?: ValidationContextSpec;
+}
+
+export interface ValidationContextSpec {
+  context_id: string;
+  scenario_name: string;
+  artifact_digest: string;
+  target_id: string;
+  workflow_id: string;
+  profile_id: string;
+  isolation_lease_id: string;
+}
+
+export type AppTargetKind = 'electron' | 'android-webview';
+
+export interface AppTargetSpec {
+  target_kind?: AppTargetKind;
+  target_id: string;
+  cdp_endpoint: string;
+  renderer_id: string;
+  renderer_url: string;
+  renderer_title?: string;
+  scenario_name: string;
+  artifact_digest: string;
+  context_id: string;
+  cdp_transport: 'loopback-authenticated' | 'bridge-authenticated';
 }
 
 /**
@@ -170,12 +220,47 @@ export interface SessionSpec {
  * - 'resetting': Session state is being reset (clearing cookies, storage, etc.)
  * - 'closing': Session is being torn down, resources being freed
  */
-export type SessionPhase = 'initializing' | 'ready' | 'executing' | 'recording' | 'resetting' | 'closing';
+export type SessionPhase =
+  | 'initializing'
+  | 'ready'
+  | 'executing'
+  | 'recording'
+  | 'resetting'
+  | 'closing';
 
 export interface SessionState {
   id: string;
+  /** An admitted instruction remains reserved until its promise settles, even
+   * if reset/close changes the lifecycle phase in the meantime. */
+  instructionInFlight?: boolean;
+  /** Lifecycle teardown joins this before mutating or disposing browser state. */
+  instructionSettlement?: Promise<void>;
+  /** True when close interrupted an admitted operation; its effect is uncertain. */
+  instructionInterrupted?: boolean;
+  /** Successful teardown stages survive a failed close for explicit retry. */
+  closeProgress?: { completed: Set<string>; videoPaths: Map<number, string> };
+  /** Immutable execution that acquired the current lease. Never rewrite this
+   * while the lease is active; a later execution receives a new lease. */
+  ownerExecutionId: string;
+  leaseId: string;
+  leaseReleasedAt?: Date;
   browser: Browser;
+  /** True only for a session attached to a controlled external target. */
+  externalTarget?: boolean;
+  /** Audio delivery evidence selected for this session. */
+  audioStrategy?: AudioStrategy;
+  audioCapability?: HostAudioCapability;
+  /** Metadata-only host-device qualification returned at session start. */
+  audioDeviceEvidence?: BrowserCaptureDeviceEvidence;
+  /** Stops the session-owned host-device corpus playback loop. */
+  audioPlaybackStop?: () => Promise<void>;
+  /** Restarts the session-owned host-device corpus playback loop. */
+  audioPlaybackRestart?: () => Promise<void>;
+  /** Returns a playback failure observed after session creation, if any. */
+  audioPlaybackFailure?: () => string | undefined;
   context: BrowserContext;
+  /** Imported and visited origins whose browser state an explicit reset must clear. */
+  storageOrigins: Set<string>;
   page: Page;
   spec: SessionSpec;
   createdAt: Date;
@@ -244,12 +329,9 @@ export interface SessionState {
    */
   pageLifecycleCleanup?: () => void;
 
-  /**
-   * Instruction idempotency tracking.
-   * Maps instruction key (node_id:index) to last execution result.
-   * Enables replay-safe instruction execution.
-   */
-  executedInstructions?: Map<string, ExecutedInstructionRecord>;
+  /** Bounded receipts and monotonic highwater owned by this lease. */
+  instructionReceipts?: Map<number, InstructionReceipt>;
+  lastInstructionSequence: number;
 
   /**
    * Service worker controller for this session.
@@ -263,6 +345,24 @@ export interface SessionState {
    * Shared across all recording sessions in this browser context.
    */
   recordingInitializer?: RecordingContextInitializer;
+
+  /**
+   * Performance tracer for this session, present only when the session was
+   * started with required_capabilities.performance_trace. Started after the
+   * page is created (before navigation) and stopped at session close, where
+   * it writes the CDP trace + web-vitals JSON into the perf artifact dir.
+   */
+  perfTracer?: PerformanceTracer;
+
+  /**
+   * Accessibility snapshotter for this session, present only when the session
+   * was started with required_capabilities.accessibility. Unlike the perf
+   * tracer it holds no session-spanning state — it is stored at start so its
+   * output dir + the capability gate are available at close, where it captures
+   * the AX tree from the final settled page (the same point the final
+   * screenshot fires) and writes accessibility.json.
+   */
+  accessibilitySnapshotter?: AccessibilitySnapshotter;
 }
 
 export interface SessionCloseResult {
@@ -271,19 +371,10 @@ export interface SessionCloseResult {
   harPath?: string;
 }
 
-/**
- * Record of an executed instruction for idempotency tracking.
- * Stores enough information to return the same result on replay.
- */
-export interface ExecutedInstructionRecord {
-  /** Composite key: node_id:index */
-  key: string;
-  /** When the instruction was executed */
-  executedAt: Date;
-  /** Whether execution succeeded */
-  success: boolean;
-  /** Cached outcome for replay (optional, may be large) */
-  cachedOutcome?: unknown;
+/** A serialized response is immutable and safe to return without re-decoration. */
+export interface InstructionReceipt {
+  fingerprint: string;
+  response: string;
 }
 
 export interface MockRoute {
@@ -318,6 +409,8 @@ export interface StartSessionRequest {
     har?: boolean;
     video?: boolean;
     tracing?: boolean;
+    performance_trace?: boolean;
+    accessibility?: boolean;
     viewport_width?: number;
     viewport_height?: number;
   };
@@ -326,6 +419,8 @@ export interface StartSessionRequest {
     video_dir?: string;
     har_path?: string;
     trace_path?: string;
+    perf_dir?: string;
+    accessibility_dir?: string;
   };
   storage_state?: SessionSpec['storage_state'];
   /**
@@ -347,6 +442,16 @@ export interface StartSessionRequest {
    * Optional: Browser profile for anti-detection and human-like behavior.
    */
   browser_profile?: BrowserProfile;
+  /**
+   * Optional: Deterministic fake media devices (see SessionSpec.fake_media).
+   */
+  fake_media?: SessionSpec['fake_media'];
+  audio_playback_pause_ms?: SessionSpec['audio_playback_pause_ms'];
+  audio_playback_start_delay_ms?: SessionSpec['audio_playback_start_delay_ms'];
+  audio_playback_defer_start?: SessionSpec['audio_playback_defer_start'];
+  audio_device_evidence?: SessionSpec['audio_device_evidence'];
+  app_target?: SessionSpec['app_target'];
+  validation_context?: SessionSpec['validation_context'];
 }
 
 /**
@@ -354,10 +459,10 @@ export interface StartSessionRequest {
  * This attribution helps users understand why dimensions may differ from requested.
  */
 export type ViewportSource =
-  | 'requested'           // Used the UI-requested dimensions
-  | 'fingerprint'         // Browser profile fingerprint override
+  | 'requested' // Used the UI-requested dimensions
+  | 'fingerprint' // Browser profile fingerprint override
   | 'fingerprint_partial' // Fingerprint set one dimension, requested used for other
-  | 'default';            // Fallback defaults used
+  | 'default'; // Fallback defaults used
 
 /**
  * Actual viewport with source attribution.
@@ -373,7 +478,12 @@ export interface ActualViewportResponse {
 }
 
 export interface StartSessionResponse {
+  /** Registered browser page selected at session admission. */
+  active_page_id: string;
+  last_instruction_sequence: number;
   session_id: string;
+  /** Opaque token required to release or close this execution's lease. */
+  lease_id: string;
   /** Session phase after creation (always 'ready' for new sessions) */
   phase: SessionPhase;
   /** ISO 8601 timestamp when session was created */
@@ -385,6 +495,13 @@ export interface StartSessionResponse {
    * May differ from requested dimensions due to browser profile fingerprint overrides.
    */
   actual_viewport?: ActualViewportResponse;
+  /** Present only for the opt-in PipeWire host-device qualification lane. */
+  audio_device_evidence?: BrowserCaptureDeviceEvidence;
+}
+
+export interface CloseSessionRequest {
+  execution_id: string;
+  lease_id: string;
 }
 
 /**

@@ -55,7 +55,6 @@ export const mockChat: api.Chat = {
   is_archived: false,
   is_starred: false,
   label_ids: [],
-  tools_enabled: true,
   web_search_enabled: false,
   created_at: "2025-01-01T00:00:00Z",
   updated_at: "2025-01-01T00:00:00Z",

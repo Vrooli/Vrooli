@@ -45,7 +45,7 @@ func newTestPipeline() *pipeline.Status {
 				Logs:      []string{"line1", "line2", "npm ERR! peer dep missing"},
 			},
 		},
-		Config: &pipeline.Config{
+		Config: &pipeline.PipelineConfig{
 			ScenarioName: "test-app",
 			Platforms:    []string{"linux"},
 			Sign:         true,
@@ -234,7 +234,7 @@ func TestBuildOutputFormatAttachment(t *testing.T) {
 // --- BuildPipelineConfigAttachment ---
 
 func TestBuildPipelineConfigAttachment(t *testing.T) {
-	cfg := &pipeline.Config{
+	cfg := &pipeline.PipelineConfig{
 		ScenarioName:  "my-app",
 		Platforms:     []string{"linux", "windows"},
 		SkipPreflight: true,

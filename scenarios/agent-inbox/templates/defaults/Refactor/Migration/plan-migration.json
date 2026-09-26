@@ -34,6 +34,5 @@
       "placeholder": "Timeline, team size, compatibility requirements?",
       "required": false
     }
-  ],
-  "suggestedToolIds": ["spawn_coding_agent"]
+  ]
 }

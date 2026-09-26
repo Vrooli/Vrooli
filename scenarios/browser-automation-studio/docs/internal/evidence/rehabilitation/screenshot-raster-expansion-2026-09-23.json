@@ -1,0 +1,124 @@
+{
+  "cycle": "104",
+  "date": "2026-09-23",
+  "status": "confirmed_resource_defect_browser_peak_unverified",
+  "issue": "BAS-RF-119",
+  "question": "Can a valid full-page image under the encoded-byte limit consume substantial raster memory in the API writer, and is there an active concurrent memory budget that can bound it?",
+  "reproduction": {
+    "fixture": "constant-color PNG, 1280x12800 pixels, 16,384,000 decoded pixels",
+    "encoded_bytes": 74012,
+    "default_encoded_limit_bytes": 4194304,
+    "standalone_go_decode": {
+      "command": "temporary Go harness using image/png Encode and image.Decode, run from the BAS API module",
+      "decode_ms": 72.487,
+      "total_alloc_bytes": 65594288,
+      "heap_alloc_delta_bytes": 65594288,
+      "decoder_process_pss_kib": 68216
+    },
+    "maintained_writer_benchmark": {
+      "benchmark": "BenchmarkScreenshotOutcomePersistenceExpandedRaster",
+      "command": "go test ./automation/execution-writer -run '^$' -bench '^BenchmarkScreenshotOutcomePersistenceExpandedRaster$' -benchtime=1x -benchmem",
+      "result": "passed",
+      "ns_per_op": 104759781,
+      "bytes_per_op": 66607544,
+      "allocs_per_op": 7547,
+      "pixels_per_op": 16384000,
+      "fixture_below_encoded_limit": true
+    },
+    "interpretation": "A valid low-entropy image at a plausible long-page size is accepted by the byte-size policy yet expands to about62.5MiB during writer persistence. This is one fixture, not a browser peak or production concurrency measurement."
+  },
+  "browser_fixture": {
+    "outcome_id": "BAS-RF-119-browser-fixture-104",
+    "operation": "launch a disposable local Playwright browser, load a local 1280x12800 solid page, then capture full-page PNG",
+    "attempts": [
+      {
+        "html": "solid page with a flat-color background",
+        "wait_until": "load",
+        "timeout_ms": 30000,
+        "result": "page.setContent timed out before screenshot capture"
+      },
+      {
+        "html": "simplified solid page without gradient",
+        "wait_until": "domcontentloaded",
+        "timeout_ms": 15000,
+        "result": "page.setContent timed out before screenshot capture"
+      }
+    ],
+    "remedy": "Simplified page CSS and changed the load condition; both attempts still timed out before capture.",
+    "remaining_limitation": "Actual Playwright screenshot dimensions, driver peak PSS and browser-to-API end-to-end cost remain unknown.",
+    "cleanup": "The temporary browser was closed in the fixture's finally path, and temporary fixture files were removed by the harness. Managed BAS was not restarted or altered."
+  },
+  "resource_budget_review": {
+    "contract_targets": {
+      "api_plus_driver_idle_pss": "<=300MiB",
+      "one_fixture_browser_plus_shell_pss": "<=1GiB"
+    },
+    "current_limits": "Neither target constrains active or concurrent screenshot decoding.",
+    "session_admission": {
+      "default_max_sessions": 10,
+      "configurable_max_sessions": 100,
+      "environment_variable": "MAX_SESSIONS"
+    },
+    "live_process_sample": {
+      "observed_at": "2026-09-23T21:19:14.793523+00:00",
+      "api_pss_kib": 40203,
+      "driver_pss_kib": 68819,
+      "combined_pss_kib": 109022,
+      "qualification": "one running shared-host sample with active browser children; not a quiescent idle baseline and not comparable to peak decode PSS"
+    },
+    "decision": "Do not select a per-image cap from idle-only targets or this single non-idle process sample. Establish an active/concurrent envelope before fixing a limit."
+  },
+  "prior_art": {
+    "search": "search-hub retrieved the July 2026 screenshot-transfer performance investigation, which identified the ungoverned every-step screenshot path.",
+    "current_state_check": "That older every-step policy gap is already repaired: API execution profiles stamp the typed per-step directive, the driver skips incidental successful-step screenshots, and explicit handler-produced screenshots remain available.",
+    "owner_checks": [
+      {
+        "command": "go test ./automation/execution-writer -run '^TestScreenshotEvidenceRequiresValidReceipt$' -count=1",
+        "result": "passed"
+      },
+      {
+        "command": "go test ./automation/executor -run '^(TestResolveStepScreenshotPolicy|TestApplyTelemetryDirectiveStampsResolvedPolicy|TestCheckpointProfileDisablesAutomaticFramesButRetainsExplicitImages)$' -count=1",
+        "result": "passed"
+      },
+      {
+        "command": "pnpm exec jest tests/unit/execution/screenshot-capture-policy.test.ts --runInBand --coverage=false",
+        "result": "passed; 10 tests"
+      },
+      {
+        "command": "pnpm exec jest tests/unit/execution/screenshot-capture-policy.test.ts --runInBand",
+        "result": "10 tests passed; command exited1 because focused-test run reports global function coverage1.96%, below the driver-wide15% threshold"
+      }
+    ]
+  },
+  "required_checks": {
+    "contract": {
+      "command": "python3 scenarios/browser-automation-studio/docs/internal/refactor_contract.py",
+      "result": "passed; 24 journeys, zero errors; product qualification false"
+    },
+    "inventory": {
+      "command": "python3 scenarios/browser-automation-studio/docs/internal/refactor_inventory.py --include-untracked",
+      "observed_at": "2026-09-23T21:18:47.886989+00:00",
+      "source_digest_sha256": "da6dc7c00c76e416d44b172ca00e3b12a774ce057357466a1930952d3ae49d8b"
+    },
+    "setpoint": {
+      "command": "program-runtime library run browser-automation-studio.setpoint-read --input profile=rehabilitation",
+      "program_run": "prog_8b400f9e-e7c6-41ae-aa09-8af66d1d50f6",
+      "result": "succeeded",
+      "qualified": 1,
+      "unavailable": 16,
+      "capture_p95_ms": 419,
+      "capture_workload": "1e9fc96f5be8bc29ab6ef9599f28b301",
+      "product_qualified": false
+    },
+    "targeted_diff_check": "git diff --check scoped to touched BAS files passed",
+    "repository_wide_diff_check": "Not clean: unrelated shared-tree trailing whitespace in scenarios/audio-tools/ui/index.html and CRLF warning in landing-page-business-suite; these files were not modified."
+  },
+  "changed": {
+    "production_behavior": false,
+    "maintained_measurement": "Added BenchmarkScreenshotOutcomePersistenceExpandedRaster to file_writer_test.go; it generates the large flat raster lazily and measures the actual writer path without allocating a source raster.",
+    "issue_register": "Opened BAS-RF-119 and linked its memory boundary from RF060.",
+    "progress": "Updated cycle104 checkpoint and review history.",
+    "code_debt_claim": "No runtime complexity, duplication, coupling or domain-debt reduction is claimed. The benchmark is measurement support, not a product repair."
+  },
+  "next_action": "Define and measure active/concurrent screenshot memory within the owner capture path, then choose a safe bound or lower-allocation integrity validator that preserves realistic full-page artifacts and corrupt/truncated-image rejection. Do not repeat the same standalone page-setup attempt while its environment remains unchanged."
+}

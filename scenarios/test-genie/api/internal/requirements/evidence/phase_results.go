@@ -249,8 +249,8 @@ func GetPhaseStatus(evidenceMap types.EvidenceMap, phase string) types.LiveStatu
 	}
 
 	// Return the most recent status
-	var latest types.EvidenceRecord
-	for _, r := range records {
+	latest := records[0]
+	for _, r := range records[1:] {
 		if r.UpdatedAt.After(latest.UpdatedAt) {
 			latest = r
 		}

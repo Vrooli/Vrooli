@@ -1,0 +1,269 @@
+{
+  "version": "1",
+  "phase": "readiness",
+  "environment": "development",
+  "readiness": {
+    "status": "missing",
+    "blockers": [
+      "kopia",
+      "vrooli/landing-page-business-suite:admin-default-password",
+      "vrooli/landing-page-business-suite:stripe-publishable-key",
+      "vrooli/landing-page-business-suite:stripe-secret-key",
+      "vrooli/landing-page-business-suite:stripe-webhook-secret"
+    ],
+    "source": "in_process"
+  },
+  "tools": [
+    {
+      "name": "cloudflared",
+      "kind": "tool",
+      "command": "cloudflared",
+      "version": "cloudflared version 2025.10.0 (built 2025-10-14-19:01 UTC)",
+      "installed": true,
+      "required": true,
+      "operator_choice": "not_recorded",
+      "install_supported": true,
+      "package_name": "cloudflared",
+      "support_class": "supported",
+      "execution_state": "already_present",
+      "manual": false,
+      "reasons": [
+        "The managed service adopts the separately governed cloudflared host tool.",
+        "resource cloudflared desktop target requires cloudflared"
+      ],
+      "notes": [
+        "Install cloudflared from https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/"
+      ],
+      "provenance": [
+        {
+          "kind": "resource",
+          "name": "cloudflared",
+          "path": "/home/matthalloran8/Vrooli/resources/cloudflared/resource.json",
+          "source": "resources/cloudflared/resource.json"
+        },
+        {
+          "kind": "resource",
+          "name": "cloudflared",
+          "path": "/home/matthalloran8/Vrooli/resources/cloudflared/resource.json",
+          "source": "resources/cloudflared/resource.json"
+        }
+      ]
+    },
+    {
+      "name": "k6",
+      "kind": "tool",
+      "command": "k6",
+      "version": "k6 v2.2.0+dirty (commit/00a9a1b7f5-dirty, go1.26.5, linux/amd64)",
+      "installed": true,
+      "required": true,
+      "operator_choice": "not_recorded",
+      "install_supported": false,
+      "support_class": "manual_only",
+      "execution_state": "manual_action_required",
+      "blocking_reason": "manual",
+      "manual": false,
+      "reasons": [
+        "resource k6 desktop target requires k6"
+      ],
+      "provenance": [
+        {
+          "kind": "resource",
+          "name": "k6",
+          "path": "/home/matthalloran8/Vrooli/resources/k6/resource.json",
+          "source": "resources/k6/resource.json"
+        }
+      ]
+    },
+    {
+      "name": "kopia",
+      "kind": "tool",
+      "installed": false,
+      "required": true,
+      "operator_choice": "not_recorded",
+      "install_supported": false,
+      "support_class": "manual_only",
+      "execution_state": "manual_action_required",
+      "blocking_reason": "manual",
+      "manual": false,
+      "reasons": [
+        "resource kopia desktop target requires kopia"
+      ],
+      "notes": [
+        "Install Kopia before using this host-managed resource."
+      ],
+      "provenance": [
+        {
+          "kind": "resource",
+          "name": "kopia",
+          "path": "/home/matthalloran8/Vrooli/resources/kopia/resource.json",
+          "source": "resources/kopia/resource.json"
+        }
+      ]
+    }
+  ],
+  "safeguards": [
+    {
+      "name": "autoheal_watchdog",
+      "kind": "safeguard",
+      "installed": false,
+      "applied": true,
+      "required": true,
+      "operator_choice": "not_recorded",
+      "config": {
+        "boot_policy": "dedicated"
+      },
+      "install_supported": false,
+      "support_class": "supported",
+      "execution_state": "already_present",
+      "manual": false,
+      "reasons": [
+        "Ensure the supervisor that repairs failed workloads survives reboot and is not dependent on a separate scenario install command"
+      ],
+      "notes": [
+        "Installs and verifies the autoheal loop in the invoking user's native scheduler. Dedicated-host policy enables Linux lingering for pre-login startup; shared-host policy remains login-scoped. Re-inspected in the readiness phase by the autoheal boot-recovery readiness check.",
+        "autoheal scheduler enabled and active; boot protection verified for dedicated policy"
+      ],
+      "evidence": {
+        "unit_state": {
+          "ActiveState": "active",
+          "NRestarts": "0",
+          "Result": "success"
+        },
+        "validator_verdict": {
+          "state": "accepted",
+          "validator": "systemd-analyze verify"
+        }
+      },
+      "provenance": [
+        {
+          "kind": "root",
+          "name": "vrooli",
+          "path": "/home/matthalloran8/Vrooli/.vrooli/service.json",
+          "source": ".vrooli/service.json"
+        }
+      ]
+    },
+    {
+      "name": "emergency_watchdog",
+      "kind": "safeguard",
+      "installed": false,
+      "applied": true,
+      "required": true,
+      "operator_choice": "not_recorded",
+      "install_supported": false,
+      "support_class": "supported",
+      "execution_state": "already_present",
+      "manual": false,
+      "reasons": [
+        "Give setup ownership of the last line of defense so every host has it, rather than depending on a hand-placed systemd unit that existed on exactly one machine"
+      ],
+      "notes": [
+        "Installs ~/.vrooli/libexec/emergency-watchdog.sh plus a systemd user service and timer under the invoking user's home. Needs no privilege. Replaces scripts/emergency-watchdog.sh, which was referenced by runbooks, installed by nothing, and whose hand-created unit hard-coded one operator's repository path. Holds unit restarts while CPU PSI shows the host is saturated.",
+        "emergency watchdog binary and timer are installed"
+      ],
+      "evidence": {
+        "validator_verdict": {
+          "state": "accepted",
+          "validator": "systemd-analyze verify"
+        }
+      },
+      "provenance": [
+        {
+          "kind": "root",
+          "name": "vrooli",
+          "path": "/home/matthalloran8/Vrooli/.vrooli/service.json",
+          "source": ".vrooli/service.json"
+        }
+      ]
+    },
+    {
+      "name": "runtime_supervisor",
+      "kind": "safeguard",
+      "installed": false,
+      "applied": true,
+      "required": true,
+      "operator_choice": "not_recorded",
+      "install_supported": false,
+      "support_class": "supported",
+      "execution_state": "already_present",
+      "manual": false,
+      "reasons": [
+        "The supervisor unit was the only long-lived unit setup never converged; on 2026-09-02 a unit rendered two weeks earlier crash-looped 495 times after boot because its argv no longer parsed"
+      ],
+      "notes": [
+        "Renders the runtime supervisor unit from the shared ServiceDefinition, validates it with the native manager, installs and enables it as the invoking user, restarts it when its content changed, and proves it active. Re-inspected in the readiness phase with the unit's NRestarts and Result as evidence.",
+        "runtime supervisor unit matches its definition, is validated, enabled and active"
+      ],
+      "evidence": {
+        "executable": "/home/matthalloran8/.vrooli/bin/vrooli",
+        "executable_is_canonical": true,
+        "unit_state": {
+          "ActiveState": "active",
+          "NRestarts": "0",
+          "Result": "success",
+          "UnitFileState": "enabled"
+        },
+        "validator_verdict": {
+          "state": "accepted",
+          "validator": "systemd-analyze verify"
+        }
+      },
+      "provenance": [
+        {
+          "kind": "root",
+          "name": "vrooli",
+          "path": "/home/matthalloran8/Vrooli/.vrooli/service.json",
+          "source": ".vrooli/service.json"
+        }
+      ]
+    },
+    {
+      "name": "agent_session_containment",
+      "kind": "safeguard",
+      "installed": false,
+      "applied": true,
+      "required": true,
+      "operator_choice": "",
+      "config": {},
+      "install_supported": false,
+      "support_class": "supported",
+      "execution_state": "already_present",
+      "manual": false,
+      "reasons": [],
+      "notes": [
+        "vrooli-agents.slice is active with CPUWeight=50 MemoryHigh=50% MemoryMax=60% TasksMax=4096"
+      ],
+      "evidence": {
+        "validator_verdict": {
+          "state": "accepted",
+          "validator": "systemd-analyze verify"
+        },
+        "live": {
+          "active_state": "active",
+          "control_group": "/user.slice/user-1000.slice/user@1000.service/vrooli.slice/vrooli-agents.slice",
+          "memory_max": 39259295744,
+          "tasks_max": 4096,
+          "cpu_weight": 50,
+          "cgroup_memory_max": "39259295744",
+          "cgroup_pids_max": "4096",
+          "cgroup_cpu_weight": "50"
+        }
+      },
+      "provenance": []
+    }
+  ],
+  "missing": {
+    "required": [
+      "kopia"
+    ],
+    "optional": []
+  },
+  "host": {
+    "os": "linux",
+    "package_manager": "apt-get",
+    "supports_setup": true,
+    "supports_develop": true,
+    "supports_sysctl": true,
+    "supports_systemd": true
+  }
+}

@@ -1,0 +1,138 @@
+{
+  "_metadata": {
+    "entity": "typescript-code-graph",
+    "generated_at": "2026-05-23T14:57:08-04:00",
+    "generator": "business-health",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-deterministic-graph-extraction/module.json",
+    "02-shared-code-graph-proto-envelope/module.json",
+    "03-leading-comment-metadata-on-declarations/module.json",
+    "04-two-step-rewrite/module.json",
+    "05-single-project-resolution/module.json",
+    "06-partial-graph-structured-warnings/module.json",
+    "07-per-path-serialization-parallel-across-p/module.json",
+    "08-connect-rpc-cli-ui-parity/module.json",
+    "09-node-sidecar-with-lifecycle-supervision/module.json",
+    "10-golden-fixture-determinism-gate/module.json",
+    "11-graph-explorer-diagnostics-ui/module.json",
+    "12-performance-sla/module.json",
+    "13-fixture-validator-ui/module.json",
+    "14-operation-log-persistence/module.json",
+    "15-barrel-file-and-re-export-coverage/module.json",
+    "16-jsx-tsx-declaration-awareness/module.json",
+    "17-content-hash-cache-hint/module.json",
+    "18-react-component-library-migration-cutove/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-deterministic-graph-extraction",
+      "priority": "P0",
+      "title": "Deterministic Graph Extraction"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-shared-code-graph-proto-envelope",
+      "priority": "P0",
+      "title": "Shared Code-Graph Proto Envelope"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-leading-comment-metadata-on-declarations",
+      "priority": "P0",
+      "title": "Leading-Comment Metadata On Declarations"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-two-step-rewrite",
+      "priority": "P0",
+      "title": "Two-Step Rewrite (Plan + Apply)"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-single-project-resolution",
+      "priority": "P0",
+      "title": "Single-Project Resolution"
+    },
+    {
+      "id": "MOD-P0-006",
+      "path": "06-partial-graph-structured-warnings",
+      "priority": "P0",
+      "title": "Partial Graph + Structured Warnings"
+    },
+    {
+      "id": "MOD-P0-007",
+      "path": "07-per-path-serialization-parallel-across-p",
+      "priority": "P0",
+      "title": "Per-Path Serialization, Parallel Across Paths"
+    },
+    {
+      "id": "MOD-P0-008",
+      "path": "08-connect-rpc-cli-ui-parity",
+      "priority": "P0",
+      "title": "Connect-RPC + CLI + UI Parity"
+    },
+    {
+      "id": "MOD-P0-009",
+      "path": "09-node-sidecar-with-lifecycle-supervision",
+      "priority": "P0",
+      "title": "Node Sidecar With Lifecycle Supervision"
+    },
+    {
+      "id": "MOD-P0-010",
+      "path": "10-golden-fixture-determinism-gate",
+      "priority": "P0",
+      "title": "Golden-Fixture Determinism Gate"
+    },
+    {
+      "id": "MOD-P0-011",
+      "path": "11-graph-explorer-diagnostics-ui",
+      "priority": "P0",
+      "title": "Graph Explorer + Diagnostics UI"
+    },
+    {
+      "id": "MOD-P0-012",
+      "path": "12-performance-sla",
+      "priority": "P0",
+      "title": "Performance SLA"
+    },
+    {
+      "id": "MOD-P1-013",
+      "path": "13-fixture-validator-ui",
+      "priority": "P1",
+      "title": "Fixture Validator UI"
+    },
+    {
+      "id": "MOD-P1-014",
+      "path": "14-operation-log-persistence",
+      "priority": "P1",
+      "title": "Operation Log Persistence"
+    },
+    {
+      "id": "MOD-P1-015",
+      "path": "15-barrel-file-and-re-export-coverage",
+      "priority": "P1",
+      "title": "Barrel-File and Re-Export Coverage"
+    },
+    {
+      "id": "MOD-P1-016",
+      "path": "16-jsx-tsx-declaration-awareness",
+      "priority": "P1",
+      "title": "JSX/TSX Declaration Awareness"
+    },
+    {
+      "id": "MOD-P1-017",
+      "path": "17-content-hash-cache-hint",
+      "priority": "P1",
+      "title": "Content-Hash Cache Hint"
+    },
+    {
+      "id": "MOD-P1-018",
+      "path": "18-react-component-library-migration-cutove",
+      "priority": "P1",
+      "title": "react-component-library Migration Cutover"
+    }
+  ]
+}

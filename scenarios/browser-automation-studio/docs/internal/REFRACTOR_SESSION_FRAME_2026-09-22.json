@@ -1,0 +1,376 @@
+{
+  "schema_version": 1,
+  "assembled_at": "2026-09-22T00:55:05.081690+00:00",
+  "assessment": "REFRACTOR_ASSESSMENT.md#session-frame-and-retention-investigation--2026-09-22-utc",
+  "scope": "Fourth investigation pass; actual source owners over synthetic browser, React-hook scheduler and in-memory retention seams. No product changes, lifecycle operation, real socket/browser launch, or production data mutation.",
+  "source_head": "629defb5414eac2a4904996ee6d235eea9d263ed",
+  "initial_source_head": "129da6b96062fad08f53b34228ae16801befdf79",
+  "source_digest_sha256": "2df361d5baaaf501715527e57993b6024ca63e798713f5d9e655a9682f584f43",
+  "product_source_digest_unchanged": true,
+  "head_note": "Shared repository HEAD advanced during investigation; BAS inventory digest did not change. Existing driver edits remain present.",
+  "session_frame_probes": {
+    "schema_version": 1,
+    "observed_at": "2026-09-22T00:53:58.739Z",
+    "scope": "Actual manager/guard/decisions/reset and UI frame hook; synthetic browser/context/pages, hook scheduler, socket, clock, decoder and canvas. No browser or React-renderer certification.",
+    "source_sha256": {
+      "playwright-driver/src/session/session-decisions.ts": "140fc48c6b200e9bd273676698fd80438e30ea5e08e0f10a0fd78a112799efb0",
+      "playwright-driver/src/session/state-machine.ts": "dd74e25c4541fa656068fbd4327fccb274a02151876ae7acdb384db4f8b3c91f",
+      "playwright-driver/src/session/session-inspection.ts": "7fa2df6546b0c3e006deb68e39f8a68c8b4db0c0a266270a11097413a6e576e8",
+      "playwright-driver/src/infra/in-flight-guard.ts": "fd90cd40d5ef12c1ab40b0436aebbde66a6e7eea2128b3e94ebc4c5f72ff2ecb",
+      "playwright-driver/src/infra/session-cleanup-registry.ts": "0f60b16a906a68600a42c3811ae266476e1cbccdbb84ea2c08f01dd781f9a426",
+      "playwright-driver/src/session/session-reset.ts": "4664d0bafbcd1e0f31a9db9cec24db6e6b5553f22390ac2b0735cbe6ae31383a",
+      "playwright-driver/src/session/session-teardown.ts": "b20ce91b61824d91ecce23b73f65797747cba995b605562bb8465d82cb0b0161",
+      "playwright-driver/src/session/manager.ts": "117350b730a64a73b90e29bf111735ee4f101aab8f6b222f5160ce09154c2acd",
+      "playwright-driver/src/routes/session-close.ts": "20f850c92e6f76656153596e63f6ef589d6ed436d50f931a08b0d7cbe6e182a5",
+      "ui/src/domains/recording/capture/useFrameStream.ts": "8e159d5649358580254cebcc5ccdd085da864d661af78f61a83ad6e8edc58313"
+    },
+    "results": [
+      {
+        "id": "admission-distinct-ids",
+        "expected": "maxConcurrent=1 admits at most one concurrent new session",
+        "actual": {
+          "fulfilled": 2,
+          "sessions": 2,
+          "contexts_created": 2
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "admission-same-id-control",
+        "expected": "Concurrent same-execution starts share one session",
+        "actual": {
+          "same_session": true,
+          "contexts_created": 1
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "active-instruction-start-retry",
+        "expected": "A start retry does not make a still-executing session accept another instruction",
+        "actual": {
+          "same_lease": true,
+          "phase_after_retry": "ready",
+          "accepted_before": false,
+          "accepts_after": true
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "ready-start-retry-control",
+        "expected": "A ready session retry preserves identity and lease",
+        "actual": {
+          "session_id": "ready-control",
+          "lease_id": "lease"
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "clean-active-second-tab",
+        "expected": "Successful reset retains an open current page and closes discarded pages",
+        "actual": {
+          "current_page_closed": true,
+          "first_page_closed": false,
+          "retained_page_ids": [
+            "second"
+          ],
+          "page_map_ids": [
+            "first",
+            "second"
+          ],
+          "phase": "ready"
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "failed-reset-lifecycle",
+        "expected": "A failed reset exits resetting into a recoverable or explicitly failed state",
+        "actual": {
+          "error": "synthetic navigation failure",
+          "phase": "resetting",
+          "idle_cleanup_eligible_one_hour_later": false
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "external-target-reset-control",
+        "expected": "Reset refuses an owner-controlled target without changing its phase",
+        "actual": {
+          "refused": true,
+          "phase": "ready"
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "teardown-failure-receipt",
+        "expected": "Failed browser cleanup and trace flush remain owned and appear in the close result",
+        "actual": {
+          "page_close_attempts": 1,
+          "context_close_attempts": 1,
+          "trace_attempts": 1,
+          "page_still_open": true,
+          "sessions_tracked": 0,
+          "status": 200,
+          "close_result": {
+            "success": true,
+            "trace_path": "/synthetic/never-written-trace.zip"
+          }
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "normal-close-control",
+        "expected": "Successful cleanup closes owned resources and removes the session",
+        "actual": {
+          "page_closed": true,
+          "context_closed": true,
+          "tracked_sessions": 0,
+          "status": 200,
+          "close_result": {
+            "success": true
+          }
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "connected-without-frames-fallback",
+        "expected": "Polling continues after socket opens until a frame has arrived",
+        "actual": {
+          "polling_calls": 1,
+          "scheduled_fallback_polls": 0,
+          "binary_frames": 0
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "decode-admission-bound",
+        "expected": "Slow decoding uses bounded active work plus latest pending frame, independent of burst length",
+        "actual": {
+          "frames": 100,
+          "unresolved_decodes": 100
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "same-millisecond-frame-order",
+        "expected": "Older frame cannot overwrite newer frame after out-of-order decode",
+        "actual": {
+          "drawn_order": [
+            "newer",
+            "older"
+          ]
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "distinct-timestamp-frame-control",
+        "expected": "Older frame with a distinct timestamp is discarded and closed",
+        "actual": {
+          "drawn_order": [
+            "newer"
+          ],
+          "older_bitmap_closed": true
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "decode-after-session-switch",
+        "expected": "Old-session decode cannot draw into the new session canvas",
+        "actual": {
+          "drawn_after_switch": [
+            "old-session"
+          ]
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "decode-after-unmount",
+        "expected": "An in-flight decode finishing after cleanup is closed without scheduling a new paint",
+        "actual": {
+          "scheduled_paints_after_cleanup": 1,
+          "bitmap_closed": false
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "config-resolution-after-unmount",
+        "expected": "An unfinished config request cannot create a socket after effect cleanup",
+        "actual": {
+          "socket_count": 1,
+          "open_sockets": 1
+        },
+        "expected_behavior_met": false
+      }
+    ]
+  },
+  "retention_probes": {
+    "observed_at": "2026-09-22T00:52:52.004910845Z",
+    "results": [
+      {
+        "id": "unbounded-keep-latest-control",
+        "expected": "Unbounded sweep deletes two older rows and protects newest",
+        "actual": {
+          "DryRun": false,
+          "Removed": [
+            {
+              "ExecutionID": "00000000-0000-0000-0000-000000000002",
+              "Status": "completed",
+              "WorkflowID": "00000000-0000-0000-0000-000000000010",
+              "StartedAt": "2026-09-17T00:00:00Z",
+              "CompletedAt": "2026-09-17T00:00:00Z",
+              "ResultPath": "/synthetic/retention-investigation/00000000-0000-0000-0000-000000000002/result.json",
+              "ArtifactDir": "/synthetic/retention-investigation/00000000-0000-0000-0000-000000000002",
+              "EstimatedBytes": 100,
+              "Reason": ""
+            },
+            {
+              "ExecutionID": "00000000-0000-0000-0000-000000000001",
+              "Status": "completed",
+              "WorkflowID": "00000000-0000-0000-0000-000000000010",
+              "StartedAt": "2026-09-12T00:00:00Z",
+              "CompletedAt": "2026-09-12T00:00:00Z",
+              "ResultPath": "/synthetic/retention-investigation/00000000-0000-0000-0000-000000000001/result.json",
+              "ArtifactDir": "/synthetic/retention-investigation/00000000-0000-0000-0000-000000000001",
+              "EstimatedBytes": 100,
+              "Reason": ""
+            }
+          ],
+          "Skipped": [
+            {
+              "ExecutionID": "00000000-0000-0000-0000-000000000003",
+              "Status": "completed",
+              "WorkflowID": "00000000-0000-0000-0000-000000000010",
+              "StartedAt": "2026-09-21T00:00:00Z",
+              "CompletedAt": "2026-09-21T00:00:00Z",
+              "ResultPath": "/synthetic/retention-investigation/00000000-0000-0000-0000-000000000003/result.json",
+              "ArtifactDir": "",
+              "EstimatedBytes": 0,
+              "Reason": "protected by keep_latest"
+            }
+          ],
+          "EstimatedBytes": 200,
+          "RemovedCount": 2,
+          "SkippedCount": 1,
+          "ErrorCount": 0,
+          "RemovedByStatus": {
+            "completed": 2
+          }
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "bounded-keep-latest-progress",
+        "expected": "Repeated size-one batches delete eligible old rows while preserving the actual newest row",
+        "actual": {
+          "remaining_rows": 3,
+          "removed_per_sweep": [
+            0,
+            0,
+            0
+          ]
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "preview-subset-keep-latest",
+        "expected": "Applying an eligible old preview ID does not turn that row into the protected newest row",
+        "actual": {
+          "apply_removed": 0,
+          "apply_skipped": [
+            {
+              "ExecutionID": "00000000-0000-0000-0000-000000000001",
+              "Status": "completed",
+              "WorkflowID": "00000000-0000-0000-0000-000000000010",
+              "StartedAt": "2026-09-12T00:00:00Z",
+              "CompletedAt": "2026-09-12T00:00:00Z",
+              "ResultPath": "/synthetic/retention-investigation/00000000-0000-0000-0000-000000000001/result.json",
+              "ArtifactDir": "",
+              "EstimatedBytes": 0,
+              "Reason": "protected by keep_latest"
+            }
+          ],
+          "preview_eligible_count": 2
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "active-execution-retention-control",
+        "expected": "An explicitly selected running execution is not deleted",
+        "actual": {
+          "filesystem_deletes": 0,
+          "removed": 0
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "bounded-no-keep-control",
+        "expected": "A bounded sweep without keep_latest deletes the oldest row",
+        "actual": {
+          "deleted_ids": [
+            "00000000-0000-0000-0000-000000000001"
+          ],
+          "removed": 1
+        },
+        "expected_behavior_met": true
+      }
+    ],
+    "schema_version": 1,
+    "scope": "Actual retention service with in-memory store/filesystem; production oldest-first LIMIT behavior modelled; no database or filesystem deletion"
+  },
+  "probe_summary": {
+    "observations": 21,
+    "desired_behavior_mismatches": 13,
+    "successful_controls": 8,
+    "new_issue_ids": [
+      "BAS-RF-031",
+      "BAS-RF-032",
+      "BAS-RF-033",
+      "BAS-RF-034",
+      "BAS-RF-035",
+      "BAS-RF-036"
+    ],
+    "strengthened_issue_ids": [
+      "BAS-RF-005",
+      "BAS-RF-007"
+    ],
+    "interpretation": "Selected adverse cases, not a production failure rate, independent-bug count, or passing regression suite."
+  },
+  "source_files_sha256": {
+    "api/database/repository.go": "e7fa258ac9e666278362f09515eced7213425e6a9ded9192eda6b35338df8cb2",
+    "api/owner_cleanup.go": "b7f50b41a39ddf5656a6dfd38c116f924d3c83342ab79b971db7cd3601bdc06d",
+    "api/owner_retention.go": "8e4c85533df3661f1730a01692ae3163e241e67b1acaa36df24db06d69d87ac6",
+    "api/services/retention/retention.go": "38f3cd0b407c8f2b5f1e8b33a311674798958aecf5a979448d28b0870b391803",
+    "docs/internal/refactor_retention_probes.go": "38d380afb93f64eadd014a172fbaad6cc9605341939e6a57ddde013e7303eaa6",
+    "docs/internal/refactor_session_frame_probes.cjs": "1302620c06b98dbafe6a3fe10af06aba9ebe8355ed2e7f6edd3af2ecc1d5715a",
+    "playwright-driver/src/infra/in-flight-guard.ts": "fd90cd40d5ef12c1ab40b0436aebbde66a6e7eea2128b3e94ebc4c5f72ff2ecb",
+    "playwright-driver/src/infra/session-cleanup-registry.ts": "0f60b16a906a68600a42c3811ae266476e1cbccdbb84ea2c08f01dd781f9a426",
+    "playwright-driver/src/routes/session-close.ts": "20f850c92e6f76656153596e63f6ef589d6ed436d50f931a08b0d7cbe6e182a5",
+    "playwright-driver/src/session/manager.ts": "117350b730a64a73b90e29bf111735ee4f101aab8f6b222f5160ce09154c2acd",
+    "playwright-driver/src/session/session-decisions.ts": "140fc48c6b200e9bd273676698fd80438e30ea5e08e0f10a0fd78a112799efb0",
+    "playwright-driver/src/session/session-inspection.ts": "7fa2df6546b0c3e006deb68e39f8a68c8b4db0c0a266270a11097413a6e576e8",
+    "playwright-driver/src/session/session-reset.ts": "4664d0bafbcd1e0f31a9db9cec24db6e6b5553f22390ac2b0735cbe6ae31383a",
+    "playwright-driver/src/session/session-teardown.ts": "b20ce91b61824d91ecce23b73f65797747cba995b605562bb8465d82cb0b0161",
+    "playwright-driver/src/session/state-machine.ts": "dd74e25c4541fa656068fbd4327fccb274a02151876ae7acdb384db4f8b3c91f",
+    "ui/src/domains/recording/capture/useFrameStream.ts": "8e159d5649358580254cebcc5ccdd085da864d661af78f61a83ad6e8edc58313"
+  },
+  "commands": [
+    {
+      "cwd": "repository root",
+      "command": "node scenarios/browser-automation-studio/docs/internal/refactor_session_frame_probes.cjs",
+      "exit_code": 0
+    },
+    {
+      "cwd": "scenarios/browser-automation-studio/api",
+      "command": "GOPROXY=off GOTOOLCHAIN=local go run ../docs/internal/refactor_retention_probes.go",
+      "exit_code": 0
+    }
+  ],
+  "limits": [
+    "An executing session is seeded synthetically; no live instruction is interrupted or overlapped.",
+    "Reset tab probe makes navigation and storage clearing succeed to exercise later page-selection logic; real about:blank storage access is not certified. Navigation failure is separately injected.",
+    "Fake React hooks reproduce ref/state/effect dependency and cleanup behavior; no React renderer, real WebSocket, browser decoder, GPU or paint timing is measured.",
+    "Decode admission counts outstanding promises, not actual browser decoder threads or retained bytes. Late unmount probe observes scheduled work and bitmap ownership, not an actual paint after DOM removal.",
+    "Retention fake implements production oldest-first LIMIT queries; no production retention settings, SQL run, signed-preview integration or active filesystem deletion is exercised. Other retention owners may reclaim evidence independently.",
+    "Teardown route executes real manager/teardown and response shaping with synthetic middleware and failed browser methods; no production orphan or complete-workflow artifact result is asserted.",
+    "Earlier live memory/build observations are retained separately and not remeasured or attributed by this pass."
+  ]
+}

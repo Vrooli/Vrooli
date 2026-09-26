@@ -1,43 +1,37 @@
 package handlers
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"strings"
+	"path/filepath"
 	"time"
+
+	"github.com/vrooli/api-core/uiselectors"
+	"github.com/vrooli/browser-automation-studio/internal/scenarioport"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/config"
-	"github.com/vrooli/browser-automation-studio/domain"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	"github.com/vrooli/browser-automation-studio/performance"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
-	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/websocket"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
-	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // Request/response types are defined in record_mode_types.go
 
 const recordModeTimeout = 30 * time.Second
 
-func getPlaywrightDriverURL() string {
-	url := os.Getenv(driver.PlaywrightDriverEnv)
-	if url == "" {
-		return driver.DefaultDriverURL
-	}
-	return url
+func getPlaywrightDriverURL() (string, error) {
+	return driver.ResolveEndpoint(os.Getenv(driver.PlaywrightDriverEnv))
 }
 
 // CreateRecordingSession handles POST /api/v1/recordings/live/session
@@ -120,17 +114,6 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Update session profile usage tracking
-	if profileID != "" && h.sessionProfileService != nil {
-		if updated, err := h.sessionProfileService.Touch(sessionprofilepersistence.ProfileID(profileID)); err != nil {
-			h.log.WithError(err).WithField("profile_id", profileID).Warn("Failed to update session profile usage")
-		} else if updated != nil {
-			profileName = updated.Name
-			profileLastUsed = updated.LastUsedAt.Format(time.RFC3339)
-		}
-		h.setActiveSessionProfile(result.SessionID, profileID)
-	}
-
 	// Restore tabs if requested (default: true for recording sessions)
 	var restoredTabs []RestoredTabInfo
 	var initialURL string
@@ -154,11 +137,18 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		}
 		restorationResult, err := h.recordModeService.RestoreTabs(ctx, result.SessionID, openTabs)
 		if err != nil {
-			h.log.WithError(err).WithFields(map[string]interface{}{
-				"session_id": result.SessionID,
-				"profile_id": profileID,
-				"tab_count":  len(openTabs),
-			}).Warn("Failed to restore tabs from profile")
+			// The saved profile remains authoritative until restoration succeeds.
+			// Cleanup must run even if the admission request was cancelled.
+			cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(ctx), recordModeTimeout)
+			closeErr := result.Close(cleanupCtx)
+			cleanupCancel()
+			details := map[string]string{"error": err.Error()}
+			if closeErr != nil {
+				details["cleanup_error"] = closeErr.Error()
+				details["session_id"] = result.SessionID
+			}
+			h.respondError(w, ErrServiceUnavailable.WithMessage("Saved tabs could not be restored; the saved profile is unchanged.").WithDetails(details))
+			return
 		} else if restorationResult != nil {
 			h.log.WithFields(map[string]interface{}{
 				"restored_count": len(restorationResult.Tabs),
@@ -217,6 +207,17 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
+	// Update session profile usage tracking
+	if profileID != "" && h.sessionProfileService != nil {
+		if updated, err := h.sessionProfileService.Touch(sessionprofilepersistence.ProfileID(profileID)); err != nil {
+			h.log.WithError(err).WithField("profile_id", profileID).Warn("Failed to update session profile usage")
+		} else if updated != nil {
+			profileName = updated.Name
+			profileLastUsed = updated.LastUsedAt.Format(time.RFC3339)
+		}
+		h.setActiveSessionProfile(result.SessionID, profileID)
+	}
+
 	// Convert actual viewport with source attribution if present
 	var actualViewport *ActualViewportWithSource
 	if result.ActualViewport != nil {
@@ -260,38 +261,12 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Capture storage state and open tabs before closing (for session profile persistence)
-	var storageState json.RawMessage
-	var openTabs []sessionprofilepersistence.TabState
-	profileID := h.getActiveSessionProfile(sessionID)
-	if profileID != "" && h.sessionProfileService != nil {
-		// Capture storage state
-		if state, err := h.recordModeService.GetStorageState(ctx, sessionID); err != nil {
-			h.log.WithError(err).WithFields(map[string]interface{}{
-				"session_id": sessionID,
-				"profile_id": profileID,
-			}).Warn("Failed to capture storage state before closing session")
-		} else {
-			storageState = state
-		}
-
-		// Capture open tabs for restoration
-		if pages, activePageID, err := h.recordModeService.GetOpenPages(sessionID); err != nil {
-			h.log.WithError(err).WithFields(map[string]interface{}{
-				"session_id": sessionID,
-				"profile_id": profileID,
-			}).Warn("Failed to capture open tabs before closing session")
-		} else {
-			openTabs = make([]sessionprofilepersistence.TabState, 0, len(pages))
-			for i, page := range pages {
-				openTabs = append(openTabs, sessionprofilepersistence.TabState{
-					URL:      page.URL,
-					Title:    page.Title,
-					IsActive: page.ID == activePageID,
-					Order:    i,
-				})
-			}
-		}
+	// Keep the browser available for retry until its complete profile snapshot
+	// has committed. Closing first destroys the only recoverable live state.
+	if err := h.persistSessionProfile(ctx, sessionID); err != nil {
+		h.log.WithError(err).WithField("session_id", sessionID).Warn("Failed to save profile before close")
+		h.respondError(w, ErrInternalServer.WithMessage("Session profile could not be saved; the browser remains open. Retry closing after resolving the save failure.").WithDetails(map[string]string{"error": err.Error()}))
+		return
 	}
 
 	// Delegate to recordmode service
@@ -308,188 +283,12 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Persist storage state and open tabs to profile after successful close
-	if profileID != "" && h.sessionProfileService != nil {
-		if len(storageState) > 0 {
-			if _, err := h.sessionProfileService.SaveStorageState(sessionprofilepersistence.ProfileID(profileID), storageState); err != nil {
-				h.log.WithError(err).WithFields(map[string]interface{}{
-					"profile_id": profileID,
-					"session_id": sessionID,
-				}).Warn("Failed to persist session profile storage state")
-			}
-		}
-
-		// Save open tabs for restoration on next session start
-		if len(openTabs) > 0 {
-			if _, err := h.sessionProfileService.SaveOpenTabs(sessionprofilepersistence.ProfileID(profileID), openTabs); err != nil {
-				h.log.WithError(err).WithFields(map[string]interface{}{
-					"profile_id": profileID,
-					"session_id": sessionID,
-					"tab_count":  len(openTabs),
-				}).Warn("Failed to persist session profile open tabs")
-			}
-		}
-	}
-
 	h.clearActiveSessionProfile(sessionID)
 
 	h.respondSuccess(w, http.StatusOK, map[string]string{
 		"session_id": sessionID,
 		"status":     "closed",
 	})
-}
-
-// StartLiveRecording handles POST /api/v1/recordings/live/start
-// Starts recording user actions in a browser session.
-func (h *Handler) StartLiveRecording(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
-	defer cancel()
-
-	var req StartRecordingRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-			"error": "Invalid JSON body: " + err.Error(),
-		}))
-		return
-	}
-
-	if req.SessionID == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "session_id",
-		}))
-		return
-	}
-
-	// Build recording config with optional FPS/quality
-	recordingCfg := &livecapture.RecordingConfig{
-		APIHost: os.Getenv("API_HOST"),
-		APIPort: os.Getenv("API_PORT"),
-	}
-	if req.FrameQuality != nil {
-		recordingCfg.FrameQuality = *req.FrameQuality
-	}
-	if req.FrameFPS != nil {
-		recordingCfg.FrameFPS = *req.FrameFPS
-	}
-
-	// Delegate to recordmode service
-	resp, err := h.recordModeService.StartRecording(ctx, req.SessionID, recordingCfg)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to start recording")
-		// Check for specific error types
-		if driverErr, ok := err.(*driver.Error); ok {
-			if strings.Contains(driverErr.Message, "RECORDING_IN_PROGRESS") {
-				h.respondError(w, ErrRecordingInProgress)
-				return
-			}
-		}
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
-		return
-	}
-
-	// Map service response to handler response type
-	// Generate recording ID since the driver doesn't provide one
-	driverResp := StartRecordingResponse{
-		RecordingID: uuid.NewString(),
-		SessionID:   resp.SessionID,
-		StartedAt:   resp.StartedAt,
-	}
-
-	if pb, err := protoconv.StartRecordingToProto(driverResp); err == nil && pb != nil {
-		h.respondProto(w, http.StatusOK, pb)
-		return
-	}
-	h.respondSuccess(w, http.StatusOK, driverResp)
-}
-
-// StopLiveRecording handles POST /api/v1/recordings/live/{sessionId}/stop
-// Stops recording user actions.
-func (h *Handler) StopLiveRecording(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
-	defer cancel()
-
-	sessionID := chi.URLParam(r, "sessionId")
-	if sessionID == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "sessionId",
-		}))
-		return
-	}
-
-	// Delegate directly to driver client (no service-layer business logic needed)
-	resp, err := h.recordModeService.DriverClient().StopRecording(ctx, sessionID)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to stop recording")
-		// Check for not found error
-		if driverErr, ok := err.(*driver.Error); ok && driverErr.Status == 404 {
-			h.respondError(w, ErrExecutionNotFound.WithMessage("No recording in progress for this session"))
-			return
-		}
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
-		return
-	}
-
-	// Persist session profile after stopping
-	if err := h.persistSessionProfile(ctx, sessionID); err != nil {
-		h.log.WithError(err).WithField("session_id", sessionID).Warn("Failed to persist session profile after stop")
-	}
-
-	// Map service response to handler response type
-	driverResp := StopRecordingResponse{
-		SessionID:   resp.SessionID,
-		ActionCount: resp.ActionCount,
-		StoppedAt:   resp.StoppedAt,
-	}
-
-	if pb, err := protoconv.StopRecordingToProto(driverResp); err == nil && pb != nil {
-		h.respondProto(w, http.StatusOK, pb)
-		return
-	}
-	h.respondSuccess(w, http.StatusOK, driverResp)
-}
-
-// GetRecordingStatus handles GET /api/v1/recordings/live/{sessionId}/status
-// Gets the current recording status.
-func (h *Handler) GetRecordingStatus(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
-	defer cancel()
-
-	sessionID := chi.URLParam(r, "sessionId")
-	if sessionID == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "sessionId",
-		}))
-		return
-	}
-
-	// Delegate directly to driver client (no service-layer business logic needed)
-	status, err := h.recordModeService.DriverClient().GetRecordingStatus(ctx, sessionID)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to get recording status")
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
-		return
-	}
-
-	// Map service response to handler response type
-	driverResp := RecordingStatusResponse{
-		SessionID:   status.SessionID,
-		IsRecording: status.IsRecording,
-		ActionCount: status.ActionCount,
-		StartedAt:   status.StartedAt,
-		FrameCount:  status.FrameCount,
-	}
-
-	if pb, err := protoconv.RecordingStatusToProto(driverResp); err == nil && pb != nil {
-		h.respondProto(w, http.StatusOK, pb)
-		return
-	}
-	h.respondSuccess(w, http.StatusOK, driverResp)
 }
 
 // GetRecordingDebug handles GET /api/v1/recordings/live/{sessionId}/debug
@@ -504,9 +303,14 @@ func (h *Handler) GetRecordingDebug(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	driverURL := getPlaywrightDriverURL()
+	driverURL, err := getPlaywrightDriverURL()
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "resolve_playwright_driver"}))
+		return
+	}
 	targetURL := fmt.Sprintf("%s/session/%s/record/debug", driverURL, sessionID)
 
+	// #nosec G704 -- driverURL is validated by driver.ResolveEndpoint; sessionID is path data only.
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, targetURL, nil)
 	if err != nil {
 		http.Error(w, "Failed to create request", http.StatusInternalServerError)
@@ -514,6 +318,7 @@ func (h *Handler) GetRecordingDebug(w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
+	// #nosec G704 -- request target is restricted to the validated Playwright driver endpoint.
 	resp, err := client.Do(req)
 	if err != nil {
 		http.Error(w, "Failed to reach playwright-driver", http.StatusBadGateway)
@@ -552,15 +357,36 @@ func (h *Handler) GetRecordedActions(w http.ResponseWriter, r *http.Request) {
 
 	// Check for clear query param
 	clearActions := r.URL.Query().Get("clear") == "true"
+	owner, owned := h.recordModeService.GetSession(sessionID)
+	if clearActions && (!owned || owner == nil) {
+		h.respondError(w, ErrExecutionNotFound.WithMessage("Session not found"))
+		return
+	}
 
-	// Delegate directly to driver client (no service-layer business logic needed)
-	resp, err := h.recordModeService.DriverClient().GetRecordedActions(ctx, sessionID, clearActions)
+	// Read without mutation; acknowledgement follows journal commit.
+	resp, err := h.recordModeService.DriverClient().GetRecordedActions(ctx, sessionID)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to get recorded actions")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
 			"error": err.Error(),
 		}))
 		return
+	}
+
+	if clearActions && len(resp.Actions) > 0 {
+		ids := make([]string, 0, len(resp.Actions))
+		for i := range resp.Actions {
+			action := &resp.Actions[i]
+			if err := h.commitRecordingAction(ctx, sessionID, action); err != nil {
+				h.respondError(w, err)
+				return
+			}
+			ids = append(ids, action.ID)
+		}
+		if err := owner.AcknowledgeRecordedActions(ctx, ids); err != nil {
+			h.respondError(w, ErrServiceUnavailable.WithMessage("Recording committed but driver acknowledgement failed").WithDetails(map[string]string{"error": err.Error()}))
+			return
+		}
 	}
 
 	// Map service response to handler response type
@@ -635,13 +461,16 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	// Build V2 flow definition for storage
-	v2, err := workflowservice.BuildFlowDefinitionV2ForWrite(genResult.FlowDefinition, nil, nil)
-	if err != nil {
-		h.respondError(w, ErrInvalidWorkflowPayload.WithDetails(map[string]string{"error": err.Error()}))
-		return
-	}
+	v2 := genResult.FlowDefinition
 
+	// Bind recorded locators to this project's contract when recording its own UI.
+	if project, lookupErr := h.repo.GetProject(ctx, projectID); lookupErr == nil && project != nil {
+		if manifest, _, manifestErr := uiselectors.Load(project.FolderPath); manifestErr == nil {
+			if origin, _, originErr := scenarioport.ResolveURLAtPath(ctx, filepath.Base(project.FolderPath), project.FolderPath, "/"); originErr == nil {
+				symbolizeRecordingSelectors(v2, manifest, origin)
+			}
+		}
+	}
 	// Create the workflow via catalog service
 	createResp, err := h.catalogService.CreateWorkflow(ctx, &basapi.CreateWorkflowRequest{
 		ProjectId:      projectID.String(),
@@ -671,170 +500,9 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 	h.respondSuccess(w, http.StatusCreated, respPayload)
 }
 
-// ReceiveRecordingAction handles POST /api/v1/recordings/live/{sessionId}/action
-// Receives a streamed action from the playwright-driver and broadcasts it via WebSocket.
-// The action is converted to a unified TimelineEntry for V2 format compatibility.
-func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request) {
-	sessionID := chi.URLParam(r, "sessionId")
-	if sessionID == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "sessionId",
-		}))
-		return
-	}
-
-	// Generate correlation ID for tracing through the pipeline
-	correlationID := h.generateCorrelationID(sessionID)
-
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-			"error": "Failed to read request body: " + err.Error(),
-		}))
-		return
-	}
-
-	// Parse incoming action - supports both legacy JSON and proto TimelineEntry formats
-	var action driver.RecordedAction
-	if err := json.Unmarshal(body, &action); err == nil && action.ActionType != "" {
-		// Legacy RecordedAction JSON payload
-	} else {
-		// Proto TimelineEntry payload (preferred from playwright-driver)
-		var entry bastimeline.TimelineEntry
-		if err := protojson.Unmarshal(body, &entry); err != nil {
-			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-				"error": "Invalid JSON body: " + err.Error(),
-			}))
-			return
-		}
-		action = driver.RecordedActionFromTimelineEntry(&entry)
-	}
-
-	h.log.WithFields(map[string]interface{}{
-		"correlation_id": correlationID,
-		"session_id":     sessionID,
-		"action_type":    action.ActionType,
-		"action_id":      action.ID,
-	}).Debug("Action received")
-
-	// Assign page ID to the action and store in timeline
-	var pageIDForTimeline uuid.UUID
-	var persisted bool
-	if sess, ok := h.recordModeService.GetSession(sessionID); ok && sess.Pages() != nil {
-		pages := sess.Pages()
-		// If driver provided a page ID, map it; otherwise use active page
-		if action.DriverPageID != "" {
-			if vrooliPageID := pages.GetPageIDByDriverID(action.DriverPageID); vrooliPageID != nil {
-				action.PageID = vrooliPageID.String()
-				pageIDForTimeline = *vrooliPageID
-			}
-		}
-		// Fallback to active page if no page ID assigned
-		if action.PageID == "" {
-			pageIDForTimeline = pages.GetActivePageID()
-			action.PageID = pageIDForTimeline.String()
-		}
-
-		// Store action in timeline (persistence)
-		h.recordModeService.AddTimelineAction(sessionID, &action, pageIDForTimeline)
-		persisted = true
-	}
-
-	// Broadcast unified timeline entry format
-	broadcastResult := h.wsHub.BroadcastRecordingEntry(sessionID, h.createUnifiedEntry(&action))
-
-	// Log unified result for observability
-	h.log.WithFields(map[string]interface{}{
-		"correlation_id":   correlationID,
-		"session_id":       sessionID,
-		"action_type":      action.ActionType,
-		"action_id":        action.ID,
-		"sequence_num":     action.SequenceNum,
-		"persisted":        persisted,
-		"broadcast_sent":   broadcastResult.SentCount > 0,
-		"subscriber_count": broadcastResult.SubscriberCount,
-		"sent_count":       broadcastResult.SentCount,
-		"dropped_count":    broadcastResult.DroppedCount,
-	}).Debug("Action recorded")
-
-	h.respondSuccess(w, http.StatusOK, map[string]string{
-		"status": "ok",
-	})
-}
-
-// createUnifiedEntry creates a unified timeline entry format for WebSocket broadcast.
-// This format matches what the UI expects and replaces the legacy dual-format broadcasting.
-func (h *Handler) createUnifiedEntry(action *driver.RecordedAction) *websocket.UnifiedTimelineEntry {
-	if action == nil {
-		return nil
-	}
-
-	// Build selector if present
-	var selector map[string]any
-	if action.Selector != nil && action.Selector.Primary != "" {
-		selector = map[string]any{
-			"primary": action.Selector.Primary,
-		}
-	}
-
-	return &websocket.UnifiedTimelineEntry{
-		ID:        action.ID,
-		Type:      "action",
-		Timestamp: action.Timestamp,
-		PageID:    action.PageID,
-		Action: &websocket.TimelineAction{
-			ID:         action.ID,
-			ActionType: action.ActionType,
-			SequenceNum: action.SequenceNum,
-			Timestamp:  action.Timestamp,
-			Confidence: action.Confidence,
-			URL:        action.URL,
-			PageTitle:  action.PageTitle,
-			Selector:   selector,
-			Payload:    action.Payload,
-		},
-	}
-}
-
-// ReceiveRecordingFrame handles POST /api/v1/recordings/live/{sessionId}/frame
-// Receives a streamed frame from the playwright-driver and broadcasts it via WebSocket.
-// This eliminates the need for clients to poll for frames - they receive them in real-time.
-func (h *Handler) ReceiveRecordingFrame(w http.ResponseWriter, r *http.Request) {
-	sessionID := chi.URLParam(r, "sessionId")
-	if sessionID == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "sessionId",
-		}))
-		return
-	}
-
-	var frame websocket.RecordingFrame
-	if err := json.NewDecoder(r.Body).Decode(&frame); err != nil {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-			"error": "Invalid JSON body: " + err.Error(),
-		}))
-		return
-	}
-
-	// Only broadcast if there are subscribers (avoid unnecessary work)
-	if h.wsHub.HasRecordingSubscribers(sessionID) {
-		h.wsHub.BroadcastRecordingFrame(sessionID, &frame)
-	}
-
-	// Return 200 immediately - don't wait for broadcast
-	w.WriteHeader(http.StatusOK)
-}
-
-// HandleDriverFrameStream handles WebSocket connection for binary frame streaming from playwright-driver.
-// GET /ws/recording/{sessionId}/frames
-// This is more efficient than HTTP POST as it:
-// 1. Uses a persistent connection (no per-frame TCP overhead)
-// 2. Sends raw binary JPEG data (no base64 encoding = 33% smaller)
-// 3. Pass-through to browser clients (no JSON parsing/re-encoding)
-//
-// When performance mode is enabled, frames may include a performance header:
-// [4 bytes: header length (uint32 big-endian)][N bytes: JSON perf header][remaining: JPEG data]
-// Detection: If first 2 bytes are 0xFF 0xD8 (JPEG magic), no header present.
+// HandleDriverFrameStream accepts a length-prefixed source header and JPEG over
+// GET /ws/recording/{sessionId}/frames. Only the current lease's selected page
+// may publish. Viewers receive canonical identity without producer credentials.
 func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request) {
 	sessionID := chi.URLParam(r, "sessionId")
 	if sessionID == "" {
@@ -856,13 +524,11 @@ func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request
 	// Get performance config (used for logging/broadcast intervals)
 	cfg := config.Load()
 
-	// Get or create performance collector for this session (always, for potential runtime enabling)
-	collector := h.perfRegistry.GetOrCreate(sessionID)
+	// Allocate telemetry only for accepted frames carrying timing data.
+	var collector *performance.Collector
 
 	// Read binary frames from driver and broadcast to browser clients
 	for {
-		receiveStart := time.Now()
-
 		messageType, data, err := conn.ReadMessage()
 		if err != nil {
 			// Check for normal closure
@@ -879,48 +545,41 @@ func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request
 			continue
 		}
 
-		receiveMs := float64(time.Since(receiveStart).Microseconds()) / 1000.0
+		processingStart := time.Now()
 
-		// Parse performance header if present
-		// Detection: JPEG files start with 0xFF 0xD8 magic bytes
-		var driverHeader *performance.FrameHeader
-		frameData := data
-		if len(data) > 4 && !(data[0] == 0xFF && data[1] == 0xD8) {
-			// Has performance header - parse it
-			headerLen := binary.BigEndian.Uint32(data[:4])
-			if int(headerLen) <= len(data)-4 {
-				headerJSON := data[4 : 4+headerLen]
-				var header performance.FrameHeader
-				if err := json.Unmarshal(headerJSON, &header); err == nil {
-					driverHeader = &header
-					frameData = data[4+headerLen:]
-				} else {
-					h.log.WithError(err).Debug("Failed to parse frame perf header")
-				}
-			}
+		frameData, driverHeader, decodeErr := decodeDriverFrame(data)
+		if decodeErr != nil {
+			h.log.WithError(decodeErr).Debug("Rejected invalid recording frame")
+			continue
+		}
+		pageID, accepted := h.framePage(sessionID, driverHeader.Source)
+		if !accepted {
+			continue
 		}
 
 		// Broadcast binary frame to subscribed browser clients
 		broadcastStart := time.Now()
-		if h.wsHub.HasRecordingSubscribers(sessionID) {
-			h.wsHub.BroadcastBinaryFrame(sessionID, frameData)
+		if h.wsHub.HasRecordingFrameSubscribers(sessionID) {
+			h.wsHub.BroadcastBinaryFrame(sessionID, viewerFrame(sessionID, pageID, driverHeader.CapturedAt, frameData))
 		}
 		broadcastMs := float64(time.Since(broadcastStart).Microseconds()) / 1000.0
 
 		// Record performance data if driver sent a perf header
 		// (presence of header indicates per-session perf mode is enabled)
-		if driverHeader != nil {
+		if driverHeader.Timing != nil {
+			if collector == nil {
+				collector = h.perfRegistry.GetOrCreate(sessionID)
+			}
 			timing := &performance.FrameTimings{
-				FrameID:         driverHeader.FrameID,
+				FrameID:         driverHeader.Timing.FrameID,
 				SessionID:       sessionID,
 				Timestamp:       time.Now(),
-				DriverCaptureMs: driverHeader.CaptureMs,
-				DriverCompareMs: driverHeader.CompareMs,
-				DriverWsSendMs:  driverHeader.WsSendMs,
-				DriverTotalMs:   driverHeader.CaptureMs + driverHeader.CompareMs + driverHeader.WsSendMs,
-				APIReceiveMs:    receiveMs,
+				DriverCaptureMs: driverHeader.Timing.CaptureMs,
+				DriverCompareMs: driverHeader.Timing.CompareMs,
+				DriverWsSendMs:  driverHeader.Timing.WsSendMs,
+				DriverTotalMs:   driverHeader.Timing.CaptureMs + driverHeader.Timing.CompareMs + driverHeader.Timing.WsSendMs,
 				APIBroadcastMs:  broadcastMs,
-				APITotalMs:      receiveMs + broadcastMs,
+				APITotalMs:      float64(time.Since(processingStart).Microseconds()) / 1000.0,
 				FrameBytes:      len(frameData),
 				Skipped:         false,
 			}
@@ -952,578 +611,73 @@ func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request
 	}
 
 	// Cleanup collector when stream disconnects
-	h.perfRegistry.Remove(sessionID)
+	if collector != nil {
+		h.perfRegistry.Remove(sessionID)
+	}
 
 	h.log.WithField("session_id", sessionID).Info("Driver frame stream disconnected")
 }
 
-// ValidateSelector handles POST /api/v1/recordings/live/{sessionId}/validate-selector
-// Validates a selector on the current page.
-func (h *Handler) ValidateSelector(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
-	defer cancel()
-
-	sessionID := chi.URLParam(r, "sessionId")
-	if sessionID == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "sessionId",
-		}))
-		return
-	}
-
-	var req struct {
-		Selector string `json:"selector"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-			"error": "Invalid JSON body: " + err.Error(),
-		}))
-		return
-	}
-
-	if req.Selector == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "selector",
-		}))
-		return
-	}
-
-	// Delegate directly to driver client (no service-layer business logic needed)
-	resp, err := h.recordModeService.DriverClient().ValidateSelector(ctx, sessionID, &driver.ValidateSelectorRequest{
-		Selector: req.Selector,
-	})
-	if err != nil {
-		h.log.WithError(err).Error("Failed to validate selector")
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
-		return
-	}
-
-	// Map service response to handler response type
-	driverResp := struct {
-		Valid      bool   `json:"valid"`
-		MatchCount int    `json:"match_count"`
-		Selector   string `json:"selector"`
-		Error      string `json:"error,omitempty"`
-	}{
-		Valid:      resp.Valid,
-		MatchCount: resp.MatchCount,
-		Selector:   resp.Selector,
-		Error:      resp.Error,
-	}
-
-	if pb, err := protoconv.SelectorValidationToProto(driverResp); err == nil && pb != nil {
-		h.respondProto(w, http.StatusOK, pb)
-		return
-	}
-	h.respondSuccess(w, http.StatusOK, driverResp)
-}
-
-// ReplayRecordingPreview handles POST /api/v1/recordings/live/{sessionId}/replay-preview
-// Tests recorded actions by replaying them in the browser.
-func (h *Handler) ReplayRecordingPreview(w http.ResponseWriter, r *http.Request) {
-	// Longer timeout for replay operations - may need to execute multiple actions
-	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
-	defer cancel()
-
-	sessionID := chi.URLParam(r, "sessionId")
-	if sessionID == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "sessionId",
-		}))
-		return
-	}
-
-	var req ReplayPreviewRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-			"error": "Invalid JSON body: " + err.Error(),
-		}))
-		return
-	}
-
-	if len(req.Actions) == 0 {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-			"error": "No actions to replay",
-		}))
-		return
-	}
-
-	// Delegate directly to driver client (no service-layer business logic needed)
-	svcReq := &driver.ReplayPreviewRequest{
-		Actions:       req.Actions,
-		Limit:         req.Limit,
-		StopOnFailure: req.StopOnFailure,
-		ActionTimeout: req.ActionTimeout,
-	}
-
-	resp, err := h.recordModeService.DriverClient().ReplayPreview(ctx, sessionID, svcReq)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to replay preview")
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
-		return
-	}
-
-	// Map service response to handler response
-	results := make([]ActionReplayResult, len(resp.Results))
-	for i, r := range resp.Results {
-		var replayErr *ActionReplayError
-		if r.Error != "" {
-			replayErr = &ActionReplayError{Message: r.Error}
-		}
-		results[i] = ActionReplayResult{
-			SequenceNum: r.Index,
-			ActionType:  r.ActionType,
-			Success:     r.Success,
-			DurationMs:  r.DurationMs,
-			Error:       replayErr,
-		}
-	}
-
-	replayResp := ReplayPreviewResponse{
-		Success:         resp.Success,
-		TotalActions:    len(req.Actions),
-		PassedActions:   resp.PassedActions,
-		FailedActions:   resp.FailedActions,
-		Results:         results,
-		TotalDurationMs: resp.TotalDurationMs,
-		StoppedEarly:    resp.FailedActions > 0 && req.StopOnFailure != nil && *req.StopOnFailure,
-	}
-
-	h.log.WithFields(map[string]interface{}{
-		"session_id":     sessionID,
-		"success":        replayResp.Success,
-		"passed_actions": replayResp.PassedActions,
-		"failed_actions": replayResp.FailedActions,
-		"total_duration": replayResp.TotalDurationMs,
-	}).Info("Replay preview complete")
-
-	if pb, err := protoconv.ReplayPreviewToProto(replayResp); err == nil && pb != nil {
-		h.respondProto(w, http.StatusOK, pb)
-		return
-	}
-	h.respondSuccess(w, http.StatusOK, replayResp)
-}
-
-// NavigateRecordingSession handles POST /api/v1/recordings/live/{sessionId}/navigate
-// Navigates the Playwright recording session to a URL and optionally returns a screenshot.
-// Also creates a navigate action in the recording timeline so the navigation is captured.
-func (h *Handler) NavigateRecordingSession(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
-	defer cancel()
-
-	sessionID := chi.URLParam(r, "sessionId")
-	if sessionID == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "sessionId",
-		}))
-		return
-	}
-
-	var req NavigateRecordingRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-			"error": "Invalid JSON body: " + err.Error(),
-		}))
-		return
-	}
-
-	if strings.TrimSpace(req.URL) == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "url",
-		}))
-		return
-	}
-
-	// Delegate directly to driver client (no service-layer business logic needed)
-	resp, err := h.recordModeService.DriverClient().Navigate(ctx, sessionID, &driver.NavigateRequest{
-		URL:       req.URL,
-		WaitUntil: req.WaitUntil,
-		TimeoutMs: req.TimeoutMs,
-		Capture:   req.Capture,
-	})
-	if err != nil {
-		h.log.WithError(err).Error("Failed to navigate recording session")
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
-		return
-	}
-
-	// Update the active page's URL and title after navigation completes
-	// This ensures the page tracker stays in sync even if the driver's
-	// page_navigated callback hasn't fired yet
-	if sess, ok := h.recordModeService.GetSession(sessionID); ok && sess.Pages() != nil {
-		pages := sess.Pages()
-		activePageID := pages.GetActivePageID()
-		pages.UpdatePageInfo(activePageID, resp.URL, resp.Title)
-
-		// NOTE: Navigate actions are captured by the browser-side recording script.
-		// We intentionally do NOT create a duplicate action here to avoid double
-		// navigation events (which causes UI flickering and duplicate timeline entries).
-		// The browser script captures navigation via History API wrapping and provides
-		// more accurate timing and context.
-
-		// Broadcast a page_navigated event so the UI updates the URL bar
-		now := time.Now()
-		pageEvent := &domain.PageEvent{
-			ID:        uuid.New(),
-			Type:      domain.PageEventNavigated,
-			PageID:    activePageID,
-			URL:       resp.URL,
-			Title:     resp.Title,
-			Timestamp: now,
-		}
-		h.wsHub.BroadcastPageEvent(sessionID, pageEvent)
-	}
-
-	// Map service response to handler response type
-	driverResp := NavigateRecordingResponse{
-		URL:          resp.URL,
-		Title:        resp.Title,
-		CanGoBack:    resp.CanGoBack,
-		CanGoForward: resp.CanGoForward,
-		StatusCode:   resp.StatusCode,
-		Screenshot:   resp.Screenshot,
-	}
-
-	h.respondSuccess(w, http.StatusOK, driverResp)
-}
-
-// ReloadRecordingSession handles POST /api/v1/recordings/live/{sessionId}/reload
-// Reloads the current page in the recording session.
+// ReloadRecordingSession handles POST /api/v1/recordings/live/{sessionId}/reload.
 func (h *Handler) ReloadRecordingSession(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
-	defer cancel()
-
-	sessionID := chi.URLParam(r, "sessionId")
-	if sessionID == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "sessionId",
-		}))
-		return
-	}
-
-	var req ReloadRecordingRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-			"error": "Invalid JSON body: " + err.Error(),
-		}))
-		return
-	}
-
-	// Delegate directly to driver client (no service-layer business logic needed)
-	resp, err := h.recordModeService.DriverClient().Reload(ctx, sessionID, &driver.ReloadRequest{
-		WaitUntil: req.WaitUntil,
-		TimeoutMs: req.TimeoutMs,
-	})
-	if err != nil {
-		h.log.WithError(err).Error("Failed to reload recording session")
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
-		return
-	}
-
-	// Create a reload action for the recording timeline
-	if sess, ok := h.recordModeService.GetSession(sessionID); ok && sess.Pages() != nil {
-		correlationID := h.generateCorrelationID(sessionID)
-		pages := sess.Pages()
-		activePageID := pages.GetActivePageID()
-
-		now := time.Now()
-		reloadAction := driver.RecordedAction{
-			ID:         uuid.NewString(),
-			SessionID:  sessionID,
-			Timestamp:  now.Format(time.RFC3339Nano),
-			ActionType: "reload",
-			Confidence: 1.0,
-			URL:        resp.URL,
-			PageID:     activePageID.String(),
-			PageTitle:  resp.Title,
-		}
-
-		h.recordModeService.AddTimelineAction(sessionID, &reloadAction, activePageID)
-
-		// Broadcast unified timeline entry
-		broadcastResult := h.wsHub.BroadcastRecordingEntry(sessionID, h.createUnifiedEntry(&reloadAction))
-
-		h.log.WithFields(map[string]interface{}{
-			"correlation_id":   correlationID,
-			"session_id":       sessionID,
-			"action_type":      "reload",
-			"action_id":        reloadAction.ID,
-			"url":              resp.URL,
-			"persisted":        true,
-			"broadcast_sent":   broadcastResult.SentCount > 0,
-			"subscriber_count": broadcastResult.SubscriberCount,
-		}).Debug("Reload action recorded")
-	}
-
-	driverResp := ReloadRecordingResponse{
-		SessionID:    sessionID,
-		URL:          resp.URL,
-		Title:        resp.Title,
-		CanGoBack:    resp.CanGoBack,
-		CanGoForward: resp.CanGoForward,
-	}
-
-	h.respondSuccess(w, http.StatusOK, driverResp)
+	h.navigateRecordingHistory(w, r, driver.HistoryReload)
 }
 
-// GoBackRecordingSession handles POST /api/v1/recordings/live/{sessionId}/go-back
-// Navigates back in browser history.
+// GoBackRecordingSession handles POST /api/v1/recordings/live/{sessionId}/go-back.
 func (h *Handler) GoBackRecordingSession(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
-	defer cancel()
-
-	sessionID := chi.URLParam(r, "sessionId")
-	if sessionID == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "sessionId",
-		}))
-		return
-	}
-
-	var req GoBackRecordingRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-			"error": "Invalid JSON body: " + err.Error(),
-		}))
-		return
-	}
-
-	// Delegate directly to driver client (no service-layer business logic needed)
-	resp, err := h.recordModeService.DriverClient().GoBack(ctx, sessionID, &driver.GoBackRequest{
-		WaitUntil: req.WaitUntil,
-		TimeoutMs: req.TimeoutMs,
-	})
-	if err != nil {
-		h.log.WithError(err).Error("Failed to go back in recording session")
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
-		return
-	}
-
-	// Create a goBack action for the recording timeline
-	if sess, ok := h.recordModeService.GetSession(sessionID); ok && sess.Pages() != nil {
-		correlationID := h.generateCorrelationID(sessionID)
-		pages := sess.Pages()
-		activePageID := pages.GetActivePageID()
-
-		// Update page info
-		pages.UpdatePageInfo(activePageID, resp.URL, resp.Title)
-
-		now := time.Now()
-		goBackAction := driver.RecordedAction{
-			ID:         uuid.NewString(),
-			SessionID:  sessionID,
-			Timestamp:  now.Format(time.RFC3339Nano),
-			ActionType: "goBack",
-			Confidence: 1.0,
-			URL:        resp.URL,
-			PageID:     activePageID.String(),
-			PageTitle:  resp.Title,
-		}
-
-		h.recordModeService.AddTimelineAction(sessionID, &goBackAction, activePageID)
-
-		// Broadcast unified timeline entry
-		broadcastResult := h.wsHub.BroadcastRecordingEntry(sessionID, h.createUnifiedEntry(&goBackAction))
-
-		// Broadcast page_navigated event
-		pageEvent := &domain.PageEvent{
-			ID:        uuid.New(),
-			Type:      domain.PageEventNavigated,
-			PageID:    activePageID,
-			URL:       resp.URL,
-			Title:     resp.Title,
-			Timestamp: now,
-		}
-		h.wsHub.BroadcastPageEvent(sessionID, pageEvent)
-
-		h.log.WithFields(map[string]interface{}{
-			"correlation_id":   correlationID,
-			"session_id":       sessionID,
-			"action_type":      "goBack",
-			"action_id":        goBackAction.ID,
-			"url":              resp.URL,
-			"persisted":        true,
-			"broadcast_sent":   broadcastResult.SentCount > 0,
-			"subscriber_count": broadcastResult.SubscriberCount,
-		}).Debug("GoBack action recorded")
-	}
-
-	driverResp := GoBackRecordingResponse{
-		SessionID:    sessionID,
-		URL:          resp.URL,
-		Title:        resp.Title,
-		CanGoBack:    resp.CanGoBack,
-		CanGoForward: resp.CanGoForward,
-	}
-
-	h.respondSuccess(w, http.StatusOK, driverResp)
+	h.navigateRecordingHistory(w, r, driver.HistoryBack)
 }
 
-// GoForwardRecordingSession handles POST /api/v1/recordings/live/{sessionId}/go-forward
-// Navigates forward in browser history.
+// GoForwardRecordingSession handles POST /api/v1/recordings/live/{sessionId}/go-forward.
 func (h *Handler) GoForwardRecordingSession(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
-	defer cancel()
-
-	sessionID := chi.URLParam(r, "sessionId")
-	if sessionID == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "sessionId",
-		}))
-		return
-	}
-
-	var req GoForwardRecordingRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-			"error": "Invalid JSON body: " + err.Error(),
-		}))
-		return
-	}
-
-	// Delegate directly to driver client (no service-layer business logic needed)
-	resp, err := h.recordModeService.DriverClient().GoForward(ctx, sessionID, &driver.GoForwardRequest{
-		WaitUntil: req.WaitUntil,
-		TimeoutMs: req.TimeoutMs,
-	})
-	if err != nil {
-		h.log.WithError(err).Error("Failed to go forward in recording session")
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
-		return
-	}
-
-	// Create a goForward action for the recording timeline
-	if sess, ok := h.recordModeService.GetSession(sessionID); ok && sess.Pages() != nil {
-		correlationID := h.generateCorrelationID(sessionID)
-		pages := sess.Pages()
-		activePageID := pages.GetActivePageID()
-
-		// Update page info
-		pages.UpdatePageInfo(activePageID, resp.URL, resp.Title)
-
-		now := time.Now()
-		goForwardAction := driver.RecordedAction{
-			ID:         uuid.NewString(),
-			SessionID:  sessionID,
-			Timestamp:  now.Format(time.RFC3339Nano),
-			ActionType: "goForward",
-			Confidence: 1.0,
-			URL:        resp.URL,
-			PageID:     activePageID.String(),
-			PageTitle:  resp.Title,
-		}
-
-		h.recordModeService.AddTimelineAction(sessionID, &goForwardAction, activePageID)
-
-		// Broadcast unified timeline entry
-		broadcastResult := h.wsHub.BroadcastRecordingEntry(sessionID, h.createUnifiedEntry(&goForwardAction))
-
-		// Broadcast page_navigated event
-		pageEvent := &domain.PageEvent{
-			ID:        uuid.New(),
-			Type:      domain.PageEventNavigated,
-			PageID:    activePageID,
-			URL:       resp.URL,
-			Title:     resp.Title,
-			Timestamp: now,
-		}
-		h.wsHub.BroadcastPageEvent(sessionID, pageEvent)
-
-		h.log.WithFields(map[string]interface{}{
-			"correlation_id":   correlationID,
-			"session_id":       sessionID,
-			"action_type":      "goForward",
-			"action_id":        goForwardAction.ID,
-			"url":              resp.URL,
-			"persisted":        true,
-			"broadcast_sent":   broadcastResult.SentCount > 0,
-			"subscriber_count": broadcastResult.SubscriberCount,
-		}).Debug("GoForward action recorded")
-	}
-
-	driverResp := GoForwardRecordingResponse{
-		SessionID:    sessionID,
-		URL:          resp.URL,
-		Title:        resp.Title,
-		CanGoBack:    resp.CanGoBack,
-		CanGoForward: resp.CanGoForward,
-	}
-
-	h.respondSuccess(w, http.StatusOK, driverResp)
+	h.navigateRecordingHistory(w, r, driver.HistoryForward)
 }
 
-// GetNavigationState handles GET /api/v1/recordings/live/{sessionId}/navigation-state
-// Returns the current navigation state (canGoBack/canGoForward).
-func (h *Handler) GetNavigationState(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) navigateRecordingHistory(w http.ResponseWriter, r *http.Request, operation driver.HistoryNavigation) {
 	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
 	defer cancel()
-
 	sessionID := chi.URLParam(r, "sessionId")
 	if sessionID == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "sessionId",
-		}))
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "sessionId"}))
 		return
 	}
-
-	// Delegate directly to driver client (no service-layer business logic needed)
-	resp, err := h.recordModeService.DriverClient().GetNavigationState(ctx, sessionID)
+	var req struct {
+		driver.HistoryNavigationRequest
+		PageID string `json:"page_id,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "Invalid JSON body: " + err.Error()}))
+		return
+	}
+	owner, ok := h.recordModeService.GetSession(sessionID)
+	if !ok || owner == nil {
+		h.respondError(w, ErrExecutionNotFound.WithMessage("Session not found"))
+		return
+	}
+	expectedPage, apiErr := navigationRequestPage(owner, req.PageID)
+	if apiErr != nil {
+		h.respondError(w, apiErr)
+		return
+	}
+	req.ExpectedPageID = expectedPage
+	resp, err := owner.NavigateHistory(ctx, operation, &req.HistoryNavigationRequest)
 	if err != nil {
-		h.log.WithError(err).Error("Failed to get navigation state")
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
+		h.log.WithError(err).Error("Failed to navigate recording history")
+		h.respondError(w, recordingNavigationError(err))
 		return
 	}
-
-	driverResp := NavigationStateResponse{
-		SessionID:    sessionID,
-		URL:          resp.URL,
-		Title:        resp.Title,
-		CanGoBack:    resp.CanGoBack,
-		CanGoForward: resp.CanGoForward,
+	actionType := "reload"
+	if operation == driver.HistoryBack {
+		actionType = "goBack"
 	}
-
-	h.respondSuccess(w, http.StatusOK, driverResp)
-}
-
-// GetNavigationStack handles GET /api/v1/recordings/live/{sessionId}/navigation-stack
-// Returns the navigation history stack for back/forward popup.
-func (h *Handler) GetNavigationStack(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
-	defer cancel()
-
-	sessionID := chi.URLParam(r, "sessionId")
-	if sessionID == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "sessionId",
-		}))
+	if operation == driver.HistoryForward {
+		actionType = "goForward"
+	}
+	if apiErr := h.recordCompletedNavigation(ctx, owner, actionType, resp); apiErr != nil {
+		h.respondError(w, apiErr)
 		return
 	}
-
-	// Delegate directly to driver client (no service-layer business logic needed)
-	resp, err := h.recordModeService.DriverClient().GetNavigationStack(ctx, sessionID)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to get navigation stack")
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
-		return
-	}
-
-	h.respondSuccess(w, http.StatusOK, resp)
+	h.respondSuccess(w, http.StatusOK, NavigationStateResponse{SessionID: sessionID, URL: resp.URL, Title: resp.Title, CanGoBack: resp.CanGoBack, CanGoForward: resp.CanGoForward})
 }
 
 // CaptureRecordingScreenshot handles POST /api/v1/recordings/live/{sessionId}/screenshot
@@ -1605,36 +759,40 @@ func (h *Handler) UpdateRecordingViewport(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Delegate directly to driver client (no service-layer business logic needed)
-	resp, err := h.recordModeService.DriverClient().UpdateViewport(ctx, sessionID, &driver.UpdateViewportRequest{
-		Width:  reqBody.Width,
-		Height: reqBody.Height,
-	})
-	if err != nil {
-		h.log.WithError(err).Error("Failed to update recording viewport")
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
+	owner, ok := h.recordModeService.GetSession(sessionID)
+	if !ok || owner == nil {
+		h.respondError(w, ErrExecutionNotFound.WithMessage("Session not found"))
 		return
 	}
-
-	// Map service response to handler response type
-	var width, height int
-	if resp.ActualViewport != nil {
-		width = resp.ActualViewport.Width
-		height = resp.ActualViewport.Height
+	expected, apiErr := recordingSelectedPage(owner, reqBody.PageID)
+	if apiErr != nil {
+		h.respondError(w, apiErr)
+		return
 	}
-	driverResp := struct {
+	resp, err := owner.UpdateViewport(ctx, reqBody.Width, reqBody.Height, expected)
+	if err != nil {
+		h.respondError(w, recordingNavigationError(err))
+		return
+	}
+	current, ok := h.recordModeService.GetSession(sessionID)
+	if !ok || current != owner {
+		h.respondError(w, ErrConflict.WithMessage("Recording session changed during resize"))
+		return
+	}
+	selected, apiErr := recordingSelectedPage(owner, reqBody.PageID)
+	if apiErr != nil {
+		h.respondError(w, apiErr)
+		return
+	}
+	if selected != expected {
+		h.respondError(w, ErrConflict.WithMessage("Recording tab changed during resize"))
+		return
+	}
+	h.respondSuccess(w, http.StatusOK, struct {
 		SessionID string `json:"session_id"`
 		Width     int    `json:"width"`
 		Height    int    `json:"height"`
-	}{
-		SessionID: resp.SessionID,
-		Width:     width,
-		Height:    height,
-	}
-
-	h.respondSuccess(w, http.StatusOK, driverResp)
+	}{sessionID, resp.Width, resp.Height})
 }
 
 // UpdateStreamSettings handles POST /api/v1/recordings/live/{sessionId}/stream-settings
@@ -1729,8 +887,8 @@ func (h *Handler) ForwardRecordingInput(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Delegate directly to driver client (no service-layer business logic needed)
-	err = h.recordModeService.DriverClient().ForwardInput(ctx, sessionID, bodyBytes)
+	// The service carries the immutable session lease for this mutation.
+	receipt, err := h.recordModeService.ForwardInput(ctx, sessionID, bodyBytes)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to forward recording input")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
@@ -1739,9 +897,7 @@ func (h *Handler) ForwardRecordingInput(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, map[string]string{
-		"status": "ok",
-	})
+	h.respondSuccess(w, http.StatusOK, receipt)
 }
 
 // GetRecordingFrame handles GET /api/v1/recordings/live/{sessionId}/frame
@@ -1759,39 +915,53 @@ func (h *Handler) GetRecordingFrame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delegate directly to driver client (no service-layer business logic needed)
-	resp, err := h.recordModeService.DriverClient().GetFrame(ctx, sessionID, r.URL.RawQuery)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to get frame")
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
+	owner, ok := h.recordModeService.GetSession(sessionID)
+	if !ok || owner == nil {
+		h.respondError(w, ErrExecutionNotFound.WithMessage("Session not found"))
 		return
 	}
-
-	// Map service response to handler response
-	driverResp := RecordingFrameResponse{
-		SessionID:   sessionID,
-		Mime:        resp.MediaType,
-		Image:       resp.Data,
-		Width:       resp.Width,
-		Height:      resp.Height,
-		CapturedAt:  resp.CapturedAt,
-		ContentHash: resp.ContentHash,
-		PageTitle:   resp.PageTitle,
-		PageURL:     resp.PageURL,
+	query := r.URL.Query()
+	requestedPage := query.Get("page_id")
+	if _, apiErr := navigationRequestPage(owner, requestedPage); apiErr != nil {
+		h.respondError(w, apiErr)
+		return
 	}
-
-	// Generate ETag from content hash provided by playwright-driver.
-	// The driver computes MD5 hash of raw JPEG buffer, which is a reliable
-	// content fingerprint that changes if and only if the frame content changes.
-	var etag string
-	if driverResp.ContentHash != "" {
-		etag = fmt.Sprintf(`"%s"`, driverResp.ContentHash)
-	} else {
-		// Fallback for older driver versions without content_hash field
-		etag = fmt.Sprintf(`"%s"`, driverResp.CapturedAt)
+	pages := owner.Pages()
+	if pages == nil {
+		h.respondError(w, ErrConflict.WithMessage("No recording tab is selected"))
+		return
 	}
+	page := pages.GetActivePage()
+	if page == nil || page.DriverPageID == "" || (requestedPage != "" && requestedPage != page.ID.String()) {
+		h.respondError(w, ErrConflict.WithMessage("The selected recording tab changed"))
+		return
+	}
+	query.Set("page_id", page.DriverPageID)
+	resp, err := h.recordModeService.DriverClient().GetFrame(ctx, sessionID, query.Encode())
+	if err != nil {
+		var driverError *driver.Error
+		if errors.As(err, &driverError) && driverError.Status == http.StatusConflict {
+			h.respondError(w, ErrConflict.WithMessage("The selected recording tab changed during capture"))
+		} else {
+			h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{"error": err.Error()}))
+		}
+		return
+	}
+	if resp == nil {
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Missing recording frame"))
+		return
+	}
+	canonical, accepted := h.framePage(sessionID, resp.Source)
+	if !accepted || canonical != page.ID || resp.SessionID != sessionID {
+		h.respondError(w, ErrConflict.WithMessage("The recording frame source changed during capture"))
+		return
+	}
+	// Do not expose producer credentials or mutate a response owned by the client.
+	frame := *resp
+	frame.Source = nil
+	frame.PageID = canonical.String()
+
+	etag := fmt.Sprintf(`"%s"`, resp.ContentHash)
 
 	// Check If-None-Match header for conditional request
 	clientETag := r.Header.Get("If-None-Match")
@@ -1807,134 +977,11 @@ func (h *Handler) GetRecordingFrame(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("ETag", etag)
 	w.Header().Set("Cache-Control", "no-cache")
 
-	h.respondSuccess(w, http.StatusOK, driverResp)
+	h.respondSuccess(w, http.StatusOK, &frame)
 }
 
 // PersistRecordingSession handles POST /api/v1/recordings/live/{sessionId}/persist
 // Captures current storage state and saves it to the active session profile without closing the session.
-func (h *Handler) PersistRecordingSession(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
-	defer cancel()
-
-	sessionID := chi.URLParam(r, "sessionId")
-	if sessionID == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "sessionId",
-		}))
-		return
-	}
-
-	if err := h.persistSessionProfile(ctx, sessionID); err != nil {
-		h.log.WithError(err).WithField("session_id", sessionID).Warn("Failed to persist session profile")
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
-		return
-	}
-
-	h.respondSuccess(w, http.StatusOK, map[string]string{
-		"status":     "persisted",
-		"session_id": sessionID,
-	})
-}
-
-func (h *Handler) resolveSessionProfile(requestedID string) (*sessionprofilepersistence.SessionProfile, *APIError) {
-	if h == nil || h.sessionProfileService == nil {
-		return nil, nil
-	}
-
-	// Use the service's GetOrCreateProfile method which handles:
-	// - If ID provided: get that specific profile
-	// - If no ID: get most recent profile or create new one
-	profile, err := h.sessionProfileService.GetOrCreateProfile(sessionprofilepersistence.ProfileID(strings.TrimSpace(requestedID)))
-	if err != nil {
-		if h.log != nil {
-			h.log.WithError(err).Error("Failed to resolve session profile")
-		}
-		// Check if it's a "not found" error
-		if strings.Contains(err.Error(), "not found") {
-			return nil, ErrExecutionNotFound.WithMessage("Session profile not found")
-		}
-		return nil, ErrInternalServer.WithDetails(map[string]string{
-			"error": err.Error(),
-		})
-	}
-	return profile, nil
-}
-
-func (h *Handler) setActiveSessionProfile(sessionID, profileID string) {
-	if h.sessionProfileService != nil {
-		h.sessionProfileService.SetActiveSession(sessionID, profileID)
-	}
-}
-
-func (h *Handler) clearActiveSessionProfile(sessionID string) string {
-	if h.sessionProfileService != nil {
-		return h.sessionProfileService.ClearActiveSession(sessionID)
-	}
-	return ""
-}
-
-func (h *Handler) getActiveSessionProfile(sessionID string) string {
-	if h.sessionProfileService != nil {
-		return h.sessionProfileService.GetActiveSession(sessionID)
-	}
-	return ""
-}
-
-func (h *Handler) persistSessionProfile(ctx context.Context, sessionID string) error {
-	if h.sessionProfileService == nil {
-		return nil
-	}
-	profileID := h.getActiveSessionProfile(sessionID)
-	if profileID == "" {
-		return nil
-	}
-
-	// Delegate to recordmode service for storage state
-	state, err := h.recordModeService.GetStorageState(ctx, sessionID)
-	if err != nil {
-		return err
-	}
-	if len(state) > 0 {
-		if _, err := h.sessionProfileService.SaveStorageState(sessionprofilepersistence.ProfileID(profileID), state); err != nil {
-			h.log.WithError(err).WithFields(map[string]interface{}{
-				"profile_id": profileID,
-				"session_id": sessionID,
-			}).Warn("Failed to persist session profile storage state")
-		}
-	}
-
-	// Also capture and save open tabs for restoration
-	// This ensures tabs are saved when the user navigates away (beforeunload),
-	// not just when they explicitly close the session
-	if pages, activePageID, err := h.recordModeService.GetOpenPages(sessionID); err != nil {
-		h.log.WithError(err).WithFields(map[string]interface{}{
-			"session_id": sessionID,
-			"profile_id": profileID,
-		}).Warn("Failed to capture open tabs during persist")
-	} else if len(pages) > 0 {
-		openTabs := make([]sessionprofilepersistence.TabState, 0, len(pages))
-		for i, page := range pages {
-			openTabs = append(openTabs, sessionprofilepersistence.TabState{
-				URL:      page.URL,
-				Title:    page.Title,
-				IsActive: page.ID == activePageID,
-				Order:    i,
-			})
-		}
-		if _, err := h.sessionProfileService.SaveOpenTabs(sessionprofilepersistence.ProfileID(profileID), openTabs); err != nil {
-			h.log.WithError(err).WithFields(map[string]interface{}{
-				"profile_id": profileID,
-				"session_id": sessionID,
-				"tab_count":  len(openTabs),
-			}).Warn("Failed to persist session profile open tabs")
-		}
-	}
-
-	return nil
-}
-
 // CreateInputForwarder returns a function that forwards input events to the playwright-driver.
 // This is used by the WebSocket hub to forward input messages without going through HTTP.
 //
@@ -1942,52 +989,15 @@ func (h *Handler) persistSessionProfile(ctx context.Context, sessionID string) e
 // - Uses a shared HTTP client with connection pooling (reuses TCP connections)
 // - Keep-alive connections reduce latency by avoiding TCP handshake per request
 // - Connection pool sized for concurrent input events across sessions
-func (h *Handler) CreateInputForwarder() func(sessionID string, input map[string]any) error {
-	// Shared HTTP client with connection pooling for all input forwarding.
-	// This dramatically reduces latency vs creating a new client per request.
-	// Keep-alive connections mean subsequent requests reuse existing TCP connections.
-	transport := &http.Transport{
-		MaxIdleConns:        100,              // Total pool size
-		MaxIdleConnsPerHost: 10,               // Per-driver connections (usually just one driver)
-		IdleConnTimeout:     90 * time.Second, // Keep connections warm
-		DisableKeepAlives:   false,            // Explicitly enable keep-alive
-	}
-	client := &http.Client{
-		Timeout:   5 * time.Second,
-		Transport: transport,
-	}
-
-	return func(sessionID string, input map[string]any) error {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second) // Tighter timeout for input
+func (h *Handler) CreateInputForwarder() func(sessionID string, input map[string]any) (*driver.ForwardInputResponse, error) {
+	return func(sessionID string, input map[string]any) (*driver.ForwardInputResponse, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-
-		driverURL := fmt.Sprintf("%s/session/%s/record/input", getPlaywrightDriverURL(), sessionID)
-
-		jsonBody, err := json.Marshal(input)
+		body, err := json.Marshal(input)
 		if err != nil {
-			return fmt.Errorf("marshal input: %w", err)
+			return nil, fmt.Errorf("marshal input: %w", err)
 		}
-
-		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(jsonBody))
-		if err != nil {
-			return fmt.Errorf("create request: %w", err)
-		}
-		httpReq.Header.Set("Content-Type", "application/json")
-
-		resp, err := client.Do(httpReq)
-		if err != nil {
-			return fmt.Errorf("forward input: %w", err)
-		}
-		defer resp.Body.Close()
-
-		// Drain the response body to enable connection reuse
-		_, _ = io.Copy(io.Discard, resp.Body)
-
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("driver returned %d", resp.StatusCode)
-		}
-
-		return nil
+		return h.recordModeService.ForwardInput(ctx, sessionID, body)
 	}
 }
 

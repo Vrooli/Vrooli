@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "../ui/button";
-import { Dialog } from "../ui/dialog";
+import { Drawer } from "../ui/drawer";
 import { Input } from "../ui/input";
 import type { ModuleFormValues } from "../../types";
 
@@ -60,15 +60,14 @@ export function ModuleFormDialog({
   const displayError = error ?? submitError;
 
   return (
-    <Dialog isOpen={isOpen} onClose={onClose} maxWidth="max-w-md" isLoading={isSubmitting}>
-      <h2 className="text-xl font-semibold text-slate-100">
-        {isEditMode ? "Edit Module" : "Create Module"}
-      </h2>
-      <p className="mt-1 text-sm text-slate-400">
-        {isEditMode ? "Update module metadata." : "Add a new requirements module."}
-      </p>
+    <Drawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isEditMode ? "Edit Module" : "Create Module"}
+      description={isEditMode ? "Update module metadata." : "Add a new requirements module."}
+    >
 
-      <div className="mt-6 space-y-4">
+      <div className="space-y-4 p-4">
         <div>
           <label htmlFor="module-form-id" className="text-sm font-medium text-slate-300">ID</label>
           <Input
@@ -119,6 +118,6 @@ export function ModuleFormDialog({
           {isSubmitting ? "Saving..." : isEditMode ? "Save Changes" : "Create Module"}
         </Button>
       </div>
-    </Dialog>
+    </Drawer>
   );
 }

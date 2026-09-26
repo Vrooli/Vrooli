@@ -1,0 +1,22 @@
+{
+  "id": "scenario_ports",
+  "label": "Apps with ports",
+  "description": "Apps currently holding at least one assigned port.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "scalar",
+  "source": {
+    "team": "meta-optimization",
+    "binding": "scenario:vrooli-core",
+    "read": "/scenarios",
+    "select": "scenario_ports",
+    "ttlSeconds": 60,
+    "integrationId": "vrooli-core",
+    "featureId": "scenario_ports",
+    "contractVersion": "legacy.v1",
+    "selector": "scenario_ports",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

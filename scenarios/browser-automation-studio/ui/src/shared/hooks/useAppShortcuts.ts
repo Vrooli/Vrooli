@@ -12,7 +12,7 @@ import {
 } from "@hooks/useKeyboardShortcuts";
 import { type ShortcutContext } from "@stores/keyboardShortcutsStore";
 import type { AppView } from "@/types/navigation";
-import type { Project } from "@/domains/projects";
+import type { Project } from "@/domains/projects/store";
 
 interface UseAppShortcutsParams {
   // Current app state for context detection

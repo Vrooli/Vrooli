@@ -1,0 +1,562 @@
+{
+  "schema_version": 1,
+  "record": "BAS-WORK-012",
+  "issues": [
+    "BAS-RF-056",
+    "BAS-RF-057"
+  ],
+  "source_sha256": {
+    "playwright-driver/jest.config.js": "df33003ef0e02124a72f421740d7795a1a253833dfe8f288b6c462689134ac35",
+    "api/services/live-capture/action_registry.go": "4a6adefb8b66e6ac815f96dd7b98a71357a06e4a9a9444e7a0d3c2ed08052459",
+    "playwright-driver/src/constants.ts": "94362b2c448e438533436b803893a89ff2cd8c1104a664cfffcd8303be847c5d",
+    "playwright-driver/src/proto/params.ts": "cfb39ae13d520578bbc4023b136fb11134a63986ddeb8e4a7e2ca8e0b077c754",
+    "playwright-driver/src/handlers/scroll.ts": "d8e79f3ca783bb3b3aefe8da0c6cbd5ec0e4222a281530ee5d5b83d177f8d111",
+    "playwright-driver/src/handlers/behavior-utils.ts": "5c28d819e0861f06f557eec0c8c063323a893bcb4e81bdcce19dd1e2f93d4fb4",
+    "playwright-driver/src/handlers/interaction.ts": "eb06662e7e7ea65957ce0cd405f1b8d5fd001e421f5ec63ba50e9a8430b013ce",
+    "playwright-driver/src/handlers/keyboard.ts": "79823f7ce8506bf5f002f11aa161d253e46f1aa1eaf172e879b72249404e5374"
+  },
+  "source_inventory_digest": "c0eec64eda8394635133dc4fa7aed47d04101dc5acc993d2a2167c40283f295a",
+  "runtime_ts_lines": {
+    "before": 1947,
+    "after": 1851,
+    "files": [
+      "playwright-driver/src/constants.ts",
+      "playwright-driver/src/proto/params.ts",
+      "playwright-driver/src/handlers/scroll.ts",
+      "playwright-driver/src/handlers/behavior-utils.ts",
+      "playwright-driver/src/handlers/interaction.ts",
+      "playwright-driver/src/handlers/keyboard.ts"
+    ]
+  },
+  "checks": {
+    "browser_red": "FAIL tests/integration/typed-action-semantics.test.ts\n  typed browser action semantics\n    \u2715 delivers a Control double-click and releases its temporary modifier (203 ms)\n    \u2715 uses the declared right mouse button (77 ms)\n    \u2715 applies Control-A and releases Control after keyboard failure (58 ms)\n    \u2713 keeps an explicitly held modifier through a temporary chord (52 ms)\n    \u2715 appends when requested, replaces with empty input, and submits once (61 ms)\n    \u2715 scrolls the target element and keeps omitted axes during relative updates (50 ms)\n\n  \u25cf typed browser action semantics \u203a delivers a Control double-click and releases its temporary modifier\n\n    expect(received).toEqual(expected) // deep equality\n\n    - Expected  - 5\n    + Received  + 1\n\n      Array [\n        Array [\n          1,\n    -     true,\n    -   ],\n    -   Array [\n    -     2,\n    -     true,\n    +     false,\n        ],\n      ]\n\n      62 |     expect(result.success).toBe(true);\n      63 |     const log = await events();\n    > 64 |     expect(log.filter((e: {type:string}) => e.type === 'click').map((e: {detail:number;ctrl:boolean}) => [e.detail,e.ctrl])).toEqual([[1,true],[2,true]]);\n         |                                                                                                                              ^\n      65 |     expect(log.filter((e: {type:string}) => e.type === 'dblclick')).toHaveLength(1);\n      66 |     const down = log.find((e: {type:string}) => e.type === 'mousedown');\n      67 |     const up = log.find((e: {type:string}) => e.type === 'mouseup');\n\n      at Object.<anonymous> (tests/integration/typed-action-semantics.test.ts:64:126)\n\n  \u25cf typed browser action semantics \u203a uses the declared right mouse button\n\n    expect(received).toEqual(expected) // deep equality\n\n    - Expected  - 3\n    + Received  + 1\n\n    - Array [\n    -   2,\n    - ]\n    + Array []\n\n      76 |     })), context);\n      77 |     expect(result.success).toBe(true);\n    > 78 |     expect((await events()).filter((e: {type:string}) => e.type === 'contextmenu').map((e: {button:number}) => e.button)).toEqual([2]);\n         |                                                                                                                           ^\n      79 |   });\n      80 |\n      81 |   it('applies Control-A and releases Control after keyboard failure', async () => {\n\n      at Object.<anonymous> (tests/integration/typed-action-semantics.test.ts:78:123)\n\n  \u25cf typed browser action semantics \u203a applies Control-A and releases Control after keyboard failure\n\n    expect(received).toEqual(expected) // deep equality\n\n    - Expected  - 2\n    + Received  + 2\n\n      Array [\n    -   0,\n    -   8,\n    +   1,\n    +   1,\n      ]\n\n      83 |     const action = create(ActionDefinitionSchema, { type: ActionType.KEYBOARD, params: { case: 'keyboard', value: create(KeyboardParamsSchema, { key: 'a', modifiers: [KeyboardModifier.CTRL] }) } });\n      84 |     expect((await keyboard.execute(instruction(action),context)).success).toBe(true);\n    > 85 |     expect(await page.locator('#input').evaluate((element: HTMLInputElement) => [element.selectionStart,element.selectionEnd])).toEqual([0,8]);\n         |                                                                                                                                 ^\n      86 |     action.params = { case: 'keyboard', value: create(KeyboardParamsSchema, { key: 'NotARealKey', modifiers: [KeyboardModifier.CTRL] }) };\n      87 |     expect((await keyboard.execute(instruction(action),context)).success).toBe(false);\n      88 |     await page.keyboard.press('x');\n\n      at Object.<anonymous> (tests/integration/typed-action-semantics.test.ts:85:129)\n\n  \u25cf typed browser action semantics \u203a appends when requested, replaces with empty input, and submits once\n\n    expect(received).toBe(expected) // Object.is equality\n\n    Expected: \"original-suffix\"\n    Received: \"-suffix\"\n\n      103 |     const input = (value:string, clearFirst:boolean, submit=false) => instruction(create(ActionDefinitionSchema,{type:ActionType.INPUT,params:{case:'input',value:create(InputParamsSchema,{selector:'#input',value,clearFirst,submit,delayMs:5})}}));\n      104 |     expect((await interaction.execute(input('-suffix',false),context)).success).toBe(true);\n    > 105 |     expect(await page.inputValue('#input')).toBe('original-suffix');\n          |                                             ^\n      106 |     expect((await interaction.execute(input('',true,true),context)).success).toBe(true);\n      107 |     expect(await page.inputValue('#input')).toBe('');\n      108 |     expect((await events()).filter((e: {type:string}) => e.type === 'submit')).toHaveLength(1);\n\n      at Object.<anonymous> (tests/integration/typed-action-semantics.test.ts:105:45)\n\n  \u25cf typed browser action semantics \u203a scrolls the target element and keeps omitted axes during relative updates\n\n    expect(received).toEqual(expected) // deep equality\n\n    - Expected  - 2\n    + Received  + 2\n\n      Array [\n    -   200,\n    -   300,\n    +   0,\n    +   0,\n      ]\n\n      114 |     expect((await scroll.execute(first,context)).success).toBe(true);\n      115 |     const read = () => page.locator('#pane').evaluate(element => [element.scrollLeft,element.scrollTop]);\n    > 116 |     expect(await read()).toEqual([200,300]);\n          |                          ^\n      117 |     const next = instruction(create(ActionDefinitionSchema,{type:ActionType.SCROLL,params:{case:'scroll',value:create(ScrollParamsSchema,{selector:'#pane',deltaY:50})}}));\n      118 |     expect((await scroll.execute(next,context)).success).toBe(true);\n      119 |     expect(await read()).toEqual([200,350]);\n\n      at Object.<anonymous> (tests/integration/typed-action-semantics.test.ts:116:26)\n\nTest Suites: 1 failed, 1 total\nTests:       5 failed, 1 passed, 6 total\nSnapshots:   0 total\nTime:        1.369 s, estimated 2 s\nRan all test suites matching /tests\\/integration\\/typed-action-semantics.test.ts/i.\n",
+    "interpolation_fault": "PASS tests/integration/typed-action-semantics.test.ts\nPASS tests/unit/handlers/interaction.test.ts\nPASS tests/unit/handlers/keyboard.test.ts\nPASS tests/unit/handlers/scroll.test.ts\nFAIL tests/unit/handlers/behavior-utils.test.ts\n  \u25cf behavior-utils \u203a steps toward both target axes and finishes at the exact destination\n\n    expect(received).toEqual(expected) // deep equality\n\n    - Expected  - 2\n    + Received  + 2\n\n      Array [\n        Object {\n          \"smooth\": false,\n    -     \"x\": 10,\n    +     \"x\": 20,\n          \"y\": 0,\n        },\n        Object {\n          \"smooth\": false,\n    -     \"x\": 20,\n    +     \"x\": 40,\n          \"y\": 0,\n        },\n      ]\n\n      145 |     const behavior = { getScrollSpeed: () => 10, shouldMicroPause: () => true, getMicroPauseDuration: () => 3 } as unknown as import('../../../src/browser-profile').HumanBehavior;\n      146 |     await executeHumanScroll(target, 20, 0, behavior, { minStepDelayMs: 1, maxStepDelayMs: 1 });\n    > 147 |     expect(evaluate.mock.calls.slice(1).map(call => call[1])).toEqual([{ x: 10, y: 0, smooth: false }, { x: 20, y: 0, smooth: false }]);\n          |                                                               ^\n      148 |     expect(mockSleep).toHaveBeenNthCalledWith(1, 1);\n      149 |     expect(mockSleep).toHaveBeenNthCalledWith(2, 3);\n      150 |   });\n\n      at Object.<anonymous> (tests/unit/handlers/behavior-utils.test.ts:147:63)\n\nTest Suites: 1 failed, 4 passed, 5 total\nTests:       1 failed, 36 passed, 37 total\nSnapshots:   0 total\nTime:        1.833 s, estimated 3 s\nRan all test suites matching /tests\\/integration\\/typed-action-semantics.test.ts|tests\\/unit\\/handlers\\/interaction.test.ts|tests\\/unit\\/handlers\\/keyboard.test.ts|tests\\/unit\\/handlers\\/scroll.test.ts|tests\\/unit\\/handlers\\/behavior-utils.test.ts/i.\n",
+    "multiline_red": "FAIL tests/integration/typed-action-semantics.test.ts\n  typed browser action semantics\n    \u2715 appends after the whole multiline value (219 ms)\n    \u25cb skipped delivers a Control double-click and releases its temporary modifier\n    \u25cb skipped uses the declared right mouse button\n    \u25cb skipped applies Control-A and releases Control after keyboard failure\n    \u25cb skipped keeps an explicitly held modifier through a temporary chord\n    \u25cb skipped appends when requested, replaces with empty input, and submits once\n    \u25cb skipped scrolls the target element and keeps omitted axes during relative updates\n    \u25cb skipped reaches the exact bounded element destination with smooth scrolling\n    \u25cb skipped reaches the exact bounded element destination with stepped scrolling\n    \u25cb skipped updates viewport deltas without resetting the other axis\n\n  \u25cf typed browser action semantics \u203a appends after the whole multiline value\n\n    expect(received).toBe(expected) // Object.is equality\n\n    - Expected  - 2\n    + Received  + 2\n\n    - one\n    - two-suffix\n    + one-suffix\n    + two\n\n      145 |     const result = await interaction.execute(instruction(action),context);\n      146 |     expect(result.error).toBeUndefined();\n    > 147 |     expect(await page.inputValue('#multiline')).toBe('one\\ntwo-suffix');\n          |                                                 ^\n      148 |   });\n      149 |\n      150 | });\n\n      at Object.<anonymous> (tests/integration/typed-action-semantics.test.ts:147:49)\n\nTest Suites: 1 failed, 1 total\nTests:       1 failed, 9 skipped, 10 total\nSnapshots:   0 total\nTime:        1.107 s, estimated 3 s\nRan all test suites matching /tests\\/integration\\/typed-action-semantics.test.ts/i with tests matching \"multiline\".\n",
+    "babel_instrumentation_fault": "FAIL tests/integration/typed-action-semantics.test.ts\n  typed browser action semantics\n    \u2713 delivers a Control double-click and releases its temporary modifier (368 ms)\n    \u2713 uses the declared right mouse button (80 ms)\n    \u2713 applies Control-A and releases Control after keyboard failure (63 ms)\n    \u2713 keeps an explicitly held modifier through a temporary chord (48 ms)\n    \u2713 appends when requested, replaces with empty input, and submits once (146 ms)\n    \u2715 scrolls the target element and keeps omitted axes during relative updates (52 ms)\n\n  \u25cf typed browser action semantics \u203a scrolls the target element and keeps omitted axes during relative updates\n\n    expect(received).toBeUndefined()\n\n    Received: {\"code\": \"SELECTOR_NOT_FOUND\", \"kind\": 1, \"message\": \"Selector not found: unknown \u2014 elementHandle.evaluate: ReferenceError: cov_ieri02bia is not defined\n\n      at eval (eval at evaluate (:313:29), <anonymous>:3:11)\n      at UtilityScript.evaluate (<anonymous>:315:16)\n      at UtilityScript.<anonymous> (<anonymous>:1:44)\", \"retryable\": true}\n      at Object.<anonymous> (tests/integration/typed-action-semantics.test.ts:115:31)\n\nJest: \"global\" coverage threshold for branches (10%) not met: 8.39%\nJest: \"global\" coverage threshold for functions (15%) not met: 10.27%\nTest Suites: 1 failed, 1 total\nTests:       1 failed, 5 passed, 6 total\nSnapshots:   0 total\nTime:        1.944 s, estimated 2 s\nRan all test suites matching /tests\\/integration\\/typed-action-semantics.test.ts/i.\n",
+    "v8_first_pass": "PASS tests/integration/typed-action-semantics.test.ts\nPASS tests/unit/handlers/behavior-utils.test.ts\nPASS tests/unit/handlers/interaction.test.ts\nPASS tests/unit/handlers/scroll.test.ts\nPASS tests/unit/handlers/keyboard.test.ts\n\nTest Suites: 5 passed, 5 total\nTests:       40 passed, 40 total\nSnapshots:   0 total\nTime:        4.316 s\nRan all test suites matching /tests\\/integration\\/typed-action-semantics.test.ts|tests\\/unit\\/handlers\\/interaction.test.ts|tests\\/unit\\/handlers\\/keyboard.test.ts|tests\\/unit\\/handlers\\/scroll.test.ts|tests\\/unit\\/handlers\\/behavior-utils.test.ts/i.\n",
+    "final_focused": "PASS tests/integration/typed-action-semantics.test.ts\nPASS tests/unit/handlers/keyboard.test.ts\nPASS tests/unit/handlers/scroll.test.ts\nPASS tests/unit/handlers/interaction.test.ts\nPASS tests/unit/handlers/behavior-utils.test.ts\n\nTest Suites: 5 passed, 5 total\nTests:       41 passed, 41 total\nSnapshots:   0 total\nTime:        4.161 s\nRan all test suites matching /tests\\/integration\\/typed-action-semantics.test.ts|tests\\/unit\\/handlers\\/interaction.test.ts|tests\\/unit\\/handlers\\/keyboard.test.ts|tests\\/unit\\/handlers\\/scroll.test.ts|tests\\/unit\\/handlers\\/behavior-utils.test.ts/i.\n",
+    "typecheck": "",
+    "go_context_race": "ok  \tgithub.com/vrooli/browser-automation-studio/services/live-capture\t1.042s\n"
+  },
+  "coverage_producer": {
+    "before": "Jest Babel (browser callbacks gain invalid Node counters)",
+    "after": "Jest V8 (browser callbacks remain executable)",
+    "source_exclusions": "unchanged",
+    "thresholds": {
+      "branches": 10,
+      "functions": 15,
+      "lines": 30,
+      "statements": 30
+    },
+    "comparability": "Coverage percentages across producer change are not evidence of improved coverage; full run pending"
+  },
+  "board": {
+    "program": "browser-automation-studio.setpoint-read",
+    "version": "1",
+    "status": "ok",
+    "phase": "report",
+    "inputs": {
+      "window": 100,
+      "evidence_sample": 5,
+      "profile": "rehabilitation"
+    },
+    "signals": {
+      "rows": [
+        {
+          "row": "preservation",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#preservation",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "interactive-feedback",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#interactive-feedback",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "motion",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#motion",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "readiness",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#readiness",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "capture",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#capture",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "passive-fidelity",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#passive-fidelity",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "profile-durability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#profile-durability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "known-flow-reliability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#known-flow-reliability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "cancellation-recovery",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#cancellation-recovery",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "resource-budget",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#resource-budget",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "soak-stability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#soak-stability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "evidence-completeness",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#evidence-completeness",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "desktop-portability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#desktop-portability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "agent-usefulness",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#agent-usefulness",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "structural-debt",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#structural-debt",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "workspace-usability",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#workspace-usability",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        },
+        {
+          "row": "adversarial-review",
+          "reading": null,
+          "target": "bas-rehabilitation-v1#adversarial-review",
+          "in_band": null,
+          "unavailable": true,
+          "reason": "pending_telemetry"
+        }
+      ],
+      "readable": 0,
+      "unavailable": 17,
+      "required": 17,
+      "unmet": 17,
+      "product_qualified": false
+    },
+    "errors": [],
+    "evidence": [
+      "scenarios/browser-automation-studio/docs/internal/REFRACTOR_CONTRACT.json"
+    ]
+  },
+  "owner_validation": {
+    "run_id": "20260922-063234-81755f5d",
+    "status": "terminal failed",
+    "unit": "No verdict: unit-health RPC deadline exceeded after300s; provider healthy, no lingering test process. Driver-only owner diagnostic session65852 admitted to distinguish V8 producer cost from environment delay.",
+    "tidiness": {
+      "totalFindings": 1098,
+      "longFiles": 81,
+      "complexity": 384,
+      "duplication": 620,
+      "coupling": 12,
+      "duplicationLineDebt": 34640
+    },
+    "remaining_budget_failure": "complexity384 vs baseline363",
+    "artifacts": {
+      "schema_version": 1,
+      "digest": "ac:sha256:a4cff9f81f67bb642ce76d4f8e84cf95e423aac2d087ceb1e4625d8cd13624de",
+      "artifacts": [
+        {
+          "id": "artifact_9dc75fd2ab5406bf9203edc7a27671e0",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "unit.log",
+          "producing_phase": "unit",
+          "size_bytes": "514",
+          "created_at": "2026-09-22T06:37:34.986297499Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-063234-81755f5d/artifacts/artifact_9dc75fd2ab5406bf9203edc7a27671e0",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_eea64eb436b3e3b7f7d37ad60d6c3f42",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "tidiness.log",
+          "producing_phase": "tidiness",
+          "size_bytes": "445744",
+          "created_at": "2026-09-22T06:37:39.320322717Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-063234-81755f5d/artifacts/artifact_eea64eb436b3e3b7f7d37ad60d6c3f42",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_5306962a7d5098b1b56e01c3d512f37c",
+          "kind": "findings.report",
+          "media_type": "application/json",
+          "label": "findings.json",
+          "size_bytes": "5875174",
+          "created_at": "2026-09-22T06:37:39.594324311Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-063234-81755f5d/artifacts/artifact_5306962a7d5098b1b56e01c3d512f37c",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_fcbb18d0f7b17271396562d1368ec3a7",
+          "kind": "generic.file",
+          "media_type": "application/json",
+          "label": "evidence-manifest.json",
+          "size_bytes": "79598",
+          "created_at": "2026-09-22T06:37:39.59932434Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-063234-81755f5d/artifacts/artifact_fcbb18d0f7b17271396562d1368ec3a7",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_44c92bbae5b90dbec880627527f9ba95",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "unit.json",
+          "producing_phase": "unit",
+          "size_bytes": "533",
+          "created_at": "2026-09-22T06:37:34.986297499Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-063234-81755f5d/artifacts/artifact_44c92bbae5b90dbec880627527f9ba95",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_d6230a4357a31f7680239d5243222f8b",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "tidiness.json",
+          "producing_phase": "tidiness",
+          "size_bytes": "2987",
+          "created_at": "2026-09-22T06:37:39.318322706Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-063234-81755f5d/artifacts/artifact_d6230a4357a31f7680239d5243222f8b",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        }
+      ]
+    }
+  },
+  "build": "make build passed; /tmp/bas-build-012.txt",
+  "deployed": true,
+  "limitations": [
+    "Synthetic headless Chromium handler effects, not full raw recording-to-replay or native OS qualification",
+    "Shortcut chord state, concurrent input and opaque preexisting external held keys remain unverified",
+    "Recording durability and pagination remain failing independent probes (next013)"
+  ],
+  "full_driver_diagnostic": {
+    "passed_suites": 126,
+    "passed_tests": 1476,
+    "skipped_suites": 1,
+    "skipped_tests": 2,
+    "seconds": 349.969,
+    "natural_exit": true,
+    "coverage_provider": "v8",
+    "limitation": "Significant producer slowdown RF-059; previous owner run expired before native verdict. Unit phase timeout raised300\u2192600 based on measured duration; floors/source/tests unchanged."
+  },
+  "cumulative_go": {
+    "basis": "original HEAD vs current changed BAS Go runtime union, excludes mocked filesystem/repository from product-only interpretation but retained here for comparison",
+    "paths": [
+      "api/automation/compiler/action_definition_builder.go",
+      "api/automation/events/sink.go",
+      "api/automation/events/ws_sink.go",
+      "api/handlers/execution_export.go",
+      "api/handlers/record_mode.go",
+      "api/handlers/record_mode_persistence.go",
+      "api/handlers/recordings/module.go",
+      "api/handlers/recordings/service.go",
+      "api/internal/typeconv/builders.go",
+      "api/services/export/source/video_source.go",
+      "api/services/live-capture/action_registry.go",
+      "api/services/live-capture/service.go",
+      "api/services/live-capture/workflow_generator.go",
+      "api/services/session-profile/persistence/credentials.go",
+      "api/services/session-profile/persistence/file_repository.go",
+      "api/services/session-profile/persistence/filesystem.go",
+      "api/services/session-profile/persistence/filesystem_mock.go",
+      "api/services/session-profile/persistence/mock_repository.go",
+      "api/services/session-profile/persistence/protected_state.go",
+      "api/services/session-profile/persistence/repository.go",
+      "api/services/session-profile/service.go",
+      "api/services/uxmetrics/collector/collector.go",
+      "api/services/workflow/executions.go",
+      "api/services/workflow/executions_list.go"
+    ],
+    "original": {
+      "runtime_files": 23,
+      "lines": 9248,
+      "functions": 313,
+      "cyclomatic": 1623
+    },
+    "current": {
+      "runtime_files": 24,
+      "lines": 8616,
+      "functions": 305,
+      "cyclomatic": 1538
+    },
+    "extended_shared_owner_cycle009_cyclomatic_delta": 17
+  },
+  "final_owner_validation": {
+    "run_id": "20260922-070615-366d3617",
+    "status": "terminal failed",
+    "duration_seconds": 379,
+    "api": "passed14.978s",
+    "cli": "passed0.895s",
+    "driver": "passed126suites1476tests; naturalexit282.782s, command283.766s",
+    "ui": "coverage statements/lines28.57%, functions30.34%, branches64.96% below85%; typecheckpassed12.019s",
+    "tidiness": {
+      "totalFindings": 1077,
+      "longFiles": 80,
+      "complexity": 380,
+      "duplication": 604,
+      "coupling": 12,
+      "duplicationLineDebt": 35064
+    },
+    "budget_failure": "complexity380 vs baseline363",
+    "artifacts": {
+      "schema_version": 1,
+      "digest": "ac:sha256:a58050737344b8abe6e2c8b95e30464ab2461ad76e16d59160fc801b17190afc",
+      "artifacts": [
+        {
+          "id": "artifact_350c2b9e220e0f398f229b90c93294b6",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "unit.log",
+          "producing_phase": "unit",
+          "size_bytes": "29019",
+          "created_at": "2026-09-22T07:12:30.61908565Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_350c2b9e220e0f398f229b90c93294b6",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_8ef7bf70769af424b8336f7b2d20c06f",
+          "kind": "command.log",
+          "media_type": "text/plain; charset=utf-8",
+          "label": "tidiness.log",
+          "producing_phase": "tidiness",
+          "size_bytes": "437902",
+          "created_at": "2026-09-22T07:12:34.787107382Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_8ef7bf70769af424b8336f7b2d20c06f",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_dcbd9020f4097ecbd3981d0a3c2cc8f1",
+          "kind": "findings.report",
+          "media_type": "application/json",
+          "label": "findings.json",
+          "size_bytes": "7662879",
+          "created_at": "2026-09-22T07:12:35.064108826Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_dcbd9020f4097ecbd3981d0a3c2cc8f1",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_6ceb860af91c7639e4fcbb3b3aee4798",
+          "kind": "generic.file",
+          "media_type": "application/json",
+          "label": "evidence-manifest.json",
+          "size_bytes": "92561",
+          "created_at": "2026-09-22T07:12:35.08410893Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_6ceb860af91c7639e4fcbb3b3aee4798",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_17edb8677b8bc316d3346812c6a39f7d",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "unit.json",
+          "producing_phase": "unit",
+          "size_bytes": "3038",
+          "created_at": "2026-09-22T07:12:30.61908565Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_17edb8677b8bc316d3346812c6a39f7d",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        },
+        {
+          "id": "artifact_8c605ed9317675910993c73946fee812",
+          "kind": "phase.result",
+          "media_type": "application/json",
+          "label": "tidiness.json",
+          "producing_phase": "tidiness",
+          "size_bytes": "2987",
+          "created_at": "2026-09-22T07:12:34.786107377Z",
+          "access_capability": "ARTIFACT_ACCESS_CAPABILITY_STREAM",
+          "access_path": "/api/v1/scenarios/browser-automation-studio/runs/20260922-070615-366d3617/artifacts/artifact_8c605ed9317675910993c73946fee812",
+          "provenance": "ARTIFACT_PROVENANCE_CATALOG"
+        }
+      ]
+    }
+  },
+  "deployment": {
+    "health": {
+      "status": "healthy",
+      "service": "browser-automation-studio-api",
+      "timestamp": "2026-09-22T07:17:18Z",
+      "readiness": true,
+      "version": "1.0.0",
+      "build_identity": "sha256:e55e1a548d5c0f27774977035f8894db9d09e27f02089ebca18c45eab7962992",
+      "uptime_seconds": 27.099904177,
+      "dependencies": {
+        "automation_engine": {
+          "connected": true
+        },
+        "database": {
+          "connected": true,
+          "latency_ms": 0.024
+        },
+        "playwright_driver": {
+          "connected": true,
+          "latency_ms": 1.047
+        },
+        "storage": {
+          "connected": true,
+          "latency_ms": 0.165
+        }
+      },
+      "metrics": {
+        "goroutines": 31,
+        "heap_mb": 5.1823883056640625,
+        "uptime_seconds": 27.099904177
+      }
+    },
+    "drain_gate": {
+      "checked_at": "2026-09-22T07:14:23.538695+00:00",
+      "rows": 2924,
+      "states": {
+        "EXECUTION_STATUS_COMPLETED": 2537,
+        "EXECUTION_STATUS_FAILED": 382,
+        "EXECUTION_STATUS_RUNNING": 5
+      },
+      "historical_orphans": [
+        {
+          "executionId": "879c542b-d9cd-481b-82d2-6b6c7c11ebf1",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-16T13:18:42.087757908Z",
+          "createdAt": "2026-09-16T13:18:42Z",
+          "updatedAt": "2026-09-16T13:19:10.005000924Z"
+        },
+        {
+          "executionId": "d19bd80e-2624-4874-ab9f-eab0cda42286",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-09T19:30:12.784163869Z",
+          "createdAt": "2026-09-09T19:30:12Z",
+          "updatedAt": "2026-09-09T19:30:18.302018879Z"
+        },
+        {
+          "executionId": "b74ec692-da21-42f7-a86c-f33d436ecfbb",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-09T06:30:44.282585140Z",
+          "createdAt": "2026-09-09T06:30:44Z",
+          "updatedAt": "2026-09-09T06:30:45.060249200Z"
+        },
+        {
+          "executionId": "e0d33e05-297d-4867-aee0-783d59882fa8",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-07T20:36:44.551353663Z",
+          "createdAt": "2026-09-07T20:36:44Z",
+          "updatedAt": "2026-09-07T20:36:45.625164771Z"
+        },
+        {
+          "executionId": "206d68cf-a72c-4838-872b-f913a6a8def6",
+          "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+          "status": "EXECUTION_STATUS_RUNNING",
+          "startedAt": "2026-09-07T20:36:44.551265983Z",
+          "createdAt": "2026-09-07T20:36:44Z",
+          "updatedAt": "2026-09-07T20:36:45.663485899Z"
+        }
+      ],
+      "driver_sessions": 0,
+      "driver_recordings": 0,
+      "seconds": 0.41819682205095887,
+      "build_before": "sha256:3c0e62a11289d56a838a06f72e452c7b9b49e4466c051e29ebf9a9e2ea6de6aa",
+      "limitation": "Observation before stop, not atomic global admission lock",
+      "decision": "admit stop; preserve orphan history"
+    },
+    "schema": {
+      "database": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/data/browser-automation-studio.db",
+      "authority": "running API startup log DSN",
+      "tables": {
+        "recording_sessions": 0,
+        "recording_actions": 0,
+        "timeline_entries": 0
+      },
+      "before_state": "Not measured on actual live database. Earlier default-root read was an unused database and must not be attributed to live BAS."
+    },
+    "profile_read_verification": "read 1: complete identity preserved; elapsed_ms=1214.91\nread 2: complete identity preserved; elapsed_ms=0.45\nread 3: complete identity preserved; elapsed_ms=0.41\n",
+    "live_profile_metadata": {
+      "profile_count": 1,
+      "live_identity_and_name_match_original": true,
+      "storage_state_absent_from_metadata": true
+    }
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "scenario-to-plugin",
+  "description": "Experience contract for Scenario to Plugin. The product is a release console, and its organizing object is the gate ladder — composition, conformance, attestation, rehearsal, publication. Every page either shows a position on that ladder or explains one rung. Product pages are `draft` and every claim is `aspirational` because no route is built yet; elements and bindings are declared so claims can be promoted to machine tier without rewriting page intent. Two honesty properties are load-bearing and appear as claims on several pages: a gate never renders green from an absent check, and a stage that was never judged is never rendered as a failure.",
+  "pages": [
+    {
+      "id": "readiness",
+      "path": "pages/readiness.json",
+      "title": "Publish Readiness",
+      "status": "draft"
+    },
+    {
+      "id": "packages",
+      "path": "pages/packages.json",
+      "title": "Packages",
+      "status": "draft"
+    },
+    {
+      "id": "package-detail",
+      "path": "pages/package-detail.json",
+      "title": "Package Detail",
+      "status": "draft"
+    },
+    {
+      "id": "conformance-findings",
+      "path": "pages/conformance-findings.json",
+      "title": "Conformance Findings",
+      "status": "draft"
+    },
+    {
+      "id": "rehearsal-detail",
+      "path": "pages/rehearsal-detail.json",
+      "title": "Rehearsal",
+      "status": "draft"
+    },
+    {
+      "id": "publication",
+      "path": "pages/publication.json",
+      "title": "Publication",
+      "status": "draft"
+    },
+    {
+      "id": "attribution",
+      "path": "pages/attribution.json",
+      "title": "Install Attribution",
+      "status": "draft"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "active"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "publish-a-capability",
+      "path": "journeys/publish-a-capability.json",
+      "title": "Publish a capability",
+      "status": "draft"
+    },
+    {
+      "id": "diagnose-a-closed-gate",
+      "path": "journeys/diagnose-a-closed-gate.json",
+      "title": "Diagnose a closed gate",
+      "status": "draft"
+    },
+    {
+      "id": "revoke-a-published-version",
+      "path": "journeys/revoke-a-published-version.json",
+      "title": "Revoke a published version",
+      "status": "draft"
+    },
+    {
+      "id": "judge-channel-activation",
+      "path": "journeys/judge-channel-activation.json",
+      "title": "Judge channel activation",
+      "status": "draft"
+    }
+  ]
+}

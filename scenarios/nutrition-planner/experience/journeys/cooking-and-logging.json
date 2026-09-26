@@ -1,0 +1,63 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "cooking-and-logging",
+    "title": "Cooking and logging",
+    "purpose": "Start cooking from Today, follow one pinned revision step by step with explicit completion and durable timers, then finish with batch confirmation and, separately, a recorded serving.",
+    "prd_refs": [
+      "OT-P0-019",
+      "OT-P0-005",
+      "OT-P0-004",
+      "OT-P0-011",
+      "OT-P0-010",
+      "OT-P0-014"
+    ]
+  },
+  "steps": [
+    {
+      "page": "today",
+      "intent": "Start cooking the selected meal in one action.",
+      "via": "start-cooking-action"
+    },
+    {
+      "page": "cooking",
+      "state": "step-done",
+      "intent": "Read the current step and mark it done explicitly.",
+      "via": "mark-done-action"
+    },
+    {
+      "page": "cooking",
+      "state": "timer-running",
+      "intent": "Start a step timer and leave the screen while it runs.",
+      "via": "timer-card"
+    },
+    {
+      "page": "cooking",
+      "state": "timer-elapsed",
+      "intent": "Return to an elapsed timer that did not complete the step.",
+      "via": "timer-status"
+    },
+    {
+      "page": "cooking",
+      "state": "finish",
+      "intent": "Finish by confirming the batch and, separately, recording a serving eaten.",
+      "via": "finish-dialog"
+    }
+  ],
+  "claims": [
+    {
+      "id": "cooking-does-not-imply-eating",
+      "type": "custom",
+      "statement": "A person can cook without logging, eat leftovers without cooking again, or exit without recording anything.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "correction-reverses-effects-once",
+      "type": "custom",
+      "statement": "Undo creates a correction and reverses linked inventory effects exactly once.",
+      "tier": "aspirational"
+    }
+  ]
+}

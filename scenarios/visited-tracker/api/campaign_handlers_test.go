@@ -2,12 +2,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -22,7 +21,7 @@ func TestListCampaignsHandler(t *testing.T) {
 	defer cleanup()
 
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-list-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-list-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -36,11 +35,7 @@ func TestListCampaignsHandler(t *testing.T) {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
 
-	// Create the required directory structure
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Test empty list
 	req := httptest.NewRequest("GET", "/api/v1/campaigns", nil)
@@ -111,7 +106,7 @@ func TestListCampaignsHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -142,7 +137,7 @@ func TestCreateCampaignHandler(t *testing.T) {
 	defer cleanup()
 
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-create-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-create-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -156,11 +151,7 @@ func TestCreateCampaignHandler(t *testing.T) {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
 
-	// Create the required directory structure
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Test valid campaign creation
 	requestBody := CreateCampaignRequest{
@@ -262,7 +253,7 @@ func TestGetCampaignHandler(t *testing.T) {
 	defer cleanup()
 
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-get-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-get-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -276,11 +267,7 @@ func TestGetCampaignHandler(t *testing.T) {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
 
-	// Create the required directory structure
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Create and save test campaign
 	campaign := &Campaign{
@@ -297,7 +284,7 @@ func TestGetCampaignHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -355,7 +342,7 @@ func TestDeleteCampaignHandler(t *testing.T) {
 	defer cleanup()
 
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-delete-handler-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-delete-handler-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -369,11 +356,7 @@ func TestDeleteCampaignHandler(t *testing.T) {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
 
-	// Create the required directory structure
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Create and save test campaign
 	campaign := &Campaign{
@@ -390,7 +373,7 @@ func TestDeleteCampaignHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -544,7 +527,7 @@ func TestDeleteCampaignHandlerErrorPaths(t *testing.T) {
 	defer cleanup()
 
 	// Setup test environment
-	tempDir, err := ioutil.TempDir("", "visited-tracker-delete-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-delete-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -556,10 +539,7 @@ func TestDeleteCampaignHandlerErrorPaths(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init file storage: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Test missing campaign ID in URL vars
 	req := httptest.NewRequest("DELETE", "/api/v1/campaigns/missing", nil)
@@ -599,7 +579,7 @@ func TestGetCampaignHandlerWithDeletedFiles(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir, err := ioutil.TempDir("", "visited-tracker-deleted-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-deleted-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -611,10 +591,7 @@ func TestGetCampaignHandlerWithDeletedFiles(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init file storage: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	now := time.Now()
 	visited := now.Add(-1 * time.Hour)
@@ -654,7 +631,7 @@ func TestGetCampaignHandlerWithDeletedFiles(t *testing.T) {
 		},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
 
@@ -686,7 +663,7 @@ func TestCreateCampaignHandlerMetadataInitialization(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir, err := ioutil.TempDir("", "visited-tracker-metadata-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-metadata-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -698,10 +675,7 @@ func TestCreateCampaignHandlerMetadataInitialization(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init file storage: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	reqBody := CreateCampaignRequest{
 		Name:      "test-no-metadata",
@@ -735,7 +709,7 @@ func TestCreateCampaignHandlerAutoSyncTracking(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir, err := ioutil.TempDir("", "visited-tracker-autosync-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-autosync-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -747,10 +721,7 @@ func TestCreateCampaignHandlerAutoSyncTracking(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init file storage: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	reqBody := CreateCampaignRequest{
 		Name:      "test-autosync",
@@ -784,7 +755,7 @@ func TestDeleteCampaignHandlerIdempotent(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir, err := ioutil.TempDir("", "visited-tracker-delete-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-delete-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -796,10 +767,7 @@ func TestDeleteCampaignHandlerIdempotent(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init file storage: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	campaign := &Campaign{
 		ID:        uuid.New(),
@@ -811,7 +779,7 @@ func TestDeleteCampaignHandlerIdempotent(t *testing.T) {
 		Metadata:  make(map[string]interface{}),
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
 
@@ -849,7 +817,7 @@ func TestFindOrCreateCampaignHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir, err := ioutil.TempDir("", "visited-tracker-find-or-create-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-find-or-create-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -862,10 +830,7 @@ func TestFindOrCreateCampaignHandler(t *testing.T) {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
 
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Test creating new campaign with location and tag
 	location := "test-location"
@@ -997,7 +962,7 @@ func TestUpdateCampaignHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir, err := ioutil.TempDir("", "visited-tracker-update-campaign-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-update-campaign-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -1010,10 +975,7 @@ func TestUpdateCampaignHandler(t *testing.T) {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
 
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Create test campaign
 	campaign := &Campaign{
@@ -1031,7 +993,7 @@ func TestUpdateCampaignHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 

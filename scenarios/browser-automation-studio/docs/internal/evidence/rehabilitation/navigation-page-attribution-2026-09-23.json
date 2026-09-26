@@ -1,0 +1,754 @@
+{
+  "cycle": "BAS-WORK-058",
+  "issues": [
+    "BAS-RF-038",
+    "BAS-RF-088",
+    "BAS-RF-089"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "qualified_and_deployed",
+  "source": {
+    "playwright-driver/src/routes/record-mode/recording-navigation.ts": {
+      "before": {
+        "sha256": "8db637b69efbc6eb6844ea81af2be3bb1682dca749ac8ffb3a8fe4a33f93da03",
+        "lines": 229
+      },
+      "after": {
+        "sha256": "2eb923bd10e128ced4555945c846861ccd86471a009034998d5ca8cd98c40fe8",
+        "lines": 231
+      }
+    },
+    "playwright-driver/src/routes/record-mode/types.ts": {
+      "before": {
+        "sha256": "c2957389b9f14ee5c99e2ebd344d02d9fefcaf74f88bcdb7fb2e1bbc6102eeb1",
+        "lines": 359
+      },
+      "after": {
+        "sha256": "73a571d1e0742c71b8afe2ee67cf304293a22e164d953bab8f0ba1108811841a",
+        "lines": 361
+      }
+    },
+    "api/automation/driver/client.go": {
+      "before": {
+        "sha256": "36285fe0ab8cc28e5da9fc73bcb8a8497c7014b48ea91f9d82fdfdef185a6aab",
+        "lines": 1186
+      },
+      "after": {
+        "sha256": "f2d1db80ef224fdc414a25e1a7bedf44ee8c2ca7c217e9e7877fc748f739e444",
+        "lines": 1196
+      }
+    },
+    "api/automation/driver/types.go": {
+      "before": {
+        "sha256": "26e7fb2f92b55930676e4e6a7f8d04d412d797e87c5d29d9a541052cd033cc9e",
+        "lines": 599
+      },
+      "after": {
+        "sha256": "0cc11bdd835b1ec1d74f2e5dd6998010a817c9760ac64bd6f381ffa92f5335b1",
+        "lines": 602
+      }
+    },
+    "api/handlers/record_mode.go": {
+      "before": {
+        "sha256": "20c5cde0da56fdf59e53afa0d45993073adec4d5111ca6f5e7af506df622a850",
+        "lines": 977
+      },
+      "after": {
+        "sha256": "cf3c54a4db6fcc3dd7cd38aab15b8dc5047bd679fb6365e1b81bc6bcc99cd4c1",
+        "lines": 976
+      }
+    },
+    "api/handlers/record_mode_navigation.go": {
+      "before": {
+        "sha256": "77ddb105a931b698905e873d19efc45f44d968b0e9c81a2de9b372b9d9db2248",
+        "lines": 87
+      },
+      "after": {
+        "sha256": "75cd0150bf4fd66c4bcd63cae3d464171a315f85e60cc6df9cfac526ed279569",
+        "lines": 90
+      }
+    },
+    "api/handlers/record_mode_actions.go": {
+      "before": {
+        "sha256": "a135a7df3a7aac280d0558bb815e64c9f4e6727449a63e47d72f56d69e24338b",
+        "lines": 132
+      },
+      "after": {
+        "sha256": "c86b01af248565b72fb11c7900d0f631cc3ae35ac791d37b2fbb38c40f2c1ca1",
+        "lines": 157
+      }
+    },
+    "api/automation/session/manager.go": {
+      "before": {
+        "sha256": "199307067d3f183dfff0ccc32055625c31ed265107856cf6a3cca84ff65a99f2",
+        "lines": 386
+      },
+      "after": {
+        "sha256": "29f175208fd02684a9f7478a9a542b62afea9ed12c9057d45f2244498b370853",
+        "lines": 387
+      }
+    },
+    "api/automation/session/session.go": {
+      "before": {
+        "sha256": "3369411bf26e73b7e6402ccc0f2055dffb3c9cda414c8bf545c11bc6cc6561c6",
+        "lines": 427
+      },
+      "after": {
+        "sha256": "d981dfc870868a43aaaebacf9436c92bf4f075b65aa0e56cabed9f23f0468021",
+        "lines": 431
+      }
+    },
+    "api/automation/session/pages.go": {
+      "before": {
+        "sha256": "b59ec1c5cca798cadbae979d47fc5eb1c19ffdff88c470d51e67ed3b99227124",
+        "lines": 252
+      },
+      "after": {
+        "sha256": "970bb89ffd11fd538dc27a0a468d8d143907193dc2284a07a4fa2c70d3bb0d1a",
+        "lines": 261
+      }
+    },
+    "api/services/live-capture/service.go": {
+      "before": {
+        "sha256": "83228e00c2aba2b8c51b993acafc55a14e367e9df17793db0c13f79c187e39e8",
+        "lines": 831
+      },
+      "after": {
+        "sha256": "bfc4f45f6f903b83e57e3fa3420996bc8764bd38fbccf45f78a430b70f50d02a",
+        "lines": 844
+      }
+    },
+    "api/handlers/record_mode_pages.go": {
+      "before": {
+        "sha256": "a32ec76e482e68e7aecaea7c54799b58a6dc4839de3121cb28b61be0666d45b5",
+        "lines": 438
+      },
+      "after": {
+        "sha256": "46fa350bea3ce9e9e9eb0e97ec639c611a5a2bbe67f8ec7ea456771ef95c24f3",
+        "lines": 427
+      }
+    },
+    "playwright-driver/src/routes/session-start.ts": {
+      "before": {
+        "sha256": "79e5261be7ba2de10edd616b24f27639312dcc79e814975ef7050439edeba570",
+        "lines": 193
+      },
+      "after": {
+        "sha256": "6edd7e2cfa2794b986dd85c9c031f4d8a9b733c176a5deedd80212aaa1421e3f",
+        "lines": 198
+      }
+    },
+    "playwright-driver/src/types/session.ts": {
+      "before": {
+        "sha256": "3f79232131cd18e82cc1ba7fcfca0eab25c4a8707f6b6ab857e465dbe1c9a259",
+        "lines": 558
+      },
+      "after": {
+        "sha256": "3136234e9756d0004698179ed4c695f2bdd4809c7821e296d63f6c6dac8ea6e1",
+        "lines": 560
+      }
+    }
+  },
+  "test_hashes": {
+    "playwright-driver/tests/unit/routes/record-mode.test.ts": "989c1277962aa1f560d5b2b7426e21df83472a8f35e702119f14d08a68ad2dfa",
+    "playwright-driver/tests/unit/routes/session-start.test.ts": "894b81e25dbd570aaf8bbef0304d6400d4e51b6cfa1e486365ade5e8e91bd254",
+    "api/handlers/record_mode_integration_test.go": "118677f8d92157a93ece287ca8fdfeb09046edfb4c58c6937f190abf57a4879c",
+    "api/handlers/record_mode_test.go": "461e4db661f417abba1923cc9b115660c874e2ecb9a3d282356fdf91bc64e945",
+    "api/automation/driver/client_payload_test.go": "dd2bbe4c4e0cd18dbe42e235a815a7c0d3e3bd84f4d1b1f592ba31977d9c9904",
+    "api/automation/session/session_test.go": "0c95c5eb48b648b73c9cee1cb50b39762ba3984d412b3e714b0ab8c92d400c30",
+    "api/automation/session/pages_test.go": "9e9dc001d6383d8103c57615ceedef9fe6bfa4903bb26d9618eac92685ef5d2c",
+    "api/services/live-capture/service_test.go": "49dae5472d57c9e613a9f1ad2b743b3458e52eb7fad3e70a7cda29ee9b88f47f",
+    "api/handlers/recordings/service_test.go": "cb96c1d31a321a9428251ab16e8041032bf1c5910a49501d12385117fe8488d8",
+    "playwright-driver/tests/unit/ai/action/executor.test.ts": "45cc3a36a68cd7bd25bb290fadb1d4491291883e5a9b39cb92869844496b379e"
+  },
+  "baseline": "/tmp/bas-before-058/manifest.json",
+  "attribution_red": {
+    "passed": 4,
+    "failed": 19,
+    "cases": [
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/navigate/none",
+        "status": "pass"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/navigate/active_tab",
+        "status": "fail"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/navigate/session",
+        "status": "fail"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/navigate/missing_page_receipt",
+        "status": "fail"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/navigate/unknown_page_receipt",
+        "status": "fail"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/reload/none",
+        "status": "pass"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/reload/active_tab",
+        "status": "fail"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/reload/session",
+        "status": "fail"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/reload/missing_page_receipt",
+        "status": "fail"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/reload/unknown_page_receipt",
+        "status": "fail"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/reload/session_after_commit",
+        "status": "fail"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/go-back/none",
+        "status": "pass"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/go-back/active_tab",
+        "status": "fail"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/go-back/session",
+        "status": "fail"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/go-back/missing_page_receipt",
+        "status": "fail"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/go-back/unknown_page_receipt",
+        "status": "fail"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/go-back/session_after_commit",
+        "status": "fail"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/go-forward/none",
+        "status": "pass"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/go-forward/active_tab",
+        "status": "fail"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/go-forward/session",
+        "status": "fail"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/go-forward/missing_page_receipt",
+        "status": "fail"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/go-forward/unknown_page_receipt",
+        "status": "fail"
+      },
+      {
+        "test": "TestNavigationCompletionKeepsOriginalOwnership/go-forward/session_after_commit",
+        "status": "fail"
+      }
+    ],
+    "artifact": "/tmp/bas-navigation-attribution-red-final-058.jsonl",
+    "initial_fixture_correction": "Corrected UUID-versus-string oracle in three stable controls before final red and production edits."
+  },
+  "page_registration_native_red": {
+    "cases": [
+      {
+        "case": "profile_create_http",
+        "met": true,
+        "detail": {
+          "status": 200,
+          "body": {
+            "profile": {
+              "id": "c1b62e28-92b4-4b4b-8fd5-0ba26f38cb70",
+              "name": "rehabilitation-page-registration-058-e4adb903",
+              "createdAt": "2026-09-23T00:38:06.452439184Z",
+              "updatedAt": "2026-09-23T00:38:06.452439184Z",
+              "lastUsedAt": "2026-09-23T00:38:06.452439184Z"
+            }
+          }
+        }
+      },
+      {
+        "case": "session_create_http",
+        "met": true,
+        "detail": {
+          "status": 200,
+          "body": {
+            "session_id": "0e19873c-d6da-4107-8b15-197512654f2b",
+            "created_at": "2026-09-23T00:38:06Z"
+          }
+        }
+      },
+      {
+        "case": "pages_before_http",
+        "met": true,
+        "detail": {
+          "status": 200,
+          "body": {
+            "pages": [
+              {
+                "id": "68a69655-14d3-4325-acf7-c2606ab5173e",
+                "sessionId": "0e19873c-d6da-4107-8b15-197512654f2b",
+                "url": "http://127.0.0.1:42239/#original",
+                "title": "",
+                "createdAt": "2026-09-22T20:38:06.546934209-04:00",
+                "isInitial": true,
+                "status": "active"
+              }
+            ],
+            "activePageId": "68a69655-14d3-4325-acf7-c2606ab5173e"
+          }
+        }
+      },
+      {
+        "case": "second_page_created",
+        "met": false,
+        "detail": {
+          "status": 503,
+          "body": {
+            "code": "SERVICE_UNAVAILABLE",
+            "message": "Service temporarily unavailable",
+            "details": {
+              "error": "playwright driver POST /session/0e19873c-d6da-4107-8b15-197512654f2b/record/new-page failedat http://127.0.0.1:24485(status 201): {\"driver_page_id\":\"09115f51-4181-4ae8-ac19-003b7b3f11bc\",\"url\":\"http://127.0.0.1:42239/#second\",\"title\":\"Recording receipt fixture\"} [hint: check playwright-driver logs for details]"
+            }
+          }
+        }
+      },
+      {
+        "case": "pages_after_http",
+        "met": true,
+        "detail": {
+          "status": 200,
+          "body": {
+            "pages": [
+              {
+                "id": "68a69655-14d3-4325-acf7-c2606ab5173e",
+                "sessionId": "0e19873c-d6da-4107-8b15-197512654f2b",
+                "url": "http://127.0.0.1:42239/#original",
+                "title": "",
+                "createdAt": "2026-09-22T20:38:06.546934209-04:00",
+                "isInitial": true,
+                "status": "active"
+              }
+            ],
+            "activePageId": "68a69655-14d3-4325-acf7-c2606ab5173e"
+          }
+        }
+      },
+      {
+        "case": "native_second_page_active",
+        "met": true,
+        "detail": {
+          "session_id": "0e19873c-d6da-4107-8b15-197512654f2b",
+          "url": "http://127.0.0.1:42239/#second",
+          "title": "Recording receipt fixture",
+          "can_go_back": true,
+          "can_go_forward": false
+        }
+      },
+      {
+        "case": "created_page_registered_before_recording",
+        "met": false,
+        "detail": {
+          "pages": [
+            {
+              "id": "68a69655-14d3-4325-acf7-c2606ab5173e",
+              "sessionId": "0e19873c-d6da-4107-8b15-197512654f2b",
+              "url": "http://127.0.0.1:42239/#original",
+              "title": "",
+              "createdAt": "2026-09-22T20:38:06.546934209-04:00",
+              "isInitial": true,
+              "status": "active"
+            }
+          ],
+          "activePageId": "68a69655-14d3-4325-acf7-c2606ab5173e"
+        }
+      },
+      {
+        "case": "start_http",
+        "met": true,
+        "detail": {
+          "status": 200,
+          "body": {
+            "recording_id": "a1330b32-4209-4eac-b065-1918c55b3b14",
+            "session_id": "0e19873c-d6da-4107-8b15-197512654f2b",
+            "started_at": "2026-09-23T00:38:06.718Z"
+          }
+        }
+      },
+      {
+        "case": "pages_after_start_http",
+        "met": true,
+        "detail": {
+          "status": 200,
+          "body": {
+            "pages": [
+              {
+                "id": "68a69655-14d3-4325-acf7-c2606ab5173e",
+                "sessionId": "0e19873c-d6da-4107-8b15-197512654f2b",
+                "url": "http://127.0.0.1:42239/#second",
+                "title": "Recording receipt fixture",
+                "createdAt": "2026-09-22T20:38:06.546934209-04:00",
+                "isInitial": true,
+                "status": "active"
+              }
+            ],
+            "activePageId": "68a69655-14d3-4325-acf7-c2606ab5173e"
+          }
+        }
+      },
+      {
+        "case": "initial_page_identity_not_rebound",
+        "met": false,
+        "detail": {
+          "pages": [
+            {
+              "id": "68a69655-14d3-4325-acf7-c2606ab5173e",
+              "sessionId": "0e19873c-d6da-4107-8b15-197512654f2b",
+              "url": "http://127.0.0.1:42239/#second",
+              "title": "Recording receipt fixture",
+              "createdAt": "2026-09-22T20:38:06.546934209-04:00",
+              "isInitial": true,
+              "status": "active"
+            }
+          ],
+          "activePageId": "68a69655-14d3-4325-acf7-c2606ab5173e"
+        }
+      },
+      {
+        "case": "owned_session_cleanup",
+        "met": true,
+        "detail": {
+          "status": 200,
+          "body": {
+            "session_id": "0e19873c-d6da-4107-8b15-197512654f2b",
+            "status": "closed"
+          }
+        }
+      },
+      {
+        "case": "fixture_profile_cleanup",
+        "met": true,
+        "detail": {
+          "status": 200
+        }
+      }
+    ],
+    "responses": {
+      "profile_create": {
+        "status": 200,
+        "body": {
+          "profile": {
+            "id": "c1b62e28-92b4-4b4b-8fd5-0ba26f38cb70",
+            "name": "rehabilitation-page-registration-058-e4adb903",
+            "createdAt": "2026-09-23T00:38:06.452439184Z",
+            "updatedAt": "2026-09-23T00:38:06.452439184Z",
+            "lastUsedAt": "2026-09-23T00:38:06.452439184Z"
+          }
+        }
+      },
+      "session_create": {
+        "status": 200,
+        "body": {
+          "session_id": "0e19873c-d6da-4107-8b15-197512654f2b",
+          "created_at": "2026-09-23T00:38:06Z"
+        }
+      },
+      "pages_before": {
+        "status": 200,
+        "body": {
+          "pages": [
+            {
+              "id": "68a69655-14d3-4325-acf7-c2606ab5173e",
+              "sessionId": "0e19873c-d6da-4107-8b15-197512654f2b",
+              "url": "http://127.0.0.1:42239/#original",
+              "title": "",
+              "createdAt": "2026-09-22T20:38:06.546934209-04:00",
+              "isInitial": true,
+              "status": "active"
+            }
+          ],
+          "activePageId": "68a69655-14d3-4325-acf7-c2606ab5173e"
+        }
+      },
+      "created_page": {
+        "status": 503,
+        "body": {
+          "code": "SERVICE_UNAVAILABLE",
+          "message": "Service temporarily unavailable",
+          "details": {
+            "error": "playwright driver POST /session/0e19873c-d6da-4107-8b15-197512654f2b/record/new-page failedat http://127.0.0.1:24485(status 201): {\"driver_page_id\":\"09115f51-4181-4ae8-ac19-003b7b3f11bc\",\"url\":\"http://127.0.0.1:42239/#second\",\"title\":\"Recording receipt fixture\"} [hint: check playwright-driver logs for details]"
+          }
+        }
+      },
+      "pages_after": {
+        "status": 200,
+        "body": {
+          "pages": [
+            {
+              "id": "68a69655-14d3-4325-acf7-c2606ab5173e",
+              "sessionId": "0e19873c-d6da-4107-8b15-197512654f2b",
+              "url": "http://127.0.0.1:42239/#original",
+              "title": "",
+              "createdAt": "2026-09-22T20:38:06.546934209-04:00",
+              "isInitial": true,
+              "status": "active"
+            }
+          ],
+          "activePageId": "68a69655-14d3-4325-acf7-c2606ab5173e"
+        }
+      },
+      "native_page": {
+        "status": 200,
+        "body": {
+          "session_id": "0e19873c-d6da-4107-8b15-197512654f2b",
+          "url": "http://127.0.0.1:42239/#second",
+          "title": "Recording receipt fixture",
+          "can_go_back": true,
+          "can_go_forward": false
+        }
+      },
+      "start": {
+        "status": 200,
+        "body": {
+          "recording_id": "a1330b32-4209-4eac-b065-1918c55b3b14",
+          "session_id": "0e19873c-d6da-4107-8b15-197512654f2b",
+          "started_at": "2026-09-23T00:38:06.718Z"
+        }
+      },
+      "pages_after_start": {
+        "status": 200,
+        "body": {
+          "pages": [
+            {
+              "id": "68a69655-14d3-4325-acf7-c2606ab5173e",
+              "sessionId": "0e19873c-d6da-4107-8b15-197512654f2b",
+              "url": "http://127.0.0.1:42239/#second",
+              "title": "Recording receipt fixture",
+              "createdAt": "2026-09-22T20:38:06.546934209-04:00",
+              "isInitial": true,
+              "status": "active"
+            }
+          ],
+          "activePageId": "68a69655-14d3-4325-acf7-c2606ab5173e"
+        }
+      }
+    }
+  },
+  "page_registration_native_green": {
+    "passed": 18,
+    "failed": 0,
+    "artifact": "/tmp/bas-page-registration-native-green-058.json",
+    "cases": [
+      {
+        "case": "profile_create_http",
+        "met": true
+      },
+      {
+        "case": "session_create_http",
+        "met": true
+      },
+      {
+        "case": "pages_before_http",
+        "met": true
+      },
+      {
+        "case": "second_page_created",
+        "met": true
+      },
+      {
+        "case": "pages_after_http",
+        "met": true
+      },
+      {
+        "case": "native_second_page_active",
+        "met": true
+      },
+      {
+        "case": "created_page_registered_before_recording",
+        "met": true
+      },
+      {
+        "case": "navigate_second_before_recording_http",
+        "met": true
+      },
+      {
+        "case": "start_http",
+        "met": true
+      },
+      {
+        "case": "pages_after_start_http",
+        "met": true
+      },
+      {
+        "case": "initial_page_identity_not_rebound",
+        "met": true
+      },
+      {
+        "case": "third_page_created_while_recording",
+        "met": true
+      },
+      {
+        "case": "navigate_third_while_recording_http",
+        "met": true
+      },
+      {
+        "case": "pages_after_recording_creation_http",
+        "met": true
+      },
+      {
+        "case": "callback_and_receipt_register_one_page",
+        "met": true
+      },
+      {
+        "case": "third_page_metadata_has_original_receipt",
+        "met": true
+      },
+      {
+        "case": "owned_session_cleanup",
+        "met": true
+      },
+      {
+        "case": "fixture_profile_cleanup",
+        "met": true
+      }
+    ]
+  },
+  "native_navigation_owner": {
+    "passed": 6,
+    "artifact": "/tmp/bas-navigation-native-green-058.json",
+    "invalid_owner_requests": 0,
+    "valid_owner_requests": 1
+  },
+  "native_browser_history": {
+    "passed": 49,
+    "artifact": "/tmp/bas-history-native-green-058.json"
+  },
+  "native_api": {
+    "passed": 48,
+    "independent_click_effects": 2,
+    "artifact": "/tmp/bas-recording-live-058.json"
+  },
+  "native_workflow": {
+    "passed": 12,
+    "failed": 0,
+    "skipped": 0,
+    "independent_click_effects": 3,
+    "artifact_dir": "/tmp/bas-recording-e2e-zCuByc",
+    "execution_id": "e1450f42-1f19-4123-b752-23d875dcdfbc"
+  },
+  "checks": {
+    "focused_driver": {
+      "passed": 81,
+      "suites": 2,
+      "seconds": 15.802,
+      "artifact": "/tmp/bas-page-registration-driver-058.txt"
+    },
+    "driver_types": "passed",
+    "go_race_packages": [
+      "automation/driver",
+      "automation/session",
+      "services/live-capture",
+      "handlers",
+      "handlers/recordings"
+    ],
+    "go_race_log": "/tmp/bas-page-registration-go-final-058.txt",
+    "go_build": "passed",
+    "ui": "unchanged since057 460record-mode tests/types qualification",
+    "contract": "passed",
+    "inventory": "passed",
+    "full_driver": {
+      "status": "passed",
+      "run_id": "uh-20260923-005523-c8d59b592e3b34f354cc4a1dd5f7cdb3",
+      "passed_tests": 1750,
+      "passed_suites": 124,
+      "skipped_tests": 2,
+      "skipped_suites": 1,
+      "owner_seconds": 384.876,
+      "jest_seconds": 383.926,
+      "artifact": "/tmp/bas-driver-owner-qualified-058.json"
+    },
+    "initial_full_driver": {
+      "status": "failed",
+      "run_id": "uh-20260923-004633-b8372f1c6d8bd91142603c65769f2fc1",
+      "passed_tests": 1749,
+      "failed_tests": 1,
+      "owner_seconds": 409.647,
+      "jest_seconds": 408.439,
+      "artifact": "/tmp/bas-driver-owner-final-058.json",
+      "cause": "RF089 real timer measured49ms; retained>=50assertion with controlled clock."
+    },
+    "ai_duration_focused": {
+      "passed": 29,
+      "suites": 1,
+      "seconds": 1.196
+    }
+  },
+  "measurements": {
+    "runtime_paths": 14,
+    "runtime_lines_before": 6654,
+    "runtime_lines_after": 6721,
+    "runtime_line_delta": 67,
+    "go_functions_before": 194,
+    "go_functions_after": 194,
+    "go_complexity_before": 753,
+    "go_complexity_after": 772,
+    "go_complexity_delta": 19,
+    "cumulative_affected_go_complexity_reduction": 197,
+    "tidiness_run": "20260923-005527-08b9379c",
+    "tidiness_status": "failed",
+    "tidiness_summary": {
+      "totalFindings": 1130,
+      "longFiles": 105,
+      "complexity": 394,
+      "duplication": 611,
+      "coupling": 19,
+      "duplicationLineDebt": 31604
+    },
+    "prior_duplication_debt": 31591,
+    "original_duplication_debt": 35603,
+    "limitations": [
+      "This cycle pays correctness cost; it does not reduce measured Go complexity.",
+      "Shared-tree observations and RF064 JS/TS complexity measurement gaps remain.",
+      "New complexity finding is the 23-case API attribution matrix; no extraction or threshold change hides it."
+    ],
+    "tidiness_artifact": "/tmp/bas-tidiness-qualified-native-058.json"
+  },
+  "deployment": {
+    "build_identity": "sha256:2f4d1767153ac6a2b4f4ca5a521a6b93ab28f5ec36070179a984f68c076bdca5",
+    "health": "/tmp/bas-live-health-058.json",
+    "managed_restart": "/tmp/bas-restart-058.txt",
+    "profiles_metadata_match_previous": true,
+    "profile_original_rollback_identity_reads": 3,
+    "profile_receipt": "/tmp/bas-profile-final-058.txt"
+  },
+  "board": {
+    "required": 17,
+    "unqualified": 17,
+    "product_qualified": false
+  },
+  "removed": [
+    "Post-response active-page guessing and Session rebinding for recording navigation completion",
+    "Split PageTracker.AddPage/MapDriverPageID registration",
+    "Recording-initial callback that relabeled the original tab",
+    "Tab registration dependence on recording callbacks",
+    "Rejection of completed HTTP201 receipts"
+  ],
+  "remaining": [
+    "RF038 raw page/viewport/preview mutation leases, callback authority, retry identity and atomic journal-generation isolation",
+    "RestoreTabs original metadata and selected-tab reconciliation need native investigation",
+    "Full J03/J17 native matrices, performance and release evidence remain unqualified"
+  ]
+}

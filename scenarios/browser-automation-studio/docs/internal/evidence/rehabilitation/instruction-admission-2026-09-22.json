@@ -1,0 +1,126 @@
+{
+  "cycle": "BAS-WORK-018",
+  "date": "2026-09-22",
+  "issues": [
+    "BAS-RF-031",
+    "BAS-RF-037"
+  ],
+  "journeys": [
+    "J07"
+  ],
+  "changes": [
+    "Admission after body parsing, before cache/effects; disallowed phases rejected",
+    "Same-execution start only observes current ownership; removed phase recovery/reset",
+    "One in-flight reservation until action settles; respected by admission/pooling/idle cleanup",
+    "One guarded finally restores recording/ready without overriding reset/close"
+  ],
+  "evidence": {
+    "red": "/tmp/bas-admission-red-018.txt;15expectedfailures",
+    "followup_red": "/tmp/bas-admission-settlement-red-final-018.txt; reset completion admitted another action before prior settlement",
+    "focused_green": "corrected final90tests5suites2.282s; /tmp/bas-admission-final-corrected-018.txt",
+    "browser": "/tmp/bas-admission-browser-018.txt;11tests3.218s actualChromium + route/executor/manager/InteractionHandler, independentclickcount",
+    "types": "/tmp/bas-admission-typecheck-final-018.txt;passed",
+    "retained_probes": "/tmp/bas-driver-finalization-probes-final-018.json;7/14pass;all4phaseguards pass",
+    "owner": "final unit20260922-084539-e7702029 terminalfailed371s;one quietwaitcompleted;driver1502tests126suites287.528s naturalexit pass;UIcoveragefailureunchanged",
+    "board": "prog_04b59c17-0cdd-487c-9d23-56a941828f1a;17pending/productfalse",
+    "contract": "passedpreparation"
+  },
+  "size": {
+    "paths": [
+      "src/routes/session-run.ts",
+      "src/session/manager.ts",
+      "src/session/session-decisions.ts",
+      "src/types/session.ts"
+    ],
+    "before": {
+      "lines": 2456
+    },
+    "after": {
+      "lines": 2265
+    }
+  },
+  "cumulative_go_cyclomatic_delta": -151,
+  "shared_owner_009_cyclomatic_delta": 17,
+  "deployed": false,
+  "limitations": [
+    "Lease wire and payload/invocation identity remain uncorrected",
+    "Throws still lose failure evidence and uncertain effects remain replayable",
+    "Driver teardown still suppresses errors/removesownership",
+    "No local AST complexity proof yet; source line count is size only",
+    "Full workflow/native/restart recovery unqualified",
+    "Shared dirty tree applicability limits"
+  ],
+  "code_facts_symbols": {
+    "receipt_before": "/tmp/bas-code-facts-before-symbols-018.json",
+    "receipt_after": "/tmp/bas-code-facts-after-symbols-018.json",
+    "counts": {
+      "before": {
+        "typescript_class": 1,
+        "typescript_const": 1,
+        "typescript_export": 36,
+        "typescript_function": 18,
+        "typescript_interface": 17,
+        "typescript_type": 5
+      },
+      "after": {
+        "typescript_class": 1,
+        "typescript_const": 1,
+        "typescript_export": 31,
+        "typescript_function": 15,
+        "typescript_interface": 15,
+        "typescript_type": 5
+      }
+    },
+    "limitation": "Symbol counts, not cyclomatic complexity. Snapshot manifest copied from actual owner; unrelated imports unresolved do not prove semantic equivalence."
+  },
+  "owner_final": {
+    "commands": [
+      {
+        "workingDirectory": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/api",
+        "status": "passed",
+        "durationMs": "12221",
+        "failureReason": null
+      },
+      {
+        "workingDirectory": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/cli",
+        "status": "passed",
+        "durationMs": "920",
+        "failureReason": null
+      },
+      {
+        "workingDirectory": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver",
+        "status": "passed",
+        "durationMs": "288389",
+        "failureReason": null
+      },
+      {
+        "workingDirectory": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/ui",
+        "status": "failed",
+        "durationMs": "56595",
+        "failureReason": "exit status 1"
+      },
+      {
+        "workingDirectory": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/ui",
+        "status": "passed",
+        "durationMs": "10440",
+        "failureReason": null
+      }
+    ],
+    "unit_catalog": "/tmp/bas-artifacts-final-018.json",
+    "tidiness_run": "20260922-083535-a68d66dc",
+    "tidiness_catalog": "/tmp/bas-artifacts-018.json",
+    "tidiness": {
+      "totalFindings": 1078,
+      "longFiles": 80,
+      "complexity": 380,
+      "duplication": 605,
+      "coupling": 12,
+      "duplicationLineDebt": 33679
+    }
+  },
+  "deployment": {
+    "deferred": "Fresh08:52:48UTCcheck3095rows found1newRUNNING/1driversession;gate rejectedbefore make stop.",
+    "receipt": "/tmp/bas-drain-deferred-018.json",
+    "runtime": "cycle014 unchanged"
+  }
+}

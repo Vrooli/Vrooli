@@ -1,0 +1,19 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "deployability",
+    "display_name": "github.com/vrooli/vrooli/packages/deployability",
+    "description": "Scenario-facing deployability contracts backed by the control plane.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": ["github.com/vrooli/vrooli/packages/deployability"],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": ["scenario_api"],
+      "adoption_modes": ["go_module_replace"]
+    },
+    "lifecycle": {},
+    "refresh": {"strategy": "none", "restart_running_consumers": false}
+  }
+}

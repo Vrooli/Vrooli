@@ -1,0 +1,132 @@
+{
+  "record": "BAS-WORK-049",
+  "issues": [
+    "BAS-RF-047"
+  ],
+  "status": "qualified_and_deployed",
+  "native_before": {
+    "receipt": "/tmp/bas-cdp-device-scale-red-049.log",
+    "failed": 1,
+    "controls_passed": 3,
+    "expected": [
+      640,
+      480
+    ],
+    "actual": [
+      320,
+      240
+    ],
+    "scope": "Native Chromium with browser-emulated DPR2 and independent JPEG decoding; not native OS qualification"
+  },
+  "rejected_hypothesis": {
+    "hypothesis": "Doubling CDP maxWidth/maxHeight supplies device pixels",
+    "receipt": "/tmp/bas-cdp-scale-metrics-049.log",
+    "observed": "DPR2 and both 320x240/640x480 caps still produce 320x240 JPEG; legacy/CSS layout metrics ratio1"
+  },
+  "maintained_red": {
+    "receipt": "/tmp/bas-device-scale-red-049.txt",
+    "failed": 4,
+    "controls_passed": 3,
+    "seconds": 3.494,
+    "additional_failure": "Focused run unintentionally enabled global coverage: functions7.34% below15; full-owner thresholds remain unchanged"
+  },
+  "focused": {
+    "receipt": "/tmp/bas-device-scale-focused-049.txt",
+    "tests": 76,
+    "suites": 4,
+    "seconds": 15.13
+  },
+  "types": "passed",
+  "build": "passed",
+  "runtime_lines": [
+    {
+      "path": "playwright-driver/src/frame-streaming/manager.ts",
+      "before": 381,
+      "after": 383,
+      "net": 2
+    },
+    {
+      "path": "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts",
+      "before": 362,
+      "after": 363,
+      "net": 1
+    }
+  ],
+  "runtime_net_lines": 3,
+  "source_sha256": {
+    "playwright-driver/src/frame-streaming/manager.ts": "09803979ca224e980f62c94b7762a1209a180de9cb3a24f2367aef263287880e",
+    "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts": "a4a4d5eda0d1ec3ac78f2be0d1911c8549f5b2b355f8ea24d0522490fe3ed07f",
+    "playwright-driver/tests/unit/frame-streaming/manager.test.ts": "c58b9a13aab25cada02d398cfceec4a9351dee1df057a677fbe121f36cc1782f",
+    "playwright-driver/tests/unit/frame-streaming/cdp-screencast-strategy.test.ts": "1c3062de22345304f3763fcaafb9682c4deabe05738aaaffc45cdad5c30767af",
+    "playwright-driver/tests/integration/pipeline-e2e.test.ts": "d28f7533bc9a682b7444761663928753d09b9d84942dc83ccb76ae920b00589d"
+  },
+  "cost_probe": {
+    "receipt": "/tmp/bas-scale-cost-049.json",
+    "trials": 18,
+    "frames_per_trial": 20,
+    "viewport": [
+      640,
+      480
+    ],
+    "quality": 65,
+    "target_fps": 30,
+    "dpr1_median_fps": {
+      "cdp_css": 29.34,
+      "sdk_css": 26.51,
+      "sdk_device": 27.13
+    },
+    "dpr2_median_fps": {
+      "cdp_css": 29.33,
+      "sdk_css": 27.15,
+      "sdk_device": 18.06
+    },
+    "scope": "Small rotating-order emulated-DPR animated cohort during shared-host build; fidelity tradeoff observation, not release performance qualification"
+  },
+  "limitations": [
+    "Device selection uses SDK at DPR1 too; possible throughput/startup cost retained for release-cohort recheck, not waived.",
+    "Physical capture at DPR2 has measured resource/throughput cost; CSS/CDP unchanged.",
+    "Native OS, browser zoom, fractional-DPR matrix and full Go API/UI performance not qualified.",
+    "RF064 TypeScript cyclomatic gap persists.",
+    "No standalone runtime-size reduction this cycle; two runtime files add3lines."
+  ],
+  "pending_operations": [],
+  "tidiness": {
+    "run_id": "20260922-204810-671b9025",
+    "status": "failed",
+    "quiet_wait_consumed": true,
+    "summary": {
+      "totalFindings": 1118,
+      "longFiles": 104,
+      "complexity": 387,
+      "duplication": 608,
+      "coupling": 18,
+      "duplicationLineDebt": 32643
+    }
+  },
+  "board": {
+    "program_id": "prog_2df8cac3-ddfb-4c8b-8b27-60378f22e13e",
+    "required": 17,
+    "unqualified": 17,
+    "product_qualified": false
+  },
+  "full_driver": {
+    "run_id": "uh-20260922-204804-a3e358bda829000613649d4a051355ca",
+    "status": "passed",
+    "commands": [
+      {
+        "status": "passed",
+        "duration_ms": "405005",
+        "jest_summary": "y.test.ts\nPASS tests/unit/ai/vision-client/factory.test.ts\nPASS tests/unit/routes/recording-pages.test.ts\nPASS tests/unit/telemetry/dom.test.ts\nPASS tests/unit/frame-streaming/cdp-screencast-strategy.test.ts\nPASS tests/unit/frame-streaming/manager.test.ts\nPASS tests/unit/frame-streaming/polling-strategy.test.ts\n\nTest Suites: 1 skipped, 124 passed, 124 of 125 total\nTests:       2 skipped, 1649 passed, 1651 total\nSnapshots:   0 total\nTime:        403.826 s\nRan all test suites.\n"
+      }
+    ],
+    "receipt": "/tmp/bas-device-scale-owner-049.json"
+  },
+  "deployment": {
+    "tool_session": 1852,
+    "build_identity": "sha256:4d7371aa74718651752a1756d800a60868f223f8ca1d2f15fe73be0260a1050c",
+    "health_receipt": "/tmp/bas-live-health-049.json",
+    "profile_metadata_matches_048": true,
+    "complete_profile_reads_preserved": 3,
+    "profile_receipt": "/tmp/bas-profile-final-049.txt"
+  }
+}

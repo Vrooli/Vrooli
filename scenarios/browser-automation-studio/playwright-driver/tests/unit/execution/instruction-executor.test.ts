@@ -16,16 +16,19 @@ jest.mock('../../../src/outcome', () => ({
 }));
 
 jest.mock('../../../src/proto', () => ({
-  CompiledInstructionSchema: {},
-  parseProtoLenient: jest.fn(),
-  toHandlerInstruction: jest.fn(),
+	CompiledInstructionSchema: {},
+	parseProtoLenient: jest.fn(),
+	toHandlerInstruction: jest.fn(),
+	getActionType: jest.fn().mockReturnValue('click'),
 }));
 
 import { TelemetryOrchestrator } from '../../../src/telemetry';
 import { buildStepOutcome, toDriverOutcome } from '../../../src/outcome';
 import { parseProtoLenient, toHandlerInstruction } from '../../../src/proto';
-import { executeInstruction, validateInstruction, createInstructionKey } from '../../../src/execution';
+import { executeInstruction, validateInstruction } from '../../../src/execution';
 import { createTestConfig } from '../../helpers/test-config';
+
+const typedAction = {} as HandlerInstruction['action'];
 
 describe('Instruction executor', () => {
   const observeInstructionDuration = jest.fn();
@@ -66,16 +69,16 @@ describe('Instruction executor', () => {
 
   describe('validateInstruction', () => {
     it('rejects invalid structures early', () => {
-      const missingIndex = validateInstruction({ node_id: 'node-1', type: 'click', params: {} });
+		const missingIndex = validateInstruction({ node_id: 'node-1', action: { type: 'ACTION_TYPE_CLICK' } });
       expect(missingIndex.valid).toBe(false);
 
-      const missingNode = validateInstruction({ index: 0, type: 'click', params: {} });
+		const missingNode = validateInstruction({ index: 0, action: { type: 'ACTION_TYPE_CLICK' } });
       expect(missingNode.valid).toBe(false);
 
-      const missingType = validateInstruction({ index: 0, node_id: 'node-1', params: {} });
+		const missingType = validateInstruction({ index: 0, node_id: 'node-1' });
       expect(missingType.valid).toBe(false);
 
-      const missingParams = validateInstruction({ index: 0, node_id: 'node-1', type: 'click' });
+		const missingParams = validateInstruction({ index: 0, node_id: 'node-1', action: {} });
       expect(missingParams.valid).toBe(false);
     });
 
@@ -83,23 +86,20 @@ describe('Instruction executor', () => {
       const handlerInstruction: HandlerInstruction = {
         index: 1,
         nodeId: 'node-1',
-        type: 'click',
-        params: { selector: '#btn' },
+			action: typedAction,
       };
 
       (parseProtoLenient as jest.Mock).mockReturnValue({
         index: 1,
         nodeId: 'node-1',
-        type: 'click',
-        params: { selector: '#btn' },
+			action: typedAction,
       });
       (toHandlerInstruction as jest.Mock).mockReturnValue(handlerInstruction);
 
       const result = validateInstruction({
         index: 1,
         node_id: 'node-1',
-        type: 'click',
-        params: { selector: '#btn' },
+			action: { type: 'ACTION_TYPE_CLICK' },
       });
 
       expect(result.valid).toBe(true);
@@ -109,26 +109,12 @@ describe('Instruction executor', () => {
     });
   });
 
-  describe('createInstructionKey', () => {
-    it('builds a stable key from nodeId and index', () => {
-      const key = createInstructionKey({
-        index: 4,
-        nodeId: 'node-xyz',
-        type: 'navigate',
-        params: {},
-      });
-
-      expect(key).toBe('node-xyz:4');
-    });
-  });
-
   describe('executeInstruction', () => {
     it('executes handler and returns outcomes on success', async () => {
       const instruction: HandlerInstruction = {
         index: 0,
         nodeId: 'node-1',
-        type: 'click',
-        params: { selector: '#btn' },
+			action: typedAction,
       };
 
       const handlerResult: HandlerResult = { success: true };
@@ -153,7 +139,11 @@ describe('Instruction executor', () => {
       expect(getHandler).toHaveBeenCalledWith(instruction);
       expect(executeHandler).toHaveBeenCalledWith(instruction, baseContext);
       expect(mockTelemetryInstance.start).toHaveBeenCalled();
-      expect(mockTelemetryInstance.collectForStep).toHaveBeenCalledWith(handlerResult);
+      // This instruction carries no telemetry directive, so the capture policy
+      // must resolve to "capture" — the pre-directive default.
+      expect(mockTelemetryInstance.collectForStep).toHaveBeenCalledWith(handlerResult, {
+        skipScreenshot: false,
+      });
       expect(mockTelemetryInstance.dispose).toHaveBeenCalled();
       expect(result.outcome).toBe(outcome);
       expect(result.driverOutcome).toBe(driverOutcome);
@@ -168,8 +158,7 @@ describe('Instruction executor', () => {
       const instruction: HandlerInstruction = {
         index: 0,
         nodeId: 'node-1',
-        type: 'click',
-        params: { selector: '#btn' },
+			action: typedAction,
       };
 
       const handlerResult: HandlerResult = {
@@ -199,12 +188,11 @@ describe('Instruction executor', () => {
       });
     });
 
-    it('disposes telemetry when handler throws', async () => {
+    it('captures failure evidence before releasing a thrown handler operation', async () => {
       const instruction: HandlerInstruction = {
         index: 0,
         nodeId: 'node-1',
-        type: 'click',
-        params: { selector: '#btn' },
+			action: typedAction,
       };
 
       const executeHandler = jest.fn().mockRejectedValue(new Error('boom'));
@@ -217,8 +205,51 @@ describe('Instruction executor', () => {
         getHandler,
       } as unknown as HandlerRegistry;
 
-      await expect(executeInstruction(instruction, baseContext, handlerRegistry)).rejects.toThrow('boom');
-      expect(mockTelemetryInstance.dispose).toHaveBeenCalled();
+      const result = await executeInstruction(instruction, baseContext, handlerRegistry);
+      expect(result.success).toBe(false);
+      expect(result.handlerResult.error).toMatchObject({
+        code: 'INSTRUCTION_OUTCOME_UNCERTAIN', retryable: false, message: expect.stringContaining('boom'),
+      });
+      expect(mockTelemetryInstance.collectForStep).toHaveBeenCalledWith(result.handlerResult, { skipScreenshot: false });
+      expect(result.telemetry.screenshot).toBeDefined();
+      expect(executeHandler).toHaveBeenCalledTimes(1);
+      expect(mockTelemetryInstance.dispose).toHaveBeenCalledTimes(1);
     });
+    it.each(['start', 'collect', 'build', 'wire'])('releases collectors after a %s failure', async (site) => {
+      const instruction = { index: 0, nodeId: 'fault', action: typedAction };
+      const execute = jest.fn().mockResolvedValue({ success: true });
+      const registry = { getHandler: () => ({ execute }) } as unknown as HandlerRegistry;
+      const fail = () => { throw new Error(`${site} fault`); };
+      if (site === 'start') mockTelemetryInstance.start.mockRejectedValueOnce(new Error('start fault'));
+      if (site === 'collect') mockTelemetryInstance.collectForStep.mockImplementationOnce(fail);
+      if (site === 'build') (buildStepOutcome as jest.Mock).mockImplementationOnce(fail);
+      if (site === 'wire') (toDriverOutcome as jest.Mock).mockImplementationOnce(fail);
+      await expect(executeInstruction(instruction, baseContext, registry)).rejects.toThrow(`${site} fault`);
+      expect(mockTelemetryInstance.dispose).toHaveBeenCalledTimes(1);
+      expect(execute).toHaveBeenCalledTimes(site === 'start' ? 0 : 1);
+    });
+
+    it('retains capture and the known result when a metrics observer throws', async () => {
+      observeInstructionDuration.mockImplementationOnce(() => { throw new Error('metrics unavailable'); });
+      const registry = { getHandler: () => ({ execute: async () => ({ success: true }) }) } as unknown as HandlerRegistry;
+      const result = await executeInstruction({ index: 0, nodeId: 'metrics', action: typedAction }, baseContext, registry);
+      expect(result.success).toBe(true);
+      expect(result.telemetry.screenshot).toBeDefined();
+      expect(mockTelemetryInstance.dispose).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([true, false])('reports partial evidence while preserving a declared failure (handler success=%s)', async (success) => {
+      const declaredError = { code: 'ASSERTION_FAILED', kind: 'engine', message: 'expected button absent', retryable: false };
+      const registry = { getHandler: () => ({ execute: async () => ({ success, error: success ? undefined : declaredError }) }) } as unknown as HandlerRegistry;
+      mockTelemetryInstance.collectForStep.mockResolvedValueOnce({ captureErrors: ['dom: transport failed'], consoleLogs: [{ text: 'available' }] });
+      (buildStepOutcome as jest.Mock).mockReturnValueOnce({ durationMs: 10, notes: {} });
+      const result = await executeInstruction({ index: 0, nodeId: 'partial', action: typedAction }, baseContext, registry);
+      expect(result.success).toBe(false);
+      expect(result.handlerResult.error).toMatchObject(success ? { code: 'INSTRUCTION_EVIDENCE_FAILED', retryable: false } : declaredError);
+      expect(result.telemetry.consoleLogs).toEqual([{ text: 'available' }]);
+      expect(result.outcome.notes.telemetry_errors).toBe('["dom: transport failed"]');
+      expect(mockTelemetryInstance.dispose).toHaveBeenCalledTimes(1);
+    });
+
   });
 });

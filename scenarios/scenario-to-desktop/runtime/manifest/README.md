@@ -13,6 +13,7 @@ Every desktop bundle includes a `bundle.json` manifest that describes the applic
 | `Manifest` | Root structure containing all bundle configuration |
 | `App` | Application metadata (name, version) |
 | `IPC` | Control API configuration (host, port, auth) |
+| `AuthenticationProfile` | Non-secret human identity mode, provider, route, and lease contract |
 | `Telemetry` | Telemetry file path and upload URL |
 | `PortConfig` | Default port range and reserved ports |
 | `Secret` | Secret definition with prompts and targets |
@@ -70,6 +71,29 @@ The loader performs basic validation:
 - Schema version is supported
 - Service IDs are unique
 - Referenced secrets exist
+- Authentication modes have explicit provider, offline, and lease requirements
+
+Authentication is separate from the supervisor bearer token. The four
+supported modes are `personal_local`, `local_multi_user`, `remote_vrooli`, and
+`shared_provider`. The supervisor reports the selected non-secret profile from
+`/status`; it never reports credentials or treats its token as a human
+identity. Shared-provider startup requires readable, unexpired non-secret lease
+metadata at the declared `lease_path` and fails closed when that metadata is
+absent, malformed, or stale. The metadata parser rejects credential-bearing
+fields; broker credentials are ephemeral and durable entitlement leases use the
+native credential authority.
+
+Bundles that support an explicit operator mode change may declare
+`authentication.mode_profiles`. The protected runtime settings API exposes
+those profiles, persists only the selected mode and transition metadata, and
+uses an atomic state-file replacement. It never copies provider credentials;
+shared-provider selection is refused unless its scoped lease is current. When a
+bundle declares a local authenticator service for an alternate mode, the
+supervisor keeps that service stopped in `personal_local`, `remote_vrooli`, and
+`shared_provider`; selecting `local_multi_user` and restarting through the
+managed lifecycle starts the declared service for first-run enrollment and
+human sign-in. The service's data directory is preserved across those mode
+changes.
 
 ## Dependencies
 

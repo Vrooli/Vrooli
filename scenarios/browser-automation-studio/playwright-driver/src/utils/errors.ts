@@ -46,9 +46,68 @@ interface ErrorPattern {
   /** String patterns to match in error message (matched case-insensitive, any match triggers) */
   patterns: string[];
   /** Factory to create the appropriate error */
-  createError: (message: string, extractedData: Record<string, unknown>) => PlaywrightDriverError;
+  createError: (
+    message: string,
+    extractedData: Record<string, unknown>,
+    context?: NormalizeContext
+  ) => PlaywrightDriverError;
   /** Optional function to extract data from error message */
   extractData?: (message: string) => Record<string, unknown>;
+}
+
+/**
+ * Optional context a caller can supply to improve classification.
+ *
+ * The most useful field is `selector`: instruction handlers already know which
+ * selector they were operating on, so passing it through lets us produce a
+ * precise SelectorNotFoundError even when the underlying Playwright message
+ * uses an unexpected shape.
+ */
+export interface NormalizeContext {
+  /** The selector the failing operation was targeting, if known. */
+  selector?: string;
+}
+
+/** Max length of an original engine message we embed in a wrapped error. */
+const MAX_DETAIL_LENGTH = 300;
+
+/** Truncate an engine message so wrapped errors stay readable. */
+function truncateDetail(detail: string): string {
+  const trimmed = detail.trim();
+  return trimmed.length > MAX_DETAIL_LENGTH
+    ? `${trimmed.slice(0, MAX_DETAIL_LENGTH - 1)}…`
+    : trimmed;
+}
+
+/**
+ * Best-effort extraction of the selector from a raw Playwright error message.
+ *
+ * Playwright phrases selector failures several ways; we try the common shapes
+ * and fall back to `undefined` when none match (callers then use context or a
+ * placeholder). Extraction never throws.
+ */
+export function extractSelectorFromMessage(message: string): string | undefined {
+  const patterns: RegExp[] = [
+    // `... while parsing css selector "@selector/foo"`
+    /parsing css selector\s+"([^"]+)"/i,
+    // `waiting for locator('#foo')` / `waiting for locator("#foo")`
+    /waiting for locator\(\s*['"]([^'"]+)['"]\s*\)/i,
+    // `page.waitForSelector: ... selector "#foo"` / `selector: #foo`
+    /selector[:\s]+["']([^"']+)["']/i,
+    // `waiting for selector "#foo"`
+    /waiting for selector\s+["']([^"']+)["']/i,
+    // `waiting for #foo to be visible`
+    /waiting for\s+(\S+)\s+to be (?:visible|hidden|attached|detached|enabled|editable)/i,
+  ];
+
+  for (const re of patterns) {
+    const match = message.match(re);
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+
+  return undefined;
 }
 
 /**
@@ -84,7 +143,13 @@ const ERROR_PATTERNS: ErrorPattern[] = [
   // Selector/element errors (broad category)
   {
     patterns: ['selector', 'element', 'locator', 'waiting for'],
-    createError: (_message) => new SelectorNotFoundError('unknown'),
+    extractData: (message): Record<string, unknown> => ({
+      selector: extractSelectorFromMessage(message),
+    }),
+    createError: (message, data, context): SelectorNotFoundError => {
+      const selector = context?.selector ?? (data.selector as string | undefined) ?? 'unknown';
+      return new SelectorNotFoundError(selector, undefined, message);
+    },
   },
 ];
 
@@ -92,14 +157,17 @@ const ERROR_PATTERNS: ErrorPattern[] = [
  * Classify an error message using the pattern registry.
  * Returns the first matching error class or null if no match.
  */
-function classifyErrorByPattern(message: string): PlaywrightDriverError | null {
+function classifyErrorByPattern(
+  message: string,
+  context?: NormalizeContext
+): PlaywrightDriverError | null {
   const lowerMessage = message.toLowerCase();
 
   for (const pattern of ERROR_PATTERNS) {
     const matches = pattern.patterns.some((p) => lowerMessage.includes(p));
     if (matches) {
       const extractedData = pattern.extractData?.(message) ?? {};
-      return pattern.createError(message, extractedData);
+      return pattern.createError(message, extractedData, context);
     }
   }
 
@@ -181,13 +249,16 @@ export class UnsupportedInstructionError extends PlaywrightDriverError {
  * Selector not found
  */
 export class SelectorNotFoundError extends PlaywrightDriverError {
-  constructor(selector: string, timeout?: number) {
+  constructor(selector: string, timeout?: number, detail?: string) {
+    const trimmedDetail = detail?.trim();
     super(
-      `Selector not found: ${selector}${timeout ? ` (timeout: ${timeout}ms)` : ''}`,
+      `Selector not found: ${selector}${timeout ? ` (timeout: ${timeout}ms)` : ''}${
+        trimmedDetail ? ` — ${truncateDetail(trimmedDetail)}` : ''
+      }`,
       'SELECTOR_NOT_FOUND',
       FailureKind.ENGINE,
       true,
-      { selector, timeout }
+      { selector, timeout, detail: trimmedDetail || undefined }
     );
     this.name = 'SelectorNotFoundError';
   }
@@ -265,7 +336,7 @@ export class FrameNotFoundError extends PlaywrightDriverError {
  * 4. Error without match - wrap as PLAYWRIGHT_ERROR
  * 5. Non-Error values - wrap as UNKNOWN_ERROR
  */
-export function normalizeError(error: unknown): PlaywrightDriverError {
+export function normalizeError(error: unknown, context?: NormalizeContext): PlaywrightDriverError {
   // 1. Already a PlaywrightDriverError - pass through
   if (error instanceof PlaywrightDriverError) {
     return error;
@@ -279,7 +350,7 @@ export function normalizeError(error: unknown): PlaywrightDriverError {
   // 3. Standard Error objects - classify by message
   if (error instanceof Error) {
     // Try pattern-based classification first
-    const classified = classifyErrorByPattern(error.message);
+    const classified = classifyErrorByPattern(error.message, context);
     if (classified) {
       return classified;
     }

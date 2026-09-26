@@ -15,10 +15,6 @@ vi.mock("../../services/backlog-service", () => ({
     getFileContent: vi.fn().mockResolvedValue("{}"),
     saveFileContent: vi.fn().mockResolvedValue({}),
     batchReview: vi.fn().mockResolvedValue(undefined),
-    workshopSave: vi.fn().mockResolvedValue({
-      file: { name: "round-001.json", path: "workshop/round-001.json", type: "file", size: 100 },
-      autoAdvance: { triggered: false, reason: "not_ready" },
-    }),
   },
 }));
 
@@ -31,7 +27,7 @@ const mockBacklogItem: BacklogItem = {
   priority: 2,
   tags: ["ui", "frontend"],
   suggestedSkills: [],
-  initiative: "v2-launch",
+  milestone: "v2-launch",
   effort: "M",
   created: "2026-04-01T00:00:00Z",
   updated: "2026-04-01T00:00:00Z",
@@ -53,8 +49,8 @@ const makeOptions = (): DecisionOption[] => [
 ];
 
 const makeWorkshopQuestion = (overrides?: Partial<PendingQuestion>): PendingQuestion => ({
-  id: "d1",
-  source: "workshop",
+	 id: "d1",
+	 source: "workshop",
   item_kind: "idea",
   item_name: "dashboard",
   topic: "Architecture decision",
@@ -66,7 +62,7 @@ const makeWorkshopQuestion = (overrides?: Partial<PendingQuestion>): PendingQues
 });
 
 const makeCrossItemQuestion = (overrides?: Partial<CrossItemQuestion>): CrossItemQuestion => ({
-  question: makeWorkshopQuestion(),
+	 question: makeWorkshopQuestion(),
   parentKind: "idea" as BacklogKind,
   parentName: "dashboard",
   parentTitle: "Dashboard feature",
@@ -89,19 +85,19 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("DecisionStreamView", () => {
-  describe("Unified header", () => {
-    it("renders the header with back button, title, and counter", () => {
+  describe("Decision header", () => {
+    it("renders a clickable title and counter without the redundant back control", () => {
       render(<DecisionStreamView {...defaultProps} />);
 
       expect(screen.getByTestId(selectors.commandPost.decisionStream.header)).toBeInTheDocument();
-      expect(screen.getByTestId(selectors.commandPost.decisionStream.backButton)).toBeInTheDocument();
+      expect(screen.queryByTestId(selectors.commandPost.decisionStream.backButton)).not.toBeInTheDocument();
       expect(screen.getByTestId(selectors.commandPost.decisionStream.counter)).toHaveTextContent("1/1");
-      expect(screen.getByText("Dashboard feature")).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.commandPost.decisionStream.openItemLink)).toHaveTextContent("Dashboard feature");
     });
 
     it("shows correct counter with multiple questions", () => {
       const questions = [
-        makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d1" }) }),
+		makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d1" }) }),
         makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d2", topic: "Second" }) }),
         makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d3", topic: "Third" }) }),
       ];
@@ -110,84 +106,40 @@ describe("DecisionStreamView", () => {
       expect(screen.getByTestId(selectors.commandPost.decisionStream.counter)).toHaveTextContent("1/3");
     });
 
-    it("calls onBack when back button is clicked", () => {
-      const onBack = vi.fn();
-      render(<DecisionStreamView {...defaultProps} onBack={onBack} />);
+    it("restores the selected decision by its stable question id", () => {
+      const questions = [
+        makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d1", topic: "First" }) }),
+        makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d2", topic: "Restored" }) }),
+      ];
+      render(<DecisionStreamView {...defaultProps} questions={questions} currentQuestionId="d2" />);
 
-      fireEvent.click(screen.getByTestId(selectors.commandPost.decisionStream.backButton));
-      expect(onBack).toHaveBeenCalledOnce();
+      expect(screen.getByText("Restored")).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.commandPost.decisionStream.counter)).toHaveTextContent("2/2");
+    });
+
+    it("falls back to the first decision and repairs a stale question id", () => {
+      const onCurrentQuestionChange = vi.fn();
+      render(<DecisionStreamView {...defaultProps} currentQuestionId="removed-after-refetch" onCurrentQuestionChange={onCurrentQuestionChange} />);
+
+      expect(screen.getByText("Architecture decision")).toBeInTheDocument();
+      expect(onCurrentQuestionChange).toHaveBeenCalledWith("d1");
+    });
+
+    it("opens the full backlog item from the title link", () => {
+      const onOpenItem = vi.fn();
+      render(<DecisionStreamView {...defaultProps} onOpenItem={onOpenItem} />);
+
+      fireEvent.click(screen.getByTestId(selectors.commandPost.decisionStream.openItemLink));
+      expect(onOpenItem).toHaveBeenCalledWith("idea", "dashboard");
     });
   });
 
-  describe("Context panel", () => {
-    it("is collapsed by default", () => {
+  describe("Removed context panel", () => {
+    it("does not render the duplicate item context surface", () => {
       render(<DecisionStreamView {...defaultProps} />);
 
       expect(screen.queryByTestId(selectors.commandPost.decisionStream.contextPanel)).not.toBeInTheDocument();
-    });
-
-    it("expands when chevron toggle is clicked", () => {
-      render(<DecisionStreamView {...defaultProps} />);
-
-      fireEvent.click(screen.getByTestId(selectors.commandPost.decisionStream.contextToggle));
-      expect(screen.getByTestId(selectors.commandPost.decisionStream.contextPanel)).toBeInTheDocument();
-    });
-
-    it("shows backlog item details when expanded", () => {
-      render(<DecisionStreamView {...defaultProps} />);
-
-      fireEvent.click(screen.getByTestId(selectors.commandPost.decisionStream.contextToggle));
-
-      // Description
-      expect(screen.getByText(/Build the dashboard page/)).toBeInTheDocument();
-      // Initiative
-      expect(screen.getByText("v2-launch")).toBeInTheDocument();
-      // Effort
-      expect(screen.getByText("M")).toBeInTheDocument();
-      // Slug
-      expect(screen.getByText("idea/dashboard")).toBeInTheDocument();
-    });
-
-    it("shows slug even when context panel has no store data", () => {
-      render(<DecisionStreamView {...defaultProps} />);
-
-      fireEvent.click(screen.getByTestId(selectors.commandPost.decisionStream.contextToggle));
-      // Slug is always shown regardless of parentItem availability
-      expect(screen.getByText("idea/dashboard")).toBeInTheDocument();
-    });
-
-    it("collapses when toggle is clicked again", () => {
-      render(<DecisionStreamView {...defaultProps} />);
-
-      const toggle = screen.getByTestId(selectors.commandPost.decisionStream.contextToggle);
-      fireEvent.click(toggle);
-      expect(screen.getByTestId(selectors.commandPost.decisionStream.contextPanel)).toBeInTheDocument();
-
-      fireEvent.click(toggle);
-      expect(screen.queryByTestId(selectors.commandPost.decisionStream.contextPanel)).not.toBeInTheDocument();
-    });
-
-    it("auto-collapses when navigating to a different parent item", () => {
-      const q1 = makeCrossItemQuestion({
-        question: makeWorkshopQuestion({ id: "d1" }),
-        parentName: "dashboard",
-        parentTitle: "Dashboard feature",
-      });
-      const q2 = makeCrossItemQuestion({
-        question: makeWorkshopQuestion({ id: "d2", topic: "Other topic" }),
-        parentKind: "fix" as BacklogKind,
-        parentName: "other-item",
-        parentTitle: "Other item",
-      });
-      render(<DecisionStreamView {...defaultProps} questions={[q1, q2]} />);
-
-      // Expand context panel
-      fireEvent.click(screen.getByTestId(selectors.commandPost.decisionStream.contextToggle));
-      expect(screen.getByTestId(selectors.commandPost.decisionStream.contextPanel)).toBeInTheDocument();
-
-      // Navigate to next (different parent)
-      fireEvent.click(screen.getByTestId(selectors.commandPost.decisionStream.navNext));
-      expect(screen.queryByTestId(selectors.commandPost.decisionStream.contextPanel)).not.toBeInTheDocument();
+      expect(screen.queryByTestId(selectors.commandPost.decisionStream.contextToggle)).not.toBeInTheDocument();
     });
   });
 
@@ -281,11 +233,10 @@ describe("DecisionStreamView", () => {
       expect(screen.getByText("No pending questions")).toBeInTheDocument();
     });
 
-    it("empty state back button has proper touch target", () => {
+    it("empty state has no redundant back button", () => {
       render(<DecisionStreamView {...defaultProps} questions={[]} />);
 
-      const backBtn = screen.getByText("Back to Command Post").closest("button");
-      expect(backBtn?.className).toContain("min-h-[44px]");
+      expect(screen.queryByText("Back to Command Post")).not.toBeInTheDocument();
     });
   });
 
@@ -298,25 +249,8 @@ describe("DecisionStreamView", () => {
       expect(onBack).toHaveBeenCalledOnce();
     });
 
-    it("Escape collapses context panel instead of calling onBack when panel is open", () => {
-      const onBack = vi.fn();
-      render(<DecisionStreamView {...defaultProps} onBack={onBack} />);
-
-      // Open context panel
-      fireEvent.click(screen.getByTestId(selectors.commandPost.decisionStream.contextToggle));
-      expect(screen.getByTestId(selectors.commandPost.decisionStream.contextPanel)).toBeInTheDocument();
-
-      // Escape should close panel, not go back
-      fireEvent.keyDown(window, { key: "Escape" });
-      expect(screen.queryByTestId(selectors.commandPost.decisionStream.contextPanel)).not.toBeInTheDocument();
-      expect(onBack).not.toHaveBeenCalled();
-    });
-
-    it("'i' key toggles context panel", () => {
+    it("'i' key does not restore the removed context panel", () => {
       render(<DecisionStreamView {...defaultProps} />);
-
-      fireEvent.keyDown(window, { key: "i" });
-      expect(screen.getByTestId(selectors.commandPost.decisionStream.contextPanel)).toBeInTheDocument();
 
       fireEvent.keyDown(window, { key: "i" });
       expect(screen.queryByTestId(selectors.commandPost.decisionStream.contextPanel)).not.toBeInTheDocument();

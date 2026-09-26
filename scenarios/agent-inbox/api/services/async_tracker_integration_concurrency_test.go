@@ -13,7 +13,7 @@ import (
 
 // TestAsyncTracker_ConcurrentStartTracking verifies thread safety of StartTracking.
 func TestAsyncTracker_ConcurrentStartTracking(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	const goroutines = 20
 	var wg sync.WaitGroup
@@ -46,7 +46,7 @@ func TestAsyncTracker_ConcurrentStartTracking(t *testing.T) {
 
 // TestAsyncTracker_ConcurrentSubscribeUnsubscribe verifies thread safety of subscriptions.
 func TestAsyncTracker_ConcurrentSubscribeUnsubscribe(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	const goroutines = 50
 	var wg sync.WaitGroup
@@ -86,7 +86,7 @@ func TestAsyncTracker_ConcurrentSubscribeUnsubscribe(t *testing.T) {
 
 // TestAsyncTracker_ConcurrentPushUpdate verifies thread safety of update pushing.
 func TestAsyncTracker_ConcurrentPushUpdate(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	// Create multiple subscribers
 	const subscribers = 5
@@ -141,7 +141,7 @@ func TestAsyncTracker_ConcurrentPushUpdate(t *testing.T) {
 
 // TestAsyncTracker_ConcurrentCompletionCallbacks verifies callback thread safety.
 func TestAsyncTracker_ConcurrentCompletionCallbacks(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	const goroutines = 20
 	var wg sync.WaitGroup

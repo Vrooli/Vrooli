@@ -2,7 +2,10 @@ package handlers
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"strings"
 	"sync"
@@ -23,6 +26,7 @@ import (
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
@@ -403,6 +407,7 @@ type MockExecutionService struct {
 	GetExecutionScreenshotsError    error
 	GetExecutionTimelineError       error
 	GetExecutionTimelineProtoError  error
+	GetExecutionReplayPackageError  error
 	DescribeExecutionExportError    error
 	ExportToFolderError             error
 	HydrateExecutionProtoError      error
@@ -414,6 +419,7 @@ type MockExecutionService struct {
 	ExecutionScreenshots    []*basexecution.ExecutionScreenshot
 	ExecutionTimeline       *workflow.ExecutionTimeline
 	ExecutionTimelineProto  *bastimeline.ExecutionTimeline
+	ExecutionReplayPackage  *basevidence.ReplayPackage
 	ExecutionTraceArtifacts []workflow.ExecutionFileArtifact
 	ExecutionHarArtifacts   []workflow.ExecutionFileArtifact
 	ExecutionVideoArtifacts []workflow.ExecutionVideoArtifact
@@ -517,9 +523,9 @@ func (m *MockExecutionService) ResumeExecution(ctx context.Context, executionID 
 	return newExecution, nil
 }
 
-func (m *MockExecutionService) ListExecutions(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
+func (m *MockExecutionService) ListExecutions(ctx context.Context, query database.ExecutionQuery) ([]*database.ExecutionIndex, int, error) {
 	if m.ListExecutionsError != nil {
-		return nil, m.ListExecutionsError
+		return nil, 0, m.ListExecutionsError
 	}
 
 	m.mu.RLock()
@@ -528,12 +534,12 @@ func (m *MockExecutionService) ListExecutions(ctx context.Context, workflowID *u
 	executions := make([]*database.ExecutionIndex, 0, len(m.executions))
 	for _, e := range m.executions {
 		// Note: projectID filtering would require workflow lookup, skip for mock
-		if workflowID == nil || e.WorkflowID == *workflowID {
+		if (query.WorkflowID == nil || e.WorkflowID == *query.WorkflowID) && (query.Status == "" || e.Status == query.Status) {
 			copy := *e
 			executions = append(executions, &copy)
 		}
 	}
-	return executions, nil
+	return applyPagination(executions, query.Limit, query.Offset), len(executions), nil
 }
 
 func (m *MockExecutionService) GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
@@ -607,6 +613,16 @@ func (m *MockExecutionService) GetExecutionHarArtifacts(ctx context.Context, exe
 		return m.ExecutionHarArtifacts, nil
 	}
 	return []workflow.ExecutionFileArtifact{}, nil
+}
+
+func (m *MockExecutionService) GetExecutionReplayPackage(ctx context.Context, executionID uuid.UUID) (*basevidence.ReplayPackage, error) {
+	if m.GetExecutionReplayPackageError != nil {
+		return nil, m.GetExecutionReplayPackageError
+	}
+	if m.ExecutionReplayPackage != nil {
+		return m.ExecutionReplayPackage, nil
+	}
+	return nil, database.ErrNotFound
 }
 
 func (m *MockExecutionService) HydrateExecutionProto(ctx context.Context, execIndex *database.ExecutionIndex) (*basexecution.Execution, error) {
@@ -702,7 +718,7 @@ func (m *MockHub) BroadcastEnvelope(event any) {
 	m.LastBroadcastedEvent = event
 }
 
-func (m *MockHub) BroadcastRecordingEntry(sessionID string, entry *wsHub.UnifiedTimelineEntry) wsHub.BroadcastResult {
+func (m *MockHub) BroadcastTimelineEntry(sessionID string, entry *bastimeline.TimelineEntry) wsHub.BroadcastResult {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -718,11 +734,9 @@ func (m *MockHub) BroadcastRecordingEntry(sessionID string, entry *wsHub.Unified
 	}
 }
 
-func (m *MockHub) BroadcastRecordingFrame(sessionID string, frame *wsHub.RecordingFrame) {}
-
 func (m *MockHub) BroadcastBinaryFrame(sessionID string, jpegData []byte) {}
 
-func (m *MockHub) HasRecordingSubscribers(sessionID string) bool {
+func (m *MockHub) HasRecordingFrameSubscribers(sessionID string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.RecordingSubscribers[sessionID]
@@ -892,10 +906,12 @@ func (m *MockStorage) StoreArtifact(ctx context.Context, objectName string, data
 	m.mu.Lock()
 	m.artifacts[objectName] = data
 	m.mu.Unlock()
+	digest := sha256.Sum256(data)
 
 	return &storage.ArtifactInfo{
 		ObjectName: objectName,
 		SizeBytes:  int64(len(data)),
+		SHA256:     hex.EncodeToString(digest[:]),
 	}, nil
 }
 
@@ -923,13 +939,9 @@ type MockDriverClient struct {
 	mu sync.RWMutex
 
 	// Error injection
-	StopRecordingError        error
+
 	GetRecordingStatusError   error
 	GetRecordedActionsError   error
-	NavigateError             error
-	ReloadError               error
-	GoBackError               error
-	GoForwardError            error
 	GetNavigationStateError   error
 	GetNavigationStackError   error
 	UpdateViewportError       error
@@ -938,16 +950,11 @@ type MockDriverClient struct {
 	ReplayPreviewError        error
 	CaptureScreenshotError    error
 	GetFrameError             error
-	ForwardInputError         error
 
 	// Response overrides
-	StopRecordingResponse    *driver.StopRecordingResponse
+
 	RecordingStatusResponse  *driver.RecordingStatusResponse
 	RecordedActionsResponse  *driver.GetActionsResponse
-	NavigateResponse         *driver.NavigateResponse
-	ReloadResponse           *driver.ReloadResponse
-	GoBackResponse           *driver.GoBackResponse
-	GoForwardResponse        *driver.GoForwardResponse
 	NavigationStateResponse  *driver.NavigationStateResponse
 	NavigationStackResponse  *driver.NavigationStackResponse
 	UpdateViewportResponse   *driver.UpdateViewportResponse
@@ -956,13 +963,13 @@ type MockDriverClient struct {
 	ReplayPreviewResponse    *driver.ReplayPreviewResponse
 	ScreenshotResponse       *driver.CaptureScreenshotResponse
 	FrameResponse            *driver.GetFrameResponse
+	GetFrameFunc             func(context.Context, string, string) (*driver.GetFrameResponse, error)
 
 	// Call tracking
-	StopRecordingCalled      bool
+
 	GetRecordedActionsCalled bool
-	ForwardInputCalled       bool
-	LastSessionID            string
-	LastForwardInputBody     []byte
+
+	LastSessionID string
 }
 
 // NewMockDriverClient creates a new MockDriverClient.
@@ -970,7 +977,7 @@ func NewMockDriverClient() *MockDriverClient {
 	return &MockDriverClient{}
 }
 
-func (m *MockDriverClient) StopRecording(ctx context.Context, sessionID string) (*driver.StopRecordingResponse, error) {
+func (m *MockRecordModeService) StopRecording(ctx context.Context, sessionID string) (*driver.StopRecordingResponse, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.StopRecordingCalled = true
@@ -984,7 +991,7 @@ func (m *MockDriverClient) StopRecording(ctx context.Context, sessionID string) 
 	}
 	return &driver.StopRecordingResponse{
 		SessionID:   sessionID,
-		IsRecording: false,
+		RecordingID: "recording-fixture",
 		ActionCount: 5,
 		StoppedAt:   time.Now().UTC().Format(time.RFC3339),
 	}, nil
@@ -1008,7 +1015,7 @@ func (m *MockDriverClient) GetRecordingStatus(ctx context.Context, sessionID str
 	}, nil
 }
 
-func (m *MockDriverClient) GetRecordedActions(ctx context.Context, sessionID string, clear bool) (*driver.GetActionsResponse, error) {
+func (m *MockDriverClient) GetRecordedActions(ctx context.Context, sessionID string) (*driver.GetActionsResponse, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.GetRecordedActionsCalled = true
@@ -1027,75 +1034,7 @@ func (m *MockDriverClient) GetRecordedActions(ctx context.Context, sessionID str
 	}, nil
 }
 
-func (m *MockDriverClient) Navigate(ctx context.Context, sessionID string, req *driver.NavigateRequest) (*driver.NavigateResponse, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if m.NavigateError != nil {
-		return nil, m.NavigateError
-	}
-	if m.NavigateResponse != nil {
-		return m.NavigateResponse, nil
-	}
-	return &driver.NavigateResponse{
-		URL:        req.URL,
-		Title:      "Test Page",
-		StatusCode: 200,
-	}, nil
-}
-
-func (m *MockDriverClient) Reload(ctx context.Context, sessionID string, req *driver.ReloadRequest) (*driver.ReloadResponse, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if m.ReloadError != nil {
-		return nil, m.ReloadError
-	}
-	if m.ReloadResponse != nil {
-		return m.ReloadResponse, nil
-	}
-	return &driver.ReloadResponse{
-		SessionID: sessionID,
-		URL:       "https://example.com",
-		Title:     "Reloaded Page",
-	}, nil
-}
-
-func (m *MockDriverClient) GoBack(ctx context.Context, sessionID string, req *driver.GoBackRequest) (*driver.GoBackResponse, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if m.GoBackError != nil {
-		return nil, m.GoBackError
-	}
-	if m.GoBackResponse != nil {
-		return m.GoBackResponse, nil
-	}
-	return &driver.GoBackResponse{
-		SessionID: sessionID,
-		URL:       "https://example.com/previous",
-		Title:     "Previous Page",
-	}, nil
-}
-
-func (m *MockDriverClient) GoForward(ctx context.Context, sessionID string, req *driver.GoForwardRequest) (*driver.GoForwardResponse, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if m.GoForwardError != nil {
-		return nil, m.GoForwardError
-	}
-	if m.GoForwardResponse != nil {
-		return m.GoForwardResponse, nil
-	}
-	return &driver.GoForwardResponse{
-		SessionID: sessionID,
-		URL:       "https://example.com/next",
-		Title:     "Next Page",
-	}, nil
-}
-
-func (m *MockDriverClient) GetNavigationState(ctx context.Context, sessionID string) (*driver.NavigationStateResponse, error) {
+func (m *MockDriverClient) GetNavigationState(ctx context.Context, sessionID, executionID, leaseID, expectedPageID string) (*driver.NavigationStateResponse, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -1113,7 +1052,7 @@ func (m *MockDriverClient) GetNavigationState(ctx context.Context, sessionID str
 	}, nil
 }
 
-func (m *MockDriverClient) GetNavigationStack(ctx context.Context, sessionID string) (*driver.NavigationStackResponse, error) {
+func (m *MockDriverClient) GetNavigationStack(ctx context.Context, sessionID, executionID, leaseID, expectedPageID string) (*driver.NavigationStackResponse, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -1130,7 +1069,7 @@ func (m *MockDriverClient) GetNavigationStack(ctx context.Context, sessionID str
 	}, nil
 }
 
-func (m *MockDriverClient) UpdateViewport(ctx context.Context, sessionID string, req *driver.UpdateViewportRequest) (*driver.UpdateViewportResponse, error) {
+func (m *MockDriverClient) UpdateViewport(ctx context.Context, sessionID, executionID, leaseID string, req *driver.UpdateViewportRequest) (*driver.UpdateViewportResponse, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -1141,9 +1080,10 @@ func (m *MockDriverClient) UpdateViewport(ctx context.Context, sessionID string,
 		return m.UpdateViewportResponse, nil
 	}
 	return &driver.UpdateViewportResponse{
-		SessionID: sessionID,
-		Width:     req.Width,
-		Height:    req.Height,
+		SessionID:    sessionID,
+		DriverPageID: req.ExpectedPageID,
+		Width:        req.Width,
+		Height:       req.Height,
 	}, nil
 }
 
@@ -1171,7 +1111,7 @@ func (m *MockDriverClient) UpdateStreamSettings(ctx context.Context, sessionID s
 		SessionID:   sessionID,
 		Quality:     quality,
 		FPS:         fps,
-		CurrentFPS:  fps,
+		CurrentFPS:  float64(fps),
 		Scale:       req.Scale,
 		IsStreaming: true,
 		Updated:     true,
@@ -1230,6 +1170,9 @@ func (m *MockDriverClient) CaptureScreenshot(ctx context.Context, sessionID stri
 }
 
 func (m *MockDriverClient) GetFrame(ctx context.Context, sessionID, queryParams string) (*driver.GetFrameResponse, error) {
+	if m.GetFrameFunc != nil {
+		return m.GetFrameFunc(ctx, sessionID, queryParams)
+	}
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -1240,8 +1183,9 @@ func (m *MockDriverClient) GetFrame(ctx context.Context, sessionID, queryParams 
 		return m.FrameResponse, nil
 	}
 	return &driver.GetFrameResponse{
-		Data:        "base64-frame-data",
-		MediaType:   "image/jpeg",
+		SessionID:   sessionID,
+		Image:       "base64-frame-data",
+		Mime:        "image/jpeg",
 		Width:       1920,
 		Height:      1080,
 		CapturedAt:  time.Now().UTC().Format(time.RFC3339),
@@ -1249,14 +1193,17 @@ func (m *MockDriverClient) GetFrame(ctx context.Context, sessionID, queryParams 
 	}, nil
 }
 
-func (m *MockDriverClient) ForwardInput(ctx context.Context, sessionID string, body []byte) error {
+func (m *MockRecordModeService) ForwardInput(ctx context.Context, sessionID string, body []byte) (*driver.ForwardInputResponse, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.ForwardInputCalled = true
 	m.LastSessionID = sessionID
 	m.LastForwardInputBody = body
 
-	return m.ForwardInputError
+	if m.ForwardInputError != nil {
+		return nil, m.ForwardInputError
+	}
+	return &driver.ForwardInputResponse{Status: "ok", AppliedSequence: 1}, nil
 }
 
 // Compile-time interface check
@@ -1269,7 +1216,14 @@ var _ driver.ClientInterface = (*MockDriverClient)(nil)
 // MockRecordModeService is a test mock for RecordModeService interface.
 // It implements the RecordModeService interface defined in handler.go.
 type MockRecordModeService struct {
-	mu sync.RWMutex
+	OwnedSessions         map[string]*autosession.Session
+	LastForwardInputBody  []byte
+	ForwardInputCalled    bool
+	ForwardInputError     error
+	StopRecordingCalled   bool
+	StopRecordingResponse *driver.StopRecordingResponse
+	StopRecordingError    error
+	mu                    sync.RWMutex
 
 	// Session tracking
 	Sessions map[string]*livecapture.SessionResult
@@ -1285,8 +1239,9 @@ type MockRecordModeService struct {
 	GenerateWorkflowError error
 
 	// Response overrides
-	GeneratedWorkflow *livecapture.GenerateWorkflowResult
-	StorageState      json.RawMessage
+	StartRecordingResponse *driver.StartRecordingResponse
+	GeneratedWorkflow      *livecapture.GenerateWorkflowResult
+	StorageState           json.RawMessage
 
 	// Call tracking
 	CreateSessionCalled    bool
@@ -1326,6 +1281,7 @@ func (m *MockRecordModeService) CreateSession(ctx context.Context, cfg *livecapt
 		SessionID: "test-session-" + uuid.NewString()[:8],
 		CreatedAt: time.Now().UTC(),
 	}
+	result.Close = func(ctx context.Context) error { return m.CloseSession(ctx, result.SessionID) }
 	m.Sessions[result.SessionID] = result
 	m.LastSessionID = result.SessionID
 
@@ -1370,9 +1326,12 @@ func (m *MockRecordModeService) StartRecording(ctx context.Context, sessionID st
 		return nil, m.StartRecordingError
 	}
 
+	if m.StartRecordingResponse != nil {
+		return m.StartRecordingResponse, nil
+	}
 	return &driver.StartRecordingResponse{
 		SessionID:   sessionID,
-		IsRecording: true,
+		RecordingID: "recording-fixture",
 		StartedAt:   time.Now().UTC().Format(time.RFC3339),
 	}, nil
 }
@@ -1392,12 +1351,9 @@ func (m *MockRecordModeService) GenerateWorkflow(ctx context.Context, sessionID 
 	}
 
 	return &livecapture.GenerateWorkflowResult{
-		FlowDefinition: map[string]interface{}{
-			"nodes": []map[string]interface{}{},
-			"edges": []map[string]interface{}{},
-		},
-		NodeCount:   0,
-		ActionCount: 0,
+		FlowDefinition: &basworkflows.WorkflowDefinitionV2{},
+		NodeCount:      0,
+		ActionCount:    0,
 	}, nil
 }
 
@@ -1406,8 +1362,8 @@ func (m *MockRecordModeService) GenerateWorkflow(ctx context.Context, sessionID 
 func (m *MockRecordModeService) GetSession(sessionID string) (*autosession.Session, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	// Return nil session for testing - tests should use full mock if needed
-	return nil, false
+	session, ok := m.OwnedSessions[sessionID]
+	return session, ok
 }
 
 func (m *MockRecordModeService) GetPages(sessionID string) (*livecapture.PageListResult, error) {
@@ -1419,6 +1375,22 @@ func (m *MockRecordModeService) GetPages(sessionID string) (*livecapture.PageLis
 
 func (m *MockRecordModeService) GetOpenPages(sessionID string) ([]*domain.Page, uuid.UUID, error) {
 	return []*domain.Page{}, uuid.Nil, nil
+}
+
+func (m *MockRecordModeService) ClosePage(ctx context.Context, sessionID string, pageID uuid.UUID) (*livecapture.PageCloseResult, error) {
+	sess, ok := m.GetSession(sessionID)
+	if !ok || sess.Pages() == nil {
+		return nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+	event, err := sess.Pages().ClosePage(pageID)
+	if err != nil {
+		return nil, err
+	}
+	result := &livecapture.PageCloseResult{Event: event}
+	if active := sess.Pages().GetActivePageID(); active != uuid.Nil {
+		result.ActivePageID = active.String()
+	}
+	return result, nil
 }
 
 func (m *MockRecordModeService) ActivatePage(ctx context.Context, sessionID string, pageID uuid.UUID) error {
@@ -1449,8 +1421,9 @@ func (m *MockRecordModeService) UnregisterServiceWorker(ctx context.Context, ses
 
 // Timeline support methods
 
-func (m *MockRecordModeService) CreatePage(ctx context.Context, sessionID string, url string) (*driver.CreatePageResponse, error) {
-	return &driver.CreatePageResponse{
+func (m *MockRecordModeService) CreatePage(ctx context.Context, sessionID string, url string) (*domain.Page, error) {
+	return &domain.Page{
+		ID: uuid.New(), SessionID: sessionID, Status: domain.PageStatusActive, CreatedAt: time.Now(),
 		DriverPageID: "mock-page-id",
 		URL:          url,
 	}, nil
@@ -1463,15 +1436,15 @@ func (m *MockRecordModeService) RestoreTabs(ctx context.Context, sessionID strin
 	}, nil
 }
 
-func (m *MockRecordModeService) AddTimelineAction(sessionID string, action *driver.RecordedAction, pageID uuid.UUID) {
-	// No-op for mock
+func (m *MockRecordModeService) AddTimelineAction(ctx context.Context, sessionID string, action *driver.RecordedAction, pageID uuid.UUID) error {
+	return nil
 }
 
-func (m *MockRecordModeService) AddTimelinePageEvent(sessionID string, event *domain.PageEvent) {
-	// No-op for mock
+func (m *MockRecordModeService) AddTimelinePageEvent(ctx context.Context, sessionID string, event *domain.PageEvent) error {
+	return nil
 }
 
-func (m *MockRecordModeService) GetTimeline(sessionID string, pageID *uuid.UUID, limit int) (*domain.TimelineResponse, error) {
+func (m *MockRecordModeService) GetTimeline(ctx context.Context, sessionID string, pageID *uuid.UUID, limit, offset int) (*domain.TimelineResponse, error) {
 	return &domain.TimelineResponse{
 		Entries:      []domain.TimelineEntry{},
 		HasMore:      false,

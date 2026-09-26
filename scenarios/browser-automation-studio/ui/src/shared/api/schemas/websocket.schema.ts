@@ -110,14 +110,6 @@ export const FrictionAlertMessageSchema = z.object({
   timestamp: z.string().optional(),
 });
 
-// Recording frame message (metadata only - actual frame is binary)
-export const RecordingFrameMessageSchema = z.object({
-  type: z.literal('recording_frame'),
-  execution_id: z.string(),
-  frame_number: z.number().optional(),
-  timestamp: z.string().optional(),
-});
-
 // Connection status message
 export const ConnectionStatusMessageSchema = z.object({
   type: z.literal('connection_status'),
@@ -127,21 +119,21 @@ export const ConnectionStatusMessageSchema = z.object({
 });
 
 // Generic/unknown message (fallback)
-// This schema is permissive to allow recording_action and page_event messages
-// to pass through with their session_id and entry/event fields intact
+// This schema keeps the session-scoped timeline entry and page-event payloads
+// intact for their respective domain consumers.
 export const GenericMessageSchema = z.object({
   type: z.string(),
   execution_id: z.string().optional(),
   workflow_id: z.string().optional(),
-  session_id: z.string().optional(), // For recording_action and page_event messages
-  entry: z.unknown().optional(), // For recording_action messages
+  session_id: z.string().optional(), // For timeline and page-event messages
+  entry: z.unknown().optional(), // For typed timeline entry messages
   event: z.unknown().optional(), // For page_event messages
   status: z.string().optional(),
   progress: z.number().optional(),
   message: z.string().optional(),
   data: z.unknown().optional(),
   timestamp: z.string().optional(),
-});
+}).passthrough();
 
 // Discriminated union of all message types
 export const WebSocketMessageSchema = z.discriminatedUnion('type', [
@@ -154,7 +146,6 @@ export const WebSocketMessageSchema = z.discriminatedUnion('type', [
   ExportProgressMessageSchema,
   UXMetricsUpdateMessageSchema,
   FrictionAlertMessageSchema,
-  RecordingFrameMessageSchema,
   ConnectionStatusMessageSchema,
 ]);
 
@@ -171,7 +162,6 @@ export type StepCompletedMessage = z.infer<typeof StepCompletedMessageSchema>;
 export type ExportProgressMessage = z.infer<typeof ExportProgressMessageSchema>;
 export type UXMetricsUpdateMessage = z.infer<typeof UXMetricsUpdateMessageSchema>;
 export type FrictionAlertMessage = z.infer<typeof FrictionAlertMessageSchema>;
-export type RecordingFrameMessage = z.infer<typeof RecordingFrameMessageSchema>;
 export type ConnectionStatusMessage = z.infer<typeof ConnectionStatusMessageSchema>;
 export type WebSocketMessage = z.infer<typeof WebSocketMessageSchema>;
 export type GenericMessage = z.infer<typeof GenericMessageSchema>;

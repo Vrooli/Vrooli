@@ -1,0 +1,94 @@
+{
+  "description": "Render actual vs. expected architecture as a mermaid/DOT graph with conflict overlay, drill-down, and per-domain filtering; keyboard-navigable with accessible text alternatives required.",
+  "module_id": "MOD-P1-011",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-003",
+        "REQ-P0-010"
+      ],
+      "description": "The UI must render actual vs. expected architecture as a mermaid or DOT graph (AC-UI-GRAPH-RENDER) with a conflict overlay highlighting nodes and edges involved in detected conflicts (AC-UI-GRAPH-CONFLICTS). Per-domain filtering must allow users to isolate and inspect individual domains (AC-UI-GRAPH-FILTER). The graph view must be keyboard-navigable and provide accessible text alternatives for all visual elements (AC-UI-GRAPH-A11Y). The UI must consume only generated Connect clients per AC-UI-PROTO-PARITY.",
+      "id": "REQ-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "draft",
+      "title": "UI Graph Visualization with Conflict Overlay and Accessibility",
+      "validation": [
+        {
+          "notes": "AC-UI-GRAPH-RENDER: Graph component renders a valid mermaid or DOT string from a fixture graph snapshot without errors",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-UI-GRAPH-CONFLICTS: Conflict overlay applies a visually distinct style (color/border) to nodes referenced in conflict locations",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-UI-GRAPH-FILTER: Selecting a domain hides all nodes and edges not belonging to that domain",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-UI-GRAPH-A11Y: Every graph node has an aria-label or text alternative describing its path and domain",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "BAS: UI graph view loads with fixture scenario data and displays both actual and expected graph layers",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "BAS: Clicking a conflicted node opens the conflict detail panel with envelope data",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "BAS: Keyboard-only navigation (Tab, Enter, arrow keys) traverses all graph nodes and triggers the same interactions as mouse clicks",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "BAS: Screen-reader announces node label and conflict status when node receives focus",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A developer can identify all conflicted files in a domain without reading the CLI output",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Accessible text alternatives allow screen-reader users to obtain the same architecture information as sighted users",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "UI Graph Visualization"
+}

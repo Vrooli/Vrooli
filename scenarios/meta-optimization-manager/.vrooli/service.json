@@ -1,0 +1,229 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "meta-optimization-manager",
+    "displayName": "Meta-Optimization Manager",
+    "description": "Measures local-coding-agent readiness by aggregating Answer/Validate/Guide coverage across the fleet and surfacing where to focus.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
+    },
+    "generated_at": "2026-06-24T03:27:30Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "f70bc94203f839ba4825223e7d60f8c5cb8983442653a68a6f7f07d3726f00cd",
+    "content_sha": "94311a98b62f1d2a3d08e6e8e31846ab7ab8c8e2637af01c6c836a8704d1cea3"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "meta-optimization-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "meta-optimization-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "scenarios": {
+      "search-hub": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Owns the Answer projection denominator (`search-hub space --projection answer`) and the live numerator (`providers list`). MoM does not self-register a provider here — readiness is discoverable via cli-health command federation (see docs/internal/DECISIONS.md, 2026-06-24).",
+        "degraded_behavior": "Answer-projection coverage is reported unavailable (available=false) with an honest reason; the other projections still compute."
+      },
+      "test-genie": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Owns the Validate projection denominator (`test-genie space --projection validate`) and the live numerator (`health` / `fleet status`).",
+        "degraded_behavior": "Validate-projection coverage is reported unavailable; the other projections still compute."
+      },
+      "prompt-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Owns the Guide projection denominator (`prompt-manager space --projection guide`) and the live numerator (`graph health`). Also the trials task suite source.",
+        "degraded_behavior": "Guide-projection coverage is reported unavailable; the other projections still compute."
+      },
+      "program-runtime": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Owns the Act projection numerator and typed program/friction condition data consumed by focus.",
+        "degraded_behavior": "Act coverage and program-runtime focus signals are reported unavailable with an honest reason; other projections still compute."
+      },
+      "scenario-completeness-scoring": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Per-scenario completeness numerator (GetScore) joined into the Answer maturity cell.",
+        "degraded_behavior": "Completeness-derived cells degrade to declared-unverified; coverage still computes."
+      },
+      "code-facts": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Structural facts (imports, replicas, surfaces) read by the convergence template-fitness lenses.",
+        "degraded_behavior": "Convergence template-fitness reports the affected lenses as unavailable."
+      },
+      "architecture-cartographer": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Structural cohesion / drift signals read by the convergence lenses.",
+        "degraded_behavior": "Convergence drift-surface lens reports unavailable; other lenses still compute."
+      },
+      "scenario-auditor": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Clean-on-all-tools reference-scenario health read by the convergence reference-eligibility check.",
+        "degraded_behavior": "Reference eligibility falls back to template-staleness only."
+      },
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "The sandboxed-agent spawner for the empirical trials gate. MoM reconciles its declared role-only trials profile, then creates a task and sandboxed run, polls it, and collects the diff. Agent Manager owns runtime and resource selection; MoM never talks to a sandbox directly. Explicit-invocation only.",
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "profileMode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-manager/trials.json"
+            ]
+          }
+        },
+        "degraded_behavior": "Each `trials run` degrades to a recorded VerdictError with a clear reason; recorded history still serves and the suite never blocks."
+      }
+    }
+  },
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

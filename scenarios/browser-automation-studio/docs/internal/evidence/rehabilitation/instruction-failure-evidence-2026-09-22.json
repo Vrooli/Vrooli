@@ -1,0 +1,138 @@
+{
+  "cycle": "BAS-WORK-029",
+  "date": "2026-09-22",
+  "issues": [
+    "BAS-RF-041",
+    "BAS-RF-065"
+  ],
+  "deployed": false,
+  "status": "validated candidate; lifecycle deferred by active browser work",
+  "owner": {
+    "run": "20260922-124226-6f1b08ac",
+    "status": "failed",
+    "unit_seconds": 435,
+    "tidiness_seconds": 5,
+    "commands": {
+      "api_seconds": 31.564,
+      "cli_seconds": 1.987,
+      "driver_seconds": 332.436,
+      "ui_types_seconds": 10.353
+    },
+    "driver": "125 suites1532tests passed331.72s natural exit;1suite2testsskip",
+    "remaining_failures": "merged UI coverage28.57/30.34/64.96/28.57 below85; native tidiness budgets"
+  },
+  "changes": [
+    "One finally awaits collector disposal on every executor exit",
+    "Unexpected handler throws become nonretryable uncertain results before evidence capture",
+    "Independent capture failures retain other channels and explicit error notes; known handler failures retain their cause",
+    "Metrics use existing defensive observer invocation",
+    "Native console uses an acknowledged, owned CDP session; no process-wide Rebrowser patch change or page-script wrapper"
+  ],
+  "evidence": {
+    "red": "/tmp/bas-failure-evidence-red-029.txt:7failed/29passed",
+    "focused": "/tmp/bas-failure-expanded-029.txt:205passed/16suites9.221s, natural exit",
+    "native": "Real click plus thrown handler retains console/PNG/DOM; retransmission preserves receipt and one effect; detached CDP session rejects a subsequent command",
+    "control": "Original default Rebrowser suppresses Page console; REBROWSER_PATCHES_RUNTIME_FIX_MODE=0 diagnostic control passes. Production setting unchanged.",
+    "retained": "/tmp/bas-failure-retained-final-029.json:driver14/14",
+    "types": "pass",
+    "build": "/tmp/bas-build-029.txt:pass",
+    "contract": "preparation_valid=true, product_qualified=false",
+    "board": "prog_f1cd54e3-0e1d-460e-a246-04074d7c7956:17pending/productfalse"
+  },
+  "runtime_lines": {
+    "files": [
+      "playwright-driver/src/execution/instruction-executor.ts",
+      "playwright-driver/src/telemetry/orchestrator.ts",
+      "playwright-driver/src/telemetry/collector.ts"
+    ],
+    "before": 1012,
+    "current": 1016,
+    "delta": 4,
+    "ts_complexity": "unqualified; shared analyzer unsupported"
+  },
+  "cumulative_go_affected_net_delta": -172,
+  "performance": {
+    "scope": "Native collector setup and acknowledged disposal only. Actual TypeScript collectors with identical constants/normalizer seams (no events emitted). Original default collector does not observe console events; this measures added resource cost, not equivalent functionality or workflow latency.",
+    "samples_per_trial": 50,
+    "trials": [
+      {
+        "before": {
+          "median_ms": 0.11754999999999427,
+          "p95_ms": 0.20804000000003953,
+          "mean_ms": 0.10505255999999577
+        },
+        "after": {
+          "median_ms": 0.8723119999999653,
+          "p95_ms": 1.1537810000000945,
+          "mean_ms": 0.8942158799999947
+        }
+      },
+      {
+        "before": {
+          "median_ms": 0.050470000000018445,
+          "p95_ms": 0.07740000000001146,
+          "mean_ms": 0.05308767999999873
+        },
+        "after": {
+          "median_ms": 0.8445809999999483,
+          "p95_ms": 0.9722019999999247,
+          "mean_ms": 0.8409431999999925
+        }
+      },
+      {
+        "before": {
+          "median_ms": 0.05170999999995729,
+          "p95_ms": 0.06691999999998188,
+          "mean_ms": 0.05428007999998727
+        },
+        "after": {
+          "median_ms": 0.7765110000000277,
+          "p95_ms": 1.0663720000000012,
+          "mean_ms": 0.804311540000001
+        }
+      }
+    ]
+  },
+  "performance_interpretation": "Median-of-medians lifecycle increment0.792871ms from native attach/enable/detach; not equivalent functionality, workflow latency or a speedup. Error paths additionally pay useful screenshot/DOM capture cost. No threshold change. First bench failed a bundled dist-path assumption and is excluded.",
+  "limitations": [
+    "Default console capture now explicitly enables Runtime observation while active; anti-detection impact unqualified",
+    "Dedicated worker/OOPIF targets and transport-hang behavior unqualified",
+    "Existing inner capture helpers may return undefined; this slice surfaces unexpected throws, not all silent omissions",
+    "RF064 means native TS complexity/duplication metrics remain incomplete"
+  ],
+  "before_copies": "/tmp/bas-before-029",
+  "native_tidiness": {
+    "totalFindings": 1121,
+    "longFiles": 103,
+    "complexity": 387,
+    "duplication": 613,
+    "coupling": 17,
+    "duplicationLineDebt": 33666
+  },
+  "drain": {
+    "checked_at": "2026-09-22T12:50:59.508764+00:00",
+    "rows": 2834,
+    "states": {
+      "EXECUTION_STATUS_RUNNING": 6,
+      "EXECUTION_STATUS_COMPLETED": 2433,
+      "EXECUTION_STATUS_FAILED": 395
+    },
+    "nonterminal_ids": [
+      "630342bc-f422-4760-b2b4-79d677abb02e",
+      "879c542b-d9cd-481b-82d2-6b6c7c11ebf1",
+      "d19bd80e-2624-4874-ab9f-eab0cda42286",
+      "b74ec692-da21-42f7-a86c-f33d436ecfbb",
+      "e0d33e05-297d-4867-aee0-783d59882fa8",
+      "206d68cf-a72c-4838-872b-f913a6a8def6"
+    ],
+    "driver_sessions": 1,
+    "driver_recordings": 0,
+    "build_before": "sha256:dca16c2b2fb6f2d38c09ae2df27f8ec84f430bbb8b7ec2b263c84dd73d08cfc5",
+    "decision": "reject stop",
+    "reasons": [
+      "current nonterminal execution 630342bc-f422-4760-b2b4-79d677abb02e",
+      "orphan classification differs",
+      "active browser work present"
+    ]
+  }
+}

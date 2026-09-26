@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"git-control-tower/internal/pushsafety"
 	"os"
 	"strings"
 )
@@ -17,6 +18,10 @@ import (
 // SEAM BOUNDARY: All git operations must flow through this interface.
 // Do not call exec.Command("git", ...) directly outside of implementations.
 type GitRunner interface {
+	GetPushRecovery(context.Context, string, string, string) (pushsafety.Artifact, error)
+	InspectPushSafety(context.Context, string, string, string, *StoredCredential) pushsafety.Report
+	PreparePushRecovery(context.Context, string, string, pushsafety.Report, *StoredCredential) (pushsafety.Artifact, error)
+
 	// StatusPorcelainV2 returns git status in porcelain v2 format (-z for NUL-separated).
 	StatusPorcelainV2(ctx context.Context, repoDir string) ([]byte, error)
 
@@ -56,6 +61,11 @@ type GitRunner interface {
 	// If cred is provided, uses it for authentication (SSH key or HTTPS token).
 	FetchRemote(ctx context.Context, repoDir string, remote string, cred *StoredCredential) error
 
+	// FetchRemoteBranch fetches a single branch and updates only that
+	// remote-tracking ref. Used where one branch is the subject (push
+	// verification), so the cost does not scale with the number of remote refs.
+	FetchRemoteBranch(ctx context.Context, repoDir string, remote string, branch string, cred *StoredCredential) error
+
 	// GetRemoteURL returns the URL for the specified remote (e.g., "origin").
 	GetRemoteURL(ctx context.Context, repoDir string, remote string) (string, error)
 
@@ -69,7 +79,7 @@ type GitRunner interface {
 
 	// Push pushes commits to the remote repository.
 	// If cred is provided, uses it for authentication.
-	Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool, cred *StoredCredential) error
+	Push(ctx context.Context, repoDir string, remote string, branch string, sourceOID string, setUpstream bool, cred *StoredCredential) error
 
 	// Pull pulls commits from the remote repository.
 	// If cred is provided, uses it for authentication.
@@ -88,12 +98,15 @@ type GitRunner interface {
 	// When grep is non-empty, only commits whose message contains the string are returned.
 	LogDetails(ctx context.Context, repoDir string, limit int, grep string) ([]byte, error)
 
-	// DiffNumstat returns numstat output for changes.
+	// DiffNumstat returns NUL-delimited numstat output (--numstat -z) for
+	// changes; see parseNumstatOutput for the record format.
 	// If staged is true, returns staged stats (--cached).
 	// If paths is non-empty, limits the diff to those specific paths via
 	// pathspec (appended after "--"). This is used to skip large binary files
 	// whose content comparison dominates diff time in repos with tracked
-	// compiled artifacts (see GetRepoStatus binary pre-detection).
+	// compiled artifacts (see GetRepoStatus binary pre-detection). Callers
+	// limiting the pathspec must include both sides of any rename, otherwise
+	// git cannot pair the halves and reports the rename as a whole-file add.
 	DiffNumstat(ctx context.Context, repoDir string, staged bool, paths ...string) ([]byte, error)
 
 	// RemoveFromIndex removes paths from the git index without deleting working files.
@@ -178,6 +191,10 @@ type CommitOptions struct {
 	AuthorEmail string
 	Amend       bool
 	NoEdit      bool
+	// NoVerify passes --no-verify to git commit, bypassing client-side hooks
+	// (pre-commit, commit-msg). Used when the caller has explicitly chosen to
+	// override precommit checks.
+	NoVerify bool
 }
 
 // gitCredentialEnv builds environment variables and a cleanup function for

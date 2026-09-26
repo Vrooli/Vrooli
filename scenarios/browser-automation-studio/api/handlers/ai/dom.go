@@ -5,28 +5,40 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/sirupsen/logrus"
 	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/constants"
-	"github.com/vrooli/browser-automation-studio/internal/httpjson"
 )
 
 const (
 	domExtractionNodeID        = "dom.extract"
-	defaultDomExtractionWaitMs = 750
+	defaultDomExtractionWaitMs = 750 // retained for the legacy timing contract test
+	defaultDOMMaxNodes         = 4000
+	maxDOMMaxNodes             = 4000
 )
 
 var domExtractionExpression = `(function() {
-  const MAX_DEPTH = 6;
-  const MAX_CHILDREN_PER_NODE = 12;
-  const MAX_TOTAL_NODES = 800;
+	const MAX_DEPTH = 20;
+  const MAX_TOTAL_NODES = 4000;
+  const MAX_DATA_ATTRS = 32;
+  const MAX_DATA_VALUE = 1024;
+  const INCLUDE_COMPUTED = true;
   const TEXT_LIMIT = 120;
 
   let nodeCount = 0;
+
+  const readDataAttributes = (element) => {
+    const data = Object.create(null);
+    for (const key of Object.keys(element.dataset || {}).slice(0, MAX_DATA_ATTRS)) {
+      const value = element.dataset[key];
+      if (typeof value === 'string') data[key] = value.slice(0, MAX_DATA_VALUE);
+    }
+    return Object.keys(data).length ? data : null;
+  };
 
   const trimText = (value) => {
     if (typeof value !== 'string') {
@@ -81,6 +93,80 @@ var domExtractionExpression = `(function() {
     return segments.join(' > ');
   };
 
+  const implicitRole = (element) => {
+    const explicit = element.getAttribute && element.getAttribute('role');
+    if (explicit) {
+      return explicit;
+    }
+    const tag = element.tagName ? element.tagName.toLowerCase() : '';
+    const roles = {
+      a: element.hasAttribute('href') ? 'link' : null,
+      article: 'article',
+      button: 'button',
+      dialog: 'dialog',
+      form: 'form',
+      h1: 'heading', h2: 'heading', h3: 'heading', h4: 'heading', h5: 'heading', h6: 'heading',
+      img: 'img',
+      input: 'textbox',
+      li: 'listitem',
+      main: 'main',
+      nav: 'navigation',
+      option: 'option',
+      progress: 'progressbar',
+      section: 'region',
+      table: 'table',
+      textarea: 'textbox',
+      ul: 'list', ol: 'list'
+    };
+    return roles[tag] || null;
+  };
+
+  const inScrollContainer = (element) => {
+    for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+      const style = getComputedStyle(parent);
+      const scrollsY = /(auto|scroll|overlay)/.test(style.overflowY || '');
+      if (scrollsY && parent.scrollHeight > parent.clientHeight + 1) {
+        return true;
+      }
+    }
+    const root = element.ownerDocument && element.ownerDocument.documentElement;
+    const body = element.ownerDocument && element.ownerDocument.body;
+    return !!(root && body && Math.max(root.scrollHeight, body.scrollHeight) > window.innerHeight + 1);
+  };
+
+  const readComputed = (element) => {
+    if (!INCLUDE_COMPUTED) {
+      return null;
+    }
+    const styles = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return {
+      computed: {
+        display: styles.display,
+        position: styles.position,
+        margin: styles.margin,
+        padding: styles.padding,
+        gap: styles.gap,
+        flexDirection: styles.flexDirection,
+        flexWrap: styles.flexWrap,
+        gridTemplateColumns: styles.gridTemplateColumns,
+        gridTemplateRows: styles.gridTemplateRows,
+        color: styles.color,
+        backgroundColor: styles.backgroundColor,
+        font: styles.font,
+        overflow: styles.overflow,
+        textOverflow: styles.textOverflow,
+        whiteSpace: styles.whiteSpace,
+        zIndex: styles.zIndex
+      },
+      clientWidth: element.clientWidth,
+      clientHeight: element.clientHeight,
+      scrollWidth: element.scrollWidth,
+      scrollHeight: element.scrollHeight,
+      rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+    };
+  };
+
   const buildNode = (element, depth) => {
     if (!element || element.nodeType !== Node.ELEMENT_NODE) {
       return null;
@@ -93,30 +179,42 @@ var domExtractionExpression = `(function() {
     }
     nodeCount += 1;
 
-    const tagName = element.tagName || 'UNKNOWN';
-    const text = trimText(element.textContent || '');
-    const selector = buildSelector(element) || tagName.toLowerCase();
+		const tagName = element.tagName || 'UNKNOWN';
+		const ariaLabel = element.getAttribute ? element.getAttribute('aria-label') : null;
+		const text = trimText((ariaLabel && ['BUTTON', 'A', 'INPUT', 'TEXTAREA'].includes(tagName)) ? ariaLabel : (element.innerText || element.textContent || ''));
+		const selector = buildSelector(element) || tagName.toLowerCase();
 
     const node = {
       tagName,
+      role: implicitRole(element),
       id: element.id || null,
       className: typeof element.className === 'string' && element.className ? element.className : null,
       text,
       type: element.type || null,
       href: typeof element.href === 'string' ? element.href : null,
-      ariaLabel: element.getAttribute ? element.getAttribute('aria-label') : null,
+		ariaLabel,
       placeholder: element.placeholder || null,
       value: element.value || null,
       selector,
+      inScrollContainer: inScrollContainer(element),
       children: []
     };
+    const data = readDataAttributes(element);
+    if (data) node.data = data;
+
+    const layout = readComputed(element);
+    if (layout) {
+      node.computed = layout.computed;
+      node.clientWidth = layout.clientWidth;
+      node.clientHeight = layout.clientHeight;
+      node.scrollWidth = layout.scrollWidth;
+      node.scrollHeight = layout.scrollHeight;
+      node.rect = layout.rect;
+    }
 
     if (depth < MAX_DEPTH) {
       const children = [];
       for (const child of Array.from(element.children)) {
-        if (children.length >= MAX_CHILDREN_PER_NODE) {
-          break;
-        }
         const built = buildNode(child, depth + 1);
         if (built) {
           children.push(built);
@@ -132,6 +230,7 @@ var domExtractionExpression = `(function() {
   const tree = buildNode(root, 0);
 
   if (tree) {
+    tree.truncated = nodeCount >= MAX_TOTAL_NODES;
     return tree;
   }
 
@@ -142,6 +241,7 @@ var domExtractionExpression = `(function() {
 
   return {
     tagName: 'BODY',
+    role: 'document',
     id: null,
     className: null,
     text: null,
@@ -151,6 +251,7 @@ var domExtractionExpression = `(function() {
     placeholder: null,
     value: null,
     selector: 'body',
+    truncated: false,
     children: [],
   };
 })()`
@@ -194,6 +295,16 @@ func NewDOMHandler(log *logrus.Logger, opts ...DOMHandlerOption) *DOMHandler {
 
 // ExtractDOMTree extracts the DOM tree from a given URL
 func (h *DOMHandler) ExtractDOMTree(ctx context.Context, url string) (string, error) {
+	return h.extractDOMTree(ctx, url, defaultPreviewWaitUntil, "", 0, true, defaultDOMMaxNodes)
+}
+
+// ExtractDOMTreeWithOptions extracts a settled DOM tree without exposing the
+// browser runner to transport callers.
+func (h *DOMHandler) ExtractDOMTreeWithOptions(ctx context.Context, url, waitUntil, waitFor string, settleMs int) (string, error) {
+	return h.extractDOMTree(ctx, url, normalizeWaitUntil(waitUntil), waitFor, settleMs, true, defaultDOMMaxNodes)
+}
+
+func (h *DOMHandler) extractDOMTree(ctx context.Context, url, waitUntil, waitFor string, settleMs int, computed bool, maxNodes int) (string, error) {
 	// Normalize URL - add protocol if missing
 	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
 		url = "https://" + url
@@ -202,8 +313,14 @@ func (h *DOMHandler) ExtractDOMTree(ctx context.Context, url string) (string, er
 	if h.runner == nil {
 		return "", errors.New("automation runner not configured")
 	}
+	if settleMs < 0 || settleMs > 15000 {
+		return "", fmt.Errorf("settle_ms must be between 0 and 15000")
+	}
+	if maxNodes <= 0 || maxNodes > maxDOMMaxNodes {
+		return "", fmt.Errorf("max_nodes must be between 1 and %d", maxDOMMaxNodes)
+	}
 
-	instructions, err := h.buildDOMExtractionInstructions(url)
+	instructions, err := h.buildDOMExtractionInstructions(url, waitUntil, waitFor, settleMs, computed, maxNodes)
 	if err != nil {
 		return "", fmt.Errorf("build dom extraction instructions: %w", err)
 	}
@@ -213,6 +330,16 @@ func (h *DOMHandler) ExtractDOMTree(ctx context.Context, url string) (string, er
 		return "", fmt.Errorf("automation run failed: %w", err)
 	}
 
+	byNodeID := make(map[string]autocontracts.StepOutcome, len(outcomes))
+	for _, outcome := range outcomes {
+		byNodeID[outcome.NodeID] = outcome
+	}
+	if err := waitOutcomeError(byNodeID, "dom.wait-selector", waitFor); err != nil {
+		return "", err
+	}
+	if err := waitOutcomeError(byNodeID, "dom.settle", "settle_ms"); err != nil {
+		return "", err
+	}
 	for _, outcome := range outcomes {
 		if outcome.NodeID != domExtractionNodeID {
 			continue
@@ -224,9 +351,9 @@ func (h *DOMHandler) ExtractDOMTree(ctx context.Context, url string) (string, er
 		if raw == nil {
 			return "", errors.New("dom extraction returned no data")
 		}
-		value, ok := raw["value"]
+		value, ok := raw["result"]
 		if !ok {
-			return "", errors.New("dom extraction missing value payload")
+			return "", errors.New("dom extraction missing result payload")
 		}
 		encoded, marshalErr := json.Marshal(value)
 		if marshalErr != nil {
@@ -238,43 +365,43 @@ func (h *DOMHandler) ExtractDOMTree(ctx context.Context, url string) (string, er
 	return "", errors.New("no dom extraction outcome recorded")
 }
 
-// GetDOMTree handles POST /api/v1/dom-tree - returns the DOM structure for Browser Inspector
-func (h *DOMHandler) GetDOMTree(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		URL string `json:"url"`
-	}
-	if err := httpjson.Decode(w, r, &req); err != nil {
-		h.log.WithError(err).Error("Failed to decode DOM tree request")
-		RespondError(w, ErrInvalidRequest)
-		return
-	}
+// GetDOMTreeJSON is the transport-agnostic core of the dom-tree endpoint.
+// It enforces the standard timeout and returns the raw JSON payload emitted
+// by the page-side extractor. Callers (Connect handlers, tests) decode the
+// JSON themselves.
+func (h *DOMHandler) GetDOMTreeJSON(ctx context.Context, url string) (string, error) {
+	return h.GetDOMTreeJSONWithOptions(ctx, url, defaultPreviewWaitUntil, "", 0)
+}
 
-	if req.URL == "" {
-		RespondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "url"}))
-		return
+// GetDOMTreeJSONWithOptions is the option-aware DOM snapshot contract used by
+// the AI CLI and Connect service.
+func (h *DOMHandler) GetDOMTreeJSONWithOptions(ctx context.Context, url, waitUntil, waitFor string, settleMs int) (string, error) {
+	return h.GetDOMTreeJSONWithCaptureOptions(ctx, url, waitUntil, waitFor, settleMs, true, defaultDOMMaxNodes)
+}
+
+// GetDOMTreeJSONWithCaptureOptions adds explicit layout metadata and a bounded
+// node budget to the settled DOM snapshot contract.
+func (h *DOMHandler) GetDOMTreeJSONWithCaptureOptions(ctx context.Context, url, waitUntil, waitFor string, settleMs int, computed bool, maxNodes int) (string, error) {
+	if strings.TrimSpace(url) == "" {
+		return "", ErrMissingURL
 	}
-
-	h.log.WithField("url", req.URL).Info("Extracting DOM tree")
-
-	ctx, cancel := context.WithTimeout(r.Context(), constants.ElementAnalysisTimeout)
+	if h.runner == nil {
+		return "", ErrAutomationRunnerNotReady
+	}
+	if maxNodes == 0 {
+		maxNodes = defaultDOMMaxNodes
+	}
+	if h.log != nil {
+		h.log.WithField("url", url).Info("Extracting DOM tree")
+	}
+	ctx, cancel := context.WithTimeout(ctx, constants.ElementAnalysisTimeout)
 	defer cancel()
-
-	domData, err := h.ExtractDOMTree(ctx, req.URL)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to extract DOM tree")
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "extract_dom", "error": err.Error()}))
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if _, err := w.Write([]byte(domData)); err != nil {
-		h.log.WithError(err).Warn("Failed to write DOM response")
-	}
+	return h.extractDOMTree(ctx, url, waitUntil, waitFor, settleMs, computed, maxNodes)
 }
 
 // buildDOMExtractionInstructions creates the compiled instructions for DOM extraction.
 // Returns an error if any action type fails to build (indicates a programming error).
-func (h *DOMHandler) buildDOMExtractionInstructions(url string) ([]autocontracts.CompiledInstruction, error) {
+func (h *DOMHandler) buildDOMExtractionInstructions(url, waitUntil, waitFor string, settleMs int, computed bool, maxNodes int) ([]autocontracts.CompiledInstruction, error) {
 	steps := []struct {
 		nodeID   string
 		stepType string
@@ -285,27 +412,33 @@ func (h *DOMHandler) buildDOMExtractionInstructions(url string) ([]autocontracts
 			stepType: "navigate",
 			params: map[string]any{
 				"url":       url,
-				"waitUntil": defaultPreviewWaitUntil,
+				"waitUntil": normalizeWaitUntil(waitUntil),
 				"timeoutMs": defaultPreviewTimeoutMilliseconds,
 			},
 		},
-		{
-			nodeID:   "dom.wait",
-			stepType: "wait",
-			params: map[string]any{
-				"waitType":   "time",
-				"durationMs": defaultDomExtractionWaitMs,
-			},
-		},
-		{
-			nodeID:   domExtractionNodeID,
-			stepType: "evaluate",
-			params: map[string]any{
-				"expression": domExtractionExpression,
-				"timeoutMs":  defaultPreviewTimeoutMilliseconds,
-			},
-		},
 	}
+	if selector := strings.TrimSpace(waitFor); selector != "" {
+		steps = append(steps, struct {
+			nodeID   string
+			stepType string
+			params   map[string]any
+		}{"dom.wait-selector", "wait", map[string]any{"selector": selector, "timeoutMs": defaultPreviewTimeoutMilliseconds}})
+	}
+	if settleMs > 0 {
+		steps = append(steps, struct {
+			nodeID   string
+			stepType string
+			params   map[string]any
+		}{"dom.settle", "wait", map[string]any{"timeoutMs": settleMs}})
+	}
+	steps = append(steps, struct {
+		nodeID   string
+		stepType string
+		params   map[string]any
+	}{domExtractionNodeID, "evaluate", map[string]any{
+		"expression": domExtractionExpressionForOptions(computed, maxNodes),
+		"timeoutMs":  defaultPreviewTimeoutMilliseconds,
+	}})
 
 	instructions := make([]autocontracts.CompiledInstruction, 0, len(steps))
 	for i, step := range steps {
@@ -321,6 +454,15 @@ func (h *DOMHandler) buildDOMExtractionInstructions(url string) ([]autocontracts
 	}
 
 	return instructions, nil
+}
+
+func domExtractionExpressionForOptions(computed bool, maxNodes int) string {
+	expression := domExtractionExpression
+	expression = strings.Replace(expression, "const MAX_TOTAL_NODES = 4000;", "const MAX_TOTAL_NODES = "+strconv.Itoa(maxNodes)+";", 1)
+	if !computed {
+		expression = strings.Replace(expression, "const INCLUDE_COMPUTED = true;", "const INCLUDE_COMPUTED = false;", 1)
+	}
+	return expression
 }
 
 func failureMessage(f *autocontracts.StepFailure) string {

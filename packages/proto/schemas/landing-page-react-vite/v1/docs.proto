@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package landing_page_react_vite.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1";
+
+// =============================================================================
+// DOCS DOMAIN
+// =============================================================================
+//
+// @layer 0
+// @domain docs
+// @imports none
+// @stability stable
+//
+// Filesystem-backed markdown docs browser for the admin portal. The tree is
+// derived from the scenario's docs directory (markdown files only; directories
+// appear only when they contain markdown descendants). Content is read by
+// relative path with traversal guarding.
+//
+// =============================================================================
+
+// DocEntry is a node in the docs tree: a markdown file or a directory that
+// contains markdown descendants. Directories carry children recursively.
+message DocEntry {
+  string name = 1;
+  // Root-relative path (e.g. "guides/setup.md").
+  string path = 2;
+  // JSON key "isDir".
+  bool is_dir = 3;
+  repeated DocEntry children = 4;
+}
+
+// GetDocsTreeRequest requests the full docs tree.
+message GetDocsTreeRequest {}
+
+// GetDocsTreeResponse returns the docs tree root entries.
+message GetDocsTreeResponse {
+  repeated DocEntry entries = 1;
+}
+
+// GetDocContentRequest reads one markdown document by root-relative path.
+message GetDocContentRequest {
+  string path = 1;
+}
+
+// GetDocContentResponse returns the document body and derived title.
+message GetDocContentResponse {
+  string path = 1;
+  string content = 2;
+  // First H1 heading, else the file name.
+  string title = 3;
+}
+
+// DocsService serves the admin markdown docs browser.
+service DocsService {
+  // Returns the docs tree (admin).
+  rpc GetDocsTree(GetDocsTreeRequest) returns (GetDocsTreeResponse);
+  // Returns a single document's content (admin).
+  rpc GetDocContent(GetDocContentRequest) returns (GetDocContentResponse);
+}

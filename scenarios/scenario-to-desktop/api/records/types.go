@@ -35,6 +35,7 @@ type RecordWithBuild struct {
 // ScreenRecordingView is a simplified view of screen recording data for record responses.
 type ScreenRecordingView struct {
 	Recorded      bool   `json:"recorded"`
+	CaptureID     string `json:"capture_id,omitempty"`
 	DurationMS    int64  `json:"duration_ms,omitempty"`
 	FileSizeBytes int64  `json:"file_size_bytes,omitempty"`
 	Error         string `json:"error,omitempty"`

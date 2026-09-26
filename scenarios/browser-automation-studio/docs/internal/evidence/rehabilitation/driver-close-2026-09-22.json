@@ -1,0 +1,72 @@
+{
+  "cycle": "BAS-WORK-020",
+  "date": "2026-09-22",
+  "issues": [
+    "BAS-RF-036"
+  ],
+  "journeys": [
+    "J07",
+    "J08",
+    "J18"
+  ],
+  "changes": [
+    "Failed driver cleanup retains Session, lease and completed stages; exact-lease retry resumes",
+    "Concurrent and late close callers share one outcome without weakening admin or lease authority",
+    "Pre-close flush failure preserves browser and buffer; successful finalization validates all artifact references",
+    "Video moves after context flush; readable-original fallback only",
+    "Closing reset refused; idle cleanup and shutdown attempt all sessions and report failures"
+  ],
+  "evidence": {
+    "red": "/tmp/bas-driver-close-red-020.txt;threepublicHTTPfaults",
+    "video_flush_red": "/tmp/bas-video-finalization-red-020.txt;destinationmissingbeforecontextflush",
+    "late_join_red": "/tmp/bas-driver-close-late-join-red-020.txt;404duringdevicecleanup",
+    "focused": "/tmp/bas-driver-close-final-green-020.txt;103tests6suites14.755s naturalexit",
+    "types": "/tmp/bas-driver-close-typecheck-final-020.txt;pass",
+    "native_browser": "Real Chromium capture bytes have WebMEBML/traceZIPPK/HAR1.2;sessioncount0",
+    "probes": "session-frame7/16,reuse7/17;teardownfailureandnormalcontrolpass",
+    "board": "prog_43cbe165-1a86-4748-996e-3d5718ecee66;17pending/productfalse",
+    "owner": "First20260922-092430-2c566001 failedtwofixtures;correctedfinalunit20260922-093435-960e5a77:API/CLI/driver/UItypes pass;UIcoverage fails28.57%vs85. Driver126suites1516tests296.155s naturalexit,2skip;quietwaitsdoneonce.",
+    "fixture_corrections": "Live-capture race1.045s;reset2tests2.115s naturalexit;negativeack retainsownership"
+  },
+  "size": {
+    "paths": [
+      "src/session/manager.ts",
+      "src/session/session-teardown.ts",
+      "src/types/session.ts"
+    ],
+    "before": {
+      "lines": 1842
+    },
+    "after": {
+      "lines": 1841
+    }
+  },
+  "deployed": true,
+  "limitations": [
+    "Performance/accessibility inner collectors still suppress failures; this does not qualify all required capture",
+    "Recording buffer preserved after close failure; pending callback acknowledgment/durability stillRF002",
+    "No processrestart recovery or bounded hungPlaywright operation qualification",
+    "Late close result held only while pending; completed lostresponse durable retention not qualified",
+    "Other mutation surfaces lack full lease/phase fencing",
+    "Initial native500 causeunestablished; separate controlled flush defect reproduced and repaired",
+    "Shared dirtytree applicabilitylimits"
+  ],
+  "source_inventory_digest": "7eb882928c801114f5b0c7e2251572105e9a6e5ef18072cc802633e1f3b10418",
+  "tidiness": {
+    "totalFindings": 1077,
+    "longFiles": 80,
+    "complexity": 380,
+    "duplication": 604,
+    "coupling": 12,
+    "duplicationLineDebt": 33648
+  },
+  "deployment": {
+    "build": "sha256:dc7fae94ed05ef12aa56d1f5a9fd02ffdb2db096ae2714bb98acdea9d6dbc5fd",
+    "healthy_at": "2026-09-22T09:46:11Z",
+    "gate_rows": 3135,
+    "unchanged_historical_orphans": 5,
+    "driver_sessions": 0,
+    "profiles": "one original; all saved fields and identity preserved",
+    "limitation": "observational gate and shared tree"
+  }
+}

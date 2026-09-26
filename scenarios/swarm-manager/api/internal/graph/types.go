@@ -1,5 +1,5 @@
 // Package graph provides graph projection logic for the swarm-manager API.
-// It assembles nodes and edges from multiple data sources (backlog, initiatives,
+// It assembles nodes and edges from multiple data sources (backlog, goals,
 // captures, scenarios, executions, agent runs) and projects them through
 // lens-specific filters for the graph workspace UI.
 package graph
@@ -10,23 +10,23 @@ import "time"
 type Lens string
 
 const (
-	LensTopology   Lens = "topology"
-	LensOperations Lens = "operations"
+	LensTopology Lens = "topology"
+	// LensPlan is dispatch-only: it identifies the plan-board projection
+	// (GET /api/v1/plan) in WebSocket invalidation payloads so the Plan
+	// lens UI refetches on mutations. It is not a graph projection —
+	// /api/v1/graph rejects it.
+	LensPlan Lens = "plan"
 )
 
-// ValidateLens returns true if l is a known lens value.
+// ValidateLens returns true if l is a lens the graph endpoint can project.
 func ValidateLens(l Lens) bool {
-	switch l {
-	case LensTopology, LensOperations:
-		return true
-	default:
-		return false
-	}
+	return l == LensTopology
 }
 
-// AllLenses returns the supported graph lenses in stable order.
-func AllLenses() []Lens {
-	return []Lens{LensTopology, LensOperations}
+// dispatchableLens returns true if l may appear in invalidation payloads:
+// every projectable lens plus the dispatch-only plan lens.
+func dispatchableLens(l Lens) bool {
+	return ValidateLens(l) || l == LensPlan
 }
 
 // GraphBacklogNodeData describes a backlog item node payload.
@@ -40,21 +40,24 @@ type GraphBacklogNodeData struct {
 	ActiveExecutionCount  int32  `json:"active_execution_count"`
 }
 
-// GraphInitiativeRollup describes initiative member status counts.
-type GraphInitiativeRollup struct {
+// GraphGoalRollup describes derived goal item status counts.
+type GraphGoalRollup struct {
 	Total      int32 `json:"total"`
 	Completed  int32 `json:"completed"`
 	InProgress int32 `json:"in_progress"`
 	Failed     int32 `json:"failed"`
 	Pending    int32 `json:"pending"`
+	// Dropped counts items the operator decided not to do. Kept out of
+	// Completed (not an achievement) and out of Pending (not awaiting work).
+	Dropped int32 `json:"dropped"`
 }
 
-// GraphInitiativeNodeData describes an initiative node payload.
-type GraphInitiativeNodeData struct {
-	Name   string                `json:"name"`
-	Title  string                `json:"title"`
-	Status string                `json:"status"`
-	Rollup GraphInitiativeRollup `json:"rollup"`
+// GraphGoalNodeData describes a goal node payload.
+type GraphGoalNodeData struct {
+	Name   string          `json:"name"`
+	Title  string          `json:"title"`
+	Status string          `json:"status"`
+	Rollup GraphGoalRollup `json:"rollup"`
 }
 
 // GraphCaptureNodeData describes a capture node payload.
@@ -133,8 +136,6 @@ type Meta struct {
 	EdgeCount             int    `json:"edge_count"`
 	GeneratedAt           string `json:"generated_at"`
 	AgentManagerAvailable *bool  `json:"agent_manager_available,omitempty"`
-	FocusNodeID           string `json:"focus_node_id,omitempty"`
-	FocusNodeType         string `json:"focus_node_type,omitempty"`
 	Hint                  string `json:"hint,omitempty"`
 }
 
@@ -165,28 +166,6 @@ func NewGraphResponse(lens Lens, nodes []Node, edges []Edge) GraphResponse {
 	}
 }
 
-// NodeDataToProtoKind identifies the proto oneof variant for node data.
-func NodeDataToProtoKind(data any) string {
-	switch data.(type) {
-	case GraphBacklogNodeData, *GraphBacklogNodeData:
-		return "backlog"
-	case GraphInitiativeNodeData, *GraphInitiativeNodeData:
-		return "initiative"
-	case GraphCaptureNodeData, *GraphCaptureNodeData:
-		return "capture"
-	case GraphScenarioNodeData, *GraphScenarioNodeData:
-		return "scenario"
-	case GraphExecutionNodeData, *GraphExecutionNodeData:
-		return "execution"
-	case GraphAgentActivityNodeData, *GraphAgentActivityNodeData:
-		return "activity"
-	case GraphRunNodeData, *GraphRunNodeData:
-		return "run"
-	default:
-		return ""
-	}
-}
-
 // WSMessage is a WebSocket message envelope.
 type WSMessage struct {
 	Type      string `json:"type"`
@@ -196,14 +175,12 @@ type WSMessage struct {
 
 // ProjectionParams holds all parameters for a projection request.
 type ProjectionParams struct {
-	Lens        Lens
-	FocusNodeID string // Optional for operations lens.
+	Lens Lens
 }
 
 // InvalidationPayload identifies which graph lenses should refresh.
 type InvalidationPayload struct {
-	Lenses      []Lens `json:"lenses"`
-	FocusNodeID string `json:"focus_node_id,omitempty"`
+	Lenses []Lens `json:"lenses"`
 }
 
 // WebSocket message types.

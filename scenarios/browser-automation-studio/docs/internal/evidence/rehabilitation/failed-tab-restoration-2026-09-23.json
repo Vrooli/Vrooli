@@ -1,0 +1,128 @@
+{
+  "cycle": "BAS-WORK-060",
+  "issues": [
+    "BAS-RF-091",
+    "BAS-RF-038"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "qualified_and_deployed",
+  "build_identity": "sha256:0e27920d3c75ae3bc3864f35f3ff34266c2c9d5def98125a33170cc361f61700",
+  "source": {
+    "playwright-driver/src/routes/record-mode/recording-pages.ts": {
+      "before": {
+        "sha256": "8409fb0e1bb4eabea3674d8b79ba1df4a5931cc09890896251dd992cf325beec",
+        "lines": 281
+      },
+      "after": {
+        "sha256": "279ec3ccee35a65f627c3800f359f5b4e9827eab255da42b234262d29aa25551",
+        "lines": 298
+      }
+    },
+    "playwright-driver/src/routes/record-mode/page-events.ts": {
+      "before": {
+        "sha256": "e8166f5ed80116b5a04edcd696ea5155b8035937c53ab16427e61380fc741fc9",
+        "lines": 202
+      },
+      "after": {
+        "sha256": "82d85316f2ac2c895ca3b42abc141fceb1a8afc72ea679afa09cc473b7009c4c",
+        "lines": 205
+      }
+    },
+    "api/services/live-capture/service.go": {
+      "before": {
+        "sha256": "62eb36b62a4f5f72a941b4c8862bfc0004f840fa73c1244834ec87d5226bc71f",
+        "lines": 793
+      },
+      "after": {
+        "sha256": "e9c3b676347b5d215b845d41407836b26c816f2c2fe59f37ae58db5a1613d778",
+        "lines": 789
+      }
+    },
+    "api/handlers/record_mode.go": {
+      "before": {
+        "sha256": "cf3c54a4db6fcc3dd7cd38aab15b8dc5047bd679fb6365e1b81bc6bcc99cd4c1",
+        "lines": 976
+      },
+      "after": {
+        "sha256": "097cb75ccf54159ef408fd04a3f228b3275e9ce03860a277702f4779c026ed84",
+        "lines": 983
+      }
+    }
+  },
+  "tests": {
+    "maintained_red": {
+      "driver": "/tmp/bas-failed-page-driver-red-060.txt:3failed/9passed",
+      "go": "/tmp/bas-failed-restore-go-red-060.jsonl:2service/3handler cases failed",
+      "callback": "/tmp/bas-page-close-callback-red-060.txt:1failed/11passed"
+    },
+    "focused_driver": "/tmp/bas-failed-page-driver-final-060.txt:95tests/3suites pass",
+    "types": "/tmp/bas-failed-page-types-final-060.txt:pass",
+    "go": "/tmp/bas-failed-restore-go-final-060.txt:6racepackages pass",
+    "api_build": "/tmp/bas-failed-restore-build-final-060.txt:pass",
+    "full_driver": {
+      "status": "passed",
+      "run_id": "uh-20260923-012321-317459b050cdf064f55aaeb9df17f701",
+      "passed_tests": 1754,
+      "passed_suites": 124,
+      "skipped_tests": 2,
+      "skipped_suites": 1,
+      "owner_duration_ms": 395498,
+      "jest_seconds": 394.626,
+      "receipt": "/tmp/bas-driver-owner-final-060.json"
+    },
+    "native": {
+      "new_tab_before_recording": "/tmp/bas-failed-navigation-native-green-060.json:10pass",
+      "new_tab_while_recording": "/tmp/bas-failed-navigation-recording-final-060.json:12pass",
+      "restoration_fault_retry": "/tmp/bas-restore-retry-native-green-060.json:28pass vs8failed/22passed red;green has2fewer checks because no false-admitted sessions need cleanup",
+      "normal_restore": "/tmp/bas-restored-tabs-native-green-060.json:30pass",
+      "workflow": {
+        "passed": 12,
+        "effects": 3,
+        "execution_id": "ac9a5fe7-6bd5-4f02-935a-76cfbc0249e6",
+        "artifact_dir": "/tmp/bas-recording-e2e-i51PZz"
+      }
+    },
+    "profiles": "3complete reads match originalrollback:/tmp/bas-profile-final-060.txt;API metadata equals059 after allprobe cleanup"
+  },
+  "measurement": {
+    "runtime_lines": {
+      "before": 2252,
+      "after": 2275,
+      "delta": 23
+    },
+    "go_functions": 44,
+    "go_complexity": {
+      "before": 261,
+      "after": 262,
+      "delta": 1
+    },
+    "cumulative_affected_go_reduction": 191,
+    "tidiness_run": "20260923-012327-8acc15e0",
+    "tidiness": {
+      "totalFindings": 1131,
+      "longFiles": 105,
+      "complexity": 396,
+      "duplication": 609,
+      "coupling": 20,
+      "duplicationLineDebt": 31604
+    },
+    "board": "/tmp/bas-board-result-060.json:17pending_telemetry/unqualified"
+  },
+  "review": {
+    "owners": "New-page navigation rejects errors, closes its new page and shares registry removal with pagecallbacks. RestoreTabs fails explicit effects. API closes uncommitted restoration without cancellation inheritance or saved-profile association; Touch moves after admission.",
+    "deleted": "Blanket goto error suppression; best-effort failed-tab skipping; early profile association; duplicate registry cleanup policy.",
+    "cohesion": "Existing owner modules retained. Go complexity+1 is explicit cleanup-failure reporting. New regression matrix16complexity and21testimports explain additional test findings. No thresholds or assertions relaxed.",
+    "limitations": [
+      "Raw tab controls remain unleased, native RF038 recheck061 has8failures/32passes;nextrepair.",
+      "Concurrent profile ownership, callback transport generation, interrupted effect reconciliation and retry identity remain unqualified.",
+      "Blank additional-tab omission remains existing policy.",
+      "No sustainedperformance/nativeOS qualification;TS/JScomplexity RF064 stillunavailable."
+    ]
+  },
+  "producer_corrections": [
+    "Initial060native attempted nonexistent profileGetRPC;corrected topublicreopen withredretained.",
+    "Initialrecordingprobe attempted nonexistent stopRPC;corrected toknown session-specificstop withinitialartifactretained.",
+    "Firstfocuseddrivergreenlog had3mocklogger.error failures despite finaltypesexit0;fixedmock and reranall95focused tests."
+  ],
+  "pending_operations": []
+}

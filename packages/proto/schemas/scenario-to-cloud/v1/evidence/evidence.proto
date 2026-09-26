@@ -1,0 +1,184 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_cloud.v1.evidence;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/evidence;evidencev1";
+
+// =============================================================================
+// EVIDENCE — capability cells, exact review identity and governed publication
+// =============================================================================
+//
+// @stability beta
+//
+// scenario-to-cloud implements the shared delivery-ramp contract for VPS
+// targets. Every required cell of the cloud lifecycle capability profile
+// (cloud-launch-v1, drawn from certification/matrix.json) carries a
+// target-owned evidence record bound to one release digest, one target key
+// and the operation or observation that produced it. Dispositions keep the
+// shared vocabulary: passed, failed, skipped, unsupported, unavailable and
+// missing are distinct answers and never collapse to a boolean.
+//
+// Publication is governed by Deployment Manager. The cloud service reports
+// its coverage verdict, requests a review for one exact identity (source,
+// artifact, configuration, target set, environment, channel, policy), stores
+// the review reference, and re-checks the approval immediately before the
+// activation effect. The activated release and target are recorded from the
+// target's own active-release receipt, never from dispatch acceptance.
+//
+// USAGE CONTEXTS:
+//   - api/evidence: records, profile, evaluation, review identity, publication.
+//   - api/evidencesvc: Connect handler beside the REST routes
+//     GET /api/v1/releases/{digest}/evidence,
+//     GET /api/v1/deployments/{id}/evidence,
+//     POST /api/v1/deployments/{id}/publication/request,
+//     POST /api/v1/deployments/{id}/publication/apply,
+//     GET /api/v1/deployments/{id}/publication.
+//   - deployment-manager api/deployments: consumes cell dispositions and the
+//     publication before recording a publication receipt.
+//
+// =============================================================================
+
+service EvidenceService {
+  // GetReleaseEvidence returns the per-cell dispositions for one release.
+  rpc GetReleaseEvidence(GetReleaseEvidenceRequest) returns (ReleaseEvidence);
+  // RequestPublication reports coverage to Deployment Manager, asks for an
+  // exact review and stores the review reference.
+  rpc RequestPublication(PublicationRequest) returns (Publication);
+  // ApplyPublication re-checks the approval and admits the activation.
+  rpc ApplyPublication(ApplyPublicationRequest) returns (Publication);
+  // GetPublication reads (and reconciles) one publication.
+  rpc GetPublication(GetPublicationRequest) returns (Publication);
+}
+
+// Disposition is the shared evidence vocabulary. MISSING means no record
+// exists for the cell; UNAVAILABLE means the owner tried and could not
+// produce evidence; neither is ever a pass.
+enum Disposition {
+  DISPOSITION_UNSPECIFIED = 0;
+  DISPOSITION_PASSED = 1;
+  DISPOSITION_FAILED = 2;
+  DISPOSITION_SKIPPED = 3;
+  DISPOSITION_UNSUPPORTED = 4;
+  DISPOSITION_UNAVAILABLE = 5;
+  DISPOSITION_MISSING = 6;
+}
+
+// ReviewIdentity is the exact identity a governance decision binds to.
+message ReviewIdentity {
+  string scenario_id = 1;
+  string profile_id = 2;
+  string candidate_commit = 3;
+  // artifact_digest is the Deployment Manager candidate artifact digest when
+  // the release is governed there; otherwise it equals release_digest.
+  string artifact_digest = 4;
+  string release_digest = 5;
+  string configuration_digest = 6;
+  // target_set is the sorted list of target keys (machine:<id> / host:<host>).
+  repeated string target_set = 7;
+  string environment = 8;
+  string channel = 9;
+  int32 policy_version = 10;
+  string candidate_id = 11;
+  string destination_revision_id = 12;
+  uint64 authorization_epoch = 13;
+  // digest is sha256 over the canonical identity; it is what publication
+  // re-checks against the review immediately before activation.
+  string digest = 14;
+}
+
+// EvidenceCell is one (case, lane) cell of the capability profile with the
+// target-owned evidence that decided it.
+message EvidenceCell {
+  string case_id = 1;
+  string lane = 2;
+  Disposition disposition = 3;
+  string record_id = 4;
+  string operation_id = 5;
+  string observation_id = 6;
+  repeated string receipt_refs = 7;
+  google.protobuf.Timestamp observed_at = 8;
+  string reason = 9;
+  bool required = 10;
+}
+
+message GetReleaseEvidenceRequest {
+  string release_digest = 1;
+  // deployment_id narrows the target set to one deployment; empty means the
+  // cells are evaluated across every target that produced evidence.
+  string deployment_id = 2;
+}
+
+message ReleaseEvidence {
+  string schema_version = 1;
+  string profile_id = 2;
+  string release_digest = 3;
+  string target_key = 4;
+  repeated EvidenceCell cells = 5;
+  int32 required_cells = 6;
+  // passed is true only when every required cell is PASSED for this exact
+  // release and target.
+  bool passed = 7;
+  repeated string blocking_cells = 8;
+  string producer_ref = 9;
+  google.protobuf.Timestamp evaluated_at = 10;
+}
+
+message PublicationRequest {
+  string deployment_id = 1;
+  string request_key = 2;
+  ReviewIdentity identity = 3;
+}
+
+message ApplyPublicationRequest {
+  string deployment_id = 1;
+  string request_key = 2;
+  string review_ref = 3;
+  string plan_digest = 4;
+}
+
+message GetPublicationRequest {
+  string deployment_id = 1;
+  string request_key = 2;
+}
+
+// Refusal names why a publication effect was not performed.
+message Refusal {
+  string code = 1;
+  string reason = 2;
+}
+
+// TargetReceipt is the target-owned active-release pointer as observed by
+// the cloud service after activation.
+message TargetReceipt {
+  string active_release = 1;
+  string previous_release = 2;
+  string activated_at = 3;
+  string operation_id = 4;
+  uint64 fence = 5;
+  string receipt_digest = 6;
+}
+
+message Publication {
+  string schema_version = 1;
+  string id = 2;
+  string deployment_id = 3;
+  string request_key = 4;
+  ReviewIdentity identity = 5;
+  string review_ref = 6;
+  string release_digest = 7;
+  string plan_digest = 8;
+  // state: requested, review_prepared, approved, activating, published,
+  // refused, failed, unknown.
+  string state = 9;
+  string operation_id = 10;
+  string activated_release_digest = 11;
+  string predecessor_release_digest = 12;
+  string target_key = 13;
+  TargetReceipt target_receipt = 14;
+  Refusal refusal = 15;
+  google.protobuf.Timestamp requested_at = 16;
+  google.protobuf.Timestamp published_at = 17;
+  ReleaseEvidence evidence = 18;
+}

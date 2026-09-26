@@ -1,0 +1,59 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "manipulation.canvas-viewport",
+    "name": "CanvasViewport",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "manipulation",
+    "description": "The spatial workspace surface with pan, zoom, fit, bounds, coordinate conversion, selection, overlays, shortcuts, and high-frequency updates kept outside React rendering.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-drag",
+        "reason": "Pointer capture, constraints, and velocity keep movement outside React rendering."
+      },
+      {
+        "asset": "motion.motion-primitive",
+        "reason": "Continuous transform values update without routing frames through React state."
+      },
+      {
+        "asset": "hooks.use-element-rect",
+        "reason": "Viewport measurement batches reads."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "gesture-alternative",
+    "status-announced",
+    "pointer-independence",
+    "reduced-motion",
+    "no-layout-animation",
+    "viewport-fill"
+  ],
+  "qualityGates": [
+    "performance",
+    "stress"
+  ],
+  "beauty": {
+    "signatureMoment": {
+      "description": "Panning and zooming track the input exactly with no perceptible lag at any content size, so the canvas feels like a surface being moved rather than a view being recomputed."
+    }
+  },
+  "rationale": "The strictest performance contract in the catalog. Pointer and zoom values must never flow through a store or React state at animation frequency, which is the single rule that determines whether a spatial tool feels alive or broken."
+}

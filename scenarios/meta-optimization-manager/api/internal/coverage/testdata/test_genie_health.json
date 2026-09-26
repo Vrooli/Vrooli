@@ -1,0 +1,1935 @@
+{
+  "selfHealth":  {
+    "catalog":  {
+      "totalPhases":  17,
+      "delegatedPhases":  15,
+      "nativePhases":  2,
+      "phases":  [
+        {
+          "name":  "structure",
+          "optional":  false,
+          "source":  "validation-provider",
+          "delegated":  true,
+          "provider":  "structure-health",
+          "findingSource":  "structure"
+        },
+        {
+          "name":  "contracts",
+          "optional":  false,
+          "source":  "validation-provider",
+          "delegated":  true,
+          "provider":  "cli-health",
+          "findingSource":  "cli"
+        },
+        {
+          "name":  "ui-health",
+          "optional":  false,
+          "source":  "validation-provider",
+          "delegated":  true,
+          "provider":  "ui-health",
+          "findingSource":  "ui"
+        },
+        {
+          "name":  "standards",
+          "optional":  false,
+          "source":  "validation-provider",
+          "delegated":  true,
+          "provider":  "scenario-auditor",
+          "findingSource":  "standards"
+        },
+        {
+          "name":  "architecture",
+          "optional":  true,
+          "source":  "validation-provider",
+          "delegated":  true,
+          "provider":  "architecture-cartographer",
+          "findingSource":  "architecture"
+        },
+        {
+          "name":  "dependencies",
+          "optional":  false,
+          "source":  "validation-provider",
+          "delegated":  true,
+          "provider":  "scenario-dependency-analyzer",
+          "findingSource":  "dependency"
+        },
+        {
+          "name":  "quality",
+          "optional":  false,
+          "source":  "validation-provider",
+          "delegated":  true,
+          "provider":  "quality-health",
+          "findingSource":  "standards"
+        },
+        {
+          "name":  "docs",
+          "optional":  false,
+          "source":  "validation-provider",
+          "delegated":  true,
+          "provider":  "knowledge-observatory",
+          "findingSource":  "docs"
+        },
+        {
+          "name":  "performance",
+          "optional":  true,
+          "source":  "validation-provider",
+          "delegated":  true,
+          "provider":  "performance-health",
+          "findingSource":  "unspecified"
+        },
+        {
+          "name":  "unit",
+          "optional":  false,
+          "source":  "validation-provider",
+          "delegated":  true,
+          "provider":  "unit-health",
+          "findingSource":  "coverage"
+        },
+        {
+          "name":  "storage",
+          "optional":  false,
+          "source":  "validation-provider",
+          "delegated":  true,
+          "provider":  "storage-manager",
+          "findingSource":  "storage"
+        },
+        {
+          "name":  "playbooks",
+          "optional":  false,
+          "source":  "native",
+          "delegated":  false,
+          "provider":  "",
+          "findingSource":  "unspecified"
+        },
+        {
+          "name":  "business",
+          "optional":  false,
+          "source":  "native",
+          "delegated":  false,
+          "provider":  "",
+          "findingSource":  "business"
+        },
+        {
+          "name":  "tidiness",
+          "optional":  true,
+          "source":  "validation-provider",
+          "delegated":  true,
+          "provider":  "tidiness-manager",
+          "findingSource":  "tidiness"
+        },
+        {
+          "name":  "security",
+          "optional":  true,
+          "source":  "validation-provider",
+          "delegated":  true,
+          "provider":  "security-health",
+          "findingSource":  "security"
+        },
+        {
+          "name":  "measures",
+          "optional":  true,
+          "source":  "validation-provider",
+          "delegated":  true,
+          "provider":  "measures-health",
+          "findingSource":  "measures"
+        },
+        {
+          "name":  "proto",
+          "optional":  true,
+          "source":  "validation-provider",
+          "delegated":  true,
+          "provider":  "proto-health",
+          "findingSource":  "proto"
+        }
+      ]
+    },
+    "conformance":  [
+      {
+        "provider":  "architecture-cartographer",
+        "phase":  "architecture",
+        "reachable":  true,
+        "contractValid":  true,
+        "identityOk":  true,
+        "specValid":  true,
+        "metricsAdopted":  true,
+        "adoptionScore":  1,
+        "violations":  [],
+        "autofix":  {
+          "total":  8,
+          "fixableUniverse":  0,
+          "implemented":  0,
+          "pending":  0,
+          "manual":  8,
+          "declared":  0,
+          "declarationComplete":  false,
+          "implementationRate":  0
+        }
+      },
+      {
+        "provider":  "cli-health",
+        "phase":  "contracts",
+        "reachable":  true,
+        "contractValid":  true,
+        "identityOk":  true,
+        "specValid":  true,
+        "metricsAdopted":  true,
+        "adoptionScore":  1,
+        "violations":  [],
+        "autofix":  {
+          "total":  13,
+          "fixableUniverse":  0,
+          "implemented":  0,
+          "pending":  0,
+          "manual":  13,
+          "declared":  0,
+          "declarationComplete":  false,
+          "implementationRate":  0
+        }
+      },
+      {
+        "provider":  "scenario-dependency-analyzer",
+        "phase":  "dependencies",
+        "reachable":  true,
+        "contractValid":  true,
+        "identityOk":  true,
+        "specValid":  true,
+        "metricsAdopted":  true,
+        "adoptionScore":  1,
+        "violations":  [],
+        "autofix":  {
+          "total":  26,
+          "fixableUniverse":  0,
+          "implemented":  0,
+          "pending":  0,
+          "manual":  26,
+          "declared":  0,
+          "declarationComplete":  false,
+          "implementationRate":  0
+        }
+      },
+      {
+        "provider":  "knowledge-observatory",
+        "phase":  "docs",
+        "reachable":  true,
+        "contractValid":  true,
+        "identityOk":  true,
+        "specValid":  true,
+        "metricsAdopted":  true,
+        "adoptionScore":  1,
+        "violations":  [],
+        "autofix":  {
+          "total":  44,
+          "fixableUniverse":  0,
+          "implemented":  0,
+          "pending":  0,
+          "manual":  44,
+          "declared":  0,
+          "declarationComplete":  false,
+          "implementationRate":  0
+        }
+      },
+      {
+        "provider":  "measures-health",
+        "phase":  "measures",
+        "reachable":  true,
+        "contractValid":  true,
+        "identityOk":  true,
+        "specValid":  true,
+        "metricsAdopted":  true,
+        "adoptionScore":  1,
+        "violations":  [],
+        "autofix":  {
+          "total":  9,
+          "fixableUniverse":  0,
+          "implemented":  0,
+          "pending":  0,
+          "manual":  9,
+          "declared":  0,
+          "declarationComplete":  false,
+          "implementationRate":  0
+        }
+      },
+      {
+        "provider":  "performance-health",
+        "phase":  "performance",
+        "reachable":  true,
+        "contractValid":  true,
+        "identityOk":  true,
+        "specValid":  true,
+        "metricsAdopted":  true,
+        "adoptionScore":  1,
+        "violations":  [],
+        "autofix":  {
+          "total":  13,
+          "fixableUniverse":  4,
+          "implemented":  4,
+          "pending":  0,
+          "manual":  9,
+          "declared":  13,
+          "declarationComplete":  true,
+          "implementationRate":  1
+        }
+      },
+      {
+        "provider":  "proto-health",
+        "phase":  "proto",
+        "reachable":  true,
+        "contractValid":  true,
+        "identityOk":  true,
+        "specValid":  true,
+        "metricsAdopted":  true,
+        "adoptionScore":  1,
+        "violations":  [],
+        "autofix":  {
+          "total":  28,
+          "fixableUniverse":  0,
+          "implemented":  0,
+          "pending":  0,
+          "manual":  28,
+          "declared":  0,
+          "declarationComplete":  false,
+          "implementationRate":  0
+        }
+      },
+      {
+        "provider":  "quality-health",
+        "phase":  "quality",
+        "reachable":  true,
+        "contractValid":  true,
+        "identityOk":  true,
+        "specValid":  true,
+        "metricsAdopted":  true,
+        "adoptionScore":  1,
+        "violations":  [],
+        "autofix":  {
+          "total":  13,
+          "fixableUniverse":  9,
+          "implemented":  9,
+          "pending":  0,
+          "manual":  4,
+          "declared":  13,
+          "declarationComplete":  true,
+          "implementationRate":  1
+        }
+      },
+      {
+        "provider":  "security-health",
+        "phase":  "security",
+        "reachable":  true,
+        "contractValid":  true,
+        "identityOk":  true,
+        "specValid":  true,
+        "metricsAdopted":  true,
+        "adoptionScore":  1,
+        "violations":  [],
+        "autofix":  {
+          "total":  4,
+          "fixableUniverse":  0,
+          "implemented":  0,
+          "pending":  0,
+          "manual":  4,
+          "declared":  0,
+          "declarationComplete":  false,
+          "implementationRate":  0
+        }
+      },
+      {
+        "provider":  "scenario-auditor",
+        "phase":  "standards",
+        "reachable":  true,
+        "contractValid":  true,
+        "identityOk":  true,
+        "specValid":  true,
+        "metricsAdopted":  true,
+        "adoptionScore":  1,
+        "violations":  [],
+        "autofix":  {
+          "total":  6,
+          "fixableUniverse":  0,
+          "implemented":  0,
+          "pending":  0,
+          "manual":  6,
+          "declared":  0,
+          "declarationComplete":  false,
+          "implementationRate":  0
+        }
+      },
+      {
+        "provider":  "storage-manager",
+        "phase":  "storage",
+        "reachable":  true,
+        "contractValid":  true,
+        "identityOk":  true,
+        "specValid":  true,
+        "metricsAdopted":  true,
+        "adoptionScore":  1,
+        "violations":  [],
+        "autofix":  {
+          "total":  19,
+          "fixableUniverse":  5,
+          "implemented":  2,
+          "pending":  3,
+          "manual":  14,
+          "declared":  18,
+          "declarationComplete":  false,
+          "implementationRate":  0.4
+        }
+      },
+      {
+        "provider":  "structure-health",
+        "phase":  "structure",
+        "reachable":  true,
+        "contractValid":  true,
+        "identityOk":  true,
+        "specValid":  true,
+        "metricsAdopted":  true,
+        "adoptionScore":  1,
+        "violations":  [],
+        "autofix":  {
+          "total":  27,
+          "fixableUniverse":  0,
+          "implemented":  0,
+          "pending":  0,
+          "manual":  27,
+          "declared":  0,
+          "declarationComplete":  false,
+          "implementationRate":  0
+        }
+      },
+      {
+        "provider":  "tidiness-manager",
+        "phase":  "tidiness",
+        "reachable":  true,
+        "contractValid":  true,
+        "identityOk":  true,
+        "specValid":  true,
+        "metricsAdopted":  true,
+        "adoptionScore":  1,
+        "violations":  [],
+        "autofix":  {
+          "total":  5,
+          "fixableUniverse":  0,
+          "implemented":  0,
+          "pending":  0,
+          "manual":  5,
+          "declared":  0,
+          "declarationComplete":  false,
+          "implementationRate":  0
+        }
+      },
+      {
+        "provider":  "ui-health",
+        "phase":  "ui-health",
+        "reachable":  true,
+        "contractValid":  true,
+        "identityOk":  true,
+        "specValid":  true,
+        "metricsAdopted":  true,
+        "adoptionScore":  1,
+        "violations":  [],
+        "autofix":  {
+          "total":  71,
+          "fixableUniverse":  6,
+          "implemented":  6,
+          "pending":  0,
+          "manual":  65,
+          "declared":  6,
+          "declarationComplete":  false,
+          "implementationRate":  1
+        }
+      },
+      {
+        "provider":  "unit-health",
+        "phase":  "unit",
+        "reachable":  true,
+        "contractValid":  true,
+        "identityOk":  true,
+        "specValid":  true,
+        "metricsAdopted":  true,
+        "adoptionScore":  1,
+        "violations":  [],
+        "autofix":  {
+          "total":  24,
+          "fixableUniverse":  0,
+          "implemented":  0,
+          "pending":  0,
+          "manual":  24,
+          "declared":  0,
+          "declarationComplete":  false,
+          "implementationRate":  0
+        }
+      }
+    ],
+    "conformanceFreshness":  "live",
+    "ledger":  {
+      "windowDays":  30,
+      "runCount":  2611,
+      "availability":  0.9904251244733818,
+      "runOutcomes":  [
+        {
+          "outcome":  "passed",
+          "count":  1314
+        },
+        {
+          "outcome":  "failed",
+          "count":  1272
+        },
+        {
+          "outcome":  "timeout",
+          "count":  10
+        },
+        {
+          "outcome":  "aborted",
+          "count":  8
+        },
+        {
+          "outcome":  "errored",
+          "count":  7
+        }
+      ],
+      "phases":  [
+        {
+          "phase":  "architecture",
+          "provider":  "architecture-cartographer",
+          "findingSource":  "architecture",
+          "totalObservations":  985,
+          "passed":  886,
+          "failed":  99,
+          "skipped":  0,
+          "degraded":  0,
+          "availability":  1,
+          "failureRate":  0.10050761421319797,
+          "metricsAdopted":  195,
+          "skipReasons":  [],
+          "classifications":  [
+            {
+              "label":  "system",
+              "count":  97
+            },
+            {
+              "label":  "maturity_contract",
+              "count":  2
+            }
+          ],
+          "duration":  {
+            "samples":  985,
+            "p50":  6,
+            "p95":  36,
+            "min":  1,
+            "max":  121,
+            "avg":  11
+          },
+          "worstScenarios":  [
+            {
+              "scenario":  "plan-manager",
+              "executed":  16,
+              "failures":  12,
+              "failureRate":  0.75
+            },
+            {
+              "scenario":  "performance-health",
+              "executed":  10,
+              "failures":  6,
+              "failureRate":  0.6
+            },
+            {
+              "scenario":  "image-tools",
+              "executed":  61,
+              "failures":  35,
+              "failureRate":  0.5737704918032787
+            },
+            {
+              "scenario":  "audio-tools",
+              "executed":  8,
+              "failures":  4,
+              "failureRate":  0.5
+            },
+            {
+              "scenario":  "knowledge-observatory",
+              "executed":  10,
+              "failures":  4,
+              "failureRate":  0.4
+            }
+          ]
+        },
+        {
+          "phase":  "business",
+          "provider":  "",
+          "findingSource":  "business",
+          "totalObservations":  1037,
+          "passed":  913,
+          "failed":  124,
+          "skipped":  0,
+          "degraded":  0,
+          "availability":  1,
+          "failureRate":  0.11957569913211186,
+          "metricsAdopted":  284,
+          "skipReasons":  [],
+          "classifications":  [
+            {
+              "label":  "misconfiguration",
+              "count":  124
+            }
+          ],
+          "duration":  {
+            "samples":  1037,
+            "p50":  1,
+            "p95":  1,
+            "min":  1,
+            "max":  1,
+            "avg":  1
+          },
+          "worstScenarios":  [
+            {
+              "scenario":  "agent-manager",
+              "executed":  15,
+              "failures":  15,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "template-manager",
+              "executed":  14,
+              "failures":  14,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "browser-automation-studio",
+              "executed":  11,
+              "failures":  11,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "scenario-auditor",
+              "executed":  8,
+              "failures":  8,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "template-manager",
+              "executed":  2,
+              "failures":  2,
+              "failureRate":  1
+            }
+          ]
+        },
+        {
+          "phase":  "contracts",
+          "provider":  "cli-health",
+          "findingSource":  "cli",
+          "totalObservations":  1008,
+          "passed":  816,
+          "failed":  192,
+          "skipped":  0,
+          "degraded":  0,
+          "availability":  1,
+          "failureRate":  0.19047619047619047,
+          "metricsAdopted":  265,
+          "skipReasons":  [],
+          "classifications":  [
+            {
+              "label":  "system",
+              "count":  162
+            },
+            {
+              "label":  "missing_dependency",
+              "count":  30
+            }
+          ],
+          "duration":  {
+            "samples":  1008,
+            "p50":  1,
+            "p95":  19,
+            "min":  1,
+            "max":  74,
+            "avg":  3
+          },
+          "worstScenarios":  [
+            {
+              "scenario":  "agent-manager",
+              "executed":  15,
+              "failures":  15,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "browser-automation-studio",
+              "executed":  11,
+              "failures":  11,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "swarm-manager",
+              "executed":  12,
+              "failures":  10,
+              "failureRate":  0.8333333333333334
+            },
+            {
+              "scenario":  "knowledge-observatory",
+              "executed":  10,
+              "failures":  6,
+              "failureRate":  0.6
+            },
+            {
+              "scenario":  "meta-optimization-manager",
+              "executed":  5,
+              "failures":  3,
+              "failureRate":  0.6
+            }
+          ]
+        },
+        {
+          "phase":  "dependencies",
+          "provider":  "scenario-dependency-analyzer",
+          "findingSource":  "dependency",
+          "totalObservations":  1024,
+          "passed":  699,
+          "failed":  325,
+          "skipped":  0,
+          "degraded":  0,
+          "availability":  1,
+          "failureRate":  0.3173828125,
+          "metricsAdopted":  286,
+          "skipReasons":  [],
+          "classifications":  [
+            {
+              "label":  "system",
+              "count":  298
+            },
+            {
+              "label":  "missing_dependency",
+              "count":  27
+            }
+          ],
+          "duration":  {
+            "samples":  1024,
+            "p50":  3,
+            "p95":  19,
+            "min":  1,
+            "max":  64,
+            "avg":  6
+          },
+          "worstScenarios":  [
+            {
+              "scenario":  "agent-manager",
+              "executed":  15,
+              "failures":  15,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "structure-health",
+              "executed":  14,
+              "failures":  14,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "device-sync-hub",
+              "executed":  13,
+              "failures":  13,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "browser-automation-studio",
+              "executed":  11,
+              "failures":  11,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "scenario-authenticator",
+              "executed":  11,
+              "failures":  11,
+              "failureRate":  1
+            }
+          ]
+        },
+        {
+          "phase":  "docs",
+          "provider":  "knowledge-observatory",
+          "findingSource":  "docs",
+          "totalObservations":  1044,
+          "passed":  732,
+          "failed":  312,
+          "skipped":  0,
+          "degraded":  0,
+          "availability":  1,
+          "failureRate":  0.2988505747126437,
+          "metricsAdopted":  274,
+          "skipReasons":  [],
+          "classifications":  [
+            {
+              "label":  "system",
+              "count":  284
+            },
+            {
+              "label":  "missing_dependency",
+              "count":  28
+            }
+          ],
+          "duration":  {
+            "samples":  1044,
+            "p50":  1,
+            "p95":  4,
+            "min":  1,
+            "max":  27,
+            "avg":  1
+          },
+          "worstScenarios":  [
+            {
+              "scenario":  "test-genie",
+              "executed":  90,
+              "failures":  90,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "agent-manager",
+              "executed":  15,
+              "failures":  15,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "prompt-manager",
+              "executed":  15,
+              "failures":  15,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "template-manager",
+              "executed":  14,
+              "failures":  14,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "browser-automation-studio",
+              "executed":  11,
+              "failures":  11,
+              "failureRate":  1
+            }
+          ]
+        },
+        {
+          "phase":  "measures",
+          "provider":  "measures-health",
+          "findingSource":  "measures",
+          "totalObservations":  844,
+          "passed":  769,
+          "failed":  75,
+          "skipped":  0,
+          "degraded":  0,
+          "availability":  1,
+          "failureRate":  0.08886255924170616,
+          "metricsAdopted":  285,
+          "skipReasons":  [],
+          "classifications":  [
+            {
+              "label":  "system",
+              "count":  64
+            },
+            {
+              "label":  "maturity_contract",
+              "count":  11
+            }
+          ],
+          "duration":  {
+            "samples":  844,
+            "p50":  1,
+            "p95":  2,
+            "min":  1,
+            "max":  4,
+            "avg":  1
+          },
+          "worstScenarios":  [
+            {
+              "scenario":  "agent-manager",
+              "executed":  15,
+              "failures":  15,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "browser-automation-studio",
+              "executed":  11,
+              "failures":  11,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "ecosystem-manager",
+              "executed":  10,
+              "failures":  10,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "meta-optimization-manager",
+              "executed":  5,
+              "failures":  3,
+              "failureRate":  0.6
+            },
+            {
+              "scenario":  "git-control-tower",
+              "executed":  7,
+              "failures":  4,
+              "failureRate":  0.5714285714285714
+            }
+          ]
+        },
+        {
+          "phase":  "performance",
+          "provider":  "performance-health",
+          "findingSource":  "unspecified",
+          "totalObservations":  999,
+          "passed":  757,
+          "failed":  187,
+          "skipped":  55,
+          "degraded":  0,
+          "availability":  0.944944944944945,
+          "failureRate":  0.19809322033898305,
+          "metricsAdopted":  264,
+          "skipReasons":  [
+            {
+              "label":  "phase performance needs the target's UI surface(s), which are not live; starting the target would terminate this self-test process",
+              "count":  55
+            }
+          ],
+          "classifications":  [
+            {
+              "label":  "system",
+              "count":  187
+            }
+          ],
+          "duration":  {
+            "samples":  944,
+            "p50":  20,
+            "p95":  41,
+            "min":  1,
+            "max":  104,
+            "avg":  23
+          },
+          "worstScenarios":  [
+            {
+              "scenario":  "agent-manager",
+              "executed":  15,
+              "failures":  15,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "reference-react-vite",
+              "executed":  3,
+              "failures":  3,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "vrooli-autoheal",
+              "executed":  8,
+              "failures":  7,
+              "failureRate":  0.875
+            },
+            {
+              "scenario":  "web-console",
+              "executed":  8,
+              "failures":  7,
+              "failureRate":  0.875
+            },
+            {
+              "scenario":  "system-monitor",
+              "executed":  40,
+              "failures":  34,
+              "failureRate":  0.85
+            }
+          ]
+        },
+        {
+          "phase":  "playbooks",
+          "provider":  "",
+          "findingSource":  "unspecified",
+          "totalObservations":  1296,
+          "passed":  983,
+          "failed":  258,
+          "skipped":  55,
+          "degraded":  0,
+          "availability":  0.9575617283950617,
+          "failureRate":  0.20789685737308622,
+          "metricsAdopted":  267,
+          "skipReasons":  [
+            {
+              "label":  "phase playbooks needs the target's UI surface(s), which are not live; starting the target would terminate this self-test process",
+              "count":  55
+            }
+          ],
+          "classifications":  [
+            {
+              "label":  "misconfiguration",
+              "count":  134
+            },
+            {
+              "label":  "system",
+              "count":  112
+            },
+            {
+              "label":  "missing_dependency",
+              "count":  12
+            }
+          ],
+          "duration":  {
+            "samples":  1241,
+            "p50":  1,
+            "p95":  82,
+            "min":  1,
+            "max":  383,
+            "avg":  13
+          },
+          "worstScenarios":  [
+            {
+              "scenario":  "ecosystem-manager",
+              "executed":  35,
+              "failures":  35,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "ui-health",
+              "executed":  15,
+              "failures":  15,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "template-manager",
+              "executed":  14,
+              "failures":  14,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "browser-automation-studio",
+              "executed":  13,
+              "failures":  13,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "git-control-tower",
+              "executed":  9,
+              "failures":  9,
+              "failureRate":  1
+            }
+          ]
+        },
+        {
+          "phase":  "proto",
+          "provider":  "proto-health",
+          "findingSource":  "proto",
+          "totalObservations":  880,
+          "passed":  628,
+          "failed":  252,
+          "skipped":  0,
+          "degraded":  0,
+          "availability":  1,
+          "failureRate":  0.2863636363636364,
+          "metricsAdopted":  223,
+          "skipReasons":  [],
+          "classifications":  [
+            {
+              "label":  "system",
+              "count":  252
+            }
+          ],
+          "duration":  {
+            "samples":  880,
+            "p50":  8,
+            "p95":  23,
+            "min":  1,
+            "max":  55,
+            "avg":  8
+          },
+          "worstScenarios":  [
+            {
+              "scenario":  "agent-manager",
+              "executed":  15,
+              "failures":  15,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "ui-health",
+              "executed":  13,
+              "failures":  13,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "ecosystem-manager",
+              "executed":  9,
+              "failures":  9,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "knowledge-observatory",
+              "executed":  9,
+              "failures":  9,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "typescript-code-graph",
+              "executed":  9,
+              "failures":  9,
+              "failureRate":  1
+            }
+          ]
+        },
+        {
+          "phase":  "quality",
+          "provider":  "quality-health",
+          "findingSource":  "standards",
+          "totalObservations":  650,
+          "passed":  542,
+          "failed":  108,
+          "skipped":  0,
+          "degraded":  0,
+          "availability":  1,
+          "failureRate":  0.16615384615384615,
+          "metricsAdopted":  289,
+          "skipReasons":  [],
+          "classifications":  [
+            {
+              "label":  "system",
+              "count":  96
+            },
+            {
+              "label":  "maturity_contract",
+              "count":  11
+            },
+            {
+              "label":  "missing_dependency",
+              "count":  1
+            }
+          ],
+          "duration":  {
+            "samples":  650,
+            "p50":  1,
+            "p95":  2,
+            "min":  1,
+            "max":  3,
+            "avg":  1
+          },
+          "worstScenarios":  [
+            {
+              "scenario":  "agent-manager",
+              "executed":  15,
+              "failures":  15,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "browser-automation-studio",
+              "executed":  11,
+              "failures":  11,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "knowledge-observatory",
+              "executed":  9,
+              "failures":  9,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "scenario-auditor",
+              "executed":  8,
+              "failures":  8,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "web-console",
+              "executed":  8,
+              "failures":  8,
+              "failureRate":  1
+            }
+          ]
+        },
+        {
+          "phase":  "security",
+          "provider":  "security-health",
+          "findingSource":  "security",
+          "totalObservations":  935,
+          "passed":  579,
+          "failed":  356,
+          "skipped":  0,
+          "degraded":  0,
+          "availability":  1,
+          "failureRate":  0.38074866310160427,
+          "metricsAdopted":  286,
+          "skipReasons":  [],
+          "classifications":  [
+            {
+              "label":  "system",
+              "count":  345
+            },
+            {
+              "label":  "maturity_contract",
+              "count":  11
+            }
+          ],
+          "duration":  {
+            "samples":  935,
+            "p50":  22,
+            "p95":  56,
+            "min":  1,
+            "max":  129,
+            "avg":  27
+          },
+          "worstScenarios":  [
+            {
+              "scenario":  "test-genie",
+              "executed":  83,
+              "failures":  83,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "agent-manager",
+              "executed":  15,
+              "failures":  15,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "structure-health",
+              "executed":  14,
+              "failures":  14,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "ui-health",
+              "executed":  13,
+              "failures":  13,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "prompt-manager",
+              "executed":  12,
+              "failures":  12,
+              "failureRate":  1
+            }
+          ]
+        },
+        {
+          "phase":  "standards",
+          "provider":  "scenario-auditor",
+          "findingSource":  "standards",
+          "totalObservations":  1375,
+          "passed":  545,
+          "failed":  830,
+          "skipped":  0,
+          "degraded":  0,
+          "availability":  1,
+          "failureRate":  0.6036363636363636,
+          "metricsAdopted":  298,
+          "skipReasons":  [],
+          "classifications":  [
+            {
+              "label":  "misconfiguration",
+              "count":  642
+            },
+            {
+              "label":  "timeout",
+              "count":  170
+            },
+            {
+              "label":  "system",
+              "count":  18
+            }
+          ],
+          "duration":  {
+            "samples":  1375,
+            "p50":  21,
+            "p95":  61,
+            "min":  1,
+            "max":  127,
+            "avg":  29
+          },
+          "worstScenarios":  [
+            {
+              "scenario":  "image-tools",
+              "executed":  60,
+              "failures":  60,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "prompt-manager",
+              "executed":  40,
+              "failures":  40,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "swarm-manager",
+              "executed":  33,
+              "failures":  33,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "cli-health",
+              "executed":  30,
+              "failures":  30,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "security-health",
+              "executed":  21,
+              "failures":  21,
+              "failureRate":  1
+            }
+          ]
+        },
+        {
+          "phase":  "storage",
+          "provider":  "storage-manager",
+          "findingSource":  "storage",
+          "totalObservations":  147,
+          "passed":  38,
+          "failed":  109,
+          "skipped":  0,
+          "degraded":  0,
+          "availability":  1,
+          "failureRate":  0.7414965986394558,
+          "metricsAdopted":  82,
+          "skipReasons":  [],
+          "classifications":  [
+            {
+              "label":  "system",
+              "count":  44
+            },
+            {
+              "label":  "missing_dependency",
+              "count":  36
+            },
+            {
+              "label":  "timeout",
+              "count":  29
+            }
+          ],
+          "duration":  {
+            "samples":  147,
+            "p50":  4,
+            "p95":  121,
+            "min":  1,
+            "max":  121,
+            "avg":  34
+          },
+          "worstScenarios":  [
+            {
+              "scenario":  "agent-manager",
+              "executed":  11,
+              "failures":  11,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "swarm-manager",
+              "executed":  8,
+              "failures":  8,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "vrooli-autoheal",
+              "executed":  7,
+              "failures":  7,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "test-genie",
+              "executed":  6,
+              "failures":  6,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "ui-health",
+              "executed":  5,
+              "failures":  5,
+              "failureRate":  1
+            }
+          ]
+        },
+        {
+          "phase":  "structure",
+          "provider":  "structure-health",
+          "findingSource":  "structure",
+          "totalObservations":  1378,
+          "passed":  1104,
+          "failed":  274,
+          "skipped":  0,
+          "degraded":  0,
+          "availability":  1,
+          "failureRate":  0.1988388969521045,
+          "metricsAdopted":  287,
+          "skipReasons":  [],
+          "classifications":  [
+            {
+              "label":  "misconfiguration",
+              "count":  137
+            },
+            {
+              "label":  "system",
+              "count":  134
+            },
+            {
+              "label":  "missing_dependency",
+              "count":  3
+            }
+          ],
+          "duration":  {
+            "samples":  1378,
+            "p50":  1,
+            "p95":  1,
+            "min":  1,
+            "max":  2,
+            "avg":  1
+          },
+          "worstScenarios":  [
+            {
+              "scenario":  "agent-manager",
+              "executed":  15,
+              "failures":  15,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "template-manager",
+              "executed":  14,
+              "failures":  14,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "scenario-authenticator",
+              "executed":  11,
+              "failures":  11,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "scenario-auditor",
+              "executed":  8,
+              "failures":  8,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "agent-metareasoning-manager",
+              "executed":  2,
+              "failures":  2,
+              "failureRate":  1
+            }
+          ]
+        },
+        {
+          "phase":  "tidiness",
+          "provider":  "tidiness-manager",
+          "findingSource":  "tidiness",
+          "totalObservations":  940,
+          "passed":  564,
+          "failed":  376,
+          "skipped":  0,
+          "degraded":  0,
+          "availability":  1,
+          "failureRate":  0.4,
+          "metricsAdopted":  289,
+          "skipReasons":  [],
+          "classifications":  [
+            {
+              "label":  "system",
+              "count":  376
+            }
+          ],
+          "duration":  {
+            "samples":  940,
+            "p50":  1,
+            "p95":  4,
+            "min":  1,
+            "max":  9,
+            "avg":  2
+          },
+          "worstScenarios":  [
+            {
+              "scenario":  "agent-manager",
+              "executed":  15,
+              "failures":  15,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "structure-health",
+              "executed":  14,
+              "failures":  14,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "plan-manager",
+              "executed":  12,
+              "failures":  12,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "prompt-manager",
+              "executed":  12,
+              "failures":  12,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "browser-automation-studio",
+              "executed":  11,
+              "failures":  11,
+              "failureRate":  1
+            }
+          ]
+        },
+        {
+          "phase":  "ui-health",
+          "provider":  "ui-health",
+          "findingSource":  "ui",
+          "totalObservations":  981,
+          "passed":  901,
+          "failed":  78,
+          "skipped":  2,
+          "degraded":  0,
+          "availability":  0.9979612640163099,
+          "failureRate":  0.07967313585291114,
+          "metricsAdopted":  284,
+          "skipReasons":  [
+            {
+              "label":  "phase ui-health needs the target's UI surface(s), which are not live; starting the target would terminate this self-test process",
+              "count":  1
+            },
+            {
+              "label":  "phase ui-health requires unavailable resource(s): browser-automation-studio",
+              "count":  1
+            }
+          ],
+          "classifications":  [
+            {
+              "label":  "system",
+              "count":  62
+            },
+            {
+              "label":  "maturity_contract",
+              "count":  9
+            },
+            {
+              "label":  "missing_dependency",
+              "count":  7
+            }
+          ],
+          "duration":  {
+            "samples":  979,
+            "p50":  1,
+            "p95":  3,
+            "min":  1,
+            "max":  21,
+            "avg":  2
+          },
+          "worstScenarios":  [
+            {
+              "scenario":  "plan-manager",
+              "executed":  12,
+              "failures":  9,
+              "failureRate":  0.75
+            },
+            {
+              "scenario":  "template-validation-react-vite-deep",
+              "executed":  7,
+              "failures":  5,
+              "failureRate":  0.7142857142857143
+            },
+            {
+              "scenario":  "git-control-tower",
+              "executed":  7,
+              "failures":  4,
+              "failureRate":  0.5714285714285714
+            },
+            {
+              "scenario":  "vrooli-autoheal",
+              "executed":  7,
+              "failures":  4,
+              "failureRate":  0.5714285714285714
+            },
+            {
+              "scenario":  "app-monitor",
+              "executed":  2,
+              "failures":  1,
+              "failureRate":  0.5
+            }
+          ]
+        },
+        {
+          "phase":  "unit",
+          "provider":  "unit-health",
+          "findingSource":  "coverage",
+          "totalObservations":  1337,
+          "passed":  957,
+          "failed":  380,
+          "skipped":  0,
+          "degraded":  0,
+          "availability":  1,
+          "failureRate":  0.28421839940164545,
+          "metricsAdopted":  285,
+          "skipReasons":  [],
+          "classifications":  [
+            {
+              "label":  "system",
+              "count":  374
+            },
+            {
+              "label":  "missing_dependency",
+              "count":  6
+            }
+          ],
+          "duration":  {
+            "samples":  1337,
+            "p50":  5,
+            "p95":  69,
+            "min":  1,
+            "max":  167,
+            "avg":  14
+          },
+          "worstScenarios":  [
+            {
+              "scenario":  "go-code-graph",
+              "executed":  18,
+              "failures":  18,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "agent-manager",
+              "executed":  15,
+              "failures":  15,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "browser-automation-studio",
+              "executed":  15,
+              "failures":  15,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "web-console",
+              "executed":  13,
+              "failures":  13,
+              "failureRate":  1
+            },
+            {
+              "scenario":  "scenario-authenticator",
+              "executed":  11,
+              "failures":  11,
+              "failureRate":  1
+            }
+          ]
+        }
+      ],
+      "providers":  [
+        {
+          "provider":  "architecture-cartographer",
+          "phases":  [
+            "architecture"
+          ],
+          "totalObservations":  985,
+          "passed":  886,
+          "failed":  99,
+          "skipped":  0,
+          "availability":  1,
+          "failureRate":  0.10050761421319797,
+          "metricsAdopted":  195,
+          "duration":  {
+            "samples":  985,
+            "p50":  6,
+            "p95":  36,
+            "min":  1,
+            "max":  121,
+            "avg":  11
+          }
+        },
+        {
+          "provider":  "cli-health",
+          "phases":  [
+            "contracts"
+          ],
+          "totalObservations":  1008,
+          "passed":  816,
+          "failed":  192,
+          "skipped":  0,
+          "availability":  1,
+          "failureRate":  0.19047619047619047,
+          "metricsAdopted":  265,
+          "duration":  {
+            "samples":  1008,
+            "p50":  1,
+            "p95":  19,
+            "min":  1,
+            "max":  74,
+            "avg":  3
+          }
+        },
+        {
+          "provider":  "knowledge-observatory",
+          "phases":  [
+            "docs"
+          ],
+          "totalObservations":  1044,
+          "passed":  732,
+          "failed":  312,
+          "skipped":  0,
+          "availability":  1,
+          "failureRate":  0.2988505747126437,
+          "metricsAdopted":  274,
+          "duration":  {
+            "samples":  1044,
+            "p50":  1,
+            "p95":  4,
+            "min":  1,
+            "max":  27,
+            "avg":  1
+          }
+        },
+        {
+          "provider":  "measures-health",
+          "phases":  [
+            "measures"
+          ],
+          "totalObservations":  844,
+          "passed":  769,
+          "failed":  75,
+          "skipped":  0,
+          "availability":  1,
+          "failureRate":  0.08886255924170616,
+          "metricsAdopted":  285,
+          "duration":  {
+            "samples":  844,
+            "p50":  1,
+            "p95":  2,
+            "min":  1,
+            "max":  4,
+            "avg":  1
+          }
+        },
+        {
+          "provider":  "performance-health",
+          "phases":  [
+            "performance"
+          ],
+          "totalObservations":  999,
+          "passed":  757,
+          "failed":  187,
+          "skipped":  55,
+          "availability":  0.944944944944945,
+          "failureRate":  0.19809322033898305,
+          "metricsAdopted":  264,
+          "duration":  {
+            "samples":  944,
+            "p50":  20,
+            "p95":  41,
+            "min":  1,
+            "max":  104,
+            "avg":  23
+          }
+        },
+        {
+          "provider":  "proto-health",
+          "phases":  [
+            "proto"
+          ],
+          "totalObservations":  880,
+          "passed":  628,
+          "failed":  252,
+          "skipped":  0,
+          "availability":  1,
+          "failureRate":  0.2863636363636364,
+          "metricsAdopted":  223,
+          "duration":  {
+            "samples":  880,
+            "p50":  8,
+            "p95":  23,
+            "min":  1,
+            "max":  55,
+            "avg":  8
+          }
+        },
+        {
+          "provider":  "quality-health",
+          "phases":  [
+            "quality"
+          ],
+          "totalObservations":  650,
+          "passed":  542,
+          "failed":  108,
+          "skipped":  0,
+          "availability":  1,
+          "failureRate":  0.16615384615384615,
+          "metricsAdopted":  289,
+          "duration":  {
+            "samples":  650,
+            "p50":  1,
+            "p95":  2,
+            "min":  1,
+            "max":  3,
+            "avg":  1
+          }
+        },
+        {
+          "provider":  "scenario-auditor",
+          "phases":  [
+            "standards"
+          ],
+          "totalObservations":  1375,
+          "passed":  545,
+          "failed":  830,
+          "skipped":  0,
+          "availability":  1,
+          "failureRate":  0.6036363636363636,
+          "metricsAdopted":  298,
+          "duration":  {
+            "samples":  1375,
+            "p50":  21,
+            "p95":  61,
+            "min":  1,
+            "max":  127,
+            "avg":  29
+          }
+        },
+        {
+          "provider":  "scenario-dependency-analyzer",
+          "phases":  [
+            "dependencies"
+          ],
+          "totalObservations":  1024,
+          "passed":  699,
+          "failed":  325,
+          "skipped":  0,
+          "availability":  1,
+          "failureRate":  0.3173828125,
+          "metricsAdopted":  286,
+          "duration":  {
+            "samples":  1024,
+            "p50":  3,
+            "p95":  19,
+            "min":  1,
+            "max":  64,
+            "avg":  6
+          }
+        },
+        {
+          "provider":  "security-health",
+          "phases":  [
+            "security"
+          ],
+          "totalObservations":  935,
+          "passed":  579,
+          "failed":  356,
+          "skipped":  0,
+          "availability":  1,
+          "failureRate":  0.38074866310160427,
+          "metricsAdopted":  286,
+          "duration":  {
+            "samples":  935,
+            "p50":  22,
+            "p95":  56,
+            "min":  1,
+            "max":  129,
+            "avg":  27
+          }
+        },
+        {
+          "provider":  "storage-manager",
+          "phases":  [
+            "storage"
+          ],
+          "totalObservations":  147,
+          "passed":  38,
+          "failed":  109,
+          "skipped":  0,
+          "availability":  1,
+          "failureRate":  0.7414965986394558,
+          "metricsAdopted":  82,
+          "duration":  {
+            "samples":  147,
+            "p50":  4,
+            "p95":  121,
+            "min":  1,
+            "max":  121,
+            "avg":  34
+          }
+        },
+        {
+          "provider":  "structure-health",
+          "phases":  [
+            "structure"
+          ],
+          "totalObservations":  1378,
+          "passed":  1104,
+          "failed":  274,
+          "skipped":  0,
+          "availability":  1,
+          "failureRate":  0.1988388969521045,
+          "metricsAdopted":  287,
+          "duration":  {
+            "samples":  1378,
+            "p50":  1,
+            "p95":  1,
+            "min":  1,
+            "max":  2,
+            "avg":  1
+          }
+        },
+        {
+          "provider":  "tidiness-manager",
+          "phases":  [
+            "tidiness"
+          ],
+          "totalObservations":  940,
+          "passed":  564,
+          "failed":  376,
+          "skipped":  0,
+          "availability":  1,
+          "failureRate":  0.4,
+          "metricsAdopted":  289,
+          "duration":  {
+            "samples":  940,
+            "p50":  1,
+            "p95":  4,
+            "min":  1,
+            "max":  9,
+            "avg":  2
+          }
+        },
+        {
+          "provider":  "ui-health",
+          "phases":  [
+            "ui-health"
+          ],
+          "totalObservations":  981,
+          "passed":  901,
+          "failed":  78,
+          "skipped":  2,
+          "availability":  0.9979612640163099,
+          "failureRate":  0.07967313585291114,
+          "metricsAdopted":  284,
+          "duration":  {
+            "samples":  979,
+            "p50":  1,
+            "p95":  3,
+            "min":  1,
+            "max":  21,
+            "avg":  2
+          }
+        },
+        {
+          "provider":  "unit-health",
+          "phases":  [
+            "unit"
+          ],
+          "totalObservations":  1337,
+          "passed":  957,
+          "failed":  380,
+          "skipped":  0,
+          "availability":  1,
+          "failureRate":  0.28421839940164545,
+          "metricsAdopted":  285,
+          "duration":  {
+            "samples":  1337,
+            "p50":  5,
+            "p95":  69,
+            "min":  1,
+            "max":  167,
+            "avg":  14
+          }
+        }
+      ],
+      "capturedAt":  "2026-06-26T20:07:20.728814852Z",
+      "trend":  {
+        "previousCapturedAt":  "2026-06-26T20:07:20.728814852Z",
+        "previousAvailability":  0.9904177845917976,
+        "previousRunCount":  2609,
+        "availabilityDelta":  0.000007339881584189634,
+        "runCountDelta":  2
+      }
+    },
+    "trendSeries":  []
+  }
+}

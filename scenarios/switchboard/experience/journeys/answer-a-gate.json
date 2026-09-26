@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "answer-a-gate",
+    "title": "Answer a capability gate from a thread",
+    "purpose": "An agent hits the edge of what it was granted, asks the owner, and gets an answer without either party leaving the conversation. An unanswered request expires rather than leaving the thread pending forever.",
+    "prd_refs": [
+      "OT-P1-009",
+      "OT-P0-012",
+      "OT-P0-013"
+    ]
+  },
+  "steps": [
+    {
+      "page": "conversations",
+      "intent": "Reads the agent's refusal and what would unblock it.",
+      "state": "permission-denied"
+    },
+    {
+      "page": "conversations",
+      "intent": "Grants the capability once, from inside the thread.",
+      "state": "permission-denied",
+      "via": "gate-card"
+    },
+    {
+      "page": "conversations",
+      "intent": "Sees the turn resume and complete.",
+      "state": "default"
+    },
+    {
+      "page": "dashboard",
+      "intent": "Finds an older gate that expired unanswered, with its age stated.",
+      "state": "default"
+    }
+  ],
+  "claims": [
+    {
+      "id": "gate-is-answerable-in-place",
+      "type": "custom",
+      "statement": "The owner can answer a gate without navigating away from the thread.",
+      "tier": "manual"
+    },
+    {
+      "id": "gate-expires",
+      "type": "custom",
+      "statement": "An unanswered gate expires and the thread states that it expired rather than remaining pending.",
+      "tier": "manual",
+      "rationale": "OT-P1-009. A prompt that waits forever is indistinguishable from a broken thread."
+    },
+    {
+      "id": "only-owner-sees-it",
+      "type": "custom",
+      "statement": "A gate is routed to the owner only and is never rendered to another participant in a group thread.",
+      "tier": "manual",
+      "rationale": "OT-P1-002 forbids cross-member disclosure, and a gate discloses what was withheld."
+    }
+  ]
+}

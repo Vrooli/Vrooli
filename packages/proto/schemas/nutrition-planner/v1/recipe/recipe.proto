@@ -1,0 +1,23 @@
+syntax = "proto3";
+package vrooli.nutrition_planner.v1.recipe;
+import "google/protobuf/timestamp.proto";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/recipe;recipe_v1";
+
+service RecipeService {
+  rpc ListRecipes(ListRecipesRequest) returns (ListRecipesResponse);
+  rpc CreateRecipe(CreateRecipeRequest) returns (CreateRecipeResponse);
+  rpc GetRecipe(GetRecipeRequest) returns (GetRecipeResponse);
+  rpc UpdateRecipe(UpdateRecipeRequest) returns (UpdateRecipeResponse);
+}
+message Recipe { string id=1; int64 revision=2; string name=3; string notes=4; string source_url=5; string source_type=6; string original_text=7; string status=8; google.protobuf.Timestamp created_at=9; google.protobuf.Timestamp updated_at=10; repeated RecipeMethod methods=11; repeated string groups=12; repeated string required_appliances=13; map<string,string> allergen_evidence=14; string canonical_yield=15; string serving_unit=16; repeated RecipeIngredient ingredients=17; }
+message RecipeIngredient { string id=1; string name=2; string amount=3; string unit=4; bool discrete=5; string preparation=6; }
+message RecipeMethod { string id=1; string name=2; repeated RecipeStep steps=3; }
+message RecipeStep { string id=1; string instruction=2; repeated string depends_on=3; repeated string inputs=4; repeated string outputs=5; }
+message ListRecipesRequest { string workspace_id=1; }
+message ListRecipesResponse { repeated Recipe recipes=1; }
+message CreateRecipeRequest { string name=1; string notes=2; string source_url=3; string original_text=4; string source_type=5; string workspace_id=6; string idempotency_key=7; repeated RecipeMethod methods=8; repeated string groups=9; repeated string required_appliances=10; map<string,string> allergen_evidence=11; string canonical_yield=12; string serving_unit=13; repeated RecipeIngredient ingredients=14; }
+message CreateRecipeResponse { Recipe recipe=1; }
+message GetRecipeRequest { string workspace_id=1; string id=2; }
+message GetRecipeResponse { Recipe recipe=1; }
+message UpdateRecipeRequest { string workspace_id=1; string id=2; int64 expected_revision=3; string name=4; string notes=5; string source_url=6; string original_text=7; string source_type=8; string idempotency_key=9; repeated RecipeMethod methods=10; repeated string groups=11; repeated string required_appliances=12; map<string,string> allergen_evidence=13; string canonical_yield=14; string serving_unit=15; repeated RecipeIngredient ingredients=16; }
+message UpdateRecipeResponse { Recipe recipe=1; }

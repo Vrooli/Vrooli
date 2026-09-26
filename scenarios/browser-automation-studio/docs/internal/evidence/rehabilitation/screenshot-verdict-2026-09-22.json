@@ -1,0 +1,124 @@
+{
+  "cycle": "BAS-WORK-022",
+  "date": "2026-09-22",
+  "issues": [
+    "BAS-RF-013"
+  ],
+  "journeys": [
+    "J08"
+  ],
+  "changes": [
+    "Delete unconditional screenshot success override and shouldIgnoreFailure",
+    "Reported screenshot failures use existing retry and continueOnError policy",
+    "Optional continuation preserves failed step in durable outcome"
+  ],
+  "evidence": {
+    "red": "/tmp/bas-screenshot-red-022.txt;required false success,optional evidence erased,retry skipped",
+    "focused": "24publicExecute cases graph/linear x reportedfailure/transporterror x six policies;realfilewriter/memoryPNGstore",
+    "races": "/tmp/bas-screenshot-final-green-022.txt executor3.704s;earlier engine/writercached/workflow1.059s",
+    "build": "/tmp/bas-build-022.txt pass",
+    "probes": "execution-api5/8;remaining three identity/lease defects",
+    "board": "prog_85f1c2fa-8151-41aa-87e2-13f661fa8875;17pending/productfalse",
+    "owner": "final20260922-095731-37153b89 tidinessfailed;quietwaitdoneonce"
+  },
+  "local_metrics": {
+    "path": "api/automation/executor/simple_executor.go",
+    "before": {
+      "lines": 1850,
+      "functions": 50,
+      "cyclomatic": 371
+    },
+    "current": {
+      "lines": 1820,
+      "functions": 49,
+      "cyclomatic": 363
+    }
+  },
+  "cumulative_go": {
+    "paths": [
+      "api/automation/compiler/action_definition_builder.go",
+      "api/automation/driver/client.go",
+      "api/automation/events/sink.go",
+      "api/automation/events/ws_sink.go",
+      "api/automation/execution-writer/external_artifacts.go",
+      "api/automation/execution-writer/file_writer.go",
+      "api/automation/executor/flow_executor.go",
+      "api/automation/executor/flow_utils.go",
+      "api/automation/executor/simple_executor.go",
+      "api/automation/session/session.go",
+      "api/handlers/execution_export.go",
+      "api/handlers/handler.go",
+      "api/handlers/record_mode.go",
+      "api/handlers/record_mode_actions.go",
+      "api/handlers/record_mode_pages.go",
+      "api/handlers/record_mode_persistence.go",
+      "api/handlers/recordings/module.go",
+      "api/handlers/recordings/service.go",
+      "api/handlers/testutil_mock_services.go",
+      "api/internal/typeconv/builders.go",
+      "api/internal/wire/wire.go",
+      "api/main.go",
+      "api/performance/collector.go",
+      "api/performance/types.go",
+      "api/services/export/source/video_source.go",
+      "api/services/live-capture/action_registry.go",
+      "api/services/live-capture/service.go",
+      "api/services/live-capture/workflow_generator.go",
+      "api/services/recording/persistence/mock_repository.go",
+      "api/services/recording/persistence/repository.go",
+      "api/services/recording/persistence/sqlite.go",
+      "api/services/recording/persistence/types.go",
+      "api/services/recording/recorder.go",
+      "api/services/recording/service.go",
+      "api/services/session-profile/persistence/credentials.go",
+      "api/services/session-profile/persistence/file_repository.go",
+      "api/services/session-profile/persistence/filesystem.go",
+      "api/services/session-profile/persistence/filesystem_mock.go",
+      "api/services/session-profile/persistence/mock_repository.go",
+      "api/services/session-profile/persistence/protected_state.go",
+      "api/services/session-profile/persistence/repository.go",
+      "api/services/session-profile/service.go",
+      "api/services/uxmetrics/collector/collector.go",
+      "api/services/workflow/executions.go",
+      "api/services/workflow/executions_list.go"
+    ],
+    "original": {
+      "lines": 22188,
+      "functions": 772,
+      "cyclomatic": 3667
+    },
+    "current": {
+      "lines": 20423,
+      "functions": 753,
+      "cyclomatic": 3496
+    }
+  },
+  "shared_owner_009_cyclomatic_delta": 17,
+  "tidiness": {
+    "totalFindings": 1077,
+    "longFiles": 80,
+    "complexity": 379,
+    "duplication": 604,
+    "coupling": 13,
+    "duplicationLineDebt": 33649
+  },
+  "source_inventory_digest": "82e2f6f5acb43775b109ad68cc971c97f37aa265a792229fbe07c75adf217c7f",
+  "deployed": true,
+  "limitations": [
+    "Engine-reported failures covered; inner capture and screenshot storage receipt failures remain RF013",
+    "No real-browser end-to-end screenshot fault qualification in this cycle",
+    "Required versus optional passive artifact policy not changed; explicit ProfileNone still discards image artifacts",
+    "Test fixture has21imports and addsonecouplingfinding; expected-outcome table reduced testcomplexity17to7 withsameassertions",
+    "UIcoverage/complexityratchet remainfailing; native/product outcomesunqualified",
+    "Dirtysharedtree limits candidate applicability; reused full driver/UI proof020"
+  ],
+  "deployment": {
+    "build": "sha256:cac7d388ab175e7832912adf5bb2395834de952f92e7a64e6264979d5407f243",
+    "healthy_at": "2026-09-22T10:19:19Z",
+    "gate_rows": 3110,
+    "unchanged_historical_orphans": 5,
+    "driver_sessions": 0,
+    "profile": "oneoriginal;allfields/identitypreserved",
+    "limitation": "observationalgate;sharedtree"
+  }
+}

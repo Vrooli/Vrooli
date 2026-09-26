@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"agent-inbox/integrations"
-
-	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
 
 // AsyncTrackerService manages background polling for async tool operations.
@@ -29,7 +27,6 @@ type AsyncTrackerService struct {
 	cancelFuncs map[string]context.CancelFunc // toolCallID -> cancel
 
 	// Dependencies
-	toolRegistry *ToolRegistry
 	toolExecutor *integrations.ToolExecutor
 
 	// Optional persistence layer for crash recovery
@@ -57,25 +54,83 @@ type AsyncCompletionEvent struct {
 	Error      string      `json:"error,omitempty"`  // Error message if failed
 }
 
+// AsyncBehavior describes how the runtime should track a long-running tool call.
+//
+// This intentionally lives in agent-inbox services instead of the old provider
+// tool proto schema. Runtime tracking remains, while provider tool discovery is
+// owned by Search Hub.
+type AsyncBehavior struct {
+	StatusPolling        *StatusPolling        `json:"status_polling,omitempty"`
+	CompletionConditions *CompletionConditions `json:"completion_conditions,omitempty"`
+	ProgressTracking     *ProgressTracking     `json:"progress_tracking,omitempty"`
+	Cancellation         *CancellationBehavior `json:"cancellation,omitempty"`
+}
+
+// StatusPolling defines the status command and polling cadence for an operation.
+type StatusPolling struct {
+	StatusTool             string          `json:"status_tool,omitempty"`
+	OperationIdField       string          `json:"operation_id_field,omitempty"`
+	StatusToolIdParam      string          `json:"status_tool_id_param,omitempty"`
+	PollIntervalSeconds    int32           `json:"poll_interval_seconds,omitempty"`
+	MaxPollDurationSeconds int32           `json:"max_poll_duration_seconds,omitempty"`
+	Backoff                *PollingBackoff `json:"backoff,omitempty"`
+}
+
+// PollingBackoff controls exponential polling backoff.
+type PollingBackoff struct {
+	InitialIntervalSeconds int32   `json:"initial_interval_seconds,omitempty"`
+	MaxIntervalSeconds     int32   `json:"max_interval_seconds,omitempty"`
+	Multiplier             float32 `json:"multiplier,omitempty"`
+}
+
+// CompletionConditions defines how a status response reaches a terminal state.
+type CompletionConditions struct {
+	StatusField       string   `json:"status_field,omitempty"`
+	SuccessValues     []string `json:"success_values,omitempty"`
+	FailureValues     []string `json:"failure_values,omitempty"`
+	PendingValues     []string `json:"pending_values,omitempty"`
+	ErrorField        string   `json:"error_field,omitempty"`
+	ErrorDetailsField string   `json:"error_details_field,omitempty"`
+	ResultField       string   `json:"result_field,omitempty"`
+}
+
+// ProgressTracking maps status response fields onto operation progress.
+type ProgressTracking struct {
+	ProgressField           string `json:"progress_field,omitempty"`
+	MessageField            string `json:"message_field,omitempty"`
+	PhaseField              string `json:"phase_field,omitempty"`
+	CurrentStepField        string `json:"current_step_field,omitempty"`
+	TotalStepsField         string `json:"total_steps_field,omitempty"`
+	EstimatedRemainingField string `json:"estimated_remaining_field,omitempty"`
+}
+
+// CancellationBehavior defines how to cancel an external operation.
+type CancellationBehavior struct {
+	CancelTool           string `json:"cancel_tool,omitempty"`
+	CancelToolIdParam    string `json:"cancel_tool_id_param,omitempty"`
+	Graceful             bool   `json:"graceful,omitempty"`
+	CancelTimeoutSeconds int32  `json:"cancel_timeout_seconds,omitempty"`
+}
+
 // AsyncOperation represents a tracked async tool execution.
 type AsyncOperation struct {
-	ToolCallID        string                 `json:"tool_call_id"`
-	ChatID            string                 `json:"chat_id"`
-	ToolName          string                 `json:"tool_name"`
-	Scenario          string                 `json:"scenario"`
-	ExternalRunID     string                 `json:"external_run_id"`
-	AsyncBehavior     *toolspb.AsyncBehavior `json:"-"`
-	Status            string                 `json:"status"`
-	Progress          *int                   `json:"progress,omitempty"`
-	Message           string                 `json:"message,omitempty"`
-	Phase             string                 `json:"phase,omitempty"`
-	Result            interface{}            `json:"result,omitempty"`
-	Error             string                 `json:"error,omitempty"`
-	ConsecutiveErrors int                    `json:"-"` // Track consecutive poll failures (not serialized)
-	LastPollError     string                 `json:"-"` // Most recent poll error message (not serialized)
-	StartedAt         time.Time              `json:"started_at"`
-	UpdatedAt         time.Time              `json:"updated_at"`
-	CompletedAt       *time.Time             `json:"completed_at,omitempty"`
+	ToolCallID        string         `json:"tool_call_id"`
+	ChatID            string         `json:"chat_id"`
+	ToolName          string         `json:"tool_name"`
+	Scenario          string         `json:"scenario"`
+	ExternalRunID     string         `json:"external_run_id"`
+	AsyncBehavior     *AsyncBehavior `json:"-"`
+	Status            string         `json:"status"`
+	Progress          *int           `json:"progress,omitempty"`
+	Message           string         `json:"message,omitempty"`
+	Phase             string         `json:"phase,omitempty"`
+	Result            interface{}    `json:"result,omitempty"`
+	Error             string         `json:"error,omitempty"`
+	ConsecutiveErrors int            `json:"-"` // Track consecutive poll failures (not serialized)
+	LastPollError     string         `json:"-"` // Most recent poll error message (not serialized)
+	StartedAt         time.Time      `json:"started_at"`
+	UpdatedAt         time.Time      `json:"updated_at"`
+	CompletedAt       *time.Time     `json:"completed_at,omitempty"`
 }
 
 // AsyncStatusUpdate represents a status update pushed to subscribers.
@@ -102,7 +157,7 @@ type OperationSnapshot struct {
 	ToolName      string
 	Scenario      string
 	ExternalRunID string
-	AsyncBehavior *toolspb.AsyncBehavior
+	AsyncBehavior *AsyncBehavior
 	StartedAt     time.Time
 
 	// Backoff configuration (extracted from AsyncBehavior for convenience)
@@ -113,14 +168,13 @@ type OperationSnapshot struct {
 
 // NewAsyncTrackerService creates a new AsyncTrackerService.
 // The repository parameter is optional - if nil, operations are tracked in-memory only.
-func NewAsyncTrackerService(registry *ToolRegistry, executor *integrations.ToolExecutor, repo AsyncOperationRepository) *AsyncTrackerService {
+func NewAsyncTrackerService(executor *integrations.ToolExecutor, repo AsyncOperationRepository) *AsyncTrackerService {
 	return &AsyncTrackerService{
 		operations:          make(map[string]*AsyncOperation),
 		subscriptions:       make(map[string]*Subscription),
 		chatSubs:            make(map[string][]string),
 		completionCallbacks: make(map[string]chan<- AsyncCompletionEvent),
 		cancelFuncs:         make(map[string]context.CancelFunc),
-		toolRegistry:        registry,
 		toolExecutor:        executor,
 		repo:                repo,
 	}

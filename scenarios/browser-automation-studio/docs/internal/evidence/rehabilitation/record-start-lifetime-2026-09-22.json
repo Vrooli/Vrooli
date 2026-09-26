@@ -1,0 +1,109 @@
+{
+  "record": "BAS-WORK-050",
+  "issues": [
+    "BAS-RF-082",
+    "BAS-RF-038"
+  ],
+  "status": "qualified_and_deployed_in_combined_051",
+  "controlled_native_red": {
+    "receipt": "/tmp/bas-record-start-red2-050.log",
+    "scope": "Actual HTTP routes, native Chromium/frame manager/local WebSocket; pipeline and DOM delay controlled",
+    "failed": 1,
+    "controls_passed": 1,
+    "observation": "Stop200 then delayedStart200, one native frame, stream active",
+    "first_attempt": "/tmp/bas-record-start-red-050.log: missing fixture PLAYWRIGHT_DRIVER_PORT, no verdict"
+  },
+  "maintained_red": {
+    "receipt": "/tmp/bas-record-start-maintained-red-050.txt",
+    "failed": 10,
+    "seconds": 1.353
+  },
+  "native_scope": "Maintained integration uses real RecordingPipelineManager, SDK, frame coordinator and WebSocket, mock HTTP boundary; no duplicate DOMwait, first native frame, stopped stream remains absent after late load release. Not full Go API/UI certification.",
+  "first_focused": {
+    "receipt": "/tmp/bas-record-start-focused-050.txt",
+    "passed": 126,
+    "failed": 11,
+    "seconds": 12.861,
+    "cause": "New pull-delivery fixture left its own initial navigation unacknowledged; real retention rejected all subsequent shared-ID starts. Fixture now joins stop, consumes and ACKs its own entries through owner. Production retention unchanged."
+  },
+  "focused": {
+    "receipt": "/tmp/bas-record-start-focused-final-050.txt",
+    "tests": 139,
+    "suites": 6,
+    "seconds": 16.932
+  },
+  "types": "passed",
+  "build": "passed",
+  "runtime_lines": [
+    {
+      "path": "playwright-driver/src/routes/record-mode/recording-lifecycle.ts",
+      "before": 411,
+      "after": 415,
+      "net": 4
+    }
+  ],
+  "runtime_net_lines": 4,
+  "source_sha256": {
+    "playwright-driver/src/routes/record-mode/recording-lifecycle.ts": "54076b747f59a2a990dc22e96f2ce7dbd4fb6cb1f0589a32ee490eec35313da6",
+    "playwright-driver/tests/unit/routes/recording-lifecycle.test.ts": "7274c1dbfb5ebfeaf23d15ad6ff78375c080422d802dcbfe2d3ddd39e6f7bd93",
+    "playwright-driver/tests/unit/routes/page-events.test.ts": "cc5b00be82ef388bdd8caa77e2c1bcbb28e751492924e3059c240c91d8df1530",
+    "playwright-driver/tests/integration/pipeline-e2e.test.ts": "780fccc5e2c47f8f96546f520fbbd6c8762e68a796daf7561e7dca610257db9f",
+    "playwright-driver/tests/integration/record-mode.test.ts": "d39c0da0e35885864a27f5ea65c06b6e1110de8cc7a9ecfca35b0679b2300ca5"
+  },
+  "pending_operations": {},
+  "limitations": [
+    "RF038 caller lease envelopes remain absent on recording start/stop and other mutating routes. Local captured lease only fences work admitted during this request.",
+    "Already-admitted pipeline or remote callback effects cannot be undone by a later continuation rejection.",
+    "Full release latency/resource/OS/soak and recording-replay qualification remain open.",
+    "RF064 TypeScript cyclomatic gap persists.",
+    "Duplicate wait removed, but necessary guards add4net runtime lines; do not claim a standalone code-size reduction."
+  ],
+  "tidiness": {
+    "run_id": "20260922-210754-5fae9158",
+    "status": "failed",
+    "quiet_wait_consumed": true,
+    "summary": {
+      "totalFindings": 1118,
+      "longFiles": 104,
+      "complexity": 387,
+      "duplication": 608,
+      "coupling": 18,
+      "duplicationLineDebt": 32643
+    }
+  },
+  "board": {
+    "program_id": "prog_36aea7d2-24e9-492e-b916-90a19b66737f",
+    "required": 17,
+    "unqualified": 17,
+    "product_qualified": false
+  },
+  "first_full_driver": {
+    "run_id": "uh-20260922-210748-62e4a22283c83f9c5ee1c35bec8ed824",
+    "status": "failed",
+    "passed_tests": 1658,
+    "failed_tests": 3,
+    "passed_suites": 123,
+    "failed_suites": 1,
+    "skipped_tests": 2,
+    "skipped_suites": 1,
+    "owner_seconds": 334.4,
+    "jest_seconds": 333.609,
+    "receipt": "/tmp/bas-record-start-owner-050.json",
+    "cause": "Existing integration/record-mode doubles lack getSessionForLease, pipeline generation and successful capture state transitions. Fix doubles without changing desired 200/409 assertions."
+  },
+  "fixture_repair": {
+    "receipt": "/tmp/bas-record-start-owner-fix-050.txt",
+    "types": "passed",
+    "final_qualification": "Will be linked from combined051owner; no successful finalowner claim yet"
+  },
+  "combined_qualification": "recording-wire-receipts-2026-09-22.json",
+  "final_full_driver": {
+    "run_id": "uh-20260922-214339-29c7eefe3ef57778e98b523e71bf09fd",
+    "passed": 1668,
+    "failed": 0
+  },
+  "deployment": {
+    "build_identity": "sha256:bdf9f35ac1782b71c71f9270dae0d657c814fcf990f69b7b0a6ab01a3f1392b0",
+    "combined_receipt": "recording-wire-receipts-2026-09-22.json"
+  }
+}

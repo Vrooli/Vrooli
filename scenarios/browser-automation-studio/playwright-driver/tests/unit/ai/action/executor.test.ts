@@ -432,20 +432,23 @@ describe('createActionExecutor', () => {
     });
 
     it('includes duration in error result', async () => {
-      mocks.waitForSelector.mockImplementationOnce(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        throw new Error('Timeout');
-      });
+      jest.useFakeTimers();
+      try {
+        mocks.waitForSelector.mockImplementationOnce(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          throw new Error('Timeout');
+        });
 
-      const action: BrowserAction = {
-        type: 'click',
-        elementId: 5,
-      };
+        const action: BrowserAction = { type: 'click', elementId: 5 };
+        const pending = executor.execute(page, action);
+        await jest.advanceTimersByTimeAsync(50);
+        const result = await pending;
 
-      const result = await executor.execute(page, action);
-
-      expect(result.success).toBe(false);
-      expect(result.durationMs).toBeGreaterThanOrEqual(50);
+        expect(result.success).toBe(false);
+        expect(result.durationMs).toBeGreaterThanOrEqual(50);
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 

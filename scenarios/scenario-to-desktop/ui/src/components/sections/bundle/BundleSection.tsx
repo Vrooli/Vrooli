@@ -14,14 +14,29 @@
  * 3. Bundle results - Shows artifacts, sizes, and warnings
  */
 
-import { forwardRef, useCallback, useEffect, useMemo, useRef, type Ref } from "react";
-import { Braces, Copy, Download, LayoutList, Loader2, Package } from "lucide-react";
-import { useState } from "react";
 import {
-  SectionCard,
-  StagePlaceholder,
-} from "../shared";
-import { usePipelineStore, selectStageStatus, selectIsRunning } from "../../../store";
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  type Ref,
+} from "react";
+import {
+  Braces,
+  Copy,
+  Download,
+  LayoutList,
+  Loader2,
+  Package,
+} from "lucide-react";
+import { useState } from "react";
+import { SectionCard, StagePlaceholder } from "../shared";
+import {
+  usePipelineStore,
+  selectStageStatus,
+  selectIsRunning,
+} from "../../../store";
 import { Button } from "../../ui/button";
 import { Select } from "../../ui/select";
 import { Progress } from "../../ui/progress";
@@ -30,7 +45,11 @@ import { BundleManifestInput } from "./BundleManifestInput";
 import { BundleResultsCard } from "./BundleResultsCard";
 import { writeToClipboard, triggerBlobDownload } from "../../../lib/browser";
 import type { PreflightStepStatus } from "../../../lib/preflight-constants";
-import type { BundleStageDetails } from "../../../lib/api";
+import type { BundleStageDetails } from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
+import {
+  StageName,
+  StageStatus,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 
 /** Bundle result data for stage persistence */
 export interface BundleResult {
@@ -40,19 +59,10 @@ export interface BundleResult {
   generatedAt?: string;
 }
 
-/**
- * Handle for imperative bundle control.
- * Compatible with legacy DeploymentManagerBundleHelperHandle.
- */
+/** Handle for imperative bundle control. */
 export type BundleSectionHandle = {
   exportBundle: () => void;
 };
-
-/**
- * @deprecated Use BundleSectionHandle instead.
- * Kept for backwards compatibility.
- */
-export type DeploymentManagerBundleHelperHandle = BundleSectionHandle;
 
 interface BundleSectionProps {
   scenarioName: string;
@@ -78,22 +88,25 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
       onBundleComplete,
       bundleHelperRef,
     },
-    ref
+    ref,
   ) => {
     // UI-only local state (following PreflightSection pattern)
     const [viewMode, setViewMode] = useState<"summary" | "json">("summary");
-    const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
+    const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">(
+      "idle",
+    );
     const [tier, setTier] = useState("tier-2-desktop");
 
     // Pipeline store state - single source of truth
     const bundleResult = usePipelineStore((s) => s.bundleResult);
-    const stageStatus = usePipelineStore(selectStageStatus("bundle"));
+    const stageStatus = usePipelineStore(selectStageStatus(StageName.BUNDLE));
     const pipelineStatus = usePipelineStore((s) => s.pipelineStatus);
     const runStatus = usePipelineStore((s) => s.runStatus);
     const errorInfo = usePipelineStore((s) => s.errorInfo);
     const stageLogs = usePipelineStore((s) => s.stageLogs);
     const pipelineId = usePipelineStore((s) => s.pipelineId);
     const isRunning = usePipelineStore(selectIsRunning);
+    const artifactTrustMode = pipelineStatus?.config?.artifactTrustMode;
 
     // Pipeline store actions
     const runBundleStage = usePipelineStore((s) => s.runBundleStage);
@@ -126,32 +139,45 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
     // Notify parent of bundle completion for server persistence
     // Only fires when bundleResult changes AND bundle stage is complete
     useEffect(() => {
-      const bundleStage = pipelineStatus?.stages?.bundle;
-      const isComplete = bundleStage?.status === "completed";
+      const bundleStage = pipelineStatus?.stages.bundle;
+      const isComplete = bundleStage?.status === StageStatus.COMPLETED;
 
       // Only notify if:
       // 1. We have a bundle result
       // 2. The stage is marked complete
       // 3. We haven't already notified for this exact result
-      if (bundleResult && isComplete && bundleResult !== lastNotifiedResultRef.current) {
+      if (
+        bundleResult &&
+        isComplete &&
+        bundleResult !== lastNotifiedResultRef.current
+      ) {
         lastNotifiedResultRef.current = bundleResult;
         onBundleComplete?.({
           bundleDetails: bundleResult,
-          manifestPath: bundleResult.manifest_path ?? null,
+          manifestPath: bundleResult.manifestPath || null,
         });
 
         // Also update manifest path in parent if changed
-        if (bundleResult.manifest_path) {
-          onBundleManifestChange?.(bundleResult.manifest_path);
+        if (bundleResult.manifestPath) {
+          onBundleManifestChange?.(bundleResult.manifestPath);
         }
       }
-    }, [bundleResult, pipelineStatus?.stages?.bundle, onBundleComplete, onBundleManifestChange]);
+    }, [
+      bundleResult,
+      pipelineStatus?.stages.bundle,
+      onBundleComplete,
+      onBundleManifestChange,
+    ]);
 
     // Expose imperative handle
     useEffect(() => {
-      if (bundleHelperRef && typeof bundleHelperRef === "object" && bundleHelperRef !== null) {
-        (bundleHelperRef as React.MutableRefObject<BundleSectionHandle | null>).current = {
-          exportBundle: handleExport,
+      if (bundleHelperRef && typeof bundleHelperRef === "object") {
+        (
+          bundleHelperRef as React.MutableRefObject<BundleSectionHandle | null>
+        ).current = {
+          exportBundle: () => {
+            void handleExport();
+          },
         };
       }
     });
@@ -170,7 +196,7 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
 
     // Derived state - use store directly, no local cache
     const displayDetails = bundleResult;
-    const displayManifestPath = bundleResult?.manifest_path ?? null;
+    const displayManifestPath = bundleResult?.manifestPath || null;
     const pipelineError = errorInfo?.message ?? null;
     const bundleLogs = stageLogs.bundle ?? [];
     const isBusy = isRunning;
@@ -208,7 +234,7 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
       if (isBusy) {
         return { state: "testing", label: "Running" };
       }
-      if (stageStatus === "failed" || pipelineError) {
+      if (stageStatus === StageStatus.FAILED || pipelineError) {
         return { state: "fail", label: "Failed" };
       }
       if (hasResult) {
@@ -221,7 +247,7 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
       if (!hasRun) {
         return { state: "pending", label: "Pending" };
       }
-      if (stageStatus === "failed" || pipelineError) {
+      if (stageStatus === StageStatus.FAILED || pipelineError) {
         return { state: "fail", label: "Failed" };
       }
       if (hasResult) {
@@ -238,26 +264,34 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
         result: displayDetails,
         error: pipelineError || undefined,
       }),
-      [scenarioName, displayManifestPath, displayDetails, pipelineError]
+      [scenarioName, displayManifestPath, displayDetails, pipelineError],
     );
 
     const copyJson = async () => {
       if (!displayDetails && !pipelineError) {
         return;
       }
-      const result = await writeToClipboard(JSON.stringify(bundlePayload, null, 2));
+      const result = await writeToClipboard(
+        JSON.stringify(bundlePayload, null, 2),
+      );
       if (result.success) {
         setCopyStatus("copied");
-        setTimeout(() => setCopyStatus("idle"), 1500);
+        setTimeout(() => {
+          setCopyStatus("idle");
+        }, 1500);
       } else {
         console.warn("Failed to copy bundle JSON", result.error);
         setCopyStatus("error");
-        setTimeout(() => setCopyStatus("idle"), 2000);
+        setTimeout(() => {
+          setCopyStatus("idle");
+        }, 2000);
       }
     };
 
     const downloadJson = () => {
-      const blob = new Blob([JSON.stringify(bundlePayload, null, 2)], { type: "application/json" });
+      const blob = new Blob([JSON.stringify(bundlePayload, null, 2)], {
+        type: "application/json",
+      });
       triggerBlobDownload(blob, "bundle.json");
     };
 
@@ -293,9 +327,12 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-slate-100">Bundle generation</p>
+            <p className="text-sm font-semibold text-slate-100">
+              Bundle generation
+            </p>
             <p className="text-xs text-slate-400">
-              Packages scenario assets, runtime binaries, and dependencies for offline desktop use.
+              Packages scenario assets, runtime binaries, and dependencies for
+              offline desktop use.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -304,7 +341,9 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
                 type="button"
                 size="sm"
                 variant={viewMode === "summary" ? "default" : "ghost"}
-                onClick={() => setViewMode("summary")}
+                onClick={() => {
+                  setViewMode("summary");
+                }}
                 aria-label="Show bundle summary"
                 className="h-10 w-10 p-0"
               >
@@ -314,7 +353,9 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
                 type="button"
                 size="sm"
                 variant={viewMode === "json" ? "default" : "ghost"}
-                onClick={() => setViewMode("json")}
+                onClick={() => {
+                  setViewMode("json");
+                }}
                 aria-label="Show bundle JSON"
                 className="h-10 w-10 p-0"
               >
@@ -323,6 +364,22 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
             </div>
           </div>
         </div>
+
+        {artifactTrustMode === "development-local" && (
+          <div className="rounded-md border border-amber-700 bg-amber-950/40 p-3 text-sm text-amber-100">
+            Development-local trust: staged bytes were verified for local use,
+            but this bundle is non-promotable and cannot be published. This is
+            separate from installer code signing.
+          </div>
+        )}
+
+        {artifactTrustMode === "production" && (
+          <div className="rounded-md border border-emerald-700 bg-emerald-950/40 p-3 text-sm text-emerald-100">
+            Production release trust: the staged release manifest must be
+            authorized by the Vrooli release authority. Installer code signing
+            remains a separate platform step.
+          </div>
+        )}
 
         {/* Error display */}
         {pipelineError && (
@@ -345,13 +402,17 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
               <div className="space-y-2 text-[11px] text-slate-300">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-slate-400">Scenario</span>
-                  <span className="text-slate-200">{scenarioName || "Not selected"}</span>
+                  <span className="text-slate-200">
+                    {scenarioName || "Not selected"}
+                  </span>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-slate-400">Tier</span>
                   <Select
                     value={tier}
-                    onChange={(e) => setTier(e.target.value)}
+                    onChange={(e) => {
+                      setTier(e.target.value);
+                    }}
                     className="h-7 text-[11px] w-auto min-w-[140px]"
                   >
                     <option value="tier-2-desktop">tier-2-desktop</option>
@@ -379,13 +440,16 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
                 status={getGenerateStatus()}
               />
               <p className="text-[11px] text-slate-400">
-                Runs the pipeline bundle stage to collect assets and generate the manifest.
+                Runs the pipeline bundle stage to collect assets and generate
+                the manifest.
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={handleExport}
+                  onClick={() => {
+                    void handleExport();
+                  }}
                   disabled={isBusy || !scenarioName}
                   className="gap-2"
                 >
@@ -413,7 +477,10 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
                   <Progress value={progress} />
                   {pipelineId && (
                     <div className="text-[11px] text-slate-400">
-                      Pipeline ID: <span className="font-mono text-slate-300">{pipelineId.slice(0, 8)}...</span>
+                      Pipeline ID:{" "}
+                      <span className="font-mono text-slate-300">
+                        {pipelineId.slice(0, 8)}...
+                      </span>
                     </div>
                   )}
                 </div>
@@ -422,7 +489,9 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
               {/* Build logs */}
               {bundleLogs.length > 0 && (
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Build log</p>
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">
+                    Build log
+                  </p>
                   <div className="max-h-32 overflow-auto rounded-md border border-slate-800/70 bg-slate-950/80 p-2 font-mono text-[11px] text-slate-300">
                     {bundleLogs.map((line, idx) => (
                       <div key={idx}>{line}</div>
@@ -464,13 +533,17 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
         {viewMode === "json" && (
           <div className="rounded-md border border-slate-800 bg-slate-950/60 p-3 space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-semibold text-slate-200">Bundle JSON</p>
+              <p className="text-xs font-semibold text-slate-200">
+                Bundle JSON
+              </p>
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={copyJson}
+                  onClick={() => {
+                    void copyJson();
+                  }}
                   disabled={!displayDetails && !pipelineError}
                   aria-label="Copy bundle JSON"
                   className="h-10 w-10 p-0"
@@ -495,17 +568,20 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
             </pre>
             {copyStatus !== "idle" && (
               <p className="text-[11px] text-slate-400">
-                {copyStatus === "copied" ? "Copied to clipboard." : "Copy failed."}
+                {copyStatus === "copied"
+                  ? "Copied to clipboard."
+                  : "Copy failed."}
               </p>
             )}
             <p className="text-[11px] text-slate-400">
-              Use this view to share the full bundle snapshot with an agent or teammate.
+              Use this view to share the full bundle snapshot with an agent or
+              teammate.
             </p>
           </div>
         )}
       </SectionCard>
     );
-  }
+  },
 );
 
 BundleSection.displayName = "BundleSection";

@@ -1,0 +1,470 @@
+{
+  "schema_version": 1,
+  "assembled_at": "2026-09-22T01:16:29.202436+00:00",
+  "assessment": "REFRACTOR_ASSESSMENT.md#execution-retry-and-cancellation-investigation--2026-09-22-utc",
+  "scope": "Fifth investigation pass: actual Go executor/session/client produces requests for actual TypeScript route/pipeline/cache probes. Synthetic HTTP, browser handlers, capture, middleware/proto codec and persistence seams. No service/browser launch, live action, production data or product changes.",
+  "source_head": "629defb5414eac2a4904996ee6d235eea9d263ed",
+  "source_digest_sha256": "2df361d5baaaf501715527e57993b6024ca63e798713f5d9e655a9682f584f43",
+  "product_source_digest_unchanged": true,
+  "api_probes": {
+    "observed_at": "2026-09-22T01:15:21.979672368Z",
+    "results": [
+      {
+        "id": "go-retry-attempt-wire-identity",
+        "expected": "New attempts carry distinct invocation identity while transport retries preserve identity",
+        "actual": {
+          "identical_requests": true,
+          "requests": 2,
+          "run_error": ""
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "go-retry-transport-control",
+        "expected": "The executor retries a synthetic transient result and accepts subsequent success",
+        "actual": {
+          "outcomes": 1,
+          "requests": 2,
+          "run_error": ""
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "go-run-lease-wire",
+        "expected": "Instruction requests carry the active execution and immutable lease",
+        "actual": {
+          "execution_id_in_body": false,
+          "headers": {
+            "Content-Type": [
+              "application/json"
+            ]
+          },
+          "lease_id_in_body": false
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "go-loop-invocation-wire-identity",
+        "expected": "Separate loop iterations carry distinct invocation identity",
+        "actual": {
+          "identical_requests": true,
+          "outcome_count": 3,
+          "requests": 2,
+          "run_error": ""
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "linear-cancellation-evidence-control",
+        "expected": "Cancellation retains the terminal step outcome using a live persistence context",
+        "actual": {
+          "cancelled_write_attempts": 0,
+          "close_calls": 1,
+          "run_error": "context canceled",
+          "saved_outcomes": 1
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "graph-cancellation-evidence",
+        "expected": "Cancellation retains the terminal step outcome using a live persistence context",
+        "actual": {
+          "cancelled_write_attempts": 1,
+          "close_calls": 1,
+          "run_error": "record step outcome: context canceled",
+          "saved_outcomes": 0
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "explicit-screenshot-failure-outcome",
+        "expected": "An explicit screenshot failure does not become overall success without caller opt-in to optional capture",
+        "actual": {
+          "last_outcome": {
+            "schema_version": "automation-step-outcome-v1",
+            "payload_version": "1",
+            "execution_id": "8f037e1d-96fe-4b0d-94c9-c313f192eb8d",
+            "step_index": 1,
+            "attempt": 1,
+            "node_id": "required-screenshot",
+            "step_type": "screenshot",
+            "success": true,
+            "started_at": "2026-09-22T01:15:21.979646208Z",
+            "completed_at": "2026-09-22T01:15:21.979646338Z",
+            "notes": {
+              "non_fatal_failure": "synthetic capture failure",
+              "non_fatal_failure_code": "SYNTHETIC_CAPTURE_FAILURE"
+            }
+          },
+          "run_error": ""
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "executor-close-failure-outcome",
+        "expected": "Execution finalization reports failed resource cleanup",
+        "actual": {
+          "close_attempts": 1,
+          "run_error": "",
+          "saved_outcomes": 1
+        },
+        "expected_behavior_met": false
+      }
+    ],
+    "schema_version": 1,
+    "scope": "Actual public Go executor and Playwright engine/session/client with synthetic HTTP transport; cancellation and cleanup use a fake engine and context-sensitive memory writer. No socket/browser/database or evidence-file writes.",
+    "wire_packets": {
+      "loop": [
+        {
+          "body": {
+            "instruction": {
+              "action": {
+                "navigate": {
+                  "url": "https://fixture.invalid"
+                },
+                "type": 1
+              },
+              "index": 1,
+              "node_id": "body"
+            }
+          },
+          "headers": {
+            "Content-Type": [
+              "application/json"
+            ]
+          }
+        },
+        {
+          "body": {
+            "instruction": {
+              "action": {
+                "navigate": {
+                  "url": "https://fixture.invalid"
+                },
+                "type": 1
+              },
+              "index": 1,
+              "node_id": "body"
+            }
+          },
+          "headers": {
+            "Content-Type": [
+              "application/json"
+            ]
+          }
+        }
+      ],
+      "retry": [
+        {
+          "body": {
+            "instruction": {
+              "action": {
+                "navigate": {
+                  "url": "https://fixture.invalid"
+                },
+                "type": 1
+              },
+              "context": {
+                "resilience": {
+                  "object_value": {
+                    "fields": {
+                      "delayMs": {
+                        "int_value": 0
+                      },
+                      "maxAttempts": {
+                        "int_value": 2
+                      }
+                    }
+                  }
+                }
+              },
+              "index": 0,
+              "node_id": "fixture-node"
+            }
+          },
+          "headers": {
+            "Content-Type": [
+              "application/json"
+            ]
+          }
+        },
+        {
+          "body": {
+            "instruction": {
+              "action": {
+                "navigate": {
+                  "url": "https://fixture.invalid"
+                },
+                "type": 1
+              },
+              "context": {
+                "resilience": {
+                  "object_value": {
+                    "fields": {
+                      "delayMs": {
+                        "int_value": 0
+                      },
+                      "maxAttempts": {
+                        "int_value": 2
+                      }
+                    }
+                  }
+                }
+              },
+              "index": 0,
+              "node_id": "fixture-node"
+            }
+          },
+          "headers": {
+            "Content-Type": [
+              "application/json"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "driver_probes": {
+    "schema_version": 1,
+    "observed_at": "2026-09-22T01:15:22.437Z",
+    "scope": "Actual run route, executor pipeline, cache, manager phase methods and telemetry collectors. Synthetic browser handlers/capture, middleware and proto-codec seams. Go packet replay composes wire identity behavior but is not a live HTTP/browser E2E test.",
+    "go_probe_output_sha256": "930595664586cd0209d3d03a38dcfb9c0580676df33d5cafe1fc9e48293b91f4",
+    "source_sha256": {
+      "playwright-driver/src/session/state-machine.ts": "dd74e25c4541fa656068fbd4327fccb274a02151876ae7acdb384db4f8b3c91f",
+      "playwright-driver/src/session/manager.ts": "117350b730a64a73b90e29bf111735ee4f101aab8f6b222f5160ce09154c2acd",
+      "playwright-driver/src/infra/idempotency-cache.ts": "e7012ff4bf734be9e1bdcfb6ccb34f9f0069203b8f727855a9b83f78fbbd99e2",
+      "playwright-driver/src/telemetry/collector.ts": "ca9fbccc6b3baf5be7d0341326c7ee0523e50893d1992e3c5e756e05dd750437",
+      "playwright-driver/src/telemetry/orchestrator.ts": "279fedf3993328caa38c0e4649fd5149bbf122abbe291a679a4c46fec18843b1",
+      "playwright-driver/src/execution/instruction-executor.ts": "4ab6aff2876e62af8764a8a65f5f522e49dae6907a820e540173fa7751f93926",
+      "playwright-driver/src/routes/session-run.ts": "6f15e1204bd88156392a482995538f1d0cca862e95929eba92f4d98ae56bf6ad"
+    },
+    "results": [
+      {
+        "id": "run-admission-initializing",
+        "expected": "Only ready/recording sessions admit a new instruction",
+        "actual": {
+          "phase_before": "initializing",
+          "status": 200,
+          "handler_calls": 1,
+          "phase_after": "ready"
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "run-admission-resetting",
+        "expected": "Only ready/recording sessions admit a new instruction",
+        "actual": {
+          "phase_before": "resetting",
+          "status": 200,
+          "handler_calls": 1,
+          "phase_after": "ready"
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "run-admission-closing",
+        "expected": "Only ready/recording sessions admit a new instruction",
+        "actual": {
+          "phase_before": "closing",
+          "status": 200,
+          "handler_calls": 1,
+          "phase_after": "closing"
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "run-admission-executing",
+        "expected": "Only ready/recording sessions admit a new instruction",
+        "actual": {
+          "phase_before": "executing",
+          "status": 409,
+          "handler_calls": 0,
+          "phase_after": "executing"
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "run-stale-lease",
+        "expected": "A command from a previous execution lease cannot mutate the current session",
+        "actual": {
+          "current_owner": "current-owner",
+          "supplied_owner": "old-owner",
+          "status": 200,
+          "handler_calls": 1
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "go-to-driver-retry",
+        "expected": "An explicitly new retry attempt can recover from a completed transient failure",
+        "actual": {
+          "requests": 2,
+          "handler_calls": 1,
+          "response_successes": [
+            false,
+            false
+          ]
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "go-to-driver-loop",
+        "expected": "Two loop iterations perform their browser handler twice",
+        "actual": {
+          "requests": 2,
+          "handler_calls": 1,
+          "response_successes": [
+            true,
+            true
+          ]
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "transport-repeat-control",
+        "expected": "Retransmitting one operation returns its result without repeating the effect",
+        "actual": {
+          "handler_calls": 1
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "distinct-step-control",
+        "expected": "Distinct step identities execute separately",
+        "actual": {
+          "handler_calls": 2
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "changed-payload-same-identity",
+        "expected": "A reused invocation identity with changed payload produces an explicit conflict",
+        "actual": {
+          "handler_calls": 1,
+          "status": 200,
+          "returned_success": true
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "idempotency-cache-lease-and-payload",
+        "expected": "Cache hits are scoped to lease and validated request identity",
+        "actual": {
+          "current_owner": "next-owner",
+          "handler_calls": 1,
+          "status": 200,
+          "returned_success": true
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "retry-after-uncertain-effect",
+        "expected": "Retransmission of an uncertain operation does not silently repeat its effect",
+        "actual": {
+          "first_status": 500,
+          "second_status": 200,
+          "simulated_effects": 2,
+          "handler_calls": 2
+        },
+        "expected_behavior_met": false
+      },
+      {
+        "id": "returned-handler-failure-control",
+        "expected": "A failed instruction retains available console context and attempts failure capture",
+        "actual": {
+          "status": 200,
+          "screenshots": 1,
+          "dom_captures": 1,
+          "returned_console_logs": 1,
+          "remaining_console_listeners": 0,
+          "cached_instructions": 1
+        },
+        "expected_behavior_met": true
+      },
+      {
+        "id": "thrown-handler-failure-evidence",
+        "expected": "A failed instruction retains available console context and attempts failure capture",
+        "actual": {
+          "status": 500,
+          "screenshots": 0,
+          "dom_captures": 0,
+          "returned_console_logs": 0,
+          "remaining_console_listeners": 0,
+          "cached_instructions": 0
+        },
+        "expected_behavior_met": false
+      }
+    ]
+  },
+  "probe_summary": {
+    "observations": 22,
+    "desired_behavior_mismatches": 16,
+    "successful_controls": 6,
+    "new_issue_ids": [
+      "BAS-RF-037",
+      "BAS-RF-038",
+      "BAS-RF-039",
+      "BAS-RF-040",
+      "BAS-RF-041"
+    ],
+    "strengthened_issue_ids": [
+      "BAS-RF-013",
+      "BAS-RF-036"
+    ],
+    "interpretation": "Adversarial selected cases; not a live failure rate, 16 independent bugs or passing certification suite."
+  },
+  "source_files_sha256": {
+    "api/automation/driver/client.go": "9cadae6081ea1f40c9f28a1bd980136763a61d7728f2069322b68daabb4beb14",
+    "api/automation/engine/playwright_engine.go": "1ec13e592497e2298e1b1bf165b1229ce753977d19b45313f24c3456f2c99039",
+    "api/automation/executor/flow_executor.go": "888e740448b45723ba429c5d5a2fa450abe3936ce56ddc486c88bf87dd5758e9",
+    "api/automation/executor/loop_registry.go": "b01a1b55b1f98f2862f390a85d7ecc3cf6dc481be4b54c0abb2a89dd45c5d161",
+    "api/automation/executor/simple_executor.go": "03ed4beba4c42c83cf64e47f3d7972ddbfdb8b9af00ca72d4bb1c59b55c2ce02",
+    "api/automation/session/manager.go": "86ed0d18712487b704d5492691900e08a64e028569cb9e3c2f15b692384bf99c",
+    "api/automation/session/session.go": "aa22d75bf2d855a3279a7c91d1c7603327dae0b6a8241d1c5190644074e78a52",
+    "api/handlers/executions/service.go": "cf3916c2ff8f23cfadcfba6a00e10fcf574161c61409f117481372c44f75c908",
+    "api/services/workflow/executions.go": "97366117285292dddfe3a8d94e86487cef50d6a873fcd947b32e438db6fbb9c7",
+    "docs/internal/refactor_execution_probes.cjs": "01af6a82c8be4ad6b8ab1e92acf79e80a31e28b54bc432a387d47fa5db75f810",
+    "docs/internal/refactor_execution_probes.go": "69f43529464008d59cdcb1d5299ffb2e3dbc27680503bd1e3e9ca76f8b972bfb",
+    "playwright-driver/src/execution/instruction-executor.ts": "4ab6aff2876e62af8764a8a65f5f522e49dae6907a820e540173fa7751f93926",
+    "playwright-driver/src/handlers/assertion.ts": "f30c1cb516a5f079f7e795ce634beb40df337885d3b384954a788ceaa17a2fbd",
+    "playwright-driver/src/handlers/interaction.ts": "ae32293a8388224a06758423fd20b03fbfe514b237215141cc2611ffd1678e1c",
+    "playwright-driver/src/infra/idempotency-cache.ts": "e7012ff4bf734be9e1bdcfb6ccb34f9f0069203b8f727855a9b83f78fbbd99e2",
+    "playwright-driver/src/routes/session-run.ts": "6f15e1204bd88156392a482995538f1d0cca862e95929eba92f4d98ae56bf6ad",
+    "playwright-driver/src/session/manager.ts": "117350b730a64a73b90e29bf111735ee4f101aab8f6b222f5160ce09154c2acd",
+    "playwright-driver/src/session/state-machine.ts": "dd74e25c4541fa656068fbd4327fccb274a02151876ae7acdb384db4f8b3c91f",
+    "playwright-driver/src/telemetry/collector.ts": "ca9fbccc6b3baf5be7d0341326c7ee0523e50893d1992e3c5e756e05dd750437",
+    "playwright-driver/src/telemetry/orchestrator.ts": "279fedf3993328caa38c0e4649fd5149bbf122abbe291a679a4c46fec18843b1"
+  },
+  "commands": [
+    {
+      "cwd": "scenarios/browser-automation-studio/api",
+      "command": "GOPROXY=off GOTOOLCHAIN=local go run ../docs/internal/refactor_execution_probes.go > /tmp/bas-execution-api-probes.json",
+      "exit_code": 0
+    },
+    {
+      "cwd": "repository root",
+      "command": "node scenarios/browser-automation-studio/docs/internal/refactor_execution_probes.cjs /tmp/bas-execution-api-probes.json",
+      "exit_code": 0
+    }
+  ],
+  "prior_art": {
+    "recall": "search-hub query browser automation studio cancellation timeout instruction retry idempotency investigation --type library,record,skill,doc --limit 2",
+    "related_history": "agent-manager://runs/fde7ca88-7d8c-46dd-bec3-49884b58c641/events/40f461a8-bc4c-4528-9c0f-206a1ec2a284",
+    "disposition": "July exists-assertion timeout issue is addressed by the inspected waitFor path. Current linear executor and top-level workflow use cancellation-independent persistence contexts; graph step persistence differs. Neither earlier issue is blindly re-reported.",
+    "degraded_providers": [
+      "source-ledger.agent-memory timeout",
+      "source-ledger.scopes timeout",
+      "swarm-manager.records circuit unavailable"
+    ]
+  },
+  "limits": [
+    "Go packet composition is sequential across two diagnostic programs, not a network-connected browser E2E run. Node proto parse/conversion and output serialization are explicit seams; generated-code interoperability is not certified.",
+    "Go retry fixture uses first-failure/second-success responses to capture requests. Driver replay of those requests separately demonstrates its actual cache behavior.",
+    "Synthetic effects are counters in a fake handler; no site action is executed or duplicated. Exception incidence and real action ambiguity remain unmeasured.",
+    "Phases and owner changes are seeded/modelled; complete concurrent reset/close/handoff races need live qualification.",
+    "Graph cancellation uses an in-memory writer that rejects cancelled contexts. No production SQL/file error or durable execution status is read.",
+    "Returned handler failures retain telemetry in the control; the gap is specifically a thrown handler exception, not all browser assertion/timeouts.",
+    "Screenshot failure information remains in non_fatal_failure notes even though success is true and the executor returns nil.",
+    "Top-level cancel-to-browser-quiescence latency, distributed/remote ownership, real transport interruptions, failure artifact completeness and runtime resource attribution remain unmeasured."
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "_metadata": {
+    "description": "Static and browser gates that make the catalog source itself a tested surface.",
+    "last_validated_at": "2026-09-04T00:13:53-04:00",
+    "module": "catalog-conformance",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CC-001",
+      "title": "Latest and draft catalog TSX is type-checked and linted",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "The UI package owns a dedicated catalog conformance surface over authored `library/**/versions/**` files. The gate derives eligible TSX files from component manifests, runs TypeScript and ESLint against them, and is wired into the scenario lifecycle plus the story lint surface.",
+      "tags": [
+        "catalog",
+        "type-check",
+        "lint"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/scripts/catalog-conformance.mjs",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "`pnpm run catalog:check` and `make lint-ui` passed after the catalog conformance scripts/configs were added. A temporary Button type error produced the expected TypeScript failure before removal."
+        }
+      ]
+    },
+    {
+      "id": "CC-002",
+      "title": "Full catalog preview sweep runs in a real browser",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "The catalog evidence service enumerates eligible authored versions, invokes the version-pinned BAS CaptureService through the component-test runner, validates each declared story, and persists screenshot, DOM, accessibility, console, network, and performance artifact references. The gate fails closed when BAS evidence is missing or the story contract fails; it never marks a manifest pass from contract metadata alone.",
+      "tags": [
+        "catalog",
+        "browser",
+        "preview"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/catalog/module.go",
+          "phase": "workflow",
+          "status": "failing",
+          "notes": "The BAS-backed catalog evidence path is the canonical browser gate. `pnpm run test:preview-evidence` remains separate from bounded Vitest coverage and stores one capture row per declared story."
+        }
+      ]
+    },
+    {
+      "id": "CC-003",
+      "title": "Component experience specs reconcile against harness captures",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "experience",
+      "criticality": "P0",
+      "description": "An `experience-component` document can bind machine-tier component claims to named catalog examples. Experience Manager constructs RCL harness capture targets per example/viewport, drives BAS accessibility capture, applies binding and claim evaluators, and reports component failures advisory until the contract is promoted to gating.",
+      "tags": [
+        "experience-component",
+        "bas",
+        "preview"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Cross-scenario unit evidence lives in experience-manager: `api/internal/reconcile/reconcile_test.go::TestActiveComponentBuildsHarnessTargetsAndPersistsEvidence` proves component harness target construction and evidence persistence."
+        },
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Live calibration: `test-genie execute react-component-library experience --json` run 20260710-131340-38f3addd passed clean, temporary ghost claim run 20260710-131446-30feba68 surfaced advisory reconciliation warnings, and post-removal run 20260710-131538-31dc1994 passed clean."
+        }
+      ]
+    }
+  ]
+}

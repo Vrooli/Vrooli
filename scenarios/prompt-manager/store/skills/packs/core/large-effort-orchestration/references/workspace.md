@@ -1,0 +1,132 @@
+# Effort workspace contract
+
+The workspace is the leader's durable source and review desk. Keep it outside scenario source and outside generated native skills. Resolve `runtime_home.dir_name` and `runtime_home.entries.plan_artifacts.path` from `.vrooli/repo-contract.json`; use `<runtime-home>/<plan-artifacts>/efforts/<slug>/`. This existing protected class retains sources cited by plans. A Plan Manager supplied artifact location takes precedence when one already owns this effort. Do not create a new runtime-home class or store irreplaceable intent in cache.
+
+Use the canonical helper for a new folder or a structural review:
+
+```bash
+python3 scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/scripts/workspace.py init --repo <repo> --slug <slug>
+python3 scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/scripts/workspace.py validate <effort-path>
+python3 scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/scripts/workspace.py report <effort-path>
+python3 scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/scripts/workspace.py preflight <effort-path>
+```
+
+`init` creates only the safe intake skeleton. It does not make an effort
+reviewable or executable. Before presenting a non-intake effort for review,
+populate the README, preserved sources, requirements, capability observations,
+and a `team/` handoff record, then run `validate`. A passing structural
+validation means the dossier is internally coherent; it does not qualify an
+owner route, create an execution grant, or prove a remote capability.
+
+`preflight` is a read-only join of the dossier gates. It reports whether the
+workspace is complete, the team handoff exists, sources are preserved, owner
+capabilities are qualified, an independent reviewer is assigned, and execution
+approval exists. `safe_to_enable` is false unless every gate passes; the command
+never changes a team, enrollment, grant, heartbeat or approval.
+
+The helper manages local review artifacts only. It does not dispatch agents, enforce runtime grants or decide that remote tests passed. Its derived circuit report is an admission input until the owner implementation enforces that policy.
+
+Preserve this class during manual cleanup and disk-pressure automation. A broad cleanup of a parent directory must not remove the protected descendants. Qualification uses temporary fixtures and read-only proposals; never test protection by deleting the real effort folder. Protection is not a backup: retain the platform's independent backup/custody references when available.
+
+## Minimum useful contents
+
+| Artifact | Meaning and writer |
+|---|---|
+| `README.md` | Human entrypoint: outcome, current stage, review order, authoritative links and next action. Leader-owned. |
+| `effort.json` | Identity, repository, authority status, policy and owner references. Leader-owned; approved authority changes require the actual authority. |
+| `sources/` | Preserved user intent, accepted decisions and immutable evidence snapshots. Retain a content digest at approval. |
+| `requirements.json` | Stable source requirements, deliverables, acceptance, owner references, and evidence assessments. An assessment is not a remote plan status. |
+| `findings/` | Bounded investigations; label fact, hypothesis and recommendation. Link source and capture time. |
+| `capabilities.json` | Needed operations and last qualification evidence. This is an effort observation, not a replacement global capability registry. |
+| `recovery.jsonl` | Append-only repair intent/outcome events, keyed by attempt, component and fingerprint. Keep owner incident/issue references. |
+| `plans/` | Owner receipts, review exports or clearly labelled candidates. Edit authoritative plans through Plan Manager. |
+| `team/` | Proposed or actual team/member references, leader mandate and prompt inputs. Draft configurations do not imply activation. |
+| `programs/` | Selected program references, qualification evidence and candidate contracts. Deployed program source belongs to its owner. |
+| `handoffs/`, `review/`, `evidence/` | Next-action checkpoints, independent assessments and links/receipts from evidence producers. |
+
+Create optional directories only when they have content. Do not put credentials or private identity tokens into this workspace. Source preservation does not require copying transcripts with unrelated private content.
+
+For a workshop or review-stage effort, `team/` must contain the exact Prompt
+Manager team identity, coordinator/member references, and disabled/approval
+state. `plans/` and `programs/` are required only when those work shapes or
+runtime compositions have actually been selected. A workspace without a team
+handoff is an intake dossier, even if a similarly named team exists elsewhere.
+
+`requirements.json` rows have `id`, `source`, `statement`, `deliverable`,
+`acceptance`, an owner reference, `assessment`, `evidence`, and optionally
+`depends_on`. For plan-shaped work, the legacy `owner_plan` field may hold the
+Plan Manager plan ID. For mixed-shape efforts, prefer `owner_ref` plus
+`owner_kind` (`plan`, `mandate`, `task`, `investigation` or `action`) so a
+bounded task or review is not forced into a fake plan. Assessment is
+`unverified`, `met`, `unmet`, or `waived`; `met` requires evidence, and `waived`
+requires an actual user decision reference. Keep recommendations separate from
+user requirements.
+
+The workspace is an index of owner references, not a second owner database.
+The canonical owner API remains authoritative for plan, task, investigation or
+Action state. Until every consumer understands `owner_ref`, the validator
+accepts the legacy `owner_plan` spelling for backward compatibility.
+
+## Automatic supervision discovery
+
+The configured Agent Manager effort root is observed automatically by the standing
+supervisor. Use `path:docs/agent-system/EFFORT_SUPERVISION.md`
+for actual coverage and qualification. Creating a workspace does not grant steering
+authority or start an agent. Missing owner/run references remain visibly unknown.
+
+New workspaces receive an opaque `effort_ref` independent of their repository path,
+host and display slug. Preserve it when moving or resuming the effort. Initialization
+never replaces an existing identity. For older workspaces, retain the discovered
+reference until an explicit owner amendment; do not silently mint a second effort.
+
+Before starting orchestration, the coordinator records `destination_ref`,
+`target_revision` and `work_shape` in `effort.json`. Declare exact current subjects
+in `supervision.subjects` using the Agent Manager `EffortSubject` contract (owner,
+kind, reference, role, assignment and run ID where applicable). Keep these references
+current at normal coordinator checkpoints; the supervisor must not write them.
+An optional `checkpoint` names one bounded, non-secret relative JSON observation
+file. It is attributed self-report, not runtime or product acceptance. Do not point
+it at credentials, transcripts or another effort. Owner registrations through
+`agent-manager effort` take precedence for authenticated steering permissions;
+file declarations cannot supply those permissions.
+
+Declare non-secret repair receipts and operator resolutions in the optional
+`observation_sources` array in `effort.json` (at most eight relative files under
+`handoffs/`, `evidence/` or `findings/`). Agent Manager observes their bounded
+digests so changed answers can reopen supervision even while the driver remains
+stopped. The legacy `handoffs/OPERATOR-ANSWERS.md` convention is also observed.
+Keep authoritative receipts with their owner and retain references here; these
+sources neither grant execution authority nor prove a repair works. Do not put
+credentials in an answer or observation source. The supervisor reads sources;
+the coordinator or actual operator remains their writer.
+
+This projection is portable metadata for the existing owner, not a parallel run
+ledger or an effort-specific adapter. Use runtime WorkReferences and typed owner
+operations when available, and retire temporary checkpoint reading once equivalent
+owner telemetry is qualified.
+
+Use one coordinator writer for aggregate artifacts. Workers write their own result paths and owner records. A fallback coordinator must prove exclusive ownership before editing shared control state. A local JSON file is not a distributed lock. Record migration to an owner state API explicitly; after migration, retain only its reference/projection here.
+
+## Planner tree and economical assignments
+
+Record a root planner and optional narrower planner branches. A worker has one assigning parent and one bounded assignment. Represent parent/task/attempt IDs and the selected context in the owner APIs; the folder retains references. Review is a transient worker assignment, not a permanent judge role. The root retains overall acceptance responsibility and delegates substantive implementation instead of becoming a second writer on each child's files.
+
+Set one maximum tree depth, one aggregate active-agent ceiling (including subplanners and reviewers), and a separate scarce-model ceiling. All descendants reserve the same effort allowance. A planner does not receive another copy of its parent's budget. Add branches only where distinct ownership and sufficient ready work justify the coordination cost.
+
+The model policy records preferred economical worker profiles, permitted effort levels, stronger planning/escalation profiles, capability requirements, allowed provider/runner fallbacks and qualification receipts. Keep credentials in their owner store; use only credential-pool references here. A configured profile, a catalog listing, authenticated access and observed accepted output are separate evidence states. Avoid baking model names or tariffs into this reusable skill; resolve them in the effort's policy and owner catalog.
+
+Worker handoffs retain task/attempt/parent identity, result disposition, source revision, changed boundaries/artifact references, validation evidence, findings/deviations, remaining work, actual or unknown usage, and pending owner operations. Store one immutable handoff identity; delivery retry does not create another result. Progress/limit events can update owner state before that handoff. A quota-interrupted attempt remains resumable or pending, not falsely complete. The parent chooses the next assignment after reading the evidence.
+
+Parent-directed handoff governs work coordination, not custody of the produced material. A worker may write its assigned campaign/artifact/code/evidence records through their owner APIs. It may not assign sibling work, change another worker's claims, or mutate the family admission policy. The assigning parent and deterministic owner admission mechanism retain those decisions.
+
+## Approval and recurring team policy
+
+Keep planning authorization separate from execution authorization. For review-stage efforts, `execution.status` remains `not-approved` and `schedule.enabled` remains false. Record the requested cadence, overlap rule, completion predicate and selected route as proposed policy. The leader's wake prompt must reference this folder and the authoritative family rather than contain another task ledger.
+
+Approval binds the destination/acceptance revision, allowed effects, exclusions, resource budget, component repair caps, fallback routes and final disposition. Preserve a digest of that approved material. The leader may improve working strategy inside that boundary without another approval. New requirements or excluded effects require an amendment; capability outages alone do not erase the boundary.
+
+A grant may cover one finite prerequisite stage before the whole effort is funded. Record that stage boundary, work/cost ceiling, permitted account pools and exhaustion behavior. Completing the stage does not authorize later work or create another allowance. Additional metered-spend permission, available provider quota, aggregate work allowance and per-run/model/concurrency limits have different meanings. Do not convert agent-hours or subscription usage into dollar costs without observed rates and accounting. Unknown measurements remain explicit; unsupported enforcement cannot be advertised as an unattended guarantee.
+
+The finite team contains a root planner, optional subplanners and temporary bounded workers. Independent review uses a worker with the required review context. Reuse suitable agent identities and member composition rather than clone permanent marketing-team members. Configure the shortest resume cadence useful for the approved workload; cadence belongs to effort policy, not this reusable skill. Skip ticks for queued, running, parked or uncertain leader runs. A parked owner watch should wake the existing run. Quota-blocked work is reconsidered only when its owner eligibility condition changes.
+
+Before closure, verify the requirement evidence, validate retained limitations against the actual acceptance policy, and disable recurring work. A failed retirement operation leaves closure pending. Keep live marketing capability/artifact state with Content Desk and related owners after the temporary effort retires.

@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "stateless-web",
+  "kind": "workload",
+  "shape": "minimal_stateless_web",
+  "classification": "certified",
+  "description": "Minimal stateless web scenario: one UI listener, one API listener, no persistent data bindings. The launch-baseline fixture for both architectures.",
+  "policy_ref": "docs/reference/support-policy.md#workload-shapes",
+  "declaration": {
+    "primary_scenario": "fixture-stateless-web",
+    "resources": [],
+    "scenarios": [],
+    "transitive": {},
+    "listeners": [
+      {
+        "name": "ui",
+        "protocol": "http",
+        "role": "ui",
+        "public": true,
+        "path_prefix": "/"
+      },
+      {
+        "name": "api",
+        "protocol": "http",
+        "role": "api",
+        "public": true,
+        "path_prefix": "/api/v1"
+      }
+    ],
+    "persistent_data": [],
+    "expected_capacity": {
+      "cpu_millicores": 250,
+      "memory_mib": 256,
+      "disk_mib": 512,
+      "concurrent_readers": 20,
+      "planned_unavailability_seconds_max": 60
+    }
+  },
+  "seed": {
+    "version": "1",
+    "files": [
+      "seed/pages.json"
+    ],
+    "records": 4,
+    "checksum": "sha256:4a30b6bed38a758ada012f38b81649a7c7753d564c9e979f356d0fbade8d0da7"
+  },
+  "oracle": {
+    "algorithm": "fixture-oracle/v1",
+    "description": "Every seeded page slug serves HTTP 200 on the ui listener with the declared body digest; the api listener answers /api/v1/health with a typed readiness body.",
+    "expected_state": {
+      "algorithm": "fixture-oracle/v1",
+      "files": [
+        {
+          "path": "seed/pages.json",
+          "bytes": 559,
+          "records": 4,
+          "sha256": "617f85103440d37aac20aaf5dd843b4b6327355373a39e95d4cf91544e4974d3"
+        }
+      ],
+      "total_records": 4,
+      "total_bytes": 559
+    },
+    "checksum": "sha256:60c8337acb70955ab0eda78f18a486a2cfc47df1f8c80774bb71ab0234e3b532"
+  },
+  "ownership": {
+    "target_ownership": "owned_ephemeral",
+    "cleanup_owner": "scenario-to-cloud fixture lease (routed test storage + owned target)",
+    "cleanup_policy": "retain_failed_evidence_then_remove_owned_ephemeral_resources",
+    "neighbor_invariant": "Unrelated operator data, processes, files and network rules remain unchanged after setup and cleanup (P02-A03).",
+    "write_scope_invariant": "Every SQL and file write made while the fixture is leased belongs to its lease scope and its owned target (P02-A02).",
+    "lease_scope": "fixture:stateless-web"
+  },
+  "lifecycle": {
+    "status": "declared_not_executable",
+    "note": "Setup and teardown argv are returned by the fixture owner at lease time as typed {verb, argv[]} actions; no owner runtime exists at phase 2, so none are recorded here. Never a shell string.",
+    "setup_owner": "unassigned (durable operations, phase 7)",
+    "teardown_owner": "unassigned (data lifecycle, phase 12)"
+  }
+}

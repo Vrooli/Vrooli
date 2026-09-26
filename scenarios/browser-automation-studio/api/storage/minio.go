@@ -3,6 +3,8 @@ package storage
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"mime"
@@ -110,7 +112,7 @@ func (m *MinIOClient) ensureBucket(ctx context.Context) error {
 // StoreScreenshot stores a screenshot file in MinIO
 func (m *MinIOClient) StoreScreenshot(ctx context.Context, executionID uuid.UUID, stepName string, data []byte, contentType string) (*ScreenshotInfo, error) {
 	// Generate object name
-	objectName := fmt.Sprintf("%s/artifacts/screenshots/%s.png", executionID, stepName)
+	objectName := fmt.Sprintf("%s/artifacts/screenshots/%s%s", executionID, stepName, screenshotExtension(contentType))
 
 	// Derive image dimensions before streaming to storage so replay UI can size thumbnails accurately.
 	width, height := decodeDimensions(data)
@@ -196,24 +198,33 @@ func (m *MinIOClient) StoreArtifactFromFile(ctx context.Context, executionID uui
 	}
 	objectName := artifactObjectName(executionID, label, filepath.Ext(filePath))
 	derivedType := detectContentTypeFromFile(filePath, contentType)
-
-	_, err = m.client.FPutObject(ctx, m.bucketName, objectName, filePath, minio.PutObjectOptions{
+	source, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open artifact file: %w", err)
+	}
+	defer source.Close()
+	digest := sha256.New()
+	uploaded, err := m.client.PutObject(ctx, m.bucketName, objectName, io.TeeReader(source, digest), info.Size(), minio.PutObjectOptions{
 		ContentType: derivedType,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to store artifact: %w", err)
+	}
+	if uploaded.Size != info.Size() {
+		return nil, fmt.Errorf("stored artifact size changed during upload: expected %d, got %d", info.Size(), uploaded.Size)
 	}
 
 	m.log.WithFields(logrus.Fields{
 		"execution_id": executionID,
 		"label":        label,
 		"object_name":  objectName,
-		"size_bytes":   info.Size(),
+		"size_bytes":   uploaded.Size,
 	}).Info("Artifact stored in MinIO")
 
 	return &ArtifactInfo{
 		URL:         artifactURL(objectName),
-		SizeBytes:   info.Size(),
+		SizeBytes:   uploaded.Size,
+		SHA256:      hex.EncodeToString(digest.Sum(nil)),
 		ContentType: derivedType,
 		ObjectName:  objectName,
 	}, nil
@@ -242,6 +253,7 @@ func (m *MinIOClient) StoreArtifact(ctx context.Context, objectName string, data
 	return &ArtifactInfo{
 		URL:         artifactURL(objectName),
 		SizeBytes:   int64(len(data)),
+		SHA256:      artifactDigest(data),
 		ContentType: contentType,
 		ObjectName:  objectName,
 	}, nil

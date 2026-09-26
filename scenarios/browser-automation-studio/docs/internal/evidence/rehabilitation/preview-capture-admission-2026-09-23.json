@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "cycle": "BAS-WORK-081",
+  "date": "2026-09-23",
+  "issues": [
+    "BAS-RF-007",
+    "BAS-RF-038"
+  ],
+  "status": "qualified within stated cache-admission scope",
+  "build_identity": "sha256:e1d69273e302a3e3d684f8bfa3360f90b6bc739603551c2790fb241f09b1c508",
+  "source_freeze": {
+    "playwright-driver/src/routes/record-mode/recording-frames.ts": {
+      "sha256": "8bb30a58d8e4404f6f66cb525084f2f09b18aaf6ea0f3c72a063efa3d27b9603",
+      "lines": 188
+    },
+    "playwright-driver/tests/unit/routes/record-frames.test.ts": {
+      "sha256": "893cb98a17902d363dceb5adc7872cd389b70243f95bc0e25a01ac2b9fac3f6d",
+      "lines": 283
+    }
+  },
+  "change": "Existing per-session HTTP preview cache owns in-flight capture and completed bytes. Identical reads share capture at unchanged fidelity. Source, viewport and URL bound reuse; cacheclear retires pending work. Failed/older captures cannot evict or populate current work. Different fidelity results stay distinct.",
+  "retired": [
+    "Separate completed-frame cache helper chain",
+    "Duplicate same-hash result packaging branch; HTTP ETag hashing retained"
+  ],
+  "red": {
+    "maintained": "3fail/11pass /tmp/bas-preview-admission-red-081.txt",
+    "native": "18pass/6fail /tmp/bas-preview-burst-red-081/receipt.json; six eight-reader bursts each produced eight captures"
+  },
+  "qualification": {
+    "focused": "35/2 /tmp/bas-preview-admission-controls-081.txt; driver types pass",
+    "driver": {
+      "run_id": "uh-20260923-100631-127c3f66289d8180cce99354375a6b4d",
+      "passed": 1877,
+      "suites": 123,
+      "existing_skips": {
+        "tests": 2,
+        "suites": 1
+      },
+      "duration_ms": 378512,
+      "artifact": "/tmp/bas-driver-owner-081.json"
+    },
+    "native_burst": "24/24 /tmp/bas-preview-burst-green-081/receipt.json; one capture for each eight-reader burst",
+    "native_cache_resize": "13/13 /tmp/bas-preview-cache-geometry-081/receipt.json;107.3ms withinTTL returns correct800x600CSS/1600x1200device pixels and independent colors",
+    "native_geometry": "63/63 each CSS and device /tmp/bas-preview-geometry-native-{css,device}-trace-081/receipt.json; no timeout counters",
+    "workflow": {
+      "passed": 12,
+      "independent_effects": 3,
+      "execution_id": "d2609f24-1784-4d33-89c4-1b1ef9a567c2",
+      "artifact_dir": "/tmp/bas-recording-e2e-c7ZLiK"
+    },
+    "profiles": "Three complete original rollback reads; API equals080. /tmp/bas-profile-final-081.txt, /tmp/bas-profile-api-final-081.json",
+    "retained_checks": "080 API/UI source checks remain applicable;081 changes driver route and tests only",
+    "tidiness": {
+      "run_id": "20260923-100635-84760e09",
+      "totalFindings": 1145,
+      "longFiles": 103,
+      "complexity": 408,
+      "duplication": 612,
+      "coupling": 21,
+      "duplicationLineDebt": 31065,
+      "verdict": "budgets fail"
+    },
+    "board": "17unknown; contract and inventory pass"
+  },
+  "measurements": {
+    "runtime_lines": {
+      "before": 241,
+      "after": 188,
+      "delta": -53
+    },
+    "go_delta": 0,
+    "cumulative_affected_go_delta": -65,
+    "scoped_typescript": {
+      "before": {
+        "code_path_count": 10,
+        "sum": 38
+      },
+      "after": {
+        "code_path_count": 8,
+        "sum": 44
+      },
+      "delta": 6,
+      "artifact": "/tmp/bas-frame-complexity-081.json"
+    },
+    "capture_bursts": {
+      "cohort": "6bursts x8readers,640x480CSS,DPR2,alternatingJPEGquality55/60,loopback, same producer",
+      "before_ms": [
+        360.38942800000007,
+        398.37002200000006,
+        366.4633369999999,
+        368.70864000000006,
+        362.4938510000002,
+        368.90904999999975
+      ],
+      "after_ms": [
+        78.49636599999985,
+        92.29921599999989,
+        85.51504699999987,
+        116.7977920000003,
+        116.43858100000034,
+        98.40669600000001
+      ],
+      "before_median_ms": 367.5859885,
+      "after_median_ms": 95.35295599999995,
+      "captures_per_burst_before": 8,
+      "captures_per_burst_after": 1,
+      "timeout_skips_before": 5,
+      "timeout_skips_after": 0
+    },
+    "claim_limit": "Controlled capture admission8->1 is proven. Six-batch timing observations have different background loads, no confidence interval and no performance-band certification. Runtime-53 but scopedcomplexity+6; no net cyclomatic reduction claim."
+  },
+  "cohesion_review": "Route complexity20 retains one request/cache/capture boundary in188line module; source fence9, capture completion8. One existing Map bounds retained state to one completed result and one shareable pending request per session. Existing navigation/page/session-clear callers retire the same slot; no second browser queue or new service. Different overlapping fidelity requests still retain their own promises until completion.",
+  "limitations": [
+    "Original080 device-load failure remains retained; broader renderer cost, one/five/ten-session pressure and slow-reader workloads unqualified.",
+    "Same-URL document epochs and all full preservation/recovery/platform outcomes remain unqualified.",
+    "No SDK/dependency/quality/watchdog changes."
+  ],
+  "pending_operations": []
+}

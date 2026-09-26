@@ -1,0 +1,41 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - gofumpt
+    - gocritic
+    - gocyclo
+    - govet
+    - ineffassign
+    - revive
+    - staticcheck
+    - typecheck
+    - unused
+
+linters-settings:
+  revive:
+    rules:
+      - name: exported
+        disabled: true
+      - name: redefines-builtin-id
+        disabled: true
+      - name: unused-parameter
+        disabled: true
+
+issues:
+  exclude-dirs:
+    - mocks
+    - testutil
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gocritic
+        - gocyclo
+    - path: mocks/
+      linters:
+        - all
+  max-issues-per-linter: 0
+  max-same-issues: 0

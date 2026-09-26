@@ -1,0 +1,103 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "browser-automation-studio",
+  "phase": "rehabilitation-evidence",
+  "displayName": "Browser rehabilitation owner evidence",
+  "description": "Validates current-build motion, evidence completeness, resource budget, profile durability, cancellation/recovery, and passive-fidelity owner receipts against the BAS rehabilitation bands.",
+  "source": "validation-provider",
+  "timeout": "30s",
+  "phaseClass": "runtime",
+  "runtimeClass": "execution",
+  "dimensions": ["tests", "contracts"],
+  "evidenceKinds": ["motion", "evidence-completeness", "resource-budget", "profile-durability", "cancellation-recovery", "passive-fidelity", "owner-receipt"],
+  "validation": {"contract": "scenario-validation/v1", "includeExecution": true},
+  "targets": {
+    "kinds": ["scenario"],
+    "selection": "enumerate",
+    "notApplicableKinds": [{"kind": "control-plane", "reason": "Profile storage durability is a browser scenario behavior and cannot apply to control-plane targets."}]
+  },
+  "applicability": {
+    "default": "not_applicable",
+    "any": [
+      {"pathGlob": ".vrooli/runtime/rehabilitation-evidence/profile-durability-*.json"},
+      {"pathGlob": ".vrooli/runtime/rehabilitation-evidence/cancellation-recovery-*.json"},
+      {"pathGlob": ".vrooli/runtime/rehabilitation-evidence/passive-fidelity-*.json"},
+      {"pathGlob": ".vrooli/runtime/rehabilitation-evidence/evidence-completeness-*.json"},
+      {"pathGlob": ".vrooli/runtime/rehabilitation-evidence/resource-budget-w189-*.json"}
+    ]
+  },
+  "policy": {
+    "selection": "explicit_only",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "none",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": {"needsUI": false, "needsAPI": true, "mutatesLifecycle": false, "requiredResources": []},
+  "concurrency": {"mode": "parallel-safe"},
+    "determinism": {"default": "observational", "reason": "The phase validates motion, evidence-completeness, resource-budget, profile, cancellation, and passive-fidelity owner receipts against source, contract, and live managed build identity."},
+  "docs": {"path": "scenarios/browser-automation-studio/docs/internal/TESTING.md"},
+  "maturity": {
+    "version": "1.0.0",
+    "capabilities": [{
+      "id": "evidence-completeness",
+      "label": "Evidence completeness",
+      "description": "Artifact failures remain explicit and retained evidence is attributable and hash-verifiable across screenshot, telemetry, external video/trace and retention boundaries.",
+      "levels": [
+        {"id":"L0","name":"Unavailable","description":"No valid current-build artifact-integrity owner receipt is available.","entry_criteria":[],"exit_criteria":["The focused screenshot failure, inline console/network snapshot failure, external video/trace storage fault, and active-retention protection owners pass with current source/build digests and hashed raw test logs."]},
+        {"id":"L1","name":"Verified","description":"All focused artifact-integrity and retention owners pass with current source/build digests and retained raw test logs.","entry_criteria":["The focused screenshot failure, inline console/network snapshot failure, external video/trace storage fault, and active-retention protection owners pass with current source/build digests and hashed raw test logs."],"exit_criteria":[]}
+      ]
+    }, {
+      "id": "profile-durability",
+      "label": "Profile durability",
+      "description": "Synthetic browser profile state survives close/reopen and managed service restart with isolation intact.",
+      "levels": [
+        {"id":"L0","name":"Unavailable","description":"No valid current-build owner receipt is available.","entry_criteria":[],"exit_criteria":["Owner receipts match source and contract hashes and the live build."]},
+        {"id":"L1","name":"Verified","description":"The current candidate passed the declared profile durability cohort.","entry_criteria":["Owner receipts match source and contract hashes and the live build."],"exit_criteria":[]}
+      ]
+    }, {
+      "id": "cancellation-recovery",
+      "label": "Cancellation and recovery",
+      "description": "Accepted cancellation stops input promptly, terminal cleanup and session recovery meet the declared bands, and uncertain side effects are not replayed.",
+      "levels": [
+        {"id":"L0","name":"Unavailable","description":"No valid current-build cancellation/recovery owner receipt is available.","entry_criteria":[],"exit_criteria":["All five timeout/cancel/death/restart/retry fixture cases pass within the declared bands and match source/contract/build identity."]},
+        {"id":"L1","name":"Verified","description":"The current candidate passed all five independent cancellation/recovery fixture cases.","entry_criteria":["All five timeout/cancel/death/restart/retry fixture cases pass within the declared bands and match source/contract/build identity."],"exit_criteria":[]}
+      ]
+    }, {
+      "id": "passive-fidelity",
+      "label": "Passive fidelity",
+      "description": "Acknowledged browser observations are retained once, in order, through the managed API journal, crash/reconnect, and core browser event semantics.",
+      "levels": [
+        {"id":"L0","name":"Unavailable","description":"A current managed cohort, crash/reconnect owner, or browser semantics receipt is missing, stale, or invalid.","entry_criteria":[],"exit_criteria":["At least10,000 managed fixture actions have exact independent effects, unique ordered journal identities, and applied-input receipts with zero primary-storage writes; crash/reconnect retains one same-ID event; core input/navigation semantics pass on current source and build."]},
+        {"id":"L1","name":"Verified","description":"The managed10,000-action cohort, process crash/reconnect fault, and current browser semantics cases all pass with source and contract digests validated.","entry_criteria":["At least10,000 managed fixture actions have exact independent effects, unique ordered journal identities, and applied-input receipts with zero primary-storage writes; crash/reconnect retains one same-ID event; core input/navigation semantics pass on current source and build."],"exit_criteria":[]}
+      ]
+    }, {
+      "id": "resource-budget",
+      "label": "Resource budget",
+      "description": "A managed Linux idle cohort stays within the API/driver PSS and CPU bands, a local fixture browser and shell stay within their memory band, and Windows private-memory status is reported separately.",
+      "levels": [
+        {"id":"L0","name":"Unavailable","description":"No valid current-build resource-budget cohort is available.","entry_criteria":[],"exit_criteria":["A 60-second idle owner sample matches the current build and sources; API+driver PSS is at most 300 MiB, idle CPU average and p95 are below 2% of one core, a fixture browser plus shell is at most 1 GiB PSS, and Windows private-memory status is reported separately."]},
+        {"id":"L1","name":"Verified","description":"The managed Linux idle and fixture-browser resource cohort meets the declared bands with Windows comparison status explicit.","entry_criteria":["A 60-second idle owner sample matches the current build and sources; API+driver PSS is at most 300 MiB, idle CPU average and p95 are below 2% of one core, a fixture browser plus shell is at most 1 GiB PSS, and Windows private-memory status is reported separately."],"exit_criteria":[]}
+      ]
+    }, {
+      "id": "motion",
+      "label": "Sustained live motion",
+      "description": "A changing fixture streams at 30 FPS through the managed driver, API relay and viewer canvas for five minutes; frame age and decode remain bounded and a deliberately slow viewer does not accumulate work.",
+      "levels": [
+        {"id":"L0","name":"Unavailable","description":"No valid current-build five-minute motion and slow-reader receipt is available.","entry_criteria":[],"exit_criteria":["A current managed motion receipt proves at least 30 rendered FPS for five minutes, p95 frame age at most 100 ms, bounded frame bytes/decode, and a slow-reader cohort with one active decode and bounded frame age/bytes."]},
+        {"id":"L1","name":"Verified","description":"The current candidate meets the sustained motion and slow-reader bands through the real API relay and viewer canvas.","entry_criteria":["A current managed motion receipt proves at least 30 rendered FPS for five minutes, p95 frame age at most 100 ms, bounded frame bytes/decode, and a slow-reader cohort with one active decode and bounded frame age/bytes."],"exit_criteria":[]}
+      ]
+    }],
+    "findings": {
+      "EVIDENCE_COMPLETENESS_INVALID": {"capability_id":"evidence-completeness","local_level_impact":"L0","global_impact":"capability_gap","dimension":"tests","severity_default":"SEVERITY_ERROR","clean_requirement":"required","recommended_skill_ids":["scenario-work-ladder"],"fix_class":"manual","reason":"Missing, stale or failed screenshot, console/network, external artifact or active-retention owner evidence requires the focused BAS artifact-integrity cohort."},
+      "PROFILE_EVIDENCE_INVALID": {"capability_id":"profile-durability","local_level_impact":"L0","global_impact":"capability_gap","dimension":"tests","severity_default":"SEVERITY_ERROR","clean_requirement":"required","recommended_skill_ids":["scenario-work-ladder"],"fix_class":"manual","reason":"Stale or failed behavioral evidence requires rerunning the managed profile durability cohort."},
+      "CANCELLATION_EVIDENCE_INVALID": {"capability_id":"cancellation-recovery","local_level_impact":"L0","global_impact":"capability_gap","dimension":"tests","severity_default":"SEVERITY_ERROR","clean_requirement":"required","recommended_skill_ids":["scenario-work-ladder"],"fix_class":"manual","reason":"Missing, stale, or out-of-band owner evidence requires the focused BAS cancellation/recovery qualification."},
+      "PASSIVE_FIDELITY_EVIDENCE_INVALID": {"capability_id":"passive-fidelity","local_level_impact":"L0","global_impact":"capability_gap","dimension":"tests","severity_default":"SEVERITY_ERROR","clean_requirement":"required","recommended_skill_ids":["scenario-work-ladder"],"fix_class":"manual","reason":"Missing, stale, or out-of-band managed journal, crash/reconnect, or browser event-semantics evidence requires its focused BAS owner."},
+      "RESOURCE_BUDGET_EVIDENCE_INVALID": {"capability_id":"resource-budget","local_level_impact":"L0","global_impact":"capability_gap","dimension":"performance","severity_default":"SEVERITY_ERROR","clean_requirement":"required","recommended_skill_ids":["scenario-work-ladder"],"fix_class":"manual","reason":"Missing, stale, or out-of-band idle process, fixture-browser, or Windows comparison evidence requires the focused resource owner."},
+      "MOTION_EVIDENCE_INVALID": {"capability_id":"motion","local_level_impact":"L0","global_impact":"capability_gap","dimension":"performance","severity_default":"SEVERITY_ERROR","clean_requirement":"required","recommended_skill_ids":["scenario-work-ladder"],"fix_class":"manual","reason":"Missing, stale, or out-of-band sustained frame-age, throughput, byte, decode, or slow-reader evidence requires the focused BAS motion owner."}
+    },
+    "fallback": {"capability_id":"profile-durability","local_level_impact":"L0","global_impact":"unknown","dimension":"tests","severity_default":"SEVERITY_WARNING","clean_requirement":"required"}
+  }
+}

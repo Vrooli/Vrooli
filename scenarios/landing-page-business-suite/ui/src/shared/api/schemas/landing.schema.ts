@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { isMessage } from '@bufbuild/protobuf';
+import { ResolvedProductPresentationSchema, type ResolvedProductPresentation } from '@vrooli/proto-types/landing-page-business-suite/v1/shared/product_presentation_pb';
 import {
   BillingIntervalSchema,
   HeaderBrandingModeSchema,
@@ -9,7 +11,6 @@ import {
   IntroPricingTypeSchema,
   MetadataSchema,
   PlanKindSchema,
-  StripeCouponSchema,
 } from './common.schema';
 
 /**
@@ -68,12 +69,14 @@ export const PricingOverviewSchema = z.object({
   bundle: BundleProductSchema,
   monthly: z.array(PlanOptionSchema),
   yearly: z.array(PlanOptionSchema),
+  credit_topups: z.array(PlanOptionSchema).default([]),
   updated_at: z.string(),
 });
 
 // Landing section schema
 export const LandingSectionSchema = z.object({
   id: z.number().optional(),
+  key: z.string().min(1).optional(),
   section_type: z.string(),
   content: z.record(z.string(), z.unknown()),
   order: z.number(),
@@ -207,25 +210,11 @@ export const DownloadAppSchema = z.object({
 // Variant axes schema
 export const VariantAxesSchema = z.record(z.string(), z.string());
 
-// Variant schema (subset for landing config)
-export const LandingVariantSchema = z.object({
-  id: z.number().optional(),
-  slug: z.string(),
-  name: z.string(),
-  description: z.string().optional(),
-  axes: VariantAxesSchema.optional(),
-});
-
 // Landing config response schema
 export const LandingConfigResponseSchema = z.object({
-  variant: LandingVariantSchema,
-  sections: z.array(LandingSectionSchema),
+  presentation: z.custom<ResolvedProductPresentation>(value => isMessage(value, ResolvedProductPresentationSchema)),
   pricing: PricingOverviewSchema.optional(),
   downloads: z.array(DownloadAppSchema),
-  header: LandingHeaderConfigSchema,
-  branding: LandingBrandingSchema.optional(),
-  coupon_mappings: z.record(z.string(), z.string()).optional(),
-  intro_offers: z.array(StripeCouponSchema).optional(),
   fallback: z.boolean(),
 });
 
@@ -246,5 +235,4 @@ export type DownloadStorefront = z.infer<typeof DownloadStorefrontSchema>;
 export type DownloadAsset = z.infer<typeof DownloadAssetSchema>;
 export type DownloadApp = z.infer<typeof DownloadAppSchema>;
 export type VariantAxes = z.infer<typeof VariantAxesSchema>;
-export type LandingVariant = z.infer<typeof LandingVariantSchema>;
 export type LandingConfigResponse = z.infer<typeof LandingConfigResponseSchema>;

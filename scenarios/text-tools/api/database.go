@@ -11,13 +11,15 @@ import (
 
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+
+	textSchema "text-tools/internal/text"
 )
 
 const (
-	maxRetries     = 10
-	initialBackoff = 1 * time.Second
-	maxBackoff     = 60 * time.Second
-	backoffFactor  = 2.0
+	maxRetries          = 10
+	initialBackoff      = 1 * time.Second
+	maxBackoff          = 60 * time.Second
+	backoffFactor       = 2.0
 	healthCheckInterval = 30 * time.Second
 )
 
@@ -41,8 +43,9 @@ type DatabaseConnection struct {
 
 // NewDatabaseConfig creates a new database configuration from environment
 func NewDatabaseConfig() *DatabaseConfig {
+	databaseURL, _ := database.ResolvePostgresDSN(os.Getenv)
 	return &DatabaseConfig{
-		URL:             os.Getenv("DATABASE_URL"),
+		URL:             databaseURL,
 		MaxOpenConns:    25,
 		MaxIdleConns:    5,
 		ConnMaxLifetime: 5 * time.Minute,
@@ -83,7 +86,12 @@ func (conn *DatabaseConnection) connect() error {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Configure connection pool
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(textSchema.Schema)); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("database schema initialization failed: %w", err)
+	}
+
+	// Configure connection pool	// Configure connection pool
 	db.SetMaxOpenConns(conn.config.MaxOpenConns)
 	db.SetMaxIdleConns(conn.config.MaxIdleConns)
 	db.SetConnMaxLifetime(conn.config.ConnMaxLifetime)

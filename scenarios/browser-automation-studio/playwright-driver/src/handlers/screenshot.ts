@@ -14,10 +14,7 @@ export class ScreenshotHandler extends BaseHandler {
     return ['screenshot'];
   }
 
-  async execute(
-    instruction: HandlerInstruction,
-    context: HandlerContext
-  ): Promise<HandlerResult> {
+  async execute(instruction: HandlerInstruction, context: HandlerContext): Promise<HandlerResult> {
     const { page, config, logger } = context;
 
     try {
@@ -32,7 +29,7 @@ export class ScreenshotHandler extends BaseHandler {
 
       // Capture screenshot
       let screenshot;
-      if (params.quality && params.quality < 100) {
+      if (params.quality && params.quality < 100 && !params.selector) {
         // Use compressed JPEG
         screenshot = await captureCompressedScreenshot(
           page,
@@ -42,7 +39,10 @@ export class ScreenshotHandler extends BaseHandler {
         );
       } else {
         // Use standard PNG
-        screenshot = await captureScreenshot(page, config);
+        screenshot = await captureScreenshot(page, config, {
+          selector: typedParams?.selector,
+          fullPage: typedParams?.fullPage,
+        });
       }
 
       if (!screenshot) {

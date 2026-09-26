@@ -15,10 +15,23 @@
     "jsx": "react-jsx",
 
     /* Linting */
+    // ╔══════════════════════════════════════════════════════════════════════════╗
+    // ║  SAFETY-CRITICAL RULES - DO NOT REMOVE OR WEAKEN                         ║
+    // ║                                                                          ║
+    // ║  These rules prevent undefined access and array-index crashes in the UI. ║
+    // ║  Fix call sites with guards, optional chaining, and sane defaults.       ║
+    // ║  Do not silence them with non-null assertions or ts-ignore comments.     ║
+    // ╚══════════════════════════════════════════════════════════════════════════╝
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+    /*
+     * STABILITY CRITICAL: noUncheckedIndexedAccess
+     * Makes indexed access return T | undefined so missing values are handled.
+     * DO NOT REMOVE. Fix callers with guards or ?? defaults instead.
+     */
+    "noUncheckedIndexedAccess": true,
 
     /* Paths */
     "baseUrl": ".",

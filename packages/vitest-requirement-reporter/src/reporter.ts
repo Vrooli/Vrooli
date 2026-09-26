@@ -1,4 +1,7 @@
 import type { Reporter, File, Task } from 'vitest';
+import type { Vitest } from 'vitest/node';
+import { nativeObservations } from './native-observations.js';
+export { nativeAssertionOptions, supportedNativeVersion } from './native-observations.js';
 import { existsSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'fs';
 import { dirname, relative, join, basename } from 'path';
 import { execSync } from 'child_process';
@@ -35,6 +38,7 @@ export default class RequirementReporter implements Reporter {
   private requirementMap: Map<string, RequirementResult> = new Map();
   private stats = { total: 0, passed: 0, failed: 0, skipped: 0 };
   private startTime = 0;
+  private context?: Vitest;
   private failures: TestFailure[] = [];
   private projectStats: Map<string, { passed: number; failed: number; duration: number }> = new Map();
 
@@ -90,7 +94,8 @@ export default class RequirementReporter implements Reporter {
   /**
    * Initialize reporter state at the start of test run
    */
-  onInit(): void {
+  onInit(context?: Vitest): void {
+    this.context = context;
     this.startTime = Date.now();
     this.requirementMap.clear();
     this.stats = { total: 0, passed: 0, failed: 0, skipped: 0 };
@@ -330,7 +335,7 @@ export default class RequirementReporter implements Reporter {
   /**
    * Generate and write final report after all tests complete
    */
-  async onFinished(files?: File[]): Promise<void> {
+  async onFinished(files?: File[], errors?: unknown[]): Promise<void> {
     if (!files) return;
 
     // Process all test files
@@ -339,6 +344,13 @@ export default class RequirementReporter implements Reporter {
     });
 
     const report: RequirementReport = {
+      native_observations: [nativeObservations(files, this.context?.version ?? 'unknown', project => {
+        try { return this.context?.getProjectByName(project).config.expect?.requireAssertions === true; }
+        catch { return false; }
+      }, errors, process.env.VROOLI_TEST_RUN_ID ?? '', task => this.extractRequirements(task), project => {
+        try { return this.context?.getProjectByName(project).config.sequence.seed; }
+        catch { return undefined; }
+      })],
       generated_at: new Date().toISOString(),
       scenario: this.options.scenario,
       phase: 'unit',
@@ -363,6 +375,12 @@ export default class RequirementReporter implements Reporter {
 
     // Write JSON report
     writeFileSync(this.options.outputFile, JSON.stringify(finalReport, null, 2));
+    // A command-scoped handoff is separate from appendable requirement history.
+    const qualityOutput = process.env.VROOLI_TEST_QUALITY_OUTPUT;
+    if (qualityOutput) {
+      mkdirSync(dirname(qualityOutput), { recursive: true });
+      writeFileSync(qualityOutput, JSON.stringify(report.native_observations![0], null, 2));
+    }
 
     // Generate failure artifacts if in concise mode
     if (this.options.conciseMode) {
@@ -755,6 +773,7 @@ export default class RequirementReporter implements Reporter {
     current.requirements.forEach(addRequirement);
 
     return {
+      native_observations: [...(previous.native_observations ?? []), ...(current.native_observations ?? [])],
       generated_at: current.generated_at,
       scenario: current.scenario || previous.scenario,
       phase: current.phase,

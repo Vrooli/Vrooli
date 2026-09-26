@@ -31,13 +31,16 @@ export function ScenarioDetails({ scenario, onClose }: ScenarioDetailsProps) {
               {scenario.display_name || scenario.name}
             </CardTitle>
             <p className="text-sm text-slate-400">
-              Follow the three guided steps to turn this scenario into a shareable desktop installer.
+              Follow the three guided steps to turn this scenario into a
+              shareable desktop installer.
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Badge variant={scenario.has_desktop ? 'success' : 'secondary'}>
-            {scenario.has_desktop ? 'Desktop wrapper ready' : 'Needs desktop wrapper'}
+          <Badge variant={scenario.has_desktop ? "success" : "secondary"}>
+            {scenario.has_desktop
+              ? "Desktop wrapper ready"
+              : "Needs desktop wrapper"}
           </Badge>
           <Button variant="ghost" size="sm" onClick={onClose} className="gap-2">
             <X className="h-4 w-4" />
@@ -49,12 +52,15 @@ export function ScenarioDetails({ scenario, onClose }: ScenarioDetailsProps) {
         <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-300">
           <p className="font-semibold text-slate-100">How it works</p>
           <p className="mt-1">
-            Step 1 links your Electron wrapper to the scenario running on Tier&nbsp;1. Step 2 builds native installers for
-            Windows, macOS, and Linux without leaving the browser. Step 3 lets you download your installer. No CLI knowledge required.
+            Step 1 links your Electron wrapper to the scenario running on
+            Tier&nbsp;1. Step 2 builds native installers for Windows, macOS, and
+            Linux without leaving the browser. Step 3 lets you download your
+            installer. No CLI knowledge required.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-blue-200">
             <BookOpenCheck className="h-3.5 w-3.5" />
-            Need more background? Read the Desktop tier guide from the Deployment Hub.
+            Need more background? Read the Desktop tier guide from the
+            Deployment Hub.
             <a
               href="https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-2-desktop.md"
               target="_blank"
@@ -101,18 +107,27 @@ export function ScenarioDetails({ scenario, onClose }: ScenarioDetailsProps) {
           >
             {hasArtifacts ? (
               <div className="space-y-4">
-                <DownloadButtons scenarioName={scenario.name} artifacts={artifacts} />
-                <TelemetryUploadCard scenarioName={scenario.name} appDisplayName={scenario.display_name || scenario.name} />
+                <DownloadButtons
+                  scenarioName={scenario.name}
+                  artifacts={artifacts}
+                />
+                <TelemetryUploadCard
+                  scenarioName={scenario.name}
+                  appDisplayName={scenario.display_name || scenario.name}
+                />
               </div>
             ) : (
-              <p className="text-sm text-slate-400">Build at least one installer to unlock downloads and telemetry uploads.</p>
+              <p className="text-sm text-slate-400">
+                Build at least one installer to unlock downloads and telemetry
+                uploads.
+              </p>
             )}
           </StepCard>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
           <div>
-            <p>Wrapper path: {scenario.desktop_path || 'Not generated yet'}</p>
+            <p>Wrapper path: {scenario.desktop_path || "Not generated yet"}</p>
             {scenario.version && <p>Current version: {scenario.version}</p>}
           </div>
           <DeleteButton scenarioName={scenario.name} />
@@ -121,4 +136,3 @@ export function ScenarioDetails({ scenario, onClose }: ScenarioDetailsProps) {
     </Card>
   );
 }
-

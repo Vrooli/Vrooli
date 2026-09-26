@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "browser-automation-studio",
+  "description": "Declared readiness surfaces for Vrooli Ascension. BAS automates its own UI, so every region declared here is one its bas/ cases can wait on by terminal lifecycle state instead of by selector-presence timeout. Regions are added only once the corresponding component renders ExperienceSurface: a declared region that is never rendered turns a fast failure into a guaranteed timeout, which is worse than declaring nothing.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Dashboard",
+      "status": "active"
+    },
+    {
+      "id": "project-detail",
+      "path": "pages/project-detail.json",
+      "title": "Project detail",
+      "status": "active"
+    }
+  ]
+}

@@ -1,0 +1,167 @@
+syntax = "proto3";
+
+package vrooli.architecture_cartographer.v1.signals;
+
+import "architecture-cartographer/v1/graph/graph.proto";
+import "architecture-cartographer/v1/shared/shared.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/signals;signals_v1";
+
+// =============================================================================
+// SIGNALS DOMAIN
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain signals
+// @stability stable
+//
+// Wire contract for the SignalsService Connect-RPC service. The signals
+// domain owns the pluggable, deterministic signal registry, per-signal
+// scoring, and the aggregator that combines signal scores into an
+// explainable verdict per chunk.
+//
+// Cross-cutting envelopes defined here and imported by other domains:
+//   - Score    (per-signal output)
+//   - Verdict  (aggregator output; consumed by conflicts and analytics)
+//   - Tier     (auto_place / suggest / conflict)
+//
+// Signal invariants (enforced in code, asserted in tests):
+//   1. Pure — given the same (chunk, graph, manifest), produces the same Score.
+//   2. No mutation — never mutates the graph or manifest.
+//   3. Self-explaining — every Score has Reason + ≥1 Evidence; every
+//      Abstention has Reason + ≥1 Evidence. Nothing is returned without
+//      explanation. Abstaining signals still contribute their weight to
+//      the verdict denominator so abstentions cannot inflate the surviving
+//      signals' apparent contribution.
+//   4. Bounded — Score.value is in [0, 1].
+//   5. Cheap — signals are called per-chunk; caches (community detection,
+//      glossary lookups) live on GraphContext, not on the signal.
+// =============================================================================
+
+// SignalDescriptor describes one registered signal.
+message SignalDescriptor {
+  // Signal name.
+  string name = 1;
+  // Default weight (before manifest overlay).
+  double default_weight = 2;
+  // Stability level (e.g., "stable", "beta").
+  string stability = 3;
+  // Short description.
+  string description = 4;
+  // True when the signal self-disabled for the current run (e.g.,
+  // git-co-edit when `git` is unavailable).
+  bool disabled = 5;
+  // Reason for disablement when disabled=true.
+  string disabled_reason = 6;
+}
+
+// =============================================================================
+// SIGNALS SERVICE
+// =============================================================================
+
+service SignalsService {
+  // ScoreChunk runs every enabled signal against the chunk and returns
+  // both per-signal scores and the aggregated verdict.
+  rpc ScoreChunk(ScoreChunkRequest) returns (ScoreChunkResponse);
+
+  // ExplainVerdict re-runs scoring and returns the verdict with extra
+  // explanation surface (per-evidence weights, runner-up details). v0.1
+  // returns the same shape as ScoreChunk but is reserved for richer
+  // diagnostics in later versions.
+  rpc ExplainVerdict(ExplainVerdictRequest) returns (ExplainVerdictResponse);
+
+  // ListSignals returns the registered signals + their default weights
+  // + current enable/disable state.
+  rpc ListSignals(ListSignalsRequest) returns (ListSignalsResponse);
+
+  // BoundaryHealth computes domain-level coupling/boundary-health metrics
+  // (efferent/afferent coupling, instability, fan-out, stable-kernel) over
+  // the latest graph snapshot + derived domain map, and returns a graded
+  // health score per domain with advisory smells. Never a hard gate.
+  rpc BoundaryHealth(BoundaryHealthRequest) returns (BoundaryHealthResponse);
+}
+
+// CouplingSeverity grades a boundary-health smell. Advisory only.
+enum CouplingSeverity {
+  COUPLING_SEVERITY_UNSPECIFIED = 0;
+  COUPLING_SEVERITY_INFO = 1;
+  COUPLING_SEVERITY_WARN = 2;
+}
+
+// CouplingSmell is one advisory boundary-health finding for a domain.
+message CouplingSmell {
+  // Stable smell kind (e.g., "god_domain", "unstable_dependency").
+  string kind = 1;
+  CouplingSeverity severity = 2;
+  string message = 3;
+}
+
+// DomainCoupling is the coupling profile of one domain.
+message DomainCoupling {
+  string domain = 1;
+  string archetype = 2;
+  // Efferent coupling: distinct domains this domain depends on.
+  int32 efferent = 3;
+  // Afferent coupling: distinct domains depending on this one.
+  int32 afferent = 4;
+  // Instability I = Ce/(Ce+Ca), in [0,1].
+  double instability = 5;
+  // Fan-out fraction Ce/(domains-1), in [0,1].
+  double fan_out = 6;
+  repeated string depends_on = 7;
+  repeated string depended_by = 8;
+  // True when the domain is a derived shared substrate (high Ca, low Ce).
+  bool stable_kernel = 9;
+  // Graded health score in [0,1]; 1 = healthy.
+  double health_score = 10;
+  repeated CouplingSmell smells = 11;
+}
+
+message BoundaryHealthRequest {
+  string scenario = 1;
+}
+
+message BoundaryHealthResponse {
+  string scenario = 1;
+  int32 total_domains = 2;
+  repeated DomainCoupling domains = 3;
+}
+
+message ScoreChunkRequest {
+  // Target scenario name (resolves manifest + graph snapshot).
+  string scenario = 1;
+  // Either the chunk to score directly, or a file id / repo-relative
+  // path resolved against the latest snapshot.
+  vrooli.architecture_cartographer.v1.graph.Chunk chunk = 2;
+  // When chunk is unset, use this file id from the latest snapshot.
+  string file_id = 3;
+  // When chunk and file_id are unset, look up the file by its
+  // repo-relative path (e.g. "api/internal/graph/service.go").
+  string repo_path = 4;
+}
+
+message ScoreChunkResponse {
+  vrooli.architecture_cartographer.v1.shared.Verdict verdict = 1;
+}
+
+message ExplainVerdictRequest {
+  string scenario = 1;
+  vrooli.architecture_cartographer.v1.graph.Chunk chunk = 2;
+  string file_id = 3;
+  // Repo-relative file path; alternative to file_id.
+  string repo_path = 4;
+}
+
+message ExplainVerdictResponse {
+  vrooli.architecture_cartographer.v1.shared.Verdict verdict = 1;
+}
+
+message ListSignalsRequest {
+  // Optional scenario filter — when set, the response reflects the
+  // manifest-overlaid weights for that scenario.
+  string scenario = 1;
+}
+
+message ListSignalsResponse {
+  repeated SignalDescriptor signals = 1;
+}

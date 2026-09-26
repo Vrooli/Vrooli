@@ -1,0 +1,44 @@
+{
+  "createdAt": "2026-09-21T00:00:00Z",
+  "description": "Design a scenario UI to be genuinely beautiful, intuitive, cohesive, and market-standout across desktop and mobile as co-equal media — design the medium (not the screen size), model content once and compose it twice, work mockup-first, and unify the surfaces under one concept. Not token/primitive infrastructure (ui-design-system-migration), not i18n (ui-i18n-adoption), not usability heuristics alone (ux).",
+  "entry": "SKILL.md",
+  "icon": "sparkles",
+  "id": "experiential-ui-design",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "steer",
+    "ux"
+  ],
+  "name": "experiential-ui-design",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "ui",
+    "ux",
+    "visual",
+    "mobile",
+    "responsive",
+    "design",
+    "mockup",
+    "layout"
+  ],
+  "targetDimensions": [
+    "visual",
+    "ui",
+    "accessibility"
+  ],
+  "updatedAt": "2026-09-21T00:00:00Z"
+}

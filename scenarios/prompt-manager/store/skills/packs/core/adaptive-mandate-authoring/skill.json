@@ -1,0 +1,41 @@
+{
+  "createdAt": "2026-09-11T00:00:00Z",
+  "description": "Author a Plan Manager plan with shape `mandate` for a scenario that has documented targets, an improve skill and sensors. A mandate carries a target pointer, sensors, bands, scope and authority, stop rules, a suggested arc and a journal location. No step lists; progress is the setpoint board. Not for phased plans; use implementation-plan-authoring for those.",
+  "entry": "SKILL.md",
+  "icon": "compass",
+  "id": "adaptive-mandate-authoring",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "adaptive-mandate-authoring",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill read",
+      "plan-manager author",
+      "program-runtime library run"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "plan-manager",
+      "program-runtime"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "mandate",
+    "plan",
+    "setpoint",
+    "scenario",
+    "development",
+    "authoring",
+    "swarm"
+  ],
+  "updatedAt": "2026-09-11T00:00:00Z"
+}

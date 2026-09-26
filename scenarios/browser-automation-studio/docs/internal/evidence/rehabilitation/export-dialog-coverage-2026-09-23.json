@@ -1,0 +1,59 @@
+{
+  "date": "2026-09-23",
+  "issue": "BAS-RF-014",
+  "area": "ui/src/domains/executions/export/components/ExportDialog.tsx",
+  "purpose": "Protect export-format behavior while working down the existing UI coverage gap.",
+  "observed_baseline": {
+    "statements_percent": 0.49,
+    "functions_percent": 0,
+    "source_statements": 615,
+    "source": "ui/coverage/coverage-summary.json from the direct aggregate coverage reproduction"
+  },
+  "expected_behaviors": [
+    "Binary video export is disabled when there are no replay frames.",
+    "Raw JSON package export remains enabled when there are no replay frames."
+  ],
+  "validation": [
+    {
+      "command": "pnpm exec vitest run --project export-domain src/domains/executions/export/components/ExportDialog.test.tsx --coverage=false",
+      "result": "passed",
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "command": "pnpm exec eslint src/domains/executions/export/components/ExportDialog.test.tsx",
+      "result": "passed"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit",
+      "result": "passed"
+    }
+  ],
+  "coverage_policy": {
+    "minimum_percent": 85,
+    "changed": false,
+    "aggregate_owner_status": "unqualified; prior merged coverage was 30.52% statements/lines, 33.61% functions, 67.26% branches"
+  },
+  "contract_preparation": {
+    "valid": true,
+    "preservation_journeys": 24,
+    "errors": 0,
+    "product_qualification": false
+  },
+  "source_inventory": {
+    "include_untracked": true,
+    "digest_sha256": "851583a4d37a1ac20a5f41ec34f3e3813026762f7f233bf65d9162e4e2fa1dc9"
+  },
+  "setpoint": {
+    "run_id": "prog_b3af2460-f813-46b3-b3b2-08ba4958f5fd",
+    "readable": 1,
+    "required": 17,
+    "capture_in_band": true,
+    "unavailable": 16,
+    "product_qualified": false
+  },
+  "limitations": [
+    "Focused component behavior coverage does not qualify the full UI unit phase.",
+    "This test-only change did not alter production behavior or require a managed restart."
+  ]
+}

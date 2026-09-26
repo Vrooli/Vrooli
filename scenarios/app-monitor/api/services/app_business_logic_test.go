@@ -3,7 +3,6 @@ package services
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -152,23 +151,21 @@ func TestCacheExpirationWithMockedTime(t *testing.T) {
 	})
 }
 
-func TestIssueCacheWithMockedTime(t *testing.T) {
-	t.Run("IssueCacheExpiresAfterTTL", func(t *testing.T) {
+func TestFixCacheWithMockedTime(t *testing.T) {
+	t.Run("FixCacheExpiresAfterTTL", func(t *testing.T) {
 		mockRepo := &mockAppRepository{}
 		mockTime := newMockTimeProvider(time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC))
 		service := NewAppServiceWithOptions(mockRepo, nil, mockTime.now)
 
 		// Create cache entry
 		cacheKey := "test-scenario"
-		entry := &issueCacheEntry{
-			issues:      []AppIssueSummary{{ID: "issue-1", Title: "Test"}},
-			scenario:    "test-scenario",
-			appID:       "test-app",
-			trackerURL:  "http://localhost:8080",
-			fetchedAt:   mockTime.now().UTC(),
-			openCount:   1,
-			activeCount: 1,
-			totalCount:  1,
+		entry := &fixCacheEntry{
+			active:    []AppFixSummary{{ID: "fix/test", Kind: "fix", Name: "test", Title: "Test"}},
+			archived:  []AppFixSummary{},
+			scenario:  "test-scenario",
+			appID:     "test-app",
+			fixesURL:  "/apps/swarm-manager/proxy/",
+			fetchedAt: mockTime.now().UTC(),
 		}
 
 		service.issueCacheMu.Lock()
@@ -182,10 +179,10 @@ func TestIssueCacheWithMockedTime(t *testing.T) {
 		service.issueCacheMu.RUnlock()
 
 		if !isFresh {
-			t.Error("Issue cache should be fresh immediately")
+			t.Error("Fix cache should be fresh immediately")
 		}
 
-		// Advance time past issue cache TTL (30s)
+		// Advance time past fix cache TTL (30s)
 		mockTime.advance(35 * time.Second)
 
 		// Verify cache is now stale
@@ -195,7 +192,7 @@ func TestIssueCacheWithMockedTime(t *testing.T) {
 		service.issueCacheMu.RUnlock()
 
 		if !isStale {
-			t.Error("Issue cache should be stale after 35 seconds (TTL is 30s)")
+			t.Error("Fix cache should be stale after 35 seconds (TTL is 30s)")
 		}
 	})
 }
@@ -205,7 +202,7 @@ func TestIssueCacheWithMockedTime(t *testing.T) {
 // =============================================================================
 
 func TestHTTPErrorScenarios(t *testing.T) {
-	t.Run("IssueTrackerHTTPTimeout", func(t *testing.T) {
+	t.Run("SwarmManagerHTTPTimeout", func(t *testing.T) {
 		mockRepo := &mockAppRepository{}
 		mockHTTP := &mockHTTPClient{
 			doFunc: func(req *http.Request) (*http.Response, error) {
@@ -213,21 +210,23 @@ func TestHTTPErrorScenarios(t *testing.T) {
 			},
 		}
 		service := NewAppServiceWithOptions(mockRepo, mockHTTP, nil)
+		service.scenarioURL = func(context.Context, string) (string, error) {
+			return "http://localhost:8080", nil
+		}
 
-		// Try to submit issue (this would fail during HTTP call)
-		_, err := service.submitIssueToTracker(context.Background(), 8080, map[string]interface{}{
-			"title": "Test Issue",
-		})
+		_, err := service.submitFixToSwarmManager(context.Background(), map[string]interface{}{
+			"name": "test-fix", "title": "Test Fix", "kind": "fix",
+		}, nil)
 
 		if err == nil {
 			t.Error("Expected error when HTTP client times out")
 		}
-		if !strings.Contains(err.Error(), "failed to call app-issue-tracker") {
+		if !strings.Contains(err.Error(), "failed to call swarm-manager") {
 			t.Errorf("Expected timeout error message, got: %v", err)
 		}
 	})
 
-	t.Run("IssueTracker500Error", func(t *testing.T) {
+	t.Run("SwarmManager500Error", func(t *testing.T) {
 		mockRepo := &mockAppRepository{}
 		mockHTTP := &mockHTTPClient{
 			doFunc: func(req *http.Request) (*http.Response, error) {
@@ -238,20 +237,23 @@ func TestHTTPErrorScenarios(t *testing.T) {
 			},
 		}
 		service := NewAppServiceWithOptions(mockRepo, mockHTTP, nil)
+		service.scenarioURL = func(context.Context, string) (string, error) {
+			return "http://localhost:8080", nil
+		}
 
-		_, err := service.submitIssueToTracker(context.Background(), 8080, map[string]interface{}{
-			"title": "Test Issue",
-		})
+		_, err := service.submitFixToSwarmManager(context.Background(), map[string]interface{}{
+			"name": "test-fix", "title": "Test Fix", "kind": "fix",
+		}, nil)
 
 		if err == nil {
-			t.Error("Expected error when issue tracker returns 500")
+			t.Error("Expected error when Swarm Manager returns 500")
 		}
 		if !strings.Contains(err.Error(), "500") {
-			t.Errorf("Expected 500 status error, got: %v", err)
+			t.Errorf("Expected Swarm Manager 500 status error, got: %v", err)
 		}
 	})
 
-	t.Run("IssueTrackerInvalidJSON", func(t *testing.T) {
+	t.Run("SwarmManagerInvalidJSON", func(t *testing.T) {
 		mockRepo := &mockAppRepository{}
 		mockHTTP := &mockHTTPClient{
 			doFunc: func(req *http.Request) (*http.Response, error) {
@@ -262,10 +264,13 @@ func TestHTTPErrorScenarios(t *testing.T) {
 			},
 		}
 		service := NewAppServiceWithOptions(mockRepo, mockHTTP, nil)
+		service.scenarioURL = func(context.Context, string) (string, error) {
+			return "http://localhost:8080", nil
+		}
 
-		_, err := service.submitIssueToTracker(context.Background(), 8080, map[string]interface{}{
-			"title": "Test Issue",
-		})
+		_, err := service.submitFixToSwarmManager(context.Background(), map[string]interface{}{
+			"name": "test-fix", "title": "Test Fix", "kind": "fix",
+		}, nil)
 
 		if err == nil {
 			t.Error("Expected error when response is invalid JSON")
@@ -275,46 +280,40 @@ func TestHTTPErrorScenarios(t *testing.T) {
 		}
 	})
 
-	t.Run("IssueTrackerSuccessButNoIssueID", func(t *testing.T) {
+	t.Run("SwarmManagerSuccessButNoItemIdentity", func(t *testing.T) {
 		mockRepo := &mockAppRepository{}
 		mockHTTP := &mockHTTPClient{
 			doFunc: func(req *http.Request) (*http.Response, error) {
 				return &http.Response{
 					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewBufferString(`{"success": true, "message": "Created", "data": {}}`)),
+					Body:       io.NopCloser(bytes.NewBufferString(`{"item": {}}`)),
 				}, nil
 			},
 		}
 		service := NewAppServiceWithOptions(mockRepo, mockHTTP, nil)
+		service.scenarioURL = func(context.Context, string) (string, error) {
+			return "http://localhost:8080", nil
+		}
 
-		result, err := service.submitIssueToTracker(context.Background(), 8080, map[string]interface{}{
-			"title": "Test Issue",
-		})
-
-		if err != nil {
-			t.Errorf("Should not error when success=true, got: %v", err)
-		}
-		if result == nil {
-			t.Fatal("Expected non-nil result")
-		}
-		if result.IssueID != "" {
-			t.Errorf("Expected empty issue ID when not provided, got: %q", result.IssueID)
-		}
-		if result.Message == "" {
-			t.Error("Expected result message to be populated")
+		_, err := service.submitFixToSwarmManager(context.Background(), map[string]interface{}{
+			"name": "test-fix", "title": "Test Fix", "kind": "fix",
+		}, nil)
+		if err == nil {
+			t.Error("Expected error when item identity is missing")
 		}
 	})
 }
 
 // =============================================================================
-// Issue Tracker Integration Tests
+// Swarm Manager Integration Tests
 // =============================================================================
 
-func TestIssueTrackerIntegration(t *testing.T) {
-	t.Run("SubmitIssueWithAllFields", func(t *testing.T) {
+func TestSwarmManagerFixIntegration(t *testing.T) {
+	t.Run("SubmitFixWithMultipartEvidence", func(t *testing.T) {
 		mockRepo := &mockAppRepository{}
 		requestReceived := false
-		var receivedPayload map[string]interface{}
+		var receivedItem string
+		var receivedManifest string
 
 		mockHTTP := &mockHTTPClient{
 			doFunc: func(req *http.Request) (*http.Response, error) {
@@ -324,36 +323,33 @@ func TestIssueTrackerIntegration(t *testing.T) {
 				if req.Method != http.MethodPost {
 					t.Errorf("Expected POST, got %s", req.Method)
 				}
-				if !strings.Contains(req.URL.String(), "/api/v1/issues") {
-					t.Errorf("Expected /api/v1/issues endpoint, got %s", req.URL.String())
+				if !strings.Contains(req.URL.String(), "/api/v1/backlog") {
+					t.Errorf("Expected /api/v1/backlog endpoint, got %s", req.URL.String())
 				}
-				if req.Header.Get("Content-Type") != "application/json" {
-					t.Error("Expected Content-Type: application/json")
+				if !strings.HasPrefix(req.Header.Get("Content-Type"), "multipart/form-data") {
+					t.Error("Expected multipart/form-data")
 				}
 
-				// Capture payload
 				bodyBytes, _ := io.ReadAll(req.Body)
-				_ = json.Unmarshal(bodyBytes, &receivedPayload)
+				bodyText := string(bodyBytes)
+				receivedItem = bodyText
+				receivedManifest = bodyText
 
 				return &http.Response{
 					StatusCode: http.StatusOK,
-					Body: io.NopCloser(bytes.NewBufferString(`{
-						"success": true,
-						"message": "Issue created successfully",
-						"data": {"issue_id": "ISSUE-123"}
-					}`)),
+					Body:       io.NopCloser(bytes.NewBufferString(`{"item":{"name":"test-fix","title":"Test Fix","kind":"fix","status":"backlog"}}`)),
 				}, nil
 			},
 		}
 
 		service := NewAppServiceWithOptions(mockRepo, mockHTTP, nil)
+		service.scenarioURL = func(context.Context, string) (string, error) {
+			return "http://localhost:8080", nil
+		}
 
-		result, err := service.submitIssueToTracker(context.Background(), 8080, map[string]interface{}{
-			"title":       "Test Issue",
-			"description": "This is a test",
-			"app_id":      "test-app",
-		})
-
+		result, err := service.submitFixToSwarmManager(context.Background(), map[string]interface{}{
+			"name": "test-fix", "title": "Test Fix", "kind": "fix",
+		}, []swarmEvidenceFile{{Path: "evidence/report.json", Content: []byte(`{"ok":true}`), ContentType: "application/json"}})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -366,77 +362,15 @@ func TestIssueTrackerIntegration(t *testing.T) {
 			t.Fatal("Expected non-nil result")
 		}
 
-		if result.IssueID != "ISSUE-123" {
-			t.Errorf("Expected issue ID 'ISSUE-123', got %q", result.IssueID)
+		if result.Kind != "fix" || result.Name != "test-fix" {
+			t.Errorf("Expected fix/test-fix, got %#v", result)
 		}
 
-		if result.Message != "Issue created successfully" {
-			t.Errorf("Expected message 'Issue created successfully', got %q", result.Message)
+		if !strings.Contains(receivedItem, `"title":"Test Fix"`) {
+			t.Error("Multipart item did not contain fix title")
 		}
-
-		// Verify payload was sent
-		if receivedPayload == nil {
-			t.Error("Payload was not captured")
-		} else {
-			if title, ok := receivedPayload["title"].(string); !ok || title != "Test Issue" {
-				t.Error("Payload did not contain correct title")
-			}
-		}
-	})
-
-	t.Run("ParseNestedIssueIDFormats", func(t *testing.T) {
-		testCases := []struct {
-			name            string
-			responseBody    string
-			expectedIssueID string
-		}{
-			{
-				name:            "issue_id in data",
-				responseBody:    `{"success": true, "data": {"issue_id": "DIRECT-123"}}`,
-				expectedIssueID: "DIRECT-123",
-			},
-			{
-				name:            "issueId in data",
-				responseBody:    `{"success": true, "data": {"issueId": "CAMEL-456"}}`,
-				expectedIssueID: "CAMEL-456",
-			},
-			{
-				name:            "nested issue.id",
-				responseBody:    `{"success": true, "data": {"issue": {"id": "NESTED-789"}}}`,
-				expectedIssueID: "NESTED-789",
-			},
-			{
-				name:            "no issue ID",
-				responseBody:    `{"success": true, "data": {}}`,
-				expectedIssueID: "",
-			},
-		}
-
-		for _, tc := range testCases {
-			t.Run(tc.name, func(t *testing.T) {
-				mockRepo := &mockAppRepository{}
-				mockHTTP := &mockHTTPClient{
-					doFunc: func(req *http.Request) (*http.Response, error) {
-						return &http.Response{
-							StatusCode: http.StatusOK,
-							Body:       io.NopCloser(bytes.NewBufferString(tc.responseBody)),
-						}, nil
-					},
-				}
-
-				service := NewAppServiceWithOptions(mockRepo, mockHTTP, nil)
-				result, err := service.submitIssueToTracker(context.Background(), 8080, map[string]interface{}{
-					"title": "Test",
-				})
-
-				if err != nil {
-					t.Fatalf("Unexpected error: %v", err)
-				}
-
-				if result.IssueID != tc.expectedIssueID {
-					t.Errorf("Expected issue ID %q, got %q", tc.expectedIssueID, result.IssueID)
-				}
-			})
+		if !strings.Contains(receivedManifest, `"path":"evidence/report.json"`) {
+			t.Error("Multipart manifest did not contain evidence path")
 		}
 	})
 }

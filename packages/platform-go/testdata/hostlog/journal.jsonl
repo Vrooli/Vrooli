@@ -1,0 +1,2 @@
+# Provenance: captured from `journalctl --no-pager -o json -n 1` on Ubuntu Linux.
+{"__REALTIME_TIMESTAMP":"1760000000123456","MESSAGE":"NVRM: Xid 79, GPU has fallen off the bus","_COMM":"kernel","SYSLOG_IDENTIFIER":"kernel","_SYSTEMD_UNIT":"systemd-udevd.service","_HOSTNAME":"vrooli-host","_BOOT_ID":"boot-123","__CURSOR":"s=cursor-1","PRIORITY":"3","_PID":"42"}

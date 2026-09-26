@@ -24,7 +24,11 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
 }) => {
   return (
     <nav
-      className="flex items-center gap-1 border-b border-gray-800 px-4 sm:px-6 bg-flow-bg"
+      // Five tabs do not fit a 390px viewport, so the strip scrolls itself
+      // rather than pushing the document sideways. Without overflow-x-auto the
+      // Schedules tab extends past the viewport and every page on this route
+      // fails the horizontal-overflow floor.
+      className="flex items-center gap-1 border-b border-gray-800 px-4 sm:px-6 bg-flow-bg overflow-x-auto"
       role="tablist"
       aria-label="Dashboard sections"
     >
@@ -39,8 +43,8 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
             onClick={() => onTabChange(tab.id)}
             type="button"
             className={`
-              relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors
-              border-b-2 -mb-[2px]
+              relative flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors
+              border-b-2 -mb-[2px] min-h-[44px]
               ${
                 isActive
                   ? 'text-surface border-flow-accent'
@@ -48,11 +52,16 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
               }
             `}
             aria-selected={isActive}
+            aria-label={tab.label}
             role="tab"
             tabIndex={isActive ? 0 : -1}
           >
             {tab.icon}
-            <span>{tab.label}</span>
+            {/* Five labelled tabs cannot fit a 390px viewport in one row, and
+                the overflow floor measures node bounds rather than document
+                scroll, so scrolling the strip does not satisfy it. Collapse to
+                icons below sm; aria-label carries the name either way. */}
+            <span className="hidden sm:inline">{tab.label}</span>
             {showBadge && (
               <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-green-500 rounded-full animate-pulse">
                 {runningCount > 9 ? '9+' : runningCount}

@@ -1,0 +1,54 @@
+syntax = "proto3";
+package vrooli.nutrition_planner.v1.nutrition;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/nutrition;nutrition_v1";
+
+service NutritionService {
+  rpc ListTargets(ListTargetsRequest) returns (ListTargetsResponse);
+  rpc CreateTarget(CreateTargetRequest) returns (CreateTargetResponse);
+  rpc GetTarget(GetTargetRequest) returns (GetTargetResponse);
+  rpc EvaluateScope(EvaluateScopeRequest) returns (EvaluateScopeResponse);
+  rpc ListIntakes(ListIntakesRequest) returns (ListIntakesResponse);
+  rpc RecordIntake(RecordIntakeRequest) returns (RecordIntakeResponse);
+}
+
+message Target {
+  string id = 1;
+  int64 revision = 2;
+  string nutrient_id = 3;
+  string lower = 4;
+  string upper = 5;
+  string period = 6;
+  string scope = 7;
+  string enforcement = 8;
+  string provenance = 9;
+  string effective_from = 10;
+  string effective_to = 11;
+  bool active = 12;
+}
+message ListTargetsRequest { string workspace_id = 1; }
+message ListTargetsResponse { repeated Target targets = 1; }
+message CreateTargetRequest {
+  string workspace_id = 1;
+  string nutrient_id = 2;
+  string lower = 3;
+  string upper = 4;
+  string period = 5;
+  string scope = 6;
+  string enforcement = 7;
+  string provenance = 8;
+  string effective_from = 9;
+  string effective_to = 10;
+  bool active = 11;
+}
+message CreateTargetResponse { Target target = 1; }
+message GetTargetRequest { string workspace_id = 1; string id = 2; int64 revision = 3; }
+message GetTargetResponse { Target target = 1; }
+message Intake { string date = 1; string nutrient_id = 2; string planned = 3; string actual = 4; bool recorded = 5; bool past = 6; }
+message EvaluateScopeRequest { string workspace_id = 1; string target_id = 2; int64 target_revision = 3; string nutrient_id = 4; string scope = 5; repeated Intake intakes = 6; }
+message EvaluateScopeResponse { string nutrient_id = 1; string known = 2; bool complete = 3; repeated string unresolved = 4; string status = 5; string reason = 6; }
+message IntakeEvent { string id = 1; string date = 2; string recipe_id = 3; int64 recipe_revision = 4; string nutrient_id = 5; string amount = 6; string unit = 7; string reason = 8; string correction_of = 9; string recorded_at = 10; }
+message ListIntakesRequest { string workspace_id = 1; }
+message ListIntakesResponse { repeated IntakeEvent events = 1; }
+message RecordIntakeRequest { string workspace_id = 1; string id = 2; string date = 3; string recipe_id = 4; int64 recipe_revision = 5; string nutrient_id = 6; string amount = 7; string unit = 8; string reason = 9; string correction_of = 10; }
+message RecordIntakeResponse { IntakeEvent event = 1; }

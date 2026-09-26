@@ -1,8 +1,7 @@
-import { useState, useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useChats } from "./hooks/useChats";
 import { useAsyncStatus } from "./hooks/useAsyncStatus";
-import { useTools } from "./hooks/useTools";
 import { useActiveTemplate } from "./hooks/useActiveTemplate";
 import { useChatRoute, usePopStateListener } from "./hooks/useChatRoute";
 import { useResizableSidebar } from "./hooks/useResizableSidebar";
@@ -46,7 +45,7 @@ function AppContent() {
 
   const {
     width: sidebarWidth, isResizing: isSidebarResizing,
-    containerRef: sidebarContainerRef, handleResizeStart,
+    panelRef: sidebarPanelRef, containerRef: sidebarContainerRef, handleResizeStart,
   } = useResizableSidebar({
     storageKey: "agent-inbox:sidebar-width",
     defaultWidth: 320, minWidth: 200, maxWidthRatio: 0.5,
@@ -57,9 +56,6 @@ function AppContent() {
     (chatId: string | null) => { setChatInUrl(chatId || ""); },
     [setChatInUrl]
   );
-
-  const templateDeactivateRef = useRef<(() => void) | null>(null);
-  const handleTemplateDeactivated = useCallback(() => { templateDeactivateRef.current?.(); }, []);
 
   const {
     selectedChatId, currentView, isGenerating, streamingContent,
@@ -73,7 +69,7 @@ function AppContent() {
     editingMessage, setEditingMessage, editMessageAndComplete, cancelEdit,
     bulkOperate, forkConversation,
     isCreatingChat, isDeletingAllChats, isBulkOperating, isForking,
-  } = useChats({ initialChatId, onChatChange: handleChatChange, onTemplateDeactivated: handleTemplateDeactivated });
+  } = useChats({ initialChatId, onChatChange: handleChatChange });
 
   const {
     operations: asyncOperations, activeOperations: activeAsyncOperations,
@@ -87,24 +83,15 @@ function AppContent() {
     hasMoreAsyncHistory, handleFetchAsyncHistory,
   } = useAsyncReferences(selectedChatId, fetchAsyncHistory);
 
-  const { enableToolsByIds } = useTools({ chatId: selectedChatId ?? undefined });
   const activeTemplate = useActiveTemplate(selectedChatId ?? undefined, chatData?.chat);
 
-  useEffect(() => {
-    templateDeactivateRef.current = () => {
-      if (selectedChatId && chatData?.chat?.id === selectedChatId) activeTemplate.deactivate();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTemplate.deactivate, selectedChatId, chatData?.chat?.id]);
-
   const handleTemplateActivated = useCallback(
-    async (templateId: string, toolIds: string[]) => {
+    async (templateId: string) => {
       if (!selectedChatId) return;
-      await enableToolsByIds(toolIds);
-      await activeTemplate.activate(templateId, toolIds);
+      await activeTemplate.activate(templateId);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedChatId, enableToolsByIds, activeTemplate.activate]
+    [selectedChatId, activeTemplate.activate]
   );
 
   usePopStateListener(useCallback((chatId: string) => { selectChat(chatId); }, [selectChat]));
@@ -142,13 +129,13 @@ function AppContent() {
 
   const handleClearArchived = useCallback(async () => {
     setIsClearingArchived(true);
-    try { await deleteArchivedChats(); queryClient.invalidateQueries({ queryKey: ["chats"] }); }
+    try { await deleteArchivedChats(); void queryClient.invalidateQueries({ queryKey: ["chats"] }); }
     finally { setIsClearingArchived(false); }
   }, [queryClient]);
 
   const handleMarkAllAsRead = useCallback(async () => {
     setIsMarkingAllAsRead(true);
-    try { await markAllChatsAsRead(); queryClient.invalidateQueries({ queryKey: ["chats"] }); }
+    try { await markAllChatsAsRead(); void queryClient.invalidateQueries({ queryKey: ["chats"] }); }
     finally { setIsMarkingAllAsRead(false); }
   }, [queryClient]);
 
@@ -161,16 +148,68 @@ function AppContent() {
 
   const chatViewCallbacks = useChatViewCallbacks({
     selectedChatId, updateChat, toggleRead, toggleStar, toggleArchive,
-    deleteChat, assignLabel, removeLabel, regenerateMessage,
-    editingMessage, editMessageAndComplete, setScrollToMessageId,
+    deleteChat, assignLabel, removeLabel,
+    regenerateMessage: (chatId, messageId) => { void regenerateMessage(chatId, messageId); },
+    editingMessage,
+    editMessageAndComplete: (messageId, payload) => { void editMessageAndComplete(messageId, payload); },
+    setScrollToMessageId,
   });
+
+  const handleManageLabels = useCallback(() => {
+    modals.setShowLabelManager(true);
+  }, [modals]);
+
+  const handleRenameChat = useCallback(
+    (chatId: string, newName: string) => {
+      updateChat({ chatId, data: { name: newName } });
+    },
+    [updateChat],
+  );
+
+  const handleBulkOperate = useCallback(
+    (chatIds: string[], operation: Parameters<typeof bulkOperate>[0]["operation"], labelId?: string) => {
+      bulkOperate({ chatIds, operation, labelId });
+    },
+    [bulkOperate],
+  );
+
+  const handleSendMessage = useCallback(
+    (payload: Parameters<typeof sendMessage>[0]) => {
+      void sendMessage(payload);
+    },
+    [sendMessage],
+  );
+
+  const handleTemplateDeactivate = useCallback(() => {
+    void activeTemplate.deactivate();
+  }, [activeTemplate]);
+
+  const handleCreateChatWithMessage = useCallback(
+    (payload: Parameters<typeof createChatWithMessage>[0]) => {
+      void createChatWithMessage(payload);
+    },
+    [createChatWithMessage],
+  );
+
+  const handleStartAgentChatFromEmpty = useCallback(
+    (payload: Parameters<typeof handleStartAgentChat>[0], config: Parameters<typeof handleStartAgentChat>[1]) => {
+      void handleStartAgentChat(payload, config);
+    },
+    [handleStartAgentChat],
+  );
+
+  const handleAttachRunFromEmptyState = useCallback(
+    (run: Parameters<typeof handleAttachRunFromEmpty>[0]) => {
+      void handleAttachRunFromEmpty(run);
+    },
+    [handleAttachRunFromEmpty],
+  );
 
   const visibleChats = useMemo(() => {
     return chats.filter((c) => {
       if (currentView === "inbox") return !c.is_archived;
       if (currentView === "starred") return c.is_starred;
-      if (currentView === "archived") return c.is_archived;
-      return true;
+      return c.is_archived;
     });
   }, [chats, currentView]);
 
@@ -188,9 +227,10 @@ function AppContent() {
   });
 
   return (
-    <div ref={sidebarContainerRef as RefObject<HTMLDivElement>} className="h-screen bg-slate-950 text-slate-50 flex overflow-hidden" data-testid={appTestIds.container}>
+    <div ref={sidebarContainerRef} className="h-screen bg-slate-950 text-slate-50 flex overflow-hidden" data-testid={appTestIds.container}>
       <SidebarPanel
         ref={searchInputRef}
+        panelRef={sidebarPanelRef}
         sidebarOpen={sidebarOpen} chatListOpen={chatListOpen}
         sidebarCollapsed={sidebarCollapsed} sidebarWidth={sidebarWidth}
         isSidebarResizing={isSidebarResizing} isMobile={isMobile}
@@ -199,14 +239,14 @@ function AppContent() {
         handleToggleSidebarCollapsed={handleToggleSidebarCollapsed}
         currentView={currentView} setCurrentView={setCurrentView}
         handleNewChat={handleNewChat} handleNewAgentChat={handleNewAgentChat}
-        onManageLabels={() => modals.setShowLabelManager(true)}
+        onManageLabels={handleManageLabels}
         onOpenSettings={modals.handleOpenSettings}
         onShowKeyboardShortcuts={modals.handleShowKeyboardShortcuts}
         isCreatingChat={isCreatingChat} labels={labels} chatCounts={chatCounts}
         chats={chats} selectedChatId={selectedChatId} focusedIndex={focusedIndex}
         isLoadingChats={loadingChats} onSelectChat={handleSelectChat}
-        onRenameChat={(chatId, newName) => updateChat({ chatId, data: { name: newName } })}
-        onBulkOperate={(chatIds, operation, labelId) => bulkOperate({ chatIds, operation, labelId })}
+        onRenameChat={handleRenameChat}
+        onBulkOperate={handleBulkOperate}
         isBulkOperating={isBulkOperating}
         onClearArchived={handleClearArchived} isClearingArchived={isClearingArchived}
         onDeselectChat={handleDeselectChat}
@@ -219,7 +259,9 @@ function AppContent() {
         loadingChat={loadingChat} isGenerating={isGenerating}
         streamingContent={streamingContent} activeToolCalls={activeToolCalls}
         generatedImages={generatedImages} scrollToMessageId={scrollToMessageId}
-        chatViewCallbacks={chatViewCallbacks} sendMessage={sendMessage} viewMode={viewMode}
+        chatViewCallbacks={chatViewCallbacks}
+        sendMessage={handleSendMessage}
+        viewMode={viewMode}
         selectBranch={selectBranch} forkConversation={forkConversation}
         isRegenerating={isRegenerating} isForking={isForking}
         editingMessage={editingMessage} setEditingMessage={setEditingMessage} cancelEdit={cancelEdit}
@@ -232,13 +274,13 @@ function AppContent() {
         handleRemoveAsyncReference={handleRemoveAsyncReference}
         handleTemplateActivated={handleTemplateActivated}
         activeTemplateId={activeTemplate.activeTemplateId}
-        onTemplateDeactivate={activeTemplate.deactivate}
+        onTemplateDeactivate={handleTemplateDeactivate}
         handleOpenAgentSettings={modals.handleOpenAgentSettings}
         handleBackToList={handleBackToList} isMobile={isMobile}
         setSidebarOpen={setSidebarOpen} chatListOpen={chatListOpen}
-        createChatWithMessage={createChatWithMessage}
-        handleStartAgentChat={handleStartAgentChat}
-        handleAttachRunFromEmpty={handleAttachRunFromEmpty}
+        createChatWithMessage={handleCreateChatWithMessage}
+        handleStartAgentChat={handleStartAgentChatFromEmpty}
+        handleAttachRunFromEmpty={handleAttachRunFromEmptyState}
         isCreatingChat={isCreatingChat}
       />
 

@@ -1,0 +1,20 @@
+{
+  "id": "sess_44a660a4e4ebe32d",
+  "title": "Lifecycle triage drill retry",
+  "kind": "swarm_operations",
+  "status": "running",
+  "skill_id": "swarm-manager-proposals",
+  "task_id": "785497a0-a49e-4f39-a9e8-e926a346318c",
+  "run_id": "0533bd8e-1958-48e5-a1ea-842a1df4d7c7",
+  "profile_key": "swarm-manager/default",
+  "created_at": "2026-07-20T18:07:56Z",
+  "updated_at": "2026-07-20T18:08:02Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "proposal_target": {
+    "type": "backlog_item",
+    "ref": "fix/lifecycle-triage-drill-a",
+    "name": "Lifecycle triage drill A"
+  }
+}

@@ -258,30 +258,19 @@ This document tracks known limitations, issues, and areas for future improvement
 
 ---
 
-## Non-Issues (False Alarms)
+## Historical audit interpretation
 
-### Auditor Violations - All False Positives
-**Status**: Analyzed and dismissed
-**Impact**: None - Tool accuracy issue
-**Severity**: N/A
+The 2025-10-25 audit's blanket "all false positives" conclusion is not a standing
+waiver or current production-readiness verdict. Its exact violation analysis is
+preserved beneath runtime home at
+`plan-artifacts/docs-cleanup-20260907-final-txumdx73/scenarios/notes/AUDIT_ANALYSIS.md`.
 
-**Summary**:
-- Scenario auditor reports 34 standards violations
-- Comprehensive analysis in AUDIT_ANALYSIS.md
-- All violations confirmed as false positives or acceptable practices
-
-**Categories**:
-1. Makefile documentation (6 high) - auditor parsing error
-2. Structured logging (1 medium) - auditor context error
-3. Environment variables (16 medium) - acceptable usage
-4. Default values with env override (5 medium) - best practice
-5. CDN URLs (3 medium) - standard web practice
-
-**Resolution**: No action required for scenario. Auditor tool needs improvements.
-
-**Reference**: See AUDIT_ANALYSIS.md for detailed analysis
-
----
+The report proposed improvements to Makefile-comment parsing, structured-logging
+recognition, default-value detection, CDN classification, and environment-variable
+severity. These are historical hypotheses: evaluate each current finding against
+its owning rule and source context. An environment override or public CDN alone
+does not prove a finding is harmless. Preserve the old report as evidence of the
+observation, not authority to dismiss new findings.
 
 ## Performance Considerations
 
@@ -368,7 +357,7 @@ This document tracks known limitations, issues, and areas for future improvement
 ### Internal Documentation
 - `/scenarios/notes/PRD.md` - Product requirements and progress
 - `/scenarios/notes/README.md` - User-facing documentation
-- `/scenarios/notes/AUDIT_ANALYSIS.md` - Security audit details
+- [Historical audit interpretation](#historical-audit-interpretation) - Dated source and current triage boundary
 - `/docs/testing/architecture/PHASED_TESTING.md` - Testing standards
 
 ### Related Issues
@@ -388,7 +377,7 @@ If you discover a new issue:
 
 1. **Check this document first** - Issue may already be known
 2. **Verify it's reproducible** - Document steps to reproduce
-3. **Check AUDIT_ANALYSIS.md** - May be auditor false positive
+3. **Check the current rule and source context** - Use the historical audit only as investigation context
 4. **Add to this document** - Use the template below
 
 ### Issue Template

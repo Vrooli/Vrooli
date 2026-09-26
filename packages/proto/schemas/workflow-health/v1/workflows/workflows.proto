@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package vrooli.workflow_health.v1.workflows;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/workflow-health/v1/workflows;workflows_v1";
+
+// WorkflowSearchService exposes scenario-owned BAS workflow assets as typed
+// search leaves. Workflow Health remains the source of policy and safety
+// metadata; Search Hub can federate these responses without owning workflow
+// data.
+service WorkflowSearchService {
+  rpc SearchWorkflows(SearchWorkflowsRequest) returns (SearchWorkflowsResponse);
+}
+
+message SearchWorkflowsRequest {
+  // Scenario id to scan. Either scenario or path is required.
+  string scenario = 1;
+
+  // Explicit scenario directory path. Used by tests and local operators.
+  string path = 2;
+
+  // Natural-language intent, for example "create project workflow" or
+  // "prove routed database isolation".
+  string query = 3;
+
+  // Optional leaf type filter. Supported values: workflow.flow,
+  // workflow.test, workflow.fragment.
+  repeated string types = 4;
+
+  // Include workflow.fragment leaves when types is empty. Fragments are hidden
+  // by default because they are dependencies, not top-level runnable actions.
+  bool include_fragments = 5;
+
+  // Maximum number of results. Zero uses the service default.
+  int32 limit = 6;
+}
+
+message SearchWorkflowsResponse {
+  string scenario = 1;
+  string query = 2;
+  repeated WorkflowSearchResult results = 3;
+  int32 total = 4;
+}
+
+message WorkflowSearchResult {
+  string id = 1;
+  string leaf_type = 2;
+  string asset_type = 3;
+  string role = 4;
+  string title = 5;
+  string snippet = 6;
+  string path = 7;
+  double score = 8;
+  bool runnable = 9;
+  bool mutating = 10;
+  bool requires_confirmation = 11;
+  bool requires_isolation = 12;
+  string safety_summary = 13;
+  repeated string requirement_ids = 14;
+  repeated string selectors = 15;
+  repeated string routes = 16;
+  repeated string labels = 17;
+  repeated string dependency_paths = 18;
+  repeated string guardrails = 19;
+}

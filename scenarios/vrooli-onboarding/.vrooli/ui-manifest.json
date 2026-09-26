@@ -1,0 +1,18 @@
+{
+  "$schema": "../../.vrooli/schemas/scenario-ui-manifest.schema.json",
+  "schemaVersion": "2.0.0",
+  "contract": {
+    "kind": "scenario-ui",
+    "schema": "scenario-ui-manifest/v2",
+    "template": "react-vite",
+    "extensionRule": "The onboarding UI keeps the react-vite contract while placing its feature, page, shell, and theme surfaces under the existing scenario component tree."
+  },
+  "slots": {
+    "layout-shell": {"dir": "ui/src/components/layout", "pathPattern": "{dir}/{ComponentName}.tsx", "multiFile": true},
+    "layout-nav": {"dir": "ui/src/components", "pathPattern": "{dir}/{ComponentName}.tsx", "multiFile": true},
+    "page": {"dir": "ui/src/components", "pathPattern": "{dir}/{ComponentName}.tsx", "multiFile": true},
+    "feature": {"dir": "ui/src/components/{feature}", "pathPattern": "{dir}", "multiFile": true, "requiresFeature": true},
+    "feature-component": {"dir": "ui/src/components/{feature}", "pathPattern": "{dir}/{ComponentName}.tsx", "requiresFeature": true},
+    "theme-token": {"dir": "ui/src", "pathPattern": "{dir}/design-tokens.css"}
+  }
+}

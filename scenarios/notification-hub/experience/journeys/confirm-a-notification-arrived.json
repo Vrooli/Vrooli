@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "confirm-a-notification-arrived",
+    "title": "Confirm a notification actually arrived",
+    "purpose": "The operator can send a notification and verify its durable delivery result without guessing.",
+    "prd_refs": ["OT-P0-001"]
+  },
+  "steps": [
+    { "page": "dashboard", "intent": "See the current delivery timeline", "via": "timeline" },
+    { "page": "dashboard", "intent": "Read the notification state and delivery receipt", "via": "delivery-status" }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.0.0",
+  "component": {
+    "id": "empty-state",
+    "title": "Empty state",
+    "purpose": "The shared treatment for a surface with nothing in it yet, which always offers the single action that would fill it rather than describing the concept.",
+    "storyRef": "../../../react-component-library/library/components/EmptyState/versions/1.7.14/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "no-components",
+      "description": "Nothing exists yet."
+    },
+    {
+      "id": "success",
+      "example": "with-action",
+      "description": "Nothing exists yet, with the action that creates the first thing."
+    },
+    {
+      "id": "partial",
+      "example": "compact",
+      "description": "An empty region inside a larger populated page."
+    }
+  ],
+  "elements": [
+    {
+      "id": "empty-root",
+      "role": "region",
+      "name": "Nothing here yet"
+    },
+    {
+      "id": "empty-action",
+      "role": "button",
+      "name": "Create the first one"
+    }
+  ],
+  "claims": [
+    {
+      "id": "offers-the-action",
+      "type": "element-present",
+      "statement": "An empty state that has a creating action always shows it as the dominant element.",
+      "tier": "aspirational",
+      "elements": [
+        "empty-action"
+      ],
+      "states": [
+        "success"
+      ],
+      "rationale": "An empty state without an action is a dead end dressed as a design."
+    },
+    {
+      "id": "not-an-error",
+      "type": "state-distinct",
+      "statement": "Empty is perceivably distinct from an error and from a still-loading region.",
+      "tier": "aspirational",
+      "elements": [
+        "empty-root"
+      ],
+      "rationale": "Emptiness read as failure is the most common false alarm in a console."
+    },
+    {
+      "id": "good-news-is-stated",
+      "type": "custom",
+      "statement": "Where empty means nothing needs attention, the copy says so plainly instead of showing zeroed figures.",
+      "tier": "manual",
+      "elements": [
+        "empty-root"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "The empty treatment holds in both themes.",
+      "tier": "aspirational",
+      "elements": [
+        "empty-root"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "empty-root": {
+        "testid": "empty-state"
+      },
+      "empty-action": {
+        "testid": "empty-state-action"
+      }
+    }
+  },
+  "priorities": [
+    {
+      "statement": "That nothing is wrong"
+    },
+    {
+      "statement": "What would fill this"
+    }
+  ]
+}

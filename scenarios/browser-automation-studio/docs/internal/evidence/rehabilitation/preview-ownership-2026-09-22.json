@@ -1,0 +1,26 @@
+{
+  "record": "BAS-WORK-043",
+  "issues": [
+    "BAS-RF-038",
+    "BAS-RF-077"
+  ],
+  "status": "deployed",
+  "red": {
+    "failed": 6,
+    "seconds": 11.845,
+    "receipt": "/tmp/bas-preview-ownership-red-043.txt"
+  },
+  "green_receipt": "/tmp/bas-preview-ownership-green-043.txt",
+  "types": "passed",
+  "source_sha256": {
+    "playwright-driver/src/routes/session-start.ts": "79e5261be7ba2de10edd616b24f27639312dcc79e814975ef7050439edeba570"
+  },
+  "limitations": [
+    "Frame coordinator generation/disposal remains RF045.",
+    "Live BAS remains040; active browser work prevented041 publication."
+  ],
+  "live_build": "sha256:f23a02c1f9ef3fd227648911548f51c50734f9a2c68f2a2de4941039086fedf8",
+  "pending_operations": [],
+  "live_health_receipt": "/tmp/bas-live-health-043.json",
+  "profile_receipt": "/tmp/bas-profile-final-043.txt"
+}

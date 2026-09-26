@@ -154,6 +154,8 @@ export interface RecordingData {
   sessionId: string;
   /** ISO timestamp when recording started */
   startedAt: string;
+  /** Retained terminal receipt for retried stop requests. */
+  stoppedAt?: string;
   /** Generation counter for stale operation detection */
   generation: number;
   /** Number of actions captured */
@@ -434,7 +436,7 @@ export function recordingReducer(
     }
 
     case 'STOP_RECORDING': {
-      if (state.phase !== 'capturing') {
+      if (state.phase !== 'capturing' && state.phase !== 'error') {
         return state;
       }
       return {
@@ -451,6 +453,7 @@ export function recordingReducer(
       const finalRecording = {
         ...state.recording,
         actionCount: transition.actionCount,
+        stoppedAt: new Date().toISOString(),
       };
       return {
         ...state,
@@ -464,7 +467,7 @@ export function recordingReducer(
     // -------------------------------------------------------------------------
 
     case 'ACTION_CAPTURED': {
-      if (state.phase !== 'capturing' || !state.recording) {
+      if ((state.phase !== 'starting' && state.phase !== 'capturing' && state.phase !== 'stopping') || !state.recording) {
         return state;
       }
       return {

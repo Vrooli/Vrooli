@@ -1,0 +1,338 @@
+package execution
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"time"
+
+	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/idgen"
+)
+
+const (
+	continuationOperation   = "continue"
+	continuationStartedBy   = "swarm-manager-sweeper"
+	maxChainWithoutProgress = 3
+)
+
+var errPlanProgressUnavailable = errors.New("plan-manager progress reader is unavailable")
+
+// continuationProgress reads durable Plan Manager progress for the parent's
+// bound execution (phase assessments + log entries). The caller treats an
+// error as "reader unavailable" and falls back to the chain-depth brake.
+func (s *Service) continuationProgress(ctx context.Context, record Record) (int, error) {
+	if s.planProgress == nil || strings.TrimSpace(record.PlanManagerExecutionID) == "" {
+		return 0, errPlanProgressUnavailable
+	}
+	readCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	return s.planProgress(readCtx, record.PlanManagerExecutionID)
+}
+
+// settleGoalChainUsageLocked records owner accounting for the item's terminal
+// goal executions under the parent's acceptance that have not settled yet, and
+// reports whether any record changed. Pending or unavailable accounting stays
+// unsettled; the allowance check then treats it as unknown.
+func (s *Service) settleGoalChainUsageLocked(ctx context.Context, records []Record, parent *Record) bool {
+	changed := false
+	for i := range records {
+		record := &records[i]
+		if !isGoalRecord(*record) || record.BacklogKind != parent.BacklogKind || record.BacklogName != parent.BacklogName ||
+			record.ApprovalDigest != parent.ApprovalDigest || record.WorkflowGrant == nil ||
+			settleableUsage(record.SettledUsage) || isInspectableStatus(record.Status) {
+			continue
+		}
+		readCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		usage, err := s.settledGoalUsage(readCtx, *record)
+		cancel()
+		if err != nil || usage == nil {
+			continue
+		}
+		record.SettledUsage = usage
+		if record.ExecutionID == parent.ExecutionID {
+			parent.SettledUsage = usage
+		}
+		changed = true
+	}
+	return changed
+}
+
+// continueExhaustedLocked creates at most one continuation child per sweep
+// for each eligible budget-exhausted execution. The caller does not hold the
+// service mutex; the whole selection and append is serialized here so two
+// sweeper ticks cannot create duplicate children.
+func (s *Service) continueExhaustedLocked(ctx context.Context) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	records, err := s.store.Load()
+	if err != nil {
+		return
+	}
+	changed := false
+	for _, parent := range records {
+		// A goal run interrupted with no verdict is resumed under until-allowance.
+		// The sliced route's budget_exhausted parent remains eligible for Phase 9.
+		if parent.Status != StatusBudgetExhausted && parent.Status != StatusInterrupted {
+			continue
+		}
+		item, itemErr := s.loadBacklogItemByRecord(&parent)
+		if itemErr != nil || strings.ToLower(strings.TrimSpace(item.Continuation)) != "until-allowance" {
+			continue
+		}
+		if strings.TrimSpace(item.ContinuationHaltedAt) != "" {
+			continue
+		}
+		if hasActiveContinuationRecord(records, parent) {
+			continue
+		}
+		if hasContinuationChild(records, parent.ExecutionID) {
+			continue
+		}
+
+		progress, progressErr := s.continuationProgress(ctx, parent)
+		noProgressStreak := parent.NoProgressStreak
+		if progressErr == nil {
+			if progress <= parent.PlanManagerProgress {
+				noProgressStreak++
+			} else {
+				noProgressStreak = 0
+			}
+		}
+		if progressErr == nil {
+			if noProgressStreak >= maxChainWithoutProgress {
+				now := nowRFC3339()
+				if s.updateContinuationState(parent.BacklogKind, parent.BacklogName, now, continuationStartedBy, "no_progress") == nil {
+					changed = true
+				}
+				continue
+			}
+		} else if continuationChainDepth(records, parent) >= maxChainWithoutProgress {
+			// No progress reader: fall back to the chain-depth brake so a
+			// missing Plan Manager client can never permit an unbounded chain.
+			now := nowRFC3339()
+			if s.updateContinuationState(parent.BacklogKind, parent.BacklogName, now, continuationStartedBy, "no_progress") == nil {
+				changed = true
+			}
+			continue
+		}
+
+		// A goal run's owner receipt can land after its terminal status. Collect
+		// it before judging the allowance so a pending receipt is not mistaken
+		// for unknown usage.
+		if s.settleGoalChainUsageLocked(ctx, records, &parent) {
+			changed = true
+		}
+		remaining, reason := remainingContinuationAllowance(records, parent)
+		if reason != "" {
+			now := nowRFC3339()
+			if s.updateContinuationState(parent.BacklogKind, parent.BacklogName, now, continuationStartedBy, reason) == nil {
+				changed = true
+			}
+			continue
+		}
+
+		child := parent
+		child.ExecutionID = idgen.Generate()
+		child.Status = StatusPending
+		child.PreviousStatus = string(parent.Status)
+		child.RunID = ""
+		child.TaskID = ""
+		child.StartedAt = ""
+		child.FinishedAt = ""
+		child.FailureReason = ""
+		child.WorkflowGrant = nil
+		child.SettledUsage = nil
+		child.ContinuationOf = parent.ExecutionID
+		child.ParentExecutionID = parent.ExecutionID
+		child.ResumeOrdinal = continuationChainDepth(records, parent) + 1
+		child.ResumeReason = firstNonEmpty(parent.StopReason, string(parent.Status))
+		child.ResumePath = "fresh_run"
+		if progressErr == nil {
+			child.PlanManagerProgress = progress
+			child.NoProgressStreak = noProgressStreak
+		}
+		child.Operation = continuationOperation
+		child.StartedBy = continuationStartedBy
+		child.MaxSlices = minPositive(parent.MaxSlices, remaining)
+		child.QueuedAt = nowRFC3339()
+		child.CreatedAt = child.QueuedAt
+		child.UpdatedAt = child.QueuedAt
+		child.ExecutionPreferences = cloneExecutionPreferences(parent.ExecutionPreferences)
+		for i := range records {
+			if records[i].ExecutionID == parent.ExecutionID {
+				records[i].ContinuationChildIDs = append(records[i].ContinuationChildIDs, child.ExecutionID)
+				break
+			}
+		}
+		records = append(records, child)
+		changed = true
+	}
+	if changed {
+		_ = s.store.Save(records)
+	}
+	_ = ctx // reserved for future plan-status/circuit evidence reads
+}
+
+func hasActiveContinuationRecord(records []Record, parent Record) bool {
+	for _, record := range records {
+		if record.ExecutionID == parent.ExecutionID || record.BacklogKind != parent.BacklogKind || record.BacklogName != parent.BacklogName {
+			continue
+		}
+		if isInFlightStatus(record.Status) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasContinuationChild(records []Record, parentID string) bool {
+	for _, record := range records {
+		if record.ContinuationOf == parentID {
+			return true
+		}
+	}
+	return false
+}
+
+func continuationChainDepth(records []Record, record Record) int {
+	depth := 0
+	current := record
+	for current.ContinuationOf != "" && depth < maxChainWithoutProgress+1 {
+		depth++
+		found := false
+		for _, candidate := range records {
+			if candidate.ExecutionID == current.ContinuationOf {
+				current = candidate
+				found = true
+				break
+			}
+		}
+		if !found {
+			break
+		}
+	}
+	return depth
+}
+
+// remainingContinuationAllowance mirrors the aggregate subtraction in
+// prepareExecutionGrantLocked without reserving or mutating a new record.
+// Unknown terminal accounting is fail-closed: continuation must not treat it
+// as free capacity.
+func remainingContinuationAllowance(records []Record, parent Record) (int, string) {
+	limits := parent.ExecutionLimits
+	if limits == nil {
+		return 0, "allowance"
+	}
+	tokens := limits.MaxTokens
+	turns := int64(limits.MaxTurns)
+	wall := limits.MaxWallSeconds
+	charge := limits.MaxChargeMicroUSD
+	children := int64(limits.MaxChildren)
+	attempts := int64(limits.MaxNodeAttempts)
+	retries := int64(limits.MaxRetries)
+	slices := int64(limits.MaxSlices)
+	reservations := int64(0)
+	for _, prior := range records {
+		if prior.BacklogKind != parent.BacklogKind || prior.BacklogName != parent.BacklogName || prior.ApprovalDigest != parent.ApprovalDigest || prior.WorkflowGrant == nil || prior.ExecutionID == parent.ExecutionID {
+			continue
+		}
+		reservations++
+		if prior.SettledUsage == nil || !prior.SettledUsage.TokensKnown || !prior.SettledUsage.ChargeMeasured || prior.SettledUsage.WallSeconds <= 0 {
+			return 0, "usage_unknown"
+		}
+		usage := prior.SettledUsage
+		tokens -= usage.Tokens
+		turns -= usage.Turns
+		wall -= usage.WallSeconds
+		charge -= usage.ChargeMicroUSD
+		children -= usage.Children
+		attempts -= usage.NodeAttempts
+		retries -= usage.Retries
+		slices -= usage.Slices
+	}
+	if parent.WorkflowGrant != nil {
+		reservations++
+	}
+	if parent.SettledUsage != nil {
+		usage := parent.SettledUsage
+		tokens -= usage.Tokens
+		turns -= usage.Turns
+		wall -= usage.WallSeconds
+		charge -= usage.ChargeMicroUSD
+		children -= usage.Children
+		attempts -= usage.NodeAttempts
+		retries -= usage.Retries
+		slices -= usage.Slices
+	}
+	retries -= reservations
+	for _, dimension := range []struct {
+		value  int64
+		reason string
+	}{
+		{tokens, "tokens"},
+		{turns, "turns"},
+		{wall, "wall"},
+		{charge, "charge"},
+		{children, "children"},
+		{attempts, "node_attempts"},
+		{retries, "retries"},
+		{slices, "slices"},
+	} {
+		if dimension.value <= 0 {
+			return 0, dimension.reason
+		}
+	}
+	return int(slices), ""
+}
+
+func minPositive(a, b int) int {
+	if a <= 0 {
+		return b
+	}
+	if b <= 0 || a < b {
+		return a
+	}
+	return b
+}
+
+func splitContinuationItem(itemKey string) (string, string, bool) {
+	parts := strings.SplitN(strings.TrimSpace(itemKey), "/", 2)
+	if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
+		return "", "", false
+	}
+	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), true
+}
+
+// HaltContinuation prevents new sweeper-created children. It does not cancel
+// an execution that is already running.
+func (s *Service) HaltContinuation(itemKey, reason string) error {
+	kind, name, ok := splitContinuationItem(itemKey)
+	if !ok {
+		return apierr.BadRequest("item must be KIND/NAME")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, err := s.loadBacklogItem(kind, name); err != nil {
+		return apierr.NotFound("backlog item not found: %s/%s", kind, name)
+	}
+	if strings.TrimSpace(reason) == "" {
+		reason = "operator"
+	}
+	return s.updateContinuationState(kind, name, nowRFC3339(), reason, "halted")
+}
+
+// ResumeContinuation clears the durable halt and prior stop reason.
+func (s *Service) ResumeContinuation(itemKey string) error {
+	kind, name, ok := splitContinuationItem(itemKey)
+	if !ok {
+		return apierr.BadRequest("item must be KIND/NAME")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, err := s.loadBacklogItem(kind, name); err != nil {
+		return apierr.NotFound("backlog item not found: %s/%s", kind, name)
+	}
+	return s.updateContinuationState(kind, name, "", "", "")
+}

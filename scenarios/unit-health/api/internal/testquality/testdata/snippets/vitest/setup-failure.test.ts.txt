@@ -1,0 +1,4 @@
+describe("setup", () => {
+  beforeEach(() => { throw new Error("fixture"); });
+  test("body", () => expect(1).toBe(1));
+});

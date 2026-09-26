@@ -3,11 +3,14 @@ package livecapture
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/config"
@@ -15,6 +18,7 @@ import (
 	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
 
 // Service provides high-level operations for live capture mode.
@@ -111,6 +115,8 @@ type SessionConfig struct {
 
 // SessionResult is the result of creating a session.
 type SessionResult struct {
+	// Close releases this exact admission, even if its public ID is later reused.
+	Close          func(context.Context) error
 	SessionID      string
 	CreatedAt      time.Time
 	ActualViewport *ViewportDimensions // Actual viewport from Playwright (may differ due to profile)
@@ -128,9 +134,12 @@ type ViewportDimensions struct {
 }
 
 // CreateSession creates a new browser session for live capture.
-func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (*SessionResult, error) {
+func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (result *SessionResult, err error) {
 	if s.sessions == nil {
 		return nil, fmt.Errorf("session manager not initialized")
+	}
+	if s.unifiedRecordingSvc == nil {
+		return nil, unifiedrecording.ErrRepositoryUnavailable
 	}
 
 	// Get defaults from config - this is the single source of truth for defaults
@@ -180,43 +189,43 @@ func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (*Sessi
 	// This ensures all browser actions (manual, AI, or playback) are captured
 	// through a single recording pipeline.
 	// DOC: docs/architecture/recording.md#unified-recording
-	if s.unifiedRecordingSvc != nil {
-		spec.Recording = s.buildRecordingCallbacks()
-	}
+	spec.Recording = s.buildRecordingCallbacks()
 
 	sess, err := s.sessions.Create(ctx, spec)
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
 	}
 
+	// Every failure after browser admission releases that exact Session. A failed
+	// cleanup remains joined to the original error and retains retry ownership.
+	defer func() {
+		if err == nil {
+			return
+		}
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer cancel()
+		err = errors.Join(err, sess.Close(cleanupCtx))
+	}()
+
 	// Register session with unified recording service for timeline persistence.
 	// This ensures the recording_sessions table entry exists before any actions
 	// are recorded, satisfying the foreign key constraint on timeline_entries.
-	if s.unifiedRecordingSvc != nil {
-		regCfg := unifiedrecording.SessionConfig{
-			ViewportWidth:  cfg.ViewportWidth,
-			ViewportHeight: cfg.ViewportHeight,
-		}
-		if err := s.unifiedRecordingSvc.RegisterSession(ctx, sess.ID(), regCfg); err != nil {
-			s.log.WithError(err).Warn("Failed to register session with unified recording service - timeline persistence may fail")
-		}
+	regCfg := unifiedrecording.SessionConfig{
+		ViewportWidth:  cfg.ViewportWidth,
+		ViewportHeight: cfg.ViewportHeight,
+	}
+	if err := s.unifiedRecordingSvc.RegisterSession(ctx, sess.ID(), regCfg); err != nil {
+		return nil, fmt.Errorf("register recording journal: %w", err)
 	}
 
 	// Initialize page tracking for multi-tab support
 	sess.InitializePageTracking(cfg.InitialURL)
 
-	// Navigate to initial URL if provided
 	var initialNavigation *HistoryEntryInfo
 	if cfg.InitialURL != "" {
-		navResp, err := sess.Navigate(ctx, cfg.InitialURL)
+		initialNavigation, err = s.navigateInitialPage(ctx, sess, cfg.InitialURL)
 		if err != nil {
-			s.log.WithError(err).Warn("Failed to navigate to initial URL")
-		} else if navResp != nil {
-			// Capture initial navigation info for history
-			initialNavigation = &HistoryEntryInfo{
-				URL:   navResp.URL,
-				Title: navResp.Title,
-			}
+			return nil, fmt.Errorf("navigate initial page: %w", err)
 		}
 	}
 
@@ -232,11 +241,35 @@ func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (*Sessi
 	}
 
 	return &SessionResult{
+		Close:             sess.Close,
 		SessionID:         sess.ID(),
 		CreatedAt:         time.Now().UTC(),
 		ActualViewport:    actualViewport,
 		InitialNavigation: initialNavigation,
 	}, nil
+}
+
+// navigateInitialPage gives fresh admission and saved-tab restoration one receipt policy.
+func (s *Service) navigateInitialPage(ctx context.Context, owner *session.Session, url string) (*HistoryEntryInfo, error) {
+	pages := owner.Pages()
+	if pages == nil {
+		return nil, fmt.Errorf("initial page tracking unavailable: %s", owner.ID())
+	}
+	initialID := pages.GetInitialPageID()
+	resp, err := owner.Navigate(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+	current, ok := s.sessions.Get(owner.ID())
+	if !ok || current != owner || owner.Pages() != pages {
+		return nil, fmt.Errorf("session ownership changed during initial navigation: %s", owner.ID())
+	}
+	pageID := pages.GetPageIDByDriverID(resp.DriverPageID)
+	if pageID == nil || *pageID != initialID {
+		return nil, fmt.Errorf("initial navigation returned a different page: %s", resp.DriverPageID)
+	}
+	pages.UpdatePageInfo(initialID, resp.URL, resp.Title, resp.FaviconURL)
+	return &HistoryEntryInfo{URL: resp.URL, Title: resp.Title}, nil
 }
 
 // CloseSession closes a capture session.
@@ -296,6 +329,11 @@ type RecordingConfig struct {
 
 // StartRecording starts recording user actions.
 func (s *Service) StartRecording(ctx context.Context, sessionID string, cfg *RecordingConfig) (*driver.StartRecordingResponse, error) {
+	owned, ok := s.sessions.Get(sessionID)
+	if !ok {
+		return nil, &driver.Error{Status: http.StatusNotFound, Message: "Recording session is not owned by this API"}
+	}
+
 	apiHost := cfg.APIHost
 	if apiHost == "" {
 		apiHost = "127.0.0.1"
@@ -328,11 +366,30 @@ func (s *Service) StartRecording(ctx context.Context, sessionID string, cfg *Rec
 		CallbackURL:      fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/action", apiHost, apiPort, sessionID),
 		FrameCallbackURL: fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/frame", apiHost, apiPort, sessionID),
 		PageCallbackURL:  fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/page-event", apiHost, apiPort, sessionID),
+		RoutedTestMode:   coredb.IsTestMode(ctx),
 		FrameQuality:     frameQuality,
 		FrameFPS:         frameFPS,
 	}
 
-	return s.sessions.Client().StartRecording(ctx, sessionID, req)
+	return owned.StartRecording(ctx, req)
+}
+
+// StopRecording uses the same owned session as recording start.
+func (s *Service) StopRecording(ctx context.Context, sessionID string) (*driver.StopRecordingResponse, error) {
+	owned, ok := s.sessions.Get(sessionID)
+	if !ok {
+		return nil, &driver.Error{Status: http.StatusNotFound, Message: "Recording session is not owned by this API"}
+	}
+	return owned.StopRecording(ctx)
+}
+
+// ForwardInput shares session ownership across HTTP and WebSocket transports.
+func (s *Service) ForwardInput(ctx context.Context, sessionID string, input []byte) (*driver.ForwardInputResponse, error) {
+	owned, ok := s.sessions.Get(sessionID)
+	if !ok {
+		return nil, &driver.Error{Status: http.StatusNotFound, Message: "Recording session is not owned by this API"}
+	}
+	return owned.ForwardInput(ctx, input)
 }
 
 // GenerateWorkflowConfig configures workflow generation.
@@ -350,7 +407,7 @@ type ActionRange struct {
 
 // GenerateWorkflowResult is the result of workflow generation.
 type GenerateWorkflowResult struct {
-	FlowDefinition map[string]interface{}
+	FlowDefinition *basworkflows.WorkflowDefinitionV2
 	NodeCount      int
 	ActionCount    int
 }
@@ -363,7 +420,7 @@ func (s *Service) GenerateWorkflow(ctx context.Context, sessionID string, cfg *G
 	if len(cfg.Actions) > 0 {
 		actions = cfg.Actions
 	} else {
-		resp, err := s.sessions.Client().GetRecordedActions(ctx, sessionID, false)
+		resp, err := s.sessions.Client().GetRecordedActions(ctx, sessionID)
 		if err != nil {
 			return nil, fmt.Errorf("get actions: %w", err)
 		}
@@ -379,18 +436,25 @@ func (s *Service) GenerateWorkflow(ctx context.Context, sessionID string, cfg *G
 		return nil, fmt.Errorf("no actions to convert")
 	}
 
-	// Generate workflow
-	flowDef := s.generator.GenerateWorkflow(actions)
+	// Resolve logical targets from the session's existing tracker. Generator
+	// callers without an owned session remain single-page and fail closed for
+	// ambiguous multi-page action input.
+	var pages []*domain.Page
+	if s.sessions != nil {
+		if sess, ok := s.sessions.Get(sessionID); ok && sess.Pages() != nil {
+			pages, _ = sess.Pages().Snapshot(false)
+		}
+	}
 
-	// Count nodes
-	nodeCount := 0
-	if nodes, ok := flowDef["nodes"].([]map[string]interface{}); ok {
-		nodeCount = len(nodes)
+	// Generate workflow
+	flowDef, err := s.generator.GenerateWorkflowWithPages(actions, pages)
+	if err != nil {
+		return nil, fmt.Errorf("generate workflow: %w", err)
 	}
 
 	return &GenerateWorkflowResult{
 		FlowDefinition: flowDef,
-		NodeCount:      nodeCount,
+		NodeCount:      len(flowDef.Nodes),
 		ActionCount:    len(actions),
 	}, nil
 }
@@ -412,10 +476,12 @@ func (s *Service) GetPages(sessionID string) (*PageListResult, error) {
 		return nil, fmt.Errorf("page tracking not initialized for session: %s", sessionID)
 	}
 
-	return &PageListResult{
-		Pages:        pages.ListPages(),
-		ActivePageID: pages.GetActivePageID().String(),
-	}, nil
+	list, active := pages.Snapshot(false)
+	result := &PageListResult{Pages: list}
+	if active != uuid.Nil {
+		result.ActivePageID = active.String()
+	}
+	return result, nil
 }
 
 // PageListResult contains the list of pages and active page ID.
@@ -437,7 +503,68 @@ func (s *Service) GetOpenPages(sessionID string) ([]*domain.Page, uuid.UUID, err
 		return nil, uuid.Nil, fmt.Errorf("page tracking not initialized for session: %s", sessionID)
 	}
 
-	return pages.ListOpenPages(), pages.GetActivePageID(), nil
+	list, active := pages.Snapshot(true)
+	return list, active, nil
+}
+
+// PageCloseResult carries the browser closure observation and resulting selection.
+type PageCloseResult struct {
+	Event        *domain.PageEvent
+	ActivePageID string
+}
+
+// ClosePage closes the admitted browser tab before committing the API observation.
+func (s *Service) ClosePage(ctx context.Context, sessionID string, pageID uuid.UUID) (*PageCloseResult, error) {
+	sess, ok := s.sessions.Get(sessionID)
+	if !ok {
+		return nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+	pages := sess.Pages()
+	if pages == nil {
+		return nil, fmt.Errorf("page tracking not initialized for session: %s", sessionID)
+	}
+	page, ok := pages.GetPage(pageID)
+	if !ok {
+		return nil, fmt.Errorf("page %s not found", pageID)
+	}
+	var selected *uuid.UUID
+	if page.Status != domain.PageStatusClosed {
+		receipt, err := sess.ClosePage(ctx, page.DriverPageID)
+		if err != nil {
+			return nil, err
+		}
+		current, ok := s.sessions.Get(sessionID)
+		if !ok || current != sess || sess.Pages() != pages {
+			return nil, errors.New("session ownership changed while closing page")
+		}
+		if receipt.ActivePageID != "" {
+			selected = pages.GetPageIDByDriverID(receipt.ActivePageID)
+			if selected == nil {
+				return nil, errors.New("browser close receipt selected an unknown page")
+			}
+		} else {
+			open, _ := pages.Snapshot(true)
+			for _, remaining := range open {
+				if remaining.ID != pageID {
+					return nil, errors.New("browser close receipt omitted the remaining selection")
+				}
+			}
+		}
+	}
+	event, err := pages.ClosePage(pageID)
+	if err != nil {
+		return nil, err
+	}
+	if selected != nil {
+		if err := pages.SetActivePage(*selected); err != nil {
+			return nil, err
+		}
+	}
+	result := &PageCloseResult{Event: event}
+	if active := pages.GetActivePageID(); active != uuid.Nil {
+		result.ActivePageID = active.String()
+	}
+	return result, nil
 }
 
 // ActivatePage switches the active page for a session.
@@ -447,6 +574,12 @@ func (s *Service) ActivatePage(ctx context.Context, sessionID string, pageID uui
 		return fmt.Errorf("session not found: %s", sessionID)
 	}
 
+	return s.activatePage(ctx, sess, pageID)
+}
+
+// activatePage retains the transaction's original owner across the driver await.
+func (s *Service) activatePage(ctx context.Context, sess *session.Session, pageID uuid.UUID) error {
+	sessionID := sess.ID()
 	pages := sess.Pages()
 	if pages == nil {
 		return fmt.Errorf("page tracking not initialized for session: %s", sessionID)
@@ -468,22 +601,49 @@ func (s *Service) ActivatePage(ctx context.Context, sessionID string, pageID uui
 	}
 
 	// Tell driver to switch active page
-	if err := s.sessions.Client().SetActivePage(ctx, sessionID, driverPageID); err != nil {
+	if err := sess.SetActivePage(ctx, driverPageID); err != nil {
 		return fmt.Errorf("failed to switch page in driver: %w", err)
 	}
 
-	// Update session state
+	current, ok := s.sessions.Get(sessionID)
+	if !ok || current != sess {
+		return fmt.Errorf("browser page switched but session ownership changed: %s", sessionID)
+	}
 	return pages.SetActivePage(pageID)
 }
 
 // CreatePage creates a new page (tab) in the browser session.
-func (s *Service) CreatePage(ctx context.Context, sessionID string, url string) (*driver.CreatePageResponse, error) {
-	if _, ok := s.sessions.Get(sessionID); !ok {
-		return nil, fmt.Errorf("session not found: %s", sessionID)
+func (s *Service) CreatePage(ctx context.Context, sessionID string, url string) (*domain.Page, error) {
+	owner, ok := s.sessions.Get(sessionID)
+	if !ok || owner.Pages() == nil {
+		return nil, fmt.Errorf("recording session unavailable: %s", sessionID)
 	}
+	return s.createPage(ctx, owner, url)
+}
 
-	// Call driver to create the page
-	return s.sessions.Client().CreatePage(ctx, sessionID, url)
+// createPage shares receipt registration without re-admitting a restored transaction by ID.
+func (s *Service) createPage(ctx context.Context, owner *session.Session, url string) (*domain.Page, error) {
+	sessionID := owner.ID()
+	pages := owner.Pages()
+	current, ok := s.sessions.Get(sessionID)
+	if !ok || current != owner || pages == nil || owner.Pages() != pages {
+		return nil, fmt.Errorf("session ownership changed before page creation: %s", sessionID)
+	}
+	result, err := owner.CreatePage(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+	current, ok = s.sessions.Get(sessionID)
+	if !ok || current != owner || owner.Pages() != pages {
+		return nil, fmt.Errorf("browser page created but session ownership changed: %s", sessionID)
+	}
+	page := pages.AddPage(&domain.Page{DriverPageID: result.DriverPageID, URL: result.URL, Title: result.Title})
+	pages.UpdatePageInfo(page.ID, result.URL, result.Title, result.FaviconURL)
+	if err := pages.SetActivePage(page.ID); err != nil {
+		return nil, err
+	}
+	page, _ = pages.GetPage(page.ID)
+	return page, nil
 }
 
 // RestoredTab contains info about a tab that was restored.
@@ -518,7 +678,8 @@ type TabRestorationResult struct {
 // RestoreTabs creates tabs from saved tab state.
 // Returns info about the tabs that were restored, including the initial URL.
 func (s *Service) RestoreTabs(ctx context.Context, sessionID string, tabs []sessionprofilepersistence.TabState) (*TabRestorationResult, error) {
-	if _, ok := s.sessions.Get(sessionID); !ok {
+	sess, ok := s.sessions.Get(sessionID)
+	if !ok {
 		return nil, fmt.Errorf("session not found: %s", sessionID)
 	}
 
@@ -526,177 +687,86 @@ func (s *Service) RestoreTabs(ctx context.Context, sessionID string, tabs []sess
 		return nil, nil
 	}
 
-	s.log.WithFields(map[string]interface{}{
-		"session_id": sessionID,
-		"tab_count":  len(tabs),
-	}).Info("RestoreTabs: starting tab restoration")
-
+	pages := sess.Pages()
+	if pages == nil {
+		return nil, fmt.Errorf("page tracking not initialized for session: %s", sessionID)
+	}
 	result := &TabRestorationResult{
 		Tabs:           make([]RestoredTab, 0, len(tabs)),
 		HistoryEntries: make([]HistoryEntryInfo, 0, len(tabs)),
 	}
-	var activeDriverPageID string
+	var activePageID uuid.UUID
+	initialID := pages.GetInitialPageID()
+	if tabs[0].IsActive {
+		activePageID = initialID
+	}
 
-	// Create tabs in order, skipping the first one since the session already has an initial page
-	for i, tab := range tabs {
-		if i == 0 {
-			// Navigate the initial page to the first tab's URL instead of creating a new page
-			if tab.URL != "" && tab.URL != "about:blank" {
-				s.log.WithFields(map[string]interface{}{
-					"session_id": sessionID,
-					"url":        tab.URL,
-				}).Info("RestoreTabs: navigating initial page to first tab URL")
-				navReq := &driver.NavigateRequest{URL: tab.URL}
-				resp, err := s.sessions.Client().Navigate(ctx, sessionID, navReq)
-				if err != nil {
-					s.log.WithError(err).WithField("url", tab.URL).Warn("RestoreTabs: failed to navigate initial page to saved URL")
-				} else {
-					s.log.WithFields(map[string]interface{}{
-						"session_id":    sessionID,
-						"navigated_url": resp.URL,
-						"title":         resp.Title,
-					}).Info("RestoreTabs: initial page navigation successful")
-					// Store the initial URL for the response
-					result.InitialURL = resp.URL
-					result.InitialTitle = resp.Title
-					// Capture history entry for initial navigation
-					result.HistoryEntries = append(result.HistoryEntries, HistoryEntryInfo{
-						URL:   resp.URL,
-						Title: resp.Title,
-					})
-				}
-			} else {
-				s.log.WithFields(map[string]interface{}{
-					"session_id": sessionID,
-					"url":        tab.URL,
-				}).Info("RestoreTabs: skipping first tab navigation (empty or about:blank)")
-			}
-			// We don't know the initial page's ID here, so we skip adding to restored for the first tab
-			// The client will get the pages via WebSocket events or GetPages
-			// Note: if tab.IsActive is true, it's already active since it's the only page so far
-			continue
-		}
-
-		// Create additional tabs (skip about:blank tabs as they're not useful)
-		if tab.URL == "" || tab.URL == "about:blank" {
-			s.log.WithFields(map[string]interface{}{
-				"session_id": sessionID,
-				"index":      i,
-				"url":        tab.URL,
-			}).Info("RestoreTabs: skipping about:blank tab")
-			continue
-		}
-
-		s.log.WithFields(map[string]interface{}{
-			"session_id": sessionID,
-			"index":      i,
-			"url":        tab.URL,
-		}).Info("RestoreTabs: creating additional tab")
-
-		resp, err := s.sessions.Client().CreatePage(ctx, sessionID, tab.URL)
+	if url := tabs[0].URL; url != "" && url != "about:blank" {
+		initial, err := s.navigateInitialPage(ctx, sess, url)
 		if err != nil {
-			s.log.WithError(err).WithFields(map[string]interface{}{
-				"url":   tab.URL,
-				"order": tab.Order,
-			}).Warn("RestoreTabs: failed to restore tab")
+			return result, fmt.Errorf("failed to restore initial tab: %w", err)
+		}
+		result.InitialURL, result.InitialTitle = initial.URL, initial.Title
+		result.HistoryEntries = append(result.HistoryEntries, *initial)
+	}
+
+	for _, tab := range tabs[1:] {
+		// Keep the existing policy of omitting additional empty tabs.
+		if tab.URL == "" || tab.URL == "about:blank" {
 			continue
 		}
-
-		s.log.WithFields(map[string]interface{}{
-			"session_id":     sessionID,
-			"driver_page_id": resp.DriverPageID,
-			"url":            tab.URL,
-		}).Info("RestoreTabs: additional tab created successfully")
-
+		resp, err := s.createPage(ctx, sess, tab.URL)
+		if err != nil {
+			return result, fmt.Errorf("failed to restore tab at order %d: %w", tab.Order, err)
+		}
 		result.Tabs = append(result.Tabs, RestoredTab{
-			PageID:   resp.DriverPageID,
-			URL:      tab.URL,
-			Title:    tab.Title, // Use saved title from tab state
-			IsActive: tab.IsActive,
+			PageID: resp.DriverPageID, URL: resp.URL, Title: resp.Title, IsActive: tab.IsActive,
 		})
-
-		// Capture history entry for restored tab (use saved title since CreatePage response doesn't include it)
-		result.HistoryEntries = append(result.HistoryEntries, HistoryEntryInfo{
-			URL:   tab.URL,
-			Title: tab.Title,
-		})
-
+		result.HistoryEntries = append(result.HistoryEntries, HistoryEntryInfo{URL: resp.URL, Title: resp.Title})
 		if tab.IsActive {
-			activeDriverPageID = resp.DriverPageID
+			activePageID = resp.ID
 		}
 	}
 
-	// If there was an active tab that's not the first one, switch to it
-	if activeDriverPageID != "" {
-		s.log.WithFields(map[string]interface{}{
-			"session_id":     sessionID,
-			"active_page_id": activeDriverPageID,
-		}).Info("RestoreTabs: switching to active page")
-		if err := s.sessions.Client().SetActivePage(ctx, sessionID, activeDriverPageID); err != nil {
-			s.log.WithError(err).WithField("page_id", activeDriverPageID).Warn("RestoreTabs: failed to set active page after tab restoration")
+	// Every new page becomes selected. Restore the saved selection only after
+	// creation, through the same owner that updates browser and API state.
+	if activePageID != uuid.Nil && activePageID != pages.GetActivePageID() {
+		if err := s.activatePage(ctx, sess, activePageID); err != nil {
+			return result, fmt.Errorf("failed to switch to restored active page: %w", err)
 		}
 	}
-
-	s.log.WithFields(map[string]interface{}{
-		"session_id":     sessionID,
-		"restored_count": len(result.Tabs),
-		"initial_url":    result.InitialURL,
-	}).Info("RestoreTabs: tab restoration complete")
 
 	return result, nil
 }
 
 // AddTimelineAction adds a recorded action to the timeline via the unified recording service.
 // DOC: docs/architecture/recording.md#data-flow
-func (s *Service) AddTimelineAction(sessionID string, action *driver.RecordedAction, pageID uuid.UUID) {
+func (s *Service) AddTimelineAction(ctx context.Context, sessionID string, action *driver.RecordedAction, pageID uuid.UUID) error {
 	if s.unifiedRecordingSvc == nil {
-		return
+		return unifiedrecording.ErrRepositoryUnavailable
 	}
-
-	ctx := context.Background()
-	// Determine source from payload or default to manual for HTTP callback actions
 	source := unifiedrecording.ActionSourceManual
-	if action.Payload != nil {
-		if srcVal, ok := action.Payload["source"].(string); ok && srcVal == "ai" {
-			source = unifiedrecording.ActionSourceAI
-		}
+	if action != nil && action.Payload != nil && action.Payload["source"] == "ai" {
+		source = unifiedrecording.ActionSourceAI
 	}
-	if err := s.unifiedRecordingSvc.RecordAction(ctx, sessionID, action, pageID, source); err != nil {
-		s.log.WithError(err).WithFields(logrus.Fields{
-			"session_id":  sessionID,
-			"action_type": action.ActionType,
-		}).Warn("Failed to record action")
-	}
+	return s.unifiedRecordingSvc.RecordAction(ctx, sessionID, action, pageID, source)
 }
 
-// AddTimelinePageEvent adds a page event to the timeline via the unified recording service.
-func (s *Service) AddTimelinePageEvent(sessionID string, event *domain.PageEvent) {
+func (s *Service) AddTimelinePageEvent(ctx context.Context, sessionID string, event *domain.PageEvent) error {
 	if s.unifiedRecordingSvc == nil {
-		return
+		return unifiedrecording.ErrRepositoryUnavailable
 	}
-
-	ctx := context.Background()
-	if err := s.unifiedRecordingSvc.RecordPageEvent(ctx, sessionID, event); err != nil {
-		s.log.WithError(err).WithFields(logrus.Fields{
-			"session_id": sessionID,
-			"event_type": event.Type,
-			"page_id":    event.PageID,
-		}).Warn("Failed to record page event")
-	}
+	return s.unifiedRecordingSvc.RecordPageEvent(ctx, sessionID, event)
 }
 
 // GetTimeline returns the unified timeline for a session.
-func (s *Service) GetTimeline(sessionID string, pageID *uuid.UUID, limit int) (*domain.TimelineResponse, error) {
+func (s *Service) GetTimeline(ctx context.Context, sessionID string, pageID *uuid.UUID, limit, offset int) (*domain.TimelineResponse, error) {
 	if _, ok := s.sessions.Get(sessionID); !ok {
 		return nil, fmt.Errorf("session not found: %s", sessionID)
 	}
 
 	if s.unifiedRecordingSvc == nil {
-		return &domain.TimelineResponse{
-			Entries:      []domain.TimelineEntry{},
-			HasMore:      false,
-			TotalEntries: 0,
-		}, nil
+		return nil, unifiedrecording.ErrRepositoryUnavailable
 	}
 
 	// Build query for unified recording service
@@ -704,9 +774,10 @@ func (s *Service) GetTimeline(sessionID string, pageID *uuid.UUID, limit int) (*
 		SessionID: sessionID,
 		PageID:    pageID,
 		Limit:     limit,
+		Offset:    offset,
 	}
 
-	resp, err := s.unifiedRecordingSvc.GetTimeline(context.Background(), query)
+	resp, err := s.unifiedRecordingSvc.GetTimeline(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("get timeline: %w", err)
 	}
@@ -748,13 +819,6 @@ func (s *Service) GetTimeline(sessionID string, pageID *uuid.UUID, limit int) (*
 		HasMore:      resp.HasMore,
 		TotalEntries: resp.TotalCount,
 	}, nil
-}
-
-// ClearTimeline clears the timeline for a session.
-func (s *Service) ClearTimeline(sessionID string) {
-	if s.unifiedRecordingSvc != nil {
-		s.unifiedRecordingSvc.ClearSession(sessionID)
-	}
 }
 
 // buildRecordingCallbacks creates recording callbacks that route to the unified recording service.

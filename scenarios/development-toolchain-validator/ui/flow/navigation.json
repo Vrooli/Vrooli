@@ -1,0 +1,320 @@
+{
+  "$schema": "https://vrooli.dev/schemas/navigation.v1.json",
+  "schemaVersion": 1,
+  "kind": "navigation",
+  "flowId": "development-toolchain-validator.app.ui",
+  "domain": "app",
+  "description": "DTV UI navigation: Goldens (index + detail) + Settings ship in P0. Skills and Manifests surfaces are declared with placeholder pages so the spec stays the source of truth; the page modules render a TODO surface until their Connect-RPC clients land. Single-operator app — no auth contexts.",
+
+  "contexts": {
+    "viewport": {
+      "kind": "enum",
+      "values": ["mobile", "desktop"],
+      "default": "desktop"
+    }
+  },
+
+  "routes": [
+    {
+      "id": "goldens_index",
+      "path": "/",
+      "page": "ui/src/surfaces/goldens/GoldensIndex.tsx",
+      "deep_link": "recoverable",
+      "parents": []
+    },
+    {
+      "id": "golden_detail",
+      "path": "/goldens/:slug",
+      "page": "ui/src/surfaces/goldens/GoldenDetail.tsx",
+      "deep_link": "recoverable",
+      "parents": ["goldens_index"]
+    },
+    {
+      "id": "tuple_detail",
+      "path": "/goldens/:slug/:tupleKind/:subjectId",
+      "page": "ui/src/surfaces/goldens/TupleDetail.tsx",
+      "deep_link": "recoverable",
+      "parents": ["golden_detail"]
+    },
+    {
+      "id": "skills_index",
+      "path": "/skills",
+      "page": "ui/src/surfaces/skills/SkillsIndex.tsx",
+      "deep_link": "recoverable",
+      "parents": []
+    },
+    {
+      "id": "skill_detail",
+      "path": "/skills/:id",
+      "page": "ui/src/surfaces/skills/SkillDetail.tsx",
+      "deep_link": "recoverable",
+      "parents": ["skills_index"]
+    },
+    {
+      "id": "manifests_index",
+      "path": "/manifests",
+      "page": "ui/src/surfaces/manifests/ManifestsIndex.tsx",
+      "deep_link": "recoverable",
+      "parents": []
+    },
+    {
+      "id": "manifest_editor",
+      "path": "/manifests/:skillId/:goldenSlug",
+      "page": "ui/src/surfaces/manifests/ManifestEditor.tsx",
+      "deep_link": "recoverable",
+      "parents": ["manifests_index"]
+    },
+    {
+      "id": "runs_index",
+      "path": "/runs",
+      "page": "ui/src/surfaces/runs/RunsIndex.tsx",
+      "deep_link": "recoverable",
+      "parents": []
+    },
+    {
+      "id": "run_detail",
+      "path": "/runs/:id",
+      "page": "ui/src/surfaces/runs/RunDetail.tsx",
+      "deep_link": "recoverable",
+      "parents": ["runs_index"]
+    },
+    {
+      "id": "settings",
+      "path": "/settings",
+      "page": "ui/src/surfaces/settings/Settings.tsx",
+      "deep_link": "recoverable",
+      "parents": []
+    }
+  ],
+
+  "containers": [
+    {
+      "id": "sidebar",
+      "kind": "persistent",
+      "host_routes": ["*"],
+      "show_when": "viewport=desktop",
+      "disclosure": "always_visible"
+    },
+    {
+      "id": "top_header",
+      "kind": "persistent",
+      "host_routes": ["*"],
+      "disclosure": "always_visible"
+    },
+    {
+      "id": "mobile_bottom_nav",
+      "kind": "persistent",
+      "host_routes": ["*"],
+      "show_when": "viewport=mobile",
+      "disclosure": "always_visible"
+    }
+  ],
+
+  "affordances": [
+    {
+      "id": "nav_goldens",
+      "to": "goldens_index",
+      "presentations": [
+        { "in": "sidebar", "label": "Goldens", "test_id": "nav-sidebar-goldens",
+          "reachable_via": ["mouse", "keyboard"] },
+        { "in": "mobile_bottom_nav", "label": "Goldens", "icon": "target",
+          "test_id": "nav-mobile-goldens", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "nav_skills",
+      "to": "skills_index",
+      "presentations": [
+        { "in": "sidebar", "label": "Skills", "test_id": "nav-sidebar-skills",
+          "reachable_via": ["mouse", "keyboard"] },
+        { "in": "mobile_bottom_nav", "label": "Skills", "icon": "wrench",
+          "test_id": "nav-mobile-skills", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "nav_manifests",
+      "to": "manifests_index",
+      "presentations": [
+        { "in": "sidebar", "label": "Manifests", "test_id": "nav-sidebar-manifests",
+          "reachable_via": ["mouse", "keyboard"] },
+        { "in": "mobile_bottom_nav", "label": "Manifests", "icon": "file-cog",
+          "test_id": "nav-mobile-manifests", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "nav_runs",
+      "to": "runs_index",
+      "presentations": [
+        { "in": "sidebar", "label": "Runs", "test_id": "nav-sidebar-runs",
+          "reachable_via": ["mouse", "keyboard"] },
+        { "in": "mobile_bottom_nav", "label": "Runs", "icon": "play-circle",
+          "test_id": "nav-mobile-runs", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "nav_settings",
+      "to": "settings",
+      "presentations": [
+        { "in": "sidebar", "label": "Settings", "test_id": "nav-sidebar-settings",
+          "reachable_via": ["mouse", "keyboard"] },
+        { "in": "mobile_bottom_nav", "label": "Settings", "icon": "settings",
+          "test_id": "nav-mobile-settings", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "golden_row_open",
+      "to": "golden_detail",
+      "presentations": [
+        { "in": "goldens_index", "label": "Open golden", "test_id": "goldens-row",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "golden_detail_back",
+      "to": "goldens_index",
+      "presentations": [
+        { "in": "golden_detail", "label": "Back to goldens", "test_id": "goldens-detail-back",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "tuple_row_open",
+      "to": "tuple_detail",
+      "presentations": [
+        { "in": "golden_detail", "label": "Open tuple detail", "test_id": "goldens-tuple-row",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "tuple_detail_back",
+      "to": "golden_detail",
+      "presentations": [
+        { "in": "tuple_detail", "label": "Back to golden", "test_id": "goldens-tuple-back",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "skill_row_open",
+      "to": "skill_detail",
+      "presentations": [
+        { "in": "skills_index", "label": "Open skill", "test_id": "skills-row",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "skill_detail_back",
+      "to": "skills_index",
+      "presentations": [
+        { "in": "skill_detail", "label": "Back to skills", "test_id": "skills-detail-back",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "manifest_row_open",
+      "to": "manifest_editor",
+      "presentations": [
+        { "in": "manifests_index", "label": "Edit manifest", "test_id": "manifests-row",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "manifest_editor_back",
+      "to": "manifests_index",
+      "presentations": [
+        { "in": "manifest_editor", "label": "Back to manifests", "test_id": "manifests-editor-back",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "run_row_open",
+      "to": "run_detail",
+      "presentations": [
+        { "in": "runs_index", "label": "Open run", "test_id": "runs-row",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "run_detail_back",
+      "to": "runs_index",
+      "presentations": [
+        { "in": "run_detail", "label": "Back to runs", "test_id": "runs-detail-back",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "tuple_run_validation",
+      "to": "run_detail",
+      "presentations": [
+        { "in": "tuple_detail", "label": "Run validation", "test_id": "runs-run-validation",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    }
+  ],
+
+  "return_paths": [
+    { "from": "golden_detail", "rule": "history_back", "fallback": "goldens_index" },
+    { "from": "tuple_detail", "rule": "history_back", "fallback": "golden_detail" },
+    { "from": "skill_detail", "rule": "history_back", "fallback": "skills_index" },
+    { "from": "manifest_editor", "rule": "history_back", "fallback": "manifests_index" },
+    { "from": "run_detail", "rule": "history_back", "fallback": "runs_index" }
+  ],
+
+  "shortcuts": [
+    {
+      "binding": "g g",
+      "action": "navigate",
+      "to": "goldens_index",
+      "scope": "global"
+    },
+    {
+      "binding": "g s",
+      "action": "navigate",
+      "to": "skills_index",
+      "scope": "global"
+    },
+    {
+      "binding": "g m",
+      "action": "navigate",
+      "to": "manifests_index",
+      "scope": "global"
+    },
+    {
+      "binding": "g r",
+      "action": "navigate",
+      "to": "runs_index",
+      "scope": "global"
+    },
+    {
+      "binding": "g .",
+      "action": "navigate",
+      "to": "settings",
+      "scope": "global"
+    }
+  ],
+
+  "reachability_invariants": [
+    {
+      "id": "primary_destinations_reachable_from_home",
+      "given": "viewport=desktop",
+      "from": "goldens_index",
+      "must_reach": ["skills_index", "manifests_index", "settings"],
+      "max_clicks": { "desktop": 1, "mobile": 2 }
+    },
+    {
+      "id": "primary_destinations_reachable_from_home_mobile",
+      "given": "viewport=mobile",
+      "from": "goldens_index",
+      "must_reach": ["skills_index", "manifests_index", "settings"],
+      "max_clicks": { "desktop": 1, "mobile": 2 }
+    },
+    {
+      "id": "golden_detail_reachable_from_index",
+      "given": "viewport=desktop",
+      "from": "goldens_index",
+      "must_reach": ["golden_detail"],
+      "max_clicks": 1
+    }
+  ],
+
+  "deep_link_policy": []
+}

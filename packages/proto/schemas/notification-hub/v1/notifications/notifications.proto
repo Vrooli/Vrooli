@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package vrooli.notification_hub.v1.notifications;
+
+import "notification-hub/v1/shared/types.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications;notifications_v1";
+
+service NotificationsService {
+  rpc Send(SendRequest) returns (SendResponse);
+  rpc Relay(RelayRequest) returns (RelayResponse);
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc List(ListRequest) returns (ListResponse);
+}
+
+message SendRequest {
+  string title = 1;
+  string body = 2;
+  string urgency = 3;
+  string sensitivity_label = 4;
+  string idempotency_key = 5;
+  string dedupe_key = 6;
+  int32 dedupe_window_seconds = 7;
+  string scheduled_at = 8;
+  int32 digest_window_seconds = 9;
+}
+
+message SendResponse { shared.Notification notification = 1; }
+message RelayRequest { string payload_base64 = 1; }
+message RelayResponse { shared.Notification notification = 1; }
+message GetRequest { string id = 1; }
+message GetResponse { shared.Notification notification = 1; repeated shared.DeliveryReceipt receipts = 2; }
+message ListRequest { int32 limit = 1; }
+message ListResponse { repeated shared.Notification notifications = 1; }

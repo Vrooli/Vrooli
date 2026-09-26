@@ -1,0 +1,351 @@
+{
+  "cycle": "BAS-WORK-074",
+  "issues": [
+    "BAS-RF-038"
+  ],
+  "recorded_at": "2026-09-23T07:35:58.567553+00:00",
+  "status": "qualified_and_deployed",
+  "build_identity": "sha256:6f65b5a0f714c2296ffa9e0ac658e4306b758a9ec4fa49a9b5d836159931c79d",
+  "source": {
+    "baseline": "/tmp/bas-before-074/manifest.json",
+    "frozen": "/tmp/bas-frozen-074.json",
+    "paths": {
+      "playwright-driver/src/frame-streaming/types.ts": {
+        "sha256": "b520e675c4007e9288f6f975965c035baadc960a4c6eb33f3f021b51394d5225",
+        "lines": 118
+      },
+      "playwright-driver/src/frame-streaming/manager.ts": {
+        "sha256": "711ca7750c5f2a2d4f8e2351bc8bbca24e93ed9ce7db6f5611f3e3b367d47371",
+        "lines": 395
+      },
+      "playwright-driver/src/frame-streaming/strategies/interface.ts": {
+        "sha256": "29ec6ad27681b421d15ed9ad60dba7f6ef8b21f9d24e4065ae06a891ab22554a",
+        "lines": 182
+      },
+      "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts": {
+        "sha256": "83d2f3e0f88b5019fb3b6a54d0f29ee6e9a50f329377f5217ce735ffba349e92",
+        "lines": 354
+      },
+      "playwright-driver/src/frame-streaming/strategies/polling.ts": {
+        "sha256": "f78a56895628d064e4e6e93668af3fe5f3c621c592c2702e0a301716907fec8f",
+        "lines": 360
+      },
+      "playwright-driver/src/frame-streaming/frame.ts": {
+        "sha256": "575475d57d02d2a9e86461fbbd4713a2dff85851f49750eb014486a4c66d4cc8",
+        "lines": 38
+      },
+      "playwright-driver/src/routes/record-mode/recording-frames.ts": {
+        "sha256": "939f8831bcc690f6389dc1777d6822b44e0b771446381108e7c5fc4f72200130",
+        "lines": 239
+      },
+      "playwright-driver/src/routes/record-mode/types.ts": {
+        "sha256": "a67950aa3637e43af46dcefcca68c146b26ac0d4a51e59d09ba2f5f98df4a0be",
+        "lines": 368
+      },
+      "playwright-driver/tests/unit/frame-streaming/manager.test.ts": {
+        "sha256": "bb4ff7b31f291ea2c4136e13bdae266d6ccd447036fb91c1d4df406b43044ea5",
+        "lines": 381
+      },
+      "playwright-driver/tests/unit/frame-streaming/cdp-screencast-strategy.test.ts": {
+        "sha256": "d77fcafbf16d20f0c976e4fd9eb62b1ce59b5f8282e4c93aae712f9cf0636297",
+        "lines": 607
+      },
+      "playwright-driver/tests/unit/frame-streaming/polling-strategy.test.ts": {
+        "sha256": "beaff5aa4ac49aaec7e1f537db74b7dfd260fac4717ef6f822118f5153a63636",
+        "lines": 328
+      },
+      "playwright-driver/tests/unit/routes/record-frames.test.ts": {
+        "sha256": "82bf6d119ef4aff086f07f96873ac6ebdd3a7f95c7de0b7a91b49fdf24f64a66",
+        "lines": 143
+      },
+      "api/automation/session/session.go": {
+        "sha256": "63b02788696c180874e9ab8c425b5c8ff2be7b16b728d270cfeda2a458e4437c",
+        "lines": 470
+      },
+      "api/automation/session/session_test.go": {
+        "sha256": "83794f4760fb164e36c1ea8667f768ed5c9a7b281231c9fbd6c947ace4086f78",
+        "lines": 1539
+      },
+      "api/automation/driver/types.go": {
+        "sha256": "a696843aea1a6e9996ff0a0e8995977437c5f60418416331648b09de1ade922f",
+        "lines": 618
+      },
+      "api/handlers/record_mode.go": {
+        "sha256": "33188ffec396f2e27e17f1d57fce158d7ad4b1a5c35f15da08c1e08364ea4cce",
+        "lines": 1010
+      },
+      "api/handlers/record_mode_frames.go": {
+        "sha256": "5aa01292d00a3ff70b89bad39af128eece78fd842e71068481c14fdaa577f12a",
+        "lines": 65
+      },
+      "api/handlers/record_mode_frames_test.go": {
+        "sha256": "d8f2e5477c004450afb211c5fdee2c9e73ff5a56be8ff8b9da6f43444d56734d",
+        "lines": 235
+      },
+      "api/handlers/record_mode_test.go": {
+        "sha256": "78b42d2b306449dd7e75dc30c709fa2675c79de684a5661a795c6f94ae8cfdf2",
+        "lines": 1199
+      },
+      "api/handlers/record_mode_integration_test.go": {
+        "sha256": "ca51294ac56f41504b4ad899887d4e5feae78a9ab2175af6a5e308517bbe25c2",
+        "lines": 963
+      },
+      "api/handlers/testutil_mock_services.go": {
+        "sha256": "c7df0c7acf819a49a8abce24b737fc21684f79eac01262eebdd0c740fff9e782",
+        "lines": 1469
+      },
+      "api/main.go": {
+        "sha256": "e64b32d9454ee7256f24428283d29835c30c9d006754db3e6b1e5297627047c7",
+        "lines": 1241
+      },
+      "api/websocket/hub.go": {
+        "sha256": "d56901d3de7afa7c2478b0f0b8e6c1a9562768eda82d4c8b9e6129c2f8ff50f6",
+        "lines": 750
+      },
+      "api/websocket/interface.go": {
+        "sha256": "a8734342852eee0a4212a1bb65269da0567b94f0f397430447c681321ad71f0d",
+        "lines": 80
+      },
+      "api/automation/events/ws_sink_test.go": {
+        "sha256": "bd68d88d8fc50f00edacc98fe122bf6c2fa8e713fb2207395cfcfb0b2f7623bd",
+        "lines": 631
+      },
+      "api/services/vision/playwright_navigator_test.go": {
+        "sha256": "68a1cc4488a60d11b57c8699b147d3612c9188ccd6743c5495f2c376ed13770a",
+        "lines": 672
+      },
+      "ui/src/domains/recording/capture/useFrameStream.ts": {
+        "sha256": "756f89493cb53d827f9c6f03b2322e99fc441522ced6b78b9f781a8b82587db3",
+        "lines": 330
+      },
+      "ui/src/domains/recording/capture/useFrameStream.test.ts": {
+        "sha256": "3b586b5de9dd06b3a02052df6f89fe15737bf7162b7e3c4414bcf7523171a5c2",
+        "lines": 239
+      },
+      "ui/src/shared/api/schemas/websocket.schema.ts": {
+        "sha256": "df2b5c0d7fe52866c53004446ce4b6fde6ca30aef63d3cbcbc8148039608f711",
+        "lines": 167
+      },
+      "docs/SEAMS.md": {
+        "sha256": "f71582ac2b125ed6caddba84f2069aeaa56df1a49e7b1be1ce916894cda8bf0e",
+        "lines": 1721
+      },
+      "docs/architecture/recording.md": {
+        "sha256": "a005bcf1e5bd86925e4812abb3f2b807ae19e1883d5d8a7941cb335102644bc6",
+        "lines": 844
+      },
+      "playwright-driver/tests/integration/pipeline-e2e.test.ts": {
+        "sha256": "45907222b9a640ae2b0c5b1d29285d72e5d925d88092fb0502eb6538472cafef",
+        "lines": 1168
+      }
+    },
+    "shared_tree": true,
+    "test_only_extension": "native pipeline fixtures converted after first freeze; runtime unchanged during subsequent qualification"
+  },
+  "tests": {
+    "red": {
+      "native": "/tmp/bas-frame-identity-red-074.json",
+      "native_passed": 9,
+      "native_failed": 1,
+      "stale_red_paints": 5,
+      "cache": "/tmp/bas-frame-cache-red-074.txt",
+      "cache_failed": 3,
+      "api": "/tmp/bas-frame-api-source-red2-074.txt",
+      "api_failed": 8,
+      "viewer": "/tmp/bas-frame-viewer-red-074.txt",
+      "viewer_failed": 19,
+      "viewer_passed": 12
+    },
+    "driver_focused": {
+      "artifact": "/tmp/bas-frame-driver-candidate3-074.txt",
+      "passed": 62,
+      "suites": 4
+    },
+    "native_driver": {
+      "artifact": "/tmp/bas-driver-native-final-074.txt",
+      "passed": 10,
+      "unselected": 21
+    },
+    "driver_owner": {
+      "run_id": "uh-20260923-072637-8cca25df81e1eae8a78be0148262c304",
+      "artifact": "/tmp/bas-driver-owner-final2-074.json",
+      "passed": 1826,
+      "suites_passed": 123,
+      "skipped_tests": 2,
+      "skipped_suites": 1,
+      "status": "passed",
+      "initial_unavailable": "uh-20260923-071534-624aa5334ad2cfd555ddf6a676e90e16 hit no-output bound; incomplete native fixture migration diagnosed and repaired"
+    },
+    "ui": {
+      "artifact": "/tmp/bas-frame-viewer-suite-074.txt",
+      "passed": 560,
+      "suites": 29,
+      "types": "passed"
+    },
+    "go": {
+      "race_packages": [
+        "handlers",
+        "automation/session",
+        "automation/driver",
+        "automation/events",
+        "websocket",
+        "services/vision"
+      ],
+      "artifacts": [
+        "/tmp/bas-frame-api-race-074.txt",
+        "/tmp/bas-frame-api-race2-074.txt"
+      ],
+      "build": "passed",
+      "first_failure": "real HTTP integration fixture lacked an admitted session; converted and rerun"
+    },
+    "native": {
+      "producer": "/tmp/browser-automation-studio/frame-identity-native-074.mjs",
+      "artifact": "/tmp/bas-frame-identity-native-074.json",
+      "screenshot": "/tmp/bas-frame-identity-native-074.png",
+      "cases": [
+        {
+          "name": "owned_session_admission",
+          "status": "passed"
+        },
+        {
+          "name": "UI_attaches_to_initial_red",
+          "status": "passed"
+        },
+        {
+          "name": "initial_red_browser_frame_is_visible",
+          "status": "passed"
+        },
+        {
+          "name": "blue_tab_and_frame_replace_red_before_delayed_delivery",
+          "status": "passed"
+        },
+        {
+          "name": "HTTP_preview_retains_canonical_page_without_producer_credentials",
+          "status": "passed"
+        },
+        {
+          "name": "HTTP_preview_rejects_retired_canonical_page",
+          "status": "passed"
+        },
+        {
+          "name": "anonymous_old_page_cannot_overwrite_blue",
+          "status": "passed"
+        },
+        {
+          "name": "delayed_old_page_with_original_lease_cannot_overwrite_blue",
+          "status": "passed"
+        },
+        {
+          "name": "retired_lease_on_selected_page_cannot_overwrite_blue",
+          "status": "passed"
+        },
+        {
+          "name": "wrong_execution_on_selected_page_cannot_overwrite_blue",
+          "status": "passed"
+        },
+        {
+          "name": "valid_selected_page_callback_reaches_viewer_with_canonical_source",
+          "status": "passed"
+        },
+        {
+          "name": "driver_selection_is_still_blue_after_delivery",
+          "status": "passed"
+        },
+        {
+          "name": "normal_frame_recovers_after_delayed_producer_stops",
+          "status": "passed"
+        },
+        {
+          "name": "no_uncaught_UI_errors",
+          "status": "passed"
+        },
+        {
+          "name": "owned_session_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "owned_profile_cleanup",
+          "status": "passed"
+        }
+      ],
+      "pending_cleanup": null
+    },
+    "workflow": {
+      "artifact": "/tmp/bas-recording-e2e-08Lodh",
+      "execution_id": "92bee69c-73c7-4c8e-b636-77bd39869348",
+      "passed": 12,
+      "effects": 3
+    },
+    "profiles": {
+      "full_reads": 3,
+      "matches": "original rollback",
+      "artifact": "/tmp/bas-profile-final-074.txt",
+      "api_metadata_equals": "073",
+      "api_artifact": "/tmp/bas-profile-api-final-074.json"
+    }
+  },
+  "measurement": {
+    "runtime_lines": {
+      "before": 6760,
+      "after": 6785
+    },
+    "go_complexity": {
+      "before": {
+        "sum": 534,
+        "functions": 94
+      },
+      "after": {
+        "sum": 564,
+        "functions": 95
+      }
+    },
+    "scoped_ts": {
+      "before": {
+        "code_path_count": 110,
+        "sum": 421
+      },
+      "after": {
+        "code_path_count": 118,
+        "sum": 467
+      }
+    },
+    "cumulative_affected_go_delta": -99,
+    "per_cycle_net_simplification": false,
+    "removed": [
+      "anonymous/timestamp-only frame formats",
+      "unused JSON frame-push endpoint",
+      "JSON frame hub facade and UI schema",
+      "duplicate driver frame response branches",
+      "unused raw cache buffer"
+    ],
+    "scope": "Scoped affected runtime measurement; no whole-product performance/coverage claim"
+  },
+  "review": {
+    "supported": "Current-page and lease frame source admission, canonical projection, native source rejection and valid-source controls; original workflows/profiles preserved",
+    "limitations": [
+      "Controlled delayed-producer injection does not measure natural queue-race frequency",
+      "Same-page navigation epochs and cross-transport ordering remain open",
+      "Final screenshot repeated the single fixture heading; image fidelity after resize requires independent investigation",
+      "Duplicate network copies observed on timeline/viewer sockets (RF007)",
+      "Recovery/soak/native-platform/full coverage remain unqualified"
+    ]
+  },
+  "qualification_snapshot": {
+    "test_genie_run": "20260923-071619-1a170e28",
+    "tidiness": {
+      "total": 1141,
+      "long": 103,
+      "complexity": 405,
+      "duplication": 611,
+      "coupling": 21,
+      "duplication_line_debt": 31221,
+      "budget": "failed",
+      "scope": "shared tree snapshot, not exclusively attributable to this cycle"
+    },
+    "contract": "passed",
+    "inventory": "passed",
+    "release_outcomes_unknown": 17,
+    "board": "/tmp/bas-board-074.txt"
+  },
+  "pending_operations": []
+}

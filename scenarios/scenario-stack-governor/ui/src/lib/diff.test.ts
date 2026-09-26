@@ -1,21 +1,26 @@
 import { describe, it, expect } from "vitest";
 import { computeLineDiff } from "./diff";
 
+const expectDefined = <T>(value: T | undefined, label: string): T => {
+  expect(value, `${label} should be defined`).toBeDefined();
+  return value as T;
+};
+
 describe("computeLineDiff", () => {
   it("marks all lines as added when before is empty", () => {
     const result = computeLineDiff("", "line1\nline2");
     const added = result.filter((l) => l.type === "added");
     expect(added.length).toBe(2);
-    expect(added[0].content).toBe("line1");
-    expect(added[1].content).toBe("line2");
+    expect(expectDefined(added[0], "first added line").content).toBe("line1");
+    expect(expectDefined(added[1], "second added line").content).toBe("line2");
   });
 
   it("marks all lines as removed when after is empty", () => {
     const result = computeLineDiff("line1\nline2", "");
     const removed = result.filter((l) => l.type === "removed");
     expect(removed.length).toBe(2);
-    expect(removed[0].content).toBe("line1");
-    expect(removed[1].content).toBe("line2");
+    expect(expectDefined(removed[0], "first removed line").content).toBe("line1");
+    expect(expectDefined(removed[1], "second removed line").content).toBe("line2");
   });
 
   it("marks all lines as unchanged when before and after are identical", () => {
@@ -39,8 +44,8 @@ describe("computeLineDiff", () => {
     const result = computeLineDiff("", "");
     // Single empty line, unchanged
     expect(result.length).toBe(1);
-    expect(result[0].type).toBe("unchanged");
-    expect(result[0].content).toBe("");
+    expect(expectDefined(result[0], "empty diff line").type).toBe("unchanged");
+    expect(expectDefined(result[0], "empty diff line").content).toBe("");
   });
 
   it("assigns correct line numbers", () => {

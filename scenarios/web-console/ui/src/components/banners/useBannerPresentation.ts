@@ -1,0 +1,8 @@
+/**
+ * Presentation timing is the library's — see `react-component-library:Banner`.
+ * This module remains as the app's import seam.
+ */
+export {
+  useBannerPresentation,
+  type BannerPresentation,
+} from "@vrooli/react-component-library/Banner";

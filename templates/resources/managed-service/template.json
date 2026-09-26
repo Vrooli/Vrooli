@@ -1,0 +1,20 @@
+{
+  "name": "managed-service",
+  "displayName": "Managed Service",
+  "description": "Scaffold a Vrooli-supervised local service with a signed server artifact, typed provider policy, and a thin Go control CLI.",
+  "driver": "managed-service",
+  "requiredVars": {
+    "RESOURCE_NAME": {"flag": "name", "description": "Lowercase kebab-case resource identifier."}
+  },
+  "optionalVars": {
+    "RESOURCE_DISPLAY_NAME": {"flag": "display-name", "description": "Human-readable display name."},
+    "RESOURCE_DESCRIPTION": {"flag": "description", "description": "Short operator-facing summary."},
+    "RESOURCE_CATEGORY": {"flag": "category", "description": "Resource category label.", "default": "storage"},
+    "RESOURCE_PORTABILITY_TIER": {"flag": "portability-tier", "description": "Portability tier for the generated scaffold.", "default": "full"},
+    "RESOURCE_CLI_COMMAND": {"flag": "cli-command", "description": "Installed command name for the generated resource CLI.", "default": "resource-{{RESOURCE_NAME}}"},
+    "SERVICE_VERSION": {"flag": "service-version", "description": "Pinned server version.", "default": "0.0.0"},
+    "SERVICE_SHA256": {"flag": "service-sha256", "description": "Pinned server SHA-256 for the generated fixture.", "default": "0000000000000000000000000000000000000000000000000000000000000000"}
+  },
+  "docs": {"resource-templates": "docs/resources/resource-templates.md"},
+  "platformExpectations": ["The release pipeline must stage a signed server artifact for every claimed target.", "Resource-local code must not supervise the service process."]
+}

@@ -1,0 +1,10 @@
+# Fixture derived 2026-09-02 on swarminator (Linux, systemd 255) from platform-go RenderSystemdSlice; host-verified by systemd-analyze --user verify. Regenerate: PLATFORM_GO_UPDATE_FIXTURES=1 go test -run TestAgentSliceMatchesFixture
+[Unit]
+Description=Vrooli coding-agent sessions
+
+[Slice]
+CPUWeight=50
+MemoryHigh=50%
+MemoryMax=60%
+TasksMax=4096
+ManagedOOMMemoryPressure=kill

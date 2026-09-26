@@ -1,0 +1,9 @@
+{
+  "selectors": {
+    "layout.shell": {
+      "testId": "sda-layout-shell",
+      "selector": "[data-testid=\"sda-layout-shell\"]"
+    }
+  },
+  "dynamicSelectors": {}
+}

@@ -60,13 +60,27 @@ type workspaceSandboxProvenanceRunGroup struct {
 	SandboxOwner    string                           `json:"sandboxOwner"`
 	Files           []workspaceSandboxProvenanceFile `json:"files"`
 	LatestAppliedAt string                           `json:"latestAppliedAt"`
+	RunOutcome      string                           `json:"runOutcome,omitempty"`
+	ConversationID  string                           `json:"conversationId,omitempty"`
+	CostUSD         float64                          `json:"costUsd,omitempty"`
 }
 
 type workspaceSandboxProvenanceFile struct {
-	FilePath     string `json:"filePath"`
-	RelativePath string `json:"relativePath"`
-	ChangeType   string `json:"changeType"`
-	AppliedAt    string `json:"appliedAt"`
+	FilePath         string   `json:"filePath"`
+	RelativePath     string   `json:"relativePath"`
+	ChangeType       string   `json:"changeType"`
+	ContentDigest    string   `json:"contentDigest,omitempty"`
+	EvidenceRevision string   `json:"evidenceRevision,omitempty"`
+	AppliedAt        string   `json:"appliedAt"`
+	CommittedAt      string   `json:"committedAt,omitempty"`
+	CommitHash       string   `json:"commitHash,omitempty"`
+	CommitMessage    string   `json:"commitMessage,omitempty"`
+	RunOutcome       string   `json:"runOutcome,omitempty"`
+	ConversationID   string   `json:"conversationId,omitempty"`
+	CostUSD          float64  `json:"costUsd,omitempty"`
+	State            string   `json:"state,omitempty"`
+	Unavailable      []string `json:"unavailable,omitempty"`
+	Visibility       string   `json:"visibility,omitempty"`
 }
 
 func (c *WorkspaceSandboxClient) GetCommitPreview(ctx context.Context, projectRoot string) (*workspaceSandboxCommitPreview, error) {

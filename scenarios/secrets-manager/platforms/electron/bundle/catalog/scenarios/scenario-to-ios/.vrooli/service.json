@@ -1,0 +1,137 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "service": {
+    "name": "scenario-to-ios",
+    "displayName": "Scenario to iOS",
+    "description": "Scenario to iOS conversion tool",
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "tags": [],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/scenario-to-ios"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "version": "1.0.0"
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Scenario to iOS API port",
+      "range": "15000-19999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Scenario to iOS health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "develop": {
+      "description": "Start scenario-to-ios API server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./scenario-to-ios-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/scenario-to-ios-api"
+          }
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for scenario-to-ios",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test-genie execute scenario-to-ios --preset comprehensive",
+          "description": "Execute phased scenario test suite"
+        }
+      ]
+    },
+    "setup": {
+      "description": "Build Scenario to iOS API",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/scenario-to-ios-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "scenario-to-ios",
+            "targets": [
+              "scenario-to-ios"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o scenario-to-ios-api .",
+          "description": "Build Go API binary"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "scenario-to-ios",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scenario-to-ios"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  }
+}

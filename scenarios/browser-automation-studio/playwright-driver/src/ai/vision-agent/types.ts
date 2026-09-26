@@ -14,7 +14,21 @@ import type { TokenUsage, ElementLabel } from '../vision-client/types';
 /**
  * Configuration for a navigation session.
  */
+export interface NavigationPostcondition {
+  selector: string;
+  mode: 'exists' | 'ASSERTION_MODE_EXISTS' | 'text_equals' | 'text_contains' | 'count_equals';
+  expected?: string;
+}
+export interface NavigationExtraction {
+  name: string;
+  selector: string;
+  attribute?: string;
+  limit?: number;
+}
 export interface NavigationConfig {
+  effectPolicy?: 'explicit' | 'read_only';
+  postconditions?: NavigationPostcondition[];
+  extraction?: NavigationExtraction[];
   /** User's goal prompt */
   prompt: string;
 
@@ -24,11 +38,8 @@ export interface NavigationConfig {
   /** Maximum steps before stopping */
   maxSteps: number;
 
-  /** Model identifier (e.g., "qwen3-vl-30b") */
+  /** Provider-neutral AI Gateway route profile. */
   model: string;
-
-  /** API key for the model provider */
-  apiKey: string;
 
   /** Callback invoked after each step */
   onStep: (step: NavigationStep) => Promise<void>;
@@ -90,6 +101,9 @@ export interface NavigationStep {
  * Final result of a navigation session.
  */
 export interface NavigationResult {
+  verifiedSuccess?: boolean;
+  extractedData?: Record<string, string[]>;
+  verificationError?: string;
   navigationId: string;
   status: NavigationStatus;
   totalSteps: number;
@@ -287,16 +301,14 @@ export interface VisionAnalysisResponseInterface {
 
 export interface VisionModelSpecInterface {
   id: string;
-  apiModelId: string;
   displayName: string;
-  provider: 'openrouter' | 'anthropic' | 'ollama';
-  inputCostPer1MTokens: number;
-  outputCostPer1MTokens: number;
-  maxContextTokens: number;
+  provider: 'ai-gateway' | 'anthropic' | 'ollama' | 'mock';
+  apiModelId?: string;
+  maxContextTokens?: number;
   supportsComputerUse: boolean;
   supportsElementLabels: boolean;
   recommended: boolean;
-  tier: 'budget' | 'standard' | 'premium';
+  tier: 'local' | 'remote' | 'mock' | 'exception';
 }
 
 export interface ConversationMessageInterface {

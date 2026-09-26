@@ -1,0 +1,5 @@
+{
+  "id": "leaderboard",
+  "kind": "leaderboard",
+  "component": "LeaderboardReadout"
+}

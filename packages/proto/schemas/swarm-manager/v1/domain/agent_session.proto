@@ -1,0 +1,203 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.domain;
+
+import "buf/validate/validate.proto";
+import "swarm-manager/v1/shared/agent_session.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
+
+// =============================================================================
+// AGENT SESSION DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Agent sessions are durable Swarm Manager-owned conversations with Agent
+// Manager runs. They support typed conversational workflows such as
+// meta-orchestration and operating-mode authoring, proposal review/apply, and
+// artifact attribution.
+//
+// =============================================================================
+
+// AgentSessionMessage is a single conversation turn persisted for a session.
+message AgentSessionMessage {
+  // Unique message identifier within the session.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Sender role.
+  // @constraint one of: user, assistant, system
+  string role = 2 [(buf.validate.field).string = {
+    in: [
+      "user",
+      "assistant",
+      "system"
+    ]
+  }];
+
+  // Markdown text.
+  string content = 3;
+
+  // RFC3339 timestamp.
+  // @format rfc3339
+  string created_at = 4 [(buf.validate.field).string.min_len = 1];
+
+  // Optional attachment IDs associated with this turn.
+  repeated string attachment_ids = 5;
+
+  // Server-resolved context snapshots attached to this turn.
+  repeated shared.AgentSessionContextItem context = 6;
+}
+
+// AgentSessionProposal is a machine-validated draft produced by a session.
+message AgentSessionProposal {
+  // Unique proposal identifier.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Proposal kind, owned and validated by the Swarm Manager service.
+  //
+  // This response field is intentionally open: a newer server may return a
+  // proposal kind that an older UI does not yet render specially. Clients must
+  // display that proposal generically rather than reject the whole session
+  // response. The service remains the single authority for kinds it persists
+  // and for their apply semantics.
+  string kind = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Proposal lifecycle. As with kind, clients must tolerate future statuses
+  // and use a neutral presentation when one is unknown.
+  string status = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Human-readable proposal summary.
+  string summary = 4 [(buf.validate.field).string.min_len = 1];
+
+  // Machine-readable proposal payload as canonical JSON.
+  string payload_json = 5 [(buf.validate.field).string.min_len = 1];
+
+  // RFC3339 timestamp.
+  // @format rfc3339
+  string created_at = 6 [(buf.validate.field).string.min_len = 1];
+
+  // RFC3339 timestamp.
+  // @format rfc3339
+  string updated_at = 7 [(buf.validate.field).string.min_len = 1];
+
+  // Provenance for the agent/operator that produced the proposal.
+  optional shared.AgentSessionAttribution attribution = 8;
+}
+
+// AgentSessionProposalTarget identifies the backlog item or goal whose
+// proposal review surface owns a session's proposals.
+message AgentSessionProposalTarget {
+  // Entity kind receiving the proposed changes.
+  //
+  // Must stay in step with the server's ProposalTarget.Validate and the
+  // capture intake path that creates these sessions. The client validates
+  // responses against these rules, and a single non-conforming target
+  // rejects the whole list response — so a value the domain accepts but this
+  // list omits takes down the entire Sessions view, not just one row.
+  string type = 1 [(buf.validate.field).string = {
+    in: [
+      "backlog_item",
+      "goal",
+      "capture"
+    ]
+  }];
+
+  // Stable entity reference. Backlog items use "kind/name"; goals use their
+  // goal name; captures use their capture id.
+  string ref = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Human-readable target title.
+  string name = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+// AgentSessionStagedContextRef is a typed entity selected on a draft before
+// the first message starts the backing agent run.
+message AgentSessionStagedContextRef {
+  string type = 1 [(buf.validate.field).string.min_len = 1];
+  string ref = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// AgentSession stores the indexable session snapshot. Messages, proposals,
+// and artifacts may also be streamed from append-only logs.
+message AgentSession {
+  // Unique session identifier, usually sess_<id>.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Human-readable title.
+  string title = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Session kind.
+  // @constraint one of: meta_orchestration, operating_mode_authoring, swarm_operations, workflow_authoring
+  string kind = 3 [(buf.validate.field).string = {
+    in: [
+      "meta_orchestration",
+      "operating_mode_authoring",
+      "swarm_operations",
+      "workflow_authoring"
+    ]
+  }];
+
+  // Session lifecycle.
+  // @constraint one of: draft, starting, running, waiting_for_user, proposal_ready, applying, complete, failed, canceled
+  string status = 4 [(buf.validate.field).string = {
+    in: [
+      "draft",
+      "starting",
+      "running",
+      "waiting_for_user",
+      "proposal_ready",
+      "applying",
+      "complete",
+      "failed",
+      "canceled"
+    ]
+  }];
+
+  // Prompt Manager skill ID used to guide the session.
+  string skill_id = 5 [(buf.validate.field).string.min_len = 1];
+
+  // Agent Manager task ID for the current/initial run.
+  optional string task_id = 6;
+
+  // Agent Manager run ID for the current/initial run.
+  optional string run_id = 7;
+
+  // Agent Manager profile key for the current/initial run.
+  optional string profile_key = 8;
+
+  // Most recent failure text, if any.
+  optional string failure_reason = 9;
+
+  // RFC3339 timestamp.
+  // @format rfc3339
+  string created_at = 10 [(buf.validate.field).string.min_len = 1];
+
+  // RFC3339 timestamp.
+  // @format rfc3339
+  string updated_at = 11 [(buf.validate.field).string.min_len = 1];
+
+  // Conversation transcript included in detail responses.
+  repeated AgentSessionMessage messages = 12;
+
+  // Proposal snapshots included in detail responses.
+  repeated AgentSessionProposal proposals = 13;
+
+  // Artifact links included in detail responses.
+  repeated shared.AgentSessionArtifact artifacts = 14;
+
+  // Initial creator attribution.
+  optional shared.AgentSessionAttribution created_by = 15;
+
+  // Uploaded or generated attachments owned by this session.
+  repeated shared.AgentSessionAttachment attachments = 16;
+
+  // Entity whose proposal review surface owns this session's proposals.
+  optional AgentSessionProposalTarget proposal_target = 17;
+
+  // Server-declared starter framing selected for this draft session.
+  optional string starter_job_id = 18;
+
+  // Durable typed context staged on an unstarted draft.
+  repeated AgentSessionStagedContextRef staged_context_refs = 19;
+}

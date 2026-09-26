@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.shared;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared;shared";
+
+// @stability stable
+
+// DependencyStatus is one dependency observation from Swarm Manager's
+// operational REST health response.
+message DependencyStatus {
+  bool connected = 1;
+  double latency_ms = 2;
+  string error = 3;
+  string database = 4;
+}
+
+// HealthResponse mirrors the existing api-core health payload served by the
+// scenario's operational /health endpoint. Health remains a REST operational
+// probe so lifecycle systems and load balancers can call it without Connect.
+message HealthResponse {
+  string status = 1;
+  string service = 2;
+  string timestamp = 3;
+  bool readiness = 4;
+  string version = 5;
+  double uptime_seconds = 6;
+  map<string, DependencyStatus> dependencies = 7;
+}
+
+// ScenarioRemediationSummary is Swarm-owned reconciliation state keyed by a
+// canonical remediation fingerprint. It links governed work without copying
+// provider findings into local storage. It is shared by the scenario domain
+// health projection and remediation API responses.
+message ScenarioRemediationSummary {
+  string fingerprint = 1 [(buf.validate.field).string.min_len = 1];
+  // suggested, accepted, dismissed, or none.
+  string state = 2 [(buf.validate.field).string = {
+    in: [
+      "suggested",
+      "accepted",
+      "dismissed",
+      "none"
+    ]
+  }];
+  optional string work_ref = 3;
+  optional string updated_at = 4;
+}

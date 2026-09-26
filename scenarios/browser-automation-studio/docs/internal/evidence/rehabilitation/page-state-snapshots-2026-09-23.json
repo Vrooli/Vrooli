@@ -1,0 +1,110 @@
+{
+  "cycle": "BAS-WORK-063",
+  "issues": [
+    "BAS-RF-093"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "qualified_and_deployed",
+  "build_identity": "sha256:d6f33a0cc116886a7fe02b47f9827703bef4beb4d7571df725036b1bb8c85409",
+  "source": {
+    "api/automation/session/pages.go": {
+      "before": {
+        "sha256": "970bb89ffd11fd538dc27a0a468d8d143907193dc2284a07a4fa2c70d3bb0d1a",
+        "lines": 261
+      },
+      "after": {
+        "sha256": "385dfb3a8abfc78a7c6d48912b86b3e6100309d2d05bd46358961f46bbf9868a",
+        "lines": 265
+      }
+    },
+    "api/services/live-capture/service.go": {
+      "before": {
+        "sha256": "9016163a0fc4bafb0ef04a4a85bad8a3d3b88ea5c237f205ffc8381710c4ffa3",
+        "lines": 824
+      },
+      "after": {
+        "sha256": "433b6502de82836424f60be1aaef30b7ef3f0703185aa1811234ad60e6983d91",
+        "lines": 827
+      }
+    }
+  },
+  "qualification_snapshot": {
+    "api/automation/session/pages.go": {
+      "sha256": "385dfb3a8abfc78a7c6d48912b86b3e6100309d2d05bd46358961f46bbf9868a",
+      "lines": 265
+    },
+    "api/services/live-capture/service.go": {
+      "sha256": "433b6502de82836424f60be1aaef30b7ef3f0703185aa1811234ad60e6983d91",
+      "lines": 827
+    },
+    "api/automation/session/pages_test.go": {
+      "sha256": "a718e6343074352374a7eb6db03b29a94237d454bf1e878390c9fbf2c4307216",
+      "lines": 573
+    },
+    "api/services/live-capture/service_test.go": {
+      "sha256": "4db4d441959896b4f0287765a1bbc73de9a739b6087a3a8a9581a647aa679cba",
+      "lines": 815
+    }
+  },
+  "tests": {
+    "independent_red": "/tmp/bas-page-snapshot-red-063.txt:9failed/1passed,2race reports",
+    "maintained_red": "/tmp/bas-page-snapshot-go-red-063.jsonl:13leaf failures,2race reports; /tmp/bas-page-snapshot-service-red-063.jsonl:receipt mutation, closed open-page statuses, stale final selection,1race report",
+    "focused_green": "/tmp/bas-page-snapshot-go-green-063.jsonl:29tests pass",
+    "independent_green": "/tmp/bas-page-snapshot-probe-green-063.txt:10checks pass, no race reports",
+    "go": "/tmp/bas-page-snapshot-go-final-063.txt:6racepackages pass; /tmp/bas-page-snapshot-build-final-063.txt:API build pass",
+    "driver_reused": "061 full owner uh-20260923-015346-275ef9e7917c16db6c18220f748ec251:1770tests/124suites; driver source unchanged",
+    "native": {
+      "initial_navigation": 14,
+      "outage_retry": 28,
+      "normal_restoration": 30,
+      "workflow": {
+        "passed": 12,
+        "failed": 0,
+        "skipped": 0,
+        "execution_id": "ab035bce-d55c-4cf3-ac91-0b54e72a80f0",
+        "artifact_dir": "/tmp/bas-recording-e2e-5xlc2q"
+      },
+      "independent_workflow_effects": 3
+    },
+    "profiles": "/tmp/bas-profile-final-063.txt:3complete reads match original rollback; /tmp/bas-profile-api-final-063.json equals062"
+  },
+  "measurement": {
+    "runtime_lines": {
+      "before": 1085,
+      "after": 1092,
+      "delta": 7
+    },
+    "go_functions": {
+      "before": 46,
+      "after": 46
+    },
+    "go_complexity": {
+      "before": 166,
+      "after": 170,
+      "delta": 4
+    },
+    "cumulative_affected_go_reduction": 175,
+    "tidiness_run": "20260923-022346-f81bc017",
+    "tidiness": {
+      "totalFindings": 1133,
+      "longFiles": 105,
+      "complexity": 397,
+      "duplication": 610,
+      "coupling": 20,
+      "duplicationLineDebt": 31562
+    },
+    "board": "/tmp/bas-board-result-063.json:17pending_telemetry/unqualified"
+  },
+  "review": {
+    "owners": "PageTracker deep-copies registration inputs/results and all reads. Snapshot captures page copies and selected ID under one lock, then sorts outside it. Final closure clears selection. API/profile callers share snapshot.",
+    "removed": "Both pointer-returning list traversals and split list/selected-ID reads; no compatibility wrappers.",
+    "limits": [
+      "Defensive copies add7lines/+4Go complexity; not a per-cycle complexity reduction.",
+      "Concurrent service red exposed mutable closed status, not an observed mismatched selected ID; split-lock coherence was inspected risk.",
+      "No measured performance claim from moving sorting outside lock.",
+      "Native close-tab probe independently reveals false200 while browser tab remains active:RF094,next repair.",
+      "Shared-tree tidiness attribution limited; TS/JS measurement RF064 and full release outcomes remain unqualified."
+    ]
+  },
+  "pending_operations": []
+}

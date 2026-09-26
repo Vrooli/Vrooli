@@ -13,12 +13,25 @@ import (
 // setupTestCampaignManager creates a mock server with the provided handler and returns
 // a CampaignManager configured to use it, along with a cleanup function
 func setupTestCampaignManager(handler http.HandlerFunc) (*CampaignManager, func()) {
-	server := httptest.NewServer(handler)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		setTestSecurityHeaders(w)
+		handler(w, r)
+	}))
 	cm := &CampaignManager{
 		visitedTrackerURL: server.URL,
 		httpClient:        &http.Client{Timeout: 5 * time.Second},
 	}
 	return cm, server.Close
+}
+
+func setTestSecurityHeaders(w http.ResponseWriter) {
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("X-XSS-Protection", "1; mode=block")
+	w.Header().Set("Strict-Transport-Security", "max-age=31536000")
 }
 
 // [REQ:TM-SS-003] Test campaign creation

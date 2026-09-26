@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "react-component-library:StatusBadge",
+  "deprecatedVersions": [
+    "1.2.0",
+    "1.1.0",
+    "1.2.1"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.2.1",
+    "1.2.0"
+  ],
+  "latest": "1.2.2",
+  "libraryId": "react-component-library:StatusBadge"
+}

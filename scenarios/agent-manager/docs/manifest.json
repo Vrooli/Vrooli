@@ -1,0 +1,84 @@
+{
+  "version": "2.0.0",
+  "title": "Agent Manager Documentation",
+  "description": "Portable role, permission, profile, and run orchestration for coding agents with resource-owned native adapters and per-run accountability.",
+  "defaultDocument": "../README.md",
+  "contract": {
+    "kind": "scenario-docs",
+    "template": "agent-manager",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": ["missing", "stub", "draft", "active", "not-applicable", "deferred", "retired"],
+    "stages": ["generated", "oriented", "implemented", "validated", "deployable", "monetizable"],
+    "extensionRule": "Register every durable Agent Manager document. Keep portable role and permission intent separate from resource-owned native projections and concrete execution evidence."
+  },
+  "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "documents": [
+        {"path": "../README.md", "docType": "readme", "title": "README", "description": "Scenario overview and operator entrypoint", "maturity": "active", "requiredBy": ["generated"], "completion": "required"},
+        {"path": "../PRD.md", "docType": "prd", "title": "Product Requirements", "description": "Product intent and operational targets", "maturity": "active", "requiredBy": ["oriented"], "completion": "required"},
+        {"path": "manifest.json", "docType": "manifest", "title": "Documentation Manifest", "description": "Machine-readable documentation contract", "maturity": "active", "requiredBy": ["generated"], "completion": "required"}
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "documents": [
+        {"path": "concepts/ARCHITECTURE.md", "docType": "architecture", "title": "Architecture", "description": "Domain map, role policy, permission policy, immutable snapshots, and conformance", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "concepts/DATA.md", "docType": "data-map", "title": "Data Map", "description": "Durable consumption, charge, yield, billing, and workload vocabulary", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"}
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "documents": [
+        {"path": "reference/configuration.md", "docType": "configuration", "title": "Configuration", "description": "Role catalogs, permission catalogs, profiles, reconciliation, and operator workflows", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "reference/classifier-accuracy.md", "docType": "classifier-accuracy", "title": "Classifier Accuracy", "description": "Shared corpus scorer and Test Genie classifier-accuracy publication", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "reference/operational-stats.md", "docType": "operational-stats", "title": "Operational Stats", "description": "API and CLI operational stats reference", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "reference/scenario-declarations.md", "docType": "scenario-declarations", "title": "Scenario Declarations", "description": "Profile and workflow declaration format, canonical tool restrictions, and reconciliation", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "reference/PROTO-CONTRACT-EXCEPTIONS.md", "docType": "proto-contract-exceptions", "title": "Proto Contract Exceptions", "description": "Documented generated-contract exceptions", "maturity": "active", "requiredBy": ["implemented"], "completion": "optional"}
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "documents": [
+        {"path": "guides/workflow-adoption.md", "docType": "workflow-adoption", "title": "Workflow Adoption", "description": "Run-versus-Workflow decision rule, ownership boundary, and migration checklist", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "interactive-runner-design.md", "docType": "interactive-runner-design", "title": "Interactive Runner Design", "description": "Interactive execution design notes", "maturity": "draft", "requiredBy": ["implemented"], "completion": "optional"},
+        {"path": "guides/acceptance-walkthrough.sh", "docType": "acceptance-walkthrough", "title": "Evidence Spine Acceptance Walkthrough", "description": "CLI-only eight-question investigation evidence walkthrough against the imported corpus", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "PROTECTED_MODE_RUNNERS.md", "docType": "protected-mode-runners", "title": "Protected Mode Runners", "description": "Sandboxed runner launch and environment behavior", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "runner-transcript-recovery.md", "docType": "runner-transcript-recovery", "title": "Runner Transcript Recovery", "description": "Restart recovery and detached runner transcript replay", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "FAILURE_TOPOGRAPHY.md", "docType": "failure-topography", "title": "Failure Topography", "description": "Failure modes and operator recovery paths", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "RESEARCH.md", "docType": "research", "title": "Research", "description": "Research findings and open design questions", "maturity": "draft", "requiredBy": ["implemented"], "completion": "optional"}
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "documents": [
+        {"path": "internal/INVARIANTS.md", "docType": "invariants", "title": "Invariants", "description": "Normative contracts and their regression tests", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/ASSUMPTIONS.md", "docType": "assumptions", "title": "Assumptions", "description": "Explicit operating assumptions", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/SEAMS.md", "docType": "seams", "title": "Seams", "description": "Mockable boundaries and ownership seams", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/TEMPORAL-FLOWS.md", "docType": "temporal-flows", "title": "Temporal Flows", "description": "Cadences, timeouts, and timing-sensitive contracts", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/PROBLEMS.md", "docType": "problems", "title": "Problems", "description": "Known issues, debt, and resolved incidents", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/PROGRESS.md", "docType": "progress", "title": "Progress", "description": "Durable refactor and initiative journal", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/ERROR_SEMANTICS.md", "docType": "error-semantics", "title": "Error Semantics", "description": "Domain error taxonomy and recovery semantics", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/COHERENCE_NOTES.md", "docType": "coherence-notes", "title": "Coherence Notes", "description": "Cross-package contracts", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/UTILS_UNIFICATION_NOTES.md", "docType": "utils-unification", "title": "Utilities Unification", "description": "Utility consolidation notes", "maturity": "draft", "requiredBy": ["implemented"], "completion": "optional"},
+        {"path": "internal/EVENT_TAXONOMY.md", "docType": "event-taxonomy", "title": "Event Taxonomy", "description": "Typed run-event payload taxonomy", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/STORAGE_AUDIT.md", "docType": "storage-audit", "title": "Storage Audit", "description": "Persistence and storage audit notes", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/UNIT_TEST_ARCHITECTURE.md", "docType": "unit-test-architecture", "title": "Unit Test Architecture", "description": "Test seam and architecture guidance", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/TRIAGE.md", "docType": "triage", "title": "Failure Triage", "description": "Artifact-first diagnosis of failed runs and workflow executions", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "internal/PERFORMANCE.md", "docType": "conversation-search-performance", "title": "Conversation Search Performance", "description": "Measured scale, latency, recovery, isolation, and tuning evidence for attributable recall", "maturity": "active", "requiredBy": ["validated"], "completion": "required"}
+      ]
+    },
+    {
+      "id": "performance",
+      "title": "Performance",
+      "documents": [
+        {"path": "perf/2026-05-04-ui-lists-resize-graphs-audit.md", "docType": "ui-performance-audit", "title": "UI Performance Audit", "description": "Profiler audit for lists, resize behavior, and graphs", "maturity": "active", "requiredBy": ["validated"], "completion": "required"}
+      ]
+    }
+  ]
+}

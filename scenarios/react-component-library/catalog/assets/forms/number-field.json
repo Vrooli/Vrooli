@@ -1,0 +1,6 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": { "id": "forms.number-field", "name": "NumberField", "kind": "component", "domain": "forms", "description": "A bounded numeric field with labelled increment and decrement controls and predictable step rounding.", "targets": ["react-vite"], "slot": "ui-primitive", "delivery": "adopted", "target": { "priority": "P1", "maturity": "verified" } }
+}

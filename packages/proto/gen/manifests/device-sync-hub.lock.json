@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "scenario": "device-sync-hub",
+  "input_digest": "sha256:6796ad3d112477d31384d6743955dda431f0c16aa1d63d6b910d7c867dff7063",
+  "input_files": [
+    "schemas/device-sync-hub/v1/devices/devices.proto",
+    "schemas/device-sync-hub/v1/errors/errors.proto",
+    "schemas/device-sync-hub/v1/health/health.proto",
+    "schemas/device-sync-hub/v1/identity/identity.proto",
+    "schemas/device-sync-hub/v1/realtime/realtime.proto",
+    "schemas/device-sync-hub/v1/transfer/transfer.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/device-sync-hub/v1/devices/devices.pb.go": "sha256:17f8b3e9d40756c5f7c8b92e1bbcf63d595ac4e11e8768169a632510130b7a0c",
+    "gen/go/device-sync-hub/v1/devices/devices_v1connect/devices.connect.go": "sha256:58b516cd01e71f703941d407b9782ac1592c2258f191ae4e8feb07a19f54439e",
+    "gen/go/device-sync-hub/v1/errors/errors.pb.go": "sha256:2b9924a1cf1a5fcd7763f0ce307de520328f61ff733deec7d7c83731e7029b20",
+    "gen/go/device-sync-hub/v1/health/health.pb.go": "sha256:34f7cbbe19f2b194b968f46612be5fc60bf493bb3c1b7fce739538fdb4209b88",
+    "gen/go/device-sync-hub/v1/identity/identity.pb.go": "sha256:0da61d1c12a577bb499b78efcad9ee3ed71b9b45dca2b9505921cfba384291c0",
+    "gen/go/device-sync-hub/v1/identity/identity_v1connect/identity.connect.go": "sha256:9b8a5040b264d1c355d538807ecd8e8f05b6a6a6c2d9c84dd8fb36c4dcac8246",
+    "gen/go/device-sync-hub/v1/realtime/realtime.pb.go": "sha256:3f481a5483ae70347d82a1390b5b1d78ea7c525aa94a40002dd7854d14f0e894",
+    "gen/go/device-sync-hub/v1/transfer/transfer.pb.go": "sha256:28ed1b124505ffbdce0786a9065154c21d3980c527f892e4f8e32a405fa9e68c",
+    "gen/go/device-sync-hub/v1/transfer/transfer_v1connect/transfer.connect.go": "sha256:41a066eb74ddeed2017b106d0e9af7e95b70a613230b7aaf13802b44f114d99c",
+    "gen/python/device_sync_hub/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/device_sync_hub/v1/devices/devices_pb2.py": "sha256:0aadf598ffba8ff80b7ea16a0257b3e737423ac46e4b4e5cf51d9935f42ddd95",
+    "gen/python/device_sync_hub/v1/devices/devices_pb2.pyi": "sha256:3b7402bef31147c02b21113165a20fe6ab22aad3b45e24cff40b8cb5c2965f01",
+    "gen/python/device_sync_hub/v1/devices/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/device_sync_hub/v1/errors/errors_pb2.py": "sha256:ca79d1c8bd757b15ebe5379f2a6cad5fdaffd22cc79a1380838142c6d5e46e8d",
+    "gen/python/device_sync_hub/v1/errors/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/device_sync_hub/v1/errors/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/device_sync_hub/v1/health/health_pb2.py": "sha256:60f068fdfa5ba134bf867b349f402142cf0f3453ac973e97e9526ff6dbab7710",
+    "gen/python/device_sync_hub/v1/health/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/device_sync_hub/v1/health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/device_sync_hub/v1/identity/identity_pb2.py": "sha256:43ab95431c36e01e5eeacbe54ef36bdb2cbd8734e1379512168021eb14ba4a28",
+    "gen/python/device_sync_hub/v1/identity/identity_pb2.pyi": "sha256:9aff38860999b0a184abafaaafe6e70c24c7cb8726eac6ae4ec4573a36a9f820",
+    "gen/python/device_sync_hub/v1/identity/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/device_sync_hub/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/device_sync_hub/v1/realtime/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/device_sync_hub/v1/realtime/realtime_pb2.py": "sha256:292c4672d4aa21a5e478716c51ed5b84ef56c2a220bed72a703215c2ae55c1c4",
+    "gen/python/device_sync_hub/v1/realtime/realtime_pb2.pyi": "sha256:0503caf03f18aa2c655f9d3e95c26b2162d1963fb5eae99c9df2101772336337",
+    "gen/python/device_sync_hub/v1/transfer/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/device_sync_hub/v1/transfer/transfer_pb2.py": "sha256:503235c8449a0c17d3b2050f98ca69fb3d5e8bf907c76b1fba69b486ce70c1f3",
+    "gen/python/device_sync_hub/v1/transfer/transfer_pb2.pyi": "sha256:10d338f3fd4f46d355124359d7027677fe781ad990129281bb632c5350d731a7",
+    "gen/typescript/device-sync-hub/v1/devices/devices_pb.ts": "sha256:d673d6802ecb5c16b93fe009bb7b1f96e046d01f202af3142f04689eece8ccc2",
+    "gen/typescript/device-sync-hub/v1/errors/errors_pb.ts": "sha256:2bbdcc023ec046f02627efd18d04353ff8b0e5cc8b951b40498d5af5c7811bab",
+    "gen/typescript/device-sync-hub/v1/health/health_pb.ts": "sha256:aac62c0f744ab0146ddd7ce3116442f8b1d6fc866a76a684514079385ec4235b",
+    "gen/typescript/device-sync-hub/v1/identity/identity_pb.ts": "sha256:009545fc1b28821e820d28a96f08230e3fd8590c9f2f4b20537e505fe87619d8",
+    "gen/typescript/device-sync-hub/v1/realtime/realtime_pb.ts": "sha256:eae9d05ba7e9b28ffaf8d40bcf7b99c46ee36fcdfbb3d13ebac63cda0b51f001",
+    "gen/typescript/device-sync-hub/v1/transfer/transfer_pb.ts": "sha256:4915cfbe7b24f8fafac563094f4e5ea5e3809e66ed07434ad72127797979d235"
+  }
+}

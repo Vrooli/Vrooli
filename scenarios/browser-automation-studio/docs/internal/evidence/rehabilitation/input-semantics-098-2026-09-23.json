@@ -1,0 +1,138 @@
+{
+  "cycle": "098",
+  "issues": [
+    "BAS-RF-029"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "deployed_partial_qualification",
+  "build_identity": "sha256:6a42c3c70ce9eef005d95bfcd0b9d94587e55eb9e9ab0618b8d884201f2e691e",
+  "scope": "BAS UI input classification and Playwright driver key/pointer modifier state; no shared driver package, control-plane, or dependency changes",
+  "changes": {
+    "ui": [
+      "Unmodified printable input remains text; printable keys with modifiers remain key commands",
+      "Pointer input carries active modifiers",
+      "IME composition bookkeeping is not forwarded as a standalone key command"
+    ],
+    "driver": [
+      "Pointer modifiers are pressed before down and held across drag movement through pointer-up",
+      "Modifiers are released after completion and on error; cleanup attempts all releases"
+    ]
+  },
+  "checks": {
+    "hook_tests": {
+      "passed": 8,
+      "failed": 0,
+      "artifact": "focused Vitest useInputForwarding.test.ts"
+    },
+    "driver_route_tests": {
+      "passed": 26,
+      "failed": 0,
+      "artifact": "focused Jest record-input.test.ts --coverage=false"
+    },
+    "ui_typecheck": "passed",
+    "driver_typecheck": "passed",
+    "touched_file_eslint": "passed",
+    "retained_input_probe": {
+      "passed": 7,
+      "failed": 0,
+      "artifact": "docs/internal/refactor_input_probes.cjs"
+    },
+    "input_regression": {
+      "passed": 1,
+      "failed": 0,
+      "unavailable": 0,
+      "artifact": "/tmp/bas-regression-input-098.json"
+    },
+    "recording_contract_harness": {
+      "passed": 16,
+      "failed": 0,
+      "artifact": "playwright-driver/tests/e2e/record-mode-e2e.test.mjs"
+    },
+    "live_chromium_recording": {
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "execution_id": "cda48176-c718-485f-a694-695e25a1807e",
+      "artifact_dir": "/tmp/bas-recording-e2e-UaDZME",
+      "transcript": "/tmp/bas-input-e2e-098.txt",
+      "observations": [
+        "Control+A arrived at a real Chromium DOM keydown handler with ctrlKey true",
+        "Shift remained active for pointerdown, pointermove and pointerup",
+        "Captured workflow replayed in a fresh browser context and persisted workflow completed through the BAS API",
+        "Fixture sessions, workflow, project, files and owned execution artifacts were removed"
+      ]
+    },
+    "scenario_contract": {
+      "preparation_valid": true,
+      "product_qualified": false,
+      "errors": []
+    },
+    "targeted_diff_check": "passed",
+    "test_genie_unit": {
+      "run_id": "20260923-184157-bdd24c0b",
+      "verdict": "failed",
+      "reason": "UI aggregate coverage is below its existing 85% floor: statements/lines 30.52%, functions 33.61%, branches 67.26%; canonical render-projection failure is resolved",
+      "findings_artifact": "artifact_0795f23a9a8c37d9fb351d87ce1ebec2",
+      "limitations": "Unchanged broad coverage floor; focused changed-module tests pass"
+    },
+    "test_genie_workflow": {
+      "run_id": "20260923-190021-1c60cd2a",
+      "verdict": "failed_by_phase_timeout",
+      "duration_seconds": 901,
+      "observations": 0,
+      "findings_artifact": "artifact_ce44e63b284e6ee76da9c1f2252edc1d",
+      "finding": "workflow-health durable provider run exceeded the 15-minute phase deadline",
+      "log": "/tmp/bas-tg-workflow-098.log",
+      "host_observation": "scheduler used serial fallback because swap utilization was at or above 50%",
+      "qualification": "workflow outcome unavailable; no BAS behavior assertions were observed"
+    },
+    "performance_capture": {
+      "operation_id": "cb5616c56bb2f9a6b6bae1274aea1d4c",
+      "outcome": "measured_within_budget",
+      "sample_count": 100,
+      "attempt_count": 101,
+      "warmups": 1,
+      "p95_ms": 355,
+      "wall_p95_ms": 517.908453,
+      "budget_ms": 2000,
+      "build_identity": "sha256:6a42c3c70ce9eef005d95bfcd0b9d94587e55eb9e9ab0618b8d884201f2e691e",
+      "producer_digest": "62456dbce61bba14f9feb78efc1e806448fc482e734c2e8a18bf2938b6ed4a52",
+      "contract_digest": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+      "configuration_digest": "1a2776b5338b0074036293f43952bd03d3be2ef1ccabfef38787e06d4a63b167",
+      "fixture_revision": "dcabe2e264925a3c8264eef9ecd37b0b7b16ee11ce3c57bb1310a80ede1e3367",
+      "receipt_path": "/home/matthalloran8/.vrooli/test-runs/performance-health/workloads/cb5616c56bb2f9a6b6bae1274aea1d4c/producer/receipt.json",
+      "receipt_sha256": "d3556410a1c8d9160d62b3fc9d4df55abda07a0627a579880be3c6ce95cf64df"
+    },
+    "setpoint_read": {
+      "program_run": "prog_581ba087-1641-44b3-8c61-d59313a56c4c",
+      "program": "browser-automation-studio.setpoint-read",
+      "profile": "rehabilitation",
+      "required": 17,
+      "qualified": 1,
+      "unavailable": 16,
+      "product_qualified": false,
+      "capture_in_band": true
+    }
+  },
+  "qualification": {
+    "positive": [
+      "Hook intent is covered by focused actual-module tests and retained probe",
+      "Driver modifier lifetime and error cleanup are covered by route tests",
+      "Control+A and Shift pointer modifier effects are observed in real Chromium",
+      "End-to-end recording, fresh-context replay and saved workflow execute successfully"
+    ],
+    "limits": [
+      "No native operating-system shortcut corpus",
+      "Command+C and clipboard effect are not qualified in a native browser/OS session",
+      "Native IME composition behavior is not qualified",
+      "One Chromium fixture is not cross-browser or cross-platform qualification",
+      "RF029 remains open"
+    ]
+  },
+  "pending_operations": {},
+  "source_inventory": {
+    "artifact": "/tmp/bas-inventory-098.json",
+    "source_digest_sha256": "2cb941679be49b2f61de3f7701790f94ac6b16c7c34093f41f2c55ffe21ff13d",
+    "observed_at": "2026-09-23T19:15:13.800983+00:00"
+  }
+}

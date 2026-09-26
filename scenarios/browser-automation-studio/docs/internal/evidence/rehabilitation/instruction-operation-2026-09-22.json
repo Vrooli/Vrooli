@@ -1,0 +1,207 @@
+{
+  "cycle": "BAS-WORK-027",
+  "date": "2026-09-22",
+  "issues": [
+    "BAS-RF-039",
+    "BAS-RF-041"
+  ],
+  "journeys": [
+    "J17"
+  ],
+  "deployed": true,
+  "changes": [
+    "Executor allocates one invocation per logical visit and preserves it across declared attempts",
+    "GoSession sequences operations per immutable lease; repeated starts share live counter and restore driver highwater",
+    "One lease-owned bounded immutable response map replaces node:index cache plus global TTL cache/timer",
+    "Same operation/payload repeats return the retained response; changed payload or unavailable old receipt rejects without another effect",
+    "Post-admission exception has a retained nonretryable uncertain receipt; ambiguous HTTP outcomes cannot authorize new attempts",
+    "Driver outcome attempt and invocation/operation notes preserve runtime correlation"
+  ],
+  "evidence": {
+    "red": [
+      "/tmp/bas-operation-go-red-027.txt",
+      "/tmp/bas-operation-native-red-027.txt"
+    ],
+    "focused": "121tests5suites9.331s initial;110tests5suites13.737s expanded; naturalexit; driver types pass",
+    "public_executor": "Four real HTTP cases through public Execute: known transient retry; two loop visits; malformed replies; lost replies. Safe identical-packet HTTP retransmissions allowed, fresh attempt after uncertainty forbidden.",
+    "native": "Two logical visits = two clicks; repeat = no extra click; changed payload =409. Handler/audio-decoration failures after actual click retain same uncertain result, attempt2 and correlation; one effect.",
+    "go_races": "session1.061/driver1.023/engine1.058/executor3.551s pass",
+    "build": "/tmp/bas-build-027.txt pass",
+    "contract": "8tests pass",
+    "retained_probes": "API8/8;driver13/14; RF041 capture/console gap still fails. Synthetic middleware rejection status500 is not native400 evidence.",
+    "board": "prog_f9bf5b27-b81b-4b1b-8dbc-8d69dea5457f;17pending/productfalse",
+    "owner": "20260922-114025-ba3c12e3 failed399s(unit395); one quiet wait completed",
+    "full_unit": "API31.951/CLI0.936/driver291.276/UItypes10.730s pass;driver125passed suites1526passed tests290.522s naturalexit,1suite/2tests skipped. Merged UI coverage28.57stmts/30.34func/64.96branch/28.57lines vs85 failed; partial Vitest table83.62 is not merged coverage.",
+    "drain": "2026-09-22T11:49:50.977513Z;2998history rows=2560completed/433failed/5exacthistoricalrunning;driver0/recording0;observational not atomic",
+    "lifecycle": "make stop/start completed;healthy2026-09-22T11:52:38Z;API/driver/UI healthy",
+    "profile": "One original profile API metadata equals026; all saved fields compare equal to original untouched rollback in three repository reads"
+  },
+  "local_metrics": {
+    "paths": [
+      "api/automation/contracts/plan.go",
+      "api/automation/driver/client.go",
+      "api/automation/driver/types.go",
+      "api/automation/executor/simple_executor.go",
+      "api/automation/session/manager.go",
+      "api/automation/session/session.go"
+    ],
+    "before": {
+      "files": 6,
+      "lines": 4644,
+      "functions": 172,
+      "cyclomatic": 737
+    },
+    "current": {
+      "files": 6,
+      "lines": 4707,
+      "functions": 173,
+      "cyclomatic": 749
+    },
+    "driver_lines": {
+      "paths": [
+        "playwright-driver/src/execution/index.ts",
+        "playwright-driver/src/execution/instruction-executor.ts",
+        "playwright-driver/src/infra/idempotency-cache.ts",
+        "playwright-driver/src/infra/index.ts",
+        "playwright-driver/src/outcome/outcome-builder.ts",
+        "playwright-driver/src/proto/instruction.ts",
+        "playwright-driver/src/routes/session-close.ts",
+        "playwright-driver/src/routes/session-reset.ts",
+        "playwright-driver/src/routes/session-run.ts",
+        "playwright-driver/src/routes/session-start.ts",
+        "playwright-driver/src/session/manager.ts",
+        "playwright-driver/src/session/session-reset.ts",
+        "playwright-driver/src/types/session.ts"
+      ],
+      "before": 3837,
+      "current": 3366
+    },
+    "baseline_note": "proto/instruction.ts and outcome/outcome-builder.ts reconstructed by exact inverse of this cycle edits; all other runtime baselines captured before editing."
+  },
+  "cumulative_go": {
+    "paths": [
+      "api/automation/compiler/action_definition_builder.go",
+      "api/automation/contracts/plan.go",
+      "api/automation/driver/client.go",
+      "api/automation/driver/types.go",
+      "api/automation/events/sink.go",
+      "api/automation/events/ws_sink.go",
+      "api/automation/execution-writer/artifact_config.go",
+      "api/automation/execution-writer/external_artifacts.go",
+      "api/automation/execution-writer/file_writer.go",
+      "api/automation/execution-writer/interface.go",
+      "api/automation/execution-writer/result_manifest.go",
+      "api/automation/executor/flow_executor.go",
+      "api/automation/executor/flow_utils.go",
+      "api/automation/executor/simple_executor.go",
+      "api/automation/session/manager.go",
+      "api/automation/session/session.go",
+      "api/handlers/execution_export.go",
+      "api/handlers/handler.go",
+      "api/handlers/record_mode.go",
+      "api/handlers/record_mode_actions.go",
+      "api/handlers/record_mode_pages.go",
+      "api/handlers/record_mode_persistence.go",
+      "api/handlers/recordings/module.go",
+      "api/handlers/recordings/service.go",
+      "api/handlers/testutil_mock_services.go",
+      "api/internal/typeconv/builders.go",
+      "api/internal/typeconv/primitives.go",
+      "api/internal/typeconv/timeline.go",
+      "api/internal/wire/wire.go",
+      "api/main.go",
+      "api/performance/collector.go",
+      "api/performance/types.go",
+      "api/services/archive-ingestion/persistence.go",
+      "api/services/export/source/video_source.go",
+      "api/services/live-capture/action_registry.go",
+      "api/services/live-capture/service.go",
+      "api/services/live-capture/workflow_generator.go",
+      "api/services/recording/persistence/mock_repository.go",
+      "api/services/recording/persistence/repository.go",
+      "api/services/recording/persistence/sqlite.go",
+      "api/services/recording/persistence/types.go",
+      "api/services/recording/recorder.go",
+      "api/services/recording/service.go",
+      "api/services/session-profile/persistence/credentials.go",
+      "api/services/session-profile/persistence/file_repository.go",
+      "api/services/session-profile/persistence/filesystem.go",
+      "api/services/session-profile/persistence/filesystem_mock.go",
+      "api/services/session-profile/persistence/mock_repository.go",
+      "api/services/session-profile/persistence/protected_state.go",
+      "api/services/session-profile/persistence/repository.go",
+      "api/services/session-profile/service.go",
+      "api/services/uxmetrics/collector/collector.go",
+      "api/services/workflow/executions.go",
+      "api/services/workflow/executions_list.go"
+    ],
+    "before": {
+      "files": 53,
+      "lines": 24446,
+      "functions": 831,
+      "cyclomatic": 3997
+    },
+    "current": {
+      "files": 53,
+      "lines": 22749,
+      "functions": 812,
+      "cyclomatic": 3837
+    }
+  },
+  "shared_scope": "Cycle009 affected shared owners +17 cyclomatic; cumulative Go -160, wider affected net -143; not a TS AST complexity claim.",
+  "deleted_tests": "15 tests of literal strings/copied Map operations/obsolete key helper removed; desired duplicate, payload, eviction, reset and handoff controls tested through route/native boundaries. Floors unchanged.",
+  "limits": [
+    "In-memory lease lifetime only; no process-restart/exactly-once proof",
+    "1000 receipt count cap; active byte budget and whole-journey latency remain unqualified",
+    "RF041 handler-throw console/DOM/screenshot evidence remains missing",
+    "Other mutating routes and legacy unlinked Go adapter are outside this instruction conversion",
+    "No saved data mutation or workflow definition format change",
+    "Native tidiness has zero driver-file findings: shared language detector scans only api/ui/src/cli. Its debt readings do not measure driver simplification; separate affected-source counts retained. BAS-RF-062 tracks owner repair."
+  ],
+  "source_sha256": {
+    "api/automation/contracts/plan.go": "52ff9d03e2f781975034707cd883714f045dab4fd92ff8f41796fe46f1c3e80e",
+    "api/automation/driver/client.go": "d218106d23aee1b2a34d09b07a74168a81f08b898409e0a870e0e5261b97e756",
+    "api/automation/driver/types.go": "ec6bd45b24c21aeb4bafe8ee5b22df7fdbc72415cf2b204a4556e59d37e054d1",
+    "api/automation/executor/simple_executor.go": "00f7893f66c4438a03759d628e45c1bbbf8c15deb5805f09fc33624e91f72f95",
+    "api/automation/session/manager.go": "199307067d3f183dfff0ccc32055625c31ed265107856cf6a3cca84ff65a99f2",
+    "api/automation/session/session.go": "2001636803145df91017dafb0a751382b0d786b7b8ca141a76877b74b9ab5573",
+    "playwright-driver/src/execution/index.ts": "7db898fc2683c5238e1d4837fc3618a790f2d20b57ca7b6f9f9450bba11364c5",
+    "playwright-driver/src/execution/instruction-executor.ts": "dcdc41478724aaffe619cfa0888a0ce986c1656ff370feab697b9848c9adcd1d",
+    "playwright-driver/src/infra/idempotency-cache.ts": null,
+    "playwright-driver/src/infra/index.ts": "1f65aba64de913c54f522db368b208204f478acd8b314f3242fb1f2e12951056",
+    "playwright-driver/src/outcome/outcome-builder.ts": "7d58d2b9ec66ffaa5904add52456075fe8ca2a9181dcf5fd7413ebbb10b5af8b",
+    "playwright-driver/src/proto/instruction.ts": "a9eb6f88057b3ea12dfb3c1c4cf45dff768541a2ac137cdf1932616d3d5e5c20",
+    "playwright-driver/src/routes/session-close.ts": "57ea8939c098aa25b570b41f2d308a0a9aef02fdc7a3ce4ec904fc05b2c488fa",
+    "playwright-driver/src/routes/session-reset.ts": "39396d3510f1bcda70dce7a9a885c6c97d0c80d4a2f120ace53a2406da1a839b",
+    "playwright-driver/src/routes/session-run.ts": "603656060821d88c25dfbaa3c52cc235be2ae011f449e3cc57f62cc7061d6805",
+    "playwright-driver/src/routes/session-start.ts": "db47e2ef3dc3d82371f3a72df6d075e58d80039190f664073b4931ab06133ea1",
+    "playwright-driver/src/session/manager.ts": "47b790a176ceaa7d0de6e7d6d5c9b78405bd495fdb86d0f25f0425733cb2a468",
+    "playwright-driver/src/session/session-reset.ts": "d487c0c57ec8a737eb78dbc6d969ad3adf8071a14a7f10e70968569560fab782",
+    "playwright-driver/src/types/session.ts": "0a3045e5e6b70fc7ddfd82003f3a43f3deb7277d1f42065cc74ef4cd122e2ed0"
+  },
+  "tidiness": {
+    "totalFindings": 1085,
+    "longFiles": 80,
+    "complexity": 380,
+    "duplication": 609,
+    "coupling": 15,
+    "duplicationLineDebt": 33638
+  },
+  "tidiness_delta": "findings+4,long0,complex+1,dup+2,coupling+1,duplication debt+6 vs026;debt-1965 original. New public HTTP test has15cyclomatic and its existing file22imports; retained for cross-boundary fault coverage, not split to game thresholds.",
+  "performance": {
+    "scope": "Synthetic5000distinct operations,three trials; no browser/network; equal response stringify/parse seams, canonical lease:number headers; all5000effects and same-packet repeat controls pass",
+    "before_ns_per_operation": [
+      15493.473999999997,
+      12416.024800000003,
+      12817.497400000013
+    ],
+    "after_ns_per_operation": [
+      19490.4184,
+      16630.418199999996,
+      16083.69399999999
+    ],
+    "interpretation": "Median12.817->16.630microseconds/operation, +3.813microseconds (~29.7%). New canonical payload serialization/hash and immutable receipt handling add necessary binding work. No browser latency benefit or target relaxation claimed.",
+    "instrument_limits": "Initial baseline omitted response JSON serialization; excluded. First correction lacked baseline response.end seam and failed; final files correct both. Heap deltas include negative values from VM/compilation garbage and are not qualified retained-memory evidence."
+  },
+  "build_identity": "sha256:dca16c2b2fb6f2d38c09ae2df27f8ec84f430bbb8b7ec2b263c84dd73d08cfc5"
+}

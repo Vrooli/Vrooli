@@ -9,13 +9,13 @@
  * independent failure handling for page events vs action events.
  */
 
-import type { Page } from 'rebrowser-playwright';
+import type { Page, Frame } from 'rebrowser-playwright';
 import type { SessionManager } from '../../session';
 import type { Config } from '../../config';
 import { createCircuitBreaker, type CircuitBreaker } from '../../infra';
 import { logger, scopedLog, LogContext } from '../../utils';
 import type { DriverPageEvent } from './types';
-import { captureThumbnail, emitHistoryCallback } from './recording-pages';
+import { captureThumbnail, emitHistoryCallback, readFaviconUrl, registerRecordingPage, unregisterRecordingPage } from './recording-pages';
 
 // =============================================================================
 // Circuit Breaker for Page Events
@@ -44,7 +44,8 @@ const PAGE_EVENT_TIMEOUT_MS = 5_000;
 export async function sendPageEvent(
   sessionId: string,
   callbackUrl: string,
-  event: DriverPageEvent
+  event: DriverPageEvent,
+  routedTestMode = false
 ): Promise<void> {
   // Check if we should attempt half-open (atomically claims the attempt)
   const attemptHalfOpen = pageEventCircuitBreaker.tryEnterHalfOpen(sessionId);
@@ -67,6 +68,7 @@ export async function sendPageEvent(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(routedTestMode ? { 'X-Vrooli-Test-Mode': '1' } : {}),
       },
       body: JSON.stringify(event),
       signal: controller.signal,
@@ -104,132 +106,112 @@ export async function sendPageEvent(
  * Set up page lifecycle listeners for a recording session.
  * Tracks new tabs, navigation events, and page closes.
  *
- * @returns Cleanup function to call when recording stops
+ * @returns Immediate cleanup ownership and initial-page delivery readiness
  */
 export function setupPageLifecycleListeners(
   sessionId: string,
   session: ReturnType<SessionManager['getSession']>,
   pageCallbackUrl: string,
-  config: Config
-): () => void {
+  config: Config,
+  routedTestMode = false
+): { cleanup: () => void; ready: Promise<void> } {
   const context = session.context;
-
-  // Handler for new pages (new tabs/popups)
-  const onNewPage = async (newPage: Page): Promise<void> => {
-    // Generate a unique ID for this page
-    const pageId = crypto.randomUUID();
-
-    // Add to session tracking
-    session.pages.push(newPage);
-    session.pageIdMap.set(pageId, newPage);
-    session.pageToIdMap.set(newPage, pageId);
-
-    // Find the opener page ID if any
-    const openerPage = await newPage.opener();
-    const openerPageId = openerPage ? session.pageToIdMap.get(openerPage) : undefined;
-
-    // Wait for the page to be ready enough to get URL/title
-    try {
-      await newPage.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
-    } catch {
-      // Ignore timeout - page might be blank
-    }
-
-    const url = newPage.url();
-    const title = await newPage.title().catch(() => '');
-
-    logger.info(scopedLog(LogContext.RECORDING, 'new page detected'), {
-      sessionId,
-      pageId,
-      openerPageId,
-      url,
-      title,
-      totalPages: session.pages.length,
-    });
-
-    // Send page_created event
-    const event: DriverPageEvent = {
-      sessionId,
-      driverPageId: pageId,
-      vrooliPageId: '',
-      eventType: 'created',
-      url,
-      title,
-      openerDriverPageId: openerPageId,
-      timestamp: new Date().toISOString(),
-    };
-
-    await sendPageEvent(sessionId, pageCallbackUrl, event);
-
-    // Set up navigation listener for this page
-    newPage.on('framenavigated', async (frame) => {
-      // Only track main frame navigations
-      if (frame !== newPage.mainFrame()) return;
-
-      const navUrl = newPage.url();
-      const navTitle = await newPage.title().catch(() => '');
-
-      logger.debug(scopedLog(LogContext.RECORDING, 'page navigated'), {
-        sessionId,
-        pageId,
-        url: navUrl,
-      });
-
-      const navEvent: DriverPageEvent = {
-        sessionId,
-        driverPageId: pageId,
-        vrooliPageId: '',
-        eventType: 'navigated',
-        url: navUrl,
-        title: navTitle,
-        timestamp: new Date().toISOString(),
-      };
-
-      await sendPageEvent(sessionId, pageCallbackUrl, navEvent);
-
-      // Emit history callback for session profile history tracking
-      const thumbnail = config.history.thumbnailEnabled
-        ? await captureThumbnail(newPage, config.history.thumbnailQuality)
-        : undefined;
-      emitHistoryCallback(config, sessionId, navUrl, navTitle, 'navigate', thumbnail).catch(() => {
-        // Error already logged in emitHistoryCallback
-      });
-    });
-
-    // Set up close listener for this page
-    newPage.on('close', async () => {
-      logger.info(scopedLog(LogContext.RECORDING, 'page closed'), {
-        sessionId,
-        pageId,
-      });
-
-      const closeEvent: DriverPageEvent = {
-        sessionId,
-        driverPageId: pageId,
-        vrooliPageId: '',
-        eventType: 'closed',
-        url: '',
-        title: '',
-        timestamp: new Date().toISOString(),
-      };
-
-      await sendPageEvent(sessionId, pageCallbackUrl, closeEvent);
-
-      // Remove from tracking
-      session.pageIdMap.delete(pageId);
-      const pageIndex = session.pages.indexOf(newPage);
-      if (pageIndex !== -1) {
-        session.pages.splice(pageIndex, 1);
-      }
+  const send = (event: DriverPageEvent): Promise<void> =>
+    sendPageEvent(sessionId, pageCallbackUrl, event, routedTestMode);
+  const listeners = new Map<Page, () => void>();
+  let active = true;
+  const reportError = (error: unknown): void => {
+    logger.warn(scopedLog(LogContext.RECORDING, 'page event listener failed'), {
+      sessionId, error: error instanceof Error ? error.message : String(error),
     });
   };
+  const event = (pageId: string, eventType: DriverPageEvent['eventType'], url = '', title = '', faviconUrl?: string, timestamp = new Date().toISOString()): DriverPageEvent => ({
+    sessionId, driverPageId: pageId, vrooliPageId: '', eventType, url, title, faviconUrl,
+    timestamp,
+  });
 
-  // Listen for new pages
+  const attach = (page: Page, pageId: string, admitted = Promise.resolve(true)): (() => void) | undefined => {
+    if (!active || page.isClosed() || listeners.has(page)) return;
+    const owns = () => active && listeners.get(page) === detach;
+    const navigate = async (frame: Frame): Promise<void> => {
+      if (!owns() || frame !== page.mainFrame()) return;
+      const url = page.url();
+      if (!await admitted || !owns()) return;
+      await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
+      if (!owns() || page.url() !== url) return;
+      const [title, faviconUrl] = await Promise.all([page.title().catch(() => ''), readFaviconUrl(page)]);
+      if (!owns() || page.url() !== url) return;
+      await send(event(pageId, 'navigated', url, title, faviconUrl));
+      if (!owns()) return;
+      const thumbnail = config.history.thumbnailEnabled
+        ? await captureThumbnail(page, config.history.thumbnailQuality)
+        : undefined;
+      if (owns()) await emitHistoryCallback(config, sessionId, url, title, 'navigate', thumbnail);
+    };
+    const close = async (): Promise<void> => {
+      if (!owns()) return;
+      detach();
+      unregisterRecordingPage(session, page);
+      if (!await admitted || !active) return;
+      await send(event(pageId, 'closed'));
+    };
+    const onNavigate = (frame: Frame) => navigate(frame).catch(reportError);
+    const onClose = () => close().catch(reportError);
+    const detach = () => {
+      page.off('framenavigated', onNavigate);
+      page.off('close', onClose);
+      listeners.delete(page);
+    };
+    listeners.set(page, detach);
+    page.on('framenavigated', onNavigate);
+    page.on('close', onClose);
+    return detach;
+  };
+
+  const newPage = async (page: Page): Promise<void> => {
+    if (!active) return;
+    const createdAt = new Date().toISOString();
+    const pageId = registerRecordingPage(session, page);
+    let settle!: (published: boolean) => void;
+    const admitted = new Promise<boolean>((resolve) => { settle = resolve; });
+    // Observe immediately, but publish later events only after creation.
+    const detach = attach(page, pageId, admitted);
+    let published = false;
+    try {
+      const opener = await page.opener();
+      if (!active) return;
+      if (!active || page.isClosed()) return;
+      const url = page.url();
+      await send({
+        ...event(pageId, 'created', url, '', undefined, createdAt),
+        openerDriverPageId: opener ? session.pageToIdMap.get(opener) : undefined,
+      });
+      published = true;
+    } finally {
+      if (!published) detach?.();
+      settle(published);
+    }
+  };
+  const onNewPage = (page: Page) => newPage(page).catch(reportError);
   context.on('page', onNewPage);
+  for (const page of session.pages) attach(page, registerRecordingPage(session, page));
 
-  // Return cleanup function
-  return () => {
+  const initialPage = session.page;
+  const initialId = session.pageToIdMap.get(initialPage);
+  const ready = (async () => {
+    if (!initialId) return;
+    const url = initialPage.url();
+    const [title, faviconUrl] = await Promise.all([initialPage.title().catch(() => ''), readFaviconUrl(initialPage)]);
+    if (active && listeners.has(initialPage) && initialPage.url() === url) {
+      await send(event(initialId, 'initial', url, title, faviconUrl));
+    }
+  })();
+  void ready.catch(reportError);
+  const cleanup = () => {
+    active = false;
     context.off('page', onNewPage);
+    for (const detach of listeners.values()) detach();
     pageEventCircuitBreaker.cleanup(sessionId);
   };
+  return { cleanup, ready };
 }

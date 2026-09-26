@@ -1,0 +1,355 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "run-review",
+    "title": "Run review",
+    "routes": [
+      "/runs/:runId"
+    ],
+    "purpose": "Let a reviewer judge a conformance run: what each chapter asserted, what it observed, which strategy produced the observation, and whether the evidence supports the verdict.",
+    "prd_refs": [
+      "OT-P0-005",
+      "OT-P0-010"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Each chapter shows expected versus observed, not just pass or fail.",
+      "notes": "A reviewer cannot judge a verdict they cannot see the basis for."
+    },
+    {
+      "statement": "A bounded policy that was exceeded reads as a failure with its bound, never as a longer wait.",
+      "notes": "Silently extending a wait converts a real defect into a slow pass."
+    },
+    {
+      "statement": "The recording is offered alongside the chapter timeline, never as the only way to read the result.",
+      "notes": "Video is evidence. The verdict must be legible in text."
+    },
+    {
+      "statement": "A missing video offset is shown as missing.",
+      "notes": "Inventing an offset to make a timeline look complete would falsify the evidence."
+    }
+  ],
+  "elements": [
+    {
+      "id": "run-verdict",
+      "role": "status",
+      "name": "Run verdict",
+      "description": "The overall disposition for the run, carrying a text label as well as a status colour."
+    },
+    {
+      "id": "chapter-list",
+      "role": "list",
+      "name": "Conformance chapters",
+      "description": "The chaptered timeline in execution order."
+    },
+    {
+      "id": "chapter-expected",
+      "role": "note",
+      "name": "Expected",
+      "description": "The asserted expectation for one chapter."
+    },
+    {
+      "id": "chapter-observed",
+      "role": "note",
+      "name": "Observed",
+      "description": "What the chapter actually observed."
+    },
+    {
+      "id": "chapter-strategy",
+      "role": "note",
+      "name": "Chapter strategy",
+      "description": "The device-control strategy that produced this chapter and its capability tier."
+    },
+    {
+      "id": "promotability-notice",
+      "role": "alert",
+      "name": "Promotability",
+      "description": "Statement that this run's evidence cannot contribute to a release gate. Present only when the run is non-promotable."
+    },
+    {
+      "id": "exceeded-bound",
+      "role": "note",
+      "name": "Exceeded bound",
+      "description": "The readiness or settle bound a failing chapter exceeded, with its limit."
+    },
+    {
+      "id": "missing-offset",
+      "role": "note",
+      "name": "Missing offset",
+      "description": "Marker that a chapter has no recording offset, shown rather than defaulted to zero."
+    },
+    {
+      "id": "recording",
+      "role": "region",
+      "name": "Journey recording",
+      "description": "The captured recording, offered alongside the timeline and never as the only way to read the result."
+    },
+    {
+      "id": "lease-interruption",
+      "role": "alert",
+      "name": "Lease interruption",
+      "description": "The notice shown when a run terminated because its device-control lease was lost or revoked rather than because the application misbehaved."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A complete passing run with all chapters asserted and a decoded recording.",
+      "setup": {
+        "route": "/runs/complete"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "The run record is being fetched; no chapters are asserted yet.",
+      "setup": {
+        "route": "/runs/complete",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No runs exist for this target yet. Explains how to start one rather than showing an empty timeline.",
+      "setup": {
+        "route": "/runs/none",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Native shell chapters ran; web-content chapters are unavailable because BAS could not attach to the WebView. The run reports partial honestly rather than passing.",
+      "setup": {
+        "route": "/runs/partial"
+      }
+    },
+    {
+      "id": "stale",
+      "description": "The run predates the current generated artifact, so its verdict may not describe what would ship today.",
+      "setup": {
+        "route": "/runs/complete",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The run record could not be loaded. Reported as a failure rather than as an empty or failed run.",
+      "setup": {
+        "route": "/runs/complete",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "running",
+      "description": "A run in progress; completed chapters are readable and pending ones are explicitly pending, not blank.",
+      "setup": {
+        "route": "/runs/in-progress",
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "chapter-failed",
+      "description": "One chapter failed on an assertion. The failing expectation and observation are both visible.",
+      "setup": {
+        "route": "/runs/chapter-failed"
+      }
+    },
+    {
+      "id": "recording-unusable",
+      "description": "The recording exists but decodes without useful frames. The visual claim is not granted.",
+      "setup": {
+        "route": "/runs/recording-unusable"
+      }
+    },
+    {
+      "id": "lease-lost",
+      "description": "The run ended early because its device-control lease was revoked mid-run. Chapters completed before the interruption are retained; the run is incomplete rather than failed.",
+      "setup": {
+        "route": "/runs/lease-lost",
+        "query": {
+          "fixture": "lease-lost"
+        }
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "expected-and-observed-both-shown",
+      "type": "element-present",
+      "elements": [
+        "chapter-expected",
+        "chapter-observed"
+      ],
+      "states": [
+        "default",
+        "chapter-failed",
+        "partial"
+      ],
+      "tier": "machine",
+      "statement": "Every asserted chapter displays both its expected value and its observed value.",
+      "rationale": "S2A-P0-005. A verdict without its basis cannot be reviewed, only trusted."
+    },
+    {
+      "id": "strategy-tier-attributed-per-chapter",
+      "type": "element-present",
+      "elements": [
+        "chapter-strategy"
+      ],
+      "states": [
+        "default",
+        "partial"
+      ],
+      "tier": "machine",
+      "statement": "Every chapter names its executing strategy and capability tier.",
+      "rationale": "S2A-P0-004. Evidence tier determines whether a chapter can support a release claim and must never be implicit."
+    },
+    {
+      "id": "exceeded-bound-is-shown",
+      "type": "element-present",
+      "elements": [
+        "exceeded-bound",
+        "run-verdict"
+      ],
+      "states": [
+        "chapter-failed"
+      ],
+      "tier": "machine",
+      "statement": "A chapter whose readiness or settle bound was exceeded displays the bound it exceeded alongside a failed verdict.",
+      "rationale": "Bounded policies exist so that slowness is a signal. Presenting an exceeded bound as anything other than failure destroys that signal."
+    },
+    {
+      "id": "verdict-readable-without-recording",
+      "type": "element-present",
+      "elements": [
+        "run-verdict",
+        "chapter-list"
+      ],
+      "states": [
+        "default",
+        "chapter-failed",
+        "partial",
+        "recording-unusable"
+      ],
+      "tier": "machine",
+      "statement": "The run verdict and chapter timeline are present independently of the recording.",
+      "rationale": "Video is evidence, not interface. The verdict must be legible in text — and must survive an unusable recording."
+    },
+    {
+      "id": "partial-is-not-pass",
+      "type": "state-distinct",
+      "states": [
+        "default",
+        "partial"
+      ],
+      "tier": "machine",
+      "statement": "A run with unavailable chapters renders distinguishably from a fully passing run.",
+      "rationale": "S2A-P0-010. Unavailable is terminal for the cell and cannot be promoted."
+    },
+    {
+      "id": "unusable-recording-is-not-a-pass",
+      "type": "state-distinct",
+      "states": [
+        "default",
+        "recording-unusable"
+      ],
+      "tier": "machine",
+      "statement": "A run whose recording decodes without useful frames renders distinguishably from one with usable visual evidence.",
+      "rationale": "S2A-P0-012. A visual pass requires a useful decoded recording; a green run with unusable video must not read as visually proven."
+    },
+    {
+      "id": "missing-offset-shown-as-missing",
+      "type": "element-present",
+      "elements": [
+        "missing-offset"
+      ],
+      "states": [
+        "recording-unusable"
+      ],
+      "tier": "machine",
+      "statement": "A chapter with no recording offset displays that the offset is missing rather than defaulting to zero.",
+      "rationale": "An invented offset makes an incomplete timeline look complete."
+    },
+    {
+      "id": "lease-loss-is-not-a-product-failure",
+      "type": "state-distinct",
+      "states": [
+        "lease-lost",
+        "chapter-failed"
+      ],
+      "tier": "machine",
+      "statement": "A run terminated by a lost device-control lease renders distinguishably from a run in which a chapter assertion failed.",
+      "rationale": "S2A-P0-004. One is an infrastructure interruption and the other is evidence about the application. Rendering them alike sends a reviewer to debug an application that was behaving correctly."
+    },
+    {
+      "id": "lease-interruption-is-explicit",
+      "type": "element-present",
+      "elements": [
+        "lease-interruption"
+      ],
+      "states": [
+        "lease-lost"
+      ],
+      "tier": "machine",
+      "statement": "A lease-interrupted run presents an explicit interruption notice naming the lost lease.",
+      "rationale": "S2A-P0-004. An early-terminated run with no stated cause is indistinguishable from a crash."
+    },
+    {
+      "id": "interrupted-run-cannot-gate",
+      "type": "element-present",
+      "elements": [
+        "promotability-notice"
+      ],
+      "states": [
+        "lease-lost"
+      ],
+      "tier": "machine",
+      "statement": "A lease-interrupted run carries a promotability notice, because an incomplete chapter set cannot support a release claim.",
+      "rationale": "S2A-P0-004. Partial evidence that reads as neutral is the mechanism by which an unproven build reaches a release gate."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "run-verdict": {
+        "testid": "run-review-verdict"
+      },
+      "chapter-list": {
+        "testid": "run-review-chapter-list"
+      },
+      "chapter-expected": {
+        "testid": "run-review-chapter-expected"
+      },
+      "chapter-observed": {
+        "testid": "run-review-chapter-observed"
+      },
+      "chapter-strategy": {
+        "testid": "run-review-chapter-strategy"
+      },
+      "promotability-notice": {
+        "testid": "run-review-promotability-notice"
+      },
+      "exceeded-bound": {
+        "testid": "run-review-exceeded-bound"
+      },
+      "missing-offset": {
+        "testid": "run-review-missing-offset"
+      },
+      "recording": {
+        "testid": "run-review-recording"
+      },
+      "lease-interruption": {
+        "testid": "run-review-lease-interruption"
+      }
+    }
+  }
+}

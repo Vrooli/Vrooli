@@ -230,7 +230,8 @@ function DriftCheckRow({ check, onRestart, onKill }: DriftCheckRowProps) {
 
   // Extract PID from actual string for kill action
   const pidMatch = check.actual.match(/PID\s*(\d+)/i);
-  const pid = pidMatch ? parseInt(pidMatch[1], 10) : null;
+  const pidText = pidMatch?.[1];
+  const pid = pidText ? parseInt(pidText, 10) : null;
 
   return (
     <div className={cn("p-4", statusBgColors[check.status])}>

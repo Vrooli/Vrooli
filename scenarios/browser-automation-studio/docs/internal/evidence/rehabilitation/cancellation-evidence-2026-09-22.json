@@ -1,0 +1,134 @@
+{
+  "cycle": "BAS-WORK-021",
+  "date": "2026-09-22",
+  "issues": [
+    "BAS-RF-040",
+    "BAS-RF-013"
+  ],
+  "journeys": [
+    "J18",
+    "J08"
+  ],
+  "changes": [
+    "Single cancellation-independent 30-second outcome persistence/event boundary for all execution shapes",
+    "Graph/loop/subflow and pre-dispatch cancellation retain outcome and action cause",
+    "Required timeline, manifest and index write failures propagate without completed receipt",
+    "Synthetic linear actions honor pre-admission cancellation; successful outcomes use nil-safe progress",
+    "Six duplicated outcome payload/event paths consolidated and unused intPtr removed"
+  ],
+  "evidence": {
+    "red": "/tmp/bas-cancellation-red-021.txt;/tmp/bas-writer-required-red-021.txt;/tmp/bas-cancellation-synthetic-red-021.txt",
+    "focused": "16 added public Execute and real-file writer cases; final scoped races executor1.646/writercached/enginecached/workflow1.060s; prior overlaywriter2.350s",
+    "all_api": "go test ./... passed /tmp/bas-api-all-021.txt",
+    "build": "make build passed /tmp/bas-build-021.txt",
+    "probes": "execution-api4/8;graphcancel and linearcontrol pass; identity/lease and explicit screenshot gaps remain",
+    "board": "prog_13cd5954-74b3-43af-8bfa-2f1722b2588b;17pending/productfalse",
+    "owner": "20260922-094905-f7781095 tidinessfailed4s;quietwaitdoneonce"
+  },
+  "local_metrics": {
+    "paths": [
+      "api/automation/executor/simple_executor.go",
+      "api/automation/executor/flow_executor.go",
+      "api/automation/executor/flow_utils.go",
+      "api/automation/execution-writer/file_writer.go"
+    ],
+    "before": {
+      "lines": 4607,
+      "functions": 130,
+      "cyclomatic": 934
+    },
+    "current": {
+      "lines": 4485,
+      "functions": 130,
+      "cyclomatic": 918
+    }
+  },
+  "cumulative_go": {
+    "paths": [
+      "api/automation/compiler/action_definition_builder.go",
+      "api/automation/driver/client.go",
+      "api/automation/events/sink.go",
+      "api/automation/events/ws_sink.go",
+      "api/automation/execution-writer/external_artifacts.go",
+      "api/automation/execution-writer/file_writer.go",
+      "api/automation/executor/flow_executor.go",
+      "api/automation/executor/flow_utils.go",
+      "api/automation/executor/simple_executor.go",
+      "api/automation/session/session.go",
+      "api/handlers/execution_export.go",
+      "api/handlers/handler.go",
+      "api/handlers/record_mode.go",
+      "api/handlers/record_mode_actions.go",
+      "api/handlers/record_mode_pages.go",
+      "api/handlers/record_mode_persistence.go",
+      "api/handlers/recordings/module.go",
+      "api/handlers/recordings/service.go",
+      "api/handlers/testutil_mock_services.go",
+      "api/internal/typeconv/builders.go",
+      "api/internal/wire/wire.go",
+      "api/main.go",
+      "api/performance/collector.go",
+      "api/performance/types.go",
+      "api/services/export/source/video_source.go",
+      "api/services/live-capture/action_registry.go",
+      "api/services/live-capture/service.go",
+      "api/services/live-capture/workflow_generator.go",
+      "api/services/recording/persistence/mock_repository.go",
+      "api/services/recording/persistence/repository.go",
+      "api/services/recording/persistence/sqlite.go",
+      "api/services/recording/persistence/types.go",
+      "api/services/recording/recorder.go",
+      "api/services/recording/service.go",
+      "api/services/session-profile/persistence/credentials.go",
+      "api/services/session-profile/persistence/file_repository.go",
+      "api/services/session-profile/persistence/filesystem.go",
+      "api/services/session-profile/persistence/filesystem_mock.go",
+      "api/services/session-profile/persistence/mock_repository.go",
+      "api/services/session-profile/persistence/protected_state.go",
+      "api/services/session-profile/persistence/repository.go",
+      "api/services/session-profile/service.go",
+      "api/services/uxmetrics/collector/collector.go",
+      "api/services/workflow/executions.go",
+      "api/services/workflow/executions_list.go"
+    ],
+    "original": {
+      "lines": 22188,
+      "functions": 772,
+      "cyclomatic": 3667
+    },
+    "current": {
+      "lines": 20453,
+      "functions": 754,
+      "cyclomatic": 3504
+    }
+  },
+  "shared_owner_009_cyclomatic_delta": 17,
+  "tidiness": {
+    "totalFindings": 1076,
+    "longFiles": 80,
+    "complexity": 379,
+    "duplication": 604,
+    "coupling": 12,
+    "duplicationLineDebt": 33649
+  },
+  "source_inventory_digest": "acb4bab1dbc76bbc0271a8d63bca0d4bbb3d760e65aaf81b3e9fd5f6680a7da0",
+  "deployed": true,
+  "limitations": [
+    "No whole-journey or native-platform qualification",
+    "30-second context budget requires cooperative dependencies; blocking filesystem syscalls not forcibly bounded",
+    "No transaction across multiple evidence files/index; partial files retained, failed in-memory accumulation not an exactly-once retry guarantee",
+    "Existing index ErrNotFound admission policy retained; optional screenshot/DOM/telemetry failures still separate RF013",
+    "Graph resume not qualified; linear successful synthetic outcomes now checkpoint consistently",
+    "UIcoverage and complexity ratchet unchanged and failing",
+    "Dirty shared tree applicability limits; full driver/UI unit proof reused from020, no claim of current full unit verdict"
+  ],
+  "deployment": {
+    "build": "sha256:cac7d388ab175e7832912adf5bb2395834de952f92e7a64e6264979d5407f243",
+    "healthy_at": "2026-09-22T10:19:19Z",
+    "gate_rows": 3110,
+    "unchanged_historical_orphans": 5,
+    "driver_sessions": 0,
+    "profile": "oneoriginal;allfields/identitypreserved",
+    "limitation": "observationalgate;sharedtree"
+  }
+}

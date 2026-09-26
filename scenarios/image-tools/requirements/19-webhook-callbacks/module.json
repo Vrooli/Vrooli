@@ -1,0 +1,24 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-07-28T23:34:11-04:00"
+  },
+  "requirements": [
+    {
+      "id": "IMG-P1-006",
+      "title": "Webhook Callbacks",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-006",
+      "category": "feature",
+      "description": "Each job accepts an optional signed callback URL; best-effort POST with retry on completion/failure; minimal (no event bus).",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/jobs/webhook_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned (not yet implemented; automated test pending): Callback payload is signed and retried with backoff"
+        }
+      ]
+    }
+  ]
+}

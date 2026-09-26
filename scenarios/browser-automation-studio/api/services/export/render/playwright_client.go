@@ -288,11 +288,7 @@ func (r *inMemoryCaptureRecorder) RecordTelemetry(_ context.Context, _ autocontr
 	return nil
 }
 
-func (r *inMemoryCaptureRecorder) MarkCrash(_ context.Context, _ uuid.UUID, _ autocontracts.StepFailure) error {
-	return nil
-}
-
-func (r *inMemoryCaptureRecorder) UpdateCheckpoint(_ context.Context, _ uuid.UUID, _ int, _ int) error {
+func (r *inMemoryCaptureRecorder) RecordCheckpoint(context.Context, executionwriter.Checkpoint) error {
 	return nil // In-memory recorder doesn't persist checkpoints
 }
 
@@ -307,3 +303,9 @@ func (r *inMemoryCaptureRecorder) SetArtifactConfig(_ *config.ArtifactCollection
 func (r *inMemoryCaptureRecorder) GetArtifactConfig() config.ArtifactCollectionSettings {
 	return config.DefaultArtifactSettings() // In-memory recorder uses default (collect all)
 }
+
+func (r *inMemoryCaptureRecorder) SetArtifactConfigForExecution(_ uuid.UUID, _ *config.ArtifactCollectionSettings) {
+	// In-memory recorder ignores per-execution artifact config - collects everything.
+}
+
+func (r *inMemoryCaptureRecorder) ForgetExecution(_ uuid.UUID) {}

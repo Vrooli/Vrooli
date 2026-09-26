@@ -1,0 +1,191 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Tech Tree Designer のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Tech Tree Designer"
+  },
+  "layout": {
+    "sidebarLabel": "デスクトップナビゲーション",
+    "bottomNavLabel": "モバイルナビゲーション",
+    "mainLabel": "メインコンテンツ",
+    "nav": {
+      "dashboard": "ダッシュボード",
+      "graph": "グラフ",
+      "ontology": "オントロジー",
+      "planning": "計画",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ダッシュボード",
+      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
+      "statPlaceholderLabel": "指標"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    }
+  },
+  "graph": {
+    "eyebrow": "インターフェイスグラフ",
+    "title": "シナリオ依存関係キャンバス",
+    "description": "ライブの proto import 依存関係と計画中の契約ノードを、1つの編集可能なキャンバスで確認します。",
+    "group": {
+      "none": "グループ化なし",
+      "sector": "セクターでグループ化",
+      "tier": "ティアでグループ化"
+    },
+    "actions": {
+      "refresh": "再読み込み",
+      "dot": "DOT"
+    },
+    "metrics": {
+      "live": "ライブシナリオ",
+      "planned": "計画シナリオ",
+      "dependencies": "依存関係",
+      "warnings": "ソース警告"
+    },
+    "states": {
+      "loading": "Tech Tree Designer からグラフを読み込み中…",
+      "error": "グラフデータを利用できません。API と proto-health が起動していることを確認してください。",
+      "empty": "まだグラフノードがありません。proto-health を起動し、計画シナリオを追加してキャンバスを埋めてください。"
+    },
+    "warnings": {
+      "title": "グラフソース警告",
+      "item": "{{source}} {{scenario}}: {{message}}"
+    },
+    "node": {
+      "planned": "計画",
+      "live": "ライブ",
+      "none": "NONE",
+      "unknown": "不明",
+      "unassigned": "未割り当て",
+      "untiered": "ティアなし"
+    }
+  },
+  "planning": {
+    "eyebrow": "計画",
+    "title": "契約先行シナリオ",
+    "slugPlaceholder": "planned-scenario",
+    "actions": {
+      "create": "計画シナリオを作成",
+      "save": "ファイルを保存",
+      "validate": "検証",
+      "materialize": "具現化",
+      "delete": "削除"
+    },
+    "states": {
+      "loading": "計画を読み込み中…",
+      "emptyList": "計画シナリオを作成して proto 契約のドラフトを開始します。",
+      "noSelection": "計画シナリオを選択または作成してください。",
+      "noFiles": "ファイルはまだありません。エディタの内容を保存して最初の proto ファイルを追加してください。"
+    },
+    "fallbacks": {
+      "unassigned": "未割り当て",
+      "untiered": "ティアなし"
+    },
+    "validation": {
+      "passed": "検証に合格しました",
+      "findings": "検証結果",
+      "none": "結果はありません。"
+    },
+    "materialized": "{{count}} 個の proto ファイルを書き込みました。"
+  },
+  "ontology": {
+    "eyebrow": "能力オントロジー",
+    "title": "カバレッジと充足",
+    "description": "トップダウンの能力ツリーを作成し、ライブおよび計画シナリオを配置して、レイヤー横断のカバレッジを確認します。",
+    "actions": {
+      "refresh": "再読み込み"
+    },
+    "metrics": {
+      "capabilities": "能力",
+      "ontologyCompleteness": "オントロジー範囲",
+      "implementationSituatedness": "配置済みシナリオ",
+      "unmapped": "未配置"
+    },
+    "tree": {
+      "filterPlaceholder": "能力を絞り込み"
+    },
+    "focus": {
+      "title": "フォーカスキュー",
+      "score": "スコア {{score}} · 下流 {{dependents}}",
+      "empty": "フォーカス項目はまだありません。"
+    },
+    "detail": {
+      "none": "能力が選択されていません",
+      "noDescription": "説明はまだありません。",
+      "direct": "直接",
+      "subtree": "サブツリー",
+      "fulfillments": "充足",
+      "yes": "はい",
+      "no": "いいえ"
+    },
+    "fulfillment": {
+      "placeholder": "scenario-slug",
+      "link": "シナリオをリンク"
+    },
+    "coverage": {
+      "title": "セクターカバレッジ",
+      "counts": "構築済み {{built}} / 進行中 {{inflight}} / ギャップ {{gap}}"
+    },
+    "overlay": {
+      "title": "オーバーレイグラフ: {{nodes}} ノード / {{edges}} エッジ",
+      "ariaLabel": "オントロジーオーバーレイグラフ",
+      "empty": "この表示に一致するオーバーレイノードはありません。"
+    },
+    "states": {
+      "loading": "オントロジーカバレッジを読み込み中…",
+      "error": "オントロジーデータを利用できません。API が起動していることを確認してください。",
+      "empty": "能力はまだインポートされていません。"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

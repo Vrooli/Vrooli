@@ -1,3 +1,23 @@
+---
+name: "explore"
+description: "Creative exploration, experimentation, and discovery within architectural boundaries"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","explore"]
+  tags: ["skill"]
+  icon: "compass"
+  status: "active"
+  revision: 44
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-05-31T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Exploration & Discovery
 
 Prioritize **creative exploration, experimentation, and discovery** within the boundaries of the scenario’s architecture.
@@ -6,7 +26,7 @@ Do **not** break functionality or regress tests; all changes must remain isolate
 Focus on generating **novel ideas, alternative approaches, and fresh perspectives**, guided by the principles below.
 
 Required reading:
-- `prompt-manager skills read knowledge-observatory-tools`
+- `prompt-manager skill read knowledge-observatory-tools`
 
 ### **1. Explore New Possibilities**
 
@@ -24,7 +44,7 @@ Required reading:
 * For **UI exploration**, consider using BAS AI navigation to let a vision model explore the interface based on natural language prompts. This can surface unexpected UX issues or edge cases. See **browser-automation-studio** skill section on AI Navigation.
 
 Optional reading:
-- `prompt-manager skills read browser-automation-studio`
+- `prompt-manager skill read browser-automation-studio`
 
 Exploration should be **curiosity-driven**, not tied to immediate completeness gains.
 

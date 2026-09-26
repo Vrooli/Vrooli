@@ -1,0 +1,214 @@
+{
+  "schema_version": 1,
+  "cycle": "BAS-WORK-079",
+  "date": "2026-09-23",
+  "issues": [
+    "BAS-RF-099",
+    "BAS-RF-038"
+  ],
+  "status": "qualified within stated scope",
+  "build_identity": "sha256:de7a18c584f79fc8920dc30b278c525bba832e196b0e15303b33bdac651a4f5f",
+  "source_freeze": {
+    "api/handlers/record_mode_navigation.go": {
+      "sha256": "3ddad1196fb2c7d86017e64ecb59db78433e0d682a3ab96976405d5d82cdaa1b",
+      "lines": 161
+    },
+    "api/handlers/record_mode_integration_test.go": {
+      "sha256": "c4ab84cefe1b6011bcf51bb0721123a396e9d12868fd5ec6872c7eb49f6b8343",
+      "lines": 1033
+    },
+    "api/handlers/testutil_mock_services.go": {
+      "sha256": "70c87ea2ff67ce24251065ce1343c8a2a78076549ec098a3566cb9b3d7d4b128",
+      "lines": 1469
+    },
+    "api/automation/session/session.go": {
+      "sha256": "ee3281f63bbdf8f41017c657e55690975ceca1268b9736ed70e08a6959cabdb4",
+      "lines": 486
+    },
+    "api/automation/session/session_test.go": {
+      "sha256": "852c00a248a51eafc619251b3eac4e1d72e9f76b946deba7d0d8ad4d381d80b2",
+      "lines": 1573
+    },
+    "api/automation/driver/client.go": {
+      "sha256": "7c1b795d5d3408e64727eccdcbb7e3a998d10ded1dffb9d2c0060ac1035e1c7d",
+      "lines": 1223
+    },
+    "api/automation/driver/client_health_test.go": {
+      "sha256": "305581eb503f2b62ed933f281a74988bd13d82905535f7281175979fb0e18e60",
+      "lines": 97
+    },
+    "playwright-driver/src/routes/record-mode/recording-navigation.ts": {
+      "sha256": "1d1f9fc8055ac81b21c53fad98c0b81b3df1b2904a0e7ebdd2fc78c5c6c0c8e6",
+      "lines": 242
+    },
+    "playwright-driver/src/routes/record-mode/recording-ownership.ts": {
+      "sha256": "93240b8a7d7c4301426667d98f464a9adfe18771bdd31881370d01d24385aab6",
+      "lines": 18
+    },
+    "playwright-driver/tests/unit/routes/record-mode.test.ts": {
+      "sha256": "de5aeaee63706f6fbab93cc9cf36d36e9a01c62b5be8e49766c6e2f88ac65f13",
+      "lines": 382
+    },
+    "ui/src/domains/recording/hooks/useBrowserNavigation.ts": {
+      "sha256": "e3ea01f23d4a3662a3c758f9bb608dc53ffe2bfcbe73f77f653ed1087e2d57c1",
+      "lines": 229
+    },
+    "ui/src/domains/recording/hooks/useBrowserNavigation.test.ts": {
+      "sha256": "882723aa9162ca7586fac8dd5967b56aa30a59093f2a3a24e991cd2e0dca6d2f",
+      "lines": 442
+    },
+    "ui/src/domains/recording/RecordingSession.tsx": {
+      "sha256": "3a22127028b67910f362d3e12c5ec7ca6092c421ceb4f7d29e4f04b6f3b2176a",
+      "lines": 1429
+    }
+  },
+  "change": "Browser history reads retain the immutable Session execution/lease and selected page across API, Client and driver CDP work. UI initializes Back/Forward from canonical Page observations, clears capabilities on page handoff, and cancels older reads after a newer read or navigation receipt without replacing the URL draft.",
+  "red": {
+    "native": {
+      "passed": 10,
+      "failed": 3,
+      "artifact": "/tmp/bas-history-native-red-079/receipt.json"
+    },
+    "driver": {
+      "failed": 12,
+      "artifact": "/tmp/bas-history-driver-red-079.txt"
+    },
+    "api": {
+      "failed_subcases": 12,
+      "artifact": "/tmp/bas-history-go-red2-079.txt"
+    },
+    "ui": {
+      "failed": 2,
+      "artifact": "/tmp/bas-history-ui-red2-079.txt"
+    },
+    "same_page_read_race": {
+      "failed": 2,
+      "artifact": "/tmp/bas-history-refresh-race-red-079.txt"
+    }
+  },
+  "validation": {
+    "driver_owner": {
+      "run_id": "uh-20260923-091656-ac715cd37bc57d8c03137174ca003acd",
+      "passed": 1854,
+      "suites": 123,
+      "skipped_tests": 2,
+      "skipped_suites": 1,
+      "duration_ms": 371646,
+      "artifact": "/tmp/bas-driver-owner-079.json"
+    },
+    "ui": {
+      "passed": 567,
+      "suites": 29,
+      "artifact": "/tmp/bas-ui-record-mode-079.txt"
+    },
+    "go": "Four race packages and go build ./... pass; /tmp/bas-go-races-079.txt and /tmp/bas-go-build-079.txt",
+    "typescript": "UI and driver pass",
+    "native": {
+      "original": {
+        "passed": 13,
+        "failed": 0,
+        "artifact": "/tmp/bas-history-native-green-079/receipt.json"
+      },
+      "controls": {
+        "passed": 20,
+        "failed": 0,
+        "artifact": "/tmp/bas-history-controls2-079/receipt.json"
+      }
+    },
+    "workflow": {
+      "passed": 12,
+      "effects": 3,
+      "execution_id": "314b875b-f4f7-4842-889e-d9a4c171af3d",
+      "artifact_dir": "/tmp/bas-recording-e2e-huYxqC"
+    },
+    "profiles": "Three full identity reads equal original rollback; API metadata equals078; /tmp/bas-profile-final-079.txt and /tmp/bas-profile-api-final-079.json",
+    "tidiness": {
+      "run_id": "20260923-091701-f76b73b5",
+      "summary": {
+        "totalFindings": 1143,
+        "longFiles": 103,
+        "complexity": 407,
+        "duplication": 611,
+        "coupling": 21,
+        "duplicationLineDebt": 31081
+      },
+      "verdict": "existing budgets fail"
+    },
+    "board": "17 outcomes unknown; contract and inventory pass"
+  },
+  "test_oracle_correction": {
+    "initial": "/tmp/bas-history-controls-079/receipt.json:17pass/1fail asserted no history for a newly navigated tab",
+    "discriminator": "Browser stack includes about:blank behind /other; Back enabled is correct. Separate new about:blank tab has no back/forward history and both UI buttons disabled. Original failed receipt retained."
+  },
+  "measurements": {
+    "runtime_and_go": {
+      "files": {
+        "api/handlers/record_mode_navigation.go": {
+          "before": 129,
+          "after": 161,
+          "delta": 32
+        },
+        "api/automation/session/session.go": {
+          "before": 470,
+          "after": 486,
+          "delta": 16
+        },
+        "api/automation/driver/client.go": {
+          "before": 1214,
+          "after": 1223,
+          "delta": 9
+        },
+        "playwright-driver/src/routes/record-mode/recording-navigation.ts": {
+          "before": 235,
+          "after": 242,
+          "delta": 7
+        },
+        "playwright-driver/src/routes/record-mode/recording-ownership.ts": {
+          "before": 18,
+          "after": 18,
+          "delta": 0
+        },
+        "ui/src/domains/recording/hooks/useBrowserNavigation.ts": {
+          "before": 212,
+          "after": 229,
+          "delta": 17
+        },
+        "ui/src/domains/recording/RecordingSession.tsx": {
+          "before": 1424,
+          "after": 1429,
+          "delta": 5
+        }
+      },
+      "runtime_before": 3702,
+      "runtime_after": 3788,
+      "go_before": {
+        "sum": 368,
+        "functions": 108
+      },
+      "go_after": {
+        "sum": 386,
+        "functions": 112
+      },
+      "go_delta": 18,
+      "cumulative_affected_go_delta": -79
+    },
+    "scoped_typescript": {
+      "before": {
+        "code_path_count": 139,
+        "sum": 463
+      },
+      "after": {
+        "code_path_count": 141,
+        "sum": 475
+      },
+      "delta": 12,
+      "artifact": "/tmp/bas-frame-complexity-079.json"
+    },
+    "claim_limit": "Runtime+86, Go+18, scopedTS+12. Required admission/cancellation checks; no per-cycle net simplification claim. Domain duplication decreases are observations of the shared tree, not wholly attributed to this slice."
+  },
+  "limitations": [
+    "No comprehensive recovery, sustained performance, native OS or full-release qualification.",
+    "Read observations are snapshots of browser history; this does not qualify broader same-page frame epochs or viewport command ordering."
+  ],
+  "pending_operations": []
+}

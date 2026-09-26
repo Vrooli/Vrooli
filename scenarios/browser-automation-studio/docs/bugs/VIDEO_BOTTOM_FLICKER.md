@@ -3,7 +3,7 @@
 **Status:** FIXED
 **Date:** 2026-03-13
 **Affected:** ALL Playwright `recordVideo` recordings in browser-automation-studio
-**Fix:** CDP `Emulation.setDeviceMetricsOverride` in `context-builder.ts`
+**Current repair:** SDK compositor sizing and capture ordering (077 candidate). The original BAS override below is retained as historical investigation.
 **Related:** [Playwright #36032](https://github.com/microsoft/playwright/issues/36032) (fixed in Playwright v1.55.0, BAS uses rebrowser-playwright 1.52.0)
 
 ## Symptom
@@ -95,3 +95,25 @@ The fix is non-fatal: if the CDP call fails, a warning is logged but the session
 1. **CSS viewport stabilization** — Prevents scrollbar reflow but doesn't affect video encoder dimensions
 2. **FFmpeg filter chain improvements** — Only affects export/render path, not Playwright's `recordVideo`
 3. **Pixel-level test coverage** — Tests the FFmpeg assembly path, not the Playwright recording path
+
+
+## 2026-09-23 amendment — shared SDK geometry owner
+
+The original headful-only explanation is incomplete. Fresh Chromium 136 probes
+reproduce the 87-pixel height loss in regular Chromium with both SDK headless
+settings. The headless shell control passes. Setting only the compositor visible
+size after window sizing fixes initial, landscape and portrait capture without
+changing mobile or DPR emulation. Concurrent SDK screenshots and viewport changes
+also reproduce stale DOM geometry and blank image regions. Joining the existing
+Screenshotter queue fixes this second failure; a compositor command alone does
+not establish capture ordering.
+
+The canonical Rebrowser patch now applies these invariants at SDK Page and
+Chromium viewport ownership. SDA installs the unchanged approved 1.52.0 version.
+The BAS video-only asynchronous metrics override is removed: it duplicated screen
+policy, overwrote mobile emulation, and left its CDP session attached. Existing
+video layout stabilization remains separate behavior. Two native recordings at
+640×480 and 900×640, DPR2, decode to 55 painted frames with zero gray bottom bands
+without that override. Receipt: `/tmp/bas-video-geometry-077/receipt.json`.
+Full driver and live-app qualification remain pending at this amendment; refer
+to REFRACTOR_PROGRESS.md for the final candidate's status and limitations.

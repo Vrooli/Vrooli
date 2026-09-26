@@ -1,9 +1,11 @@
 package bundles
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -145,6 +147,41 @@ func TestHandleExportBundle(t *testing.T) {
 	}
 	if len(resp.Manifest.Services) != 1 {
 		t.Errorf("expected 1 service, got %d", len(resp.Manifest.Services))
+	}
+}
+
+func TestHandleExportBundleSecretBearingExportRequiresAuthorization(t *testing.T) {
+	handler := NewHandler(secrets.NewClient(), nil, func(string, map[string]interface{}) {})
+	handler.WithExportAuthorization(func(context.Context) error {
+		return errors.New("service identity required")
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/export", strings.NewReader(`{"scenario":"export-test-app","include_secrets":true}`))
+	rec := httptest.NewRecorder()
+	handler.ExportBundle(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+}
+
+func TestHandleExportBundleInvalidRequestDoesNotInvokeAuthorization(t *testing.T) {
+	handler := NewHandler(secrets.NewClient(), nil, func(string, map[string]interface{}) {})
+	called := false
+	handler.WithExportAuthorization(func(context.Context) error {
+		called = true
+		return errors.New("must not be called")
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/export", strings.NewReader(`{"scenario":""}`))
+	rec := httptest.NewRecorder()
+	handler.ExportBundle(rec, req)
+
+	if called {
+		t.Fatal("authorization callback called before request validation")
+	}
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusBadRequest)
 	}
 }
 

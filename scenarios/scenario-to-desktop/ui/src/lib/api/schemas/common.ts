@@ -2,7 +2,7 @@
  * Common/shared Zod schemas used across multiple API endpoints.
  *
  * These schemas are aligned with proto definitions in:
- * packages/proto/gen/typescript/scenario-to-desktop/v1/base/shared_pb.ts
+ * packages/proto/gen/typescript/scenario-to-desktop/v1/shared/common_pb.ts
  */
 
 import { z } from "zod";
@@ -48,14 +48,24 @@ export type StageStatus = z.infer<typeof StageStatusSchema>;
  * Overall build status.
  * @see BuildStatus enum in base/shared_pb.ts
  */
-export const BuildStatusSchema = z.enum(["building", "ready", "partial", "failed"]);
+export const BuildStatusSchema = z.enum([
+  "building",
+  "ready",
+  "partial",
+  "failed",
+]);
 export type BuildStatus = z.infer<typeof BuildStatusSchema>;
 
 /**
  * Upload status for deploy.
  * @see UploadStatus enum in base/shared_pb.ts
  */
-export const UploadStatusSchema = z.enum(["pending", "uploading", "completed", "failed"]);
+export const UploadStatusSchema = z.enum([
+  "pending",
+  "uploading",
+  "completed",
+  "failed",
+]);
 export type UploadStatus = z.infer<typeof UploadStatusSchema>;
 
 /**
@@ -69,14 +79,19 @@ export type DeploymentMode = z.infer<typeof DeploymentModeSchema>;
  * Desktop framework.
  * @see Framework enum in base/shared_pb.ts
  */
-export const FrameworkSchema = z.enum(["electron", "tauri", "neutralino"]);
+export const FrameworkSchema = z.literal("electron");
 export type Framework = z.infer<typeof FrameworkSchema>;
 
 /**
  * Application template type.
  * @see TemplateType enum in base/shared_pb.ts
  */
-export const TemplateTypeSchema = z.enum(["basic", "advanced", "multi-window", "kiosk"]);
+export const TemplateTypeSchema = z.enum([
+  "basic",
+  "advanced",
+  "multi-window",
+  "kiosk",
+]);
 export type TemplateType = z.infer<typeof TemplateTypeSchema>;
 
 /**
@@ -99,12 +114,6 @@ export const StatusSchema = z.enum([
 /**
  * Health check response schema.
  */
-export const HealthResponseSchema = z.object({
-  status: z.string(),
-  service: z.string(),
-  timestamp: z.string(),
-});
-
 /**
  * Generic error response structure.
  */

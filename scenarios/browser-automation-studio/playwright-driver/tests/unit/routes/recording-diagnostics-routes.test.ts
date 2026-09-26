@@ -38,6 +38,18 @@ describe('recording diagnostics routes', () => {
     runExternalUrlInjectionTest.mockClear();
   });
 
+  it.each([
+    { quality: 'bad' }, { quality: 20.5 }, { fps: null }, { perfMode: 'true' }, { scale: 'invalid' },
+  ])('rejects malformed stream settings before invoking capture: %j', async (body) => {
+    getFrameStreamSettings.mockReset().mockReturnValue({ quality: 65, fps: 30, currentFps: 0, scale: 'css', isStreaming: true, perfMode: false });
+    updateFrameStreamSettings.mockResolvedValue(true);
+    const req = createMockHttpRequest({ method: 'POST', body });
+    const res = createMockHttpResponse();
+    await handleStreamSettings(req, res, 'test', { getSession: () => ({}) } as unknown as SessionManager, config);
+    expect(res.statusCode).toBe(400);
+    expect(updateFrameStreamSettings).not.toHaveBeenCalled();
+  });
+
   it('returns default stream settings when no stream is active', async () => {
     getFrameStreamSettings.mockReturnValueOnce(null);
 

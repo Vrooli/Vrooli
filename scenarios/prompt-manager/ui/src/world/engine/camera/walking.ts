@@ -1,0 +1,186 @@
+import { Vector3 } from 'three'
+import { navigationDelta } from './input'
+
+export interface WalkGround { height: number; walkable: boolean }
+export type WalkSurface = (x: number, z: number, radius: number) => WalkGround
+type WalkOccupied = (position: Vector3, radius: number, verticalSpan?: number) => boolean
+export type WalkSweep = ((from: Vector3, to: Vector3, radius: number, verticalSpan?: number) => number) & { overlaps?: WalkOccupied }
+import { WALK, type SavedWalkingView } from '../../config/navigation'
+export { WALK } from '../../config/navigation'
+
+/** A grounded operator body, independent of autonomous agent simulation. */
+export class Walker {
+  readonly position = new Vector3()
+  yaw = 0
+  pitch = 0
+  boom = WALK.boom as number
+  grounded = true
+  verticalVelocity = 0
+  blocked = false
+  private readonly from = new Vector3()
+  private readonly to = new Vector3()
+  constructor(readonly surface: WalkSurface, readonly sweep: WalkSweep, readonly occupied: WalkOccupied = sweep.overlaps ?? (() => false)) {}
+
+  safe(x: number, z: number): WalkGround | null {
+    const ground = this.surface(x, z, WALK.radius)
+    if (!ground.walkable || !Number.isFinite(ground.height)) return null
+    this.from.set(x, ground.height + WALK.height / 2, z)
+    const span = WALK.height - WALK.radius * 2
+    if (this.occupied(this.from, WALK.radius, span)) {
+      // A floor slab or low step can sit above the sampled terrain. Resolve
+      // its supporting surface before searching for a different spawn point.
+      this.to.copy(this.from)
+      this.from.y += WALK.stepHeight
+      if (this.occupied(this.from, WALK.radius, span)) return null
+      const fraction = this.sweep(this.from, this.to, WALK.radius, span)
+      const height = ground.height + WALK.stepHeight * (1 - fraction)
+      this.from.set(x, height + WALK.height / 2, z)
+      if (this.occupied(this.from, WALK.radius, span)) return null
+      return { ...ground, height }
+    }
+    return ground
+  }
+
+  validPosition(): boolean {
+    const ground = this.surface(this.position.x, this.position.z, WALK.radius)
+    this.from.copy(this.position).y += WALK.height / 2
+    return ground.walkable && Number.isFinite(ground.height) && this.position.y >= ground.height &&
+      !this.occupied(this.from, WALK.radius, WALK.height - WALK.radius * 2)
+  }
+
+  restore(view: SavedWalkingView): boolean {
+    this.position.set(...view.position)
+    this.yaw = view.yaw; this.pitch = view.pitch; this.boom = view.boom
+    if (!this.validPosition()) return this.spawn(view.position[0], view.position[2])
+    // A support object may have disappeared, or the page closed mid-jump.
+    // Let gravity settle the saved body onto the actual current surface.
+    this.grounded = false; this.verticalVelocity = 0
+    return true
+  }
+
+  jump(): boolean {
+    if (!this.grounded) return false
+    this.grounded = false
+    this.verticalVelocity = WALK.jumpSpeed
+    return true
+  }
+
+  private verticalStep(dt: number): void {
+    if (this.grounded) return
+    const floor = this.surface(this.position.x, this.position.z, WALK.radius).height
+    const dy = this.verticalVelocity * dt - WALK.gravity * dt * dt / 2
+    this.verticalVelocity -= WALK.gravity * dt
+    this.from.copy(this.position).y += WALK.height / 2
+    this.to.copy(this.from).y += dy
+    const fraction = this.sweep(this.from, this.to, WALK.radius, WALK.height - WALK.radius * 2)
+    this.position.y += dy * fraction
+    if (fraction < 1) {
+      this.grounded = dy < 0
+      this.verticalVelocity = 0
+    }
+    if (this.position.y <= floor) {
+      this.position.y = floor
+      this.verticalVelocity = 0
+      this.grounded = true
+    }
+  }
+
+  spawn(x: number, z: number): boolean {
+    // A bounded search finds a body-sized site near the current inspection target.
+    for (let ring = 0; ring <= WALK.spawnRings; ring++) {
+      const count = Math.max(1, ring * 8)
+      for (let i = 0; i < count; i++) {
+        const angle = i / count * Math.PI * 2
+        const nx = x + Math.cos(angle) * ring * WALK.spawnRingMetres, nz = z + Math.sin(angle) * ring * WALK.spawnRingMetres
+        const ground = this.safe(nx, nz)
+        if (ground) { this.position.set(nx, ground.height, nz); this.grounded = true; this.verticalVelocity = 0; return true }
+      }
+    }
+    return false
+  }
+
+  private move(dx: number, dz: number): boolean {
+    const { x, y, z } = this.position
+    const ground = this.surface(x + dx, z + dz, WALK.radius)
+    const distance = Math.hypot(dx, dz)
+    if (!ground.walkable || !Number.isFinite(ground.height)) return false
+    const terrainRise = ground.height - this.surface(x, z, WALK.radius).height
+    const rise = Math.abs(terrainRise)
+    // Compare terrain to terrain. The body's support may be a floor or prop
+    // above it; collider sweeps below decide the actual step height.
+    if (this.grounded && (rise > WALK.stepHeight || (terrainRise > 0 && rise > WALK.kerbTolerance && rise / Math.max(distance, WALK.slopeSampleMetres) > WALK.maxGrade))) return false
+    if (!this.grounded && ground.height > y) return false
+    const span = WALK.height - WALK.radius * 2
+    // Sweep horizontally at foot height first. If blocked, try a bounded
+    // up/across/down stair move, checking headroom along the entire route.
+    this.from.set(x, y + WALK.height / 2, z)
+    this.to.set(x + dx, y + WALK.height / 2, z + dz)
+    if (this.sweep(this.from, this.to, WALK.radius, span) < 1 || ground.height > y) {
+      if (!this.grounded) return false
+      this.to.copy(this.from).y += WALK.stepHeight
+      // A low lintel can limit the lift without preventing a smaller step.
+      // The following horizontal sweep still rejects obstacles too tall for
+      // the available headroom.
+      const lift = this.sweep(this.from, this.to, WALK.radius, span)
+      this.to.y = this.from.y + WALK.stepHeight * lift
+      this.from.copy(this.to)
+      this.to.x += dx; this.to.z += dz
+      if (this.sweep(this.from, this.to, WALK.radius, span) < 1 || this.occupied(this.to, WALK.radius, span)) return false
+    }
+    const top = this.to.y - WALK.height / 2
+    if (this.grounded) {
+      this.from.copy(this.to)
+      this.to.y = ground.height + WALK.height / 2
+      const fraction = this.sweep(this.from, this.to, WALK.radius, span)
+      this.position.set(x + dx, top + (ground.height - top) * fraction, z + dz)
+    } else this.position.set(x + dx, y, z + dz)
+    return true
+  }
+
+  step(seconds: number, forward: number, right: number, run: boolean): void {
+    this.blocked = false
+    const length = Math.hypot(forward, right)
+    const dt = navigationDelta(seconds)
+    const distance = (length ? dt : 0) * (run ? WALK.runSpeed : WALK.speed)
+    const dx = (Math.sin(this.yaw) * forward + Math.cos(this.yaw) * right) / (length || 1) * distance
+    const dz = (-Math.cos(this.yaw) * forward + Math.sin(this.yaw) * right) / (length || 1) * distance
+    const steps = Math.max(1, Math.ceil(distance / WALK.stepMetres), Math.ceil(dt / WALK.physicsStep))
+    for (let i = 0; i < steps; i++) {
+      this.verticalStep(dt / steps)
+      if (!length || this.move(dx / steps, dz / steps)) continue
+      this.blocked = true
+      // Slide along a wall without accelerating diagonal movement.
+      if (dx !== 0) this.move(dx / steps, 0)
+      if (dz !== 0) this.move(0, dz / steps)
+    }
+  }
+
+  look(dx: number, dy: number, sensitivity: number, invert: boolean): void {
+    this.yaw += dx * WALK.lookRadiansPerPixel * sensitivity
+    this.pitch = Math.max(-WALK.maxPitch, Math.min(WALK.maxPitch, this.pitch - dy * WALK.lookRadiansPerPixel * sensitivity * (invert ? -1 : 1)))
+  }
+
+  /** Keyboard look is angular motion, independent of pointer sensitivity/inversion. */
+  keyboard(seconds: number, keys: ReadonlySet<string>, radiansPerSecond: number): void {
+    const has = (key: string) => keys.has(key) || keys.has(key.toUpperCase())
+    const angle = navigationDelta(seconds) * radiansPerSecond / WALK.lookRadiansPerPixel
+    this.look((Number(keys.has('ArrowRight')) - Number(keys.has('ArrowLeft'))) * angle,
+      (Number(keys.has('ArrowDown')) - Number(keys.has('ArrowUp'))) * angle, 1, false)
+    this.step(seconds, Number(has('w')) - Number(has('s')), Number(has('d')) - Number(has('a')), keys.has('Shift'))
+  }
+
+  view(thirdPerson: boolean): { eye: Vector3; target: Vector3 } {
+    const head = this.position.clone().add(new Vector3(0, WALK.eyeHeight, 0))
+    const direction = new Vector3(Math.sin(this.yaw) * Math.cos(this.pitch), Math.sin(this.pitch), -Math.cos(this.yaw) * Math.cos(this.pitch))
+    if (!thirdPerson) return { eye: head, target: head.clone().add(direction) }
+    const desired = head.clone().addScaledVector(direction, -this.boom)
+    let fraction = this.sweep(head, desired, WALK.boomRadius)
+    const samples = Math.ceil(this.boom / WALK.boomSampleMetres)
+    for (let i = 1; i <= samples; i++) {
+      const t = i / samples
+      const point = head.clone().lerp(desired, t)
+      if (point.y < this.surface(point.x, point.z, WALK.boomRadius).height + WALK.boomRadius) { fraction = Math.min(fraction, (i - 1) / samples); break }
+    }
+    return { eye: head.clone().lerp(desired, Math.max(0, fraction)), target: head.clone().add(direction) }
+  }
+}

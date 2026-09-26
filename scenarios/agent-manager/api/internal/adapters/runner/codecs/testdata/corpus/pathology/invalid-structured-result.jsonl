@@ -1,0 +1,3 @@
+{"type":"thread.started","thread_id":"pathology-invalid-structured"}
+{"type":"item.completed","item":{"id":"1","type":"agent_message","text":"not JSON"}}
+{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}

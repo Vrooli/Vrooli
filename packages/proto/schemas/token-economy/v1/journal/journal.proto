@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package vrooli.token_economy.v1.journal;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/token-economy/v1/journal;journalv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// JOURNAL
+// =============================================================================
+//
+// @stability experimental
+//
+// Owns append-only token events and balance projections. Events are permanent;
+// corrections are represented by a later reversal event.
+//
+// =============================================================================
+
+enum EventKind {
+  EVENT_KIND_UNSPECIFIED = 0;
+  EVENT_KIND_MINT = 1;
+  EVENT_KIND_CREDIT = 2;
+  EVENT_KIND_DEBIT = 3;
+  EVENT_KIND_REVERSAL = 4;
+  EVENT_KIND_EXPIRY = 5;
+}
+
+enum ActorKind {
+  ACTOR_KIND_UNSPECIFIED = 0;
+  ACTOR_KIND_OPERATOR = 1;
+  ACTOR_KIND_AGENT = 2;
+}
+
+enum VerificationStatus {
+  VERIFICATION_STATUS_UNSPECIFIED = 0;
+  VERIFICATION_STATUS_VERIFIED = 1;
+  VERIFICATION_STATUS_UNAVAILABLE = 2;
+  VERIFICATION_STATUS_INVALID = 3;
+  VERIFICATION_STATUS_ABSENT = 4;
+}
+
+message Event {
+  string id = 1;
+  string token_type_id = 2;
+  string holder_id = 3;
+  int64 amount = 4;
+  EventKind kind = 5;
+  string cause_reference = 6;
+  google.protobuf.Timestamp created_at = 7;
+  string actor_identity = 8;
+  string reason = 9;
+  ActorKind actor_kind = 10;
+  VerificationStatus actor_verification_status = 11;
+  string actor_run_id = 12;
+}

@@ -1,0 +1,370 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "What local OCR cannot recover \u2014 handwriting, complex layout, figures \u2014 parsed through the gateway vision role, metered; blocked on the vision.default gateway role landing. Ordinary scanned pages are tier 2 via local OCR and are not gated on this",
+      "id": "DOC-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Tier-3 vision parse",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "A low-confidence tier-1 or tier-2 result auto-escalates to the next tier with the decision recorded in the receipt",
+      "id": "DOC-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "Confidence-driven tier escalation",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Bulk re-derive on parser or model upgrade, producing a diff report of what changed",
+      "id": "DOC-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "Collection-wide re-derivation",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Caller supplies a schema and receives validated structured output; absorbs the retired data-structurer charter",
+      "id": "DOC-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "planned",
+      "title": "Schema-first extraction",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Tables survive as addressable cell structure rather than flattened prose",
+      "id": "DOC-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Table fidelity",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "LaTeX or MathML retained through the pipeline, the requirement that makes math papers usable",
+      "id": "DOC-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "planned",
+      "title": "Equation preservation",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Bibliographies parsed into resolvable links, enabling a corpus citation graph",
+      "id": "DOC-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "planned",
+      "title": "Reference extraction",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Every unit carries a summary and a facet suggestion the ledger can accept or override",
+      "id": "DOC-P1-008",
+      "prd_ref": "OT-P1-008",
+      "status": "planned",
+      "title": "Per-unit summary and classification",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-008] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Detected entities categorized by sensitivity and by regulation such as GDPR and HIPAA, not merely flagged",
+      "id": "DOC-P1-009",
+      "prd_ref": "OT-P1-009",
+      "status": "planned",
+      "title": "PII and PHI detection",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-009] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Proposed redactions require explicit confirmation before finalize; automated redaction without review is not defensible",
+      "id": "DOC-P1-010",
+      "prd_ref": "OT-P1-010",
+      "status": "planned",
+      "title": "Human-in-the-loop redaction",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-010] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Original version, redacted version, and per-redaction actor, timestamp and regulatory basis",
+      "id": "DOC-P1-011",
+      "prd_ref": "OT-P1-011",
+      "status": "planned",
+      "title": "Redaction manifest",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-011] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When a document is redacted, only redacted units may reach a shared ledger scope",
+      "id": "DOC-P1-012",
+      "prd_ref": "OT-P1-012",
+      "status": "planned",
+      "title": "Redacted-derivative handoff",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-012] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Human-readable signed report per document or collection covering every step, where it ran and under which profile",
+      "id": "DOC-P1-013",
+      "prd_ref": "OT-P1-013",
+      "status": "planned",
+      "title": "Residency attestation export",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-013] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Role-based access with every access event written to the audit trail",
+      "id": "DOC-P1-014",
+      "prd_ref": "OT-P1-014",
+      "status": "planned",
+      "title": "Per-collection access control",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-014] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Suspends retention and prune on a collection; release is itself an audited event",
+      "id": "DOC-P1-015",
+      "prd_ref": "OT-P1-015",
+      "status": "planned",
+      "title": "Legal hold",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-015] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "arXiv and DOI identifiers, arbitrary URLs, and email attachments as intake sources",
+      "id": "DOC-P1-016",
+      "prd_ref": "OT-P1-016",
+      "status": "planned",
+      "title": "Source connectors",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-016] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Before a bulk run, show where each document will route and what it will cost, then commit explicitly",
+      "id": "DOC-P1-017",
+      "prd_ref": "OT-P1-017",
+      "status": "planned",
+      "title": "Bulk import with routing preview",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-017] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Browse and filter by privacy class and confidence; low-confidence parses surface as a work queue",
+      "id": "DOC-P1-018",
+      "prd_ref": "OT-P1-018",
+      "status": "planned",
+      "title": "Corpus browser and review queue",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-018] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Declared tools and widgets that cli-health can actually discover, not merely present in code",
+      "id": "DOC-P1-019",
+      "prd_ref": "OT-P1-019",
+      "status": "planned",
+      "title": "Agent tools discoverable",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-019] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "A caller records a finding about this corpus into a declared ledger scope, carrying an anchor as provenance; findings only, never units",
+      "id": "DOC-P1-020",
+      "prd_ref": "OT-P1-020",
+      "status": "planned",
+      "title": "Ledger handoff",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-020] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Reserve, execute and finalize credits on tier-3 and enrichment with a visible usage ledger and graceful insufficient-credit handling",
+      "id": "DOC-P1-021",
+      "prd_ref": "OT-P1-021",
+      "status": "planned",
+      "title": "Metered tier through LPBS",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-021] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "A user supplying their own provider key is never charged credits, per the paid-features canon",
+      "id": "DOC-P1-022",
+      "prd_ref": "OT-P1-022",
+      "status": "planned",
+      "title": "BYOK charges nothing",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-022] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Re-running publish produces no duplicate entries, matching the ledger composite import key runtime + \":\" + source_locator + \":\" + content_hash unique on (scope, import_key), where source_locator is the canonical anchor URI from DOC-P0-028 and content_hash is the finding body's hash rather than the document's",
+      "id": "DOC-P1-023",
+      "prd_ref": "OT-P1-023",
+      "status": "planned",
+      "title": "Idempotent ledger handoff",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-023] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "PNG, JPEG, TIFF, BMP, HEIC and WebP accepted as first-class sources, parsed by local OCR at tier 2 and carrying geometric anchors; the anchor design already assumes fixed-geometry image sources",
+      "id": "DOC-P1-024",
+      "prd_ref": "OT-P1-024",
+      "status": "planned",
+      "title": "Raster image intake",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-024] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

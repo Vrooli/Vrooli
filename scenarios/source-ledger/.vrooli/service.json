@@ -1,0 +1,165 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "source-ledger",
+    "displayName": "Source Ledger",
+    "description": "A scoped append-only source ledger with bounded recall, rebuildable compaction, and federated corpus search",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "4GiB",
+          "rationale": "Measured starting ceiling for the append-only source ledger and its derived indexes. No max_age is declared because the journal is the non-regenerable authority."
+        },
+        "rationale": "Scenario-owned durable data observed in the canonical data directory."
+      }
+    },
+    "rationale": "Source Ledger owns the durable journal and derived engine state; external resource databases are not claimed by this scenario."
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-08-07T21:41:16Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
+    "content_sha": "7c6abefa15a33669b5aff750d0a01da11c8b4beac70d1bd069c45e012f4ab898"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "source-ledger",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "source-ledger"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "ai-gateway": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Provides governed classification, embedding, and summary inference for source-ledger enrichment and compaction.",
+        "degraded_behavior": "The append-only ledger remains durable, while enrichment and compaction pause until ai-gateway is available.",
+        "supervision_precedence": "required"
+      },
+      "search-hub": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Optional federated search registration for source-ledger corpus discovery.",
+        "degraded_behavior": "Source-ledger recall remains available; only external search registration is unavailable."
+      }
+    }
+  },
+  "credentials": {},
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

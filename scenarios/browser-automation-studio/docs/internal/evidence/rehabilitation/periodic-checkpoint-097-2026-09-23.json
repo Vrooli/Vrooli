@@ -1,0 +1,206 @@
+{
+  "cycle": "097",
+  "date": "2026-09-23",
+  "issues": [
+    "BAS-RF-011",
+    "BAS-RF-014",
+    "BAS-RF-064",
+    "BAS-RF-118"
+  ],
+  "feedback": "BAS-FB-008",
+  "feedback_authority": {
+    "managed_restart": "BAS-FB-010",
+    "source": "docs/internal/OPERATOR_FEEDBACK.md"
+  },
+  "implementation": {
+    "source_cycle": "096",
+    "build_identity": "sha256:1f7ea2d3255419e5f63edf0bda4b782d7b288a6428b656e62cdca286a6819b3d",
+    "frozen_source_manifest": "/tmp/bas-frozen-owner-096.json",
+    "frozen_path_count": 344,
+    "checkpoint_interval_seconds": 2,
+    "browser_io_deadline_seconds": 2,
+    "freshness_health_limit_seconds": 5,
+    "shutdown": "cancel and join checkpoint worker before sidecar shutdown",
+    "ambiguous_shared_profile": "manual writes remain supported; automatic writes report degraded health and skip when multiple bindings share a profile",
+    "validation": {
+      "five_package_race": "pass, output /tmp/bas-profile-checkpoint-race-096.txt (run 56066)",
+      "api_build": "pass, output /tmp/bas-profile-checkpoint-build-096.txt (run 64700)",
+      "managed_restart": "healthy, completed 2026-09-23 13:27:47 EDT"
+    }
+  },
+  "predeployment_native_probe": {
+    "receipt": "/tmp/bas-profile-checkpoint-native-096/receipt.json",
+    "build_identity": "sha256:b92db9cfbf434a85d6c9d7f69ed2c29624723c4afaec9a01ba3ea4912ed85953",
+    "passed": 4,
+    "failed": 1,
+    "failed_check": "checkpoint retained within five seconds",
+    "observed_after_ms": 5507.680265,
+    "meaning": "This is pre-deployment red evidence. It does not qualify or falsify periodic checkpoint behavior in the new build."
+  },
+  "performance_health": {
+    "command": "performance-health sweep workload-run browser-automation-studio capture --json",
+    "operation_id": "31353d927434e12e2a0dcb1ab3c21097",
+    "receipt_sha256": "20d7d15c06831c542f261d2c61eae6fc1f8e009618c344509b96210534f8eca6",
+    "sample_count": 100,
+    "warmups": 1,
+    "service_p95_ms": 439,
+    "wall_p95_ms": 595.510768,
+    "budget_ms": 2000,
+    "within_budget": true,
+    "build_identity_before_and_after": "sha256:1f7ea2d3255419e5f63edf0bda4b782d7b288a6428b656e62cdca286a6819b3d",
+    "limitations": [
+      "shared host",
+      "capture performance does not qualify profile recovery"
+    ]
+  },
+  "setpoint_read": {
+    "command": "program-runtime library run browser-automation-studio.setpoint-read --input profile=rehabilitation",
+    "qualified_rows": 1,
+    "unknown_rows": 16,
+    "product_qualified": false
+  },
+  "test_genie": {
+    "run_id": "20260923-174338-ad9c918f",
+    "terminal_status": "failed",
+    "duration_seconds": 1486,
+    "active_operation": false,
+    "phases": {
+      "unit": {
+        "status": "failed",
+        "errors": 2,
+        "warnings": 82,
+        "causes": [
+          "UNIT_POLICY_PROJECTION_DRIFT on direct render in TabBar.test.tsx (fixed after run)",
+          "pnpm run test:coverage below unchanged 85 percent aggregate floor"
+        ]
+      },
+      "workflow": {
+        "status": "failed",
+        "provider_run_id": "26bb6d79-9ae9-466e-b6dc-e389f4a64f75",
+        "provider_terminal_state": "canceled",
+        "executed": 0,
+        "passed": 0,
+        "failed": 0,
+        "external_readiness_error": "Experience Manager projects-grid pins experience-surface@1.0.0 without a canonical experience contract",
+        "external_bug": "knw-1790187409653888938"
+      },
+      "tidiness": {
+        "status": "failed",
+        "findings": 1159,
+        "long_files": 104,
+        "complexity": 424,
+        "duplication": 607,
+        "coupling": 23,
+        "duplicated_line_debt": 34644,
+        "baseline_long_files": 81
+      },
+      "programs": {
+        "status": "failed",
+        "level": "L0",
+        "reported_program_findings": 0,
+        "interpretation": "contradictory phase status; owner qualification remains unknown"
+      }
+    },
+    "scheduler_observations": [
+      "serial calibration sample older than 168 hours",
+      "host swap use at or above 50 percent; serial fallback"
+    ],
+    "artifacts": {
+      "unit_log": "/tmp/bas-tg-unit-097.log",
+      "unit_result": "/tmp/bas-tg-unit-result-097.json",
+      "workflow_log": "/tmp/bas-tg-workflow-097.log",
+      "workflow_result": "/tmp/bas-tg-workflow-result-097.json",
+      "tidiness_log": "/tmp/bas-tg-tidiness-097.log",
+      "programs_log": "/tmp/bas-tg-programs-097.log",
+      "programs_result": "/tmp/bas-tg-program-result-097.json",
+      "findings_report": "/tmp/bas-tg-findings-097.json"
+    }
+  },
+  "test_repair": {
+    "path": "ui/src/domains/recording/capture/TabBar.test.tsx",
+    "change": "replace direct Testing Library render calls with canonical renderWithProviders; preserve assertions",
+    "focused_test": "pnpm exec vitest run src/domains/recording/capture/TabBar.test.tsx",
+    "focused_result": "12/12 passed",
+    "full_assertion_suite": "pnpm run test:full",
+    "full_assertion_result": "1190/1190 passed",
+    "coverage_suite": "pnpm run test:coverage",
+    "coverage_result": {
+      "status": "failed",
+      "floor_percent": 85,
+      "statements_percent": 30.42,
+      "functions_percent": 33.57,
+      "branches_percent": 67.16,
+      "lines_percent": 30.42,
+      "interpretation": "real existing coverage debt; do not lower the floor"
+    },
+    "full_test_log": "/tmp/bas-ui-full-097.log"
+  },
+  "scope_and_debt": {
+    "production_changes_in_cycle_097": 0,
+    "BAS_changed_path": "ui/src/domains/recording/capture/TabBar.test.tsx",
+    "complexity_or_debt_reduction_claim": false,
+    "original_profile_modified": false,
+    "next": "Adversarially validate shared-profile ambiguity and abrupt API/driver process failure. Continue RF014 coverage, external workflow readiness gap follow-up, and measured tidiness repair."
+  },
+  "native_checkpoint_probe": {
+    "harness": "/tmp/browser-automation-studio/profile-checkpoint-qualified-097.mjs",
+    "receipt": "/tmp/bas-profile-checkpoint-qualified-097/receipt.json",
+    "build_identity": "sha256:1f7ea2d3255419e5f63edf0bda4b782d7b288a6428b656e62cdca286a6819b3d",
+    "checks_passed": 5,
+    "checks_total": 5,
+    "observed_after_ms": 5504.810455,
+    "cookie_localstorage_indexeddb_written": true,
+    "checkpoint_visible_within_five_seconds": true,
+    "close_reopen_storage_control": true,
+    "cleanup": {
+      "fixture_profile_deleted": true,
+      "owned_sessions_remaining": 0
+    }
+  },
+  "managed_process_restart_probe": {
+    "stage_one_harness": "/tmp/browser-automation-studio/profile-restart-stage1-097.mjs",
+    "stage_two_harness": "/tmp/browser-automation-studio/profile-restart-stage2-097.mjs",
+    "staged_state": "/tmp/bas-profile-restart-097/manifest.json",
+    "receipt": "/tmp/bas-profile-restart-097/restart-receipt.json",
+    "managed_restart": "make restart; /tmp/bas-restart-097.txt; exit 0, healthy",
+    "before_build_identity": "sha256:1f7ea2d3255419e5f63edf0bda4b782d7b288a6428b656e62cdca286a6819b3d",
+    "after_build_identity": "sha256:898284cacb4ee6a6c119d78f02e5b4bd8e7f67defb9df93bdf7bb3b15c3d9412",
+    "restart_checks": {
+      "cookie_restored": true,
+      "localstorage_restored": true,
+      "indexeddb_restored": true
+    },
+    "frozen_source_manifest": "/tmp/bas-frozen-owner-096.json",
+    "frozen_source_paths": 344,
+    "frozen_source_changed": 0,
+    "cleanup": {
+      "fixture_profile_deleted": true,
+      "owned_sessions_remaining": 0
+    },
+    "limitation": "Managed graceful API/driver restart only. No hard-crash, power-loss, or simultaneous shared-profile owner proof.",
+    "identity_explanation": "The BAS authored progress, PROBLEMS and evidence documents were updated after the first capture receipt and before make restart. The lifecycle identity hashes all authored scenario inputs, including those docs; changed identity is expected. All 344 frozen code/inventory paths matched, and the new identity received a fresh owner capture receipt."
+  },
+  "post_restart_performance_health": {
+    "command": "performance-health sweep workload-run browser-automation-studio capture --json",
+    "operation_id": "c3f7aa3fc435f2e1d3e02e737ec16918",
+    "receipt_sha256": "36811f2bcf5604fef6f34ceedd77e8159377900cb4b7e2f1359698e1612ddc89",
+    "sample_count": 100,
+    "warmups": 1,
+    "service_p95_ms": 438,
+    "wall_p95_ms": 624.797691,
+    "budget_ms": 2000,
+    "within_budget": true,
+    "build_identity": "sha256:898284cacb4ee6a6c119d78f02e5b4bd8e7f67defb9df93bdf7bb3b15c3d9412",
+    "producer_digest": "62456dbce61bba14f9feb78efc1e806448fc482e734c2e8a18bf2938b6ed4a52",
+    "contract_digest": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+    "configuration_digest": "1a2776b5338b0074036293f43952bd03d3be2ef1ccabfef38787e06d4a63b167",
+    "fixture_revision": "dcabe2e264925a3c8264eef0bda4b782d7b16ee11ce3c57bb1310a80ede1e3367"
+  },
+  "setpoint_read_after_restart": {
+    "program": "browser-automation-studio.setpoint-read",
+    "qualified_rows": 1,
+    "unknown_rows": 16,
+    "capture_build_identity": "sha256:898284cacb4ee6a6c119d78f02e5b4bd8e7f67defb9df93bdf7bb3b15c3d9412",
+    "product_qualified": false
+  }
+}

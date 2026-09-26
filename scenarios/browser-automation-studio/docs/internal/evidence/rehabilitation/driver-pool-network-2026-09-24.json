@@ -1,0 +1,70 @@
+{
+  "work": ["BAS-WORK-122", "BAS-WORK-123"],
+  "operator_feedback": "BAS-FB-016",
+  "issues": ["BAS-RF-006", "BAS-RF-019"],
+  "observed_at": "2026-09-24T03:16:42Z",
+  "source_head": "8707b970a48f82665662450766ad8233d6def9e7",
+  "source_inventory_digest_sha256": "565b5cbfc72bf8c895e8e9b5fea439c9ff29732820d9352bcf3d29c2f71cc60b",
+  "inventory_runtime_lines": {
+    "api": 92411,
+    "playwright_driver": 52482,
+    "ui": 130198
+  },
+  "rf006_browser_pool": {
+    "reproduction": "One failed launch wave yielded three launch attempts; two successful browser IDs were observed but only one was closed. A deferred launch resolving after closeAll remained live.",
+    "repair": "Current waiters share one bounded retry. Shutdown waits for pending launch promises, closes late browser instances, rejects requests being torn down, and leaves the pool reusable.",
+    "maintained_tests": {
+      "command": "pnpm exec jest tests/unit/session/browser-pool.test.ts tests/unit/session/browser-manager.test.ts --runInBand --coverage=false",
+      "status": "passed",
+      "tests": 33
+    },
+    "actual_module_probe": "passed: one shared retry returned one browser to all waiters; shutdown rejected the in-flight caller and closed the late browser",
+    "remaining": ["Distinct-key retention/capacity soak", "Live resource-count qualification"]
+  },
+  "rf019_network_request_identity": {
+    "reproduction": "Two distinct installed Request objects stringify as [object Object]. Overlapping /a 201 and /b 202 responses previously yielded one /b event with status 201; a sequential control retained both.",
+    "repair": "Pending request correlation uses Request object identity for response and failure lookup/removal, preserving existing age and capacity bounds.",
+    "maintained_regression": "tests/unit/telemetry/collector.test.ts; passed",
+    "actual_module_probe": "passed for overlapping response attribution",
+    "remaining": ["Redirect cases", "Request failure and eviction cases", "Live-browser attribution"]
+  },
+  "combined_driver_validation": {
+    "typecheck": "passed",
+    "eslint": "passed with two warnings for pre-existing missing return annotations in test helpers",
+    "prettier": "passed",
+    "focused_jest": "3 suites, 48 tests passed"
+  },
+  "legacy_probe_pack": {
+    "status": "unavailable producer evidence; exits 2",
+    "findings": [
+      "Retired direct-frame probe path is absent",
+      "Old input module fails through its ts-node loader",
+      "Recorder probe reads an absent event"
+    ],
+    "recheck_trigger": "Replace these probes with maintained tests in their current owning modules."
+  },
+  "contract": {
+    "preparation_valid": true,
+    "required_outcomes": 17,
+    "preservation_journeys": 24,
+    "errors": []
+  },
+  "setpoint_read": {
+    "program_id": "prog_cf9adc08-1e46-4ece-9ccc-a14651e214e4",
+    "in_band": 1,
+    "pending_telemetry": 16,
+    "capture_p95_ms": 444,
+    "capture_wall_p95_ms": 617.836227,
+    "product_qualified": false
+  },
+  "test_genie": {
+    "run_id": "20260924-025629-7e6ab613",
+    "phases": ["unit", "workflow"],
+    "wait_status": "unavailable: unexpected EOF after approximately 24 minutes",
+    "server_run_terminal_status": "unknown",
+    "started_before": ["final browser-pool retry correction", "RF-019 identity correction"],
+    "qualification_note": "Evidence is stale for those later edits. No replacement whole-suite run or second wait was started under BAS-FB-016."
+  },
+  "managed_restart_or_deployment": "not_performed",
+  "complexity_reduction_claimed": false
+}

@@ -24,14 +24,6 @@ vi.mock("../services/review-service", () => ({
   },
 }));
 
-vi.mock("./useActivityTimeline", () => ({
-  useActivityTimeline: vi.fn().mockReturnValue({
-    entries: [],
-    isLoading: false,
-    error: null,
-  }),
-}));
-
 const { executionService, promptService } = await import("../services") as unknown as {
   executionService: {
     get: ReturnType<typeof vi.fn>;
@@ -254,6 +246,29 @@ describe("useExecutionDetailData", () => {
 
     await waitFor(() => {
       expect(result.current.isGatheringEvidence).toBe(true);
+    });
+  });
+
+  it("detects awaiting manual review from review rounds parked in needs_review", async () => {
+    reviewService.listRounds.mockResolvedValue([
+      {
+        round: 1,
+        status: "gathering",
+        current_run_status: "needs_review",
+        evidence: [],
+        generated_at: "",
+        execution_id: "exec-1",
+      },
+    ]);
+
+    const { result } = renderHook(
+      () => useExecutionDetailData({ executionId: "exec-1" }),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => {
+      expect(result.current.isAwaitingManualReview).toBe(true);
+      expect(result.current.isGatheringEvidence).toBe(false);
     });
   });
 

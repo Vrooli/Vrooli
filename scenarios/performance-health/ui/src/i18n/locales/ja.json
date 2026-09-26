@@ -1,0 +1,277 @@
+{
+  "_comment": "Japanese catalog. Keys mirror en.json exactly (parity contract). Plural variants may differ per locale rules.",
+  "app": {
+    "title": "Performance Health"
+  },
+  "common": {
+    "loading": "読み込み中…",
+    "errorTitle": "問題が発生しました",
+    "retry": "再試行"
+  },
+  "tier": {
+    "none": "UIなし",
+    "tier0": "ティア0",
+    "tier1": "ティア1",
+    "unknown": "不明なティア"
+  },
+  "layout": {
+    "sidebarLabel": "メインナビゲーション",
+    "bottomNavLabel": "クイックナビゲーション",
+    "mainLabel": "メインコンテンツ",
+    "nav": {
+      "dashboard": "概要",
+      "audit": "監査",
+      "trends": "トレンド",
+      "fleet": "フリート",
+      "trace": "トレース",
+      "readiness": "準備状況",
+      "budgets": "予算",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "perf": {
+    "picker": {
+      "label": "シナリオ"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "概要",
+      "description": "フリートのパフォーマンスのライブスナップショットと、各ワークフローへのクイックアクセス。",
+      "snapshotTitle": "フリートスナップショット",
+      "snapshotError": "フリートスナップショットを読み込めませんでした。",
+      "workflowsTitle": "ワークフロー",
+      "snapshotEmpty": "まだ採点されたシナリオはありません — 監査を実行してフリートを作成してください。",
+      "snapshotCta": "フリートダッシュボードを開く"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    }
+  },
+  "audit": {
+    "title": "シナリオを監査",
+    "description": "キャプチャティアを判定し、実際のパフォーマンス監査を実行して、トレースと所在の特定された検出結果を生成します。",
+    "run": "監査を実行",
+    "running": "監査を実行中…",
+    "tier": {
+      "title": "キャプチャティア",
+      "errorTitle": "準備状況を読み込めませんでした",
+      "loadingTitle": "キャプチャティアを判定中",
+      "framework": "フレームワーク",
+      "surfaces": "サーフェス"
+    },
+    "findings": {
+      "title": "準備状況の検出結果",
+      "empty": "準備状況の検出結果はありません — このシナリオはパフォーマンス対応済みです。",
+      "autofixable": "自動修正可能",
+      "readinessLink": "準備状況を開いて修正を適用"
+    },
+    "result": {
+      "title": "監査結果",
+      "trace": "トレースアーティファクト",
+      "webVitals": "Web Vitalsアーティファクト"
+    },
+    "outcome": {
+      "captured": "キャプチャ済み",
+      "skipped": "スキップ",
+      "failed": "失敗",
+      "unavailable": "利用不可",
+      "unknown": "不明"
+    }
+  },
+  "trends": {
+    "title": "時系列パフォーマンス",
+    "description": "選択したシナリオのビルド・起動・ブラウザパフォーマンスのトレンド。",
+    "empty": "トレンドサンプルがまだありません。監査またはベンチマークを実行して系列を開始してください。",
+    "emptyTitle": "トレンドはまだありません",
+    "emptyCta": "監査を実行",
+    "errorTitle": "トレンドを読み込めませんでした",
+    "loadingTitle": "トレンドを読み込み中",
+    "sparklineLabel": "{{metric}} のトレンド",
+    "samplesTitle": "最近のサンプル",
+    "metric": {
+      "goBuild": "Goビルド",
+      "uiBuild": "UIビルド",
+      "bundle": "バンドルサイズ",
+      "lcp": "LCP",
+      "component": "最も遅いコンポーネント",
+      "startup": "起動"
+    },
+    "col": {
+      "captured": "取得日時",
+      "note": "メモ"
+    }
+  },
+  "fleet": {
+    "title": "フリートダッシュボード",
+    "description": "シナリオ横断のパフォーマンス違反とティア分布。",
+    "refresh": "更新",
+    "empty": "採点されたシナリオはありません。",
+    "emptyTitle": "フリートは空です",
+    "errorTitle": "フリートをスキャンできませんでした",
+    "loadingTitle": "フリートをスキャン中",
+    "summary": {
+      "scenarios": "シナリオ",
+      "noBudget": "予算なし",
+      "regressed": "退行"
+    },
+    "tiers": {
+      "title": "ティア分布"
+    },
+    "slowest": {
+      "title": "最も遅いビルド",
+      "empty": "ビルド計測がありません。"
+    },
+    "regressedSection": {
+      "title": "退行したシナリオ",
+      "empty": "退行は検出されませんでした。",
+      "flagged": "退行としてフラグ付け"
+    },
+    "noBudgetSection": {
+      "title": "予算のないシナリオ",
+      "empty": "採点された全シナリオに予算があります。"
+    },
+    "errors": {
+      "title": "採点できませんでした"
+    },
+    "col": {
+      "scenario": "シナリオ",
+      "tier": "ティア",
+      "goBuild": "Goビルド",
+      "uiBuild": "UIビルド",
+      "reason": "理由"
+    }
+  },
+  "trace": {
+    "title": "トレースを開く",
+    "description": "キャプチャしたトレースアーティファクトを分析：Web Vitals、コンポーネント単位のコミット属性、所在特定された検出結果。",
+    "artifactLabel": "トレースアーティファクト",
+    "artifactPlaceholder": "performance.json へのパス",
+    "analyze": "分析",
+    "empty": "トレースアーティファクトを指定して分析すると、コンポーネント属性が表示されます。",
+    "emptyTitle": "まだトレースを分析していません",
+    "errorTitle": "トレースを分析できませんでした",
+    "loadingTitle": "トレースを分析中",
+    "devtoolsHint": "アーティファクトハンドルは生の performance.json へのパスです — Chrome DevTools または chrome://tracing で読み込むと完全なタイムラインを確認できます。",
+    "componentsTitle": "コンポーネントコミット",
+    "componentsEmpty": "このトレースにはコンポーネント属性がありません（ティア0キャプチャ）。",
+    "findingsTitle": "検出結果",
+    "findingsEmpty": "このトレースにパフォーマンスの検出結果はありません。",
+    "vital": {
+      "lcp": "LCP",
+      "fcp": "FCP",
+      "longTask": "最長タスク",
+      "components": "コンポーネント"
+    },
+    "col": {
+      "component": "コンポーネント",
+      "commits": "コミット",
+      "avg": "平均",
+      "max": "最大",
+      "definition": "定義"
+    }
+  },
+  "readiness": {
+    "title": "準備状況と自動修正",
+    "description": "不足しているティア1パフォーマンスビルドインフラを表示し、ワンクリックで修正を適用します。",
+    "framework": "フレームワーク",
+    "errorTitle": "準備状況を読み込めませんでした",
+    "loadingTitle": "準備状況を確認中",
+    "autofixableCount": "{{count}} 件が自動修正可能",
+    "autofixableCount_zero": "自動修正するものはありません",
+    "preview": "修正をプレビュー",
+    "apply": "修正を適用",
+    "applying": "適用中…",
+    "gaps": {
+      "title": "準備状況のギャップ",
+      "empty": "ギャップなし — このシナリオは完全なパフォーマンスビルドインフラを備えています。",
+      "autofixable": "自動修正可能"
+    },
+    "fixResult": {
+      "title": "修正結果",
+      "applied": "適用済み",
+      "previewed": "プレビュー（ドライラン）"
+    }
+  },
+  "budgets": {
+    "title": "予算",
+    "description": "シナリオ単位のパフォーマンス予算を表示・編集し、最新データに対してチェックします。",
+    "errorTitle": "予算を読み込めませんでした",
+    "loadingTitle": "予算を読み込み中",
+    "notDeclared": "このシナリオにはまだ予算が宣言されていません。下でしきい値を設定して作成してください。",
+    "unsetPlaceholder": "未設定",
+    "ratchet": "ラチェット（予算を最新の計測値まで引き締める）",
+    "save": "予算を保存",
+    "saved": "保存しました",
+    "check": "予算をチェック",
+    "field": {
+      "goBuild": "Goビルド最大値 (ms)",
+      "uiBuild": "UIビルド最大値 (ms)",
+      "bundle": "バンドル最大値 (bytes)",
+      "lcp": "LCP最大値 (ms)",
+      "startup": "起動最大値 (ms)"
+    },
+    "checkResult": {
+      "title": "予算チェック",
+      "passed": "予算内",
+      "failed": "予算超過",
+      "col": {
+        "axis": "軸",
+        "measured": "計測値",
+        "budget": "予算"
+      }
+    }
+  },
+  "health": {
+    "title": "APIヘルス",
+    "loading": "APIステータスを確認中…",
+    "error": "APIに到達できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "更新",
+    "refreshCount": "{{count}} 回更新しました",
+    "refreshCount_one": "1回更新しました",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知",
+    "summary_zero": "通知はありません",
+    "summary_one": "1件の通知"
+  },
+  "errors": {
+    "canceled": "操作がキャンセルされました。",
+    "unknown": "不明なエラーが発生しました。",
+    "invalid_argument": "入力が無効です: {{message}}",
+    "deadline_exceeded": "操作がタイムアウトしました。",
+    "not_found": "リソースが見つかりません。",
+    "already_exists": "すでに存在します。",
+    "permission_denied": "権限がありません。",
+    "resource_exhausted": "リソースの上限に達しました。",
+    "failed_precondition": "この操作を実行できません: {{message}}",
+    "aborted": "操作が中止されました。",
+    "out_of_range": "範囲外です。",
+    "unimplemented": "まだ実装されていません。",
+    "internal": "問題が発生しました。もう一度お試しください。",
+    "unavailable": "サービスは一時的に利用できません。",
+    "data_loss": "データ損失が検出されました。",
+    "unauthenticated": "続行するにはサインインしてください。"
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページのレンダリング中に予期しないエラーが発生しました。もう一度試すか、問題が続く場合は再読み込みしてください。",
+    "retry": "もう一度試す"
+  }
+}

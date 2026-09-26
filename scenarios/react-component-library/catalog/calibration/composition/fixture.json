@@ -1,0 +1,11 @@
+{
+  "gate": "composition",
+  "assetId": "calibration.composition",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.composition_low_score",
+  "description": "A rendered tree with one stamped root and forty raw divs must score below 0.2.",
+  "source": "raw-heavy.tsx",
+  "catalogAsset": "asset.json",
+  "mutation": "composition-low-score"
+}

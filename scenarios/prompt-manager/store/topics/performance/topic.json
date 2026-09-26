@@ -1,0 +1,15 @@
+{
+  "kind": "topic",
+  "schemaVersion": 1,
+  "id": "performance",
+  "name": "Performance",
+  "description": "Performance work: profiling, optimizing throughput and latency, and reducing resource use.",
+  "parentTopicId": "development",
+  "skills": [
+    "performance"
+  ],
+  "status": "active",
+  "revision": 1,
+  "createdAt": "2026-06-04T17:35:24Z",
+  "updatedAt": "2026-06-04T17:35:24Z"
+}

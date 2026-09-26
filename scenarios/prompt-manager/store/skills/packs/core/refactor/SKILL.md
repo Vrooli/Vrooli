@@ -1,4 +1,27 @@
+---
+name: "refactor"
+description: "Code quality and structure improvements"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","refactor"]
+  tags: ["skill"]
+  icon: "refreshcw"
+  status: "active"
+  targetDimensions: ["structure","standards","cycles","tidiness"]
+  revision: 44
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Refactor & Structural Improvement
+
+> **Ladder position:** R2–R3 (evolvable architecture / features hardened). Large structural refactors — breaking import cycles, relocating packages, untangling coupling — are the *expected* move at R2; don't shrink them into cosmetic edits. See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
 
 Prioritize **code quality, structure, and maintainability** across this scenario’s implementation.
 Do **not** change the intended behavior, regress tests, or weaken safety guarantees; all changes must maintain or improve completeness.
@@ -6,7 +29,7 @@ Do **not** change the intended behavior, regress tests, or weaken safety guarant
 Focus on producing a **cleaner, clearer, easier-to-extend codebase**, guided by the following principles:
 
 Required reading:
-- `prompt-manager skills read knowledge-observatory-tools`
+- `prompt-manager skill read knowledge-observatory-tools`
 
 ### **1. Preserve Behavior & Intent**
 
@@ -17,6 +40,7 @@ Required reading:
   * same user-visible workflows and outcomes
   * same API contracts, validation rules, and side effects
 * Do **not** relax tests or assertions to “make refactors pass.” If you must adjust tests, ensure the new expectations are *more accurate* to the PRD, not looser.
+* **Never weaken or delete a `[REQ:]`-tagged test to make a refactor pass** — that test *is* the requirement's definition; loosening it un-defines the requirement. Make the refactored code satisfy the original assertion. (The controller flags this and zeroes the iteration's credit — see `improvement-do-and-dont`.)
 
 ### **2. Improve Code Structure & Readability**
 
@@ -97,7 +121,7 @@ tidiness-manager recommend-refactors {{TARGET}} \
 **After analyzing each file:**
 ```bash
 # Record your visit with specific notes about improvements and remaining work
-tidiness-manager visit <file-path> \
+tidiness-manager visit "<file-path>" \
   --scenario {{TARGET}} \
   --note "<summary of refactorings made and what remains>"
 ```
@@ -105,7 +129,7 @@ tidiness-manager visit <file-path> \
 **When a file is irrelevant to refactoring (config, build scripts, generated files, etc.):**
 ```bash
 # Mark it excluded so it doesn't resurface - this is NOT a refactor target
-tidiness-manager exclude <file-path> \
+tidiness-manager exclude "<file-path>" \
   --scenario {{TARGET}} \
   --reason "Not a refactor target - config/generated/tooling/etc."
 ```
@@ -113,7 +137,7 @@ tidiness-manager exclude <file-path> \
 **When a file is fully refactored:**
 ```bash
 # Mark it excluded so it doesn't resurface in future queries
-tidiness-manager exclude <file-path> \
+tidiness-manager exclude "<file-path>" \
   --scenario {{TARGET}} \
   --reason "All refactoring complete - clean structure, clear naming, no duplication"
 ```

@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"scenario-to-desktop-api/signing/types"
+
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 // FileSystem abstracts file operations for testing.
@@ -33,6 +35,19 @@ type TimeProvider interface {
 	Now() time.Time
 }
 
+// CredentialAuthority is the read-only custody seam used to verify a managed
+// signing key exists without ever reading its value.
+type CredentialAuthority interface {
+	Status(identity credentialauthority.Identity, field string) credentialauthority.Status
+	Availability() error
+}
+
+// openCredentialAuthority is a variable so tests can inject a fake without
+// touching the live native store.
+var openCredentialAuthority = func() (CredentialAuthority, error) {
+	return credentialauthority.Default()
+}
+
 // Certificate expiration thresholds (in days)
 const (
 	CertExpiryWarningDays  = 60
@@ -41,10 +56,11 @@ const (
 
 // PrerequisiteChecker implements signing.PrerequisiteChecker.
 type PrerequisiteChecker struct {
-	fs   FileSystem
-	cmd  CommandRunner
-	env  EnvironmentReader
-	time TimeProvider
+	fs        FileSystem
+	cmd       CommandRunner
+	env       EnvironmentReader
+	time      TimeProvider
+	authority CredentialAuthority
 }
 
 // PrerequisiteCheckerOption configures a prerequisite checker.
@@ -75,6 +91,13 @@ func WithEnvironmentReader(env EnvironmentReader) PrerequisiteCheckerOption {
 func WithTimeProvider(tp TimeProvider) PrerequisiteCheckerOption {
 	return func(c *PrerequisiteChecker) {
 		c.time = tp
+	}
+}
+
+// WithCredentialAuthority sets a custom credential authority for managed keys.
+func WithCredentialAuthority(authority CredentialAuthority) PrerequisiteCheckerOption {
+	return func(c *PrerequisiteChecker) {
+		c.authority = authority
 	}
 }
 
@@ -234,13 +257,13 @@ func (c *PrerequisiteChecker) checkWindowsFileCertificate(ctx context.Context, c
 	}
 
 	// Get password from environment if available
-	password := ""
+	certificatePassphrase := ""
 	if config.CertificatePasswordEnv != "" {
-		password = c.env.GetEnv(config.CertificatePasswordEnv)
+		certificatePassphrase = c.env.GetEnv(config.CertificatePasswordEnv)
 	}
 
 	// Parse the PKCS#12 certificate
-	certInfo, err := c.parsePKCS12Certificate(certData, password)
+	certInfo, err := c.parsePKCS12Certificate(certData, certificatePassphrase)
 	if err != nil {
 		if strings.Contains(err.Error(), "password") {
 			addWarning(result, types.ValidationWarning{

@@ -1,0 +1,99 @@
+{
+  "record": "BAS-WORK-045",
+  "issues": [
+    "BAS-RF-046",
+    "BAS-RF-047"
+  ],
+  "status": "deployed_scoped_checks_passed",
+  "controlled_protocol": {
+    "before": "/tmp/bas-cdp-generation-red2-045.log",
+    "after": "/tmp/bas-cdp-generation-green-045.log",
+    "cases_failed_before": 3,
+    "cases_passed_after": 3,
+    "late_starts_before": [
+      1,
+      1
+    ],
+    "late_starts_after": [
+      0,
+      0
+    ],
+    "late_detach_before": 0,
+    "late_detach_after": 1,
+    "old_new_payloads_before": [
+      "old-buffer",
+      "new",
+      "old-late"
+    ],
+    "payloads_after": [
+      "new"
+    ]
+  },
+  "maintained_red": {
+    "failed": 5,
+    "seconds": 0.551,
+    "receipt": "/tmp/bas-cdp-generation-maintained-red-045.txt"
+  },
+  "focused": {
+    "status": "passed",
+    "tests": 41,
+    "suites": 3,
+    "seconds": 12.406,
+    "receipt": "/tmp/bas-cdp-generation-focused-045.txt"
+  },
+  "native_pixels": {
+    "status": "passed",
+    "test_seconds": 0.316,
+    "suite_seconds": 0.988,
+    "receipt": "/tmp/bas-cdp-native-pixels-045.txt",
+    "oracle": "JPEG centre pixel decoded in a separate native browser page; all delivered frames blue after red-to-blue target switch and reconnect with no new paint."
+  },
+  "types": "passed",
+  "runtime_lines": {
+    "before": 507,
+    "after": 321,
+    "net": -186
+  },
+  "source_sha256": {
+    "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts": "921c54f2965f76999e06b3b5fb9eaed8a6f793c046490766c9b0594257bc1dc2"
+  },
+  "limitations": [
+    "Effective quality/FPS/performance-header settings remain RF047.",
+    "No claim of full correlated input-to-paint performance or native-platform qualification.",
+    "Stop joins finite protocol acquisition; worst-case unresponsive SDK bounds remain unqualified.",
+    "TypeScript cyclomatic measurement remains unavailable under RF064."
+  ],
+  "pending_operations": [],
+  "build": "passed",
+  "tidiness": {
+    "run_id": "20260922-192057-fac20ac7",
+    "status": "failed",
+    "quiet_wait_consumed": true
+  },
+  "driver_owner": {
+    "run_id": "uh-20260922-192052-24cc5ca0d1cc1f46830b64e44f80ce2a",
+    "status": "passed",
+    "tests_passed": 1602,
+    "suites_passed": 124,
+    "tests_skipped": 2,
+    "suites_skipped": 1,
+    "command_duration_ms": 377515,
+    "jest_seconds": 376.686,
+    "receipt": "/tmp/bas-cdp-owner-045.json"
+  },
+  "board": {
+    "program_id": "prog_c1921833-d627-4653-b468-554ec183608c",
+    "required": 17,
+    "unqualified": 17,
+    "product_qualified": false,
+    "receipt": "/tmp/bas-board-045.txt"
+  },
+  "deployment": {
+    "build_identity": "sha256:d12561e656243724d39a311ef08248dbb9d1f356ed9cc6ed0eb167f505a85d51",
+    "restart_tool_session": 46214,
+    "health_receipt": "/tmp/bas-live-health-045.json",
+    "profiles_receipt": "/tmp/bas-profile-final-045.txt",
+    "complete_profile_reads_matched": 3,
+    "profile_metadata_matches_044": true
+  }
+}

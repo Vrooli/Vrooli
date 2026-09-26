@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aquila — Field notes</title>
+  <style>
+    :root { --paper:#f4f2ed; --paper-2:#e9e6df; --ink:#10151d; --muted:#5e6975; --line:rgba(16,21,29,.17); --orange:#e85d18; --teal:#177a83; --blue:#46748a; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-width:320px; color:var(--ink); background:var(--paper); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    body:before { content:""; position:fixed; inset:0; opacity:.32; pointer-events:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.78' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.07'/%3E%3C/svg%3E"); mix-blend-mode:multiply; }
+    .wrap { width:min(1220px,calc(100% - 70px)); margin:auto; position:relative; }
+    nav { height:87px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); }
+    .brand { display:flex; gap:12px; align-items:center; color:var(--ink); text-decoration:none; font:650 18px "Space Grotesk",Inter,sans-serif; letter-spacing:-.03em; }
+    .mark { width:27px; height:27px; display:grid; place-items:center; color:var(--paper); border-radius:50%; background:var(--ink); font:800 13px "Space Grotesk",sans-serif; }
+    .navmeta { display:flex; align-items:center; gap:24px; color:var(--muted); font-size:12px; }
+    .navmeta a { color:inherit; text-decoration:none; }
+    .navcta { padding:10px 15px; color:var(--paper)!important; background:var(--ink); border-radius:999px; }
+    main { display:grid; grid-template-columns:.85fr 1.15fr; gap:8vw; align-items:center; min-height:calc(100vh - 87px); padding:68px 0 78px; }
+    .copy { max-width:510px; }
+    .serial { color:var(--orange); font:700 11px "JetBrains Mono",monospace; letter-spacing:.13em; text-transform:uppercase; }
+    h1 { margin:23px 0 23px; font:600 clamp(52px,6.4vw,84px)/.98 "Space Grotesk",Inter,sans-serif; letter-spacing:-.075em; }
+    h1 em { color:var(--teal); font-style:normal; }
+    .lede { max-width:465px; margin:0; color:var(--muted); font-size:17px; line-height:1.7; }
+    .actions { display:flex; align-items:center; gap:20px; margin-top:33px; flex-wrap:wrap; }
+    .button { display:inline-flex; gap:10px; align-items:center; padding:14px 18px; border-radius:999px; font:650 13px "Space Grotesk",Inter,sans-serif; text-decoration:none; }
+    .primary { color:var(--paper); background:var(--ink); box-shadow:0 8px 16px rgba(16,21,29,.14); }
+    .textlink { color:var(--ink); border-bottom:1px solid var(--orange); border-radius:0; padding:8px 0; }
+    .annotation { display:flex; align-items:center; gap:10px; margin-top:48px; color:var(--muted); font:11px "JetBrains Mono",monospace; }
+    .annotation:before { content:""; width:38px; height:1px; background:var(--orange); }
+    .artifact { min-height:580px; position:relative; display:grid; place-items:center; }
+    .paper-sheet { width:min(600px,100%); min-height:476px; position:relative; z-index:2; padding:28px; border:1px solid rgba(16,21,29,.2); background:#faf9f5; box-shadow:22px 26px 0 #d7d3ca, 40px 46px 58px rgba(16,21,29,.16); transform:rotate(-2.5deg); }
+    .paper-sheet:before { content:""; position:absolute; inset:15px; border:1px solid rgba(16,21,29,.14); pointer-events:none; }
+    .sheet-header { display:flex; justify-content:space-between; align-items:start; position:relative; padding-bottom:24px; border-bottom:1px solid var(--line); }
+    .sheet-title { font:600 26px/1 "Space Grotesk",Inter,sans-serif; letter-spacing:-.045em; }
+    .sheet-title span { display:block; margin-top:7px; color:var(--teal); font:600 12px "JetBrains Mono",monospace; letter-spacing:.03em; }
+    .stamp { padding:8px 9px; border:1px solid var(--orange); color:var(--orange); font:700 9px "JetBrains Mono",monospace; letter-spacing:.1em; transform:rotate(5deg); }
+    .sheet-grid { display:grid; grid-template-columns:1.2fr .8fr; gap:18px; position:relative; padding-top:24px; }
+    .outline { min-height:287px; padding:19px; background:#eef0eb; border:1px solid rgba(16,21,29,.12); }
+    .outline-top { display:flex; justify-content:space-between; align-items:center; color:var(--muted); font:10px "JetBrains Mono",monospace; }
+    .outline h2 { margin:35px 0 12px; font:600 30px/.98 "Space Grotesk",sans-serif; letter-spacing:-.05em; }
+    .outline p { max-width:235px; color:var(--muted); font-size:10px; line-height:1.45; }
+    .progress { display:flex; gap:5px; margin-top:22px; }
+    .progress i { width:29px; height:4px; background:#bbc5c1; }
+    .progress i:nth-child(-n+3) { background:var(--teal); }
+    .field-notes { padding:1px 0; }
+    .field-notes h3 { margin:0 0 14px; color:var(--orange); font:700 10px "JetBrains Mono",monospace; letter-spacing:.11em; text-transform:uppercase; }
+    .note-row { display:grid; grid-template-columns:21px 1fr; gap:8px; padding:10px 0; border-top:1px solid var(--line); }
+    .note-row b { color:var(--teal); font:700 11px "JetBrains Mono",monospace; }
+    .note-row strong { display:block; font:650 11px "Space Grotesk",sans-serif; }
+    .note-row span { display:block; margin-top:4px; color:var(--muted); font-size:9px; line-height:1.4; }
+    .sheet-footer { display:flex; justify-content:space-between; position:relative; margin-top:22px; padding-top:13px; border-top:1px solid var(--line); color:var(--muted); font:9px "JetBrains Mono",monospace; }
+    .rings { position:absolute; width:620px; height:620px; top:-3%; right:-17%; border:1px solid rgba(23,122,131,.18); border-radius:50%; box-shadow:0 0 0 35px rgba(23,122,131,.05),0 0 0 70px rgba(23,122,131,.045),0 0 0 105px rgba(23,122,131,.035); }
+    .rings:after { content:""; position:absolute; width:8px; height:8px; top:27%; left:12%; border-radius:50%; background:var(--orange); box-shadow:0 0 0 7px rgba(232,93,24,.13); }
+    .side-label { position:absolute; right:-42px; top:40%; color:var(--muted); font:10px "JetBrains Mono",monospace; letter-spacing:.1em; text-transform:uppercase; writing-mode:vertical-rl; }
+    .caption { position:absolute; left:1%; bottom:1%; color:#6e766f; font:10px "JetBrains Mono",monospace; letter-spacing:.06em; }
+    @media (max-width:900px) { .wrap { width:min(100% - 36px,650px); } main { display:block; padding:64px 0 80px; } .navmeta a:not(.navcta) { display:none; } .artifact { min-height:510px; margin-top:52px; } .side-label { right:-18px; } }
+    @media (max-width:560px) { .wrap { width:calc(100% - 28px); } nav { height:72px; } .paper-sheet { padding:18px; min-height:410px; box-shadow:12px 16px 0 #d7d3ca,24px 28px 36px rgba(16,21,29,.14); transform:rotate(-1deg); } .sheet-grid { gap:11px; padding-top:18px; } .outline { padding:12px; min-height:245px; } .outline h2 { font-size:21px; margin-top:28px; } .note-row span { display:none; } .rings { right:-44%; top:7%; width:480px; height:480px; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav><a class="brand" href="index.html"><span class="mark">A</span><span>Aquila</span></a><div class="navmeta"><a href="#artifact">The workspace</a><a href="#method">The method</a><a class="navcta" href="#start">Start with Aquila ↗</a></div></nav>
+    <main>
+      <section class="copy" id="method"><div class="serial">AQL / 01 · FIELD NOTE</div><h1>Work is easier to trust when <em>context has a home.</em></h1><p class="lede">Aquila is the operating layer for people and agents: durable sessions, visible handoffs, and a calm place to turn a moving day into a sequence you can actually finish.</p><div class="actions" id="start"><a class="button primary" href="#artifact">Open the workspace <span>↗</span></a><a class="button textlink" href="#artifact">See how it works <span>↓</span></a></div><div class="annotation">Designed for the moment after the meeting, before the handoff.</div></section>
+      <section class="artifact" id="artifact" aria-label="Aquila editorial workspace artifact"><div class="rings" aria-hidden="true"></div><div class="paper-sheet"><div class="sheet-header"><div class="sheet-title">Aquila<span>your work, still in view</span></div><div class="stamp">OBSERVED<br>IN FLOW</div></div><div class="sheet-grid"><div class="outline"><div class="outline-top"><span>MON 14 SEP</span><span>09:42</span></div><h2>Make the next<br>move obvious.</h2><p>One workspace for sessions that persist, decisions that need a home, and agent work you can review before it ships.</p><div class="progress"><i></i><i></i><i></i><i></i><i></i></div></div><div class="field-notes"><h3>Signals from the day</h3><div class="note-row"><b>01</b><div><strong>Session continuity</strong><span>Resume without reconstructing the room.</span></div></div><div class="note-row"><b>02</b><div><strong>Visible handoff</strong><span>Leave the why beside the work.</span></div></div><div class="note-row"><b>03</b><div><strong>Clean finish</strong><span>Know what is ready to ship.</span></div></div><div class="note-row"><b>04</b><div><strong>Operator control</strong><span>Automation stays legible.</span></div></div></div></div><div class="sheet-footer"><span>workspace / overview</span><span>aquila</span></div></div><div class="side-label">web.hero · copy-safe composition</div><div class="caption">ARTIFACT 02 / EDITORIAL WORKSPACE POSTER / DESKTOP HERO</div></section>
+    </main>
+  </div>
+</body>
+</html>

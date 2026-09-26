@@ -1,0 +1,122 @@
+{
+  "_metadata": {
+    "description": "The personal-planner calendar link: verified adapter, idempotent reconciled links, timezone-correct scheduling, and untimed fallback tasks.",
+    "module": "calendar-integration",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "CAL-001",
+      "title": "The personal-planner adapter is verified before use",
+      "status": "planned",
+      "prd_ref": "OT-P1-008",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "The scenario should discover and verify the personal-planner API before integrating, keep meal choices, recipes, servings, requirements, and food records owned here and calendar timing owned by personal-planner, expose create, read, update, cancel, change detection, and deep-link capabilities only as actually available, and keep untimed internal prep tasks when no integration is configured.",
+      "tags": [
+        "calendar",
+        "personal-planner",
+        "adapter"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: with the adapter unconfigured, Schedule prep keeps an untimed internal task and shows an honest unavailable state (R24.3)."
+        }
+      ]
+    },
+    {
+      "id": "CAL-002",
+      "title": "Calendar links are idempotent and reconciled",
+      "status": "planned",
+      "prd_ref": "OT-P1-008",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "The scenario should store each link with source task id and revision, external event id and revision, sync state, and operation identity, use a stable idempotent external key per task purpose, reconcile by key after a timeout before creating another event, distinguish pending, linked, failed, and conflict, retry bounded transient failures, and show reconnection needed when access is revoked.",
+      "tags": [
+        "calendar",
+        "idempotency",
+        "reconciliation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a create that times out after the remote commit reconciles to one event without a duplicate (AT-045)."
+        }
+      ]
+    },
+    {
+      "id": "CAL-003",
+      "title": "Calendar changes never rewrite food records",
+      "status": "planned",
+      "prd_ref": "OT-P1-008",
+      "category": "policy",
+      "criticality": "P1",
+      "description": "When a linked calendar event moves within the same day the scenario should update the linked time, when it moves across local dates it should preview meal-plan and leftover implications, when it is deleted it should only unschedule the task, and completing a calendar task should never record eating.",
+      "tags": [
+        "calendar",
+        "boundaries",
+        "history"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a linked event moved to another day or deleted produces a review or unscheduling only, with no meal or intake change (AT-046)."
+        }
+      ]
+    },
+    {
+      "id": "CAL-004",
+      "title": "Scheduling is timezone-correct",
+      "status": "planned",
+      "prd_ref": "OT-P1-008",
+      "category": "domain",
+      "criticality": "P1",
+      "description": "Scheduled prep and cooking blocks should carry an IANA timezone, handle daylight-saving ambiguity by a documented policy, and distinguish all-day from timed semantics.",
+      "tags": [
+        "calendar",
+        "timezone",
+        "dst"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a prep block on a DST transition day resolves by the documented policy and keeps its local date (R24.3, ACT-055)."
+        }
+      ]
+    },
+    {
+      "id": "CAL-005",
+      "title": "Schedule prep proposes an editable block",
+      "status": "planned",
+      "prd_ref": "OT-P1-008",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "Schedule prep and Schedule cooking should open a proposed block with title, start and end or duration, local timezone, source task identity, and an Open full calendar link that the user can confirm or edit, linking an existing personal-planner event instead of duplicating it.",
+      "tags": [
+        "calendar",
+        "prep",
+        "ui"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: confirming a proposal for a task that already has a linked event updates the link rather than creating a second event (R24.2)."
+        }
+      ]
+    }
+  ]
+}

@@ -1,11 +1,9 @@
 package ai
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
+	"errors"
 	"io"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -33,7 +31,7 @@ func TestClampPreviewViewport(t *testing.T) {
 	})
 }
 
-func TestScreenshotHandler_TakePreviewScreenshot_Success(t *testing.T) {
+func TestScreenshotHandler_RunPreviewScreenshot_Success(t *testing.T) {
 	mockRunner := NewMockAutomationRunner()
 	mockRunner.Outcomes = []autocontracts.StepOutcome{
 		{
@@ -60,88 +58,63 @@ func TestScreenshotHandler_TakePreviewScreenshot_Success(t *testing.T) {
 
 	handler := newScreenshotHandlerForTest(mockRunner)
 
-	reqBody := previewRequest{
-		URL: "https://example.com",
-		Viewport: &struct {
-			Width  int `json:"width"`
-			Height int `json:"height"`
-		}{Width: 100, Height: 20000},
-	}
-	body, _ := json.Marshal(reqBody)
+	res, err := handler.RunPreviewScreenshot(context.Background(), PreviewScreenshotArgs{
+		URL:            "https://example.com",
+		ViewportWidth:  100,
+		ViewportHeight: 20000,
+	})
 
-	req := httptest.NewRequest("POST", "/api/v1/preview-screenshot", bytes.NewBuffer(body))
-	w := httptest.NewRecorder()
-
-	handler.TakePreviewScreenshot(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	var response map[string]any
-	require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
-	assert.Equal(t, true, response["success"])
-	assert.Contains(t, response["screenshot"].(string), "data:image/png;base64,")
-	events, ok := response["events"].([]any)
-	require.True(t, ok)
-	assert.Len(t, events, len(mockRunner.Events))
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, []byte{0x89, 0x50, 0x4E}, res.ScreenshotPNG)
+	assert.Equal(t, "image/png", res.ContentType)
+	assert.Equal(t, "https://example.com/", res.URL)
+	assert.Len(t, res.ConsoleLogs, 1)
+	assert.Len(t, res.Events, 1)
 
 	require.Len(t, mockRunner.RunCalls, 1)
 	call := mockRunner.RunCalls[0]
 	assert.Equal(t, previewMinViewportDimension, call.ViewportWidth)  // width clamped up from 100
 	assert.Equal(t, previewMaxViewportDimension, call.ViewportHeight) // height clamped down from 20000
-	require.Len(t, call.Instructions, 2)
-	assert.Equal(t, "preview.navigate", call.Instructions[0].NodeID)
-	assert.Equal(t, "preview.screenshot", call.Instructions[1].NodeID)
 }
 
-func TestScreenshotHandler_TakePreviewScreenshot_Errors(t *testing.T) {
-	t.Run("rejects invalid JSON", func(t *testing.T) {
+func TestScreenshotHandler_RunPreviewScreenshot_LooksUpOutcomesByNodeID(t *testing.T) {
+	mockRunner := NewMockAutomationRunner()
+	mockRunner.Outcomes = []autocontracts.StepOutcome{
+		{Success: true, NodeID: "unrelated"},
+		{Success: true, NodeID: "preview.screenshot", Screenshot: &autocontracts.Screenshot{Data: []byte{1}}, FinalURL: "https://example.com/"},
+		{Success: true, NodeID: "preview.navigate"},
+	}
+	result, err := newScreenshotHandlerForTest(mockRunner).RunPreviewScreenshot(context.Background(), PreviewScreenshotArgs{URL: "https://example.com"})
+	require.NoError(t, err)
+	require.Equal(t, []byte{1}, result.ScreenshotPNG)
+}
+
+func TestScreenshotHandler_RunPreviewScreenshot_Errors(t *testing.T) {
+	t.Run("rejects empty URL", func(t *testing.T) {
 		handler := newScreenshotHandlerForTest(NewMockAutomationRunner())
-		req := httptest.NewRequest("POST", "/preview", bytes.NewBufferString("not json"))
-		w := httptest.NewRecorder()
-
-		handler.TakePreviewScreenshot(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("rejects missing URL", func(t *testing.T) {
-		handler := newScreenshotHandlerForTest(NewMockAutomationRunner())
-		body, _ := json.Marshal(previewRequest{})
-		req := httptest.NewRequest("POST", "/preview", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.TakePreviewScreenshot(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
+		_, err := handler.RunPreviewScreenshot(context.Background(), PreviewScreenshotArgs{})
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrMissingURL)
 	})
 
 	t.Run("errors when runner missing", func(t *testing.T) {
 		log := logrus.New()
 		log.SetOutput(io.Discard)
 		handler := &ScreenshotHandler{log: log}
-
-		body, _ := json.Marshal(previewRequest{URL: "https://example.com"})
-		req := httptest.NewRequest("POST", "/preview", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.TakePreviewScreenshot(w, req)
-
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
+		_, err := handler.RunPreviewScreenshot(context.Background(), PreviewScreenshotArgs{URL: "https://example.com"})
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrAutomationRunnerNotReady)
 	})
 
 	t.Run("propagates automation runner error", func(t *testing.T) {
-		mockRunner := &MockAutomationRunner{Err: assert.AnError}
+		mockRunner := &MockAutomationRunner{Err: errors.New("driver gone")}
 		handler := newScreenshotHandlerForTest(mockRunner)
-
-		body, _ := json.Marshal(previewRequest{URL: "https://example.com"})
-		req := httptest.NewRequest("POST", "/preview", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.TakePreviewScreenshot(w, req)
-
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
+		_, err := handler.RunPreviewScreenshot(context.Background(), PreviewScreenshotArgs{URL: "https://example.com"})
+		require.Error(t, err)
 	})
 
-	t.Run("reports navigation failure message", func(t *testing.T) {
+	t.Run("reports navigation failure", func(t *testing.T) {
 		mockRunner := NewMockAutomationRunner()
 		mockRunner.Outcomes = []autocontracts.StepOutcome{
 			{
@@ -152,14 +125,9 @@ func TestScreenshotHandler_TakePreviewScreenshot_Errors(t *testing.T) {
 			{Success: true, NodeID: "preview.screenshot"},
 		}
 		handler := newScreenshotHandlerForTest(mockRunner)
-
-		body, _ := json.Marshal(previewRequest{URL: "https://example.com"})
-		req := httptest.NewRequest("POST", "/preview", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.TakePreviewScreenshot(w, req)
-
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
+		_, err := handler.RunPreviewScreenshot(context.Background(), PreviewScreenshotArgs{URL: "https://example.com"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "dns failed")
 	})
 
 	t.Run("reports screenshot data issues", func(t *testing.T) {
@@ -169,14 +137,9 @@ func TestScreenshotHandler_TakePreviewScreenshot_Errors(t *testing.T) {
 			{Success: true, NodeID: "preview.screenshot"},
 		}
 		handler := newScreenshotHandlerForTest(mockRunner)
-
-		body, _ := json.Marshal(previewRequest{URL: "https://example.com"})
-		req := httptest.NewRequest("POST", "/preview", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.TakePreviewScreenshot(w, req)
-
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
+		_, err := handler.RunPreviewScreenshot(context.Background(), PreviewScreenshotArgs{URL: "https://example.com"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no image data")
 	})
 }
 

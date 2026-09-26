@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "hooks.use-controllable-state",
+    "name": "useControllableState",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "The controlled-or-uncontrolled state primitive that preserves one event contract and prevents a component from maintaining competing internal and external values.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "hook",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "rationale": "Required by nearly every interactive asset, which is why it is template-seeded rather than copied into each closure."
+}

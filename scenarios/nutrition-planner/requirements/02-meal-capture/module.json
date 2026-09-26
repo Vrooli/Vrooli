@@ -1,0 +1,191 @@
+{
+  "_metadata": {
+    "description": "Flexible quick capture, conservative text organization, the detailed editor, and authoring readiness.",
+    "module": "meal-capture",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "CAP-001",
+      "title": "A name-only meal is a valid draft",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "When the user saves a trimmed meal name with no other information, the scenario shall persist one stable recipe identity and its first revision with yield, nutrients, cost, and effort left explicitly unknown rather than zero.",
+      "tags": [
+        "draft",
+        "capture",
+        "unknown"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: FIX-01 round-trip shows Draft status, empty ingredient/method collections, and no 0 kcal, 0 g protein, $0.00, or 0 min on the card (ACT-008)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a failed save retains the title locally and retries with the same logical operation key."
+        }
+      ]
+    },
+    {
+      "id": "CAP-002",
+      "title": "Text organization is conservative and lossless",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "When rough notes or pasted recipe text are organized, the scenario shall preserve the full original text and source type, extract only unambiguous amounts and units, and keep phrases such as to taste, one can, a scoop, and a handful unresolved.",
+      "tags": [
+        "parsing",
+        "source",
+        "units"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: decimals and fractions remain correct or unresolved, 1.5 cups is never rewritten as 5 cups, and a parse failure returns the original text with Save draft / Edit manually (ACT-009)."
+        }
+      ]
+    },
+    {
+      "id": "CAP-003",
+      "title": "The detailed editor validates fields without losing valid edits",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The detailed editor shall cover identity, yield and effort, ingredients, nutrition, cost, method, rules and evidence, and source notes, attach validation messages to the offending field, and preserve all valid edits when one field fails.",
+      "tags": [
+        "editor",
+        "validation",
+        "ux"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: negative amounts, NaN or infinity, invalid yield, duplicate local IDs, and broken references are rejected with specific paths, while blank numeric inputs never become zero (ACT-010)."
+        },
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned UI journey: reorder and remove ingredient rows with keyboard controls and confirm a removed step with dependents requires a repair preview."
+        }
+      ]
+    },
+    {
+      "id": "CAP-004",
+      "title": "Readiness is separate from profile eligibility",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "The scenario shall track authoring status as Draft, Ready, or Archived independently of the active profile's Fits current rules, Excluded, or Needs information result, and Ready shall never imply nutritional completeness or allergy safety.",
+      "tags": [
+        "readiness",
+        "eligibility",
+        "evidence"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a Ready meal can still be excluded by the active profile, and ingredient/product/method edits invalidate review results while notes and visual tags do not (ACT-011)."
+        }
+      ]
+    },
+    {
+      "id": "CAP-005",
+      "title": "A source can be saved without a successful fetch",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "When a user captures a link, the scenario shall store the URL as a source and allow saving the draft even when fetching or extraction is unavailable, without requiring an image, ingredient list, nutrition, method, or rating to save an idea.",
+      "tags": [
+        "capture",
+        "source",
+        "resilience"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: saving with only a URL persists the source reference and reports fetch status separately from draft-save status."
+        }
+      ]
+    },
+    {
+      "id": "CAP-006",
+      "title": "Imports stage untrusted content for review",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "service",
+      "criticality": "P0",
+      "description": "When a user pastes text or supplies a structured file, the scenario shall stage the result without any AI provider, present unknown quantities, duplicates, method and equipment assumptions, and required-rule evidence for review, treat imported text as untrusted data, and never let a late asynchronous extraction overwrite a newer field.",
+      "tags": [
+        "import",
+        "review",
+        "untrusted-input"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: paste and file imports stage a reviewable proposal with unresolved quantities preserved and imported instructions ignored as data (R10.3, AT-049)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: an extraction that finishes after the user edited a field produces a comparison rather than overwriting the edit (R10.3, UX-MEA-02)."
+        }
+      ]
+    },
+    {
+      "id": "CAP-007",
+      "title": "Your meals is a searchable, filterable collection",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The Meals destination shall present Your meals as a three-, two-, or one-column collection by width with image, title, active time, at most two evidence-backed tags, a favorite control, and + Plan on each card, search over titles, aliases, and approved tags without a model call per keystroke, chips and Filters for favorites, quick meals, high protein, fits my setup, needs review, drafts, and archived, and sorts that place unknown values in an explicit group.",
+      "tags": [
+        "meals",
+        "collection",
+        "filters",
+        "search"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: Quick meals and High protein badges come from versioned badge policies and are absent without evidence; sorting by active time puts unknown times in their own group; collection counts distinguish saved from filtered (R10.1, R23)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a name-only draft appears under Drafts after reload and favorite state is personal metadata separate from saving (AT-016)."
+        }
+      ]
+    }
+  ]
+}

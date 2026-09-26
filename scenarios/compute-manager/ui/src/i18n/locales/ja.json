@@ -1,0 +1,98 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Compute Manager のような大文字スネークケースのプレースホルダーは、`template-manager generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Compute Manager"
+  },
+  "data-display": {
+    "data-table": {
+      "access-is-limited": "アクセスが制限されています",
+      "all": "すべて",
+      "data-table-content": "データテーブルの内容",
+      "dense": "高密度",
+      "next": "次へ",
+      "previous": "前へ",
+      "roomy": "ゆったり",
+      "row-density": "行の密度"
+    }
+  },
+  "layout": {
+    "navigationLabel": "メインナビゲーション",
+    "mobileNavigationLabel": "モバイルナビゲーション",
+    "skipToContent": "コンテンツへスキップ",
+    "openNavigation": "ナビゲーションを開く",
+    "closeNavigation": "ナビゲーションを閉じる",
+    "nav": {
+      "dashboard": "ホーム",
+      "findings": "問題",
+      "request": "リクエスト",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ホーム",
+      "description": "オペレーターが最初に目にする画面です。出荷前にここに何を置くか決めてください。",
+      "inventoryTitle": "コンピュートインベントリ", "inventoryDescription": "稼働中のインスタンス、残り時間、未解決の問題。", "loading": "インベントリを読み込み中…", "error": "インベントリを読み込めません。", "empty": "稼働中のインスタンスはありません。", "openFindings": "未解決の問題", "noFindings": "未解決の調整問題はありません。", "state": "状態", "region": "リージョン", "size": "サイズ", "remaining": "残り"
+    },
+    "findings": { "title": "未解決の問題", "description": "オペレーターの対応が必要な調整問題。", "kind": "種類", "providerInstance": "プロバイダーインスタンス", "detail": "詳細", "error": "問題を読み込めません。", "empty": "未解決の調整問題はありません。" },
+    "instance": { "title": "インスタンス詳細", "description": "1つのインスタンスのプロバイダー、予約、登録状態。", "error": "インスタンスを読み込めません。", "loading": "インスタンスを読み込み中…", "state": "状態", "address": "アドレス", "provider": "プロバイダー"
+    },
+    "request": { "title": "容量をリクエスト", "description": "容量を作成する前に、上限のあるマシンの有効期間を選択します。", "provider": "プロバイダー", "region": "リージョン", "size": "サイズ", "lifetime": "有効期間（秒）", "estimate": "見積もりにはプロバイダーの最小請求単位を使用します。", "submit": "容量をリクエスト", "submitting": "容量をリクエスト中…", "success": "容量リクエストを受け付けました。", "error": "容量リクエストに失敗しました。マシンは作成されていません。", "validation": "正の有効期間を選択してください。" },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語",
+      "description": "このブラウザーの設定です。シナリオに必要な設定をすべてここに追加します。シェルの他の場所で重複させません。",
+      "preferences": "環境設定",
+      "themeHint": "ライト、ダーク、またはシステムに従う。",
+      "localeHint": "このコンソールにのみ適用されます。"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:",
+    "description": "このシナリオの API をポーリングし、その応答を表示します。"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

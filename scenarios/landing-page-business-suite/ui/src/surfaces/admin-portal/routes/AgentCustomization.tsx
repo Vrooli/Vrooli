@@ -8,7 +8,7 @@ import { textareaClassName } from '../components/formFieldClasses';
 import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
-import { Textarea } from '../../../shared/ui/input';
+import { Textarea } from '../../../shared/ui/textarea';
 import { InlineAlert } from '../../../shared/ui/InlineAlert';
 import { useAgentForm } from '../hooks/useAgentForm';
 
@@ -35,15 +35,10 @@ export function AgentCustomization() {
     clearValidationError,
   } = useAgentForm();
 
-  const onSubmit = async () => {
-    await handleSubmit();
-  };
-
   return (
     <AdminLayout maxWidth="narrow">
       <div className={LAYOUT.pageSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Agent Customization"
           description="Trigger AI-powered customization of your landing page"
           icon={Sparkles}
@@ -54,7 +49,7 @@ export function AgentCustomization() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate('/admin/customization')}
+              onClick={() => { navigate('/admin/customization'); }}
               className="gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -108,7 +103,7 @@ export function AgentCustomization() {
                 <Button onClick={clearResult} variant="outline" className="flex-1">
                   Create Another Request
                 </Button>
-                <Button onClick={() => navigate('/admin/customization')} className="flex-1">
+                <Button onClick={() => { navigate('/admin/customization'); }} className="flex-1">
                   Back to Customization
                 </Button>
               </div>
@@ -129,7 +124,7 @@ export function AgentCustomization() {
               <Textarea
                 id="brief"
                 value={form.brief}
-                onChange={(e) => setBrief(e.target.value)}
+                onChange={(e) => { setBrief(e.target.value); }}
                 className={textareaClassName}
                 rows={8}
                 placeholder="Describe what you want the agent to customize. Examples:&#10;• Make the hero section more compelling for B2B SaaS&#10;• Add social proof with customer logos&#10;• Improve CTA button copy for higher conversions&#10;• Optimize pricing section for enterprise customers"
@@ -145,7 +140,7 @@ export function AgentCustomization() {
               <Textarea
                 id="assets"
                 value={form.assets}
-                onChange={(e) => setAssets(e.target.value)}
+                onChange={(e) => { setAssets(e.target.value); }}
                 className={textareaClassName}
                 rows={4}
                 placeholder="Asset URLs (one per line):&#10;https://example.com/logo.png&#10;https://example.com/hero-image.jpg"
@@ -159,7 +154,7 @@ export function AgentCustomization() {
                   <input
                     type="checkbox"
                     checked={form.preview}
-                    onChange={(e) => setPreview(e.target.checked)}
+                    onChange={(e) => { setPreview(e.target.checked); }}
                     className="w-4 h-4"
                     data-testid="agent-preview-input"
                   />
@@ -173,7 +168,7 @@ export function AgentCustomization() {
             {/* Submit */}
             <div className="flex gap-3 pt-4 border-t border-white/10">
               <Button
-                onClick={() => navigate('/admin/customization')}
+                onClick={() => { navigate('/admin/customization'); }}
                 variant="outline"
                 className="flex-1"
                 disabled={submitting}
@@ -181,7 +176,7 @@ export function AgentCustomization() {
                 Cancel
               </Button>
               <Button
-                onClick={onSubmit}
+                onClick={() => { void handleSubmit(); }}
                 className="flex-1 gap-2"
                 disabled={submitting}
                 data-testid="agent-submit"

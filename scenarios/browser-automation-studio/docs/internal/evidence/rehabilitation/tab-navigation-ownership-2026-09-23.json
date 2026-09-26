@@ -1,0 +1,143 @@
+{
+  "cycle": "068",
+  "issues": [
+    "BAS-RF-097",
+    "BAS-RF-098"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "qualified_and_deployed",
+  "source": {
+    "baseline": "/tmp/bas-before-068/manifest.json",
+    "frozen": "/tmp/bas-frozen-068-final.json",
+    "paths": [
+      "ui/src/domains/recording/RecordingSession.tsx",
+      "ui/src/domains/recording/hooks/useBrowserNavigation.ts",
+      "ui/src/domains/recording/hooks/useBrowserNavigation.test.ts",
+      "playwright-driver/src/routes/record-mode/page-events.ts",
+      "playwright-driver/tests/unit/routes/page-events.test.ts"
+    ]
+  },
+  "qualification_snapshot": {
+    "release_outcomes_required": 17,
+    "release_outcomes_unqualified": 17,
+    "board": "/tmp/bas-board-result-068.json",
+    "contract": "/tmp/bas-contract-068.txt",
+    "inventory": "/tmp/bas-inventory-068.json"
+  },
+  "tests": {
+    "ui": {
+      "tests": 511,
+      "files": 26,
+      "types": "passed",
+      "artifact": "/tmp/bas-navigation-ui-final-068.txt"
+    },
+    "driver_focused": {
+      "tests": 88,
+      "suites": 3,
+      "types": "passed",
+      "artifact": "/tmp/bas-page-callback-green-068.txt"
+    },
+    "native_original": {
+      "red": {
+        "passed": 7,
+        "failed": 4,
+        "artifact": "/tmp/bas-tab-callback-native-red-068.json"
+      },
+      "intermediate": {
+        "passed": 10,
+        "failed": 1,
+        "artifact": "/tmp/bas-tab-callback-native-intermediate-068.json"
+      },
+      "final": {
+        "passed": 11,
+        "failed": 0,
+        "artifact": "/tmp/bas-tab-callback-native-green-068.json"
+      }
+    },
+    "native_expanded_intermediate": {
+      "passed": 21,
+      "failed": 1,
+      "artifact": "/tmp/bas-navigation-intermediate-068.json",
+      "remaining": "Tab label lacks navigation callback; driver repair not deployed yet."
+    },
+    "driver_full": {
+      "run_id": "uh-20260923-042546-48b777d33f8707b25c35f31a6242f4e4",
+      "status": "passed",
+      "tests": 1784,
+      "suites": 123,
+      "skipped_tests": 2,
+      "skipped_suites": 1,
+      "owner_ms": 362458,
+      "jest_seconds": 361.711,
+      "artifact": "/tmp/bas-driver-owner-final-068.json"
+    },
+    "native_expanded_final": {
+      "passed": 22,
+      "failed": 0,
+      "artifact": "/tmp/bas-navigation-qualified-068.json"
+    },
+    "saved_workflow": {
+      "passed": 12,
+      "failed": 0,
+      "effects": 3,
+      "execution_id": "eaac59e2-3b1f-421e-9130-bda0f2dd4964",
+      "artifact_dir": "/tmp/bas-recording-e2e-X0fY9B",
+      "log": "/tmp/bas-recording-workflow-final-068.txt"
+    },
+    "profiles": {
+      "status": "preserved",
+      "complete_identity_reads": 3,
+      "original_rollback": "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/session-profiles.rollback-20260922",
+      "log": "/tmp/bas-profile-final-068.txt",
+      "api_metadata": "/tmp/bas-profile-api-final-068.json",
+      "metadata_comparison": "equal to067"
+    }
+  },
+  "measurement": {
+    "runtime_lines_before": 1997,
+    "runtime_lines_after": 1958,
+    "runtime_line_delta": -39,
+    "go_change": false,
+    "typescript_eslint_classic_before": 437,
+    "typescript_eslint_classic_after": 443,
+    "typescript_eslint_classic_delta": 6,
+    "complexity_supplement": "typescript-complexity-supplement-2026-09-23.json",
+    "tidiness": {
+      "run_id": "20260923-042551-bbfec87d",
+      "findings": 1133,
+      "long_files": 103,
+      "complexity": 399,
+      "duplication": 610,
+      "coupling": 20,
+      "duplication_line_debt": 31551,
+      "budget": "failed"
+    }
+  },
+  "review": {
+    "removed": [
+      "Component observation-to-command navigation effect",
+      "Duplicate navigation-state parser",
+      "URL-equality suppression and mirrored completion refs",
+      "Post-creation listener attachment gap",
+      "Separate pending-close callback repair branch"
+    ],
+    "preserved_in_native_intermediate": [
+      "Launch URL starts one navigation before recording",
+      "External tab keeps browser location and paints blue",
+      "Explicit URL and same-URL submissions",
+      "Redirect destination loaded once",
+      "Back retains forward history",
+      "Forward and reload",
+      "Owned fixture/session/profile cleanup"
+    ],
+    "limitations": [
+      "General callback retries, journaling and ordering remain RF038",
+      "Navigation responses across active-page replacement need separate adversarial qualification",
+      "Scenario-wide complexity and full release readiness remain unqualified"
+    ],
+    "visual_inspection": "/tmp/bas-tab-callback-native-green-068.png: Blue tab selected, blue pixels and matching address"
+  },
+  "pending_operations": {},
+  "intermediate_build_identity": "sha256:82be32cb6d32a0c3ad9cbf1fc032eeb125a9a1b47ddf3c7f0e20cf763b692343",
+  "build_identity": "sha256:60b7ae38ebda099da7b78080f84f63cf5ff11ddd96aba01b7d01d2192b1e95f1"
+}

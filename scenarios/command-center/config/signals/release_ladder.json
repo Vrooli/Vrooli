@@ -1,0 +1,200 @@
+{
+  "id": "release_ladder",
+  "label": "Release ladder",
+  "description": "Offer Desk's release schedule: what ships next, what each release opens, and the enabling work it waits on.",
+  "unit": "count",
+  "format": "integer",
+  "kind": "ladder",
+  "shape": "series",
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:offer-desk",
+    "read": "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetReleaseLadder",
+    "select": "release_ladder",
+    "ttlSeconds": 300,
+    "integrationId": "offer-desk",
+    "featureId": "release_ladder",
+    "contractVersion": "legacy.v1",
+    "selector": "release_ladder",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW",
+  "sample": {
+    "value": 4,
+    "series": [
+      4
+    ],
+    "rows": [
+      {
+        "key": "sample-1",
+        "label": "first release",
+        "value": 1,
+        "share": 0.6,
+        "detail": "TRIGGER_MET"
+      },
+      {
+        "key": "sample-2",
+        "label": "second release",
+        "value": 2,
+        "share": 0.2,
+        "detail": "IDEA"
+      },
+      {
+        "key": "sample-3",
+        "label": "third release",
+        "value": 3,
+        "share": 0.2,
+        "detail": "IDEA"
+      },
+      {
+        "key": "sample-4",
+        "label": "fourth release",
+        "value": 4,
+        "share": 0.2,
+        "detail": "IDEA"
+      }
+    ],
+    "ladder": {
+      "rungs": [
+        {
+          "rank": 1,
+          "id": "sample-1",
+          "name": "first release",
+          "status": "TRIGGER_MET",
+          "finishBar": "CUSTOMER_FACING",
+          "ramps": [
+            "desktop"
+          ],
+          "streams": [
+            "voice_minutes"
+          ],
+          "audiences": [
+            "developer"
+          ],
+          "blockers": [
+            {
+              "name": "enabling work",
+              "status": "IDEA",
+              "urgency": 1,
+              "direct": true
+            }
+          ],
+          "goals": [],
+          "readiness": {
+            "reported": false
+          }
+        },
+        {
+          "rank": 2,
+          "id": "sample-2",
+          "name": "second release",
+          "status": "IDEA",
+          "finishBar": "CUSTOMER_FACING",
+          "ramps": [
+            "agent"
+          ],
+          "streams": [],
+          "audiences": [
+            "developer"
+          ],
+          "blockers": [],
+          "goals": [],
+          "readiness": {
+            "reported": false
+          }
+        },
+        {
+          "rank": 3,
+          "id": "sample-3",
+          "name": "third release",
+          "status": "IDEA",
+          "finishBar": "OPERATOR_FACING",
+          "ramps": [],
+          "streams": [
+            "ai_credits"
+          ],
+          "audiences": [
+            "business"
+          ],
+          "blockers": [],
+          "goals": [],
+          "readiness": {
+            "reported": false
+          }
+        },
+        {
+          "rank": 4,
+          "id": "sample-4",
+          "name": "fourth release",
+          "status": "IDEA",
+          "finishBar": "CUSTOMER_FACING",
+          "ramps": [
+            "mobile"
+          ],
+          "streams": [],
+          "audiences": [
+            "personal"
+          ],
+          "blockers": [],
+          "goals": [],
+          "readiness": {
+            "reported": false
+          }
+        }
+      ],
+      "nextRank": 1,
+      "enabling": [
+        {
+          "name": "enabling work",
+          "status": "IDEA",
+          "urgency": 1
+        }
+      ],
+      "unscheduled": [],
+      "reach": [
+        {
+          "kind": "ramp",
+          "name": "desktop",
+          "opensAt": 1
+        },
+        {
+          "kind": "ramp",
+          "name": "agent",
+          "opensAt": 2
+        },
+        {
+          "kind": "ramp",
+          "name": "mobile",
+          "opensAt": 4
+        },
+        {
+          "kind": "stream",
+          "name": "voice_minutes",
+          "opensAt": 1
+        },
+        {
+          "kind": "stream",
+          "name": "ai_credits",
+          "opensAt": 3
+        },
+        {
+          "kind": "audience",
+          "name": "developer",
+          "opensAt": 1
+        },
+        {
+          "kind": "audience",
+          "name": "business",
+          "opensAt": 3
+        },
+        {
+          "kind": "audience",
+          "name": "personal",
+          "opensAt": 4
+        }
+      ]
+    },
+    "basis": "hand-authored structural sample in Offer Desk vocabulary, reviewed 2026-09-15"
+  }
+}

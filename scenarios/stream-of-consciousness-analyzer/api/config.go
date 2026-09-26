@@ -22,9 +22,12 @@ const RequestTimeout = 30 * time.Second
 
 // --- LLM Provider Defaults ---
 
-// DefaultOllamaURL is the default endpoint for the local Ollama instance.
-// Override at runtime with the OLLAMA_URL environment variable.
-const DefaultOllamaURL = "http://localhost:11434"
+// OllamaProviderTransport identifies how the Ollama provider is reached. Calls
+// go through the resource-ollama gateway CLI, not direct HTTP — the host-wide
+// semaphore can only bound parallelism when every scenario funnels through the
+// CLI. Surface this as the provider's URL so the existing provider-listing API
+// remains stable for clients.
+const OllamaProviderTransport = "resource-ollama://gateway"
 
 // OpenRouterURL is the fixed endpoint for the OpenRouter fallback provider.
 const OpenRouterURL = "https://openrouter.ai/api/v1"

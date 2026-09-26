@@ -7,7 +7,7 @@ import type { ConditionalParams } from '@utils/actionParams';
 
 const CONDITION_TYPES = [
   { value: 'expression', label: 'Expression (JS)' },
-  { value: 'element', label: 'Element Visibility' },
+  { value: 'element', label: 'Element Presence' },
   { value: 'variable', label: 'Workflow Variable' },
 ];
 

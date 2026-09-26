@@ -1,0 +1,76 @@
+{
+  "metadata": {
+    "name": "perf-view-switch",
+    "description": "Perf-capture flow (intent:performance). Assertion-free. Traces the terminal -> Messages view switch the operator reports as laggy: the mount of MessagesPane over the still-mounted terminal, its first window of rows, and the settle that follows. Normalises the starting view to terminal, switches once, holds while it settles, then restores the view mode it found. Runs against the live workspace (no routed test pool), so it changes only the active pane's view mode, which it puts back. NEVER bind as a requirement automation case.",
+    "labels": {
+      "intent": "performance",
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "version": "1",
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "wait-workspace",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { const deadline = Date.now() + 90000; while (Date.now() < deadline) { const toggle = document.querySelector('[data-testid=\"workspace-toggle-view\"]'); const pane = document.querySelector('[data-testid=\"terminal-pane\"]'); if (toggle && pane) { window.__perfInitialViewMode = toggle.getAttribute('data-view-mode') || 'terminal'; return window.__perfInitialViewMode; } const retry = document.querySelector('[data-testid=\"health-retry-button\"]'); if (retry instanceof HTMLButtonElement && !retry.disabled) retry.click(); await new Promise((resolve) => setTimeout(resolve, 250)); } throw new Error('perf-view-switch: workspace with a view toggle did not appear'); })()"
+        },
+        "metadata": { "label": "Wait for the workspace and record the current view mode" }
+      }
+    },
+    {
+      "id": "normalise-to-terminal",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { const toggle = () => document.querySelector('[data-testid=\"workspace-toggle-view\"]'); const mode = () => toggle()?.getAttribute('data-view-mode') || 'terminal'; if (mode() === 'terminal') return 'already-terminal'; const button = toggle(); if (button instanceof HTMLElement) button.click(); const deadline = Date.now() + 15000; while (Date.now() < deadline) { if (mode() === 'terminal') { await new Promise((resolve) => setTimeout(resolve, 1500)); return 'switched-to-terminal'; } await new Promise((resolve) => setTimeout(resolve, 100)); } throw new Error('perf-view-switch: could not reach the terminal view'); })()"
+        },
+        "metadata": { "label": "Start from the terminal view" }
+      }
+    },
+    {
+      "id": "switch-to-messages",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { const button = document.querySelector('[data-testid=\"workspace-toggle-view\"]'); if (!(button instanceof HTMLElement)) throw new Error('perf-view-switch: view toggle not found'); const started = performance.now(); performance.mark('perf-view-switch:click'); button.click(); const deadline = Date.now() + 20000; while (Date.now() < deadline) { const scroller = document.querySelector('[data-testid=\"messages-scroll\"]'); if (scroller && document.querySelector('[data-event-id]')) { performance.mark('perf-view-switch:first-rows'); return { msToFirstRows: Math.round(performance.now() - started) }; } await new Promise((resolve) => setTimeout(resolve, 16)); } throw new Error('perf-view-switch: messages view did not render rows'); })()"
+        },
+        "metadata": { "label": "Switch to the Messages view and wait for its first rows" }
+      }
+    },
+    {
+      "id": "hold-settle",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { await new Promise((resolve) => setTimeout(resolve, 6000)); const rows = document.querySelectorAll('[data-event-id]').length; document.body.setAttribute('data-perf-rows', String(rows)); return { mountedRows: rows }; })()"
+        },
+        "metadata": { "label": "Hold 6s while the Messages view settles" }
+      }
+    },
+    {
+      "id": "restore-view-mode",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { const want = window.__perfInitialViewMode || 'terminal'; const toggle = () => document.querySelector('[data-testid=\"workspace-toggle-view\"]'); const mode = () => toggle()?.getAttribute('data-view-mode') || 'terminal'; if (mode() === want) return 'already-restored'; const button = toggle(); if (button instanceof HTMLElement) button.click(); const deadline = Date.now() + 15000; while (Date.now() < deadline) { if (mode() === want) return 'restored'; await new Promise((resolve) => setTimeout(resolve, 100)); } throw new Error('perf-view-switch: could not restore the original view mode'); })()"
+        },
+        "metadata": { "label": "Restore the view mode this flow found" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "wait-workspace", "target": "normalise-to-terminal", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "normalise-to-terminal", "target": "switch-to-messages", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "switch-to-messages", "target": "hold-settle", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "hold-settle", "target": "restore-view-mode", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

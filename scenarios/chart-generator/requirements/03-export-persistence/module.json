@@ -1,23 +1,22 @@
 {
   "_metadata": {
-    "prd_section": "P0 - Export and Persistence",
-    "description": "Multi-format export capabilities and database persistence for templates and styles"
+    "description": "Multi-format export capabilities and database persistence for templates and styles",
+    "last_validated_at": "2026-07-13T23:28:32-04:00"
   },
   "requirements": [
     {
       "id": "CHART-P0-005-PNG",
-      "category": "chart-generation.export",
-      "operational_target_id": "OT-P0-005",
-      "prd_ref": "OT-P0-005",
       "title": "PNG export for web and document embedding",
-      "description": "Raster image export via Browserless headless Chrome rendering",
-      "status": "complete",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "chart-generation.export",
+      "description": "Raster image export via browser-automation-studio CaptureService screenshot rendering",
       "validation": [
         {
           "type": "test",
           "ref": "api/png_export_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "TestPNGExport_RenderChart validates PNG generation"
         },
         {
@@ -31,18 +30,17 @@
     },
     {
       "id": "CHART-P0-005-SVG",
-      "category": "chart-generation.export",
-      "operational_target_id": "OT-P0-005",
-      "prd_ref": "OT-P0-005",
       "title": "SVG export for scalable and editable outputs",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "chart-generation.export",
       "description": "Vector graphics export directly from D3.js rendering",
-      "status": "complete",
       "validation": [
         {
           "type": "test",
           "ref": "api/svg_export_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "TestSVGExport_RenderChart validates SVG generation"
         },
         {
@@ -56,12 +54,11 @@
     },
     {
       "id": "CHART-P0-006-TEMPLATES",
-      "category": "chart-generation.persistence",
-      "operational_target_id": "OT-P0-006",
-      "prd_ref": "OT-P0-006",
       "title": "Chart template storage and retrieval",
-      "description": "Database persistence for reusable chart configurations",
       "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "chart-generation.persistence",
+      "description": "Database persistence for reusable chart configurations",
       "validation": [
         {
           "type": "test",
@@ -74,12 +71,11 @@
     },
     {
       "id": "CHART-P0-006-STYLES",
-      "category": "chart-generation.persistence",
-      "operational_target_id": "OT-P0-006",
-      "prd_ref": "OT-P0-006",
       "title": "Custom style storage and sharing",
-      "description": "Database persistence for user-defined and shared styles",
       "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "chart-generation.persistence",
+      "description": "Database persistence for user-defined and shared styles",
       "validation": [
         {
           "type": "test",
@@ -92,12 +88,11 @@
     },
     {
       "id": "CHART-P0-006-HISTORY",
-      "category": "chart-generation.persistence",
-      "operational_target_id": "OT-P0-006",
-      "prd_ref": "OT-P0-006",
       "title": "Chart generation history tracking",
-      "description": "Audit log of chart generation requests and outputs",
       "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "chart-generation.persistence",
+      "description": "Audit log of chart generation requests and outputs",
       "validation": [
         {
           "type": "test",

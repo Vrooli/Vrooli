@@ -1,7 +1,7 @@
 // TrendsPage component tests
 // [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { cleanup, screen, fireEvent, waitFor } from "@testing-library/react";
 import { TrendsPage } from "./TrendsPage";
 import * as api from "../../lib/api";
 import { renderWithProviders } from "../../test-utils";
@@ -30,7 +30,7 @@ vi.mock("../../lib/api", async () => {
     ...actual,
     fetchUptimeStats: vi.fn(),
     fetchCheckTrends: vi.fn(),
-    fetchIncidents: vi.fn(),
+    fetchTransitions: vi.fn(),
     fetchTimeline: vi.fn(),
     fetchUptimeHistory: vi.fn(),
   };
@@ -47,7 +47,7 @@ describe("[REQ:UI-EVENTS-001] TrendsPage", () => {
     // Default mocks
     vi.mocked(api.fetchUptimeStats).mockResolvedValue(createUptimeStatsResponse());
     vi.mocked(api.fetchCheckTrends).mockResolvedValue(createCheckTrendsResponse());
-    vi.mocked(api.fetchIncidents).mockResolvedValue(createIncidentsResponse());
+    vi.mocked(api.fetchTransitions).mockResolvedValue(createIncidentsResponse());
     vi.mocked(api.fetchTimeline).mockResolvedValue(createTimelineResponse());
     vi.mocked(api.fetchUptimeHistory).mockResolvedValue(createUptimeHistoryResponse());
   });
@@ -114,7 +114,7 @@ describe("[REQ:UI-EVENTS-001] TrendsPage", () => {
   });
 
   it("shows loading state for incidents", async () => {
-    vi.mocked(api.fetchIncidents).mockImplementation(
+    vi.mocked(api.fetchTransitions).mockImplementation(
       () => new Promise(() => {})
     );
 
@@ -132,9 +132,9 @@ describe("[REQ:UI-EVENTS-001] TrendsPage", () => {
   });
 
   it("displays incidents when available", async () => {
-    vi.mocked(api.fetchIncidents).mockResolvedValue(
+    vi.mocked(api.fetchTransitions).mockResolvedValue(
       createIncidentsResponse({
-        incidents: [
+        transitions: [
           createIncident({
             checkId: "test-check",
             message: "Test incident",
@@ -160,5 +160,27 @@ describe("[REQ:UI-EVENTS-001] TrendsPage", () => {
     renderWithProviders(<TrendsPage />);
 
     expect(screen.getByText("Status Transitions")).toBeInTheDocument();
+  });
+
+  it("renders independent API failures with retry controls", async () => {
+    vi.mocked(api.fetchUptimeStats).mockRejectedValueOnce(new Error("uptime failed"));
+    vi.mocked(api.fetchCheckTrends).mockRejectedValueOnce(new Error("trends failed"));
+    vi.mocked(api.fetchTransitions).mockRejectedValueOnce(new Error("transitions failed"));
+    renderWithProviders(<TrendsPage />);
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /retry/i }).length).toBeGreaterThanOrEqual(2));
+    for (const retry of screen.getAllByRole("button", { name: /retry/i })) fireEvent.click(retry);
+    cleanup();
+  });
+
+  it("falls back to client-side transition detection", async () => {
+    vi.mocked(api.fetchTransitions).mockResolvedValueOnce(undefined as unknown as api.TransitionsResponse);
+    vi.mocked(api.fetchTimeline).mockResolvedValueOnce(createTimelineResponse({
+      events: [
+        { checkId: "fallback-check", status: "ok", message: "healthy", timestamp: "2024-01-01T11:00:00Z" },
+        { checkId: "fallback-check", status: "critical", message: "failed", timestamp: "2024-01-01T12:00:00Z" },
+      ],
+    }));
+    renderWithProviders(<TrendsPage />);
+    expect((await screen.findAllByText("fallback-check")).length).toBeGreaterThan(0);
   });
 });

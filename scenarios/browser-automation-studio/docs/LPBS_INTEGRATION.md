@@ -1,13 +1,19 @@
 # LPBS Integration Guide
 
-This document describes how Browser Automation Studio (BAS) integrates with the Landing Page Business Suite (LPBS) for centralized usage tracking.
+This document describes the BAS integration with Landing Page Business Suite
+(LPBS) for subscription identity, entitlement checks, metered AI, and usage
+reporting.
 
 ## Overview
 
-BAS reports AI credit usage to LPBS for:
-- Centralized billing and usage tracking across all apps
-- Subscription tier limit enforcement
-- Admin dashboards and analytics
+BAS uses LPBS as the authority for:
+
+- the consumer identity and subscription tier;
+- atomic credit authorization and charging for subscription-backed AI; and
+- centralized usage reporting and administration.
+
+Local model execution and operator BYOK remain available without an LPBS
+request. Only the LPBS path is metered against the consumer subscription.
 
 ## Architecture
 
@@ -15,32 +21,65 @@ BAS reports AI credit usage to LPBS for:
 ┌─────────────────────────────┐        ┌─────────────────────────────┐
 │  Browser Automation Studio  │        │ Landing Page Business Suite │
 │                             │        │                             │
-│  ┌─────────────────────┐   │        │   ┌───────────────────┐    │
-│  │  Credit Service     │   │  HTTP  │   │   Usage Service   │    │
-│  │  ─────────────────  │───┼───────>│   │   ─────────────── │    │
-│  │  - Charge locally   │   │  POST  │   │   - Record usage  │    │
-│  │  - Report to LPBS   │   │        │   │   - Check limits  │    │
-│  │  - Retry on failure │   │        │   │   - Idempotency   │    │
-│  └─────────────────────┘   │        │   └───────────────────┘    │
+│  ┌─────────────────────────┐ │      │ ┌────────────────────────┐ │
+│  │ Shared credential       │ │      │ │ LPBS consumer authority │ │
+│  │ authority               │─┼──────┼>│ RS256 access + refresh  │ │
+│  │ refresh token only      │ │      │ │ JWKS + entitlements     │ │
+│  └────────────┬────────────┘ │      │ └────────────┬───────────┘ │
+│               │ access token │                   │               │
+│  ┌────────────▼────────────┐ │      │ ┌───────────▼────────────┐ │
+│  │ BAS / AI Gateway         │─┼──────┼>│ Metered inference       │ │
+│  │ memory-only bearer       │ │      │ │ identity + atomic debit │ │
+│  └─────────────────────────┘ │      │ └────────────────────────┘ │
 │                             │        │                             │
 └─────────────────────────────┘        └─────────────────────────────┘
 ```
+
+## Identity and single sign-on
+
+All deployment tiers use the same logical credential identity:
+`vrooli/lpbs-account` / `refresh-token`.
+
+- Tier 1 (local Vrooli server): a scenario provisions the native credential
+  authority; every scenario on that machine resolves the same identity.
+- Tier 2 (desktop bundle): the desktop runtime stores the refresh token in its
+  native credential store and exposes an authenticated, declared-credential IPC
+  surface to bundled services. BAS and AI Gateway use the same logical ID.
+- Tier 3 (remote/VPS): the server keeps the refresh token in its deployment
+  credential provider; LPBS is still the issuer and the access token is bound to
+  the configured LPBS authority.
+
+The browser stores only a short-lived access token in `sessionStorage`. Desktop
+safeStorage protects the local profile copy, while the native credential
+authority is the durable source of truth. Refresh rotation is serialized and a
+replayed refresh token revokes its family.
+
+The web callback requires the stored state value, removes the URL fragment
+before making the provisioning request, and sends the refresh token only to the
+same-origin BAS session endpoint. BAS APIs derive identity from verified LPBS
+claims and reject mismatched query/header identities.
 
 ## Environment Variables
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `LPBS_URL` | LPBS service base URL | `http://localhost:15000` or `https://vrooli.com` |
-| `LPBS_SECRET` | Service-to-service auth token | Must match `LPBS_SERVICE_SECRET` on LPBS |
+| `BAS_ENTITLEMENT_SERVICE_URL` | LPBS service base URL for hosted or local authority | `http://localhost:15000` or `https://vrooli.com` |
+| `LPBS_METERED_INFERENCE_URL` | AI Gateway's LPBS metered inference authority | LPBS base URL |
 | `APP_BUNDLE_KEY` | App identifier for usage records | `browser-automation-studio` (default) |
 
 ## Usage Sync Flow
 
-1. **Local Charge**: BAS charges credits locally in its `credit_usage` table
-2. **LPBS Report**: After successful local charge, BAS asynchronously reports to LPBS
-3. **Idempotency**: Each report includes an `operation_id` (UUID) to prevent double-counting on retries
-4. **Retry Logic**: If LPBS is unreachable, BAS retries with exponential backoff (500ms, 1s, 2s)
-5. **Fail-Safe**: Local operations succeed even if LPBS reporting fails
+1. **Resolve**: BAS or AI Gateway resolves the shared refresh token through the
+   credential authority and rotates it at LPBS when the in-memory access token
+   is near expiry.
+2. **Verify**: LPBS verifies the RS256 access token against its public key set,
+   derives the consumer identity from claims, and checks the subscription.
+3. **Charge**: LPBS authorizes and charges metered inference atomically.
+4. **Report**: BAS may separately report operational usage with an idempotent
+   service-to-service operation ID.
+5. **Degrade safely**: a missing/expired subscription token cannot silently
+   become another user or a paid request; local/BYOK providers may still be
+   selected according to policy.
 
 ## Idempotency
 
@@ -162,13 +201,15 @@ assert.Equal(t, "test@example.com", reporter.reports[0].UserIdentity)
 
 To test end-to-end:
 
-1. Start LPBS: `cd scenarios/landing-page-business-suite && make start`
+1. Start LPBS: `make start` in `scenarios/landing-page-business-suite`.
 2. Set environment:
    ```bash
-   export LPBS_URL=http://localhost:15000
-   export LPBS_SECRET=test-secret
+   export BAS_ENTITLEMENT_SERVICE_URL=http://localhost:15000
+   export LPBS_METERED_INFERENCE_URL=http://localhost:15000
    ```
-3. Run BAS tests: `cd scenarios/browser-automation-studio && make test`
+3. Provision the consumer session through the BAS web or desktop sign-in flow;
+   do not put a refresh token in shell history.
+4. Run BAS tests with `vrooli scenario test browser-automation-studio`.
 
 ### Verifying Idempotency
 
@@ -197,8 +238,9 @@ curl "http://localhost:15000/api/v1/usage/summary?user_identity=test@example.com
 
 Check:
 1. LPBS is running: `curl http://localhost:15000/api/v1/usage/health`
-2. Secret matches: `LPBS_SECRET` == `LPBS_SERVICE_SECRET`
-3. Network connectivity between services
+2. The shared consumer session can resolve a short-lived LPBS access token.
+3. Network connectivity between services. Reports remain in BAS's durable
+   `usage_outbox` until LPBS acknowledges them.
 
 ### Usage not appearing in LPBS
 

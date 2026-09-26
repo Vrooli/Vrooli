@@ -1,0 +1,155 @@
+{
+  "cycle": "BAS-WORK-093",
+  "issues": [
+    "BAS-RF-113"
+  ],
+  "journeys": [
+    "BAS-RH-J24"
+  ],
+  "build_identity": "sha256:553bc332c8acced00a3ff95cdcf1035047b910e8ed918b05fa350a70c9e9373d",
+  "frozen": {
+    "path": "/tmp/bas-frozen-owner-093.json",
+    "paths": 115,
+    "unchanged_after_native": true,
+    "unchanged_through_terminal": true
+  },
+  "changes": [
+    "Typed assertion negation/case/custom message",
+    "State waits distinguish timeout from evaluator error",
+    "Immediate timeout zero, absent vs empty attribute",
+    "Removed unreachable wire aliases/regex paths and duplicate predicates",
+    "Corrected six false-positive typed test inputs"
+  ],
+  "checks": {
+    "red": "/tmp/bas-assertion-red2-093.txt:54 failed,21 passed",
+    "unit": "/tmp/bas-assertion-green2-093.txt:93 passed",
+    "typecheck": {
+      "session": 95071,
+      "exit_code": 0,
+      "path": "/tmp/bas-assertion-typecheck2-093.txt"
+    },
+    "restart": {
+      "session": 3717,
+      "exit_code": 0
+    },
+    "native": {
+      "session": 81086,
+      "exit_code": 0,
+      "passed": 58,
+      "total": 58,
+      "receipt": "/tmp/bas-assertion-native-093/receipt.json",
+      "sha256": "d86e8765c7eb92834911c1565c23b8c4f601a0cb8dafa405353d9dae20a18d61"
+    },
+    "preservation": {
+      "session": 60996,
+      "exit_code": 0,
+      "profiles": 1,
+      "reads": 3,
+      "complete_state_equal": true
+    }
+  },
+  "metrics": {
+    "lines": [
+      {
+        "path": "scenarios/browser-automation-studio/playwright-driver/src/handlers/assertion.ts",
+        "before_lines": 396,
+        "after_lines": 125,
+        "delta": -271
+      },
+      {
+        "path": "scenarios/browser-automation-studio/playwright-driver/src/proto/params.ts",
+        "before_lines": 767,
+        "after_lines": 769,
+        "delta": 2
+      },
+      {
+        "path": "scenarios/browser-automation-studio/playwright-driver/tests/unit/handlers/assertion.test.ts",
+        "before_lines": 256,
+        "after_lines": 355,
+        "delta": 99
+      },
+      {
+        "path": "scenarios/browser-automation-studio/docs/nodes/assert.md",
+        "before_lines": 64,
+        "after_lines": 52,
+        "delta": -12
+      }
+    ],
+    "scoped_eslint_complexity": [
+      {
+        "path": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/src/handlers/assertion.ts",
+        "functions": 4,
+        "complexity": 44,
+        "max": 22
+      },
+      {
+        "path": "/tmp/bas-before-093/playwright-driver/src/handlers/assertion.ts",
+        "functions": 10,
+        "complexity": 58,
+        "max": 27
+      }
+    ],
+    "limits": "Same installed ESLint complexity rule, narrow assertion owner only. Domain-wide TS metric RF064 remains unknown. Go cumulative delta unchanged +319."
+  },
+  "qualification": {
+    "status": "terminal",
+    "performance_health_session": 41914,
+    "path": "/tmp/bas-ph-workload-owned-093.json",
+    "test_genie": {
+      "run_id": "20260923-153329-f6718ff3",
+      "admission_session": 29795,
+      "sole_wait_session": 74692,
+      "exit_code": 1,
+      "overall": "failed",
+      "performance": "passed",
+      "tidiness": "failed",
+      "findings": {
+        "totalFindings": 1157,
+        "longFiles": 104,
+        "complexity": 421,
+        "duplication": 608,
+        "coupling": 23,
+        "duplicationLineDebt": 34644
+      },
+      "artifacts": "/tmp/bas-tg-artifacts-093.json",
+      "native_performance": "/tmp/bas-tg-093-performance-native.json",
+      "native_tidiness": "/tmp/bas-tg-093-tidiness-native.json"
+    },
+    "owner_reading": {
+      "scenario": "browser-automation-studio",
+      "workload": "capture",
+      "operation_id": "93ba0c644d6f91e5cbe53d47de3a35af",
+      "outcome": "WORKLOAD_OUTCOME_MEASURED",
+      "within_budget": true,
+      "p95_ms": 447,
+      "wall_p95_ms": 650.217134,
+      "budget_ms": 2000,
+      "sample_count": 100,
+      "attempt_count": 101,
+      "declared_warmups": 1,
+      "captured_at": "2026-09-23T15:31:13.131475677Z",
+      "build_identity": "sha256:553bc332c8acced00a3ff95cdcf1035047b910e8ed918b05fa350a70c9e9373d",
+      "producer_digest": "62456dbce61bba14f9feb78efc1e806448fc482e734c2e8a18bf2938b6ed4a52",
+      "contract_digest": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+      "configuration_digest": "1a2776b5338b0074036293f43952bd03d3be2ef1ccabfef38787e06d4a63b167",
+      "fixture_revision": "dcabe2e264925a3c8264eef9ecd37b0b7b16ee11ce3c57bb1310a80ede1e3367",
+      "receipt_path": "/home/matthalloran8/.vrooli/test-runs/performance-health/workloads/93ba0c644d6f91e5cbe53d47de3a35af/producer/receipt.json",
+      "receipt_sha256": "1942a1727aff24aac784287d34f55b114cb47ad4ee2e956ba27e50ed5c5d8df5"
+    }
+  },
+  "limits": [
+    "RF112 conditional actions still unsupported",
+    "Native error cases cover invalid selector/missing target; closed browser covered by focused unit injection",
+    "Text/attribute compares current resolved value; delayed value requires explicit wait",
+    "Existing compiler long-file/complexity and global tidiness debt remain open",
+    "No full J24 or product readiness claim;16 other outcome rows still unknown",
+    "Tidiness native totals unchanged; RF064 omits driver JS duplication and TypeScript AST complexity. Scoped ESLint delta is additional evidence, not domain certification."
+  ],
+  "board": {
+    "session": 63711,
+    "qualified": 1,
+    "unknown": 16,
+    "product_ready": false,
+    "receipt": "/tmp/bas-board-owned-093.txt"
+  }
+}

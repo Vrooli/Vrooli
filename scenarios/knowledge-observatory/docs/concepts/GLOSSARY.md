@@ -52,9 +52,10 @@ Agent-powered documentation search. Spawns an agent-manager run with the `docume
 Agent-powered documentation repair. Spawns a sandboxed agent-manager run with the `documentation-health` skill. Produces a diff that must be approved or rejected before changes are applied to the filesystem.
 [CODE: api/internal/services/dochealing/service.go]
 
-## Doc Health / Doc Schema
-Validation system that checks scenario documentation layout against 15 canonical doc types (README, PROBLEMS, SEAMS, ARCHITECTURE, etc.). Produces a health score (0-1), lists missing and misplaced docs, and generates auto-fix hints.
-[CODE: api/internal/docschema/types.go]
+## Doc Health / Documentation Contract
+Validation system that checks scenario documentation against the manifest contract declared by its source template or scenario-local `docs/manifest.json`. Produces a health score (0-1), lists missing and misplaced docs, and generates auto-fix hints.
+[CODE: api/internal/doccontract/manifest.go]
+[CODE: api/internal/docvalidation/validation.go]
 [CODE: api/internal/services/dochealth/service.go]
 
 ## External ID Map

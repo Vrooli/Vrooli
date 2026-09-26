@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"sync"
 
@@ -17,24 +16,19 @@ var (
 
 func ruleService() (*ruleengine.Service, error) {
 	ruleServiceOnce.Do(func() {
-		rootCandidates := []string{
-			os.Getenv("VROOLI_ROOT"),
-			os.Getenv("APP_ROOT"),
-		}
-
-		repoRoot, err := ruleengine.DiscoverRepoRoot(rootCandidates...)
+		ctx, err := repoContext()
 		if err != nil {
 			ruleServiceErr = err
 			return
 		}
 
-		ruleDirs, err := ruleengine.DiscoverRuleDirs(repoRoot)
+		ruleDirs, err := ruleengine.DiscoverRuleDirs(ctx.ScenarioAuditorRoot())
 		if err != nil {
 			ruleServiceErr = err
 			return
 		}
 
-		moduleRoot := filepath.Join(repoRoot, "scenarios", "scenario-auditor", "api")
+		moduleRoot := filepath.Join(ctx.ScenarioAuditorRoot(), "api")
 		opts := ruleengine.Options{
 			RuleDirs:   ruleDirs,
 			ModuleRoot: moduleRoot,

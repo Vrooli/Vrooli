@@ -17,9 +17,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // EXECUTION RUNTIME STATE
 // =============================================================================
 //
-// @layer 4
-// @domain execution
-// @imports base, domain (telemetry), workflows
 // @stability stable
 //
 // This file defines the runtime state of workflow executions:
@@ -45,12 +42,14 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // Use preset profiles for common configurations, or customize individual settings.
 //
 // Profiles:
-//   - "full": Collect all artifacts (default, backward compatible)
-//   - "standard": Screenshots, console logs, extracted data, assertions
+//   - "standard": Screenshots, console logs, extracted data, assertions (normal default)
+//   - "full": Collect all artifacts (screenshots, DOM, network, cursor, etc.)
 //   - "minimal": Screenshots and assertions only (fastest)
 //   - "debug": Everything plus larger size limits for troubleshooting
 //   - "none": Disable all artifact collection (execution status only)
 //
+// When no per-execution config is supplied, executions use the operator-configured
+// global default profile (BAS_ARTIFACT_DEFAULT_PROFILE, "standard" by default).
 // When profile is set, individual toggles are ignored unless profile is "custom".
 // =============================================================================
 
@@ -61,7 +60,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // ArtifactCollectionConfig defines what artifacts to collect during execution.
 message ArtifactCollectionConfig {
   // Preset profile name. When set, individual toggles are derived from the profile.
-  // Valid values: "full" (default), "standard", "minimal", "debug", "none", "custom"
+  // Valid values: "standard" (normal default), "full", "minimal", "debug", "none", "custom".
+  // When unset, the operator-configured global default profile is applied.
   // Use "custom" to enable individual toggle fields below.
   optional string profile = 1;
 
@@ -346,7 +346,7 @@ message Execution {
 // ADHOC EXECUTION
 // =============================================================================
 
-// ExecuteAdhocRequest represents POST /api/v1/workflows/execute-adhoc.
+// ExecuteAdhocRequest represents the inputs for the ExecuteAdhocWorkflow RPC.
 message ExecuteAdhocRequest {
   // Workflow definition to execute without persisting (V2 format).
   WorkflowDefinitionV2 flow_definition = 1;
@@ -359,6 +359,80 @@ message ExecuteAdhocRequest {
   ExecutionMetadata metadata = 4;
   // Typed runtime parameters for the adhoc execution.
   ExecutionParameters parameters = 6;
+  // Optional execution-mode toggles (artifacts, frame streaming, seed apply).
+  ExecuteWorkflowOptions options = 7;
+}
+
+// ExecuteWorkflowOptions captures execution-time toggles previously passed as
+// query-string parameters on the legacy REST endpoints. Shared by both the
+// persisted and adhoc execution paths.
+message ExecuteWorkflowOptions {
+  // Capture playwright video for this execution.
+  bool requires_video = 1;
+  // Capture a Playwright trace.zip for this execution.
+  bool requires_trace = 2;
+  // Capture a HAR archive of network traffic.
+  bool requires_har = 3;
+  // Enable live frame streaming via the WebSocket frame channel.
+  bool frame_streaming = 4;
+  // Optional JPEG quality (1–100) used when frame_streaming is true.
+  optional int32 frame_streaming_quality = 5 [
+    (buf.validate.field).int32.gte = 1,
+    (buf.validate.field).int32.lte = 100
+  ];
+  // Optional frame rate (1–30) used when frame_streaming is true.
+  optional int32 frame_streaming_fps = 6 [
+    (buf.validate.field).int32.gte = 1,
+    (buf.validate.field).int32.lte = 30
+  ];
+  // Optional seed-apply mode for cross-scenario test setup. Currently only
+  // "needs-applying" is recognized.
+  string seed_mode = 7;
+  // Optional seed-scenario identifier. Defaults to "browser-automation-studio"
+  // when seed_mode is set without an explicit scenario.
+  string seed_scenario = 8;
+
+  // Target-owned renderer to attach for cross-platform validation. When
+  // present, BAS never launches or owns the desktop process; it attaches to
+  // the renderer identified by the target adapter.
+  reserved 9;
+  reserved "electron_target";
+  AppTarget app_target = 11;
+
+  // Immutable validation-cell identity required with app_target. BAS
+  // refuses target execution without the leased isolation binding.
+  ValidationContext validation_context = 10;
+}
+
+// AppTarget describes an already-running renderer owned by a desktop
+// target adapter. The endpoint must be loopback-only or authenticated by the
+// target transport; BAS does not open or expose a debugging port.
+message AppTarget {
+  // Target kind selects the admitted URL policy. Supported values are
+  // "electron" and "android-webview"; future WebView kinds reuse this
+  // descriptor rather than adding another target message.
+  string target_kind = 10;
+  string target_id = 1;
+  string cdp_endpoint = 2;
+  string renderer_id = 3;
+  string renderer_url = 4;
+  string renderer_title = 5;
+  string scenario_name = 6;
+  string artifact_digest = 7;
+  string context_id = 8;
+  string cdp_transport = 9;
+}
+
+// ValidationContext binds one BAS execution to an immutable validation cell
+// and its routed test-storage lease.
+message ValidationContext {
+  string context_id = 1;
+  string scenario_name = 2;
+  string artifact_digest = 3;
+  string target_id = 4;
+  string workflow_id = 5;
+  string profile_id = 6;
+  string isolation_lease_id = 7;
 }
 
 // ExecutionMetadata captures optional labels for adhoc runs.

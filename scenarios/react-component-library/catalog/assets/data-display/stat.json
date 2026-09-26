@@ -1,0 +1,64 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "data-display.stat",
+    "name": "Stat",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "The focused metric with value, label, comparison, trend, confidence, loading treatment, locale-aware formatting, and accessible context for what the number means.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.text",
+        "reason": "Copy uses the shared text styles rather than local typography."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "Number formatting is locale-specific."
+      },
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Certainty and urgency treatment is shared rather than reinvented per surface."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "motion.animated-number",
+        "reason": "Value transitions suit dashboards and are noise in dense tables."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "non-color-status",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "status-announced"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "stale",
+    "request-error"
+  ]
+}

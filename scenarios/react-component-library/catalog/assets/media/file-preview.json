@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "media.file-preview",
+    "name": "FilePreview",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "media",
+    "description": "The safe file summary showing type, size, status, thumbnail, metadata, download, and removal, degrading to a typed placeholder when no preview is possible.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.icon",
+        "reason": "Type glyphs resolve through the registry."
+      },
+      {
+        "asset": "primitives.text",
+        "reason": "Labels and values use the shared text styles."
+      },
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Scan and availability status uses shared certainty treatment."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "content-reflow",
+    "contrast-floor",
+    "gesture-alternative",
+    "entrance-restraint",
+    "responsive-transformation",
+    "non-color-status",
+    "error-message-usefulness"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "success",
+    "request-error"
+  ]
+}

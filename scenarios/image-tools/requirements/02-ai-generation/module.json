@@ -1,0 +1,31 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-07-28T23:34:11-04:00"
+  },
+  "requirements": [
+    {
+      "id": "IMG-P0-002",
+      "title": "Core AI Generation \u0026 Editing",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "description": "Text-to-image (seed + N variations + size presets), image-to-image, inpaint (mask/box/text), and object removal run via \u003e=1 standalone non-ComfyUI backend per op; ComfyUI optional plug-in.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ai/generation_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Generation/edit op invokes selected standalone backend and persists params with output"
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/ai/generation_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Each AI gen/edit op completes headless via the async job system"
+        }
+      ]
+    }
+  ]
+}

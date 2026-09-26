@@ -235,6 +235,28 @@ export interface UseTimelineEntry {
 }
 
 /**
+ * Restore BAS logical page identity onto driver actions before generation.
+ * The driver owns driverPageId; the persisted timeline owns the session-local
+ * pageId used by workflows. Action IDs are the shared capture identity.
+ */
+export function attachTimelinePageIdentities(
+  actions: RecordedAction[],
+  entries: UseTimelineEntry[]
+): RecordedAction[] {
+  const pageIdsByActionId = new Map<string, string>();
+  for (const entry of entries) {
+    if (entry.type === 'action' && entry.action && entry.pageId) {
+      pageIdsByActionId.set(entry.action.id, entry.pageId);
+    }
+  }
+
+  return actions.map((action) => {
+    const pageId = pageIdsByActionId.get(action.id);
+    return pageId ? { ...action, pageId } : action;
+  });
+}
+
+/**
  * Convert a useTimeline TimelineEntry to a TimelineItem.
  * Handles both action entries and page event entries.
  * This is for entries from the /timeline API endpoint (useTimeline hook).
@@ -558,33 +580,21 @@ const NON_ACTION_NODE_TYPES = new Set([
 ]);
 
 /**
- * Check if a node is an action node that should appear in the timeline.
- * Handles both V2 format (node.action.type) and legacy format (node.type).
+ * Check if a V2 node is an action node that should appear in the timeline.
  */
-function isActionNode(node: { type?: string; action?: { type: string } }): boolean {
-  // Get the effective type from either format
-  const nodeType = node.type ?? node.action?.type;
-  if (!nodeType) return false;
+function isActionNode(node: { action?: { type: string } }): boolean {
+  if (!node.action?.type) return false;
 
-  // Normalize V2 format (ACTION_TYPE_NAVIGATE -> navigate)
-  const normalizedType = nodeType.replace('ACTION_TYPE_', '').toLowerCase();
+  const normalizedType = node.action.type.replace('ACTION_TYPE_', '').toLowerCase();
 
   return !NON_ACTION_NODE_TYPES.has(normalizedType);
 }
 
 /**
- * Extract action type from a workflow node.
- * Handles both V2 format (node.action.type) and legacy format (node.type).
+ * Extract an action type from a V2 workflow node.
  */
-function getNodeActionType(node: { type?: string; action?: { type: string } }): string {
-  if (node.action?.type) {
-    // V2 format: ACTION_TYPE_NAVIGATE -> navigate
-    return node.action.type.replace('ACTION_TYPE_', '').toLowerCase();
-  }
-  if (node.type) {
-    return node.type.toLowerCase();
-  }
-  return 'unknown';
+function getNodeActionType(node: { action: { type: string } }): string {
+  return node.action.type.replace('ACTION_TYPE_', '').toLowerCase();
 }
 
 /**
@@ -597,7 +607,7 @@ function getNodeActionType(node: { type?: string; action?: { type: string } }): 
  * @returns Timeline items with pending execution status
  */
 export function workflowNodesToTimelineItems(
-  nodes: Array<{ id: string; type?: string; data?: Record<string, unknown>; action?: { type: string; metadata?: { label?: string }; navigate?: { url?: string } } }>,
+  nodes: Array<{ id: string; action?: { type: string; metadata?: { label?: string }; navigate?: { url?: string }; click?: { selector?: string }; input?: { selector?: string }; wait?: { selector?: string }; assert?: { selector?: string }; hover?: { selector?: string }; focus?: { selector?: string }; blur?: { selector?: string }; select_option?: { selector?: string }; extract?: { selector?: string } } }>,
   _edges: Array<{ source: string; target: string }>
 ): ExecutionTimelineItem[] {
   console.log('[workflowNodesToTimelineItems] Input nodes:', nodes?.length ?? 0, nodes);
@@ -614,7 +624,6 @@ export function workflowNodesToTimelineItems(
   for (const node of nodes) {
     const nodeTypeInfo = {
       id: node.id,
-      type: node.type,
       actionType: node.action?.type,
       isAction: isActionNode(node),
     };
@@ -626,18 +635,25 @@ export function workflowNodesToTimelineItems(
       continue;
     }
 
-    const actionType = getNodeActionType(node);
+    const actionType = getNodeActionType(node as { action: { type: string } });
 
     // Get label for display
-    const label = node.action?.metadata?.label ?? (node.data?.label as string | undefined);
+    const label = node.action?.metadata?.label;
 
-    // Get selector if available
-    const selector = node.data?.selector as string | undefined;
+    const selector = node.action?.click?.selector
+      ?? node.action?.input?.selector
+      ?? node.action?.wait?.selector
+      ?? node.action?.assert?.selector
+      ?? node.action?.hover?.selector
+      ?? node.action?.focus?.selector
+      ?? node.action?.blur?.selector
+      ?? node.action?.select_option?.selector
+      ?? node.action?.extract?.selector;
 
     // Get URL for navigate nodes
     let url: string | undefined;
     if (actionType === 'navigate') {
-      url = (node.data?.url as string) ?? node.action?.navigate?.url;
+      url = node.action?.navigate?.url;
     }
 
     items.push({

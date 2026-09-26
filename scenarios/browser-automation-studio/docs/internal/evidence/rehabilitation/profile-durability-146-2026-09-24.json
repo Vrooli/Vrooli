@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "work": "BAS-WORK-146",
+  "issue": "BAS-RF-011",
+  "contractRow": "profile-durability",
+  "observedAt": "2026-09-24T09:02:37.593Z",
+  "sourceHead": "8707b970a48f82665662450766ad8233d6def9e7",
+  "contractSha256": "60f454b2084d6598f1f1bf26cbd042f313dc036a3938c514560770f19cccc680",
+  "sourceFiles": {
+    "playwright-driver/src/session/manager.ts": "f4b2bc1b555bae496cf9b8df812e66bdfae1236b3c897a2610c27f4c178a3f98",
+    "api/cmd/profile-durability-cohort/qualification.mjs": "70173eb21193f402cd0510dd9b86e4c1d5f104446a78dcd6d0bba35e9df09d69"
+  },
+  "runtime": {
+    "managedBuildIdentityBeforeSeedAndAfterRestart": "sha256:a2a0938a5c89776b5dbe86f9dd33ab4ef1902ec0b3babfb02d5ec164d2dfb2ea",
+    "managedServiceHealthAfterVerification": "healthy"
+  },
+  "cohort": {
+    "producer": "api/cmd/profile-durability-cohort/qualification.mjs",
+    "seedCommand": "node cmd/profile-durability-cohort/qualification.mjs seed /tmp/bas-profile-durability-146-current",
+    "verifyCommand": "node cmd/profile-durability-cohort/qualification.mjs verify /tmp/bas-profile-durability-146-current",
+    "seedOwnerReceipt": {
+      "path": "internal/evidence/rehabilitation/profile-durability-146-seed-owner.json",
+      "sha256": "b3e0f51491c18082341364059cfe9b01d968c5b84062c9eda1178c39f93998d3"
+    },
+    "restartOwnerReceipt": {
+      "path": "internal/evidence/rehabilitation/profile-durability-146-restart-owner.json",
+      "sha256": "cfcb88d1b083422e60a9c1a1798abd1ea907f850b68bac0939387a257fbe4f87"
+    },
+    "allChecksPassed": true,
+    "seedChecks": 5,
+    "restartChecks": 2,
+    "checkpointVisibleAfterMs": 1638.9378749999998,
+    "checkpointPollSamples": 32,
+    "alphaCookieLocalStorageIndexedDBCloseReopen": "passed",
+    "betaCookieLocalStorageIndexedDB": "passed",
+    "alphaBetaIsolation": "passed",
+    "alphaAndBetaAfterManagedApiDriverRestart": "passed",
+    "syntheticProfilesDeleted": 2
+  },
+  "qualificationStatus": "Focused managed owner cohort passed on one current build, including checkpoint timing, alpha/beta isolation, close/reopen, restart restoration and synthetic-profile cleanup. The composite rehabilitation Test Genie phase was not run because its cancellation/recovery receipt is still missing; no profile-durability release-row advancement is claimed.",
+  "limitations": [
+    "Checkpoint timing is one trial; repeatability is unverified.",
+    "Abrupt process-death or power-loss recovery was not exercised.",
+    "Only the Linux managed candidate was exercised; other platform targets remain unverified.",
+    "The composite rehabilitation-evidence phase has not passed on this build."
+  ],
+  "freshCaptureWorkload": {
+    "operationId": "8e9c95b9e60f5093b94006a3727e17e5",
+    "outcome": "WORKLOAD_OUTCOME_MEASURED",
+    "samples": 100,
+    "attemptsIncludingWarmup": 101,
+    "serviceP95Ms": 413,
+    "wallP95Ms": 575.487613,
+    "budgetMs": 2000,
+    "buildIdentity": "sha256:a2a0938a5c89776b5dbe86f9dd33ab4ef1902ec0b3babfb02d5ec164d2dfb2ea",
+    "receiptPath": "/home/matthalloran8/.vrooli/test-runs/performance-health/workloads/8e9c95b9e60f5093b94006a3727e17e5/producer/receipt.json",
+    "receiptSha256": "f1676f1662cf8d02fcb8876e165b2a33256610c64edec69a42d1a0da89ad1613",
+    "producerDigest": "62456dbce61bba14f9feb78efc1e806448fc482e734c2e8a18bf2938b6ed4a52",
+    "contractDigest": "60f454b2084d6598f1f1bf26cbd042f313dc036a3938c514560770f19cccc680",
+    "configurationDigest": "1a2776b5338b0074036293f43952bd03d3be2ef1ccabfef38787e06d4a63b167",
+    "fixtureRevision": "dcabe2e264925a3c8264eef9ecd37b0b7b16ee11ce3c57bb1310a80ede1e3367"
+  },
+  "setpointRead": {
+    "programId": "prog_2e39822d-2c7c-4d7e-af36-1668dfc633a5",
+    "qualifiedRows": 1,
+    "unknownRows": 16,
+    "productQualified": false
+  }
+}

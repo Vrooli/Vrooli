@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"system-monitor-api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
 )
 
 // MaxBodySize returns middleware that limits request body size.

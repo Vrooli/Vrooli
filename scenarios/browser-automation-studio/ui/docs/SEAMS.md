@@ -2,6 +2,56 @@
 
 This document describes the architectural seams in the browser-automation-studio UI codebase. Seams are boundaries where behavior can be substituted for testing, enabling isolation of components and easy verification of behavior.
 
+## Test Utilities (`src/test-utils/`)
+
+Shared UI test infrastructure is test-only and protected by the boundary project in `ui/vitest/boundaries`.
+
+### Directory Structure
+
+```
+test-utils/
+├── index.ts                    # Canonical public test utility entry point
+├── fixtures/                   # Domain builders for workflow and UI state
+├── hooks/                      # Hook rendering utilities
+├── mocks/                      # Browser, DOM, fetch, ReactFlow, Monaco shims
+├── render/                     # Provider-aware render helpers
+├── stores/                     # Zustand/store mock factories
+├── renderHook.tsx              # Compatibility re-export
+├── setupTests.ts               # Vitest setup and global browser shims
+└── testHelpers.tsx             # Compatibility re-export
+```
+
+### Fetch/API Seam
+
+Tests that exercise API adapters should use the canonical fetch helpers:
+
+```typescript
+import { fetchJsonResponse, installFetchMock } from '@/test-utils';
+
+const fetchMock = installFetchMock();
+fetchMock.mockResolvedValueOnce(fetchJsonResponse({ projects: [] }));
+```
+
+This keeps response shape, `ok`/`status`, and global fetch restoration consistent across store, service, component,
+and recording-state tests. Workflow, execution, project, replay-style API adapter tests; the `projectStore`,
+`scenarioStore`, `workflowStore`, and `entitlementStore` suites; `ProjectDetail`; and recording viewport sync tests now
+use this seam. New UI tests should not assign `global.fetch` or `window.fetch` directly.
+
+### Render and Store Seams
+
+Use `renderWithProviders` when a component needs React Query providers. Use store mock factories such as `createMockProjectStore` when a test needs independent mocked store state; the singleton compatibility exports remain only for older tests.
+
+### Workflow Builder Seam
+
+Workflow-builder tests should import ReactFlow and editor test doubles from the shared utility layer instead of defining one-off mocks in each test file:
+
+```typescript
+vi.mock('reactflow', async () => await import('@/test-utils/mocks/reactflow'));
+vi.mock('@monaco-editor/react', async () => await import('@/test-utils/mocks/monaco'));
+```
+
+Use `createWorkflowNode`, `createWorkflowEdge`, `createReactFlowViewport`, `createWorkflowValidationResponse`, `createWorkflowBuilderStoreState`, and `installDragEventShim` from `@/test-utils` for recurring workflow setup. These utilities keep canvas smoke tests aligned with the selectors and data contracts used by `WorkflowBuilder`, `WorkflowToolbar`, and `useReactFlowReady`.
+
 ## Export Domain (`src/domains/executions/export/`)
 
 The export domain has been refactored to follow screaming architecture principles with clear testing seams.

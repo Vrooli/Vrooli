@@ -11,6 +11,25 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+func waitForBrokerClientCount(t *testing.T, broker *Broker, want int) {
+	t.Helper()
+	deadline := time.After(2 * time.Second)
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		if got := broker.ClientCount(); got == want {
+			return
+		}
+
+		select {
+		case <-deadline:
+			t.Fatalf("expected %d clients, got %d", want, broker.ClientCount())
+		case <-ticker.C:
+		}
+	}
+}
+
 func TestWSBroker(t *testing.T) {
 	broker := NewBroker()
 	defer broker.Stop()
@@ -45,12 +64,7 @@ func TestWSBroker(t *testing.T) {
 	}
 	defer conn.Close()
 
-	// Wait for client registration.
-	time.Sleep(50 * time.Millisecond)
-
-	if broker.ClientCount() != 1 {
-		t.Fatalf("expected 1 client, got %d", broker.ClientCount())
-	}
+	waitForBrokerClientCount(t, broker, 1)
 
 	// Broadcast a message.
 	broker.BroadcastUpdate("test-event", map[string]string{"key": "value"})
@@ -75,7 +89,7 @@ func TestWSBroker(t *testing.T) {
 
 	// Disconnect and verify cleanup.
 	conn.Close()
-	time.Sleep(100 * time.Millisecond)
+	waitForBrokerClientCount(t, broker, 0)
 }
 
 func TestWSBrokerClientRemoval(t *testing.T) {
@@ -107,19 +121,11 @@ func TestWSBrokerClientRemoval(t *testing.T) {
 		t.Fatalf("dial error: %v", err)
 	}
 
-	time.Sleep(50 * time.Millisecond)
-	if broker.ClientCount() != 1 {
-		t.Fatalf("expected 1 client, got %d", broker.ClientCount())
-	}
+	waitForBrokerClientCount(t, broker, 1)
 
 	conn.Close()
-	time.Sleep(200 * time.Millisecond)
 
 	// After close, broadcast should clean up the dead connection.
 	broker.BroadcastUpdate("cleanup-test", nil)
-	time.Sleep(100 * time.Millisecond)
-
-	if broker.ClientCount() != 0 {
-		t.Errorf("expected 0 clients after disconnect, got %d", broker.ClientCount())
-	}
+	waitForBrokerClientCount(t, broker, 0)
 }

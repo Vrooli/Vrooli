@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package vrooli.performance_health.v1.lighthouse;
+
+import "common/v1/metrics.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/lighthouse;lighthouse_v1";
+
+// =============================================================================
+// LIGHTHOUSE SERVICE
+// =============================================================================
+//
+// @layer 0
+// @domain performance-health
+// @stability beta
+//
+// LighthouseService wraps the Lighthouse CLI (its own Chrome — NOT via BAS) to
+// score a scenario's UI against per-page error/warn thresholds from
+// .vrooli/lighthouse.json. It is Tier 0 (works on any URL) and silently skips
+// when the Lighthouse CLI is absent or there is no UI URL.
+// =============================================================================
+
+service LighthouseService {
+  // RunLighthouse scores a scenario's pages and returns category scores plus
+  // any threshold violations, or a clean skip when Lighthouse is unavailable.
+  rpc RunLighthouse(RunLighthouseRequest) returns (RunLighthouseResponse);
+}
+
+message RunLighthouseRequest {
+  string scenario = 1;
+  string path = 2;
+}
+
+enum LighthouseOutcome {
+  LIGHTHOUSE_OUTCOME_UNSPECIFIED = 0;
+  LIGHTHOUSE_OUTCOME_SCORED = 1;
+  LIGHTHOUSE_OUTCOME_SKIPPED = 2;
+  LIGHTHOUSE_OUTCOME_FAILED = 3;
+}
+
+message RunLighthouseResponse {
+  string scenario = 1;
+  LighthouseOutcome outcome = 2;
+  repeated PageScore pages = 3;
+  // Human-readable reason when skipped/failed.
+  string reason = 4;
+  common.v1.ExecutionMetrics metrics = 5;
+}
+
+// PageScore is one Lighthouse run against one page.
+message PageScore {
+  string url = 1;
+  // 0..1 category scores (performance, accessibility, best-practices, seo).
+  double performance = 2;
+  double accessibility = 3;
+  double best_practices = 4;
+  double seo = 5;
+  // Threshold violations triggered for this page.
+  repeated string violations = 6;
+}

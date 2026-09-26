@@ -1,0 +1,73 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.editable-resource",
+    "name": "EditableResource",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The read-and-edit workflow coordinating optimistic changes, validation, autosave, dirty-state protection, conflict handling, cancellation, and success feedback in place.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "patterns.resource-detail",
+        "reason": "Read presentation is shared."
+      },
+      {
+        "asset": "forms.form",
+        "reason": "Editing uses the shared form runtime."
+      },
+      {
+        "asset": "patterns.unsaved-changes-flow",
+        "reason": "Navigation away from unsaved work is guarded once."
+      },
+      {
+        "asset": "patterns.conflict-resolution-flow",
+        "reason": "Concurrent edits are reconciled through the shared flow."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation",
+    "optimistic-rollback",
+    "freshness-disclosure"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "submitting",
+    "success",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ]
+}

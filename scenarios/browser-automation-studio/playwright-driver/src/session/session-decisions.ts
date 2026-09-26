@@ -7,7 +7,6 @@
  * DECISION CATEGORIES:
  * 1. Session Lookup - Finding existing sessions for reuse
  * 2. Session Reuse - Deciding whether/how to reuse a session
- * 3. Phase Recovery - Handling stuck session phases
  *
  * CHANGE AXIS: Session Lifecycle
  * When modifying session lifecycle behavior:
@@ -16,35 +15,8 @@
  * 3. Keep manager.ts as the orchestrator
  */
 
-import type { SessionSpec, SessionState, SessionPhase } from '../types';
-
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Result of looking up a session for potential reuse.
- */
-export interface SessionLookupResult {
-  /** The session that was found, if any */
-  session: SessionState | null;
-  /** Reason the session was selected */
-  reason: 'execution_id_match' | 'label_match' | 'none';
-}
-
-/**
- * Decision about how to handle an existing session.
- */
-export interface ReuseDecision {
-  /** Whether to reuse the existing session */
-  shouldReuse: boolean;
-  /** Whether to reset the session before reuse */
-  shouldReset: boolean;
-  /** Whether to recover the session phase */
-  shouldRecoverPhase: boolean;
-  /** Reason for the decision */
-  reason: string;
-}
+import { isDeepStrictEqual } from 'node:util';
+import type { SessionSpec, SessionState } from '../types';
 
 // =============================================================================
 // Session Lookup Decisions
@@ -61,10 +33,7 @@ export interface ReuseDecision {
  * @param executionId - Execution ID to match
  * @returns true if the session matches the execution ID
  */
-export function matchesByExecutionId(
-  session: SessionState,
-  executionId: string
-): boolean {
+export function matchesByExecutionId(session: SessionState, executionId: string): boolean {
   return session.spec.execution_id === executionId;
 }
 
@@ -79,16 +48,35 @@ export function matchesByExecutionId(
  * @param labels - Labels to match (all must match)
  * @returns true if all specified labels match
  */
-export function matchesByLabels(
-  session: SessionState,
-  labels?: Record<string, string>
-): boolean {
+export function matchesByLabels(session: SessionState, labels?: Record<string, string>): boolean {
   if (!labels || !session.spec.labels) {
     return false;
   }
 
-  return Object.entries(labels).every(
-    ([key, value]) => session.spec.labels?.[key] === value
+  return Object.entries(labels).every(([key, value]) => session.spec.labels?.[key] === value);
+}
+
+/**
+ * A released browser context can cross execution owners only when its
+ * identity-bearing profile revision and context inputs still match. Labels
+ * choose a pool; they do not prove that browser state belongs to the caller.
+ */
+export function matchesReusableContext(session: SessionState, requested: SessionSpec): boolean {
+  const retained = session.spec;
+  return (
+    retained.session_profile_version === requested.session_profile_version &&
+    isDeepStrictEqual(retained.viewport, requested.viewport) &&
+    isDeepStrictEqual(retained.storage_state, requested.storage_state) &&
+    isDeepStrictEqual(retained.browser_profile, requested.browser_profile) &&
+    isDeepStrictEqual(retained.user_agent, requested.user_agent) &&
+    isDeepStrictEqual(retained.locale, requested.locale) &&
+    isDeepStrictEqual(retained.timezone, requested.timezone) &&
+    isDeepStrictEqual(retained.geolocation, requested.geolocation) &&
+    isDeepStrictEqual(retained.permissions, requested.permissions) &&
+    isDeepStrictEqual(retained.service_worker_control, requested.service_worker_control) &&
+    isDeepStrictEqual(retained.fake_media, requested.fake_media) &&
+    isDeepStrictEqual(retained.app_target, requested.app_target) &&
+    isDeepStrictEqual(retained.validation_context, requested.validation_context)
   );
 }
 
@@ -113,23 +101,53 @@ export function findByExecutionId(
 }
 
 /**
- * Find a reusable session by labels.
+ * Check if a session is safe to hand to a DIFFERENT execution via label pooling.
+ *
+ * DECISION: Only idle sessions are poolable
+ * Label-based reuse rebinds the session to a new execution (spec overwrite,
+ * phase forced to 'ready'). Doing that to a session that is initializing,
+ * executing, recording, resetting, or closing hijacks it out from under its
+ * current owner: the owner's in-flight instruction gets its navigation
+ * aborted (net::ERR_ABORTED) and subsequent instructions race into
+ * SESSION_BUSY. Idempotent retries of the SAME execution are handled by the
+ * execution_id match, which observes the current lease without phase recovery.
+ *
+ * @param session - Session to check
+ * @returns true if the session may be pooled across executions
+ */
+export function isSafeForLabelReuse(session: SessionState): boolean {
+  return (
+    session.phase === 'ready' &&
+    !session.instructionInFlight &&
+    session.leaseReleasedAt !== undefined
+  );
+}
+
+/**
+ * Find a reusable session by labels and context identity.
  * Used when reuse_mode is 'reuse' or 'clean'.
+ * Sessions that are busy with another execution are skipped (see
+ * isSafeForLabelReuse); if every matching session is busy, the caller
+ * creates a fresh session instead.
  *
  * @param sessions - All active sessions
- * @param labels - Labels to match
- * @returns The first matching session or null
+ * @param requested - The requested labels and context-defining session options
+ * @returns The first idle matching session or null
  */
 export function findByLabels(
   sessions: Iterable<SessionState>,
-  labels?: Record<string, string>
+  requested: SessionSpec
 ): SessionState | null {
-  if (!labels) {
+  if (!requested.labels) {
     return null;
   }
 
   for (const session of sessions) {
-    if (matchesByLabels(session, labels)) {
+    if (
+      matchesByLabels(session, requested.labels) &&
+      matchesReusableContext(session, requested) &&
+      isSafeForLabelReuse(session)
+    ) {
       return session;
     }
   }
@@ -151,86 +169,8 @@ export function findByLabels(
  * @param reuseMode - The requested reuse mode
  * @returns true if we should look for reusable sessions
  */
-export function shouldAttemptReuse(
-  reuseMode: SessionSpec['reuse_mode']
-): boolean {
+export function shouldAttemptReuse(reuseMode: SessionSpec['reuse_mode']): boolean {
   return reuseMode !== 'fresh';
-}
-
-/**
- * Determine if a session should be reset on reuse.
- *
- * DECISION: Clean mode behavior
- * When reuse_mode is 'clean', we reuse the browser context but
- * clear cookies, storage, and navigation state.
- *
- * @param reuseMode - The requested reuse mode
- * @returns true if the session should be reset before reuse
- */
-export function shouldResetOnReuse(
-  reuseMode: SessionSpec['reuse_mode']
-): boolean {
-  return reuseMode === 'clean';
-}
-
-/**
- * Determine if a session phase should be recovered.
- *
- * DECISION: Stuck phase recovery
- * If a session is found in 'executing' phase during a retry (same execution_id),
- * the previous execution likely crashed or timed out.
- * We recover by resetting the phase to 'ready'.
- *
- * Recovery is safe because:
- * 1. Same execution_id indicates a retry of the same operation
- * 2. The previous execution won't complete (crashed/timed out)
- * 3. Leaving in 'executing' would permanently block the session
- *
- * @param currentPhase - Current session phase
- * @param isRetry - Whether this is a retry (same execution_id)
- * @returns true if phase should be recovered to 'ready'
- */
-export function shouldRecoverPhase(
-  currentPhase: SessionPhase,
-  isRetry: boolean
-): boolean {
-  return currentPhase === 'executing' && isRetry;
-}
-
-/**
- * Make a complete reuse decision for an existing session.
- *
- * @param session - The existing session
- * @param spec - The new session spec
- * @param matchReason - How the session was matched
- * @returns Decision about how to handle the session
- */
-export function makeReuseDecision(
-  session: SessionState,
-  spec: SessionSpec,
-  matchReason: 'execution_id_match' | 'label_match'
-): ReuseDecision {
-  const isRetry = matchReason === 'execution_id_match';
-  const shouldReset = shouldResetOnReuse(spec.reuse_mode);
-  const needsPhaseRecovery = shouldRecoverPhase(session.phase, isRetry);
-
-  let reason: string;
-  if (isRetry) {
-    reason = needsPhaseRecovery
-      ? 'Retry of previous execution - recovering from stuck executing phase'
-      : 'Retry of previous execution - returning existing session';
-  } else {
-    reason = shouldReset
-      ? 'Label match with clean mode - resetting session state'
-      : 'Label match - reusing session with current state';
-  }
-
-  return {
-    shouldReuse: true,
-    shouldReset,
-    shouldRecoverPhase: needsPhaseRecovery,
-    reason,
-  };
 }
 
 // =============================================================================
@@ -254,6 +194,14 @@ export function isSessionActive(
   idleTimeoutMs: number,
   now: number = Date.now()
 ): boolean {
+  // An instruction may legitimately occupy the session longer than the idle
+  // threshold (for example, a long audio-feed wait).  Cleanup must never reap
+  // a session while its owner is executing; the in-flight Playwright action is
+  // the activity signal even when no HTTP request reaches the driver during
+  // that wait.
+  if (session.instructionInFlight || session.phase !== 'ready') {
+    return true;
+  }
   const idleTimeMs = now - session.lastUsedAt.getTime();
   return idleTimeMs < idleTimeoutMs;
 }

@@ -311,6 +311,9 @@
       "allOf": [
         { "$ref": "#/definitions/commonNodeFields" }
       ],
+      "not": {
+        "required": ["workflowDefinition"]
+      },
       "type": "object",
       "required": ["expression"],
       "properties": {
@@ -504,10 +507,6 @@
         "workflowId": {
           "type": "string",
           "description": "ID or fixture reference of workflow to call"
-        },
-        "workflowDefinition": {
-          "type": "object",
-          "description": "Inline workflow definition"
         },
         "parameters": {
           "type": "object",

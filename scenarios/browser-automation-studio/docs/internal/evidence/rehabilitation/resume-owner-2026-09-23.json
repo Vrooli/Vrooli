@@ -1,0 +1,339 @@
+{
+  "cycle": "088",
+  "issue": "BAS-RF-108",
+  "status": "canonical resumed admission, routing, settings, lineage and stop locally qualified and deployed; full recovery remains open",
+  "build_identity": "sha256:55d6245c38055cff076175a7901e6aaa56bef97e03a2cd2a14ab5845ad06f630",
+  "source": {
+    "before": {
+      "api/services/workflow/executions.go": {
+        "sha256": "5168331f2009b2f5b2eb1cfd0da3dfe1da77c7f36248d072db1030adc77760c5",
+        "lines": 759
+      },
+      "api/services/workflow/executions_list.go": {
+        "sha256": "eded92627a465803ad8e677fd6a7aba7779925a09e539a92f52f5fb191f07e4a",
+        "lines": 209
+      },
+      "api/services/workflow/execution_checkpoint.go": {
+        "sha256": "993667917d414a498abbd3c9909f9ff3944491f74bb7aa5e0d47e9be5927c787",
+        "lines": 201
+      },
+      "api/services/workflow/execution_snapshot.go": {
+        "sha256": "d485a66a317d13f79ed6883357b5d7c0efd3a28be79c90ca93b4a542c5e7b468",
+        "lines": 132
+      },
+      "api/services/workflow/execution_resume.go": {
+        "sha256": "bd5ae49ec5a0a0a052cdcdeb2073647d5a5db814c946dcc57c2185452faaf17f",
+        "lines": 128
+      },
+      "api/services/workflow/execution_results_test.go": {
+        "sha256": "5440b8108813fedbad419caabc63ea9dc6f0b342785e48cd77c04108ed52f9bd",
+        "lines": 693
+      },
+      "api/automation/executor/executor.go": {
+        "sha256": "c98d1fae6fb0b46b138e474449e4fe4416c8ce68af405e18adc42bb98efc731a",
+        "lines": 122
+      },
+      "api/automation/executor/simple_executor.go": {
+        "sha256": "84e5093b92fc72a2b81d846c37770b02b7f3a93eddb485399c1490c05fb4182f",
+        "lines": 1819
+      }
+    },
+    "frozen": {
+      "api/services/workflow/executions.go": {
+        "sha256": "98f9508e3c7bde1ecdef03065b2e0c9df435ba35fe190b53c3cd0ecad8619184",
+        "lines": 772
+      },
+      "api/services/workflow/executions_list.go": {
+        "sha256": "5f62b1ee3c02cc91980529e3905323e8f93637d6c8f30230ca90dfffb44ec39c",
+        "lines": 93
+      },
+      "api/services/workflow/execution_checkpoint.go": {
+        "sha256": "389d86360fcd54f26f4a8ab3e2226cab79def8fab7cb2ef35a47a710c0bd61b0",
+        "lines": 205
+      },
+      "api/services/workflow/execution_snapshot.go": {
+        "sha256": "8ece49465c09d7debe04551669785b2bcba7d673641a1e1c0314a29cddbfa47c",
+        "lines": 137
+      },
+      "api/services/workflow/execution_resume.go": {
+        "sha256": "dc66bb0e41545d0c57c364fd1ed5a7b472d32630db1039477d6278914a0e5c22",
+        "lines": 131
+      },
+      "api/services/workflow/execution_results_test.go": {
+        "sha256": "581221b4b527f7d89ed1b2011901036e2ee7b8c1f88e724e4b61d50f0c52d51a",
+        "lines": 804
+      },
+      "api/automation/executor/executor.go": {
+        "sha256": "a1eb1d0054f657b714123c4e042028553ebfb008828cd35c637df25cd0375a64",
+        "lines": 120
+      },
+      "api/automation/executor/simple_executor.go": {
+        "sha256": "8a57e43dae1c5c43454c7cd724fa6ad3a3a4c260aab8e7dee4ad452debce6d7f",
+        "lines": 1785
+      }
+    }
+  },
+  "change": "Resume prepares the canonical version-pinned saved execution request. Deleted private resumed starter and runner; cloned complete settings, restored namespaces/URL override, preserved lineage and routing, rejected unknown revision. Removed redundant InitialVariables and duplicate state initializer.",
+  "checks": {
+    "original_red": "/tmp/bas-resume-context-maintained-red-088.txt",
+    "extended_baseline_red": "/tmp/bas-resume-preservation-baseline-red-088.txt",
+    "green": "/tmp/bas-resume-preservation-green-088.txt",
+    "race_packages": "/tmp/bas-resume-owner-races-088.txt",
+    "build": "/tmp/bas-go-build-088.txt",
+    "native_resume": {
+      "build_identity": "sha256:55d6245c38055cff076175a7901e6aaa56bef97e03a2cd2a14ab5845ad06f630",
+      "artifact_dir": "/tmp/bas-resume-effects-088-h0ape2",
+      "cases": [
+        {
+          "name": "create owned workflow",
+          "status": "passed"
+        },
+        {
+          "name": "initial failure follows one completed effect",
+          "status": "passed"
+        },
+        {
+          "name": "resumed settings and origin retained",
+          "status": "passed"
+        },
+        {
+          "name": "resume completes without repeating the completed effect",
+          "status": "passed"
+        },
+        {
+          "name": "remove only owned execution evidence",
+          "status": "passed"
+        },
+        {
+          "name": "remove owned workflow",
+          "status": "passed"
+        },
+        {
+          "name": "remove owned project",
+          "status": "passed"
+        }
+      ],
+      "effects": [
+        {
+          "sequence": 1,
+          "time": 1790166960186
+        }
+      ],
+      "attempts": [
+        {
+          "url": "/effect",
+          "gate": false,
+          "time": 1790166960186,
+          "fixtureHeader": "resume-settings"
+        },
+        {
+          "url": "/gate",
+          "gate": false,
+          "time": 1790166960478,
+          "fixtureHeader": "resume-settings"
+        },
+        {
+          "url": "/gate",
+          "gate": false,
+          "time": 1790166960481,
+          "fixtureHeader": "resume-settings"
+        },
+        {
+          "url": "/gate",
+          "gate": true,
+          "time": 1790166960838,
+          "fixtureHeader": "resume-settings"
+        }
+      ],
+      "execution_ids": [
+        "c52b436c-e21e-4b25-aa26-562ff757d03b",
+        "e423697e-e25c-4dfc-92b5-8b61f6736304"
+      ],
+      "passed": 7,
+      "failed": 0
+    },
+    "native_workflow": {
+      "build_identity": "sha256:55d6245c38055cff076175a7901e6aaa56bef97e03a2cd2a14ab5845ad06f630",
+      "cases": [
+        {
+          "name": "driver prerequisite",
+          "status": "passed"
+        },
+        {
+          "name": "owned recording captures the independent fixture click",
+          "status": "passed"
+        },
+        {
+          "name": "API persists and reads the generated workflow",
+          "status": "passed"
+        },
+        {
+          "name": "invalid owners leave recorded entries available",
+          "status": "passed"
+        },
+        {
+          "name": "committed entries receive an exact acknowledgement",
+          "status": "passed"
+        },
+        {
+          "name": "captured typed actions replay in a fresh browser context",
+          "status": "passed"
+        },
+        {
+          "name": "saved workflow executes through the API owner",
+          "status": "passed"
+        },
+        {
+          "name": "execution preserves resolved version, trigger and admitted parameters",
+          "status": "passed"
+        },
+        {
+          "name": "close owned session d6ef3caa-24d5-4a58-ab3c-cd3b79f23e95",
+          "status": "passed"
+        },
+        {
+          "name": "close owned session 9b1ce561-2651-4b7d-8302-2f019566d496",
+          "status": "passed"
+        },
+        {
+          "name": "remove only this fixture execution and artifacts",
+          "status": "passed"
+        },
+        {
+          "name": "delete fixture workflow",
+          "status": "passed"
+        },
+        {
+          "name": "delete fixture project and files",
+          "status": "passed"
+        }
+      ],
+      "effects": [
+        {
+          "sequence": 1,
+          "context": "fixture_context=fa1fe246-022b-4df5-93d0-a26077198774",
+          "received_at": "2026-09-23T12:36:30.729Z"
+        },
+        {
+          "sequence": 2,
+          "context": "fixture_context=a065f07d-3019-4938-bf34-98edc8799c89",
+          "received_at": "2026-09-23T12:36:30.984Z"
+        },
+        {
+          "sequence": 3,
+          "context": "fixture_context=238a9124-4e07-4847-ae88-14835284f7fa",
+          "received_at": "2026-09-23T12:36:31.733Z"
+        }
+      ],
+      "execution_id": "f4dfae57-364e-49df-9c99-a3f23e0ca791",
+      "artifact_dir": "/tmp/bas-recording-e2e-bPMkwA",
+      "api_selected": true,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0
+    },
+    "profiles": {
+      "full_original_reads": 3,
+      "receipt": "/tmp/bas-profile-final-088.txt",
+      "api_equal_to_087": true
+    },
+    "capture_admission": "/tmp/bas-capture-admission-native-088.json/receipt.json",
+    "capture_dpr": "/tmp/bas-capture-dpr-native-088.json/receipt.json"
+  },
+  "metrics": {
+    "before": {
+      "runtime_lines": 3370,
+      "test_lines": 693,
+      "complexity": 616,
+      "functions": 85,
+      "hotspots": [
+        {
+          "function": "(*WorkflowService).executeWorkflowAsyncWithOptions",
+          "complexity": 55
+        },
+        {
+          "function": "(*SimpleExecutor).runPlan",
+          "complexity": 37
+        },
+        {
+          "function": "(*SimpleExecutor).Execute",
+          "complexity": 37
+        },
+        {
+          "function": "(*SimpleExecutor).normalizeOutcome",
+          "complexity": 25
+        },
+        {
+          "function": "(*WorkflowService).ExecuteWorkflowAPIWithOptions",
+          "complexity": 25
+        },
+        {
+          "function": "extractCheckpointFromTimeline",
+          "complexity": 17
+        }
+      ]
+    },
+    "after": {
+      "runtime_lines": 3243,
+      "test_lines": 804,
+      "complexity": 603,
+      "functions": 83,
+      "hotspots": [
+        {
+          "function": "(*WorkflowService).executeWorkflowAsyncWithOptions",
+          "complexity": 56
+        },
+        {
+          "function": "(*SimpleExecutor).runPlan",
+          "complexity": 37
+        },
+        {
+          "function": "(*WorkflowService).ExecuteWorkflowAPIWithOptions",
+          "complexity": 27
+        },
+        {
+          "function": "(*SimpleExecutor).Execute",
+          "complexity": 26
+        },
+        {
+          "function": "(*SimpleExecutor).normalizeOutcome",
+          "complexity": 25
+        },
+        {
+          "function": "extractCheckpointFromTimeline",
+          "complexity": 17
+        }
+      ]
+    },
+    "delta": {
+      "runtime_lines": -127,
+      "test_lines": 111,
+      "complexity": -13,
+      "functions": -2
+    },
+    "cumulative_affected_go_complexity": -62
+  },
+  "tidiness": {
+    "run_id": "20260923-123257-96956a92",
+    "summary": {
+      "totalFindings": 1151,
+      "longFiles": 103,
+      "complexity": 414,
+      "duplication": 610,
+      "coupling": 23,
+      "duplicationLineDebt": 34310
+    },
+    "verdict": "FAIL",
+    "interpretation": "two fewer clone findings, unchanged measured duplication debt; budgets not suppressed"
+  },
+  "limitations": [
+    "All17 release outcomes remain unknown.",
+    "No new performance cohort; retain dated086 workload only.",
+    "Rich control-flow cursor, changed store recovery and crash durability remain unqualified.",
+    "Historical missing/erased revision metadata is not reconstructed.",
+    "Go scope includes all changed runtime paths; tests measured separately; shared-tree totals are not causal scoped metrics.",
+    "Canonical runner/admission still have complexity56/27 and high arity.",
+    "Preserved partial API snapshot settings do not establish every setting implementation."
+  ],
+  "pending_operations": []
+}

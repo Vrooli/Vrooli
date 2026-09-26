@@ -1,0 +1,308 @@
+{
+  "cycle": "BAS-WORK-067",
+  "issues": [
+    "BAS-RF-007",
+    "BAS-RF-008",
+    "BAS-RF-033",
+    "BAS-RF-034",
+    "BAS-RF-038"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "qualified_and_deployed",
+  "source": {
+    "ui/src/domains/recording/capture/useFrameStream.ts": {
+      "before": {
+        "path": "ui/src/domains/recording/capture/useFrameStream.ts",
+        "sha256": "8e159d5649358580254cebcc5ccdd085da864d661af78f61a83ad6e8edc58313",
+        "lines": 869
+      },
+      "after": {
+        "sha256": "a3224a602bdcdf0c8663fffbd7ac7198f1330bd88d5f43b7703676fd8cbe004a",
+        "lines": 318
+      }
+    },
+    "ui/vite.config.ts": {
+      "before": {
+        "path": "ui/vite.config.ts",
+        "sha256": "894b6ea96ee65bd4885551c12f0831cb4c2b9257826ae83b74b55f17e0f72643",
+        "lines": 597
+      },
+      "after": {
+        "sha256": "38a17486ff3f52850cb7d3deeead31c6531dd6a0bc33d851b79b1e9aa0a9a470",
+        "lines": 583
+      }
+    },
+    "ui/server.js": {
+      "before": {
+        "path": "ui/server.js",
+        "sha256": "a91a2ab75b2f17cb9df4aa33b17027e9a4e8aaa4e091ed74581e696e6f2719be",
+        "lines": 178
+      },
+      "after": {
+        "sha256": "8a305ad09ba5643837ddc6b09b395b385070f71485f212695827f3ba190a680c",
+        "lines": 174
+      }
+    },
+    "playwright-driver/src/frame-streaming/websocket/server.ts": {
+      "before": {
+        "path": "playwright-driver/src/frame-streaming/websocket/server.ts",
+        "sha256": "fca102b9d500cea49695aaacd59509a09b67a8320e1b9de6fb9118b82e53fb84",
+        "lines": 290
+      },
+      "after": {
+        "deleted": true
+      }
+    },
+    "playwright-driver/src/frame-streaming/websocket/index.ts": {
+      "before": {
+        "path": "playwright-driver/src/frame-streaming/websocket/index.ts",
+        "sha256": "56cb6d1eea7d7b9d1bd8cfdf9af7109a1193f5430b6b2a558ca206cd984f1a50",
+        "lines": 24
+      },
+      "after": {
+        "sha256": "af944e8a1fdd808c7f9cb297f7974120925622b99f65159c0dcb68c90caafec9",
+        "lines": 18
+      }
+    },
+    "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts": {
+      "before": {
+        "path": "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts",
+        "sha256": "a4a4d5eda0d1ec3ac78f2be0d1911c8549f5b2b355f8ea24d0522490fe3ed07f",
+        "lines": 363
+      },
+      "after": {
+        "sha256": "6cc4f45812383cf0afa9cc403eb94ae2fd91eeb7226df779d9a5e82f548bc7f2",
+        "lines": 360
+      }
+    },
+    "playwright-driver/src/frame-streaming/strategies/polling.ts": {
+      "before": {
+        "path": "playwright-driver/src/frame-streaming/strategies/polling.ts",
+        "sha256": "610a35066108a8b849384e104705dddad0702a7eba0c4361d6ea027f5e5ec161",
+        "lines": 370
+      },
+      "after": {
+        "sha256": "8c1fdc5b1f7a4c9ff1c485da653d93ab1fd5a7fdd1c8ef18d4e2dafdc49ca2b2",
+        "lines": 362
+      }
+    },
+    "playwright-driver/src/config.ts": {
+      "before": {
+        "path": "playwright-driver/src/config.ts",
+        "sha256": "4e9908273e30b884b7ef697679c60a4f1145b9bc6d91c02e9b85e58120052895",
+        "lines": 937
+      },
+      "after": {
+        "sha256": "347f326dec0c23e8f01db4b686364bd194850fd3736f250eda0b4b03d053477f",
+        "lines": 920
+      }
+    },
+    "playwright-driver/src/server.ts": {
+      "before": {
+        "path": "playwright-driver/src/server.ts",
+        "sha256": "c791ddf106ee74c0ff1ab5854d90c81688229fee82feac6f83c0d90cc6133b7a",
+        "lines": 698
+      },
+      "after": {
+        "sha256": "c7cb667a47c172a45b8ba5ddf8f74f2e8083ac577f4e8065fbc7c7d9b8488098",
+        "lines": 683
+      }
+    },
+    "playwright-driver/tests/helpers/test-config.ts": {
+      "before": {
+        "path": "playwright-driver/tests/helpers/test-config.ts",
+        "sha256": "9c964c0cdacaa7c2f40105628ff5934d1deac3494c6a8f41a8b51ec2081287e2",
+        "lines": 154
+      },
+      "after": {
+        "sha256": "d34cc319e7948edc31f28d8445931b221c7c0439783d8f0d7d50301c45c3c2fc",
+        "lines": 153
+      }
+    },
+    "playwright-driver/tests/unit/frame-streaming/direct-frame-server.test.ts": {
+      "before": {
+        "path": "playwright-driver/tests/unit/frame-streaming/direct-frame-server.test.ts",
+        "sha256": "357d89f4c0efa90d3a64e68dc0acd544b7e32760303e2da87d705cacbf3dca38",
+        "lines": 141
+      },
+      "after": {
+        "deleted": true
+      }
+    },
+    ".vrooli/service.json": {
+      "before": {
+        "path": ".vrooli/service.json",
+        "sha256": "576873f04e1a746fbbab450b30430a7e88dbaee345b2fd32e14ba81978b4d881",
+        "lines": 741
+      },
+      "after": {
+        "sha256": "534340d073c46152c325c7eeff81db78eae002af34f4a1cd2107eb806a91d447",
+        "lines": 735
+      }
+    },
+    "api/sidecar/supervisor/process.go": {
+      "before": {
+        "path": "api/sidecar/supervisor/process.go",
+        "sha256": "8a60a2a5ed6ec46a8782414bd98c6bcb7be0d04a4138b4ca985a87903e67561a",
+        "lines": 482
+      },
+      "after": {
+        "sha256": "b6a066527714e0b32f8a4c7c50ca1d82607a7401a5791633b073ab7459bbe0b6",
+        "lines": 478
+      }
+    },
+    "ui/src/utils/latencyLogger.ts": {
+      "before": {
+        "path": "ui/src/utils/latencyLogger.ts",
+        "sha256": "e2452cc21b4af67deedecbc4ac12d79e968436f33fda2d18e4485369642681fd",
+        "lines": 117
+      },
+      "after": {
+        "deleted": true
+      }
+    }
+  },
+  "qualification_snapshot": {
+    "ui/src/domains/recording/capture/useFrameStream.ts": {
+      "sha256": "a3224a602bdcdf0c8663fffbd7ac7198f1330bd88d5f43b7703676fd8cbe004a",
+      "lines": 318
+    },
+    "ui/vite.config.ts": {
+      "sha256": "38a17486ff3f52850cb7d3deeead31c6531dd6a0bc33d851b79b1e9aa0a9a470",
+      "lines": 583
+    },
+    "ui/server.js": {
+      "sha256": "8a305ad09ba5643837ddc6b09b395b385070f71485f212695827f3ba190a680c",
+      "lines": 174
+    },
+    "playwright-driver/src/frame-streaming/websocket/server.ts": {
+      "deleted": true
+    },
+    "playwright-driver/src/frame-streaming/websocket/index.ts": {
+      "sha256": "af944e8a1fdd808c7f9cb297f7974120925622b99f65159c0dcb68c90caafec9",
+      "lines": 18
+    },
+    "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts": {
+      "sha256": "6cc4f45812383cf0afa9cc403eb94ae2fd91eeb7226df779d9a5e82f548bc7f2",
+      "lines": 360
+    },
+    "playwright-driver/src/frame-streaming/strategies/polling.ts": {
+      "sha256": "8c1fdc5b1f7a4c9ff1c485da653d93ab1fd5a7fdd1c8ef18d4e2dafdc49ca2b2",
+      "lines": 362
+    },
+    "playwright-driver/src/config.ts": {
+      "sha256": "347f326dec0c23e8f01db4b686364bd194850fd3736f250eda0b4b03d053477f",
+      "lines": 920
+    },
+    "playwright-driver/src/server.ts": {
+      "sha256": "c7cb667a47c172a45b8ba5ddf8f74f2e8083ac577f4e8065fbc7c7d9b8488098",
+      "lines": 683
+    },
+    "playwright-driver/tests/helpers/test-config.ts": {
+      "sha256": "d34cc319e7948edc31f28d8445931b221c7c0439783d8f0d7d50301c45c3c2fc",
+      "lines": 153
+    },
+    "playwright-driver/tests/unit/frame-streaming/direct-frame-server.test.ts": {
+      "deleted": true
+    },
+    ".vrooli/service.json": {
+      "sha256": "534340d073c46152c325c7eeff81db78eae002af34f4a1cd2107eb806a91d447",
+      "lines": 735
+    },
+    "api/sidecar/supervisor/process.go": {
+      "sha256": "b6a066527714e0b32f8a4c7c50ca1d82607a7401a5791633b073ab7459bbe0b6",
+      "lines": 478
+    },
+    "ui/src/utils/latencyLogger.ts": {
+      "deleted": true
+    },
+    "ui/src/domains/recording/capture/useFrameStream.test.ts": {
+      "sha256": "96de9c1e2ece129f21d2f99b063a7f785c26e0e1090c52075ddc68a59bdebddc",
+      "lines": 188
+    }
+  },
+  "tests": {
+    "native_route_red": "/tmp/bas-ui-stream-native-diagnostic-067.json:8 pass/1 fail; constructor uses24486, managed frame port24438; API socket receives2 binary frames",
+    "historical_hook_red": "/tmp/bas-ui-frame-owner-isolated-red-067.json:6 fail/1 control passes",
+    "maintained_red": "/tmp/bas-ui-frame-maintained-all-red-067.txt:15 regressions fail",
+    "native_outage_red": "/tmp/bas-ui-stream-outage-red-067.json:10 pass/5 fail; animated fixture, only UI HTTP frames receive controlled503;4 paint and1 live-stream failures; owned cleanup passes; main API socket received421 binary frames while all4 canvas paints failed",
+    "ui": "/tmp/bas-ui-frame-final-067.txt:498 tests/26 files pass,19 viewer cases; /tmp/bas-ui-frame-types-qualified-067.txt:types pass",
+    "driver_focused": "/tmp/bas-ui-stream-driver-final-067.txt:71 tests/5 suites pass; /tmp/bas-ui-stream-driver-types-final-067.txt:types pass",
+    "go": "/tmp/bas-ui-stream-go-067.txt:sidecar/supervisor/driver/handlers race packages pass, sidecar health/recovery have no tests; API build passes",
+    "retired_tests": "Four direct-server tests removed with the retired listener; API-viewer transport is covered by maintained regressions and awaits native qualification",
+    "driver_full": {
+      "run_id": "uh-20260923-034848-ed518695d56e926400000046ca3eaf2c",
+      "status": "passed",
+      "tests_passed": 1781,
+      "suites_passed": 123,
+      "tests_skipped": 2,
+      "suites_skipped": 1,
+      "command_seconds": 455.602,
+      "jest_seconds": 454.663,
+      "artifact": "/tmp/bas-driver-owner-final-067.json"
+    },
+    "native_outage_green": "/tmp/bas-ui-stream-outage-green-067.json:15/15 pass, same assertions as outage red",
+    "native_pointer_and_stream": "/tmp/bas-ui-stream-qualified-067.json:16/16 pass, exactly1 independent red-tab effect from canvas pointer during HTTP outage",
+    "native_normal_paint": "/tmp/bas-ui-paint-qualified-067.json:14/14 pass",
+    "native_screenshot": "/tmp/bas-ui-stream-outage-green-067.png (visually inspected)",
+    "workflow": {
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "execution_id": "c651ad14-9d6a-488a-80cc-7c8b8d74358a",
+      "artifact_dir": "/tmp/bas-recording-e2e-HKC7I1",
+      "independent_effects": 3
+    },
+    "profiles": "Three complete identity reads match original rollback; API metadata equals066; /tmp/bas-profile-final-067.txt and /tmp/bas-profile-api-final-067.json",
+    "frozen_source": "All15 frozen paths (including deletions) unchanged through owner/native qualification"
+  },
+  "measurement": {
+    "before": {
+      "runtime_lines": 4925,
+      "go_functions": 19,
+      "go_complexity": 62
+    },
+    "after": {
+      "runtime_lines": 3896,
+      "go_functions": 19,
+      "go_complexity": 61
+    },
+    "runtime_paths": [
+      "ui/src/domains/recording/capture/useFrameStream.ts",
+      "ui/vite.config.ts",
+      "ui/server.js",
+      "playwright-driver/src/frame-streaming/websocket/server.ts",
+      "playwright-driver/src/frame-streaming/websocket/index.ts",
+      "playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts",
+      "playwright-driver/src/frame-streaming/strategies/polling.ts",
+      "playwright-driver/src/config.ts",
+      "playwright-driver/src/server.ts",
+      "api/sidecar/supervisor/process.go",
+      "ui/src/utils/latencyLogger.ts"
+    ],
+    "tidiness_run": "20260923-034853-c09f2de2",
+    "tidiness": {
+      "totalFindings": 1133,
+      "longFiles": 103,
+      "complexity": 399,
+      "duplication": 610,
+      "coupling": 20,
+      "duplicationLineDebt": 31551
+    },
+    "cumulative_affected_go_reduction": 147,
+    "board": "/tmp/bas-board-result-067.json:17 pending telemetry/unqualified; contract valid",
+    "typescript_complexity_supplement": "typescript-complexity-supplement-2026-09-23.json"
+  },
+  "review": {
+    "removed": "Direct driver frame listener and global broadcast route, allocated port and environment forwarding, guessed UI port/config/proxy, unused latency utility, parallel binary/polling decode/render policies, wall-clock frame identity, unbounded decode admission.",
+    "ownership": "A viewer-owned API WebSocket session subscription and HTTP fallback feed one bounded decoder across effect replacements. One newest queued input/bitmap; late config/socket/HTTP/decode callbacks are disposed; ETags commit only after paint; fallback depends on usable frames and recovers from stall.",
+    "limits": [
+      "Source page/lease identity is absent from binary frame wire; local viewer fencing does not qualify already queued driver bytes. RF038 remains.",
+      "Main workspace event socket still receives unused frame copies; typed subscription/fanout ownership remains RF007 follow-up.",
+      "Native browser checks qualify functional stream/fallback paint and one selected-tab pointer effect, not sustained FPS/input latency or native-platform/security matrices.",
+      "TS/JS complexity remains RF064; shared-tree debt changes are not exact per-cycle attribution."
+    ]
+  },
+  "pending_operations": [],
+  "build_identity": "sha256:6a3e59568a71673e45ddbc788e1a6cb4cf6300669a6b36a6d96ddb44c736ec4a"
+}

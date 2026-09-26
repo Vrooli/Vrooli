@@ -6,7 +6,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act, renderHook } from '@testing-library/react';
+import { render, screen, act, renderHook } from '@/test-utils';
+import { installFetchMock, type FetchMock } from '@/test-utils';
 import { ViewportProvider } from './ViewportProvider';
 import { useViewport, useViewportOptional } from './viewportHooks';
 import type { ReactNode } from 'react';
@@ -18,25 +19,24 @@ vi.mock('@/config', () => ({
   }),
 }));
 
-// Mock fetch
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
-
 describe('ViewportProvider', () => {
+  let fetchMock: FetchMock;
+
   beforeEach(() => {
     vi.useFakeTimers();
-    mockFetch.mockReset();
-    mockFetch.mockResolvedValue({ ok: true });
+    fetchMock = installFetchMock();
+    fetchMock.mockImplementation(async (_input, init) => new Response(JSON.stringify(JSON.parse(init!.body as string))));
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   // Helper to create a wrapper with ViewportProvider
   const createWrapper = (sessionId: string | null = 'test-session') => {
     return ({ children }: { children: ReactNode }) => (
-      <ViewportProvider sessionId={sessionId}>{children}</ViewportProvider>
+      <ViewportProvider pageId="test-page" sessionId={sessionId}>{children}</ViewportProvider>
     );
   };
 
@@ -94,7 +94,7 @@ describe('ViewportProvider', () => {
 
     it('should accept initial actual viewport', () => {
       const Wrapper = ({ children }: { children: ReactNode }) => (
-        <ViewportProvider
+        <ViewportProvider pageId="test-page"
           sessionId="test-session"
           actualViewport={{ width: 1920, height: 1080 }}
         >
@@ -182,7 +182,7 @@ describe('ViewportProvider', () => {
       });
 
       // No sync yet
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
 
       // Wait for debounce
       await act(async () => {
@@ -191,12 +191,12 @@ describe('ViewportProvider', () => {
       });
 
       // Should only sync once with final viewport
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith(
         'http://test-api/recordings/live/test-session/viewport',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ width: 1000, height: 800 }),
+          body: JSON.stringify({ width: 1000, height: 800, page_id: 'test-page' }),
         })
       );
     });
@@ -215,7 +215,7 @@ describe('ViewportProvider', () => {
         await Promise.resolve();
       });
 
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
     });
   });
 
@@ -234,7 +234,7 @@ describe('ViewportProvider', () => {
 
     it('should allow clearing actual viewport', () => {
       const Wrapper = ({ children }: { children: ReactNode }) => (
-        <ViewportProvider
+        <ViewportProvider pageId="test-page"
           sessionId="test-session"
           actualViewport={{ width: 1920, height: 1080 }}
         >
@@ -259,7 +259,7 @@ describe('ViewportProvider', () => {
   describe('viewport source attribution', () => {
     it('should accept actualViewport with source and reason', () => {
       const Wrapper = ({ children }: { children: ReactNode }) => (
-        <ViewportProvider
+        <ViewportProvider pageId="test-page"
           sessionId="test-session"
           actualViewport={{
             width: 1920,
@@ -286,7 +286,7 @@ describe('ViewportProvider', () => {
 
     it('should use reason from actualViewport for mismatch explanation', () => {
       const Wrapper = ({ children }: { children: ReactNode }) => (
-        <ViewportProvider
+        <ViewportProvider pageId="test-page"
           sessionId="test-session"
           actualViewport={{
             width: 1920,
@@ -314,7 +314,7 @@ describe('ViewportProvider', () => {
 
     it('should fall back to default mismatch reason when reason not provided', () => {
       const Wrapper = ({ children }: { children: ReactNode }) => (
-        <ViewportProvider
+        <ViewportProvider pageId="test-page"
           sessionId="test-session"
           actualViewport={{ width: 1920, height: 1080 }}
         >
@@ -336,7 +336,7 @@ describe('ViewportProvider', () => {
 
     it('should handle fingerprint_partial source', () => {
       const Wrapper = ({ children }: { children: ReactNode }) => (
-        <ViewportProvider
+        <ViewportProvider pageId="test-page"
           sessionId="test-session"
           actualViewport={{
             width: 1920,
@@ -460,7 +460,7 @@ describe('ViewportProvider', () => {
         await result.current.forceSync();
       });
 
-      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -554,7 +554,7 @@ describe('ViewportProvider', () => {
   describe('component rendering', () => {
     it('should render children', () => {
       render(
-        <ViewportProvider sessionId="test-session">
+        <ViewportProvider pageId="test-page" sessionId="test-session">
           <div data-testid="child">Child content</div>
         </ViewportProvider>
       );
@@ -569,7 +569,7 @@ describe('ViewportProvider', () => {
       };
 
       render(
-        <ViewportProvider sessionId="nested-test">
+        <ViewportProvider pageId="test-page" sessionId="nested-test">
           <div>
             <div>
               <Consumer />

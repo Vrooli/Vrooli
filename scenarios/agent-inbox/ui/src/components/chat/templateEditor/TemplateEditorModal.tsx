@@ -16,7 +16,6 @@ import type { TemplateEditorModalProps } from "./types";
 import { useTemplateEditorForm } from "./useTemplateEditorForm";
 import { MetadataFields } from "./MetadataFields";
 import { VariableEditor } from "./VariableEditor";
-import { SuggestedToolsEditor } from "./SuggestedToolsEditor";
 import { ContentEditor } from "./ContentEditor";
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 
@@ -145,7 +144,7 @@ export function TemplateEditorModal({
           {/* Content with optional sidebar */}
           <div className="flex-1 min-h-0 overflow-hidden flex">
             {/* Tree Sidebar */}
-            {showSidebar && allTemplates && (
+            {allTemplates && allTemplates.length > 0 && (
               <ItemTreeSidebar
                 items={form.itemsForTree}
                 selectedItemId={template?.id ?? null}
@@ -207,16 +206,6 @@ export function TemplateEditorModal({
                   onRemove={form.removeVariable}
                 />
 
-                {/* Suggested Tools */}
-                <SuggestedToolsEditor
-                  selectedToolIds={form.selectedToolIds}
-                  toolsByScenario={form.toolsByScenario}
-                  isLoadingTools={form.isLoadingTools}
-                  expandedScenarios={form.expandedScenarios}
-                  selectedCountByScenario={form.selectedCountByScenario}
-                  onToggleToolSelection={form.toggleToolSelection}
-                  onToggleScenario={form.toggleScenario}
-                />
               </div>
 
               {/* Right Column - Content */}
@@ -247,7 +236,7 @@ export function TemplateEditorModal({
                 {/* Show Save All when multiple items are dirty and onSaveAll is provided */}
                 {showSidebar && form.dirtyCount > 1 && onSaveAll ? (
                   <button
-                    onClick={form.handleSaveAll}
+                    onClick={() => { void form.handleSaveAll(); }}
                     disabled={form.isSavingAll}
                     className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >

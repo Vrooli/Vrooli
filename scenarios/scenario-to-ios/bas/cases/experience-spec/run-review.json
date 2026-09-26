@@ -1,0 +1,50 @@
+{
+  "metadata": {
+    "name": "experience-run-review-spec-smoke",
+    "description": "Observer smoke for active experience page run-review.",
+    "requirement": "OT-P0-006",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "run-review",
+      "surface": "experience-run-review"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-run-review",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "scenario-to-ios",
+          "scenario_path": "/runs/complete",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Run review"
+        }
+      }
+    },
+    {
+      "id": "wait-run-review-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.runReview",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Run review page visible"
+        }
+      }
+    }
+  ]
+}

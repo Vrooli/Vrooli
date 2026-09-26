@@ -1,0 +1,13 @@
+{
+  "source": "shared-cli-scope-catalog",
+  "default_grants": ["read", "write"],
+  "bindings": [
+    {"verb": "scenario-to-desktop validate-artifact", "scopes": ["vrooli-bridge:write", "vrooli:write"]},
+    {"verb": "host safeguard", "scopes": ["vrooli-bridge:write", "vrooli:write"]},
+    {"verb": "host reboot", "scopes": ["vrooli-bridge:write", "vrooli:write"]}
+  ],
+  "outputs": [
+    {"verb": "scenario screenshot", "entries": [{"name": "screenshot.png", "media_type": "image/png", "output_flag": "--output", "max_bytes": 33554432}]},
+    {"verb": "scenario-to-desktop validate-artifact", "entries": [{"name": "evidence-bundle.tar.gz", "media_type": "application/gzip", "output_flag": "--evidence-output", "max_bytes": 67108864}]}
+  ]
+}

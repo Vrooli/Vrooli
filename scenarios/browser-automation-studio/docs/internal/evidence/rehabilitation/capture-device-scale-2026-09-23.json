@@ -1,0 +1,2286 @@
+{
+  "schema_version": 1,
+  "cycle": "BAS-WORK-082",
+  "date": "2026-09-23",
+  "issues": [
+    "BAS-RF-016"
+  ],
+  "status": "explicit capture device-scale projection qualified; local capture cohort measured",
+  "build_identity": "sha256:97d9526edbcc4e3733b2983da733f2916f1179808971fb388452284933a35382",
+  "source_freeze": {
+    "api/handlers/capture/service.go": {
+      "sha256": "d39a93d1905b44953ba9f6b653b6059f776002f6a33181b9a80037b981538bd4",
+      "lines": 871
+    },
+    "api/handlers/capture/service_test.go": {
+      "sha256": "94f8e1422a2daa41f35ad7a045fd92c10d87167991c8e3065348c251fd0c9e44",
+      "lines": 728
+    }
+  },
+  "change": "Capture dimensions device_scale_factor projects through the existing browser-profile fingerprint. Explicit scale overrides a cloned profile without mutating input or losing other fields. Omitted scale retains profile/default behavior. No driver default/SDK/proto/dependency change.",
+  "red": {
+    "initial_producer": "/tmp/bas-capture-owner-probe-082: JSON parser rejected normal CLI footer after a successful capture; failed evidence retained",
+    "corrected_probe": "/tmp/bas-capture-owner-probe2-082/receipt.json: both surfaces request DPR1 but independently observedDPR2 and2560x1440PNG",
+    "maintained": "/tmp/bas-capture-dpr-red2-082.txt;10explicit subcases fail; original testnil-deref retained separately",
+    "native_matrix": "/tmp/bas-capture-dpr-native-red-082/receipt.json:13pass/5fail for explicit1 and0.5;2/omitted controls pass"
+  },
+  "qualification": {
+    "maintained": "capture package tests including14scale/profile/preset subcases pass",
+    "go": "three racepackages handlers/capture,services/workflow,automation/executor and go build ./... pass",
+    "retained_checks": "Driver0811877/123 and UI080574/29 source-identical; no unnecessary rerun",
+    "native_matrix": "18/18 /tmp/bas-capture-dpr-native-green-082/receipt.json: actual rendererDPR, everyPNGdimensions, CSS snapshot/retained byte agreement, governedreferences and omitteddefaultcontrol",
+    "workflow": {
+      "passed": 12,
+      "effects": 3,
+      "execution_id": "e10fc5e5-d0d2-4c16-aff4-0051795bbf82",
+      "artifact_dir": "/tmp/bas-recording-e2e-rv53HE"
+    },
+    "profiles": "3complete original rollback reads/APIequals081; /tmp/bas-profile-final-082.txt and /tmp/bas-profile-api-final-082.json",
+    "tidiness": {
+      "run_id": "20260923-102317-5bc97adc",
+      "totalFindings": 1146,
+      "longFiles": 103,
+      "complexity": 409,
+      "duplication": 612,
+      "coupling": 21,
+      "duplicationLineDebt": 31065,
+      "verdict": "budgets fail"
+    },
+    "board": "17unknown; contract and inventory pass"
+  },
+  "measurements": {
+    "before": {
+      "sum": 164,
+      "functions": 24,
+      "runtime_lines": 858
+    },
+    "after": {
+      "sum": 168,
+      "functions": 24,
+      "runtime_lines": 871
+    },
+    "go_delta": 4,
+    "cumulative_affected_go_delta": -61
+  },
+  "cohesion_review": "Existing871line service and buildAdhocRequest remain composition hotspots. Thirteen added runtime lines carry the previously dropped input through one existing policy owner; Go+4,cumulative-61,TSunchanged. No net complexity reduction claim and no parallel driver setting.",
+  "local_capture_cohort": {
+    "metadata": {
+      "owner": "BAS CaptureService through public CLI; independent fixed-fixture qualifier",
+      "build_identity": "sha256:97d9526edbcc4e3733b2983da733f2916f1179808971fb388452284933a35382",
+      "source_digest": "a5318d50a1f34cc513b536ce3b97f48dad5959b138003544402a59776329fe4f",
+      "source_scope": [
+        "api/handlers/capture/service.go",
+        "api/handlers/capture/service_test.go"
+      ],
+      "contract_digest": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+      "fixture_revision": "2964c9e86ce95d3ef3d71dc5b9d80bd66b07cbebbeb2fcd14bfbd33542f3544e",
+      "sample_count": 100,
+      "declared_warmups": 1,
+      "hardware": {
+        "cpu": "AMD Ryzen 9 7950X 16-Core Processor",
+        "logical_cpus": 32,
+        "available_parallelism": 32,
+        "ram_bytes": 65432162304,
+        "load_average": [
+          6.24,
+          6.43,
+          6.91
+        ]
+      },
+      "os_arch": {
+        "platform": "linux",
+        "arch": "x64",
+        "release": "7.0.0-30-generic"
+      },
+      "runtime_versions": {
+        "node": "v20.19.4",
+        "driver": "2.0.0",
+        "browser": "136.0.7103.25"
+      },
+      "concurrency": 1,
+      "other_driver_sessions_at_start": 0,
+      "capture_policy": {
+        "viewport": [
+          1280,
+          720
+        ],
+        "dpr": 1,
+        "types": [
+          "screenshot",
+          "dom-tree"
+        ],
+        "readiness": "#ready",
+        "retries": 0
+      },
+      "network": "loopback fixture; no external resources",
+      "cache_state": "warm API/driver/browser process; fresh context and navigation per call; cache-control no-store",
+      "limitations": [
+        "Linux local cohort only; shared host background load is observed, not isolated.",
+        "Source digest covers the two frozen082 paths; full managed build identity and earlier qualification receipts describe the candidate.",
+        "No governed rehabilitation sensor joins this receipt yet; does not qualify a release row."
+      ]
+    },
+    "statistics": {
+      "attempts": 100,
+      "passed": 100,
+      "warmups_retained": 1,
+      "retries": 0,
+      "owner_ms": {
+        "p50": 753,
+        "p95": 755,
+        "p99": 755,
+        "max": 771,
+        "mean": 708.68
+      },
+      "p95_95_percent_order_statistic_interval_ms": [
+        754,
+        771
+      ],
+      "interval_order_indices": [
+        90,
+        100
+      ],
+      "interval_claim_limit": "Distribution-free order-statistic interval assumes independent identically distributed trials. Shared-host background variation remains a qualification limitation.",
+      "observed_success_95_percent_exact_interval": [
+        0.9637833073548235,
+        1
+      ],
+      "raw_receipt_sha256": "2212e6d034b20a29961847f38acd3b8485373a606cea5c98c785888c717a1ada",
+      "local_owner_p95_target_ms": 2000,
+      "local_observed_target_met": true,
+      "release_row_qualified": false
+    },
+    "raw_artifact": "/tmp/bas-capture-cohort-082/receipt.json",
+    "producer": "/tmp/browser-automation-studio/capture-cohort-082.mjs",
+    "owner_receipts": [
+      {
+        "operation_id": "2dd7ea37-d8fc-43cc-ab7f-609f6a2ac12c",
+        "warmup": true,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 903.781091,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://2dd7ea37-d8fc-43cc-ab7f-609f6a2ac12c/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://2dd7ea37-d8fc-43cc-ab7f-609f6a2ac12c/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "2d228b6c-a3b5-489a-87ce-cc39a8df750a",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 889.478959,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://2d228b6c-a3b5-489a-87ce-cc39a8df750a/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://2d228b6c-a3b5-489a-87ce-cc39a8df750a/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "66387286-ee60-44de-9c16-c8c8679a1243",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 906.1300739999999,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://66387286-ee60-44de-9c16-c8c8679a1243/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://66387286-ee60-44de-9c16-c8c8679a1243/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "6117ddb6-fba3-43a5-9158-650c07f159bf",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 914.5346559999998,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://6117ddb6-fba3-43a5-9158-650c07f159bf/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://6117ddb6-fba3-43a5-9158-650c07f159bf/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "a6ec80c6-b542-4a09-9628-b74941db23e6",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 947.4550050000003,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://a6ec80c6-b542-4a09-9628-b74941db23e6/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://a6ec80c6-b542-4a09-9628-b74941db23e6/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "2e01bce2-4556-43ef-b3a3-3249f9026500",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 917.6002010000002,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://2e01bce2-4556-43ef-b3a3-3249f9026500/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://2e01bce2-4556-43ef-b3a3-3249f9026500/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "b2e69b19-56af-419b-96ed-653351b5d043",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 926.2014630000003,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://b2e69b19-56af-419b-96ed-653351b5d043/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://b2e69b19-56af-419b-96ed-653351b5d043/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "91c68629-f34d-49c3-8180-ad1f05eb5bb4",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 963.003068,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://91c68629-f34d-49c3-8180-ad1f05eb5bb4/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://91c68629-f34d-49c3-8180-ad1f05eb5bb4/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "171d5ade-873c-493c-8095-15ddbc07e438",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 931.829291,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://171d5ade-873c-493c-8095-15ddbc07e438/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://171d5ade-873c-493c-8095-15ddbc07e438/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "0e1083ee-61f2-4f68-a0bb-4533c47c78d6",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 916.0186180000001,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://0e1083ee-61f2-4f68-a0bb-4533c47c78d6/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://0e1083ee-61f2-4f68-a0bb-4533c47c78d6/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "f7ff8611-d77f-459d-b07d-4e08e0efb0bb",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 922.9067279999999,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://f7ff8611-d77f-459d-b07d-4e08e0efb0bb/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://f7ff8611-d77f-459d-b07d-4e08e0efb0bb/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "2bad0d0c-a0fa-4cb2-ab7b-90c1c516fbb8",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 503,
+        "wall_ms": 656.088756000001,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://2bad0d0c-a0fa-4cb2-ab7b-90c1c516fbb8/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://2bad0d0c-a0fa-4cb2-ab7b-90c1c516fbb8/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "74b795eb-c6a1-432b-9a7d-9ee958109f9b",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 911.2392410000011,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://74b795eb-c6a1-432b-9a7d-9ee958109f9b/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://74b795eb-c6a1-432b-9a7d-9ee958109f9b/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "c62302b6-489f-4c2e-b90c-7c471d8984d1",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 920.4653550000003,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://c62302b6-489f-4c2e-b90c-7c471d8984d1/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://c62302b6-489f-4c2e-b90c-7c471d8984d1/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "f613a30c-ffa7-41e5-b15c-b1187086c6d6",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 917.8668010000001,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://f613a30c-ffa7-41e5-b15c-b1187086c6d6/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://f613a30c-ffa7-41e5-b15c-b1187086c6d6/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "1c6f79e4-e8a5-4490-8a59-5585ac07c77a",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 914.4394359999988,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://1c6f79e4-e8a5-4490-8a59-5585ac07c77a/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://1c6f79e4-e8a5-4490-8a59-5585ac07c77a/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "6a32b28c-0e95-4d89-bc38-9af9667aeecf",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 913.5340649999998,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://6a32b28c-0e95-4d89-bc38-9af9667aeecf/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://6a32b28c-0e95-4d89-bc38-9af9667aeecf/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "31b2108c-a218-4d86-974c-609e5bd8cdc3",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 914.8523760000007,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://31b2108c-a218-4d86-974c-609e5bd8cdc3/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://31b2108c-a218-4d86-974c-609e5bd8cdc3/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "acd345df-fba4-4d95-82ea-e478607f9424",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 913.8498450000006,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://acd345df-fba4-4d95-82ea-e478607f9424/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://acd345df-fba4-4d95-82ea-e478607f9424/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "c4656e8f-57fd-4ee2-844a-a06b6aa858e4",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 925.0793709999998,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://c4656e8f-57fd-4ee2-844a-a06b6aa858e4/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://c4656e8f-57fd-4ee2-844a-a06b6aa858e4/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "203bc508-b87d-42b2-8d7d-7cbcf79d37b0",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 916.3674389999978,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://203bc508-b87d-42b2-8d7d-7cbcf79d37b0/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://203bc508-b87d-42b2-8d7d-7cbcf79d37b0/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "cd17f636-a99c-43cb-88ba-3519cc466ca9",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 907.7022660000002,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://cd17f636-a99c-43cb-88ba-3519cc466ca9/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://cd17f636-a99c-43cb-88ba-3519cc466ca9/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "8665ab69-ef7c-463d-b5cd-7134b812e4d5",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 914.0373660000005,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://8665ab69-ef7c-463d-b5cd-7134b812e4d5/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://8665ab69-ef7c-463d-b5cd-7134b812e4d5/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "7ad274a9-58d5-43fd-b18f-b15191e3b78c",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 919.1532230000012,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://7ad274a9-58d5-43fd-b18f-b15191e3b78c/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://7ad274a9-58d5-43fd-b18f-b15191e3b78c/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "4163822e-349e-4745-8061-53e7ce70bece",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 911.4226309999976,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://4163822e-349e-4745-8061-53e7ce70bece/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://4163822e-349e-4745-8061-53e7ce70bece/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "8a33a7ce-cc11-4949-8d95-43f3b9d27baf",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 912.6240529999995,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://8a33a7ce-cc11-4949-8d95-43f3b9d27baf/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://8a33a7ce-cc11-4949-8d95-43f3b9d27baf/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "5fbd876a-edaf-454a-85cf-124a5c5f5340",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 910.8464800000002,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://5fbd876a-edaf-454a-85cf-124a5c5f5340/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://5fbd876a-edaf-454a-85cf-124a5c5f5340/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "949ee956-db15-4fcc-a58a-d0ac70ebc57b",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 911.2040909999996,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://949ee956-db15-4fcc-a58a-d0ac70ebc57b/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://949ee956-db15-4fcc-a58a-d0ac70ebc57b/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "3d2fcbba-62b2-4f71-bf3c-fe287c27ee6c",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 911.6347919999971,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://3d2fcbba-62b2-4f71-bf3c-fe287c27ee6c/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://3d2fcbba-62b2-4f71-bf3c-fe287c27ee6c/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "ad25e428-4bd4-431b-a514-edadd8629198",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 911.7107319999996,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://ad25e428-4bd4-431b-a514-edadd8629198/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://ad25e428-4bd4-431b-a514-edadd8629198/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "979d3c1d-0d0a-44f0-b42b-6b627f8d94e6",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 503,
+        "wall_ms": 661.5169740000019,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://979d3c1d-0d0a-44f0-b42b-6b627f8d94e6/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://979d3c1d-0d0a-44f0-b42b-6b627f8d94e6/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "2f1993ac-656e-410e-afca-675ba3e1df44",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 503,
+        "wall_ms": 654.5943939999997,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://2f1993ac-656e-410e-afca-675ba3e1df44/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://2f1993ac-656e-410e-afca-675ba3e1df44/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "afefb74a-5c02-461d-b169-f18388097a35",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 503,
+        "wall_ms": 657.9999590000007,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://afefb74a-5c02-461d-b169-f18388097a35/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://afefb74a-5c02-461d-b169-f18388097a35/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "0cb1f5ba-8328-454f-8d5f-8ce2be029726",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 503,
+        "wall_ms": 657.9019690000023,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://0cb1f5ba-8328-454f-8d5f-8ce2be029726/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://0cb1f5ba-8328-454f-8d5f-8ce2be029726/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "9c064405-bd10-4f7c-aec2-bbd192460bcb",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 903.201060000003,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://9c064405-bd10-4f7c-aec2-bbd192460bcb/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://9c064405-bd10-4f7c-aec2-bbd192460bcb/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "1bcca56b-7a9e-4582-b64b-072d72caada7",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 503,
+        "wall_ms": 666.2520409999997,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://1bcca56b-7a9e-4582-b64b-072d72caada7/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://1bcca56b-7a9e-4582-b64b-072d72caada7/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "fd7d7e30-71f4-437d-a923-edb55bcf794d",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 503,
+        "wall_ms": 658.5047889999987,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://fd7d7e30-71f4-437d-a923-edb55bcf794d/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://fd7d7e30-71f4-437d-a923-edb55bcf794d/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "3b943cc8-ff7f-4f25-a37c-a24bfb644bc7",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 904.3159309999974,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://3b943cc8-ff7f-4f25-a37c-a24bfb644bc7/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://3b943cc8-ff7f-4f25-a37c-a24bfb644bc7/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "fda088f5-fbe7-415c-a526-a8f0ffacdd6f",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 912.6032039999991,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://fda088f5-fbe7-415c-a526-a8f0ffacdd6f/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://fda088f5-fbe7-415c-a526-a8f0ffacdd6f/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "6e5646b7-6ef6-4e48-96ec-c08a8f11178c",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 918.6637420000043,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://6e5646b7-6ef6-4e48-96ec-c08a8f11178c/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://6e5646b7-6ef6-4e48-96ec-c08a8f11178c/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "554f1ecb-07a9-4019-8213-e5d60b34a9b8",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 505,
+        "wall_ms": 663.1934160000019,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://554f1ecb-07a9-4019-8213-e5d60b34a9b8/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://554f1ecb-07a9-4019-8213-e5d60b34a9b8/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "82fdd9f4-d9cd-4660-9516-acb2d3cb0de3",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 503,
+        "wall_ms": 657.8101880000031,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://82fdd9f4-d9cd-4660-9516-acb2d3cb0de3/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://82fdd9f4-d9cd-4660-9516-acb2d3cb0de3/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "9b6777a9-f139-4734-bf1b-5fc8f7cfc232",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 906.0585040000005,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://9b6777a9-f139-4734-bf1b-5fc8f7cfc232/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://9b6777a9-f139-4734-bf1b-5fc8f7cfc232/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "99e660fa-429c-4c82-8229-84e46b43a154",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 910.2513700000054,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://99e660fa-429c-4c82-8229-84e46b43a154/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://99e660fa-429c-4c82-8229-84e46b43a154/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "2c75cc3d-425d-4e14-b947-c09b6e088908",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 755,
+        "wall_ms": 893.3995450000002,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://2c75cc3d-425d-4e14-b947-c09b6e088908/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://2c75cc3d-425d-4e14-b947-c09b6e088908/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "0eb94c16-ce51-43de-9595-f55e16ef1a76",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 914.5187759999972,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://0eb94c16-ce51-43de-9595-f55e16ef1a76/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://0eb94c16-ce51-43de-9595-f55e16ef1a76/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "2a0a7ff2-6fce-499d-bff8-04b52435c26e",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 503,
+        "wall_ms": 644.4343880000015,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://2a0a7ff2-6fce-499d-bff8-04b52435c26e/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://2a0a7ff2-6fce-499d-bff8-04b52435c26e/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "06a720b4-6ceb-4638-a42a-f7f7516b4487",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 911.0201309999975,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://06a720b4-6ceb-4638-a42a-f7f7516b4487/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://06a720b4-6ceb-4638-a42a-f7f7516b4487/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "746a4978-9c9f-448e-9537-d4b24b11535d",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 908.5992479999986,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://746a4978-9c9f-448e-9537-d4b24b11535d/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://746a4978-9c9f-448e-9537-d4b24b11535d/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "83a1a138-dce0-4296-bffc-ecaf6e647ac0",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 771,
+        "wall_ms": 934.9118959999978,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://83a1a138-dce0-4296-bffc-ecaf6e647ac0/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://83a1a138-dce0-4296-bffc-ecaf6e647ac0/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "248d7916-6c9d-4d41-8830-404d61657b64",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 911.9397119999994,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://248d7916-6c9d-4d41-8830-404d61657b64/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://248d7916-6c9d-4d41-8830-404d61657b64/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "a103a846-2b3e-47b8-98fc-9ddc4343e977",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 755,
+        "wall_ms": 911.2285409999968,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://a103a846-2b3e-47b8-98fc-9ddc4343e977/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://a103a846-2b3e-47b8-98fc-9ddc4343e977/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "01e1b179-4304-40ca-a7ff-a95d4778492c",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 911.3300309999977,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://01e1b179-4304-40ca-a7ff-a95d4778492c/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://01e1b179-4304-40ca-a7ff-a95d4778492c/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "052cd6d0-3ff6-436c-8496-ea736eb6220c",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 911.1104810000033,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://052cd6d0-3ff6-436c-8496-ea736eb6220c/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://052cd6d0-3ff6-436c-8496-ea736eb6220c/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "a68afe91-0f85-42f4-94e8-0795aadf404f",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 755,
+        "wall_ms": 921.0354060000027,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://a68afe91-0f85-42f4-94e8-0795aadf404f/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://a68afe91-0f85-42f4-94e8-0795aadf404f/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "1819107f-3807-41a7-ba3d-11f1b72c9558",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 504,
+        "wall_ms": 647.5736830000023,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://1819107f-3807-41a7-ba3d-11f1b72c9558/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://1819107f-3807-41a7-ba3d-11f1b72c9558/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "fbf79211-3bf7-406c-89e4-c5d5d917491e",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 912.1296920000023,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://fbf79211-3bf7-406c-89e4-c5d5d917491e/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://fbf79211-3bf7-406c-89e4-c5d5d917491e/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "f799d894-c1f4-469c-9fc2-e3d97e278d16",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 503,
+        "wall_ms": 667.577992999999,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://f799d894-c1f4-469c-9fc2-e3d97e278d16/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://f799d894-c1f4-469c-9fc2-e3d97e278d16/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "842fc591-751b-4240-bd88-8509b67c3332",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 503,
+        "wall_ms": 654.4955239999981,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://842fc591-751b-4240-bd88-8509b67c3332/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://842fc591-751b-4240-bd88-8509b67c3332/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "4ade05f1-36d4-40b2-9e44-79c5a2d64004",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 905.0994119999959,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://4ade05f1-36d4-40b2-9e44-79c5a2d64004/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://4ade05f1-36d4-40b2-9e44-79c5a2d64004/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "a0cd55be-15b2-486b-927d-34e7fd626043",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 504,
+        "wall_ms": 657.4557180000047,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://a0cd55be-15b2-486b-927d-34e7fd626043/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://a0cd55be-15b2-486b-927d-34e7fd626043/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "4bf48e8a-50c3-4372-88ff-2d29572bd429",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 503,
+        "wall_ms": 657.9321479999999,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://4bf48e8a-50c3-4372-88ff-2d29572bd429/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://4bf48e8a-50c3-4372-88ff-2d29572bd429/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "b7e2e3ef-c1b0-474c-8c5a-115117d64d57",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 914.3665760000004,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://b7e2e3ef-c1b0-474c-8c5a-115117d64d57/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://b7e2e3ef-c1b0-474c-8c5a-115117d64d57/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "dffa5c4d-409c-4622-9162-2b590bcff7b7",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 503,
+        "wall_ms": 662.2577849999943,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://dffa5c4d-409c-4622-9162-2b590bcff7b7/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://dffa5c4d-409c-4622-9162-2b590bcff7b7/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "05c5fcb1-b5e2-413c-af33-bd5ea93449b5",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 908.8799379999982,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://05c5fcb1-b5e2-413c-af33-bd5ea93449b5/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://05c5fcb1-b5e2-413c-af33-bd5ea93449b5/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "c787ccc0-98a7-48a1-8e26-d41920ce0e9e",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 915.8240480000022,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://c787ccc0-98a7-48a1-8e26-d41920ce0e9e/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://c787ccc0-98a7-48a1-8e26-d41920ce0e9e/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "35156a83-5baf-4ffd-a5bc-a4723d88d0ee",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 910.5087500000009,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://35156a83-5baf-4ffd-a5bc-a4723d88d0ee/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://35156a83-5baf-4ffd-a5bc-a4723d88d0ee/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "f59e8bfc-f554-44c3-bd24-d53c312f0c91",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 922.3515380000026,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://f59e8bfc-f554-44c3-bd24-d53c312f0c91/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://f59e8bfc-f554-44c3-bd24-d53c312f0c91/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "301b2d52-2fcd-43b4-9626-2b894676c7cd",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 909.7136790000004,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://301b2d52-2fcd-43b4-9626-2b894676c7cd/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://301b2d52-2fcd-43b4-9626-2b894676c7cd/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "7d8a2f3c-58a7-42e2-b0c3-d72d994ce364",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 912.0069430000003,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://7d8a2f3c-58a7-42e2-b0c3-d72d994ce364/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://7d8a2f3c-58a7-42e2-b0c3-d72d994ce364/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "b4629002-12e6-41f5-8f95-5e1003261e60",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 899.4274339999974,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://b4629002-12e6-41f5-8f95-5e1003261e60/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://b4629002-12e6-41f5-8f95-5e1003261e60/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "99afa6f5-9413-4553-8642-ab4ed3691bfc",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 920.0963039999988,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://99afa6f5-9413-4553-8642-ab4ed3691bfc/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://99afa6f5-9413-4553-8642-ab4ed3691bfc/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "2d76f0fd-d44f-4893-8ffa-a7520cc7e0f2",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 911.490850999995,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://2d76f0fd-d44f-4893-8ffa-a7520cc7e0f2/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://2d76f0fd-d44f-4893-8ffa-a7520cc7e0f2/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "66517c9b-70b5-4067-9df4-b6b67db69d5c",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 906.969935000001,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://66517c9b-70b5-4067-9df4-b6b67db69d5c/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://66517c9b-70b5-4067-9df4-b6b67db69d5c/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "b1d84457-89b5-4d81-b267-f79374307742",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 910.6163000000015,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://b1d84457-89b5-4d81-b267-f79374307742/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://b1d84457-89b5-4d81-b267-f79374307742/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "978391ef-523c-454d-b46c-a89b520cf3ab",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 905.6204729999954,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://978391ef-523c-454d-b46c-a89b520cf3ab/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://978391ef-523c-454d-b46c-a89b520cf3ab/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "8ac6df8f-5ff3-4648-a830-105d4ca8fe25",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 916.2167180000033,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://8ac6df8f-5ff3-4648-a830-105d4ca8fe25/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://8ac6df8f-5ff3-4648-a830-105d4ca8fe25/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "016488ca-2713-4fa5-97e2-ca113c89a1e4",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 911.8076520000031,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://016488ca-2713-4fa5-97e2-ca113c89a1e4/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://016488ca-2713-4fa5-97e2-ca113c89a1e4/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "9fe772ea-5c61-4cf1-8389-7af0b5c8a9dc",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 911.193271000011,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://9fe772ea-5c61-4cf1-8389-7af0b5c8a9dc/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://9fe772ea-5c61-4cf1-8389-7af0b5c8a9dc/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "94ac4c50-7a5b-4adf-a7d2-3a34ffb960b4",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 504,
+        "wall_ms": 658.5650299999979,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://94ac4c50-7a5b-4adf-a7d2-3a34ffb960b4/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://94ac4c50-7a5b-4adf-a7d2-3a34ffb960b4/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "5a2c9b3a-09df-46be-ac7d-0ab39b125bd2",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 912.7086940000008,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://5a2c9b3a-09df-46be-ac7d-0ab39b125bd2/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://5a2c9b3a-09df-46be-ac7d-0ab39b125bd2/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "d496f6a6-7fef-477f-bf0f-b4530121dd76",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 909.3927180000028,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://d496f6a6-7fef-477f-bf0f-b4530121dd76/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://d496f6a6-7fef-477f-bf0f-b4530121dd76/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "4651d747-2432-4899-8b78-fe8a796ee613",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 906.6590739999956,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://4651d747-2432-4899-8b78-fe8a796ee613/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://4651d747-2432-4899-8b78-fe8a796ee613/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "fd031162-fd17-4d58-a5c0-db9a7d2f73df",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 755,
+        "wall_ms": 918.6713430000091,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://fd031162-fd17-4d58-a5c0-db9a7d2f73df/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://fd031162-fd17-4d58-a5c0-db9a7d2f73df/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "bebe08a3-0f9f-4861-9428-361541b71d7b",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 916.1518890000007,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://bebe08a3-0f9f-4861-9428-361541b71d7b/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://bebe08a3-0f9f-4861-9428-361541b71d7b/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "33401646-06e3-4706-9864-031ae2914ca6",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 891.6871929999907,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://33401646-06e3-4706-9864-031ae2914ca6/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://33401646-06e3-4706-9864-031ae2914ca6/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "b5d48f73-6b32-41cc-83dd-0ce55db97552",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 909.9793999999965,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://b5d48f73-6b32-41cc-83dd-0ce55db97552/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://b5d48f73-6b32-41cc-83dd-0ce55db97552/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "bf8f7d12-160b-4639-8063-f4fcbc597c28",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 908.2319569999963,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://bf8f7d12-160b-4639-8063-f4fcbc597c28/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://bf8f7d12-160b-4639-8063-f4fcbc597c28/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "8b2374ff-45b4-4072-8dcc-e868fda2280d",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 904.9061220000003,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://8b2374ff-45b4-4072-8dcc-e868fda2280d/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://8b2374ff-45b4-4072-8dcc-e868fda2280d/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "2ca72a59-fc9d-409c-ace4-9fce558d6aaf",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 907.1851460000034,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://2ca72a59-fc9d-409c-ace4-9fce558d6aaf/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://2ca72a59-fc9d-409c-ace4-9fce558d6aaf/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "abcb1191-dc06-480c-b29e-bd52d30ff43c",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 887.6542269999918,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://abcb1191-dc06-480c-b29e-bd52d30ff43c/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://abcb1191-dc06-480c-b29e-bd52d30ff43c/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "bf20b8fe-16e8-4c1f-8d69-cbb6a5a459c9",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 907.2847849999962,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://bf20b8fe-16e8-4c1f-8d69-cbb6a5a459c9/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://bf20b8fe-16e8-4c1f-8d69-cbb6a5a459c9/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "c330ae1b-09d1-419c-b26c-1cf6733686f2",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 907.79404600001,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://c330ae1b-09d1-419c-b26c-1cf6733686f2/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://c330ae1b-09d1-419c-b26c-1cf6733686f2/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "4c9b3441-b539-40bf-88ec-601546effd18",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 908.9660279999953,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://4c9b3441-b539-40bf-88ec-601546effd18/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://4c9b3441-b539-40bf-88ec-601546effd18/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "a2dbba11-c7f6-4443-aeee-20d35d148c82",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 908.4569980000088,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://a2dbba11-c7f6-4443-aeee-20d35d148c82/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://a2dbba11-c7f6-4443-aeee-20d35d148c82/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "a057bb07-9cf3-407e-b9db-799f99980955",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 753,
+        "wall_ms": 900.2534149999992,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://a057bb07-9cf3-407e-b9db-799f99980955/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://a057bb07-9cf3-407e-b9db-799f99980955/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "fb8163a3-f44e-43ba-9778-53f192e48527",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 504,
+        "wall_ms": 655.7704950000043,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://fb8163a3-f44e-43ba-9778-53f192e48527/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://fb8163a3-f44e-43ba-9778-53f192e48527/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "366f483a-8359-490c-a65c-d144cbf30358",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 921.4396359999955,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://366f483a-8359-490c-a65c-d144cbf30358/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://366f483a-8359-490c-a65c-d144cbf30358/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "6cd96b5f-ce4d-4197-8263-bf6df6f50a98",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 918.7719619999989,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://6cd96b5f-ce4d-4197-8263-bf6df6f50a98/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://6cd96b5f-ce4d-4197-8263-bf6df6f50a98/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "4cea6dae-efa1-45d5-b82b-3246da1a22f1",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 754,
+        "wall_ms": 919.9499240000005,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://4cea6dae-efa1-45d5-b82b-3246da1a22f1/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://4cea6dae-efa1-45d5-b82b-3246da1a22f1/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      },
+      {
+        "operation_id": "9260a2b3-308f-48b7-a7b7-57150fe9e09d",
+        "warmup": false,
+        "status": "passed",
+        "owner_duration_ms": 755,
+        "wall_ms": 927.0116649999982,
+        "artifacts": [
+          {
+            "type": "screenshot",
+            "reference": "bas-capture://9260a2b3-308f-48b7-a7b7-57150fe9e09d/screenshot",
+            "sha256": "f436901eb84cc52f9d5e57d06c45ab0522cf241aeaa7ebcc6e30374327f181db",
+            "bytes": 15402
+          },
+          {
+            "type": "dom-tree",
+            "reference": "bas-capture://9260a2b3-308f-48b7-a7b7-57150fe9e09d/dom_tree",
+            "sha256": "11e77d22900010c82a8fbf20de42ff63f9118ecaf87c39a61334fb20ba718bea",
+            "bytes": 4843
+          }
+        ]
+      }
+    ]
+  },
+  "limitations": [
+    "Local Linux loopback/concurrency1, warmservice/browser with freshcontext percall.100/100firstattempts plusdeclaredwarmup, no retries. Source/build scope and sharedhost limitation explicit.",
+    "No governed rehabilitation sensor joins this standalone receipt, and no required platform/concurrency/full-release row is qualified.",
+    "300PNGimages for100calls confirms duplicate intermediate capture remains RF016; no evidence policy or fidelity was weakened.",
+    "Range/admission enforcement at public capture boundary has not yet been adversarially qualified; inspect constraints before claiming the entire capture contract complete."
+  ],
+  "pending_operations": []
+}

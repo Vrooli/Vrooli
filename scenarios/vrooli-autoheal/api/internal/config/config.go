@@ -3,9 +3,10 @@ package config
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 	"strings"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // Config holds runtime configuration
@@ -16,7 +17,7 @@ type Config struct {
 
 // Load reads configuration from environment variables
 func Load() (*Config, error) {
-	dbURL, err := resolveDatabaseURL()
+	dbURL, err := database.ResolvePostgresDSN(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -37,31 +38,8 @@ func requireEnv(key string) string {
 	return strings.TrimSpace(os.Getenv(key))
 }
 
-// resolveDatabaseURL builds the database URL from environment variables
+// resolveDatabaseURL delegates URL precedence and component reconstruction to
+// api-core/database, the owning Postgres environment seam.
 func resolveDatabaseURL() (string, error) {
-	if raw := strings.TrimSpace(os.Getenv("DATABASE_URL")); raw != "" {
-		return raw, nil
-	}
-
-	host := strings.TrimSpace(os.Getenv("POSTGRES_HOST"))
-	port := strings.TrimSpace(os.Getenv("POSTGRES_PORT"))
-	user := strings.TrimSpace(os.Getenv("POSTGRES_USER"))
-	password := strings.TrimSpace(os.Getenv("POSTGRES_PASSWORD"))
-	name := strings.TrimSpace(os.Getenv("POSTGRES_DB"))
-
-	if host == "" || port == "" || user == "" || password == "" || name == "" {
-		return "", fmt.Errorf("DATABASE_URL or POSTGRES_HOST/PORT/USER/PASSWORD/DB must be set by the lifecycle system")
-	}
-
-	pgURL := &url.URL{
-		Scheme: "postgres",
-		User:   url.UserPassword(user, password),
-		Host:   fmt.Sprintf("%s:%s", host, port),
-		Path:   name,
-	}
-	values := pgURL.Query()
-	values.Set("sslmode", "disable")
-	pgURL.RawQuery = values.Encode()
-
-	return pgURL.String(), nil
+	return database.ResolvePostgresDSN(nil)
 }

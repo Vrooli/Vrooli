@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -263,10 +262,6 @@ func TestBatchQueue_CompletedDependencyAllowsQueuing(t *testing.T) {
 		Tags:      []string{},
 		DependsOn: []string{"idea/dep-done"},
 	})
-
-	// Write plan.md for dep-done too so directory exists properly.
-	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "dep-done", "plan.md"),
-		"# Plan\nCompleted plan.")
 
 	payload := batchQueueRequest{
 		Items:   []string{"idea/needs-dep"},

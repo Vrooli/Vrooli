@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package workspace_sandbox.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/workspace-sandbox/v1/domain;domain";
+
+// =============================================================================
+// APPLIED CHANGE PROVENANCE
+// =============================================================================
+//
+// @layer 1
+// @domain workspace-sandbox
+// @imports none
+// @stability stable
+//
+// Cross-scenario contract for the per-run provenance records produced by
+// workspace-sandbox apply-at-run-end and consumed by agent-manager,
+// web-console, and Git Control Tower.
+//
+// The proto package path (`workspace-sandbox/v1`) is the version. Breaking
+// changes happen by introducing a v2 package, not by mutating the values
+// here. buf-breaking checks enforce wire compatibility on every build.
+//
+// USAGE CONTEXTS:
+//   - workspace-sandbox writer: stamps these enum values onto AppliedChange
+//     rows when apply-at-run-end commits.
+//   - GCT pending-AI hardening reader: groups commits by run and renders
+//     RunOutcome / FileState badges.
+//   - web-console review queue: filters pending-review files.
+//
+// =============================================================================
+
+// RunOutcome is the contract-canonical outcome of an agent run, recorded on
+// every AppliedChange that the run produced. This is intentionally a 4-value
+// projection of agent-manager's richer internal RunOutcome
+// (agent_manager.v1.RunOutcome): operational failure modes (exit_error,
+// exception, sandbox_fail, runner_fail) collapse to FAILURE because consumers
+// of the contract don't care which way the run failed — only that it did.
+//
+// @usage workspace-sandbox apply-at-run-end seam, GCT reader, web-console.
+enum RunOutcome {
+  // Default/unspecified — emitted by operator-driven approvals (not
+  // apply-at-run-end), where no agent run is the cause.
+  RUN_OUTCOME_UNSPECIFIED = 0;
+
+  // Run completed without error.
+  RUN_OUTCOME_SUCCESS = 1;
+
+  // Run failed for any reason (exit error, exception, sandbox failure,
+  // runner failure). The agent-manager Run record retains the precise
+  // internal cause for triage.
+  RUN_OUTCOME_FAILURE = 2;
+
+  // User cancelled the run before completion.
+  RUN_OUTCOME_CANCELLED = 3;
+
+  // Run exceeded its time limit.
+  RUN_OUTCOME_TIMEOUT = 4;
+}
+
+// FileState is the per-file lifecycle state of an applied change at the
+// moment provenance is recorded. State transitions after recording (e.g.
+// pending-review → applied on operator approve) produce additional
+// AppliedChange rows with the new state, not in-place mutations.
+//
+// @usage workspace-sandbox writer, web-console review queue, GCT reader.
+enum FileState {
+  // Default/unspecified — legacy rows pre-dating the auditability rollout.
+  FILE_STATE_UNSPECIFIED = 0;
+
+  // Change has been applied to the canonical repository.
+  FILE_STATE_APPLIED = 1;
+
+  // Change is held in the sandbox awaiting operator approval — either an
+  // out-of-acceptance change during AutoApply, or any change when the run
+  // requested manualReview.
+  FILE_STATE_PENDING_REVIEW = 2;
+
+  // Operator declined the change, or the GC reconciler auto-denied it on
+  // manualReview-TTL expiry.
+  FILE_STATE_DENIED = 3;
+}

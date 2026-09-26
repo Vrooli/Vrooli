@@ -141,9 +141,16 @@ export async function deleteSkill(id: string): Promise<void> {
  * @returns Matching skills (empty array on errors)
  */
 export async function searchSkills(query: string): Promise<Skill[]> {
-  // Use cached data if available for instant search
-  const cached = skillsCache.getIfValid()
-  if (cached) {
+  try {
+    return await api.searchSkills(query)
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      console.warn('[skillService] Invalid API response for searchSkills:', error.message)
+      return []
+    }
+    const cached = skillsCache.getIfValid()
+    if (!cached) throw error
+
     const lowerQuery = query.toLowerCase()
     return cached.filter(
       (p) =>
@@ -154,17 +161,15 @@ export async function searchSkills(query: string): Promise<Skill[]> {
         p.modes.some((m) => m.toLowerCase().includes(lowerQuery))
     )
   }
+}
 
-  // Fallback to API search
-  try {
-    return await api.searchSkills(query)
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      console.warn('[skillService] Invalid API response for searchSkills:', error.message)
-      return []
-    }
-    throw error
-  }
+/**
+ * Search skills and return matching IDs in server relevance order.
+ * Used by the sidebar quick search, which already owns the loaded skill list.
+ */
+export async function searchSkillIds(query: string): Promise<string[]> {
+  const response = await api.searchSkillResults(query)
+  return response.results.map((result) => result.id)
 }
 
 /**
@@ -250,4 +255,3 @@ export async function getAISearchReindexStatus() {
 export async function cancelAISearchReindex() {
   return api.cancelAISearchReindex()
 }
-

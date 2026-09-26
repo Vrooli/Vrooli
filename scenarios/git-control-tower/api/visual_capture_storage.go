@@ -39,6 +39,16 @@ func (s *VisualCaptureStorage) snapshotDir(repoID int64, scenarioSlug, snapshotI
 	)
 }
 
+// dataRoot resolves the git-control-tower data class root (the parent of the
+// per-repoID directories). Used by the orphaned workflow-captures cleanup.
+func (s *VisualCaptureStorage) dataRoot() (string, error) {
+	return s.resolver.Path(
+		storage.Options{ScenarioID: "git-control-tower"},
+		storage.ClassData,
+		"",
+	)
+}
+
 func (s *VisualCaptureStorage) repoSnapshotsRoot(repoID int64) (string, error) {
 	return s.resolver.Path(
 		storage.Options{ScenarioID: "git-control-tower"},
@@ -285,18 +295,6 @@ func (s *VisualCaptureStorage) DeleteSnapshotsByRole(repoID int64, scenarioSlug,
 		}
 	}
 	return nil
-}
-
-// ClearScenarioSnapshots removes all snapshots for a specific scenario.
-func (s *VisualCaptureStorage) ClearScenarioSnapshots(repoID int64, scenarioSlug string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	dir, err := s.snapshotsDir(repoID, scenarioSlug)
-	if err != nil {
-		return err
-	}
-	return os.RemoveAll(dir)
 }
 
 // ClearAllSnapshots removes all snapshots for a repo.

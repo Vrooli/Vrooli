@@ -1,172 +1,173 @@
 {
-  "module": "inbox-list-view",
-  "description": "Email-like inbox list view for managing AI chats",
+  "_metadata": {
+    "last_validated_at": "2026-07-10T10:30:23-04:00"
+  },
   "requirements": [
     {
       "id": "INBOX-LIST-001",
       "title": "Display chat list",
-      "description": "Display all chats in a scrollable list with name, preview snippet, labels, and read/unread indicator",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Display all chats in a scrollable list with name, preview snippet, labels, and read/unread indicator",
       "validation": [
         {
           "type": "test",
+          "ref": "api/inbox_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/inbox_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "ui/src/App.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/App.tsx"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "bas/cases/01-inbox-list/ui/chat-list-display.json",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "bas/cases/01-inbox-list/ui/chat-list-display.json"
+          "status": "implemented"
         },
         {
           "type": "test",
+          "ref": "bas/flows/basic-chat-flow.json",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "bas/flows/basic-chat-flow.json"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "INBOX-LIST-002",
       "title": "Read/unread indicators",
-      "description": "Visual distinction between read and unread chats (bold text, dot indicator)",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Visual distinction between read and unread chats (bold text, dot indicator)",
       "validation": [
         {
           "type": "test",
+          "ref": "api/inbox_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/inbox_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "ui/src/App.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/App.tsx"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "bas/cases/01-inbox-list/ui/read-unread-toggle.json",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "bas/cases/01-inbox-list/ui/read-unread-toggle.json"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "INBOX-LIST-003",
       "title": "Toggle read status",
-      "description": "Allow users to mark chats as read or unread",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Allow users to mark chats as read or unread",
       "validation": [
         {
           "type": "test",
+          "ref": "api/inbox_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/inbox_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "ui/src/App.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/App.tsx"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "bas/cases/01-inbox-list/ui/read-unread-toggle.json",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "bas/cases/01-inbox-list/ui/read-unread-toggle.json"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "INBOX-LIST-004",
       "title": "Archive chats",
-      "description": "Move chats to archive without deleting them",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "criticality": "P1",
-      "status": "complete",
+      "description": "Move chats to archive without deleting them",
       "validation": [
         {
           "type": "test",
+          "ref": "api/inbox_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/inbox_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "ui/src/App.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/App.tsx"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "bas/flows/basic-chat-flow.json",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "bas/flows/basic-chat-flow.json"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "INBOX-LIST-005",
       "title": "Bulk selection",
-      "description": "Select multiple chats for bulk operations",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "criticality": "P1",
-      "status": "complete",
+      "description": "Select multiple chats for bulk operations",
       "validation": [
         {
-          "type": "implementation",
+          "type": "test",
+          "ref": "api/handlers/chat.go:BulkOperation",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/handlers/chat.go:BulkOperation"
+          "status": "failing"
         },
         {
-          "type": "implementation",
+          "type": "test",
+          "ref": "ui/src/components/layout/Sidebar.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/components/layout/Sidebar.tsx"
+          "status": "failing"
         },
         {
-          "type": "implementation",
+          "type": "test",
+          "ref": "ui/src/lib/api.ts:bulkOperateChats",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/lib/api.ts:bulkOperateChats"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "INBOX-LIST-006",
       "title": "Starred chats",
-      "description": "Star/pin important chats to the top of the list",
+      "status": "in_progress",
       "prd_ref": "OT-P1-008",
       "criticality": "P1",
-      "status": "complete",
+      "description": "Star/pin important chats to the top of the list",
       "validation": [
         {
           "type": "test",
+          "ref": "api/inbox_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/inbox_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "ui/src/App.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/App.tsx"
+          "status": "failing"
         }
       ]
     }

@@ -1,0 +1,23 @@
+{
+  "assetKind": "component",
+  "catalogId": "controls.copy-icon-button",
+  "deprecatedVersions": [
+    "0.1.0",
+    "1.0.0"
+  ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": "",
+  "entry": "CopyIconButton.tsx",
+  "evictedVersions": [
+    "0.1.0",
+    "1.0.0"
+  ],
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:CopyIconButton"
+}

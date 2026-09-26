@@ -4,6 +4,32 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
+
+vi.mock("../lib/api", () => ({
+  fetchChats: vi.fn(),
+  fetchChat: vi.fn(),
+  fetchModels: vi.fn(),
+  createChat: vi.fn(),
+  deleteChat: vi.fn(),
+  deleteAllChats: vi.fn(),
+  updateChat: vi.fn(),
+  addMessage: vi.fn(),
+  toggleRead: vi.fn(),
+  toggleArchive: vi.fn(),
+  toggleStar: vi.fn(),
+  autoNameChat: vi.fn(),
+  regenerateMessage: vi.fn(),
+  editMessage: vi.fn(),
+  selectBranch: vi.fn(),
+  bulkOperateChats: vi.fn(),
+  forkChat: vi.fn(),
+}));
+vi.mock("./useCompletion", () => ({ useCompletion: vi.fn() }));
+vi.mock("./useLabels", () => ({ useLabels: vi.fn() }));
+vi.mock("../components/settings/Settings", () => ({
+  getDefaultModel: vi.fn(() => "gpt-4"),
+}));
+
 import { useChats } from "./useChats";
 import * as api from "../lib/api";
 import * as completionHook from "./useCompletion";
@@ -33,7 +59,7 @@ describe("useChats - initial state and fetching", () => {
   });
 
   describe("initial state", () => {
-    it("starts with correct default state", async () => {
+    it("starts with correct default state", () => {
       vi.useRealTimers();
 
       const { result } = renderHook(() => useChats(), {
@@ -45,7 +71,7 @@ describe("useChats - initial state and fetching", () => {
       expect(result.current.isGenerating).toBe(false);
     });
 
-    it("uses initialChatId when provided", async () => {
+    it("uses initialChatId when provided", () => {
       vi.useRealTimers();
 
       const { result } = renderHook(

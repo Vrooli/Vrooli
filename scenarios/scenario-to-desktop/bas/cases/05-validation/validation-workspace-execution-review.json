@@ -1,0 +1,44 @@
+{
+  "metadata": {
+    "name": "validation-workspace-execution-review",
+    "description": "Given a selected desktop validation target, when an operator creates and runs a matrix with an intentionally mismatched artifact digest, then the failed gate, cell reason, evidence review, and selected-cell rerun remain visible and actionable.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"STD-E2E-GENERATION\"]",
+      "purpose": "validation-workspace-execution-review",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {"viewport_width": 1440, "viewport_height": 900},
+  "nodes": [
+    {"id":"navigate","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"scenario-to-desktop","scenario_path":"/?view=validation&scenario=scenario-to-desktop","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"Open the desktop validation workspace"}}},
+    {"id":"artifact","action":{"type":"ACTION_TYPE_INPUT","input":{"selector":"@selector/validation.artifactDigest","clear_first":true,"value":"sha256:intentionally-mismatched"},"metadata":{"label":"Enter an intentionally mismatched artifact digest"}}},
+    {"id":"create","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/validation.createMatrix"},"metadata":{"label":"Create the immutable validation matrix"}}},
+    {"id":"wait-cell","action":{"type":"ACTION_TYPE_WAIT","wait":{"selector":"@selector/validation.matrixCell","timeout_ms":15000},"metadata":{"label":"Wait for the matrix cell to render"}}},
+    {"id":"run","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/validation.startRun"},"metadata":{"label":"Run the selected matrix"}}},
+    {"id":"wait-run","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/validation.waitRun"},"metadata":{"label":"Wait for the server-owned run to finish"}}},
+    {"id":"assert-gate","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/validation.gateSummary","mode":"ASSERTION_MODE_EXISTS","timeout_ms":30000},"metadata":{"label":"Release gate summary remains visible"}}},
+    {"id":"assert-cell","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/validation.matrixCell","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Failed cell and reason remain visible"}}},
+    {"id":"inspect","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/validation.evidenceInspect"},"metadata":{"label":"Inspect the cell evidence and provenance"}}},
+    {"id":"assert-evidence","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/validation.evidenceReview","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Evidence review explains the failed cell"}}},
+    {"id":"select-cell","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/validation.cellSelect"},"metadata":{"label":"Select the failed cell for rerun"}}},
+    {"id":"rerun","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/validation.rerunSelected"},"metadata":{"label":"Rerun the selected cell"}}},
+    {"id":"capture","action":{"type":"ACTION_TYPE_SCREENSHOT","screenshot":{"full_page":true},"metadata":{"label":"Capture failed-gate and rerun evidence"}}}
+  ],
+  "edges":[
+    {"id":"e1","source":"navigate","target":"artifact"},
+    {"id":"e2","source":"artifact","target":"create"},
+    {"id":"e3","source":"create","target":"wait-cell"},
+    {"id":"e4","source":"wait-cell","target":"run"},
+    {"id":"e5","source":"run","target":"wait-run"},
+    {"id":"e6","source":"wait-run","target":"assert-gate"},
+    {"id":"e7","source":"assert-gate","target":"assert-cell"},
+    {"id":"e8","source":"assert-cell","target":"inspect"},
+    {"id":"e9","source":"inspect","target":"assert-evidence"},
+    {"id":"e10","source":"assert-evidence","target":"select-cell"},
+    {"id":"e11","source":"select-cell","target":"rerun"},
+    {"id":"e12","source":"rerun","target":"capture"}
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "name": "Silent Founder OS",
+  "short_name": "Silent Founder",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone"
+  ],
+  "orientation": "any",
+  "description": "A secure business suite for publishing, testing, and monetizing the apps you build.",
+  "lang": "en-US",
+  "dir": "ltr",
+  "categories": [
+    "business",
+    "productivity"
+  ],
+  "background_color": "#0b1728",
+  "theme_color": "#0b1728",
+  "icons": [
+    {
+      "src": "/public/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/public/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/public/logo-mask-512x512.webp",
+      "sizes": "512x512",
+      "type": "image/webp",
+      "purpose": "maskable"
+    }
+  ]
+}

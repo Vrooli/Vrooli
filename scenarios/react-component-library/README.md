@@ -1,141 +1,33 @@
 # React Component Library
 
-Central UI for designing, previewing, editing, and tracking shared React UI components across the Vrooli ecosystem.
+Browse, author and inspect Vrooli's versioned React assets. The workbench separates visual components, hooks and supporting assets, renders declared stories, and exposes source-backed page verification. Start it with `make start` from this scenario directory.
 
-## Overview
+## The asset loop
 
-React Component Library provides a comprehensive workflow hub for component creation, AI-powered refinement, multi-viewport testing, and adoption tracking. It enables:
-
-- **Component Registry**: Centralized registry of shared UI components with metadata and versioning
-- **Code Editor & Preview**: Full-featured TSX editor with live preview in isolated iframes
-- **Multi-Viewport Emulator**: Simultaneous preview across desktop, mobile, and tablet viewports
-- **AI-Powered Editing**: Context-aware code suggestions and refactoring via resource-openrouter
-- **Element Selection**: iframe-bridge integration for precise element targeting
-- **Adoption Workflow**: Integration with app-issue-tracker for component adoption across scenarios
-- **Version Tracking**: Track component versions, detect changes, and view diffs
-
-## Purpose
-
-This scenario eliminates component duplication across scenarios, accelerates UI development with AI assistance, ensures design consistency through a shared library, and enables systematic component evolution with version tracking and diff views.
-
-## Quick Start
+Use the [asset update flow](docs/guides/asset-update-flow.md): open a governed draft, edit through `content-set`, validate the affected story/gate, publish a successor, compile the package, build the UI, and inspect the rendered page. The package build and UI build are separate steps.
 
 ```bash
-# From repo root
-cd scenarios/react-component-library
-
-# Setup (builds API, UI, installs CLI)
-vrooli scenario run react-component-library --setup
-
-# Start development servers
-make dev
-# OR
-vrooli scenario run react-component-library --dev
-
-# Access UI
-open http://localhost:$(vrooli scenario port react-component-library UI_PORT)
+react-component-library components draft-begin react-component-library:Button --json
+react-component-library page inspect react-component-library / --json
+react-component-library components test page:CoveragePage --version workspace --json
 ```
 
-## Running Tests
+`page inspect` joins captured stamps to consumer-resolved library source. Page stories use the same declarative evaluator as asset stories, with explicit API fixtures installed before the app mounts. Read the [checked behavior register](docs/internal/TESTING.md#behavior-claim-register) for the enforcing checks and their limits.
 
-```bash
-# Run all test phases
-make test
+## Always and never
 
-# Or run specific phases
-test-genie execute react-component-library --phases structure,unit
-```
+Use the catalog for desired capability, manifests for library identity and release pointers, and source evidence for observed implementation. Shared visual values are authored in BaseStyles; generated token files are checked against it. Application-only geometry is authored separately.
 
-Tests are organized by phase:
-- **Structure**: Validates scenario structure, configuration, and basic health
-- **Unit**: Tests individual components and functions
-- **Integration**: Tests API endpoints and component interactions
-- **Business**: Tests business logic and workflows
-- **Performance**: Tests performance benchmarks and optimization
+Use governed draft/publication and dependency operations. Never rewrite an immutable release or its hashes to make a check pass. Unknown provenance, zero source coverage and unavailable capture/report producers must remain visible findings.
 
-Tag tests with `[REQ:ID]` to link them to requirements in `requirements/`.
+These rules are enforced at the boundaries named in the checked behavior register. Broader visual quality, product fit, production readiness and corpus-wide maturity remain design intent until their relevant checks and review evidence pass.
 
-## CLI Usage
+## Further reading
 
-```bash
-# Check status
-react-component-library status
-
-# List components
-react-component-library components list
-
-# Search components
-react-component-library components search --query "button"
-
-# Show adoption status
-react-component-library adoptions list
-```
-
-## Architecture
-
-### Frontend (ui/)
-- React 18+ with TypeScript
-- TailwindCSS + shadcn/ui components
-- Lucide icons
-- Monaco Editor or CodeMirror for code editing
-- iframe-bridge for element selection
-- Vite for fast HMR
-
-### Backend (api/)
-- Go API server
-- PostgreSQL for component registry and adoption tracking
-- REST API for component CRUD, search, and adoption workflows
-
-### Dependencies
-- **postgres**: Component registry, adoption records, version history
-- **resource-openrouter**: AI-powered code editing and refactoring
-- **app-issue-tracker**: Integration for adoption workflow issue generation
-- **app-monitor**: Reference for iframe-bridge patterns
-
-## Development Guidelines
-
-1. **PRD First**: See [PRD.md](PRD.md) for operational targets and requirements
-2. **Track Progress**: Update [docs/PROGRESS.md](docs/PROGRESS.md) when landing work
-3. **Log Problems**: Document issues in [docs/PROBLEMS.md](docs/PROBLEMS.md)
-4. **Link Tests**: Tag tests with `[REQ:ID]` to connect to requirements
-
-## Component Header Format
-
-All library components must include a standardized header comment:
-
-```tsx
-/**
- * @libraryId react-component-library:ButtonPrimary
- * @displayName Primary Button
- * @description High-emphasis CTA button for primary actions.
- * @version 1.2.0
- * @sourcePath /path/to/library/components/ButtonPrimary.tsx
- * @warning DO NOT REMOVE OR EDIT THIS COMMENT.
- *          Used by react-component-library to track shared component adoption.
- */
-```
-
-This header enables:
-- Component registry indexing from disk
-- Adoption tracking across scenarios
-- Version management and change detection
-- Diff views between library and adopted versions
-
-## Documentation
-
-- [PRD.md](PRD.md) - Product requirements and operational targets
-- [docs/PROGRESS.md](docs/PROGRESS.md) - Development progress log
-- [docs/PROBLEMS.md](docs/PROBLEMS.md) - Known issues and deferred ideas
-- [docs/RESEARCH.md](docs/RESEARCH.md) - Research notes and references
-- [requirements/](requirements/) - Technical requirements registry
-
-## Related Scenarios
-
-- **app-monitor**: Reference for iframe-bridge integration and emulator patterns
-- **app-issue-tracker**: Integration target for adoption workflow
-- **brand-manager**: Future integration for design tokens and theming
-- **tidiness-manager**: Could leverage component library for UI consistency
-
-## License
-
-MIT
+- [Edit, rebuild and look](docs/guides/asset-update-flow.md#edit-rebuild-and-look)
+- [Architecture and owners](docs/concepts/ARCHITECTURE.md)
+- [Tokens](docs/reference/token-contract.md) and [stamps/capture](docs/reference/cli-commands.md#inspect-a-running-page)
+- [Page/source reconciliation](docs/concepts/UI-SPEC-RECONCILIATION.md)
+- [Story contract](docs/concepts/STORY-CONTRACT.md)
+- [Known problems and evidence limits](docs/internal/PROBLEMS.md)
+- [Design intent](DESIGN.md)

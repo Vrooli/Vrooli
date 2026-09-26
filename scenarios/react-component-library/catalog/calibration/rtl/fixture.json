@@ -1,0 +1,1 @@
+{"gate":"rtl","assetId":"calibration-rtl","kind":"component","runner":"static","requiredFailureCode":"catalog.rtl","catalogAsset":"asset.json","source":"broken.tsx","mutation":"differential-hard-coded","description":"Renders the same inline position in ltr and rtl."}

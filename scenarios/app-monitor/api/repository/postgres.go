@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/lib/pq"
+	_ "github.com/lib/pq" // register postgres driver with database/sql
 )
 
 // PostgresRepository implements all repository interfaces for PostgreSQL
@@ -169,7 +169,6 @@ func (r *PostgresRepository) CreateApp(ctx context.Context, app *App) error {
 		app.Name, app.ScenarioName, app.Path, app.Status,
 		string(portMappingsJSON), string(environmentJSON), string(configJSON),
 	).Scan(&app.ID, &app.CreatedAt, &app.UpdatedAt)
-
 	if err != nil {
 		return fmt.Errorf("failed to create app: %w", err)
 	}
@@ -268,7 +267,6 @@ func (r *PostgresRepository) CreateAppStatus(ctx context.Context, status *AppSta
 		status.AppID, status.Status, status.CPUUsage, status.MemUsage,
 		status.DiskUsage, status.NetworkIn, status.NetworkOut,
 	).Scan(&status.ID, &status.Timestamp)
-
 	if err != nil {
 		return fmt.Errorf("failed to create app status: %w", err)
 	}
@@ -346,7 +344,6 @@ func (r *PostgresRepository) CreateAppLog(ctx context.Context, log *AppLog) erro
 		ctx, query,
 		log.AppID, log.Level, log.Message, log.Source,
 	).Scan(&log.ID, &log.Timestamp)
-
 	if err != nil {
 		return fmt.Errorf("failed to create app log: %w", err)
 	}

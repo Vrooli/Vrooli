@@ -14,7 +14,7 @@ function createFakeIndexedDB() {
   function getStore(dbName: string, storeName: string): Map<string, unknown> {
     const key = `${dbName}/${storeName}`;
     if (!stores.has(key)) stores.set(key, new Map());
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guaranteed by the line above
+     
     return stores.get(key)!;
   }
 
@@ -81,6 +81,14 @@ class FakeFileReader {
 
 const defaultOpts: UseIndexedDBAttachmentsOptions = { dbName: "test-db", persistDebounceMs: 0 };
 
+async function renderAttachmentsHook(options: UseIndexedDBAttachmentsOptions = defaultOpts) {
+  const rendered = renderHook(() => useIndexedDBAttachments(options));
+  await act(async () => {
+    await Promise.resolve();
+  });
+  return rendered;
+}
+
 describe("useIndexedDBAttachments", () => {
   let fakeIDB: ReturnType<typeof createFakeIndexedDB>;
 
@@ -97,13 +105,13 @@ describe("useIndexedDBAttachments", () => {
     fakeIDB.clear();
   });
 
-  it("starts with an empty attachments array", () => {
-    const { result } = renderHook(() => useIndexedDBAttachments(defaultOpts));
+  it("starts with an empty attachments array", async () => {
+    const { result } = await renderAttachmentsHook();
     expect(result.current.attachments).toEqual([]);
   });
 
   it("adds a file and produces a preview URL", async () => {
-    const { result } = renderHook(() => useIndexedDBAttachments(defaultOpts));
+    const { result } = await renderAttachmentsHook();
 
     const file = new File(["hello"], "photo.png", { type: "image/png" });
     await act(async () => {
@@ -120,7 +128,7 @@ describe("useIndexedDBAttachments", () => {
   });
 
   it("rejects files whose type is not in allowedTypes", async () => {
-    const { result } = renderHook(() => useIndexedDBAttachments(defaultOpts));
+    const { result } = await renderAttachmentsHook();
 
     const file = new File(["data"], "doc.pdf", { type: "application/pdf" });
     await act(async () => {
@@ -137,7 +145,7 @@ describe("useIndexedDBAttachments", () => {
       allowedTypes: new Set(["application/pdf"]),
       persistDebounceMs: 0,
     };
-    const { result } = renderHook(() => useIndexedDBAttachments(opts));
+    const { result } = await renderAttachmentsHook(opts);
 
     const file = new File(["data"], "doc.pdf", { type: "application/pdf" });
     await act(async () => {
@@ -149,7 +157,7 @@ describe("useIndexedDBAttachments", () => {
   });
 
   it("removes a file by id", async () => {
-    const { result } = renderHook(() => useIndexedDBAttachments(defaultOpts));
+    const { result } = await renderAttachmentsHook();
 
     const file = new File(["hello"], "photo.png", { type: "image/png" });
     await act(async () => {
@@ -168,7 +176,7 @@ describe("useIndexedDBAttachments", () => {
   });
 
   it("clears all files", async () => {
-    const { result } = renderHook(() => useIndexedDBAttachments(defaultOpts));
+    const { result } = await renderAttachmentsHook();
 
     await act(async () => {
       result.current.addFile(new File(["a"], "a.png", { type: "image/png" }));
@@ -189,7 +197,7 @@ describe("useIndexedDBAttachments", () => {
   });
 
   it("getFiles returns the underlying File objects", async () => {
-    const { result } = renderHook(() => useIndexedDBAttachments(defaultOpts));
+    const { result } = await renderAttachmentsHook();
 
     await act(async () => {
       result.current.addFile(new File(["x"], "x.png", { type: "image/png" }));

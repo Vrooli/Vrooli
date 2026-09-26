@@ -16,11 +16,14 @@ import {
 import * as LucideIcons from "lucide-react";
 import { Button } from "../ui/button";
 import { openScenarioViewerInNewTab } from "../scenarios/ScenarioViewer";
-import type { ScenarioInfo } from "../../lib/api";
 import type { SkillAttachment } from "../../lib/tool-utils";
 import type { ComponentType, SVGProps } from "react";
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
+interface ScenarioInfo {
+  version?: string;
+  description?: string;
+}
 
 export function getIconComponent(name: string): IconComponent {
   const Icon = (LucideIcons as unknown as Record<string, IconComponent>)[name];

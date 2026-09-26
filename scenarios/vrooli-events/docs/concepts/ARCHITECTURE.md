@@ -46,7 +46,7 @@ Three types of policy rules, all enforced locally from cache for zero-latency:
 
 ### Dual-End Policy Caching
 
-```
+```text
                     vrooli-events
                     (source of truth)
                          │
@@ -82,7 +82,7 @@ Named subscription rules that outlive SSE connections. Used by scenarios like no
 
 ### Discovery Integration
 
-The `EmittingResolver` in `packages/api-core/discovery/` wraps the existing `Resolver`:
+The `EmittingResolver` in `scenarios/vrooli-events/internal/resolver/` wraps a discovery-style `Resolver`:
 
 ```
 Scenario code calls: discovery.ResolveScenarioURL(ctx, "target-scenario")
@@ -97,6 +97,54 @@ Total added latency: ~0 (policy check is in-memory, event emission is async)
 ```
 
 [REQ: REQ-DI-001, REQ-DI-002]
+
+## Package Layout — Server Core vs Scenario-Side SDK
+
+The code under `internal/` mixes two distinct concerns that benefit from being
+read as separate layers. Keep this map in mind when deciding where new logic
+belongs.
+
+### Server Core — runs inside the `vrooli-events` API binary
+
+Imported by `api/` (main binary) and by internal server code.
+
+| Package | Role |
+|---------|------|
+| `internal/store/` | Durable event storage (SQLite WAL, `Store` interface) |
+| `internal/broker/` | SSE pub/sub, matcher, `EventBroker` interface |
+| `internal/policy/` | Policy rules storage, evaluator, SSE broadcaster |
+| `internal/subscription/` | Persistent subscriptions + webhook delivery loop |
+| `internal/convert/` | Proto ↔ store event conversion |
+| `internal/match/` | Pure-function glob matcher (shared with sender-side SDK) |
+| `internal/config/` | Server config resolution |
+| `internal/sqlutil/` | Shared SQL helpers |
+
+### Scenario-Side SDK — meant to be composed into **other** scenarios
+
+Not imported by the server binary. Provides the caller-side and receiver-side
+tooling every scenario needs to participate in the event bus + policy mesh.
+
+| Package | Role |
+|---------|------|
+| `internal/emitter/` | Fire-and-forget event publisher with batching + retry |
+| `internal/resolver/` | `EmittingResolver` — discovery decorator that emits + enforces sender-side policy |
+| `internal/middleware/` | Receiver-side HTTP middleware: access, rate-limit, circuit-breaker |
+| `internal/fallback/` | Fail-open / fail-closed behavior when the events API is unreachable |
+| `internal/headers/` | `X-Source-Scenario` header injection + transport wrapper |
+
+Because these packages currently live under `internal/`, Go blocks external
+scenarios from importing them. The next-iteration refactor promotes the SDK
+layer to a shared module (e.g. `packages/api-core/eventbus-sdk/`) so other
+scenarios can consume the same implementation the tests already exercise.
+Until that promotion lands, the SDK exists as canonical reference code and
+is kept test-covered so the eventual move is mechanical.
+
+### Shared Utilities
+
+| Package | Role |
+|---------|------|
+| `internal/match/` | Pure glob matcher used by both server broker and SDK evaluator |
+| `internal/testutil/` | `MockStore`, `MockBroker`, factories (server-side only — do not import from SDK packages) |
 
 ## Data Flow
 
@@ -154,24 +202,24 @@ Maps PRD operational targets to their implementation locations.
 | OT-P0-005 | Structured event IDs | [CODE: internal/match/match.go#Glob], [CODE: internal/broker/matcher.go#Match] |
 | OT-P0-006 | Correlation tracking | [CODE: internal/store/store.go#Event] (CorrelationID field) |
 
-### P1 — Partially Implemented
+### P1 — Implemented
 
 | Target | Description | Implementation | Status |
 |--------|-------------|----------------|--------|
 | OT-P1-001 | Last-Event-ID resume | [CODE: api/handlers.go#handleSubscribe] — reads `Last-Event-ID` header, replays via `store.GetSince` | Done |
 | OT-P1-002 | Backpressure handling | [CODE: internal/broker/broker.go#Publish] — 64-cap channel, `droppedCount` in heartbeat | Done |
 | OT-P1-003 | Configurable retention | [CODE: internal/store/pruner.go#StartPruner] — reads settings table | Done |
-| OT-P1-004 | Policy — access control | Not implemented | Planned |
-| OT-P1-005 | Policy — rate limiting | Not implemented | Planned |
-| OT-P1-006 | Policy — circuit breaking | Not implemented | Planned |
-| OT-P1-007 | Policy CRUD API | Not implemented | Planned |
-| OT-P1-008 | SSE policy push | Not implemented | Planned |
-| OT-P1-009 | Dual-end policy caching | Not implemented | Planned |
-| OT-P1-010 | Discovery integration | Not implemented | Planned |
-| OT-P1-011 | Receiver-side middleware | Not implemented | Planned |
-| OT-P1-012 | Persistent subscriptions | Not implemented | Planned |
-| OT-P1-013 | CLI tools | [CODE: cli/main.go] — query, subscribe, stats commands | Partial |
-| OT-P1-014 | Graceful degradation | Not implemented | Planned |
+| OT-P1-004 | Policy — access control | [CODE: internal/policy/evaluator.go], [CODE: internal/middleware/policy_access.go] | Done |
+| OT-P1-005 | Policy — rate limiting | [CODE: internal/middleware/policy_ratelimit.go], sliding window in [CODE: internal/policy/sqlite.go] | Done |
+| OT-P1-006 | Policy — circuit breaking | [CODE: internal/middleware/policy_circuit.go], state in [CODE: internal/policy/sqlite.go] | Done |
+| OT-P1-007 | Policy CRUD API | [CODE: api/handlers_policy.go] — `POST/GET/PUT/DELETE /api/v1/policies` + `/evaluate`, `/violations`, `/{id}/override` | Done |
+| OT-P1-008 | SSE policy push | [CODE: api/handlers_policy.go#handlePolicySubscribe] — `GET /api/v1/policies/subscribe`; fan-out via [CODE: internal/policy/broadcaster.go] | Done |
+| OT-P1-009 | Dual-end policy caching | Sender-side: [CODE: internal/resolver/resolver.go] (EmittingResolver). Receiver-side: [CODE: internal/middleware/policy.go] | Done |
+| OT-P1-010 | Discovery integration | [CODE: internal/resolver/resolver.go] — EmittingResolver decorator, fire-and-forget emit via [CODE: internal/emitter/emitter.go] | Done |
+| OT-P1-011 | Receiver-side middleware | [CODE: internal/middleware/policy.go] — composable HTTP middleware | Done |
+| OT-P1-012 | Persistent subscriptions | [CODE: api/handlers_subscription.go], [CODE: internal/subscription/sqlite.go], webhook: [CODE: internal/subscription/webhook.go] | Done |
+| OT-P1-013 | CLI tools | [CODE: cli/domains/events/register.go] — event commands via ScenarioApp | Done |
+| OT-P1-014 | Graceful degradation | [CODE: internal/fallback/fallback.go] — fail-open / fail-closed modes on events API unavailability | Done |
 
 ### P2 — Planned
 

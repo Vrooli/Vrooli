@@ -14,26 +14,36 @@ export function CapturesSection({ scenarioName }: CapturesSectionProps) {
   const fetchSummary = useCapturesStore((s) => s.fetchSummary);
 
   useEffect(() => {
-    fetchSummary(scenarioName);
+    void fetchSummary(scenarioName);
   }, [scenarioName, fetchSummary]);
 
   const count = summary?.count ?? 0;
-  const totalBytes = summary?.total_bytes ?? 0;
+  const totalBytes = Number(summary?.totalBytes ?? 0n);
 
   return (
     <section className="space-y-2">
       <SectionTitle icon={Camera}>Captures</SectionTitle>
       <ActionRow
         icon={Camera}
-        title={count > 0 ? `${count} capture${count !== 1 ? "s" : ""}` : "No captures yet"}
-        subtitle={count > 0 ? formatBytes(totalBytes) : "Screenshots and recordings from desktop sessions"}
+        title={
+          count > 0
+            ? `${String(count)} capture${count !== 1 ? "s" : ""}`
+            : "No captures yet"
+        }
+        subtitle={
+          count > 0
+            ? formatBytes(totalBytes)
+            : "Screenshots and recordings from desktop sessions"
+        }
       >
         {count > 0 && (
           <Button
             type="button"
             size="sm"
             variant="outline"
-            onClick={() => useCapturesStore.getState().open(scenarioName)}
+            onClick={() => {
+              useCapturesStore.getState().open(scenarioName);
+            }}
           >
             View All
           </Button>

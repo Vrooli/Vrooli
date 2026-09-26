@@ -26,6 +26,25 @@ cat coverage/phase-results/unit.json | jq '.errors'
 | Requirement not tracked | Missing `[REQ:ID]` tag | Add requirement tag to test |
 | Coverage shows 0% | Coverage not enabled | Check vitest/go test config |
 
+### Temp Scenario Links Fail
+
+**Symptoms:**
+```
+broken local link '../../../../docs/reference/port-allocation.md'
+```
+
+**Likely cause:** The suite is reading a generated scenario from a temp
+directory, but repo-relative validation was not given a logical placement.
+
+**Solution:**
+```bash
+test-genie execute template-validation-react-vite-deep \
+  --scenario-path /tmp/vrooli-template-deep-123/scenarios/template-validation-react-vite-deep \
+  --logical-repo-root /home/matthalloran8/Vrooli \
+  --logical-scenario-relpath scenarios/template-validation-react-vite-deep \
+  --preset quick
+```
+
 ## Docker & Container Issues
 
 ### Container Won't Start
@@ -195,17 +214,13 @@ declare -x | grep -E "DATABASE|SQLITE|REDIS|API"
 
 **Solutions:**
 ```bash
-# Embedded SQLite scenarios
-export TEST_GENIE_SQLITE_PATH="$PWD/data/test-genie.db"
-
-# Generic SQLite fallback
-export SQLITE_PATH="$PWD/data/test-genie.db"
+# Embedded SQLite scenarios resolve their own database from the scenario id,
+# so there is nothing to point at a file. To isolate storage for a run,
+# redirect the whole class tree instead:
+export VROOLI_STORAGE_ROOT="$PWD/.tmp/isolated-storage"
 
 # Networked database scenarios
 export DATABASE_URL="postgresql://localhost:5432/testdb"
-
-# Use .env file
-echo "TEST_GENIE_SQLITE_PATH=$PWD/data/test-genie.db" >> .env
 ```
 
 ### Path Resolution Issues
@@ -326,8 +341,9 @@ ulimit -n
 # Proper cleanup in tests
 trap 'cleanup_resources' EXIT
 
-# Kill orphaned processes
-pkill -f test-process-name
+# Reconcile scenario-owned processes through the control plane
+vrooli scenario stop my-scenario
+vrooli scenario start my-scenario --clean-stale
 
 # Clean up containers
 docker ps -q | xargs -r docker rm -f
@@ -769,8 +785,8 @@ mkdir -p coverage/ui-smoke
 # Check permissions
 chmod 755 coverage
 
-# Verify browserless is running
-curl http://localhost:3000/json/version
+# Verify Browser Automation Studio is running
+vrooli scenario status browser-automation-studio
 ```
 
 ### Browser Connection Failures
@@ -778,19 +794,16 @@ curl http://localhost:3000/json/version
 **Symptoms:**
 ```
 Failed to connect to browser
-WebSocket connection failed
+BAS workflow engine unreachable
 ```
 
 **Solutions:**
 ```bash
-# Check browserless resource
-vrooli resource status browserless
+# Check Browser Automation Studio
+vrooli scenario status browser-automation-studio
 
-# Restart browserless
-vrooli resource restart browserless
-
-# Verify connection
-curl http://localhost:3000/health
+# Start it if needed (idempotent)
+vrooli scenario start browser-automation-studio
 ```
 
 ---
@@ -893,7 +906,7 @@ def db_session():
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| "browserless unavailable" | Resource down | `vrooli resource start browserless` |
+| "browser-automation-studio unavailable" | BAS down | `vrooli scenario start browser-automation-studio` |
 | "element not found" | UI changed | Update selectors |
 | "timeout exceeded" | Slow UI | Increase wait times |
 
@@ -927,8 +940,8 @@ def db_session():
 # Check if scenario exists in catalog
 test-genie scenarios list | grep my-scenario
 
-# Verify scenario configuration
-cat scenarios/my-scenario/.vrooli/service.json | jq '.lifecycle.test'
+# Verify Test Genie configuration when the scenario customizes it
+jq . scenarios/my-scenario/.vrooli/testing.json
 ```
 
 **Solutions:**

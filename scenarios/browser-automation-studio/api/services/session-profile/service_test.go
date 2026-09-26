@@ -2,19 +2,27 @@ package sessionprofile
 
 import (
 	"context"
+	"errors"
+	"os"
+	"path/filepath"
+	"reflect"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/internal/clock"
+	"github.com/vrooli/api-core/scheduletest"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
-func newTestService(t *testing.T) (*Service, *persistence.MockRepository, *clock.MockClock) {
+func newTestService(t *testing.T) (*Service, *persistence.MockRepository, *scheduletest.FakeClock) {
 	t.Helper()
 	repo := persistence.NewMockRepository()
-	mockClock := clock.NewMock(time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC))
+	mockClock := scheduletest.New(time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC))
 	log := logrus.New()
 	log.SetLevel(logrus.PanicLevel)
 
@@ -79,6 +87,94 @@ func TestService_GetOrCreateProfile(t *testing.T) {
 
 	if profile1.ID != profile2.ID {
 		t.Error("expected same profile to be returned")
+	}
+}
+
+// [REQ:BAS-RH-J14] Failed recovery cannot silently replace an acknowledged identity.
+func TestService_ProfileRecoveryPreservesIdentity(t *testing.T) {
+	for _, fault := range []string{"missing-state", "corrupt-state", "wrong-key", "invalid-key", "corrupt-metadata"} {
+		t.Run(fault, func(t *testing.T) {
+			authority, err := testutil.ProfileCredentialAuthority()
+			if err != nil {
+				t.Fatal(err)
+			}
+			key, err := authority.Resolve("vrooli/browser-automation-studio", "session-profile-keyring")
+			if err != nil {
+				t.Fatal(err)
+			}
+			config := persistence.FileRepositoryConfig{Authority: func() (*credentialauthority.Authority, error) { return authority, nil }}
+			root := t.TempDir()
+			svc := NewService(persistence.NewFileRepositoryWithConfig(root, nil, config), nil)
+			profile, err := svc.CreateProfile("Original identity")
+			if err != nil {
+				t.Fatal(err)
+			}
+			state := []byte(`{"cookies":[{"name":"identity","value":"synthetic-secret"}],"origins":[]}`)
+			if _, err := svc.SaveStorageState(profile.ID, state); err != nil {
+				t.Fatal(err)
+			}
+			readFiles := func() map[string]string {
+				t.Helper()
+				entries, err := os.ReadDir(root)
+				if err != nil {
+					t.Fatal(err)
+				}
+				files := make(map[string]string, len(entries))
+				for _, entry := range entries {
+					data, err := os.ReadFile(filepath.Join(root, entry.Name()))
+					if err != nil {
+						t.Fatal(err)
+					}
+					files[entry.Name()] = string(data)
+				}
+				return files
+			}
+			original := readFiles()
+			protected := filepath.Join(root, string(profile.ID)+".json")
+			switch fault {
+			case "missing-state":
+				err = os.WriteFile(protected, []byte(`{"version":1}`), 0o600)
+			case "corrupt-state":
+				err = os.WriteFile(protected, []byte("truncated"), 0o600)
+			case "wrong-key":
+				err = authority.Put("vrooli/browser-automation-studio", "session-profile-keyring", `{"active":1,"keys":{"1":"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="}}`)
+			case "invalid-key":
+				err = authority.Put("vrooli/browser-automation-studio", "session-profile-keyring", "invalid")
+			case "corrupt-metadata":
+				err = os.WriteFile(filepath.Join(root, string(profile.ID)+".json"), []byte("{"), 0o600)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			before := readFiles()
+			// A new service must not hide the failure through in-memory state.
+			restarted := NewService(persistence.NewFileRepositoryWithConfig(root, nil, config), nil)
+			if _, err := restarted.GetProfile(profile.ID); err == nil {
+				t.Error("unreadable profile was treated as recovered")
+			}
+			if _, err := restarted.ListProfiles(); err == nil {
+				t.Error("listing concealed the recovery failure")
+			}
+			if replacement, err := restarted.GetOrCreateProfile(""); err == nil || replacement != nil {
+				t.Error("default resolution replaced or accepted an unreadable identity")
+			}
+			if !reflect.DeepEqual(before, readFiles()) {
+				t.Fatal("failed recovery changed saved files")
+			}
+			// Repair only the injected fault; the original identity must return.
+			if err := authority.Put("vrooli/browser-automation-studio", "session-profile-keyring", key); err != nil {
+				t.Fatal(err)
+			}
+			for name, data := range original {
+				if err := os.WriteFile(filepath.Join(root, name), []byte(data), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			recovered, err := restarted.GetOrCreateProfile("")
+			if err != nil || recovered == nil || recovered.ID != profile.ID || string(recovered.StorageState) != string(state) {
+				t.Fatalf("original identity did not recover: %v", err)
+			}
+		})
 	}
 }
 
@@ -153,7 +249,7 @@ func TestService_DeleteProfile(t *testing.T) {
 	}
 }
 
-func TestService_StartSession(t *testing.T) {
+func TestService_TouchAndAssociateSession(t *testing.T) {
 	svc, _, mockClock := newTestService(t)
 
 	// Create a profile
@@ -164,9 +260,10 @@ func TestService_StartSession(t *testing.T) {
 	mockClock.Advance(time.Hour)
 
 	// Start session
-	err := svc.StartSession("browser-session-1", created.ID)
+	_, err := svc.Touch(created.ID)
+	svc.SetActiveSession("browser-session-1", string(created.ID))
 	if err != nil {
-		t.Fatalf("StartSession failed: %v", err)
+		t.Fatalf("Touch failed: %v", err)
 	}
 
 	// Verify session is tracked
@@ -182,12 +279,12 @@ func TestService_StartSession(t *testing.T) {
 	}
 }
 
-func TestService_EndSession(t *testing.T) {
+func TestService_PersistSessionState(t *testing.T) {
 	svc, _, mockClock := newTestService(t)
 
 	// Create a profile and start session
 	created, _ := svc.CreateProfile("Test")
-	svc.StartSession("browser-session-1", created.ID)
+	svc.SetActiveSession("browser-session-1", string(created.ID))
 
 	mockClock.Advance(time.Hour)
 
@@ -200,11 +297,13 @@ func TestService_EndSession(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	err := svc.EndSession(ctx, "browser-session-1", state)
+	err := svc.PersistSessionState(ctx, "browser-session-1", func(context.Context, string) (*persistence.SessionEndState, error) { return state, nil })
 	if err != nil {
-		t.Fatalf("EndSession failed: %v", err)
+		t.Fatalf("PersistSessionState failed: %v", err)
 	}
 
+	// The lifecycle owner detaches only after a successful save and browser close.
+	svc.ClearActiveSession("browser-session-1")
 	// Verify session is no longer tracked
 	profileID := svc.GetActiveSession("browser-session-1")
 	if profileID != "" {
@@ -221,12 +320,12 @@ func TestService_EndSession(t *testing.T) {
 	}
 }
 
-func TestService_EndSession_LimitsTabs(t *testing.T) {
+func TestService_PersistSessionState_LimitsTabs(t *testing.T) {
 	svc, _, _ := newTestService(t)
 
 	// Create a profile and start session
 	created, _ := svc.CreateProfile("Test")
-	svc.StartSession("browser-session-1", created.ID)
+	svc.SetActiveSession("browser-session-1", string(created.ID))
 
 	// Create more tabs than the limit
 	tabs := make([]persistence.TabState, persistence.MaxRestoredTabs+10)
@@ -239,9 +338,9 @@ func TestService_EndSession_LimitsTabs(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	err := svc.EndSession(ctx, "browser-session-1", state)
+	err := svc.PersistSessionState(ctx, "browser-session-1", func(context.Context, string) (*persistence.SessionEndState, error) { return state, nil })
 	if err != nil {
-		t.Fatalf("EndSession failed: %v", err)
+		t.Fatalf("PersistSessionState failed: %v", err)
 	}
 
 	// Verify tabs were limited
@@ -249,6 +348,257 @@ func TestService_EndSession_LimitsTabs(t *testing.T) {
 	if len(updated.OpenTabs) > persistence.MaxRestoredTabs {
 		t.Errorf("expected at most %d tabs, got %d", persistence.MaxRestoredTabs, len(updated.OpenTabs))
 	}
+}
+
+type secondErrObservedContext struct {
+	context.Context
+	checks      atomic.Int32
+	secondCheck chan struct{}
+}
+
+func (c *secondErrObservedContext) Err() error {
+	if c.checks.Add(1) == 2 {
+		close(c.secondCheck)
+	}
+	return c.Context.Err()
+}
+
+// Cancellation while waiting to reacquire the binding lock must not publish a
+// snapshot after the capture's earlier context check.
+func TestService_PersistSessionStateRechecksCancellationBeforeCommit(t *testing.T) {
+	svc, repo, _ := newTestService(t)
+	profile, err := svc.CreateProfile("Main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc.SetActiveSession("main", string(profile.ID))
+	base, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ctx := &secondErrObservedContext{Context: base, secondCheck: make(chan struct{})}
+	captureStarted, releaseCapture := make(chan struct{}), make(chan struct{})
+	done := make(chan error, 1)
+	go func() {
+		done <- svc.PersistSessionState(ctx, "main", func(context.Context, string) (*persistence.SessionEndState, error) {
+			close(captureStarted)
+			<-releaseCapture
+			return &persistence.SessionEndState{StorageState: []byte(`{"marker":"stale"}`)}, nil
+		})
+	}()
+	select {
+	case <-captureStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("profile capture did not start")
+	}
+	svc.sessions.mu.Lock()
+	close(releaseCapture)
+	select {
+	case <-ctx.secondCheck:
+	case <-time.After(5 * time.Second):
+		svc.sessions.mu.Unlock()
+		t.Fatal("post-capture context check was not reached")
+	}
+	cancel()
+	svc.sessions.mu.Unlock()
+
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("cancelled snapshot result = %v, want context.Canceled", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("profile snapshot did not finish after releasing the registry lock")
+	}
+	got, err := repo.Get(profile.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, profile) {
+		t.Fatalf("cancelled snapshot changed profile: got %+v, want %+v", got, profile)
+	}
+}
+
+// [REQ:BAS-RH-J14] A cancelled waiter neither captures nor publishes an older
+// snapshot; unrelated profiles continue while a browser capture is pending.
+func TestService_ProfileCapturesSerializeAndRespectCancellation(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		svc, _, _ := newTestService(t)
+		profile, _ := svc.CreateProfile("Main")
+		other, _ := svc.CreateProfile("Independent")
+		svc.SetActiveSession("main", string(profile.ID))
+		svc.SetActiveSession("other", string(other.ID))
+		started, release := make(chan struct{}), make(chan struct{})
+		var captures atomic.Int32
+		capture := func(context.Context, string) (*persistence.SessionEndState, error) {
+			value := []byte(`{"marker":"new"}`)
+			if captures.Add(1) == 1 {
+				close(started)
+				<-release
+				value = []byte(`{"marker":"old"}`)
+			}
+			return &persistence.SessionEndState{StorageState: value}, nil
+		}
+		first, second := make(chan error, 1), make(chan error, 1)
+		go func() { first <- svc.PersistSessionState(context.Background(), "main", capture) }()
+		<-started
+		ctx, cancel := context.WithCancel(context.Background())
+		go func() { second <- svc.PersistSessionState(ctx, "main", capture) }()
+		synctest.Wait()
+		if captures.Load() != 1 {
+			t.Error("overlapping snapshots entered capture")
+		}
+		cancel()
+		if err := <-second; !errors.Is(err, context.Canceled) {
+			t.Errorf("cancelled waiter = %v", err)
+		}
+		err := svc.PersistSessionState(context.Background(), "other", func(context.Context, string) (*persistence.SessionEndState, error) {
+			return &persistence.SessionEndState{StorageState: []byte(`{"marker":"independent"}`)}, nil
+		})
+		if err != nil {
+			t.Errorf("independent profile save: %v", err)
+		}
+		close(release)
+		if err := <-first; err != nil {
+			t.Fatal(err)
+		}
+		if err := svc.PersistSessionState(context.Background(), "main", capture); err != nil {
+			t.Fatal(err)
+		}
+		stored, err := svc.GetProfile(profile.ID)
+		if err != nil || string(stored.StorageState) != `{"marker":"new"}` || captures.Load() != 2 {
+			t.Fatalf("final snapshot = %+v, captures=%d, error=%v", stored, captures.Load(), err)
+		}
+	})
+}
+
+type checkpointFaultRepository struct {
+	*persistence.MockRepository
+	fail atomic.Bool
+}
+
+func (r *checkpointFaultRepository) Update(id persistence.ProfileID, modify func(*persistence.SessionProfile) error) (*persistence.SessionProfile, error) {
+	if r.fail.Load() {
+		return nil, errors.New("checkpoint disk fault")
+	}
+	return r.MockRepository.Update(id, modify)
+}
+
+// [REQ:BAS-RH-J06] Automatic saves use the same aggregate writer, retain the
+// last good state on failure, and finish before their lifecycle owner returns.
+func TestService_PeriodicCheckpointDurability(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		repo := &checkpointFaultRepository{MockRepository: persistence.NewMockRepository()}
+		svc := NewService(repo, nil)
+		profile, _ := svc.CreateProfile("Periodic")
+		svc.SetActiveSession("session", string(profile.ID))
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan struct{})
+		var captures atomic.Int32
+		capture := func(context.Context, string) (*persistence.SessionEndState, error) {
+			captures.Add(1)
+			return &persistence.SessionEndState{StorageState: []byte(`{"cookies":[{"name":"identity","value":"retained"}],"origins":[]}`)}, nil
+		}
+		go func() { defer close(done); svc.RunCheckpoints(ctx, capture) }()
+		defer func() { cancel(); <-done }()
+		synctest.Wait()
+		time.Sleep(5 * time.Second)
+		synctest.Wait()
+		stored, err := svc.GetProfile(profile.ID)
+		if err != nil || len(stored.StorageState) == 0 || captures.Load() == 0 || svc.CheckpointHealth() != nil {
+			t.Fatalf("checkpoint missing after recovery window: profile=%+v err=%v health=%v", stored, err, svc.CheckpointHealth())
+		}
+		repo.fail.Store(true)
+		time.Sleep(3 * time.Second)
+		synctest.Wait()
+		preserved, _ := svc.GetProfile(profile.ID)
+		if !reflect.DeepEqual(preserved, stored) || svc.CheckpointHealth() == nil {
+			t.Fatal("failed checkpoint changed state or reported healthy")
+		}
+		repo.fail.Store(false)
+		time.Sleep(3 * time.Second)
+		synctest.Wait()
+		if err := svc.CheckpointHealth(); err != nil {
+			t.Fatalf("checkpoint did not recover after disk fault: %v", err)
+		}
+		cancel()
+		<-done
+		before := captures.Load()
+		time.Sleep(5 * time.Second)
+		if captures.Load() != before {
+			t.Error("checkpoint capture outlived its lifecycle")
+		}
+	})
+}
+
+func TestService_PeriodicCheckpointRejectsAmbiguousWriter(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		svc := NewService(persistence.NewMockRepository(), nil)
+		profile, _ := svc.CreateProfile("Shared")
+		svc.SetActiveSession("first", string(profile.ID))
+		started, release := make(chan struct{}), make(chan struct{})
+		var captures atomic.Int32
+		capture := func(context.Context, string) (*persistence.SessionEndState, error) {
+			if captures.Add(1) == 1 {
+				close(started)
+				<-release
+			}
+			return &persistence.SessionEndState{StorageState: []byte(`{"marker":"automatic"}`)}, nil
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan struct{})
+		go func() { defer close(done); svc.RunCheckpoints(ctx, capture) }()
+		defer func() { cancel(); <-done }()
+		<-started
+		// Joining during capture must also invalidate the automatic commit.
+		svc.SetActiveSession("second", string(profile.ID))
+		close(release)
+		synctest.Wait()
+		stored, _ := svc.GetProfile(profile.ID)
+		if len(stored.StorageState) != 0 || svc.CheckpointHealth() == nil {
+			t.Fatal("automatic save selected an ambiguous writer")
+		}
+		time.Sleep(3 * time.Second)
+		synctest.Wait()
+		if captures.Load() != 1 {
+			t.Fatal("ambiguous automatic writers entered browser capture")
+		}
+		if err := svc.PersistSessionState(context.Background(), "second", func(context.Context, string) (*persistence.SessionEndState, error) {
+			return &persistence.SessionEndState{StorageState: []byte(`{"marker":"manual"}`)}, nil
+		}); err != nil {
+			t.Fatalf("manual save was disabled: %v", err)
+		}
+		svc.ClearActiveSession("second")
+		time.Sleep(3 * time.Second)
+		synctest.Wait()
+		stored, _ = svc.GetProfile(profile.ID)
+		if string(stored.StorageState) != `{"marker":"automatic"}` || svc.CheckpointHealth() != nil {
+			t.Fatal("unique writer did not resume checkpointing")
+		}
+	})
+}
+
+func TestService_CheckpointShutdownCancelsCapture(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		svc := NewService(persistence.NewMockRepository(), nil)
+		profile, _ := svc.CreateProfile("Shutdown")
+		svc.SetActiveSession("session", string(profile.ID))
+		ctx, cancel := context.WithCancel(context.Background())
+		started, done := make(chan struct{}), make(chan struct{})
+		go func() {
+			defer close(done)
+			svc.RunCheckpoints(ctx, func(captureCtx context.Context, _ string) (*persistence.SessionEndState, error) {
+				close(started)
+				<-captureCtx.Done()
+				return nil, captureCtx.Err()
+			})
+		}()
+		<-started
+		cancel()
+		<-done
+		stored, _ := svc.GetProfile(profile.ID)
+		if len(stored.StorageState) != 0 {
+			t.Fatal("cancelled capture committed state")
+		}
+	})
 }
 
 func TestService_AddHistoryEntry(t *testing.T) {
@@ -305,7 +655,9 @@ func TestService_AddHistoryEntry_Pruning(t *testing.T) {
 		MaxEntries:    5,
 		RetentionDays: 30,
 	}
-	svc.repo.Save(created)
+	if _, err := svc.UpdateHistorySettings(created.ID, created.HistorySettings); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
 
 	// Add more entries than the limit
 	for i := 0; i < 10; i++ {
@@ -315,7 +667,9 @@ func TestService_AddHistoryEntry_Pruning(t *testing.T) {
 			Title:     "Page",
 			Timestamp: mockClock.Now().Format(time.RFC3339),
 		}
-		svc.AddHistoryEntry(created.ID, entry)
+		if _, err := svc.AddHistoryEntry(created.ID, entry); err != nil {
+			t.Fatalf("AddHistoryEntry failed: %v", err)
+		}
 		mockClock.Advance(time.Minute)
 	}
 
@@ -336,7 +690,9 @@ func TestService_ClearHistory(t *testing.T) {
 		URL:       "https://example.com",
 		Timestamp: mockClock.Now().Format(time.RFC3339),
 	}
-	svc.AddHistoryEntry(created.ID, entry)
+	if _, err := svc.AddHistoryEntry(created.ID, entry); err != nil {
+		t.Fatalf("AddHistoryEntry failed: %v", err)
+	}
 
 	// Clear history
 	updated, err := svc.ClearHistory(created.ID)
@@ -360,7 +716,9 @@ func TestService_DeleteHistoryEntry(t *testing.T) {
 			URL:       "https://example.com/" + string(rune('0'+i)),
 			Timestamp: mockClock.Now().Format(time.RFC3339),
 		}
-		svc.AddHistoryEntry(created.ID, entry)
+		if _, err := svc.AddHistoryEntry(created.ID, entry); err != nil {
+			t.Fatalf("AddHistoryEntry failed: %v", err)
+		}
 	}
 
 	// Delete the middle entry
@@ -397,7 +755,9 @@ func TestService_ActiveSessionRegistry_Concurrent(t *testing.T) {
 
 	// Create profiles
 	for i := 0; i < 5; i++ {
-		svc.CreateProfile("Profile " + string(rune('A'+i)))
+		if _, err := svc.CreateProfile("Profile " + string(rune('A'+i))); err != nil {
+			t.Fatalf("CreateProfile failed: %v", err)
+		}
 	}
 	profiles, _ := svc.ListProfiles()
 
@@ -429,14 +789,14 @@ func TestActiveSessionRegistry_Operations(t *testing.T) {
 	registry := NewActiveSessionRegistry()
 
 	// Test Set and Get
-	registry.Set("session-1", "profile-a")
+	registry.Set("session-1", "profile-a", time.Now())
 	if got := registry.Get("session-1"); got != "profile-a" {
 		t.Errorf("expected profile-a, got %s", got)
 	}
 
-	// Test GetByProfile (reverse lookup)
-	if got := registry.GetByProfile("profile-a"); got != "session-1" {
-		t.Errorf("expected session-1, got %s", got)
+	// Test unique reverse lookup.
+	if got, err := registry.ResolveByProfile("profile-a"); err != nil || got != "session-1" {
+		t.Errorf("unique profile resolution = %q, %v; want session-1", got, err)
 	}
 
 	// Test Clear
@@ -446,14 +806,36 @@ func TestActiveSessionRegistry_Operations(t *testing.T) {
 	}
 
 	// Test ClearForProfile
-	registry.Set("session-2", "profile-b")
-	registry.Set("session-3", "profile-b")
+	registry.Set("session-2", "profile-b", time.Now())
+	registry.Set("session-3", "profile-b", time.Now())
 	registry.ClearForProfile("profile-b")
 	if got := registry.Get("session-2"); got != "" {
 		t.Error("expected session-2 to be cleared")
 	}
 	if got := registry.Get("session-3"); got != "" {
 		t.Error("expected session-3 to be cleared")
+	}
+}
+
+func TestActiveSessionRegistry_ResolveByProfileRejectsAmbiguity(t *testing.T) {
+	registry := NewActiveSessionRegistry()
+	registry.Set("session-a", "profile-shared", time.Now())
+	registry.Set("session-b", "profile-shared", time.Now())
+
+	if got, err := registry.ResolveByProfile("profile-shared"); !errors.Is(err, ErrAmbiguousProfileSession) || got != "" {
+		t.Fatalf("ambiguous resolution = %q, %v; want no session and ErrAmbiguousProfileSession", got, err)
+	}
+	if registry.Get("session-a") != "profile-shared" || registry.Get("session-b") != "profile-shared" {
+		t.Fatal("ambiguous lookup changed active profile bindings")
+	}
+
+	registry.Clear("session-a")
+	if got, err := registry.ResolveByProfile("profile-shared"); err != nil || got != "session-b" {
+		t.Fatalf("unique resolution after detach = %q, %v; want session-b", got, err)
+	}
+	registry.Clear("session-b")
+	if got, err := registry.ResolveByProfile("profile-shared"); err != nil || got != "" {
+		t.Fatalf("absent resolution = %q, %v; want empty session without error", got, err)
 	}
 }
 
@@ -466,7 +848,9 @@ func TestService_PruneHistoryByTTL(t *testing.T) {
 		MaxEntries:    100,
 		RetentionDays: 7, // 7 day TTL
 	}
-	svc.repo.Save(created)
+	if _, err := svc.UpdateHistorySettings(created.ID, created.HistorySettings); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
 
 	// Add entry that's 10 days old
 	oldEntry := persistence.HistoryEntry{
@@ -474,7 +858,9 @@ func TestService_PruneHistoryByTTL(t *testing.T) {
 		URL:       "https://old.com",
 		Timestamp: mockClock.Now().AddDate(0, 0, -10).Format(time.RFC3339),
 	}
-	svc.AddHistoryEntry(created.ID, oldEntry)
+	if _, err := svc.AddHistoryEntry(created.ID, oldEntry); err != nil {
+		t.Fatalf("AddHistoryEntry failed: %v", err)
+	}
 
 	// Add recent entry
 	recentEntry := persistence.HistoryEntry{
@@ -482,7 +868,9 @@ func TestService_PruneHistoryByTTL(t *testing.T) {
 		URL:       "https://recent.com",
 		Timestamp: mockClock.Now().Format(time.RFC3339),
 	}
-	svc.AddHistoryEntry(created.ID, recentEntry)
+	if _, err := svc.AddHistoryEntry(created.ID, recentEntry); err != nil {
+		t.Fatalf("AddHistoryEntry failed: %v", err)
+	}
 
 	// Get history with pruning
 	entries, _, err := svc.GetHistoryWithPruning(created.ID)

@@ -110,7 +110,6 @@ NewServer translates runtime dependencies to HTTP server dependencies:
 |---------|-------------|
 | `cfg.Port` | `httpCfg.Port` |
 | `deps.DB` | `httpDeps.DB` |
-| `deps.SuiteRequests` | `httpDeps.SuiteQueue` |
 | `deps.ExecutionHistory` | `httpDeps.Executions` |
 | `deps.ExecutionService` | `httpDeps.ExecutionSvc` |
 | `deps.ScenarioService` | `httpDeps.Scenarios` |

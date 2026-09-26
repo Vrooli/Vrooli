@@ -117,7 +117,12 @@ func TestConcurrentUniqueInserts(t *testing.T) {
 
 // [REQ:REQ-ES-003] Verify prune is idempotent — running twice yields same state
 func TestPruneIdempotent(t *testing.T) {
-	s, err := NewSQLiteStore(context.Background(), SQLiteConfig{MaxAge: 1 * time.Second})
+	// Inject a clock 10s in the future so inserted events are past MaxAge=1s.
+	fakeNow := func() time.Time { return time.Now().Add(10 * time.Second) }
+	s, err := NewSQLiteStore(context.Background(), SQLiteConfig{
+		MaxAge: 1 * time.Second,
+		Now:    fakeNow,
+	})
 	if err != nil {
 		t.Fatalf("new store: %v", err)
 	}
@@ -125,7 +130,6 @@ func TestPruneIdempotent(t *testing.T) {
 	ctx := context.Background()
 
 	_, _ = s.Insert(ctx, makeEvent("evt-1", "test.v1", "src"))
-	time.Sleep(2 * time.Second)
 
 	// First prune should delete the event
 	result1, err := s.Prune(ctx)
@@ -207,9 +211,12 @@ func TestInsertContextCancellation(t *testing.T) {
 
 // [REQ:REQ-ES-003] Verify meta tracking stays accurate through insert + prune cycles
 func TestMetaConsistencyThroughPruneCycle(t *testing.T) {
+	// Fake clock 10s ahead so MaxAge=1s expires all events without sleeping.
+	fakeNow := func() time.Time { return time.Now().Add(10 * time.Second) }
 	s, err := NewSQLiteStore(context.Background(), SQLiteConfig{
 		MaxAge:       1 * time.Second,
 		MaxSizeBytes: 1 << 30, // 1GB - won't trigger size prune
+		Now:          fakeNow,
 	})
 	if err != nil {
 		t.Fatalf("new store: %v", err)
@@ -233,10 +240,7 @@ func TestMetaConsistencyThroughPruneCycle(t *testing.T) {
 		t.Fatalf("expected 50 bytes, got %d", stats.TotalPayloadBytes)
 	}
 
-	// Wait for events to expire
-	time.Sleep(2 * time.Second)
-
-	// Prune expired events
+	// Fake clock is already 10s ahead, so events are past MaxAge=1s without sleeping.
 	_, err = s.Prune(ctx)
 	if err != nil {
 		t.Fatalf("prune: %v", err)

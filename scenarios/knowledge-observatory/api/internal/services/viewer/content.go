@@ -4,9 +4,11 @@ package viewer
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"time"
 
-	"knowledge-observatory/internal/docschema"
+	"knowledge-observatory/internal/doccontract"
+	"knowledge-observatory/internal/doctemplates"
 )
 
 // DocResetConfig suggests default reset settings for a document.
@@ -47,10 +49,11 @@ func (s *Service) GetContent(ctx context.Context, req DocContentRequest) (*DocCo
 		return nil, ErrDocNotFound
 	}
 	docType := ""
-	if dt, ok := docschema.DocTypeForPath(abs); ok {
-		docType = string(dt)
+	canReset := false
+	if doc, ok := s.docForRepoPath(rel); ok {
+		docType = doc.DocType
+		canReset = doc.Operations.AppendLog != nil && doc.Operations.AppendLog.Enabled && doc.Operations.AppendLog.Retention.SupportsReset
 	}
-	canReset := docType == string(docschema.DocTypeProblems) || docType == string(docschema.DocTypeProgress)
 	var resetConfig *DocResetConfig
 	if canReset {
 		resetConfig = &DocResetConfig{
@@ -68,4 +71,17 @@ func (s *Service) GetContent(ctx context.Context, req DocContentRequest) (*DocCo
 		CanReset:    canReset,
 		ResetConfig: resetConfig,
 	}, nil
+}
+
+func (s *Service) docForRepoPath(repoRel string) (doccontract.Document, bool) {
+	scenarioName, scenarioRel, ok := splitScenarioRepoPath(repoRel)
+	if !ok {
+		return doccontract.Document{}, false
+	}
+	scenarioPath := filepath.Join(s.scenariosRoot, scenarioName)
+	resolved, err := doctemplates.NewResolverFromScenariosRoot(s.scenariosRoot).ResolveScenario(scenarioPath)
+	if err != nil || resolved == nil || resolved.Contract == nil {
+		return doccontract.Document{}, false
+	}
+	return resolved.Contract.ResolvePath(scenarioRel)
 }

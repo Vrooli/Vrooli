@@ -32,11 +32,13 @@ func newTestService(t *testing.T) (*Service, string) {
 	opts := storage.Options{ScenarioID: "scenario-to-desktop-captures"}
 	metaPath, err := resolver.Path(opts, storage.ClassData, "captures_meta.json")
 	require.NoError(t, err)
+	filesDir, err := resolver.Path(opts, storage.ClassData, "captures")
+	require.NoError(t, err)
 
 	store, err := NewFileStore(metaPath)
 	require.NoError(t, err)
 
-	svc := NewService(resolver, opts, store)
+	svc := NewService(resolver, opts, filesDir, store)
 	return svc, tmpDir
 }
 
@@ -92,6 +94,33 @@ func TestListCaptures_WithData(t *testing.T) {
 	var caps []Capture
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&caps))
 	assert.Len(t, caps, 2)
+}
+
+func TestSaveCaptureKeepsRunScopedFilenamesAndCaptureIDs(t *testing.T) {
+	svc, _ := newTestService(t)
+	first := seedCapture(t, svc, "my-app", "session-1")
+	time.Sleep(2 * time.Millisecond) // ensure distinct timestamped filenames
+	second := seedCapture(t, svc, "my-app", "session-2")
+	assert.NotEqual(t, first.ID, second.ID)
+	assert.NotEqual(t, first.Filename, second.Filename)
+	entries, err := os.ReadDir(svc.filesDir)
+	require.NoError(t, err)
+	assert.Len(t, entries, 2)
+	require.NoError(t, svc.DeleteCapture("my-app", first.ID))
+	_, err = os.Stat(filepath.Join(svc.filesDir, second.Filename))
+	require.NoError(t, err)
+	require.NoError(t, svc.DeleteCapture("my-app", second.ID))
+	_, err = os.Stat(filepath.Join(svc.filesDir, second.Filename))
+	assert.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestOrphanFiles_ReportsUnreferencedRegularFiles(t *testing.T) {
+	svc, _ := newTestService(t)
+	seedCapture(t, svc, "my-app", "session-1")
+	require.NoError(t, os.WriteFile(filepath.Join(svc.filesDir, "orphan.bin"), []byte("orphan"), 0o600))
+	orphans, err := svc.OrphanFiles()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"orphan.bin"}, orphans)
 }
 
 func TestSummary_ReturnsCountAndSize(t *testing.T) {

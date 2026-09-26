@@ -60,23 +60,23 @@ type CustomRule struct {
 
 // Finding represents a security vulnerability or issue
 type Finding struct {
-	ID             string                 `json:"id"`
-	ScannerType    ScannerType            `json:"scanner_type"`
-	RuleID         string                 `json:"rule_id"`
-	Severity       Severity               `json:"severity"`
-	Confidence     string                 `json:"confidence"` // high, medium, low
-	Title          string                 `json:"title"`
-	Description    string                 `json:"description"`
-	Category       string                 `json:"category"`
-	FilePath       string                 `json:"file_path"`
-	LineNumber     int                    `json:"line_number"`
-	ColumnNumber   int                    `json:"column_number,omitempty"`
-	EndLine        int                    `json:"end_line,omitempty"`
-	CodeSnippet    string                 `json:"code_snippet,omitempty"`
-	Recommendation string                 `json:"recommendation"`
-	References     []string               `json:"references,omitempty"`
-	CWE            int                    `json:"cwe,omitempty"`
-	OWASP          string                 `json:"owasp,omitempty"`
+	ID             string         `json:"id"`
+	ScannerType    ScannerType    `json:"scanner_type"`
+	RuleID         string         `json:"rule_id"`
+	Severity       Severity       `json:"severity"`
+	Confidence     string         `json:"confidence"` // high, medium, low
+	Title          string         `json:"title"`
+	Description    string         `json:"description"`
+	Category       string         `json:"category"`
+	FilePath       string         `json:"file_path"`
+	LineNumber     int            `json:"line_number"`
+	ColumnNumber   int            `json:"column_number,omitempty"`
+	EndLine        int            `json:"end_line,omitempty"`
+	CodeSnippet    string         `json:"code_snippet,omitempty"`
+	Recommendation string         `json:"recommendation"`
+	References     []string       `json:"references,omitempty"`
+	CWE            int            `json:"cwe,omitempty"`
+	OWASP          string         `json:"owasp,omitempty"`
 	Metadata       map[string]any `json:"metadata,omitempty"`
 }
 

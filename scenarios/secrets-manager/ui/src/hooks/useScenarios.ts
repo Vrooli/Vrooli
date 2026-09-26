@@ -11,7 +11,7 @@ export const useScenarios = () => {
     staleTime: 5 * 60 * 1000
   });
 
-  const scenarios: ScenarioSummary[] = query.data?.scenarios ?? [];
+  const scenarios: ScenarioSummary[] = useMemo(() => query.data?.scenarios ?? [], [query.data?.scenarios]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return scenarios;

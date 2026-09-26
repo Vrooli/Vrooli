@@ -1,0 +1,131 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.scenario_to_plugin.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.scenario_to_plugin.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "capabilities_describe",
+      "path": "/api/v1/capabilities/describe",
+      "method": "GET",
+      "summary": "Describe declared scenario dependencies and their current recovery actions.",
+      "description": "",
+      "category": "capabilities",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
+      "id": "declaration_get",
+      "path": "/vrooli.scenario_to_plugin.v1.declaration.DeclarationService/GetDeclaration",
+      "method": "POST",
+      "summary": "Read a governed plugin declaration.",
+      "description": "",
+      "category": ""
+    },
+    {
+      "id": "declaration_readiness",
+      "path": "/vrooli.scenario_to_plugin.v1.declaration.DeclarationService/ListReadiness",
+      "method": "POST",
+      "summary": "Report named publish blockers.",
+      "description": "",
+      "category": ""
+    },
+    {
+      "id": "composition_compose",
+      "path": "/vrooli.scenario_to_plugin.v1.composition.CompositionService/Compose",
+      "method": "POST",
+      "summary": "Compose an Agent Plugin tree.",
+      "description": "",
+      "category": ""
+    },
+    {
+      "id": "composition_get",
+      "path": "/vrooli.scenario_to_plugin.v1.composition.CompositionService/GetPackage",
+      "method": "POST",
+      "summary": "Read a package record.",
+      "description": "",
+      "category": ""
+    },
+    {
+      "id": "conformance_check",
+      "path": "/vrooli.scenario_to_plugin.v1.conformance.ConformanceService/Check",
+      "method": "POST",
+      "summary": "Run fail-closed conformance.",
+      "description": "",
+      "category": ""
+    },
+    {
+      "id": "attestation_attest",
+      "path": "/vrooli.scenario_to_plugin.v1.attestation.AttestationService/Attest",
+      "method": "POST",
+      "summary": "Create digest-bound attestations.",
+      "description": "",
+      "category": ""
+    },
+    {
+      "id": "rehearsal_run",
+      "path": "/vrooli.scenario_to_plugin.v1.rehearsal.RehearsalService/Run",
+      "method": "POST",
+      "summary": "Rehearse installation in a clean room.",
+      "description": "",
+      "category": ""
+    },
+    {
+      "id": "distribution_publish",
+      "path": "/vrooli.scenario_to_plugin.v1.distribution.DistributionService/Publish",
+      "method": "POST",
+      "summary": "Publish after governance approval.",
+      "description": "",
+      "category": ""
+    },
+    {
+      "id": "distribution_revoke",
+      "path": "/vrooli.scenario_to_plugin.v1.distribution.DistributionService/Revoke",
+      "method": "POST",
+      "summary": "Revoke recorded publications.",
+      "description": "",
+      "category": ""
+    }
+  ]
+}

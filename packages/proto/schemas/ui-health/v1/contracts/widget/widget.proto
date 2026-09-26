@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package vrooli.ui_health.v1.contracts.widget;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/contracts/widget;widget_v1";
+
+// =============================================================================
+// WIDGET DECLARATION CONTRACT
+// =============================================================================
+//
+// @layer 4  (cross-scenario contract)
+// @domain contracts.widget
+// @stability unstable
+//
+// Single source of truth for how a component opts in to being embedded as a
+// chat widget by an agent-inbox-style consumer. Defined in v1 even though no
+// runtime consumer ships in v1 — the eventual consumer is the agent-inbox
+// unified retrieval initiative; declaring the contract now keeps the future
+// consumer integration mechanical.
+//
+// Components opt in via a per-framework markup convention (today: JSDoc
+// `@vrooliWidget` tag block on React .tsx files) that round-trips losslessly
+// with this proto message. Per-framework component-library scenarios are
+// responsible for parsing their own markup into WidgetDeclaration values
+// and returning them from InventoryService.ScanScenario.
+// =============================================================================
+
+// Slot hints the consumer about preferred embedding context.
+enum WidgetSlot {
+  WIDGET_SLOT_UNSPECIFIED = 0;
+  WIDGET_SLOT_INLINE = 1;
+  WIDGET_SLOT_SIDEBAR = 2;
+  WIDGET_SLOT_FULL = 3;
+}
+
+// Scope restricts where a widget may be embedded.
+enum WidgetScope {
+  WIDGET_SCOPE_UNSPECIFIED = 0;
+  // Available only inside the declaring scenario's UI.
+  WIDGET_SCOPE_SCENARIO = 1;
+  // Available globally — any scenario or agent surface may embed it.
+  WIDGET_SCOPE_GLOBAL = 2;
+}
+
+message WidgetDeclaration {
+  // Globally unique widget identifier (scenario-prefixed, kebab-case).
+  string widget_id = 1;
+  // Component export name to instantiate.
+  string component_name = 2;
+  // JSON-schema describing the widget's prop contract. Consumers may render
+  // a form against this schema to drive the widget.
+  string props_schema_json = 3;
+  WidgetSlot slot = 4;
+  WidgetScope scope = 5;
+  // Human-readable one-line description.
+  string description = 6;
+  // Scenario-relative path of the declaring source file.
+  string file_path = 7;
+}

@@ -2,13 +2,12 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -23,7 +22,7 @@ func TestStructureSyncHandler(t *testing.T) {
 	defer cleanup()
 
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-structure-sync-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-structure-sync-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -36,18 +35,13 @@ func TestStructureSyncHandler(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	// Create the required directory structure
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Create test files for syncing
 	testFiles := []string{"test1.go", "test2.go", "test3.js"}
 	for _, file := range testFiles {
 		content := fmt.Sprintf("// Test content for %s\npackage main\n", file)
-		if err := ioutil.WriteFile(file, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create test file %s: %v", file, err)
 		}
 	}
@@ -67,7 +61,7 @@ func TestStructureSyncHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -165,7 +159,7 @@ func TestStructureSyncHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaignNoPatterns); err != nil {
+	if err := saveCampaign(context.Background(), campaignNoPatterns); err != nil {
 		t.Fatalf("Failed to save campaign with no patterns: %v", err)
 	}
 
@@ -188,7 +182,7 @@ func TestSyncCampaignFilesErrorPaths(t *testing.T) {
 	defer cleanup()
 
 	// Setup test environment
-	tempDir, err := ioutil.TempDir("", "visited-tracker-sync-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-sync-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -200,10 +194,7 @@ func TestSyncCampaignFilesErrorPaths(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init file storage: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Create test campaign
 	description := "Test campaign for sync testing"
@@ -215,10 +206,10 @@ func TestSyncCampaignFilesErrorPaths(t *testing.T) {
 		Patterns:    []string{"*.go"},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
-	defer deleteCampaignFile(campaign.ID)
+	defer deleteCampaignFile(context.Background(), campaign.ID)
 
 	// Test sync with campaign patterns (should use campaign defaults)
 	_, err = syncCampaignFiles(campaign, campaign.Patterns)

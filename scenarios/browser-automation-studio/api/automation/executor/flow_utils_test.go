@@ -4,217 +4,130 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/state"
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
-func TestSnakeToCamel(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
+func TestVariableConditionUsesExecutionStore(t *testing.T) {
+	for _, tc := range []struct {
+		operator         basactions.ConditionalOperator
+		actual, expected any
+		truth            bool
 	}{
-		{"simple", "simple"},
-		{"snake_case", "snakeCase"},
-		{"multi_word_string", "multiWordString"},
-		{"already_camel", "alreadyCamel"},
-		{"a_b_c", "aBC"},
-		{"", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			result := snakeToCamel(tt.input)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestNormalizeLoopParam(t *testing.T) {
-	tests := []struct {
-		name          string
-		key           string
-		value         any
-		expectedKey   string
-		expectedValue any
-	}{
-		{
-			name:          "loop_type enum to lowercase",
-			key:           "loop_type",
-			value:         "LOOP_TYPE_FOREACH",
-			expectedKey:   "loopType",
-			expectedValue: "foreach",
-		},
-		{
-			name:          "loop_type repeat",
-			key:           "loop_type",
-			value:         "LOOP_TYPE_REPEAT",
-			expectedKey:   "loopType",
-			expectedValue: "repeat",
-		},
-		{
-			name:          "loop_type while",
-			key:           "loop_type",
-			value:         "LOOP_TYPE_WHILE",
-			expectedKey:   "loopType",
-			expectedValue: "while",
-		},
-		{
-			name:          "count to loopCount",
-			key:           "count",
-			value:         5,
-			expectedKey:   "loopCount",
-			expectedValue: 5,
-		},
-		{
-			name:          "max_iterations to loopMaxIterations",
-			key:           "max_iterations",
-			value:         100,
-			expectedKey:   "loopMaxIterations",
-			expectedValue: 100,
-		},
-		{
-			name:          "array_source to arraySource",
-			key:           "array_source",
-			value:         "${items}",
-			expectedKey:   "arraySource",
-			expectedValue: "${items}",
-		},
-		{
-			name:          "item_variable to itemVariable",
-			key:           "item_variable",
-			value:         "item",
-			expectedKey:   "itemVariable",
-			expectedValue: "item",
-		},
-		{
-			name:          "index_variable to indexVariable",
-			key:           "index_variable",
-			value:         "i",
-			expectedKey:   "indexVariable",
-			expectedValue: "i",
-		},
-		{
-			name:          "unknown key uses snakeToCamel",
-			key:           "custom_field",
-			value:         "value",
-			expectedKey:   "customField",
-			expectedValue: "value",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			key, value := normalizeLoopParam(tt.key, tt.value)
-			assert.Equal(t, tt.expectedKey, key)
-			assert.Equal(t, tt.expectedValue, value)
-		})
+		{basactions.ConditionalOperator_CONDITIONAL_OPERATOR_EQUALS, "ready", "ready", true},
+		{basactions.ConditionalOperator_CONDITIONAL_OPERATOR_EQUALS, "ready", "other", false},
+		{basactions.ConditionalOperator_CONDITIONAL_OPERATOR_NOT_EQUALS, false, true, true},
+		{basactions.ConditionalOperator_CONDITIONAL_OPERATOR_CONTAINS, "ready now", "now", true},
+		{basactions.ConditionalOperator_CONDITIONAL_OPERATOR_STARTS_WITH, "ready now", "ready", true},
+		{basactions.ConditionalOperator_CONDITIONAL_OPERATOR_ENDS_WITH, "ready now", "ready", false},
+		{basactions.ConditionalOperator_CONDITIONAL_OPERATOR_GT, 4, "3", true},
+		{basactions.ConditionalOperator_CONDITIONAL_OPERATOR_GTE, 4, 4, true},
+		{basactions.ConditionalOperator_CONDITIONAL_OPERATOR_LT, 4, 3, false},
+		{basactions.ConditionalOperator_CONDITIONAL_OPERATOR_LTE, 4, 3, false},
+	} {
+		for _, negated := range []bool{false, true} {
+			t.Run(tc.operator.String()+map[bool]string{true: "/negated", false: "/positive"}[negated], func(t *testing.T) {
+				store := state.NewFromStore(map[string]any{"answer": tc.actual})
+				name := "answer"
+				condition, err := evaluateVariableCondition(&basactions.ConditionalParams{Variable: &name, Operator: &tc.operator, Value: typeconv.AnyToJsonValue(tc.expected), Negate: &negated}, store)
+				require.NoError(t, err)
+				require.NotNil(t, condition)
+				assert.Equal(t, tc.truth != negated, condition.Outcome)
+				assert.Equal(t, tc.actual, condition.Actual)
+				assert.Equal(t, negated, condition.Negated)
+			})
+		}
 	}
 }
 
-func TestNormalizeLoopCondition(t *testing.T) {
-	input := map[string]any{
-		"type":       "LOOP_CONDITION_TYPE_VARIABLE",
-		"operator":   "LOOP_CONDITION_OPERATOR_EQUALS",
-		"variable":   "counter",
-		"value":      10,
-		"expression": "counter < 10",
+func TestVariableConditionErrorsCannotBeNegated(t *testing.T) {
+	name := "answer"
+	negated := true
+	badOperator := basactions.ConditionalOperator(999)
+	gt := basactions.ConditionalOperator_CONDITIONAL_OPERATOR_GT
+	for _, params := range []*basactions.ConditionalParams{
+		nil,
+		{Variable: stringPtr("missing"), Negate: &negated},
+		{Variable: &name, Operator: &badOperator, Negate: &negated},
+		{Variable: &name, Operator: &gt, Value: typeconv.AnyToJsonValue(1), Negate: &negated},
+		{Variable: &name, Operator: &gt, Value: typeconv.AnyToJsonValue("NaN"), Negate: &negated},
+	} {
+		condition, err := evaluateVariableCondition(params, state.NewFromStore(map[string]any{"answer": "not numeric"}))
+		require.Error(t, err)
+		assert.Nil(t, condition)
 	}
-
-	result := normalizeLoopCondition(input)
-
-	assert.Equal(t, "variable", result["conditionType"])
-	assert.Equal(t, "equals", result["conditionOperator"])
-	assert.Equal(t, "counter", result["conditionVariable"])
-	assert.Equal(t, 10, result["conditionValue"])
-	assert.Equal(t, "counter < 10", result["conditionExpression"])
+	condition, err := evaluateVariableCondition(&basactions.ConditionalParams{Variable: &name, Value: typeconv.AnyToJsonValue(false)}, state.NewFromStore(map[string]any{"answer": false}))
+	require.NoError(t, err)
+	assert.True(t, condition.Outcome, "an omitted operator defaults to equals")
 }
 
-func TestNormalizeSubflowParam(t *testing.T) {
-	tests := []struct {
-		name          string
-		key           string
-		value         any
-		expectedKey   string
-		expectedValue any
-	}{
-		{
-			name:          "workflow_id to workflowId",
-			key:           "workflow_id",
-			value:         "uuid-123",
-			expectedKey:   "workflowId",
-			expectedValue: "uuid-123",
-		},
-		{
-			name:          "workflow_path to workflowPath",
-			key:           "workflow_path",
-			value:         "/path/to/workflow",
-			expectedKey:   "workflowPath",
-			expectedValue: "/path/to/workflow",
-		},
-		{
-			name:          "workflow_version to workflowVersion",
-			key:           "workflow_version",
-			value:         2,
-			expectedKey:   "workflowVersion",
-			expectedValue: 2,
-		},
-		{
-			name:          "args to parameters",
-			key:           "args",
-			value:         map[string]any{"key": "value"},
-			expectedKey:   "parameters",
-			expectedValue: map[string]any{"key": "value"},
-		},
+// [REQ:BAS-RH-J24] A failed conditional has no boolean branch result.
+func TestConditionalBranchDoesNotInventTruth(t *testing.T) {
+	step := contracts.PlanStep{
+		Action:   &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_CONDITIONAL},
+		Outgoing: []contracts.PlanEdge{{Target: "yes", Condition: "true"}, {Target: "no", Condition: "false"}},
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			key, value := normalizeSubflowParam(tt.key, tt.value)
-			assert.Equal(t, tt.expectedKey, key)
-			assert.Equal(t, tt.expectedValue, value)
-		})
+	exec := &SimpleExecutor{}
+	failure := contracts.StepOutcome{Failure: &contracts.StepFailure{Message: "evaluation failed"}}
+	assert.Empty(t, exec.nextNodeID(step, failure), "an error must not execute the first truth branch")
+	step.Outgoing = append(step.Outgoing, contracts.PlanEdge{Target: "recover", Condition: "error"})
+	assert.Equal(t, "recover", exec.nextNodeID(step, failure))
+	failure.Condition = &contracts.ConditionOutcome{Outcome: true}
+	assert.Equal(t, "recover", exec.nextNodeID(step, failure), "failure takes precedence over contradictory condition data")
+	for _, truth := range []bool{true, false} {
+		outcome := contracts.StepOutcome{Success: true, Condition: &contracts.ConditionOutcome{Outcome: truth}}
+		want := "no"
+		if truth {
+			want = "yes"
+		}
+		assert.Equal(t, want, exec.nextNodeID(step, outcome))
 	}
+	step.Outgoing[0].Condition = "IF TRUE"
+	step.Outgoing[1].Condition = "IF FALSE"
+	assert.Equal(t, "yes", exec.nextNodeID(step, contracts.StepOutcome{Success: true, Condition: &contracts.ConditionOutcome{Outcome: true}}), "builder-authored V2 labels select the same branch")
+	assert.Equal(t, "no", exec.nextNodeID(step, contracts.StepOutcome{Success: true, Condition: &contracts.ConditionOutcome{Outcome: false}}))
+	step.Outgoing = step.Outgoing[:1]
+	assert.Empty(t, exec.nextNodeID(step, contracts.StepOutcome{Success: true, Condition: &contracts.ConditionOutcome{Outcome: false}}), "unwired false branch must not execute true branch")
 }
 
-func TestFlattenActionParams_Loop(t *testing.T) {
-	// Simulate what protojson produces for a loop action
-	input := map[string]any{
-		"type": "ACTION_TYPE_LOOP",
-		"loop": map[string]any{
-			"loop_type":      "LOOP_TYPE_FOREACH",
-			"array_source":   "${items}",
-			"item_variable":  "item",
-			"index_variable": "idx",
-			"max_iterations": float64(100), // JSON numbers are float64
-		},
+func TestActionPrimarySelectorUsesTypedActionParams(t *testing.T) {
+	action := &basactions.ActionDefinition{
+		Type:   basactions.ActionType_ACTION_TYPE_CLICK,
+		Params: &basactions.ActionDefinition_Click{Click: &basactions.ClickParams{Selector: "#submit"}},
 	}
 
-	result := flattenActionParams(input)
-
-	assert.Equal(t, "foreach", result["loopType"])
-	assert.Equal(t, "${items}", result["arraySource"])
-	assert.Equal(t, "item", result["itemVariable"])
-	assert.Equal(t, "idx", result["indexVariable"])
-	assert.Equal(t, float64(100), result["loopMaxIterations"])
-	// Should not contain type
-	assert.Nil(t, result["type"])
+	assert.Equal(t, "#submit", actionPrimarySelector(action))
 }
 
-func TestFlattenActionParams_Subflow(t *testing.T) {
-	input := map[string]any{
-		"type": "ACTION_TYPE_SUBFLOW",
-		"subflow": map[string]any{
-			"workflow_id":      "uuid-123",
-			"workflow_version": float64(1),
-			"args": map[string]any{
-				"baseUrl": "https://example.com",
-			},
-		},
+func TestStoreActionResultPreservesDeclaredValue(t *testing.T) {
+	for _, value := range []any{"script-value", true, 12.5, nil, map[string]any{"nested": "value"}} {
+		action := &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_EVALUATE, Params: &basactions.ActionDefinition_Evaluate{Evaluate: &basactions.EvaluateParams{StoreResult: stringPtr(" result ")}}}
+		store := state.NewFromStore(nil)
+		storeActionResult(action, map[string]any{"result": value}, store)
+		actual, found := store.Get("result")
+		assert.True(t, found)
+		assert.Equal(t, value, actual, "store the script return value, not its transport envelope")
+	}
+	action := &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_EXTRACT, Params: &basactions.ActionDefinition_Extract{Extract: &basactions.ExtractParams{StoreAs: stringPtr("result")}}}
+	store := state.NewFromStore(nil)
+	data := map[string]any{"text": "extracted"}
+	storeActionResult(action, data, store)
+	actual, found := store.Get("result")
+	assert.True(t, found)
+	assert.Equal(t, data, actual)
+}
+
+func TestActionTimeoutMsUsesTypedActionParams(t *testing.T) {
+	timeout := int32(750)
+	action := &basactions.ActionDefinition{
+		Type:   basactions.ActionType_ACTION_TYPE_WAIT,
+		Params: &basactions.ActionDefinition_Wait{Wait: &basactions.WaitParams{TimeoutMs: &timeout}},
 	}
 
-	result := flattenActionParams(input)
-
-	assert.Equal(t, "uuid-123", result["workflowId"])
-	assert.Equal(t, float64(1), result["workflowVersion"])
-	assert.NotNil(t, result["parameters"])
-	params := result["parameters"].(map[string]any)
-	assert.Equal(t, "https://example.com", params["baseUrl"])
+	assert.Equal(t, 750, actionTimeoutMs(action))
 }
+
+func stringPtr(value string) *string { return &value }

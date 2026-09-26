@@ -585,7 +585,7 @@ established during the 2025-01 architecture audit.
 |--------|-----------|-------|
 | `proto/action-type-utils` | `actionTypeToString`, `stringToActionType` | Enum conversions |
 | `outcome/outcome-builder` | `buildStepOutcome`, `toDriverOutcome` | Result transformation |
-| `execution/instruction-executor` | `validateInstruction`, `createInstructionKey` | Validation logic |
+| `execution/instruction-executor` | `validateInstruction` | Validation logic |
 | `browser-profile/human-behavior` | `HumanBehavior` class methods | Timing/path calculations |
 
 ### Cross-Cutting Concerns

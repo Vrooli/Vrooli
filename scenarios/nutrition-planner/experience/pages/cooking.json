@@ -1,0 +1,688 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "cooking",
+    "title": "Cooking",
+    "routes": [
+      "/cook/:sessionId"
+    ],
+    "purpose": "Guide one cooking session a step at a time — full instruction, quantities, and timers — with explicit step completion, timers that survive reloads and other tabs, and a finish that keeps cooking separate from eating.",
+    "prd_refs": [
+      "OT-P0-019",
+      "OT-P0-005",
+      "OT-P0-004",
+      "OT-P0-011",
+      "OT-P0-010",
+      "OT-P0-014",
+      "OT-P0-015",
+      "OT-P0-021"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The current step's title, full instruction, and needed quantities dominate and read from arm's length."
+    },
+    {
+      "statement": "Next and Previous only move between steps; Mark step done is a separate explicit action."
+    },
+    {
+      "statement": "Running timers stay visible with their state and survive leaving the screen, reloading, and other tabs."
+    },
+    {
+      "statement": "Exit cooking is always visible and never cancels timers or records intake."
+    },
+    {
+      "statement": "Finishing offers batch confirmation, I ate a serving, or finishing without bookkeeping as separate choices."
+    },
+    {
+      "statement": "Dependency hints say what can happen while something else cooks, without trapping the reader on one step."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "An active session showing the current step with the step list on desktop.",
+      "setup": {
+        "route": "/cook/:sessionId"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the page's data; stable skeletons reserve the layout so nothing shifts on arrival, and no sample food is shown as saved data.",
+      "setup": {
+        "route": "/cook/:sessionId",
+        "query": {
+          "fixture": "loading"
+        }
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control shows a busy state and says why it is unavailable, and success appears only after the durable save.",
+      "setup": {
+        "route": "/cook/:sessionId",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next action are stated, pending edits are kept, and nothing is edited against a fake empty account.",
+      "setup": {
+        "route": "/cook/:sessionId",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The API is unreachable; the loaded recipe stays readable and timer controls persist locally for reconciliation.",
+      "setup": {
+        "route": "/cook/:sessionId",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "The session's recipe has no method steps; the page says so and offers View meal or Edit instead of an empty timer screen.",
+      "setup": {
+        "route": "/cook/:sessionId",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some step quantities or durations are unknown; they read Amount not set or Time not set, never zero, and no duration is invented.",
+      "setup": {
+        "route": "/cook/:sessionId",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Timer or completion state from another tab or device is newer than this view; it reconciles to the server revision and shows the latest state.",
+      "setup": {
+        "route": "/cook/:sessionId",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "resume-offer",
+      "description": "A matching active session exists; Resume and Start another are offered.",
+      "setup": {
+        "route": "/cook/:sessionId",
+        "query": {
+          "fixture": "resume-offer"
+        }
+      }
+    },
+    {
+      "id": "step-done",
+      "description": "The current step is recorded done through Mark step done; its check comes from the persisted completion.",
+      "setup": {
+        "route": "/cook/:sessionId",
+        "query": {
+          "fixture": "step-done"
+        }
+      }
+    },
+    {
+      "id": "prerequisite-warning",
+      "description": "Marking a step done before its prerequisites are confirmed warns and offers an explicit override.",
+      "setup": {
+        "route": "/cook/:sessionId",
+        "query": {
+          "fixture": "prerequisite-warning"
+        }
+      }
+    },
+    {
+      "id": "timer-running",
+      "description": "A step timer is running from an absolute deadline.",
+      "setup": {
+        "route": "/cook/:sessionId",
+        "query": {
+          "fixture": "timer-running"
+        }
+      }
+    },
+    {
+      "id": "timer-paused",
+      "description": "A timer is paused with its remaining duration.",
+      "setup": {
+        "route": "/cook/:sessionId",
+        "query": {
+          "fixture": "timer-paused"
+        }
+      }
+    },
+    {
+      "id": "timer-elapsed",
+      "description": "A timer reached zero; it is marked elapsed, the step is not completed, and the expiry is acknowledged once.",
+      "setup": {
+        "route": "/cook/:sessionId",
+        "query": {
+          "fixture": "timer-elapsed"
+        }
+      }
+    },
+    {
+      "id": "multiple-timers",
+      "description": "Several timers run; the ones not on this step sit in a compact tray.",
+      "setup": {
+        "route": "/cook/:sessionId",
+        "query": {
+          "fixture": "multiple-timers"
+        }
+      }
+    },
+    {
+      "id": "step-list-open",
+      "description": "On phones the step list opens as a sheet without losing the current step.",
+      "setup": {
+        "route": "/cook/:sessionId",
+        "query": {
+          "fixture": "step-list-open"
+        }
+      }
+    },
+    {
+      "id": "recipe-edited",
+      "description": "The recipe was edited during the session; the session stays pinned and the new revision is offered explicitly.",
+      "setup": {
+        "route": "/cook/:sessionId",
+        "query": {
+          "fixture": "recipe-edited"
+        }
+      }
+    },
+    {
+      "id": "no-step-image",
+      "description": "The step has no image or the screen is short; instructions, quantities, and timers keep their priority.",
+      "setup": {
+        "route": "/cook/:sessionId",
+        "query": {
+          "fixture": "no-step-image"
+        }
+      }
+    },
+    {
+      "id": "finish",
+      "description": "The finish flow offers Confirm batch, I ate a serving, and Finish without inventory update.",
+      "setup": {
+        "route": "/cook/:sessionId",
+        "query": {
+          "fixture": "finish"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "primary-navigation",
+      "role": "navigation",
+      "name": "Primary",
+      "description": "The five-destination navigation, which focused mode hides."
+    },
+    {
+      "id": "focused-header",
+      "role": "banner",
+      "description": "The wordmark, appearance, Settings, and Exit cooking."
+    },
+    {
+      "id": "exit-cooking-action",
+      "role": "button",
+      "name": "Exit cooking",
+      "description": "Leaves focused mode, keeping the session and timers."
+    },
+    {
+      "id": "step-progress",
+      "role": "progressbar",
+      "name": "Step progress",
+      "description": "Step n of m with completed, current, and remaining segments."
+    },
+    {
+      "id": "step-list",
+      "role": "list",
+      "name": "Steps",
+      "description": "Every step with completed checks from persisted completions and the current step marked."
+    },
+    {
+      "id": "step-list-toggle",
+      "role": "button",
+      "name": "All steps",
+      "description": "Opens the step list sheet on phones."
+    },
+    {
+      "id": "step-title",
+      "role": "heading",
+      "description": "The current step's title in large type."
+    },
+    {
+      "id": "step-instruction",
+      "role": "region",
+      "name": "Instruction",
+      "description": "The full instruction for the current step."
+    },
+    {
+      "id": "ingredient-chips",
+      "role": "list",
+      "name": "Needed for this step",
+      "description": "The ingredient allocations and quantities this step needs."
+    },
+    {
+      "id": "dependency-hint",
+      "role": "note",
+      "description": "Say what can be done in parallel, such as You can do this while the rice cooks."
+    },
+    {
+      "id": "step-image",
+      "role": "img",
+      "description": "An optional step photo that may disappear at short heights."
+    },
+    {
+      "id": "mark-done-action",
+      "role": "checkbox",
+      "name": "Mark step done",
+      "description": "Records or clears completion of the current step."
+    },
+    {
+      "id": "timer-card",
+      "role": "timer",
+      "description": "The step timer with label, remaining time in tabular numerals, and state."
+    },
+    {
+      "id": "timer-status",
+      "role": "status",
+      "description": "Running, Paused, or Elapsed, announced on change only."
+    },
+    {
+      "id": "pause-action",
+      "role": "button",
+      "name": "Pause",
+      "description": "Pauses or resumes the timer."
+    },
+    {
+      "id": "add-minute-action",
+      "role": "button",
+      "name": "Add 1 minute",
+      "description": "Adds one minute to the deadline or the paused remainder."
+    },
+    {
+      "id": "timer-tray",
+      "role": "region",
+      "name": "Timers",
+      "description": "Other running timers."
+    },
+    {
+      "id": "previous-step-action",
+      "role": "button",
+      "name": "Previous step",
+      "description": "Moves to the previous step without changing completion."
+    },
+    {
+      "id": "next-step-action",
+      "role": "button",
+      "name": "Next step",
+      "description": "Moves to the next step without changing completion."
+    },
+    {
+      "id": "view-full-recipe-link",
+      "role": "link",
+      "name": "View full recipe",
+      "description": "Opens the pinned recipe revision."
+    },
+    {
+      "id": "prerequisite-warning",
+      "role": "alertdialog",
+      "name": "Prerequisites not confirmed",
+      "description": "Names unconfirmed prerequisites and offers Mark done anyway."
+    },
+    {
+      "id": "resume-dialog",
+      "role": "dialog",
+      "name": "Resume cooking?",
+      "description": "Resume the matching session or start another."
+    },
+    {
+      "id": "finish-dialog",
+      "role": "dialog",
+      "name": "Finish cooking",
+      "description": "Separate finish choices."
+    },
+    {
+      "id": "confirm-batch-action",
+      "role": "button",
+      "name": "Confirm batch",
+      "description": "Records actual yield and consumes raw ingredients once."
+    },
+    {
+      "id": "ate-serving-action",
+      "role": "button",
+      "name": "I ate a serving",
+      "description": "Records a serving eaten as its own intake event."
+    },
+    {
+      "id": "finish-without-update-action",
+      "role": "button",
+      "name": "Finish without inventory update",
+      "description": "Ends the session without inventory or intake changes."
+    },
+    {
+      "id": "revision-note",
+      "role": "status",
+      "description": "Says the recipe changed and this session keeps the original directions."
+    }
+  ],
+  "claims": [
+    {
+      "id": "focused-mode-hides-navigation",
+      "type": "element-absent",
+      "statement": "Focused cooking hides the five-destination navigation while keeping Exit cooking obvious.",
+      "tier": "aspirational",
+      "elements": [
+        "primary-navigation"
+      ]
+    },
+    {
+      "id": "exit-always-visible",
+      "type": "visible-without-scroll",
+      "statement": "Exit cooking is visible without scrolling at every viewport and state.",
+      "tier": "aspirational",
+      "elements": [
+        "exit-cooking-action"
+      ]
+    },
+    {
+      "id": "step-and-actions-without-scroll",
+      "type": "visible-without-scroll",
+      "statement": "On phones the step title, Mark step done, and Next step are reachable without scrolling; the step image gives way first.",
+      "tier": "aspirational",
+      "elements": [
+        "step-title",
+        "mark-done-action",
+        "next-step-action"
+      ],
+      "states": [
+        "default",
+        "no-step-image"
+      ],
+      "viewports": [
+        "mobile"
+      ]
+    },
+    {
+      "id": "next-is-dominant",
+      "type": "single-dominant-action",
+      "statement": "Next step is the filled primary footer action; Previous step is secondary.",
+      "tier": "aspirational",
+      "elements": [
+        "next-step-action",
+        "previous-step-action"
+      ]
+    },
+    {
+      "id": "next-never-completes",
+      "type": "custom",
+      "statement": "Moving between steps never changes completion; a step is done only through Mark step done.",
+      "tier": "aspirational",
+      "elements": [
+        "next-step-action",
+        "previous-step-action",
+        "mark-done-action"
+      ]
+    },
+    {
+      "id": "completion-comes-from-records",
+      "type": "element-present",
+      "statement": "Completed checks in the step list reflect persisted completion events, not steps viewed.",
+      "tier": "aspirational",
+      "elements": [
+        "step-list",
+        "mark-done-action"
+      ],
+      "states": [
+        "step-done"
+      ]
+    },
+    {
+      "id": "prerequisites-warn-not-trap",
+      "type": "element-present",
+      "statement": "A dependent step can be previewed and marked done with an explicit override; the reader is never trapped.",
+      "tier": "aspirational",
+      "elements": [
+        "prerequisite-warning"
+      ],
+      "states": [
+        "prerequisite-warning"
+      ]
+    },
+    {
+      "id": "timer-survives-reload",
+      "type": "custom",
+      "statement": "A running timer's remaining time is reconstructed from its absolute deadline after reload, route change, or tab restore.",
+      "tier": "aspirational",
+      "elements": [
+        "timer-card"
+      ],
+      "states": [
+        "timer-running"
+      ]
+    },
+    {
+      "id": "expiry-is-not-completion",
+      "type": "element-present",
+      "statement": "An elapsed timer is marked elapsed and neither the step nor the meal becomes complete.",
+      "tier": "aspirational",
+      "elements": [
+        "timer-status",
+        "mark-done-action"
+      ],
+      "states": [
+        "timer-elapsed"
+      ]
+    },
+    {
+      "id": "one-expiry-announcement",
+      "type": "custom",
+      "statement": "Timer state changes and expiry are announced once across tabs, never every second.",
+      "tier": "aspirational",
+      "elements": [
+        "timer-status"
+      ],
+      "states": [
+        "timer-running",
+        "timer-elapsed"
+      ]
+    },
+    {
+      "id": "timers-stay-reachable",
+      "type": "element-present",
+      "statement": "Timers for other steps stay reachable in the tray.",
+      "tier": "aspirational",
+      "elements": [
+        "timer-tray"
+      ],
+      "states": [
+        "multiple-timers"
+      ]
+    },
+    {
+      "id": "finish-separates-cooking-from-eating",
+      "type": "element-present",
+      "statement": "Finishing offers batch confirmation, eating a serving, and finishing without bookkeeping as separate actions; nothing records intake automatically.",
+      "tier": "aspirational",
+      "elements": [
+        "confirm-batch-action",
+        "ate-serving-action",
+        "finish-without-update-action"
+      ],
+      "states": [
+        "finish"
+      ]
+    },
+    {
+      "id": "session-stays-pinned",
+      "type": "element-present",
+      "statement": "A recipe edit during cooking leaves the session on its original revision and says so.",
+      "tier": "aspirational",
+      "elements": [
+        "revision-note"
+      ],
+      "states": [
+        "recipe-edited"
+      ]
+    },
+    {
+      "id": "timer-fits-large-text",
+      "type": "custom",
+      "statement": "Timer numerals stay whole and readable at large text sizes and 200 % zoom.",
+      "tier": "aspirational",
+      "elements": [
+        "timer-card"
+      ]
+    },
+    {
+      "id": "cooking-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Mark step done, Previous, Next, timer controls, the step list, and Exit cooking are keyboard reachable.",
+      "tier": "aspirational",
+      "elements": [
+        "mark-done-action",
+        "previous-step-action",
+        "next-step-action",
+        "pause-action",
+        "add-minute-action",
+        "step-list",
+        "exit-cooking-action"
+      ]
+    },
+    {
+      "id": "reduced-motion-respected",
+      "type": "custom",
+      "statement": "With reduced motion, step changes and timer updates use no sliding or animated steam; changes are instant or brief fades.",
+      "tier": "aspirational",
+      "elements": [
+        "step-instruction",
+        "timer-card"
+      ]
+    },
+    {
+      "id": "cooking-no-horizontal-overflow",
+      "type": "no-document-horizontal-overflow",
+      "statement": "The page never scrolls sideways at any supported viewport.",
+      "tier": "aspirational",
+      "elements": [
+        "step-instruction"
+      ]
+    },
+    {
+      "id": "appearance-parity",
+      "type": "dark-parity",
+      "statement": "Light and Evening change palette and artwork only; the recipe, servings, dates, occurrences, layout, and actions are identical.",
+      "tier": "aspirational",
+      "elements": [
+        "step-title",
+        "timer-card",
+        "next-step-action"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "primary-navigation": {
+        "testid": "cooking-primary-navigation"
+      },
+      "focused-header": {
+        "testid": "cooking-focused-header"
+      },
+      "exit-cooking-action": {
+        "testid": "cooking-exit-cooking-action"
+      },
+      "step-progress": {
+        "testid": "cooking-step-progress"
+      },
+      "step-list": {
+        "testid": "cooking-step-list"
+      },
+      "step-list-toggle": {
+        "testid": "cooking-step-list-toggle"
+      },
+      "step-title": {
+        "testid": "cooking-step-title"
+      },
+      "step-instruction": {
+        "testid": "cooking-step-instruction"
+      },
+      "ingredient-chips": {
+        "testid": "cooking-ingredient-chips"
+      },
+      "dependency-hint": {
+        "testid": "cooking-dependency-hint"
+      },
+      "step-image": {
+        "testid": "cooking-step-image"
+      },
+      "mark-done-action": {
+        "testid": "cooking-mark-done-action"
+      },
+      "timer-card": {
+        "testid": "cooking-timer-card"
+      },
+      "timer-status": {
+        "testid": "cooking-timer-status"
+      },
+      "pause-action": {
+        "testid": "cooking-pause-action"
+      },
+      "add-minute-action": {
+        "testid": "cooking-add-minute-action"
+      },
+      "timer-tray": {
+        "testid": "cooking-timer-tray"
+      },
+      "previous-step-action": {
+        "testid": "cooking-previous-step-action"
+      },
+      "next-step-action": {
+        "testid": "cooking-next-step-action"
+      },
+      "view-full-recipe-link": {
+        "testid": "cooking-view-full-recipe-link"
+      },
+      "prerequisite-warning": {
+        "testid": "cooking-prerequisite-warning"
+      },
+      "resume-dialog": {
+        "testid": "cooking-resume-dialog"
+      },
+      "finish-dialog": {
+        "testid": "cooking-finish-dialog"
+      },
+      "confirm-batch-action": {
+        "testid": "cooking-confirm-batch-action"
+      },
+      "ate-serving-action": {
+        "testid": "cooking-ate-serving-action"
+      },
+      "finish-without-update-action": {
+        "testid": "cooking-finish-without-update-action"
+      },
+      "revision-note": {
+        "testid": "cooking-revision-note"
+      }
+    }
+  }
+}

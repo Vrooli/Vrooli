@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_desktop.v1.shared;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared;shared";
+
+// =============================================================================
+// HEALTH
+// =============================================================================
+//
+// @stability beta
+//
+// Reports the availability of the scenario-to-desktop control plane.
+//
+// =============================================================================
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  string status = 1;
+  google.protobuf.Timestamp checked_at = 2;
+  string service = 3;
+}
+
+service HealthService {
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+}

@@ -1,31 +1,34 @@
 /**
  * FocusActionsSection — Inline actions for the NodeInspectorPanel in focus lens mode.
  *
- * Renders the primary CTA (Run/Workshop/Finalize/etc.) and a collapsible
+ * Renders the primary CTA and a collapsible
  * InlineQuestionStepper for pending decisions. Only renders for entity types
  * with actionable states (backlog, execution, capture).
  */
 
 import { useState, useCallback } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useActionMutation } from "../../../hooks/useActionMutation";
+import { useTransitionKind } from "../../../hooks/useTransitionCatalog";
+import { ActionButton } from "../../../components/ui/action-button";
 import {
   Play,
-  MessageCircle,
-  Sparkles,
   Wrench,
   Eye,
   ChevronRight,
   RefreshCw,
   ClipboardCheck,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { defaultApiClient } from "../../../lib/api-client";
+import { backlogService, transitionService } from "../../../services";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
 import { useBacklogStore } from "../../../stores/backlog-store";
-import { useDetailSelectionStore } from "../../../stores/detail-selection-store";
-import { RunBacklogModal, type RunBacklogTarget } from "../../../components/backlog/run-backlog-modal";
+import { executionDetailPath } from "../../../app/routes/route-paths";
+import { RunSheet, type RunSheetTarget } from "../../../components/backlog/run-sheet";
 import { InlineQuestionStepper } from "../../../components/backlog/inline-question-stepper";
-import { useNodeActionContext } from "../hooks/useNodeActionContext";
 import { useNodePendingQuestions } from "../hooks/useNodePendingQuestions";
 import { parseNodeId } from "../lib/node-id-parser";
 import type {
@@ -39,10 +42,8 @@ import type {
 // CTA icon/label map
 // ---------------------------------------------------------------------------
 
-const CTA_CONFIG: Record<string, { label: string; icon: React.ElementType }> = {
+const CTA_CONFIG: Record<string, { label: string; icon: LucideIcon }> = {
   run: { label: "Run", icon: Play },
-  workshop: { label: "Workshop", icon: MessageCircle },
-  finalize: { label: "Finalize", icon: Sparkles },
   followUp: { label: "Follow Up", icon: Wrench },
   archive: { label: "Archive", icon: Eye },
 };
@@ -52,14 +53,17 @@ const CTA_CONFIG: Record<string, { label: string; icon: React.ElementType }> = {
 // ---------------------------------------------------------------------------
 
 function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; nodeId: string }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
-  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
 
-  const itemActions = useNodeActionContext(nodeData);
+  const { data: nextAction } = useQuery({
+    queryKey: ["backlog", nodeData.kind, nodeData.name, "next-action"],
+    queryFn: () => backlogService.getNextAction(nodeData.kind, nodeData.name),
+  });
   const pendingQuestions = useNodePendingQuestions(nodeData.kind, nodeData.name);
 
-  const [runModalTarget, setRunModalTarget] = useState<RunBacklogTarget | undefined>();
+  const [runModalTarget, setRunModalTarget] = useState<RunSheetTarget | undefined>();
   const [isDecisionsExpanded, setDecisionsExpanded] = useState(false);
 
   const invalidateAfterAction = useCallback(() => {
@@ -68,24 +72,29 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
     void queryClient.invalidateQueries({ queryKey: ["backlog-list"] });
   }, [fetchBacklog, queryClient]);
 
-  const archiveMutation = useMutation({
+  const archiveMutation = useActionMutation({
     mutationFn: () => defaultApiClient.patch(API_ENDPOINTS.backlogArchiveItem(nodeData.kind, nodeData.name), {}),
+    errorMessage: `Couldn't archive ${nodeData.kind}/${nodeData.name}`,
+    successMessage: `Archived ${nodeData.kind}/${nodeData.name}`,
+    source: "FocusActions.archive",
     onSuccess: invalidateAfterAction,
   });
 
-  const followUpMutation = useMutation({
+  const followUpMutation = useActionMutation({
     mutationFn: (executionId: string) =>
       defaultApiClient.post(API_ENDPOINTS.executionFollowUp(executionId), {}),
+    errorMessage: "Couldn't start the follow-up run",
+    successMessage: "Follow-up run started",
+    successKind: "progress",
+    source: "FocusActions.followUp",
     onSuccess: invalidateAfterAction,
   });
 
   const handleCtaClick = useCallback(() => {
-    const cta = itemActions.primaryCta;
+    const cta = nextAction?.id;
     if (cta === "run") {
       setRunModalTarget({ kind: nodeData.kind, name: nodeData.name, title: nodeData.title });
-    } else if (cta === "workshop" || cta === "finalize") {
-      selectBacklog(nodeData.kind, nodeData.name);
-    } else if (cta === "followUp") {
+    } else if (cta === "retry") {
       // Find the latest execution for this item to follow up on.
       const parsed = parseNodeId(nodeId);
       if (parsed?.identifier) {
@@ -93,13 +102,19 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
       }
     } else if (cta === "archive") {
       archiveMutation.mutate();
+    } else if (cta === "author_plan" || cta === "accept_plan" || cta === "repair_plan" || cta === "review" || cta === "resolve_dependencies" || cta === "view_execution") {
+      navigate(`/backlog/${nodeData.kind}/${nodeData.name}`);
     }
-  }, [itemActions.primaryCta, nodeData, nodeId, selectBacklog, followUpMutation, archiveMutation]);
+  }, [nextAction?.id, nodeData, nodeId, navigate, followUpMutation, archiveMutation]);
 
-  // Nothing to show for locked items.
-  if (itemActions.locked) return null;
+  // The projection is authoritative, including active-work states.
+  if (!nextAction || nextAction.id === "none") return null;
+  const displayedAction = nextAction;
 
-  const ctaConfig = itemActions.primaryCta ? CTA_CONFIG[itemActions.primaryCta] : null;
+  const ctaConfig = {
+    label: displayedAction.compactLabel,
+    icon: CTA_CONFIG[displayedAction.id === "run" ? "run" : displayedAction.id === "archive" ? "archive" : "followUp"]?.icon ?? Play,
+  };
   const isMutating = archiveMutation.isPending || followUpMutation.isPending;
   const showStepper = pendingQuestions.length > 0;
 
@@ -107,16 +122,19 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
     <>
       {/* Primary CTA */}
       {ctaConfig && (
-        <button
-          type="button"
+        <ActionButton
+          actionId={displayedAction.id}
+          effect={displayedAction.effect}
+          destructive={displayedAction.destructive}
+          icon={ctaConfig.icon}
+          label={ctaConfig.label}
+          pending={isMutating}
+          pendingLabel="Working..."
+          disabled={!nextAction?.enabled}
           onClick={handleCtaClick}
-          disabled={isMutating}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-cyan-600/80 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-cyan-600 disabled:opacity-50"
+          className="w-full rounded-lg px-3 py-1.5 text-xs h-auto"
           data-testid="focus-cta-button"
-        >
-          <ctaConfig.icon className="h-3 w-3" />
-          {isMutating ? "Working..." : ctaConfig.label}
-        </button>
+        />
       )}
 
       {/* Collapsible pending decisions */}
@@ -149,8 +167,7 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
         </div>
       )}
 
-      {/* Run modal */}
-      <RunBacklogModal
+      <RunSheet
         isOpen={!!runModalTarget}
         onClose={() => setRunModalTarget(undefined)}
         target={runModalTarget}
@@ -168,9 +185,9 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
 // ---------------------------------------------------------------------------
 
 function ExecutionActions({ nodeData }: { nodeData: ExecutionGraphNodeData }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
-  const selectExecution = useDetailSelectionStore((s) => s.selectExecution);
 
   const invalidateAfterAction = useCallback(() => {
     void fetchBacklog({ force: true });
@@ -180,13 +197,21 @@ function ExecutionActions({ nodeData }: { nodeData: ExecutionGraphNodeData }) {
     void queryClient.invalidateQueries({ queryKey: ["execution", nodeData.executionId] });
   }, [fetchBacklog, nodeData.executionId, queryClient]);
 
-  const retryMutation = useMutation({
+  const retryMutation = useActionMutation({
     mutationFn: () => defaultApiClient.post(API_ENDPOINTS.executionRetry(nodeData.executionId), {}),
+    errorMessage: "Couldn't retry this execution",
+    successMessage: "Retry started",
+    successKind: "progress",
+    source: "FocusActions.retry",
     onSuccess: invalidateAfterAction,
   });
 
-  const triggerReviewMutation = useMutation({
+  const triggerReviewMutation = useActionMutation({
     mutationFn: () => defaultApiClient.post(API_ENDPOINTS.executionTriggerReview(nodeData.executionId), {}),
+    errorMessage: "Couldn't run the checks",
+    successMessage: "Checks started",
+    successKind: "progress",
+    source: "FocusActions.triggerReview",
     onSuccess: invalidateAfterAction,
   });
 
@@ -194,7 +219,7 @@ function ExecutionActions({ nodeData }: { nodeData: ExecutionGraphNodeData }) {
     return (
       <button
         type="button"
-        onClick={() => selectExecution(nodeData.executionId)}
+        onClick={() => navigate(executionDetailPath(nodeData.executionId))}
         className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-cyan-600/80 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-cyan-600"
         data-testid="focus-review-button"
       >
@@ -206,31 +231,31 @@ function ExecutionActions({ nodeData }: { nodeData: ExecutionGraphNodeData }) {
 
   if (nodeData.status === "completed" || nodeData.status === "needs_fixup") {
     return (
-      <button
-        type="button"
-        onClick={() => triggerReviewMutation.mutate()}
-        disabled={triggerReviewMutation.isPending}
-        className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-cyan-600/80 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-cyan-600 disabled:opacity-50"
+      <ActionButton
+        actionId="review"
+        icon={Eye}
+        label="Run Checks"
+        pendingLabel="Running..."
+        pending={triggerReviewMutation.isPending}
+        onClick={() => triggerReviewMutation.run()}
+        className="w-full rounded-lg px-3 py-1.5 text-xs h-auto"
         data-testid="focus-run-checks-button"
-      >
-        <Eye className="h-3 w-3" />
-        {triggerReviewMutation.isPending ? "Running..." : "Run Checks"}
-      </button>
+      />
     );
   }
 
   if (nodeData.status === "failed") {
     return (
-      <button
-        type="button"
-        onClick={() => retryMutation.mutate()}
-        disabled={retryMutation.isPending}
-        className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-cyan-600/80 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-cyan-600 disabled:opacity-50"
+      <ActionButton
+        actionId="retry"
+        icon={RefreshCw}
+        label="Retry"
+        pendingLabel="Retrying..."
+        pending={retryMutation.isPending}
+        onClick={() => retryMutation.run()}
+        className="w-full rounded-lg px-3 py-1.5 text-xs h-auto"
         data-testid="focus-retry-button"
-      >
-        <RefreshCw className="h-3 w-3" />
-        {retryMutation.isPending ? "Retrying..." : "Retry"}
-      </button>
+      />
     );
   }
 
@@ -242,28 +267,30 @@ function ExecutionActions({ nodeData }: { nodeData: ExecutionGraphNodeData }) {
 // ---------------------------------------------------------------------------
 
 function CaptureActions({ nodeData }: { nodeData: CaptureGraphNodeData }) {
-  const queryClient = useQueryClient();
-
-  const classifyMutation = useMutation({
-    mutationFn: () => defaultApiClient.post(API_ENDPOINTS.captureClassify(nodeData.id), {}),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
-    },
+  const captureClassifyKind = useTransitionKind("capture.classify");
+  const classifyMutation = useActionMutation({
+    mutationFn: () => transitionService.start("capture.classify", nodeData.id),
+    errorMessage: "Couldn't classify this capture",
+    successMessage: "Classification started",
+    successKind: "progress",
+    invalidateKeys: [["backlog-summary"]],
+    source: "CaptureActions.classify",
   });
 
   if (nodeData.status !== "classifying") return null;
 
   return (
-    <button
-      type="button"
-      onClick={() => classifyMutation.mutate()}
-      disabled={classifyMutation.isPending}
-      className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-cyan-600/80 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-cyan-600 disabled:opacity-50"
+    <ActionButton
+      actionId="classify"
+      transitionKind={captureClassifyKind}
+      icon={ClipboardCheck}
+      label="Classify"
+      pendingLabel="Classifying..."
+      pending={classifyMutation.isPending}
+      onClick={() => classifyMutation.run()}
+      className="w-full rounded-lg px-3 py-1.5 text-xs h-auto"
       data-testid="focus-classify-button"
-    >
-      <ClipboardCheck className="h-3 w-3" />
-      {classifyMutation.isPending ? "Classifying..." : "Classify"}
-    </button>
+    />
   );
 }
 
@@ -283,10 +310,10 @@ export function FocusActionsSection({ nodeData, nodeId }: FocusActionsSectionPro
         <BacklogActions nodeData={nodeData as BacklogGraphNodeData} nodeId={nodeId} />
       )}
       {nodeData.entityType === "execution" && (
-        <ExecutionActions nodeData={nodeData as ExecutionGraphNodeData} />
+        <ExecutionActions nodeData={nodeData} />
       )}
       {nodeData.entityType === "capture" && (
-        <CaptureActions nodeData={nodeData as CaptureGraphNodeData} />
+        <CaptureActions nodeData={nodeData} />
       )}
     </div>
   );

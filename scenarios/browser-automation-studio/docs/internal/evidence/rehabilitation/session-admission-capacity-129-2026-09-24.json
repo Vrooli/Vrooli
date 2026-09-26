@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "work": "BAS-WORK-129",
+  "issue": "BAS-RF-005",
+  "observedAt": "2026-09-24",
+  "sourceHead": "8707b970a48f82665662450766ad8233d6def9e7",
+  "contractSha256": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+  "sourceFiles": {
+    "playwright-driver/src/session/manager.ts": "5dfc1926f3f69e68bfbc0c105e9d066fba22fbcfbc92bc779b166fc1f99536f8",
+    "playwright-driver/tests/unit/session/manager.test.ts": "a310ae0ea8f583713c02cf2f320a11ce2e24f0502f86296992db8faf242dfa86",
+    "playwright-driver/tests/integration/session-admission-capacity.test.ts": "2c4688b7431a7ebdbc500410f336a0d8f07e7ec26527f1294f52b1f47f8ca0fb"
+  },
+  "hypotheses": [
+    {
+      "claim": "The capacity check counts committed sessions but not pending distinct starts.",
+      "result": "confirmed",
+      "test": "Pause the first maxConcurrent=1 start inside Browser.newContext, then start a second execution ID.",
+      "beforeFix": "The focused regression failed: second start fulfilled; expected rejection."
+    },
+    {
+      "claim": "A shared admission layer serializes distinct execution IDs.",
+      "result": "rejected",
+      "evidence": "The same controlled interleaving admitted both requests before the repair; the in-flight guard deduplicates by execution ID."
+    }
+  ],
+  "change": {
+    "owner": "BAS Playwright SessionManager",
+    "behavior": "Reserve one capacity slot synchronously after idempotent/reuse checks. Count reservations with live sessions and release each reservation in finally after successful creation or failure.",
+    "paths": [
+      "playwright-driver/src/session/manager.ts",
+      "playwright-driver/tests/unit/session/manager.test.ts",
+      "playwright-driver/tests/integration/session-admission-capacity.test.ts"
+    ]
+  },
+  "validation": {
+    "focusedCommand": "pnpm exec jest tests/unit/session/manager.test.ts tests/integration/session-admission-capacity.test.ts --runInBand --coverage=false",
+    "result": "passed",
+    "unitTests": 63,
+    "realChromiumIntegrationTests": 1,
+    "elapsedSeconds": 3.628,
+    "additionalChecks": {
+      "typecheck": "passed: pnpm run typecheck",
+      "prettier": "passed for the new integration test; existing manager files retain their prior formatting",
+      "eslint": "passed with 0 errors and 5 existing warnings in manager.ts",
+      "contractPreparation": "passed: 24 preservation journeys, 0 errors",
+      "diffCheck": "passed"
+    },
+    "testGenie": "not run; maintained manager regression and direct real-Chromium test cover the localized change"
+  },
+  "setpoint": {
+    "program": "browser-automation-studio.setpoint-read",
+    "programId": "prog_14ec48d7-98ae-4c79-82d5-928d2aba4efd",
+    "qualifiedRows": 1,
+    "unknownRows": 16,
+    "productQualified": false,
+    "afterRepair": true
+  },
+  "costAndLimits": {
+    "managerDiffLines": {
+      "added": 30,
+      "removed": 2
+    },
+    "unitRegressionLinesAdded": 49,
+    "integrationTestLinesAdded": 48,
+    "complexityDuplicationCouplingReductionClaimed": false,
+    "cancellationSemantics": "unverified; SessionManager start does not currently accept a request-cancellation signal",
+    "managedRuntimeRestart": "not performed; this evidence is for source and real Chromium exercised by Jest"
+  }
+}

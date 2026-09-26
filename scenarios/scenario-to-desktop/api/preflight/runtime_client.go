@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	runtimeapi "scenario-to-desktop-runtime/api"
-	bundlemanifest "scenario-to-desktop-runtime/manifest"
+	runtimeapi "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
+	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // HTTPRuntimeClient is the default HTTP-based implementation of RuntimeClient.
@@ -220,9 +220,11 @@ func (c *HTTPRuntimeClient) collectLogTails(request Request) []LogTail {
 	serviceIDs := request.LogTailServices
 	if len(serviceIDs) == 0 {
 		for _, svc := range c.manifest.Services {
-			if strings.TrimSpace(svc.LogDir) != "" {
-				serviceIDs = append(serviceIDs, svc.ID)
-			}
+			// The bundled supervisor owns a bounded service.log for every
+			// launched service, even when log_dir is omitted from the manifest.
+			// Include all declared services so readiness failures remain
+			// diagnosable from the durable preflight result.
+			serviceIDs = append(serviceIDs, svc.ID)
 		}
 	}
 

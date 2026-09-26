@@ -1,0 +1,217 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "kopia",
+  "storage": {
+    "entries": {
+      "config": {
+        "rung": "owned",
+        "path": "$USER_HOME/.config/vrooli/resources/kopia",
+        "kind": "dir",
+        "class": "config",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Kopia repository configuration files are stored under the resource's XDG-derived config root."
+      },
+      "state": {
+        "rung": "owned",
+        "path": "$USER_HOME/.local/state/vrooli/resources/kopia",
+        "kind": "dir",
+        "class": "state",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "The registry and repository control state live in the resource's state root.",
+        "budget": {
+          "max_bytes": "20GiB",
+          "rationale": "Durable state storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      },
+      "cache": {
+        "rung": "relocatable",
+        "path": "$USER_HOME/.cache/vrooli/resources/kopia",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "relocation": {
+          "key": "KOPIA_CACHE_DIR",
+          "scope": "process-tree"
+        },
+        "budget": {
+          "max_bytes": "12281MiB",
+          "rationale": "Measured at 6438318897 bytes on 2026-08-03; ceiling is two times observed size."
+        },
+        "rationale": "Kopia content caches are rebuildable and explicitly redirectable."
+      }
+    }
+  },
+  "display_name": "Kopia",
+  "description": "Content-addressed, client-side-encrypted backup engine (kopia 0.23.0) wrapped behind the resource-kopia CLI. Provides deduplicated, compressed, encrypted snapshots to filesystem and S3/MinIO repositories for the data-backup-manager scenario.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-kopia",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-kopia_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-kopia"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "external-cli",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "kopia"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "kopia"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "kopia"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed.",
+            "The Kopia host tool and repository protocol are supported, but Windows restore, scheduler, and restrictive-DACL behavior require native Windows validation; this installation has no Windows hardware evidence."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        }
+      }
+    }
+  },
+  "binary": "kopia",
+  "version_args": [
+    "--version"
+  ],
+  "category": "storage",
+  "requirements": {
+    "ram_mb": 1024,
+    "disk_mb": 4096,
+    "cpu_cores": 1,
+    "network": "optional",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "storage",
+    "weight": 2
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "build-verified",
+    "windows": "build-verified"
+  },
+  "health_checks": [
+    {
+      "type": "command",
+      "kind": "liveness",
+      "command": [
+        "kopia",
+        "--version"
+      ],
+      "timeout_seconds": 15
+    }
+  ],
+  "orchestration": {
+    "startup_order": 300,
+    "startup_timeout_seconds": 15,
+    "startup_time_estimate": "3-8s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "low"
+  },
+  "install": {
+    "platforms": {
+      "linux": [
+        "resource-kopia",
+        "install-direct"
+      ],
+      "macos": [
+        "resource-kopia",
+        "install-direct"
+      ],
+      "windows": [
+        "resource-kopia",
+        "install-direct"
+      ]
+    }
+  },
+  "environment_exports": {
+    "static": {
+      "KOPIA_RESOURCE_CLI": "resource-kopia"
+    },
+    "from_runtime_env": [
+      "KOPIA_STATE_DIR",
+      "KOPIA_CONFIG_DIR"
+    ]
+  },
+  "capabilities": {
+    "supports_logs": false
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
+}

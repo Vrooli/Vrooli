@@ -13,9 +13,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // TELEMETRY DOMAIN
 // =============================================================================
 //
-// @layer 1
-// @domain domain
-// @imports base (also: domain/selectors within same layer)
 // @stability stable
 //
 // Defines types for capturing observable data during action recording or
@@ -43,7 +40,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 
 // ConsoleLogEntry captures browser console output for telemetry.
 //
-// @usage ActionTelemetry.console_logs
 message ConsoleLogEntry {
   // Log level (debug, info, warn, error).
   LogLevel level = 1;
@@ -59,7 +55,6 @@ message ConsoleLogEntry {
 
 // NetworkEvent captures network activity for telemetry.
 //
-// @usage ActionTelemetry.network_events
 message NetworkEvent {
   // Event type (request, response, failure).
   NetworkEventType type = 1;
@@ -85,7 +80,6 @@ message NetworkEvent {
 
 // ActionTelemetry captures observable data during action recording or execution.
 //
-// @usage TimelineEntry.telemetry
 message ActionTelemetry {
   // Page URL at capture time.
   string url = 1;
@@ -121,7 +115,6 @@ message ActionTelemetry {
 
 // TimelineScreenshot describes screenshot metadata.
 //
-// @usage ActionTelemetry.screenshot, ExecutionScreenshot.screenshot
 message TimelineScreenshot {
   // Unique artifact ID for the screenshot.
   // @format uuid
@@ -144,7 +137,6 @@ message TimelineScreenshot {
 
 // TelemetryArtifact references a file-backed artifact captured during execution.
 //
-// @usage ActionTelemetry.dom_snapshot, ActionTelemetry.console_log_artifact, ActionTelemetry.network_event_artifact
 message TelemetryArtifact {
   // Unique artifact ID.
   // @format uuid

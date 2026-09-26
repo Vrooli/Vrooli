@@ -4,7 +4,6 @@ import (
 	"os"
 	"os/exec"
 	"sync/atomic"
-	"syscall"
 	"time"
 )
 
@@ -22,7 +21,7 @@ import (
 // stdout output, so it only fires during true silence.
 const DefaultStreamIdleTimeout = 0
 
-// managedProcess wraps an exec.Cmd with a manual stdout pipe and a background
+// managedProcess wraps an exec.Cmd with manual stdout and stderr pipes and a background
 // goroutine that calls cmd.Wait(). When the main process exits, the goroutine
 // kills the process group (terminating grandchildren), which closes all
 // write-ends of the stdout pipe and lets the scanner get EOF.
@@ -33,6 +32,7 @@ const DefaultStreamIdleTimeout = 0
 type managedProcess struct {
 	cmd      *exec.Cmd
 	stdout   *os.File // read end of manual pipe (NOT in Go's parentIOPipes)
+	stderr   *os.File // read end of manual pipe (NOT in Go's parentIOPipes)
 	timer    *time.Timer
 	timeout  time.Duration
 	waitCh   chan struct{} // closed when cmd.Wait() returns
@@ -41,7 +41,7 @@ type managedProcess struct {
 	waited   atomic.Bool // ensures Wait() logic runs only once
 }
 
-// startManagedProcess creates a manual stdout pipe, starts the command, and
+// startManagedProcess creates manual stdout/stderr pipes, starts the command, and
 // launches a background goroutine to wait for process exit and clean up.
 //
 // The caller MUST defer mp.Wait() after a successful return.
@@ -53,24 +53,35 @@ func startManagedProcess(cmd *exec.Cmd, timeout time.Duration) (*managedProcess,
 	if err != nil {
 		return nil, err
 	}
+	stderrR, stderrW, err := os.Pipe()
+	if err != nil {
+		_ = stdoutR.Close()
+		_ = stdoutW.Close()
+		return nil, err
+	}
 	cmd.Stdout = stdoutW
+	cmd.Stderr = stderrW
 
 	mp := &managedProcess{
 		cmd:     cmd,
 		stdout:  stdoutR,
+		stderr:  stderrR,
 		timeout: timeout,
 		waitCh:  make(chan struct{}),
 	}
 
 	if err := cmd.Start(); err != nil {
-		stdoutR.Close()
-		stdoutW.Close()
+		_ = stdoutR.Close()
+		_ = stdoutW.Close()
+		_ = stderrR.Close()
+		_ = stderrW.Close()
 		return nil, err
 	}
 
 	// Close the parent's copy of the write-end. Only the child process
 	// (and any grandchildren that inherit it) hold write-ends now.
 	stdoutW.Close()
+	stderrW.Close()
 
 	// Start safety-net timer
 	if timeout > 0 {
@@ -95,6 +106,13 @@ func startManagedProcess(cmd *exec.Cmd, timeout time.Duration) (*managedProcess,
 // Stdout returns the read end of the stdout pipe for use with bufio.Scanner.
 func (mp *managedProcess) Stdout() *os.File {
 	return mp.stdout
+}
+
+// Stderr returns the read end of the manually managed stderr pipe. Like
+// Stdout, it remains readable until callers have drained it and call Wait;
+// cmd.Wait cannot close it underneath a concurrent scanner.
+func (mp *managedProcess) Stderr() *os.File {
+	return mp.stderr
 }
 
 // ResetTimer resets the safety-net timer. Call this from the scanner loop
@@ -127,7 +145,8 @@ func (mp *managedProcess) Kill() {
 func (mp *managedProcess) Wait() error {
 	<-mp.waitCh
 	if mp.waited.CompareAndSwap(false, true) {
-		mp.stdout.Close()
+		_ = mp.stdout.Close()
+		_ = mp.stderr.Close()
 	}
 	return mp.waitErr
 }
@@ -141,7 +160,5 @@ func (mp *managedProcess) kill() {
 // killProcessGroup sends SIGKILL to the process group of cmd.
 // Safe to call if the process already exited (returns ESRCH, ignored).
 func killProcessGroup(cmd *exec.Cmd) {
-	if cmd != nil && cmd.Process != nil {
-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-	}
+	killProcessTree(cmd)
 }

@@ -1,0 +1,115 @@
+{
+  "cycle": "BAS-WORK-019",
+  "date": "2026-09-22",
+  "issues": [
+    "BAS-RF-036"
+  ],
+  "journeys": [
+    "J07",
+    "J08"
+  ],
+  "changes": [
+    "Shared terminal operation and result replaces duplicate close/release paths and closed/artifact flags",
+    "Waiter cancellation independent of owner request; failed attempt allows explicit retry and retains ownership",
+    "Driver close/release requires typed positive acknowledgment; partial close metadata retained alongside failure"
+  ],
+  "evidence": {
+    "red": "/tmp/bas-terminal-operation-red-019.txt;4concurrentclose/releasecombinationsfalseack",
+    "acknowledgment_red": "/tmp/bas-terminal-ack-red-019.txt;6missing/negativeackcases",
+    "green": "/tmp/bas-terminal-final-green-019.txt;session/executor/engine/driver races1.076/1.309/1.076/1.042s",
+    "build": "/tmp/bas-build-final-019.txt;passed",
+    "owner": "20260922-085824-c5e34b26 tidiness failed4s;quietwaitcompletedonce",
+    "catalog": "/tmp/bas-artifacts-019.json",
+    "board": "prog_c907f422-fa8d-4afa-9743-b5e484cd4d66;17pending/productfalse",
+    "contract": "passedpreparation"
+  },
+  "local_metrics": {
+    "before": {
+      "lines": 1560,
+      "functions": 98,
+      "cyclomatic": 282
+    },
+    "after": {
+      "lines": 1569,
+      "functions": 98,
+      "cyclomatic": 286
+    }
+  },
+  "cumulative_go": {
+    "paths": [
+      "api/automation/compiler/action_definition_builder.go",
+      "api/automation/events/sink.go",
+      "api/automation/events/ws_sink.go",
+      "api/automation/execution-writer/external_artifacts.go",
+      "api/automation/executor/simple_executor.go",
+      "api/handlers/execution_export.go",
+      "api/handlers/handler.go",
+      "api/handlers/record_mode.go",
+      "api/handlers/record_mode_actions.go",
+      "api/handlers/record_mode_pages.go",
+      "api/handlers/record_mode_persistence.go",
+      "api/handlers/recordings/module.go",
+      "api/handlers/recordings/service.go",
+      "api/handlers/testutil_mock_services.go",
+      "api/internal/typeconv/builders.go",
+      "api/internal/wire/wire.go",
+      "api/main.go",
+      "api/performance/collector.go",
+      "api/performance/types.go",
+      "api/services/export/source/video_source.go",
+      "api/services/live-capture/action_registry.go",
+      "api/services/live-capture/service.go",
+      "api/services/live-capture/workflow_generator.go",
+      "api/services/recording/persistence/mock_repository.go",
+      "api/services/recording/persistence/repository.go",
+      "api/services/recording/persistence/sqlite.go",
+      "api/services/recording/persistence/types.go",
+      "api/services/recording/recorder.go",
+      "api/services/recording/service.go",
+      "api/services/session-profile/persistence/credentials.go",
+      "api/services/session-profile/persistence/file_repository.go",
+      "api/services/session-profile/persistence/filesystem.go",
+      "api/services/session-profile/persistence/filesystem_mock.go",
+      "api/services/session-profile/persistence/mock_repository.go",
+      "api/services/session-profile/persistence/protected_state.go",
+      "api/services/session-profile/persistence/repository.go",
+      "api/services/session-profile/service.go",
+      "api/services/uxmetrics/collector/collector.go",
+      "api/services/workflow/executions.go",
+      "api/services/workflow/executions_list.go",
+      "api/automation/session/session.go",
+      "api/automation/driver/client.go"
+    ],
+    "original": {
+      "files": 41,
+      "lines": 19447,
+      "functions": 691,
+      "cyclomatic": 3102
+    },
+    "current": {
+      "files": 41,
+      "lines": 17834,
+      "functions": 673,
+      "cyclomatic": 2955
+    }
+  },
+  "shared_owner_009_cyclomatic_delta": 17,
+  "tidiness": {
+    "totalFindings": 1077,
+    "longFiles": 80,
+    "complexity": 380,
+    "duplication": 604,
+    "coupling": 12,
+    "duplicationLineDebt": 33648
+  },
+  "source_inventory_digest": "b2f7b06a5bc4066764cc513ffcadd0d996dc357ceaf8781e17155c7b618ac27d",
+  "deployed": false,
+  "deployment": "Fresh019gate rejectedcurrentnonterminalbefore make stop;live014remains",
+  "limitations": [
+    "Driver teardown still suppresses failures and removes ownership",
+    "Full candidate unit not rerun for Go-only019; focusedaffectedpackages/build/tidiness used with018driver/UIproof",
+    "404 policy acknowledges absent leasedresource, not capture durability",
+    "Physicalinterruption andwholeworkflowrecoverynotqualified",
+    "Shared dirty tree attributionlimits"
+  ]
+}

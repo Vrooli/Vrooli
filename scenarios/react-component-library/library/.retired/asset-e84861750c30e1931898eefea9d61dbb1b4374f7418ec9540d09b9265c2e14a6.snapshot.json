@@ -1,0 +1,179 @@
+{
+  "Component": {
+    "ID": "584e4d7e-6d6a-4654-8a0d-9545dfb5e79b",
+    "CatalogID": "templates.dashboard-page",
+    "LibraryID": "react-component-library:DashboardPage",
+    "Slug": "DashboardPage",
+    "DisplayName": "DashboardPage",
+    "Description": "The dashboard surface with metric hierarchy, configurable sections, layout-matching skeletons, partial section failure, time-range selection, refresh, personalization, and responsive rearrangement.",
+    "Slot": "ui-pattern",
+    "Category": "templates",
+    "SourcePath": "components/DashboardPage/versions/1.0.8/DashboardPage.tsx",
+    "Version": "1.0.8",
+    "LatestVersion": "1.0.8",
+    "DraftVersion": "",
+    "ManifestPath": "components/DashboardPage/component.json",
+    "Tags": null,
+    "IndexedAt": "2026-09-03T00:21:25.91132763Z",
+    "UpdatedAt": "2026-09-07T22:20:52.484361901Z",
+    "Headers": {
+      "catalogExpects": "[\"router-adapter\",\"ui-provider\",\"design-tokens\",\"data-source\",\"storage-adapter\"]",
+      "catalogId": "templates.dashboard-page",
+      "catalogSatisfies": "null",
+      "displayName": "DashboardPage",
+      "tags": "[\"template\",\"page\",\"data-source\",\"token-bound\"]",
+      "warning": "Managed by React Component Library. Preserve this header when editing adopted copies."
+    },
+    "DesignStyles": null,
+    "AssetKind": "component",
+    "Dependencies": [
+      {
+        "LibraryID": "react-component-library:ClassMerge",
+        "Version": "1.0.2",
+        "Kind": ""
+      },
+      {
+        "LibraryID": "react-component-library:useLocale",
+        "Version": "1.1.1",
+        "Kind": ""
+      }
+    ],
+    "Expects": [
+      "router-adapter",
+      "ui-provider",
+      "design-tokens",
+      "data-source",
+      "storage-adapter"
+    ],
+    "Satisfies": null,
+    "CatalogDomain": "",
+    "CatalogDomainOrder": 0,
+    "CatalogRung": 0,
+    "CatalogRungName": "",
+    "TransitiveDependentCount": 0,
+    "Metrics": {
+      "DirectAdoptionCount": 0,
+      "EffectiveAdoptionCount": 0,
+      "VersionCount": 1,
+      "VersionAdoptions": null
+    },
+    "KitCompatibility": {
+      "Verdict": "universal",
+      "CompatibleKitIDs": [
+        "switchboard-console",
+        "vrooli-command-display",
+        "vrooli-conversion-landing",
+        "vrooli-default"
+      ],
+      "UnsatisfiedProperties": null
+    }
+  },
+  "Versions": [
+    {
+      "ID": "6bec860e-cb8a-483f-b12b-540f4087eab1",
+      "ComponentID": "584e4d7e-6d6a-4654-8a0d-9545dfb5e79b",
+      "LibraryID": "react-component-library:DashboardPage",
+      "Version": "1.0.8",
+      "Status": "released",
+      "SourcePath": "components/DashboardPage/versions/1.0.8/DashboardPage.tsx",
+      "Content": "/**\n * @libraryId react-component-library:DashboardPage\n * @displayName DashboardPage\n * @version 1.0.8\n * @tags [\"template\",\"page\",\"data-source\",\"token-bound\"]\n * @warning Managed by React Component Library. Preserve this header when editing adopted copies.\n */\n/** @vrooliComponentSource react-component-library:DashboardPage */\nimport { useStrings } from \"@vrooli/react-component-library/useLocale/1\";\nimport { withClassName } from \"@vrooli/react-component-library/ClassMerge/1\";\n\nimport type { ReactNode } from \"react\";\nconst panel = {\n  border: \"1px solid var(--color-border, #cbd5e1)\",\n  borderRadius: \"var(--radius-panel, 0.5rem)\",\n  background: \"var(--color-surface, #ffffff)\",\n  color: \"var(--color-foreground, #0f172a)\",\n  padding: \"var(--space-md, 24px)\",\n  boxShadow: \"var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10))\",\n};\nconst muted = { color: \"var(--color-muted-foreground, #64748b)\" };\ntype State =\n  | \"loading\"\n  | \"refreshing\"\n  | \"stale\"\n  | \"empty\"\n  | \"partial-error\"\n  | \"fatal-error\"\n  | \"offline\"\n  | \"ready\";\nfunction StateView({ state, children }: { state: State; children: ReactNode }) {\n  const strings = useStrings();\n  if (state === \"loading\")\n    return (\n      \u003cdiv\n        data-testid=\"templates.dashboard-page\"\n        role=\"status\"\n        style={{ ...panel, textAlign: \"center\" }}\n      \u003e\n        {strings(\"templates.dashboard-page.loading\", \"Loading…\")}\n      \u003c/div\u003e\n    );\n  if (state === \"refreshing\")\n    return (\n      \u003cdiv role=\"status\" style={panel}\u003e\n        \u003cstrong\u003e{strings(\"templates.dashboard-page.refreshing\", \"Refreshing\")}\u003c/strong\u003e\n        {children}\n      \u003c/div\u003e\n    );\n  if (state === \"stale\") return \u003cdiv\u003eShowing stale data{children}\u003c/div\u003e;\n  if (state === \"empty\")\n    return (\n      \u003cdiv data-state=\"empty\" style={{ ...panel, textAlign: \"center\" }}\u003e\n        {strings(\"templates.dashboard-page.nothing-here\", \"Nothing here\")}\n      \u003c/div\u003e\n    );\n  if (state === \"partial-error\")\n    return \u003cdiv role=\"status\"\u003eSome sections need attention{children}\u003c/div\u003e;\n  if (state === \"fatal-error\")\n    return (\n      \u003cdiv role=\"alert\" style={{ ...panel, borderColor: \"var(--color-danger, #dc2626)\" }}\u003e\n        {strings(\"templates.dashboard-page.unable-to-load-this-page\", \"Unable to load this page\")}\n      \u003c/div\u003e\n    );\n  if (state === \"offline\") return \u003cdiv role=\"status\"\u003eOffline{children}\u003c/div\u003e;\n  return \u003c\u003e{children}\u003c/\u003e;\n}\nexport const DashboardPage = withClassName(function DashboardPage({\n  state = \"ready\",\n  data,\n}: {\n  state?: State;\n  data?: {\n    metrics?: Array\u003c{ label: string; value: string }\u003e;\n    detail?: ReactNode;\n    activity?: ReactNode;\n  };\n}) {\n  const strings = useStrings();\n  return (\n    \u003cStateView state={state}\u003e\n      \u003cdiv style={{ display: \"grid\", gap: 16 }}\u003e\n        \u003cheader\u003e\n          \u003ch1 style={{ margin: 0, fontSize: 24 }}\u003e\n            {strings(\"templates.dashboard-page.dashboard\", \"Dashboard\")}\n          \u003c/h1\u003e\n          \u003cp style={muted}\u003e\n            {strings(\n              \"templates.dashboard-page.a-clear-view-of-what-needs-attention\",\n              \"A clear view of what needs attention.\",\n            )}\n          \u003c/p\u003e\n        \u003c/header\u003e\n        \u003csection\n          data-region=\"primary-metrics\"\n          style={{\n            display: \"grid\",\n            gridTemplateColumns: \"repeat(auto-fit, minmax(180px, 1fr))\",\n            gap: 12,\n          }}\n        \u003e\n          {(data?.metrics ?? []).map((metric) =\u003e (\n            \u003carticle key={metric.label} style={panel}\u003e\n              \u003cspan\n                style={{\n                  ...muted,\n                  fontSize: 12,\n                  fontWeight: 700,\n                  textTransform: \"uppercase\",\n                }}\n              \u003e\n                {metric.label}\n              \u003c/span\u003e\n              \u003cstrong style={{ display: \"block\", marginTop: 8, fontSize: 28 }}\u003e\n                {metric.value}\n              \u003c/strong\u003e\n            \u003c/article\u003e\n          ))}\n        \u003c/section\u003e\n        \u003csection data-region=\"detail\" style={panel}\u003e\n          {data?.detail ?? \"Supporting detail\"}\n        \u003c/section\u003e\n        \u003csection data-region=\"activity\" style={panel}\u003e\n          {data?.activity ?? \"Recent activity\"}\n        \u003c/section\u003e\n      \u003c/div\u003e\n    \u003c/StateView\u003e\n  );\n});\n",
+      "ContentSHA256": "9cb9b07854f4ad14ef20e52e82d418c0c20877354d95d98df83758fa11f6d3d2",
+      "ChangelogMD": "",
+      "IndexedAt": "2026-09-07T22:20:52.486054953Z",
+      "CreatedAt": "2026-09-03T00:21:25.912092279Z",
+      "ReleasedAt": "2026-09-03T00:21:25.912092279Z",
+      "Presence": "materialized",
+      "Headers": null,
+      "Files": [
+        {
+          "Path": "DashboardPage.tsx",
+          "Content": "/**\n * @libraryId react-component-library:DashboardPage\n * @displayName DashboardPage\n * @version 1.0.8\n * @tags [\"template\",\"page\",\"data-source\",\"token-bound\"]\n * @warning Managed by React Component Library. Preserve this header when editing adopted copies.\n */\n/** @vrooliComponentSource react-component-library:DashboardPage */\nimport { useStrings } from \"@vrooli/react-component-library/useLocale/1\";\nimport { withClassName } from \"@vrooli/react-component-library/ClassMerge/1\";\n\nimport type { ReactNode } from \"react\";\nconst panel = {\n  border: \"1px solid var(--color-border, #cbd5e1)\",\n  borderRadius: \"var(--radius-panel, 0.5rem)\",\n  background: \"var(--color-surface, #ffffff)\",\n  color: \"var(--color-foreground, #0f172a)\",\n  padding: \"var(--space-md, 24px)\",\n  boxShadow: \"var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10))\",\n};\nconst muted = { color: \"var(--color-muted-foreground, #64748b)\" };\ntype State =\n  | \"loading\"\n  | \"refreshing\"\n  | \"stale\"\n  | \"empty\"\n  | \"partial-error\"\n  | \"fatal-error\"\n  | \"offline\"\n  | \"ready\";\nfunction StateView({ state, children }: { state: State; children: ReactNode }) {\n  const strings = useStrings();\n  if (state === \"loading\")\n    return (\n      \u003cdiv\n        data-testid=\"templates.dashboard-page\"\n        role=\"status\"\n        style={{ ...panel, textAlign: \"center\" }}\n      \u003e\n        {strings(\"templates.dashboard-page.loading\", \"Loading…\")}\n      \u003c/div\u003e\n    );\n  if (state === \"refreshing\")\n    return (\n      \u003cdiv role=\"status\" style={panel}\u003e\n        \u003cstrong\u003e{strings(\"templates.dashboard-page.refreshing\", \"Refreshing\")}\u003c/strong\u003e\n        {children}\n      \u003c/div\u003e\n    );\n  if (state === \"stale\") return \u003cdiv\u003eShowing stale data{children}\u003c/div\u003e;\n  if (state === \"empty\")\n    return (\n      \u003cdiv data-state=\"empty\" style={{ ...panel, textAlign: \"center\" }}\u003e\n        {strings(\"templates.dashboard-page.nothing-here\", \"Nothing here\")}\n      \u003c/div\u003e\n    );\n  if (state === \"partial-error\")\n    return \u003cdiv role=\"status\"\u003eSome sections need attention{children}\u003c/div\u003e;\n  if (state === \"fatal-error\")\n    return (\n      \u003cdiv role=\"alert\" style={{ ...panel, borderColor: \"var(--color-danger, #dc2626)\" }}\u003e\n        {strings(\"templates.dashboard-page.unable-to-load-this-page\", \"Unable to load this page\")}\n      \u003c/div\u003e\n    );\n  if (state === \"offline\") return \u003cdiv role=\"status\"\u003eOffline{children}\u003c/div\u003e;\n  return \u003c\u003e{children}\u003c/\u003e;\n}\nexport const DashboardPage = withClassName(function DashboardPage({\n  state = \"ready\",\n  data,\n}: {\n  state?: State;\n  data?: {\n    metrics?: Array\u003c{ label: string; value: string }\u003e;\n    detail?: ReactNode;\n    activity?: ReactNode;\n  };\n}) {\n  const strings = useStrings();\n  return (\n    \u003cStateView state={state}\u003e\n      \u003cdiv style={{ display: \"grid\", gap: 16 }}\u003e\n        \u003cheader\u003e\n          \u003ch1 style={{ margin: 0, fontSize: 24 }}\u003e\n            {strings(\"templates.dashboard-page.dashboard\", \"Dashboard\")}\n          \u003c/h1\u003e\n          \u003cp style={muted}\u003e\n            {strings(\n              \"templates.dashboard-page.a-clear-view-of-what-needs-attention\",\n              \"A clear view of what needs attention.\",\n            )}\n          \u003c/p\u003e\n        \u003c/header\u003e\n        \u003csection\n          data-region=\"primary-metrics\"\n          style={{\n            display: \"grid\",\n            gridTemplateColumns: \"repeat(auto-fit, minmax(180px, 1fr))\",\n            gap: 12,\n          }}\n        \u003e\n          {(data?.metrics ?? []).map((metric) =\u003e (\n            \u003carticle key={metric.label} style={panel}\u003e\n              \u003cspan\n                style={{\n                  ...muted,\n                  fontSize: 12,\n                  fontWeight: 700,\n                  textTransform: \"uppercase\",\n                }}\n              \u003e\n                {metric.label}\n              \u003c/span\u003e\n              \u003cstrong style={{ display: \"block\", marginTop: 8, fontSize: 28 }}\u003e\n                {metric.value}\n              \u003c/strong\u003e\n            \u003c/article\u003e\n          ))}\n        \u003c/section\u003e\n        \u003csection data-region=\"detail\" style={panel}\u003e\n          {data?.detail ?? \"Supporting detail\"}\n        \u003c/section\u003e\n        \u003csection data-region=\"activity\" style={panel}\u003e\n          {data?.activity ?? \"Recent activity\"}\n        \u003c/section\u003e\n      \u003c/div\u003e\n    \u003c/StateView\u003e\n  );\n});\n",
+          "ContentSHA256": "9cb9b07854f4ad14ef20e52e82d418c0c20877354d95d98df83758fa11f6d3d2",
+          "IsEntry": true,
+          "Slot": ""
+        },
+        {
+          "Path": "DashboardPage.strings.ts",
+          "Content": "import { defineStrings } from \"@vrooli/react-component-library/useLocale/1\";\n\nexport const DashboardPageStrings = defineStrings(\"react-component-library:DashboardPage\", {\n  \"templates.dashboard-page.a-clear-view-of-what-needs-attention\":\n    \"A clear view of what needs attention.\",\n  \"templates.dashboard-page.dashboard\": \"Dashboard\",\n  \"templates.dashboard-page.loading\": \"Loading…\",\n  \"templates.dashboard-page.nothing-here\": \"Nothing here\",\n  \"templates.dashboard-page.refreshing\": \"Refreshing\",\n  \"templates.dashboard-page.unable-to-load-this-page\": \"Unable to load this page\",\n});\n",
+          "ContentSHA256": "16e23408abd212e377bb34d2ab55d61aea23b5bb6ce3cbc01931a4aba0149510",
+          "IsEntry": false,
+          "Slot": ""
+        },
+        {
+          "Path": "dependencies.json",
+          "Content": "{\n  \"schemaVersion\": 2,\n  \"libraryId\": \"react-component-library:DashboardPage\",\n  \"version\": \"1.0.8\",\n  \"resolvedAt\": \"2026-09-02T07:03:55.053Z\",\n  \"dependencies\": [\n    {\n      \"libraryId\": \"react-component-library:ClassMerge\",\n      \"major\": 1,\n      \"observed\": \"1.0.2\",\n      \"rank\": 1\n    },\n    {\n      \"libraryId\": \"react-component-library:useLocale\",\n      \"major\": 1,\n      \"observed\": \"1.1.1\",\n      \"rank\": 2\n    }\n  ]\n}\n",
+          "ContentSHA256": "23aaabcd219b31ac7569c5e7dc964173c278fb65886aab68cbe52da2546a8d4d",
+          "IsEntry": false,
+          "Slot": ""
+        },
+        {
+          "Path": "story.json",
+          "Content": "{\n  \"$schema\": \"../../../../../../.vrooli/schemas/story-contract.schema.json\",\n  \"args\": {\n    \"fields\": []\n  },\n  \"environment\": {\n    \"fixtures\": []\n  },\n  \"kind\": \"component\",\n  \"schemaVersion\": 5,\n  \"stories\": [\n    {\n      \"args\": {\n        \"data\": {\n          \"metrics\": [\n            {\n              \"label\": \"Active\",\n              \"value\": \"42\"\n            }\n          ]\n        },\n        \"state\": \"ready\"\n      },\n      \"expect\": [\n        {\n          \"kind\": \"text\",\n          \"value\": \"42\"\n        }\n      ],\n      \"id\": \"default\",\n      \"mode\": \"pinned\",\n      \"name\": \"default\",\n      \"role\": \"anatomy\"\n    },\n    {\n      \"args\": {\n        \"data\": {\n          \"metrics\": [\n            {\n              \"label\": \"Active\",\n              \"value\": \"42\"\n            }\n          ]\n        },\n        \"state\": \"loading\"\n      },\n      \"expect\": [\n        {\n          \"kind\": \"text\",\n          \"value\": \"Loading\"\n        }\n      ],\n      \"id\": \"loading\",\n      \"mode\": \"pinned\",\n      \"name\": \"loading\",\n      \"role\": \"boundary\"\n    },\n    {\n      \"args\": {\n        \"data\": {\n          \"metrics\": [\n            {\n              \"label\": \"Active\",\n              \"value\": \"42\"\n            }\n          ]\n        },\n        \"state\": \"refreshing\"\n      },\n      \"expect\": [\n        {\n          \"kind\": \"text\",\n          \"value\": \"Refreshing\"\n        }\n      ],\n      \"id\": \"refreshing\",\n      \"mode\": \"pinned\",\n      \"name\": \"refreshing\",\n      \"role\": \"boundary\"\n    },\n    {\n      \"args\": {\n        \"data\": {\n          \"metrics\": [\n            {\n              \"label\": \"Active\",\n              \"value\": \"42\"\n            }\n          ]\n        },\n        \"state\": \"stale\"\n      },\n      \"expect\": [\n        {\n          \"kind\": \"text\",\n          \"value\": \"Showing stale data\"\n        }\n      ],\n      \"id\": \"stale\",\n      \"mode\": \"pinned\",\n      \"name\": \"stale\",\n      \"role\": \"boundary\"\n    },\n    {\n      \"args\": {\n        \"data\": {\n          \"metrics\": [\n            {\n              \"label\": \"Active\",\n              \"value\": \"42\"\n            }\n          ]\n        },\n        \"state\": \"empty\"\n      },\n      \"expect\": [\n        {\n          \"kind\": \"text\",\n          \"value\": \"Nothing here\"\n        }\n      ],\n      \"id\": \"empty\",\n      \"mode\": \"pinned\",\n      \"name\": \"empty\",\n      \"role\": \"boundary\"\n    },\n    {\n      \"args\": {\n        \"data\": {\n          \"metrics\": [\n            {\n              \"label\": \"Active\",\n              \"value\": \"42\"\n            }\n          ]\n        },\n        \"state\": \"partial-error\"\n      },\n      \"expect\": [\n        {\n          \"kind\": \"text\",\n          \"value\": \"Some sections need attention\"\n        }\n      ],\n      \"id\": \"partial-error\",\n      \"mode\": \"pinned\",\n      \"name\": \"partial-error\",\n      \"role\": \"boundary\"\n    },\n    {\n      \"args\": {\n        \"data\": {\n          \"metrics\": [\n            {\n              \"label\": \"Active\",\n              \"value\": \"42\"\n            }\n          ]\n        },\n        \"state\": \"fatal-error\"\n      },\n      \"expect\": [\n        {\n          \"kind\": \"text\",\n          \"value\": \"Unable to load this page\"\n        }\n      ],\n      \"id\": \"fatal-error\",\n      \"mode\": \"pinned\",\n      \"name\": \"fatal-error\",\n      \"role\": \"boundary\"\n    },\n    {\n      \"args\": {\n        \"data\": {\n          \"metrics\": [\n            {\n              \"label\": \"Active\",\n              \"value\": \"42\"\n            }\n          ]\n        },\n        \"state\": \"offline\"\n      },\n      \"expect\": [\n        {\n          \"kind\": \"text\",\n          \"value\": \"Offline\"\n        }\n      ],\n      \"id\": \"offline\",\n      \"mode\": \"pinned\",\n      \"name\": \"offline\",\n      \"role\": \"boundary\"\n    }\n  ],\n  \"title\": \"DashboardPage\"\n}\n",
+          "ContentSHA256": "ac944e08118832f779044816b78d4b29fbf86297c802e7633d07abe32e1d8d09",
+          "IsEntry": false,
+          "Slot": ""
+        },
+        {
+          "Path": "story.tsx",
+          "Content": "// Preview contract exports for DashboardPage 1.0.8.\n// The declarative story contract owns expectations; this module supplies the\n// typed specimen seam for versions whose composition is supplied by a harness.\nexport function Default() { return null; }\nexport function Loading() { return null; }\nexport function Refreshing() { return null; }\nexport function Stale() { return null; }\nexport function Empty() { return null; }\nexport function PartialError() { return null; }\nexport function FatalError() { return null; }\nexport function Offline() { return null; }\n",
+          "ContentSHA256": "cde716e76427bef09ecdf30425fe74c9caf610b1c3f164d9edc50146d4df6841",
+          "IsEntry": false,
+          "Slot": ""
+        }
+      ],
+      "Dependencies": [
+        {
+          "LibraryID": "react-component-library:ClassMerge",
+          "Version": "1.0.2",
+          "Kind": ""
+        },
+        {
+          "LibraryID": "react-component-library:useLocale",
+          "Version": "1.1.1",
+          "Kind": ""
+        }
+      ],
+      "DependencyLockPresent": true,
+      "RequiredTokens": [
+        "--color-border",
+        "--color-danger",
+        "--color-foreground",
+        "--color-muted-foreground",
+        "--color-surface",
+        "--elev-raised",
+        "--radius-panel",
+        "--space-md"
+      ],
+      "RequiredTokenPatterns": null,
+      "KitCompatibility": {
+        "Verdict": "universal",
+        "CompatibleKitIDs": [
+          "switchboard-console",
+          "vrooli-command-display",
+          "vrooli-conversion-landing",
+          "vrooli-default"
+        ],
+        "UnsatisfiedProperties": null
+      },
+      "ExperienceContract": "",
+      "ParityReport": null
+    }
+  ],
+  "Stories": [
+    {
+      "ID": "cb8b0121-7d4c-4be3-a098-d3c10c2d3a22",
+      "ComponentID": "584e4d7e-6d6a-4654-8a0d-9545dfb5e79b",
+      "LibraryID": "react-component-library:DashboardPage",
+      "Version": "1.0.8",
+      "SchemaVersion": 5,
+      "Kind": "component",
+      "Title": "DashboardPage",
+      "ArgsJSON": "{\"fields\":[]}",
+      "EnvironmentJSON": "{\"fixtures\":[]}",
+      "StoriesJSON": "[{\"id\":\"default\",\"name\":\"default\",\"role\":\"anatomy\",\"mode\":\"pinned\",\"args\":{\"data\":{\"metrics\":[{\"label\":\"Active\",\"value\":\"42\"}]},\"state\":\"ready\"},\"expect\":[{\"kind\":\"text\",\"value\":\"42\"}]},{\"id\":\"loading\",\"name\":\"loading\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"metrics\":[{\"label\":\"Active\",\"value\":\"42\"}]},\"state\":\"loading\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Loading\"}]},{\"id\":\"refreshing\",\"name\":\"refreshing\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"metrics\":[{\"label\":\"Active\",\"value\":\"42\"}]},\"state\":\"refreshing\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Refreshing\"}]},{\"id\":\"stale\",\"name\":\"stale\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"metrics\":[{\"label\":\"Active\",\"value\":\"42\"}]},\"state\":\"stale\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Showing stale data\"}]},{\"id\":\"empty\",\"name\":\"empty\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"metrics\":[{\"label\":\"Active\",\"value\":\"42\"}]},\"state\":\"empty\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Nothing here\"}]},{\"id\":\"partial-error\",\"name\":\"partial-error\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"metrics\":[{\"label\":\"Active\",\"value\":\"42\"}]},\"state\":\"partial-error\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Some sections need attention\"}]},{\"id\":\"fatal-error\",\"name\":\"fatal-error\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"metrics\":[{\"label\":\"Active\",\"value\":\"42\"}]},\"state\":\"fatal-error\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Unable to load this page\"}]},{\"id\":\"offline\",\"name\":\"offline\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"metrics\":[{\"label\":\"Active\",\"value\":\"42\"}]},\"state\":\"offline\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Offline\"}]}]",
+      "ContractJSON": "{\"schemaVersion\":5,\"$schema\":\"../../../../../../.vrooli/schemas/story-contract.schema.json\",\"kind\":\"component\",\"title\":\"DashboardPage\",\"args\":{\"fields\":[]},\"environment\":{\"fixtures\":[]},\"stories\":[{\"id\":\"default\",\"name\":\"default\",\"role\":\"anatomy\",\"mode\":\"pinned\",\"args\":{\"data\":{\"metrics\":[{\"label\":\"Active\",\"value\":\"42\"}]},\"state\":\"ready\"},\"expect\":[{\"kind\":\"text\",\"value\":\"42\"}]},{\"id\":\"loading\",\"name\":\"loading\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"metrics\":[{\"label\":\"Active\",\"value\":\"42\"}]},\"state\":\"loading\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Loading\"}]},{\"id\":\"refreshing\",\"name\":\"refreshing\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"metrics\":[{\"label\":\"Active\",\"value\":\"42\"}]},\"state\":\"refreshing\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Refreshing\"}]},{\"id\":\"stale\",\"name\":\"stale\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"metrics\":[{\"label\":\"Active\",\"value\":\"42\"}]},\"state\":\"stale\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Showing stale data\"}]},{\"id\":\"empty\",\"name\":\"empty\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"metrics\":[{\"label\":\"Active\",\"value\":\"42\"}]},\"state\":\"empty\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Nothing here\"}]},{\"id\":\"partial-error\",\"name\":\"partial-error\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"metrics\":[{\"label\":\"Active\",\"value\":\"42\"}]},\"state\":\"partial-error\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Some sections need attention\"}]},{\"id\":\"fatal-error\",\"name\":\"fatal-error\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"metrics\":[{\"label\":\"Active\",\"value\":\"42\"}]},\"state\":\"fatal-error\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Unable to load this page\"}]},{\"id\":\"offline\",\"name\":\"offline\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"metrics\":[{\"label\":\"Active\",\"value\":\"42\"}]},\"state\":\"offline\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Offline\"}]}]}",
+      "SourcePath": "components/DashboardPage/versions/1.0.8/story.json",
+      "IndexedAt": "2026-09-07T22:20:52.486054953Z"
+    }
+  ]
+}

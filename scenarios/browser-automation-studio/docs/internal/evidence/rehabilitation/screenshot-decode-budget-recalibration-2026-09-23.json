@@ -1,0 +1,195 @@
+{
+  "cycle": "106",
+  "date": "2026-09-23",
+  "status": "deployed_writer_peak_reduced_capture_outcome_in_band_managed_fullpage_peak_unverified",
+  "issue": "BAS-RF-119",
+  "candidate_before_restart": "sha256:a708c5cc95548c958ab2ae0f42e67dc9e711397eebe357b5aa37e2b98911891b",
+  "candidate_after_restart": "sha256:6aa67b6b0db708dc1807d412458ba236e654f2677ff19ed82873662630f41180",
+  "hypotheses": [
+    {
+      "id": "H1",
+      "claim": "The 192 MiB / 5 B-per-pixel owner caps resident heap near its budget under concurrent large screenshots.",
+      "result": "rejected",
+      "evidence": "Ten independent FileWriter calls with that policy peaked at 277719 KiB PSS, greater than the estimated admission limit."
+    },
+    {
+      "id": "H2",
+      "claim": "The weighted gate releases reservations between decode batches while Go retains prior raster pages, so later decodes raise resident PSS beyond active estimated weight.",
+      "result": "confirmed",
+      "evidence": "The same ten-writer fixture peaked at 277719 KiB with 5 B/pixel while live heap at the shared storage barrier was 131267208 bytes; opening admission to 2 GiB peaked at 664296 KiB."
+    },
+    {
+      "id": "H3",
+      "claim": "Charging 10 B/pixel admits one realistic 16.384 MP raster and materially reduces writer-process PSS while preserving exact artifacts.",
+      "result": "confirmed in an isolated owner probe; managed service peak remains unverified",
+      "evidence": "The same ten-writer control peaked at 149479 KiB, live heap at the barrier was 65736136 bytes, and all ten stored artifacts completed. The maintained owner test also persists the fixture byte-for-byte."
+    }
+  ],
+  "prior_art": {
+    "search": "search-hub query for canceled screenshot validation returned the current RF119 work and earlier BAS cancellation-evidence history. Source inspection showed SimpleExecutor intentionally uses context.WithTimeout(context.WithoutCancel(ctx), 30 seconds) so terminal evidence survives cancellation; that rejected the initial hypothesis that the writer should abandon canceled-work evidence.",
+    "reused_receipt": "internal/evidence/rehabilitation/screenshot-decode-admission-2026-09-23.json"
+  },
+  "fixture": {
+    "source": "api/automation/execution-writer/testdata/full-page-1280x12800.png",
+    "dimensions": [1280, 12800],
+    "pixels": 16384000,
+    "encoded_bytes": 74107,
+    "sha256": "5c4a1af045071c71aaf3fbb6d5515e94f84e65474e4145209e4e8e123723d5a5"
+  },
+  "measurement": {
+    "producer": "docs/internal/evidence/rehabilitation/screenshot-decode-writer-probe-2026-09-23.go",
+    "command": "go run ../docs/internal/evidence/rehabilitation/screenshot-decode-writer-probe-2026-09-23.go 10",
+    "working_directory": "scenarios/browser-automation-studio/api",
+    "cases": [
+      {
+        "policy": "unrestricted control; 2 GiB admission limit, all ten fixture weights fit",
+        "command_variant": "go run -overlay=/tmp/bas-rf119-10b-open-cycle106-overlay.json ../docs/internal/evidence/rehabilitation/screenshot-decode-writer-probe-2026-09-23.go 10",
+        "baseline_pss_kib": 17772,
+        "peak_pss_kib": 664296,
+        "live_heap_delta_at_storage_barrier_bytes": 656004120,
+        "total_allocated_bytes": 658919144,
+        "all_calls_reached_storage": true,
+        "group_completion_ms": 230
+      },
+      {
+        "policy": "original 192 MiB / 5 B-per-pixel estimate",
+        "command_variant": "go run -overlay=/tmp/bas-rf119-5b-192m-cycle106-overlay.json ../docs/internal/evidence/rehabilitation/screenshot-decode-writer-probe-2026-09-23.go 10",
+        "baseline_pss_kib": 17567,
+        "peak_pss_kib": 277719,
+        "live_heap_delta_at_storage_barrier_bytes": 131267208,
+        "total_allocated_bytes": 659442008,
+        "all_calls_reached_storage": true,
+        "group_completion_ms": 405
+      },
+      {
+        "policy": "current-source candidate 192 MiB / 10 B-per-pixel estimate",
+        "command_variant": "go run ../docs/internal/evidence/rehabilitation/screenshot-decode-writer-probe-2026-09-23.go 10",
+        "baseline_pss_kib": 17851,
+        "peak_pss_kib": 149479,
+        "live_heap_delta_at_storage_barrier_bytes": 65736136,
+        "total_allocated_bytes": 660517600,
+        "all_calls_reached_storage": true,
+        "group_completion_ms": 655
+      }
+    ],
+    "method": "Each condition ran in a fresh Go process with the same managed full-page PNG, ten goroutines calling the production FileWriter.RecordStepOutcome, and MemoryStorage blocked until every call reached storage. A 1 ms sampler read process PSS from /proc/self/smaps_rollup; Go runtime heap and allocation counters were sampled at the barrier and after completion. Overlay variants changed only the policy constants and were not production source edits.",
+    "interpretation": "Ten-byte admission cut peak process PSS by 46.2% relative to the old 5-byte estimate and 77.5% relative to unrestricted admission. Ten-way group completion was 61.7% slower than the five-byte policy in this isolated large-image stress case. Total allocated bytes were nearly unchanged; peak residency and admitted concurrency changed."
+  },
+  "implementation": {
+    "changed_paths": [
+      "api/automation/execution-writer/screenshot_decode_budget.go",
+      "api/automation/execution-writer/file_writer_test.go",
+      "docs/concepts/ARCHITECTURE.md",
+      "docs/internal/DECISIONS.md",
+      "docs/PROBLEMS.md",
+      "docs/internal/REFRACTOR_PROGRESS.md",
+      "docs/internal/evidence/rehabilitation/screenshot-decode-writer-probe-2026-09-23.go"
+    ],
+    "policy": "Keep the process-wide 192 MiB budget and charge ten estimated bytes per pixel. A 16.384 MP full-page fixture remains supported; two such estimates cannot be admitted together. Estimates over budget reject before full raster allocation.",
+    "regression": "TestManagedFullPageScreenshotPersistsWithinDecodeBudget now asserts that one fixture fits and two estimates exceed the shared budget; the assertion failed before the constant change and passes after it."
+  },
+  "validation": {
+    "red_before_fix": {
+      "command": "go test ./automation/execution-writer -run '^TestManagedFullPageScreenshotPersistsWithinDecodeBudget$' -count=1",
+      "result": "failed as expected: 163840000 is not greater than 201326592 under the original 5 B-per-pixel estimate"
+    },
+    "focused_and_race": {
+      "commands": [
+        "go test ./automation/execution-writer -run '^TestManagedFullPageScreenshotPersistsWithinDecodeBudget$' -count=1",
+        "go test ./automation/execution-writer -count=1",
+        "go test -race ./automation/execution-writer -count=1"
+      ],
+      "result": "all passed"
+    },
+    "benchmark": {
+      "command": "go test ./automation/execution-writer -run '^$' -bench '^BenchmarkScreenshotOutcomePersistenceExpandedRaster$' -benchtime=1x -benchmem",
+      "result": "passed",
+      "ns_per_op": 91006432,
+      "bytes_per_op": 66613208,
+      "allocs_per_op": 7580,
+      "pixels_per_op": 16384000,
+      "qualification": "One local iteration; not a statistically comparable latency claim."
+    }
+  },
+  "managed_validation": {
+    "lifecycle": {
+      "command": "make -C scenarios/browser-automation-studio restart",
+      "result": "succeeded; BAS healthy; no required credential gaps; optional Claude API key unavailable",
+      "build_identity": "sha256:6aa67b6b0db708dc1807d412458ba236e654f2677ff19ed82873662630f41180"
+    },
+    "capture_workloads": [
+      {
+        "operation_id": "25f846c6af496769fe125e0a7ff29a30",
+        "outcome": "WORKLOAD_OUTCOME_MEASURED",
+        "attempts": 101,
+        "samples": 100,
+        "warmups": 1,
+        "p95_ms": 445,
+        "wall_p95_ms": 606.559757,
+        "within_2000ms": true,
+        "build_identity": "sha256:6aa67b6b0db708dc1807d412458ba236e654f2677ff19ed82873662630f41180",
+        "receipt_sha256": "ea4729d3b5433d3e37a3f3091a0cf0e6459b3b86e15c597cc1750b369f611e1f",
+        "memory_observation": "20 ms sampler found API peak 80046 KiB and driver peak 250048 KiB separately. Their 330094 KiB sum is an upper bound only; maxima were not synchronized. A later point sample after the workload was 162263 KiB combined."
+      },
+      {
+        "operation_id": "eba895ae48189202f9e7924fb1fd49ab",
+        "outcome": "WORKLOAD_OUTCOME_MEASURED",
+        "attempts": 101,
+        "samples": 100,
+        "warmups": 1,
+        "p95_ms": 358,
+        "wall_p95_ms": 522.358187,
+        "within_2000ms": true,
+        "build_identity": "sha256:6aa67b6b0db708dc1807d412458ba236e654f2677ff19ed82873662630f41180",
+        "receipt_sha256": "cf7bb6ce8ed3f35c615f72d78c422906150090b0c229fd8d85b542f8792e6a95",
+        "memory_sampler": {
+          "interval_ms": 20,
+          "samples": 2032,
+          "baseline_api_pss_kib": 77661,
+          "baseline_driver_pss_kib": 83324,
+          "baseline_same_tick_sum_pss_kib": 160985,
+          "max_api_pss_kib": 81953,
+          "max_driver_pss_kib": 122288,
+          "max_same_tick_sum_pss_kib": 203405,
+          "separate_process_maxima_sum_pss_kib": 204241
+        }
+      }
+    ],
+    "setpoint": {
+      "command": "program-runtime library run browser-automation-studio.setpoint-read --input profile=rehabilitation",
+      "program_run": "prog_80219996-aa46-444f-8223-402648e118c4",
+      "result": "succeeded",
+      "readable": 1,
+      "unavailable": 16,
+      "capture_operation": "eba895ae48189202f9e7924fb1fd49ab",
+      "product_qualified": false
+    },
+    "learning_queue": {
+      "program_run": "prog_34275658-06a2-4d36-a203-e7986b3303d1",
+      "owner": "browser-automation-studio",
+      "result": "succeeded; no open owner learning findings"
+    },
+    "contract_and_inventory": {
+      "contract_command": "python3 scenarios/browser-automation-studio/docs/internal/refactor_contract.py",
+      "contract_result": "preparation valid; 24 journeys, zero errors; product qualification false",
+      "inventory_command": "python3 scenarios/browser-automation-studio/docs/internal/refactor_inventory.py --include-untracked",
+      "source_digest_sha256": "769b716ce412812059dc7269c5ec99156031f8de00d262c15e348b21f6f8137a",
+      "scoped_diff_check": "git diff --check -- scenarios/browser-automation-studio passed"
+    },
+    "performance_interpretation": "Both current-build capture cohorts remain in band. Service p95 varied 445 ms then 358 ms on the same candidate, so these two runs do not attribute the difference to the estimate change or establish a comparable latency regression. The current-build active same-tick API+driver sample stayed below 300 MiB, but the contract limit is idle-only and this workload does not exercise full-page writer rasters."
+  },
+  "limitations": [
+    "Direct writer PSS measurements use the actual FileWriter with in-memory storage and do not establish managed API+driver peak PSS during full-page captures or browser memory.",
+    "Full-page JPEG cohorts, repeated ten-writer runs, Windows private memory, and storage backpressure in the production object store remain unmeasured.",
+    "The admission estimate is not a hard total-process PSS cap. Go may retain heap pages after a permit is released.",
+    "The ten-byte estimate lowers maximum accepted raster estimates to about 20.1 MP; larger captures now fail explicitly. The product impact for pages above the retained 16.384 MP fixture is unqualified.",
+    "The one managed cohort's regular viewport captures do not validate full-page API writer peak PSS; the larger workload outcome and profile data remain unqualified."
+  ],
+  "complexity_and_debt": {
+    "code_debt_reduction_claimed": false,
+    "callers_converted": "Both production FileWriter constructions share the one process-level admission owner through the canonical writer path.",
+    "obsolete_paths_deleted": "None; no alternate decoder or dependency added.",
+    "tradeoff": "One concurrency invariant was strengthened in the existing admission owner and a retained measurement probe was added. Source grows; no domain-wide complexity, duplication, or coupling reduction is claimed."
+  },
+  "recheck": "Measure managed API+driver PSS during controlled concurrent full-page PNG and JPEG captures, including late page sizes near the 20.1 MP admission boundary. Preserve the 16.384 MP artifact, malformed/truncated rejection and 2 s capture band; revisit if repeated comparable cohorts distinguish a greater-than-5% p95 regression or a supported page above 16.384 MP is rejected."
+}

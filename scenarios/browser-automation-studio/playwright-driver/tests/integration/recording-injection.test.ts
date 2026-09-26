@@ -1,3 +1,4 @@
+import { generateActivationScript } from '../../src/recording/capture/init-script-generator';
 /**
  * Integration Tests for Recording Script Injection
  *
@@ -22,6 +23,7 @@ import {
   verifyScriptInjection,
   assertScriptInjected,
   waitForScriptReady,
+  generateDeactivationScript,
 } from '../../src/recording';
 import type { RawBrowserEvent } from '../../src/recording/types';
 
@@ -206,6 +208,7 @@ describe('Recording Script Injection (Integration)', () => {
 
       // Wait for script to be ready
       await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('injection-fixture'));
 
       // Click the button
       await page.click('#test-btn');
@@ -231,6 +234,7 @@ describe('Recording Script Injection (Integration)', () => {
       await page.goto(server.getUrl('/test-input'));
 
       await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('injection-fixture'));
 
       // Type in the input
       await page.fill('#test-input', 'test input');
@@ -243,6 +247,173 @@ describe('Recording Script Injection (Integration)', () => {
         (e) => e.actionType === 'type' || e.actionType === 'input'
       );
       expect(inputEvents.length).toBeGreaterThan(0);
+    });
+
+    it('[REQ:BAS-RH-J02] preserves final snapshots across replacement, deletion, paste, composition, and clear', async () => {
+      server.setPage(
+        '/test-j02-input-snapshots',
+        `<html><head></head><body>
+          <input type="text" id="test-input" value="initial" />
+          <script>
+            window.fixtureInputLog = [];
+            document.querySelector('#test-input').addEventListener('input', event => {
+              window.fixtureInputLog.push({ value: event.target.value, inputType: event.inputType });
+            });
+          </script>
+        </body></html>`
+      );
+      await page.goto(server.getUrl('/test-j02-input-snapshots'));
+      await waitForScriptReady(page, 5000);
+      await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(page.url()).origin });
+      await page.evaluate(generateActivationScript('j02-input-snapshot-fixture'));
+
+      const pauseForSnapshot = () => page.waitForTimeout(700);
+      await page.fill('#test-input', 'typed before a pause');
+      await pauseForSnapshot();
+
+      await page.locator('#test-input').click();
+      await page.keyboard.press('Control+A');
+      await page.keyboard.type('replacement');
+      await pauseForSnapshot();
+
+      await page.keyboard.press('Home');
+      await page.keyboard.press('Shift+ArrowRight');
+      await page.keyboard.press('Shift+ArrowRight');
+      await page.keyboard.press('Backspace');
+      await pauseForSnapshot();
+
+      await page.evaluate(async () => navigator.clipboard.writeText('pasted value'));
+      await page.keyboard.press('Control+A');
+      await page.keyboard.press('Control+V');
+      await pauseForSnapshot();
+
+      // Chromium automation cannot supply a native OS IME. Exercise the browser
+      // composition/input commit path explicitly and keep that limitation clear.
+      await page.evaluate(() => {
+        const input = document.querySelector<HTMLInputElement>('#test-input');
+        if (!input) throw new Error('fixture input is missing');
+        input.focus();
+        input.value = '東京';
+        input.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true, data: '' }));
+        input.dispatchEvent(new CompositionEvent('compositionupdate', { bubbles: true, data: '東京' }));
+        input.dispatchEvent(new InputEvent('input', {
+          bubbles: true, data: '東京', inputType: 'insertCompositionText', isComposing: true,
+        }));
+        input.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '東京' }));
+        input.dispatchEvent(new InputEvent('input', {
+          bubbles: true, data: '東京', inputType: 'insertFromComposition', isComposing: false,
+        }));
+      });
+      await pauseForSnapshot();
+
+      await page.fill('#test-input', '');
+      await page.evaluate(generateDeactivationScript());
+      await page.waitForFunction(() => {
+        const telemetry = (window as Window & {
+          __vrooli_recording_telemetry?: { eventsCaptured: number; eventsSent: number; eventsSendSuccess: number };
+        }).__vrooli_recording_telemetry;
+        return Boolean(telemetry && telemetry.eventsCaptured >= 6 && telemetry.eventsSent === telemetry.eventsSendSuccess);
+      });
+
+      const fixtureValues = await page.evaluate(() => (window as Window & {
+        fixtureInputLog?: Array<{ value: string; inputType: string }>;
+      }).fixtureInputLog?.map(entry => entry.value) ?? []);
+      const snapshots = capturedEvents
+        .filter((event) => event.actionType === 'type')
+        .map((event) => event.payload?.text);
+      for (const expected of ['typed before a pause', 'replacement', 'placement', 'pasted value', '東京', '']) {
+        expect(fixtureValues).toContain(expected);
+        expect(snapshots).toContain(expected);
+      }
+      expect(snapshots.at(-1)).toBe('');
+    });
+
+    it('records the final empty input value when recording stops', async () => {
+      server.setPage(
+        '/test-empty-input-stop',
+        '<html><head></head><body><input type="text" id="test-input" value="initial" /></body></html>'
+      );
+      await page.goto(server.getUrl('/test-empty-input-stop'));
+      await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('empty-input-stop-fixture'));
+
+      await page.fill('#test-input', 'temporary');
+      await page.fill('#test-input', '');
+      await page.evaluate(generateDeactivationScript());
+
+      const typeEvents = capturedEvents.filter((event) => event.actionType === 'type');
+      expect(typeEvents).toHaveLength(1);
+      expect(typeEvents[0]?.payload?.text).toBe('');
+    });
+
+    it('flushes a debounced input edit before acknowledging recording stop', async () => {
+      server.setPage(
+        '/test-pending-input-stop',
+        '<html><head></head><body><input type="text" id="test-input" /></body></html>'
+      );
+      await page.goto(server.getUrl('/test-pending-input-stop'));
+      await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('pending-input-stop-fixture'));
+
+      await page.fill('#test-input', 'captured before debounce');
+      await page.evaluate(generateDeactivationScript());
+
+      const typeEvents = capturedEvents.filter((event) => event.actionType === 'type');
+      expect(typeEvents).toHaveLength(1);
+      expect(typeEvents[0]?.payload?.text).toBe('captured before debounce');
+    });
+
+    it('never sends a password value in passive recording events', async () => {
+      const secret = 'BAS_SYNTHETIC_PASSWORD_SENTINEL_9f52';
+      const attributeSecret = 'BAS_SYNTHETIC_PASSWORD_ATTRIBUTE_SENTINEL_31ac';
+      const otpSecret = 'BAS_SYNTHETIC_OTP_SENTINEL_d821';
+      server.setPage(
+        '/test-password-redaction',
+        `<html><head></head><body>
+          <label for="password">Password</label>
+          <input type="password" id="password" placeholder="Enter password" value="${attributeSecret}" />
+          <label for="otp">One time code</label>
+          <input type="text" id="otp" autocomplete="one-time-code" />
+          <button id="outside">Continue</button>
+        </body></html>`
+      );
+      await page.goto(server.getUrl('/test-password-redaction'));
+      await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('password-redaction-fixture'));
+
+      await page.click('#password');
+      await page.fill('#password', secret);
+      await page.fill('#otp', otpSecret);
+      await page.click('#outside');
+      await page.evaluate(() => window.dispatchEvent(new Event('beforeunload')));
+
+      await page.waitForFunction(() => {
+        const telemetry = (
+          window as Window & {
+            __vrooli_recording_telemetry?: {
+              eventsCaptured: number;
+              eventsSent: number;
+              eventsSendSuccess: number;
+            };
+          }
+        ).__vrooli_recording_telemetry;
+        return Boolean(
+          telemetry &&
+          telemetry.eventsCaptured >= 2 &&
+          telemetry.eventsSent === telemetry.eventsSendSuccess
+        );
+      });
+
+      expect(capturedEvents.some((event) => event.actionType === 'click')).toBe(true);
+      expect(JSON.stringify(capturedEvents)).not.toContain(secret);
+      expect(JSON.stringify(capturedEvents)).not.toContain(attributeSecret);
+      expect(JSON.stringify(capturedEvents)).not.toContain(otpSecret);
+      const pendingEvents = await page.evaluate(
+        () => sessionStorage.getItem('__vrooli_pending_events__') || ''
+      );
+      expect(pendingEvents).not.toContain(secret);
+      expect(pendingEvents).not.toContain(attributeSecret);
+      expect(pendingEvents).not.toContain(otpSecret);
     });
 
     it('should capture History API navigation (proves MAIN context)', async () => {
@@ -258,6 +429,7 @@ describe('Recording Script Injection (Integration)', () => {
       await page.goto(server.getUrl('/test-history'));
 
       await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('injection-fixture'));
 
       // Click button that triggers pushState
       await page.click('#nav-btn');
@@ -325,10 +497,12 @@ describe('Recording Script Injection (Integration)', () => {
 
       await page.goto(server.getUrl('/test-multi-1'));
       await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('injection-fixture'));
 
       // Navigate to another page (triggers re-injection)
       await page.goto(server.getUrl('/test-multi-2'));
       await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('injection-fixture'));
 
       // Click button
       await page.click('#btn2');

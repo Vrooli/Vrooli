@@ -1,0 +1,206 @@
+{
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "notes.surface": {
+      "testId": "notes-surface",
+      "selector": "[data-testid=\"notes-surface\"]"
+    },
+    "notes.card": {
+      "testId": "notes-card",
+      "selector": "[data-testid=\"notes-card\"]"
+    },
+    "notes.list": {
+      "testId": "notes-list",
+      "selector": "[data-testid=\"notes-list\"]"
+    },
+    "notes.loading": {
+      "testId": "notes-loading",
+      "selector": "[data-testid=\"notes-loading\"]"
+    },
+    "notes.empty": {
+      "testId": "notes-empty",
+      "selector": "[data-testid=\"notes-empty\"]"
+    },
+    "notes.error": {
+      "testId": "notes-error",
+      "selector": "[data-testid=\"notes-error\"]"
+    },
+    "notes.createButton": {
+      "testId": "notes-create-button",
+      "selector": "[data-testid=\"notes-create-button\"]"
+    },
+    "notes.createdAt": {
+      "testId": "notes-created-at",
+      "selector": "[data-testid=\"notes-created-at\"]"
+    },
+    "notes.attachmentCount": {
+      "testId": "notes-attachment-count",
+      "selector": "[data-testid=\"notes-attachment-count\"]"
+    },
+    "notes.attachmentUpload": {
+      "testId": "notes-attachment-upload",
+      "selector": "[data-testid=\"notes-attachment-upload\"]"
+    },
+    "notes.attachmentFile": {
+      "testId": "notes-attachment-file",
+      "selector": "[data-testid=\"notes-attachment-file\"]"
+    },
+    "notes.attachmentButton": {
+      "testId": "notes-attachment-button",
+      "selector": "[data-testid=\"notes-attachment-button\"]"
+    },
+    "notes.attachmentStatus": {
+      "testId": "notes-attachment-status",
+      "selector": "[data-testid=\"notes-attachment-status\"]"
+    },
+    "notes.measure.card": {
+      "testId": "notes-measure-card",
+      "selector": "[data-testid=\"notes-measure-card\"]"
+    },
+    "notes.measure.value": {
+      "testId": "notes-measure-value",
+      "selector": "[data-testid=\"notes-measure-value\"]"
+    },
+    "notes.measure.loading": {
+      "testId": "notes-measure-loading",
+      "selector": "[data-testid=\"notes-measure-loading\"]"
+    },
+    "notes.measure.error": {
+      "testId": "notes-measure-error",
+      "selector": "[data-testid=\"notes-measure-error\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.navigation": {
+      "testId": "layout-shell-navigation",
+      "selector": "[data-testid=\"layout-shell-navigation\"]"
+    },
+    "layout.tabs": {
+      "testId": "layout-shell-tabs",
+      "selector": "[data-testid=\"layout-shell-tabs\"]"
+    },
+    "layout.main": {
+      "testId": "layout-shell-main",
+      "selector": "[data-testid=\"layout-shell-main\"]"
+    },
+    "layout.brand": {
+      "testId": "layout-shell-brand",
+      "selector": "[data-testid=\"layout-shell-brand\"]"
+    },
+    "layout.skip": {
+      "testId": "layout-shell-skip",
+      "selector": "[data-testid=\"layout-shell-skip\"]"
+    },
+    "settingsPage.themeSelect": {
+      "testId": "page-settings-theme",
+      "selector": "[data-testid=\"page-settings-theme\"]"
+    },
+    "settingsPage.localeSelect": {
+      "testId": "page-settings-locale",
+      "selector": "[data-testid=\"page-settings-locale\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.dashboardHeader": {
+      "testId": "page-dashboard-header",
+      "selector": "[data-testid=\"page-dashboard-header\"]"
+    },
+    "pages.dashboardPlaceholder": {
+      "testId": "page-dashboard-placeholder",
+      "selector": "[data-testid=\"page-dashboard-placeholder\"]"
+    },
+    "pages.notes": {
+      "testId": "page-notes",
+      "selector": "[data-testid=\"page-notes\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "layout.navLink": {
+      "description": "Primary navigation link by canonical nav key; the phone tab derives `-tab` from the same id",
+      "selectorPattern": "[data-testid=\"layout-nav-${key}\"]",
+      "testIdPattern": "layout-nav-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "notes",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.navTab": {
+      "description": "Phone tab-bar item by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-${key}-tab\"]",
+      "testIdPattern": "layout-nav-${key}-tab",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "notes",
+            "settings"
+          ]
+        }
+      ]
+    }
+  }
+}
