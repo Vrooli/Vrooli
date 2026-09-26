@@ -85,13 +85,13 @@ describe('CdpScreencastStrategy', () => {
       for (let frame = 0; frame < 300; frame++) {
         cdp.session.emit('Page.screencastFrame', {
           sessionId: frame,
-          metadata: {},
+          metadata: { timestamp: frame / 30 },
           data: Buffer.from(`frame-${frame}`).toString('base64'),
         });
-        await jest.advanceTimersByTimeAsync(33);
+        await jest.advanceTimersByTimeAsync([32, 33, 35][frame % 3]);
       }
 
-      expect(socket.send.mock.calls.length).toBeGreaterThanOrEqual(295);
+      expect(socket.send.mock.calls.length).toBeGreaterThanOrEqual(299);
     } finally {
       await handle.stop();
       jest.useRealTimers();

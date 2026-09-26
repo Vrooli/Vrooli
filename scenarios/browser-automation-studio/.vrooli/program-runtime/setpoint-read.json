@@ -38,6 +38,7 @@
     "a row whose sensor has no governed binding is reported unavailable with the reason, not computed by hand",
     "passive-fidelity, profile-durability, cancellation-recovery, and resource-budget use their own provider maturity capability from the exact current rehabilitation phase",
     "capture and rehabilitation owner readings must match the live managed BAS build identity",
+    "rehabilitation rows are unavailable unless lifecycle freshness proves every managed BAS artifact is current",
     "the envelope is printed exactly once, on every path",
     "no setpoint row is computed by hand from files; a row without a governed sensor reads unavailable with the reason",
     "rehabilitation rows cover every required REFRACTOR_CONTRACT.json outcome",
@@ -92,6 +93,10 @@
     {
       "id": "vrooli/scenario/status",
       "effect": "read"
+    },
+    {
+      "id": "vrooli/scenario/freshness",
+      "effect": "read"
     }
   ],
   "outputs": {
@@ -139,7 +144,7 @@
     "evidence": "sensor command names, one per row"
   },
   "budget": {
-    "wall_ms": 60000,
+    "wall_ms": 110000,
     "async": true,
     "async_reason": "The desktop/browser setpoint read waits on external owner conditions and may reach the synchronous invoke ceiling; callers wait once for its terminal result.",
     "inference_calls": 0,

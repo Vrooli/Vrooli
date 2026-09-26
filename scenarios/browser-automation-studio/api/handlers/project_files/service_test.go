@@ -3,8 +3,6 @@ package project_files //nolint:revive // Package name mirrors the public project
 import (
 	"context"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	project_filesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/project_files"
 	project_filesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/project_files/project_filesconnect"
 )
@@ -136,10 +135,7 @@ func newTestClient(t *testing.T, d clientDeps) project_filesconnect.ProjectFiles
 		d.osi = &fakeOS{}
 	}
 	mount := Module(Deps{Repo: d.repo, Catalog: d.catalog, OS: d.osi, Logger: logger})
-	mux := http.NewServeMux()
-	mux.Handle(mount.Path, mount.Handler)
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
+	srv := testutil.StartConnectServer(t, mount.Path, mount.Handler)
 	return project_filesconnect.NewProjectFilesServiceClient(srv.Client(), srv.URL)
 }
 

@@ -1,0 +1,211 @@
+{
+  "date": "2026-09-24",
+  "issue": "BAS-RF-119",
+  "candidate": {
+    "build_identity": "sha256:3e81cd3eecfb96b02422eda46141cfab78209c1a47adbc31627aa2e08e1fb9f9",
+    "managed_api_pid": 2204427,
+    "managed_driver_pid": 2204610,
+    "storage_backend": "managed local FileStorage"
+  },
+  "contract_preparation": {
+    "valid": true,
+    "preservation_journeys": 24,
+    "errors": 0,
+    "product_qualification": false
+  },
+  "source_inventory": {
+    "include_untracked": true,
+    "digest_sha256": "851583a4d37a1ac20a5f41ec34f3e3813026762f7f233bf65d9162e4e2fa1dc9"
+  },
+  "governed_setpoint": {
+    "program_run_id": "prog_cfdcb5f3-760e-4a52-a42f-e918a34d0303",
+    "capture_p95_ms": 425,
+    "readable_outcomes": 1,
+    "required_outcomes": 17,
+    "unavailable_outcomes": 16,
+    "product_qualified": false
+  },
+  "sampling_method": {
+    "process_sources": ["/proc/<pid>/stat", "/proc/<pid>/smaps_rollup", "/proc/<pid>/io"],
+    "host_source": "/proc/pressure/io",
+    "active_sample_interval_ms": 50,
+    "idle_sample_interval_ms": 1000,
+    "notes": [
+      "CPU percentage is normalized to one core; it can exceed100% across API and driver processes.",
+      "Kernel task delay accounting is disabled (/proc/sys/kernel/task_delayacct=0).",
+      "Ptrace attach for syscall duration tracing was denied by host policy.",
+      "I/O PSI is host-wide and cannot be attributed to BAS."
+    ]
+  },
+  "idle_window": {
+    "duration_seconds": 59.316,
+    "samples": 60,
+    "combined_cpu_percent_one_core": {
+      "average": 0.1,
+      "p95_sample": 1.0,
+      "peak_sample": 1.98
+    },
+    "combined_pss_kib": {
+      "minimum": 136090,
+      "maximum": 196596,
+      "last": 136158
+    },
+    "api_io_delta": {
+      "rchar": 30410,
+      "wchar": 179490,
+      "syscr": 313,
+      "syscw": 344,
+      "read_bytes": 126976,
+      "write_bytes": 184320,
+      "cancelled_write_bytes": 12288
+    },
+    "host_io_pressure_total_usec_delta": {
+      "some": 5533380,
+      "full": 5315430
+    }
+  },
+  "owner_viewport_workload": {
+    "command": "performance-health sweep workload-run browser-automation-studio capture --json",
+    "operation_id": "6de6fbe26ed3ac95e80da95bfbdb27f7",
+    "receipt_sha256": "6b1d0adcb58dcb4e07305088403d86dedb62757430fb278f4b82a3714b45cb37",
+    "outcome": "WORKLOAD_OUTCOME_MEASURED",
+    "within_budget": true,
+    "build_identity": "sha256:3e81cd3eecfb96b02422eda46141cfab78209c1a47adbc31627aa2e08e1fb9f9",
+    "attempts": 101,
+    "warmups": 1,
+    "service_p95_ms": 425,
+    "wall_p95_ms": 608.32103,
+    "budget_ms": 2000,
+    "duration_seconds": 56.437,
+    "sample_count": 1018,
+    "combined_cpu_percent_one_core": {
+      "average": 14.54,
+      "p95_sample": 36.73,
+      "peak_sample": 109.41
+    },
+    "combined_pss_kib": {
+      "minimum": 136130,
+      "maximum": 190378,
+      "last": 182788
+    },
+    "api_io_delta": {
+      "rchar": 35804230,
+      "wchar": 115121362,
+      "syscr": 10746,
+      "syscw": 12478,
+      "read_bytes": 4071424,
+      "write_bytes": 124698624,
+      "cancelled_write_bytes": 876544
+    },
+    "driver_io_delta": {
+      "rchar": 8683877,
+      "wchar": 84668460,
+      "syscr": 20334,
+      "syscw": 34701,
+      "read_bytes": 3125248,
+      "write_bytes": 0,
+      "cancelled_write_bytes": 0
+    },
+    "host_io_pressure_total_usec_delta": {
+      "some": 4322245,
+      "full": 4095062
+    },
+    "fixture_scope": "Fixed viewport fixture, not full-page."
+  },
+  "managed_fullpage_cohort": {
+    "workload": "Ten concurrent transient adhoc executions using a synthetic CSS1280x3200 page at DPR2; five PNG and five screenshot quality80 JPEG captures.",
+    "workflow_persisted": false,
+    "successful_executions": 10,
+    "wall_seconds": 4.043,
+    "execution_wall_ms": [
+      3794.98,
+      3949.07,
+      3797.3,
+      4021.4,
+      3790.7,
+      2051.07,
+      2996.82,
+      2997.71,
+      1839.93,
+      1971.51
+    ],
+    "execution_ids": [
+      "e8697585-8641-4733-be8c-33d915b9dda1",
+      "4642619d-a229-45d6-a0a3-92f34c8cc32f",
+      "358ddfd8-292e-4572-94c4-1e5b41d63bc1",
+      "f920e6f3-d521-46d3-be7b-a2829a82139b",
+      "39665f99-7b67-4d75-8bb7-d21d9073395b",
+      "29493758-82cf-42f6-aa49-3e29a16efca8",
+      "7bf7d0ad-4a55-4d40-a5d3-4a3ab74f3dfa",
+      "709d8e98-e10e-42c1-8d7d-711ff78ba4b2",
+      "66b8e85c-a068-4b96-b5e3-d404aba11f19",
+      "9eea960f-86dd-4820-83bb-8da6d6cf49e9"
+    ],
+    "screenshot_artifacts_verified": 20,
+    "fullpage_png": {
+      "count": 5,
+      "dimensions": "2560x6400",
+      "size_bytes_each": 247782,
+      "distinct_sha256_count": 1,
+      "sha256": "314a363b2f411e9bcc459e9bffddf92823e22164d4f4b1bd5329217bee5723e2",
+      "media_type": "image/png",
+      "extension": ".png"
+    },
+    "fullpage_jpeg": {
+      "count": 5,
+      "dimensions": "2560x6400",
+      "size_bytes_each": 100956,
+      "distinct_sha256_count": 1,
+      "sha256": "2165c2c6d6eae77ed4150b6139683f2217f43b7c590512c75ff92b84705ba5b6",
+      "media_type": "image/jpeg",
+      "extension": ".jpg"
+    },
+    "combined_cpu_percent_one_core": {
+      "average": 55.97,
+      "p95_sample": 250.05,
+      "peak_sample": 657.67
+    },
+    "combined_pss_kib": {
+      "minimum": 193196,
+      "maximum": 288438,
+      "last": 288282
+    },
+    "api_io_delta": {
+      "rchar": 6671933,
+      "wchar": 4037443,
+      "syscr": 815,
+      "syscw": 862,
+      "read_bytes": 176128,
+      "write_bytes": 4374528,
+      "cancelled_write_bytes": 36864
+    },
+    "driver_io_delta": {
+      "rchar": 3581959,
+      "wchar": 14198737,
+      "syscr": 830,
+      "syscw": 2162,
+      "read_bytes": 2752512,
+      "write_bytes": 0,
+      "cancelled_write_bytes": 0
+    },
+    "host_io_pressure_total_usec_delta": {
+      "some": 113816,
+      "full": 91652
+    },
+    "storage_backpressure_status": "Not qualified: service exposes no FileStorage span metric; host PSI is system-wide and did not increase above the measured no-workload rate.",
+    "attempt_wall_timing_limit": "CLI wall duration includes command startup and execution orchestration; it is not the isolated FileStorage write span."
+  },
+  "limits": [
+    "Single Linux host and build only.",
+    "The host showed substantial I/O PSI during the no-workload window; background-cause identity is unknown.",
+    "These results do not qualify MinIO/object-store backpressure.",
+    "Syscall write latency tracing was unavailable because ptrace is denied and task delay accounting is disabled.",
+    "The mixed cohort's OS counters are descriptive and do not assign exact storage waits to individual executions.",
+    "Windows/macOS private memory and long-soak behavior remain unknown."
+  ],
+  "result": {
+    "idle_cpu_requirement": "one Linux 60-second observation is inside the stated <2% one-core idle band; repeatability and cross-platform behavior remain unqualified",
+    "capture_performance": "declared current-build owner workload passed the existing 2-second p95 band",
+    "storage_backpressure": "unmeasured at FileStorage span; no code or policy change was made"
+  }
+}

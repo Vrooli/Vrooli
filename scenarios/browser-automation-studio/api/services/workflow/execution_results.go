@@ -15,6 +15,7 @@ import (
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services/evidence"
+	exportservices "github.com/vrooli/browser-automation-studio/services/export"
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
@@ -37,22 +38,7 @@ func (s *WorkflowService) readExecutionTimeline(resultPath string) (*bastimeline
 // It is the only supported consumer-facing replay handoff; callers never
 // reconstruct it from BAS result or artifact filesystem paths.
 func (s *WorkflowService) GetExecutionReplayPackage(ctx context.Context, executionID uuid.UUID) (*basevidence.ReplayPackage, error) {
-	execution, err := s.repo.GetExecution(ctx, executionID)
-	if err != nil {
-		return nil, fmt.Errorf("get execution: %w", err)
-	}
-	if strings.TrimSpace(execution.ResultPath) == "" {
-		return nil, fmt.Errorf("replay package unavailable: execution has no result")
-	}
-	raw, err := os.ReadFile(filepath.Join(filepath.Dir(execution.ResultPath), "evidence.proto.json"))
-	if err != nil {
-		return nil, fmt.Errorf("read replay package: %w", err)
-	}
-	var pack basevidence.ReplayPackage
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, &pack); err != nil {
-		return nil, fmt.Errorf("parse replay package: %w", err)
-	}
-	return &pack, nil
+	return exportservices.NewTimelineLoader(s.repo).LoadReplayPackage(ctx, executionID)
 }
 
 // GetExecutionScreenshots reads screenshots from the execution result file and returns proto types.

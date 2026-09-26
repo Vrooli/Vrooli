@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "stage": "seed",
+  "observedAt": "2026-09-24T04:43:14.830Z",
+  "apiUrl": "http://127.0.0.1:17116",
+  "contractSha256": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+  "harnessSha256": "70173eb21193f402cd0510dd9b86e4c1d5f104446a78dcd6d0bba35e9df09d69",
+  "beforeHealth": {
+    "status": "healthy",
+    "service": "browser-automation-studio-api",
+    "timestamp": "2026-09-24T04:43:11Z",
+    "readiness": true,
+    "version": "1.0.0",
+    "build_identity": "sha256:1fa3e575c0606946f56b2b0d5b3577776c7e01cdf4dd71408808126736070fe1",
+    "uptime_seconds": 14.197353474,
+    "dependencies": {
+      "automation_engine": {
+        "connected": true
+      },
+      "database": {
+        "connected": true,
+        "latency_ms": 0.023
+      },
+      "playwright_driver": {
+        "connected": true,
+        "latency_ms": 0.975
+      },
+      "profile_checkpoints": {
+        "connected": true,
+        "latency_ms": 0
+      },
+      "storage": {
+        "connected": true,
+        "latency_ms": 0.092
+      }
+    },
+    "metrics": {
+      "goroutines": 32,
+      "heap_mb": 13.43475341796875,
+      "uptime_seconds": 14.197353474
+    }
+  },
+  "afterHealth": {
+    "status": "healthy",
+    "service": "browser-automation-studio-api",
+    "timestamp": "2026-09-24T04:43:14Z",
+    "readiness": true,
+    "version": "1.0.0",
+    "build_identity": "sha256:1fa3e575c0606946f56b2b0d5b3577776c7e01cdf4dd71408808126736070fe1",
+    "uptime_seconds": 17.841731166,
+    "dependencies": {
+      "automation_engine": {
+        "connected": true
+      },
+      "database": {
+        "connected": true,
+        "latency_ms": 0.024
+      },
+      "playwright_driver": {
+        "connected": true,
+        "latency_ms": 0.289
+      },
+      "profile_checkpoints": {
+        "connected": true,
+        "latency_ms": 0.001
+      },
+      "storage": {
+        "connected": true,
+        "latency_ms": 0.086
+      }
+    },
+    "metrics": {
+      "goroutines": 36,
+      "heap_mb": 20.190711975097656,
+      "uptime_seconds": 17.841731166
+    }
+  },
+  "results": [
+    {
+      "check": "alpha cookie/localStorage/IndexedDB fixture writes",
+      "passed": true
+    },
+    {
+      "check": "automatic checkpoint visible within 5000ms of committed fixture writes",
+      "observedAfterMs": 1115.7040740000002,
+      "sampleCount": 22,
+      "passed": true
+    },
+    {
+      "check": "alpha identity survives close/reopen",
+      "passed": true
+    },
+    {
+      "check": "beta identity seeds independently",
+      "passed": true
+    },
+    {
+      "check": "beta profile activity does not replace alpha identity",
+      "passed": true
+    }
+  ],
+  "samples": [
+    {
+      "elapsedMs": 4.100129000000379,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 57.08433600000035,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 110.28699300000017,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 163.30907000000025,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 216.87345900000037,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 270.51509699999997,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 323.6638640000001,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 377.00896200000034,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 430.45582000000013,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 483.24467700000014,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 535.5172520000001,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 588.7680800000003,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 641.4272060000003,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 694.712344,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 747.16003,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 800.2838370000004,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 852.9318830000002,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 905.7247600000001,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 958.2147160000004,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 1010.5706720000003,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 1063.1802280000002,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 1115.7040740000002,
+      "hasStorageState": true
+    }
+  ],
+  "cleanup": [],
+  "manifest": {
+    "profiles": {
+      "alpha": "ce019cc7-0a06-4035-a2b8-bb7b0ecf1632",
+      "beta": "eebe4ac9-80d5-4c7e-8e56-6df81e302d4e"
+    },
+    "identities": {
+      "alpha": "eea45668-35cc-467e-982a-29742105fef0",
+      "beta": "0720b678-b9fd-47cf-8412-45affc85d0b9"
+    },
+    "fixturePort": 45615
+  }
+}

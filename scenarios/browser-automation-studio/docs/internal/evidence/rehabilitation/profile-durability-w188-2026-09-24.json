@@ -1,0 +1,30 @@
+{
+  "contractRow": "profile-durability",
+  "contractSha256": "4ec793e57754a709183024dd9a8a6cfa683c42c4a8c96541ed120897bccfc54a",
+  "sourceFiles": {
+    "docs/internal/REFRACTOR_CONTRACT.json": "4ec793e57754a709183024dd9a8a6cfa683c42c4a8c96541ed120897bccfc54a",
+    "api/cmd/profile-durability-cohort/qualification.mjs": "70173eb21193f402cd0510dd9b86e4c1d5f104446a78dcd6d0bba35e9df09d69",
+    "playwright-driver/src/session/manager.ts": "226e505eaa42aa6f3f32e274ddd3a7bd24fd03336f13ab58b9f249fbf152fa9e",
+    "api/services/session-profile/service.go": "e7432e93dbe113f161c9b7ad1e7be15c15a8947b6c0729b1bcfe136419a723e4"
+  },
+  "runtime": {
+    "managedBuildIdentityBeforeSeedAndAfterRestart": "sha256:a74ff8db5ab1a9d5346a721a2df458d83ab0c985e8ea559fb935faa6651a88eb"
+  },
+  "cohort": {
+    "allChecksPassed": true,
+    "seedChecks": 5,
+    "restartChecks": 2,
+    "checkpointVisibleAfterMs": 1807.874916,
+    "alphaBetaIsolation": "passed",
+    "alphaAndBetaAfterManagedApiDriverRestart": "passed",
+    "syntheticProfilesDeleted": 2,
+    "seedOwnerReceipt": {
+      "path": "internal/evidence/rehabilitation/profile-durability-w188-seed-owner.json",
+      "sha256": "639bf0ad9b9c97444cbef7f6aa4560a15f5a37c24465f4a40930865e4653758e"
+    },
+    "restartOwnerReceipt": {
+      "path": "internal/evidence/rehabilitation/profile-durability-w188-verify-owner.json",
+      "sha256": "95a71f5313084c6a66956570f03a50fabf397653bf2a90e5e082f4c11f5a46e5"
+    }
+  }
+}

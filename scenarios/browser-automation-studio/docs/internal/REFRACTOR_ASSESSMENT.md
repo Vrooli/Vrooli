@@ -1,5 +1,11 @@
 # Browser Automation Studio: refactor assessment
 
+> **Historical investigation, not active resume input.** Its measurements and
+> rationale remain evidence, but current execution policy and state live in
+> [TESTING.md](TESTING.md), [REFRACTOR_PROGRESS.md](REFRACTOR_PROGRESS.md) and
+> [OPERATOR_FEEDBACK.md](OPERATOR_FEEDBACK.md). Read a named section here only
+> when the active checkpoint or a BAS-RF entry cites it.
+
 Initial assessment: 2026-09-21. Follow-ups: 2026-09-22 UTC (2026-09-21 local). Status: seven investigation passes complete for the scope below; proposed design, not an implementation grant.
 
 ## Implementation preparation — 2026-09-22 UTC

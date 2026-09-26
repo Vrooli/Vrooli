@@ -17,6 +17,8 @@ export interface SessionSpec {
     height: number;
   };
   reuse_mode: ReuseMode;
+  /** Stable BAS session-profile identity/revision; prevents cross-profile pooling. */
+  session_profile_version?: string;
   /** Preview bitmap scale, retained for this admitted lease. Defaults to CSS pixels. */
   frame_scale?: 'css' | 'device';
   base_url?: string;

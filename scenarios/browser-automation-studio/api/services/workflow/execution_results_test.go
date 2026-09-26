@@ -18,6 +18,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
@@ -49,6 +51,40 @@ func (r *lifecycleRepository) GetExecution(context.Context, uuid.UUID) (*databas
 func (r *lifecycleRepository) UpdateExecutionStatus(_ context.Context, _ uuid.UUID, status string, _ *string, _ *time.Time, _ time.Time) error {
 	r.execution.Status = status
 	return nil
+}
+
+func TestWorkflowPersistedTimelineReadersRedactLegacySensitiveValues(t *testing.T) {
+	const secret = "BAS_SYNTHETIC_WORKFLOW_REPLAY_SECRET_017"
+	executionID := uuid.New()
+	resultPath := filepath.Join(t.TempDir(), "result.json")
+	dir := filepath.Dir(resultPath)
+	entry := `{"id":"legacy-password","action":{"type":"ACTION_TYPE_INPUT","input":{"selector":"#password","value":"` + secret + `"},"metadata":{"elementSnapshot":{"tagName":"input","innerText":"` + secret + `","attributes":{"type":"password","value":"` + secret + `"}}}}}`
+	timelineBytes := []byte(`{"entries":[` + entry + `]}`)
+	packageBytes := []byte(`{"timeline":[` + entry + `]}`)
+	require.NoError(t, os.WriteFile(resultPath, []byte(`{}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "timeline.proto.json"), timelineBytes, 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "evidence.proto.json"), packageBytes, 0o600))
+
+	service := &WorkflowService{repo: &lifecycleRepository{execution: &database.ExecutionIndex{
+		ID: executionID, WorkflowID: uuid.New(), ResultPath: resultPath,
+	}}}
+	timeline, err := service.GetExecutionTimelineProto(context.Background(), executionID)
+	require.NoError(t, err)
+	pack, err := service.GetExecutionReplayPackage(context.Background(), executionID)
+	require.NoError(t, err)
+	for name, message := range map[string]proto.Message{
+		"execution timeline": timeline,
+		"replay package":     pack,
+	} {
+		encoded, marshalErr := protojson.Marshal(message)
+		require.NoError(t, marshalErr)
+		assert.NotContains(t, string(encoded), secret, "%s returned a legacy secret", name)
+	}
+	for _, name := range []string{"timeline.proto.json", "evidence.proto.json"} {
+		stored, readErr := os.ReadFile(filepath.Join(dir, name))
+		require.NoError(t, readErr)
+		assert.Contains(t, string(stored), secret, "reader must not rewrite stored user data")
+	}
 }
 
 type lifecycleSink struct {
@@ -697,7 +733,7 @@ func TestWorkflowClosesDecoratedSinkOnEveryExit(t *testing.T) {
 			if outcome == "compile-failed" {
 				workflow.FlowDefinition = nil
 			}
-			service.executeWorkflowAsyncWithOptions(context.Background(), workflow, id, nil, nil, nil, nil, nil, nil, nil, "", "", "", false, nil, "", nil)
+			service.executeWorkflowAsyncWithOptions(context.Background(), workflow, id, nil, nil, nil, nil, nil, nil, "", nil, "", "", "", false, nil, "", nil)
 
 			if len(sink.closed) != 1 || sink.closed[0] != id {
 				t.Fatalf("sink closed for %v; wanted exactly %s", sink.closed, id)
@@ -732,7 +768,7 @@ func TestExecutionPanicDoesNotPublishSuccess(t *testing.T) {
 				t.Error("executor panic was swallowed or replaced")
 			}
 		}()
-		service.executeWorkflowAsyncWithOptions(context.Background(), response.Workflow, id, nil, nil, nil, nil, nil, nil, nil, repo.project.FolderPath, "", "", false, nil, "", nil)
+		service.executeWorkflowAsyncWithOptions(context.Background(), response.Workflow, id, nil, nil, nil, nil, nil, nil, "", nil, repo.project.FolderPath, "", "", false, nil, "", nil)
 	}()
 	if repo.index.Status != database.ExecutionStatusFailed || len(sink.published) != 1 || sink.published[0].Kind != contracts.EventKindExecutionFailed {
 		t.Fatalf("panic produced status=%s events=%+v", repo.index.Status, sink.published)

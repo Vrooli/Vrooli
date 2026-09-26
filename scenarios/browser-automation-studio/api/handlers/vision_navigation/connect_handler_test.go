@@ -3,8 +3,6 @@ package vision_navigation
 import (
 	"context"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
@@ -16,6 +14,7 @@ import (
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/ai"
 	aiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/ai/aiconnect"
 
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"github.com/vrooli/browser-automation-studio/services/credits"
 	"github.com/vrooli/browser-automation-studio/services/vision"
 )
@@ -147,10 +146,7 @@ func newTestClient(t *testing.T, d Deps) aiconnect.VisionNavigationServiceClient
 		d.Logger = l
 	}
 	mount := Module(d)
-	mux := http.NewServeMux()
-	mux.Handle(mount.Path, mount.Handler)
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
+	srv := testutil.StartConnectServer(t, mount.Path, mount.Handler)
 	return aiconnect.NewVisionNavigationServiceClient(srv.Client(), srv.URL)
 }
 
@@ -558,6 +554,7 @@ func TestStartNavigationTaskContractRejectsUnsupportedNavigatorAndInvalidPolicy(
 		require.Error(t, err)
 	}
 }
+
 func TestNavigationStatusCarriesIndependentVerificationAndOutput(t *testing.T) {
 	session := &vision.NavigationSession{NavigationID: "nav", Status: vision.StatusCompleted, VerifiedSuccess: true, ExtractedData: map[string]interface{}{"subjects": []interface{}{"hello"}}}
 	result := navigationStatusToProto(session)

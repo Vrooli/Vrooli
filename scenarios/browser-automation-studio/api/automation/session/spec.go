@@ -51,6 +51,8 @@ type Spec struct {
 
 	// Session reuse policy: "fresh", "clean", or "reuse"
 	ReuseMode string
+	// SessionProfileVersion identifies the selected profile and saved revision for safe pooling.
+	SessionProfileVersion string
 
 	// Recording-specific fields
 	StorageState   json.RawMessage       // Restore auth state from session profile

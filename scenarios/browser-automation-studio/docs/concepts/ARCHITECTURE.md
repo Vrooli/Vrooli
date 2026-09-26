@@ -33,7 +33,7 @@ workflow replay across tabs/frames in a fresh context remains unqualified.
 
 ## Shared Infrastructure
 
-SQLite is routed through the scenario database layer; artifact storage and process lifecycle are scenario-managed. Test Genie owns scenario-suite execution.
+SQLite is routed through the scenario database layer; artifact storage and process lifecycle are scenario-managed. Test Genie owns scenario-suite execution. Rehabilitation setpoint evidence uses the root control plane's typed scenario-status and lifecycle-freshness bindings; BAS does not duplicate the artifact fingerprint algorithm. Evidence cannot qualify against a managed candidate whose lifecycle artifacts are stale or whose freshness verdict is missing.
 
 ## Extension Rules
 

@@ -1,0 +1,618 @@
+{
+  "issue": "BAS-RF-119",
+  "date": "2026-09-23",
+  "build_identity": "sha256:6aa67b6b0db708dc1807d412458ba236e654f2677ff19ed82873662630f41180",
+  "method": {
+    "command": "browser-automation-studio workflows execute-adhoc --flow-file <temporary-flow.json> --wait --json",
+    "workflow_persisted": false,
+    "synthetic_page": "data: URL with CSS width 1280px and height 3200px; screenshot action full_page=true; browser output 2560x6400 at DPR 2",
+    "writer_path": "managed API/driver execution -> FileWriter -> durable recording artifacts",
+    "memory_sampler": "Linux /proc/<pid>/smaps_rollup, API and Node driver sampled together every 20 ms"
+  },
+  "admission_cases": [
+    {
+      "execution_id": "f1680706-caf4-4a71-8ae9-22d1d4da63e8",
+      "rendered_dimensions": "2560x25600",
+      "result": "failed before raster decode: screenshot raster exceeds active screenshot decode budget"
+    },
+    {
+      "execution_id": "a2970190-4cef-495c-94a5-b0a148c82fe3",
+      "rendered_dimensions": "2560x12800",
+      "result": "failed before raster decode: screenshot raster exceeds active screenshot decode budget"
+    },
+    {
+      "execution_id": "30c0c8a4-0a43-472c-9928-b751f6ecabe9",
+      "rendered_dimensions": "2560x6400",
+      "pixels": 16384000,
+      "result": "completed; durable screenshot artifact verified"
+    }
+  ],
+  "concurrent_cohort": {
+    "attempts": 10,
+    "completed": 10,
+    "elapsed_ms": 5544.5,
+    "sample_count": 204,
+    "first_sample_during_startup_kib": {
+      "api": 137224,
+      "driver": 77905,
+      "sum": 215129
+    },
+    "maximum_same_tick_pss_kib": {
+      "api": 252876,
+      "driver": 137229,
+      "sum": 390105
+    },
+    "screenshot_artifacts": {
+      "count": 10,
+      "dimensions": "2560x6400",
+      "size_bytes_each": 71139,
+      "distinct_sha256_count": 1,
+      "sha256": "7179c42bd9b4a30a39a1e70236b273ce6a70ef93869068e7a59d697a53c33fd0"
+    },
+    "execution_ids": [
+      "1cec4fc9-3cc8-4eac-82db-58aa3a0309f4",
+      "50bcd182-61c9-437b-b5a4-fdfefa740a8b",
+      "f9bc9ade-93e4-4aa7-a232-b12a9f9d1a9b",
+      "bcd51c5c-c0c6-4fb2-bb76-9f1a35ce64e3",
+      "c092d160-dc20-4125-9341-d377f89ac7db",
+      "39255c4a-42cc-4274-8a72-06a5f9a1e37d",
+      "e63a1a8b-fca9-4a4b-92cf-5464913c5b0e",
+      "15d5eec3-ab3a-4eca-8197-bf05a5a34f53",
+      "105e9a72-d4e2-4696-851f-860f1e7caea3",
+      "23b308fa-0fb4-4e0e-8067-c6c6390c6034"
+    ]
+  },
+  "post_burst_idle_observation": {
+    "approx_delay_after_cohort_seconds": 6,
+    "sample_interval_ms": 500,
+    "samples": 21,
+    "sampling_window_seconds": 10,
+    "approx_seconds_after_cohort_at_last_sample": 16,
+    "api_driver_sum_pss_kib_min": 316676,
+    "api_driver_sum_pss_kib_max": 321564,
+    "interpretation": "memory remained above the contract's 300 MiB idle target during this short post-burst window; this is a recheck signal, not steady-state or leak qualification"
+  },
+  "limitations": [
+    "Only Linux and one managed build were measured.",
+    "The cohort exercises concurrent full-page PNG writes, not JPEG, browser-process memory, or storage backpressure.",
+    "The first PSS sample occurred during request startup and is not a pre-run idle baseline.",
+    "The first 10-second post-burst window did not establish recovery; the later same-process 60-second window also remained above the idle target.",
+    "The managed GOMEMLIMIT cohort is Linux-only; Windows private memory, macOS targets and CPU budget are unqualified.",
+    "A valid large JPEG has not been exercised through managed full-page capture; the JPEG regression tests over-budget header rejection only.",
+    "Managed storage backpressure and long-duration retained-memory growth remain unmeasured.",
+    "GOMEMLIMIT is a soft Go heap target and does not bound active API+driver PSS; the measured full-page active peak was363218KiB.",
+    "Valid managed full-page JPEG/PNG artifact identity is now verified on one Linux build; Windows/macOS memory, CPU and storage backpressure remain unqualified."
+  ],
+  "required_validation": {
+    "contract": "python3 scenarios/browser-automation-studio/docs/internal/refactor_contract.py passed; preparation_valid=true; 24 journeys; zero errors; product_qualified=false",
+    "setpoint_read": "program-runtime library run browser-automation-studio.setpoint-read --input profile=rehabilitation completed as prog_930ee4d1-5c99-403c-bea4-e03bd53881d9; capture 1/17 in band on current build; 16 pending_telemetry; product_qualified=false",
+    "inventory_digest_sha256": "b5fbb55ddac95e26b0b7b793fdbcc587c55cf47d688e07a907c1682616f53eb4",
+    "inventory_head": "8707b970a48f82665662450766ad8233d6def9e7",
+    "scoped_git_diff_check": "git diff --check -- scenarios/browser-automation-studio passed",
+    "evidence_json": "python3 -m json.tool passed",
+    "managed_restart_after_storage_fix": "make -C scenarios/browser-automation-studio restart; startop-b528f71642b4b341091f7e1d8071e84f succeeded healthy on sha256:3e81cd3eecfb96b02422eda46141cfab78209c1a47adbc31627aa2e08e1fb9f9; protected profile metadata and all three file hashes matched before/after",
+    "managed_image_identity_after_fix": "Execution e1968fbd-287d-4489-bca3-1c4f52d00df7 JPEG artifact is .jpg/image/jpeg/2560x6400/101301 bytes; execution 04151191-2702-41fb-bccf-3171a3f54717 PNG artifact is .png/image/png/2560x6400/71139 bytes; both hashes match retained pre-fix bytes",
+    "test_genie_performance": "20260923-234725-be3fdcdd PASS, 61 seconds, zero observations",
+    "test_genie_unit": "20260923-233436-bfac32e7 FAIL, 504 seconds; ui pnpm run test:coverage command failure, zero observations; exact underlying failure unavailable from retained findings artifact"
+  },
+  "next_check": "Measure API CPU and storage backpressure under the existing managed full-page PNG/JPEG cohort where owner telemetry can attribute those outcomes. Keep Windows/macOS and long-soak resource behavior explicitly unknown.",
+  "managed_restart_followup": {
+    "restart_command": "make -C scenarios/browser-automation-studio restart",
+    "result": "healthy; optional Claude credential unavailable; zero required credential gaps",
+    "profile_identity_before_after_matches": true,
+    "profile_identity": {
+      "id": "305e1254-28fc-4bfb-8774-a46aa0bc0d1d",
+      "name": "channel-manager-synthetic-p1",
+      "created_at": "2026-07-29T05:23:43.765844593Z",
+      "updated_at": "2026-07-29T05:25:18.787004553Z",
+      "last_used_at": "2026-07-29T05:25:18.787004553Z"
+    },
+    "profile_files_before_after_sha256": [
+      {
+        "path": ".keyring-witness",
+        "sha256": "4e65f504068c332b21bded15b935050ec1ebcea087d0853bdfc96123ad56d4cf"
+      },
+      {
+        "path": ".profiles.lock",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "305e1254-28fc-4bfb-8774-a46aa0bc0d1d.json",
+        "sha256": "856a690e24a0d44865c552af999bfb38f63aff074b10339a93725c9aa36be8ab"
+      }
+    ],
+    "settling_observations": [
+      {
+        "samples": 61,
+        "interval_ms": 1000,
+        "sum_pss_kib_min": 223976,
+        "sum_pss_kib_max": 385171,
+        "last_six_sum_pss_kib": [
+          296204,
+          296204,
+          296204,
+          296204,
+          296204,
+          296204
+        ]
+      },
+      {
+        "samples": 31,
+        "interval_ms": 1000,
+        "sum_pss_kib_min": 186057,
+        "sum_pss_kib_max": 186389,
+        "interpretation": "separate quiet interval after settling; all observations below300MiB"
+      }
+    ]
+  },
+  "same_process_managed_replay": {
+    "attempts": 10,
+    "completed": 10,
+    "elapsed_ms": 9182.0,
+    "idle_baseline_api_kib": 58712,
+    "idle_baseline_driver_kib": 92437,
+    "idle_baseline_sum_kib": 151149,
+    "active_samples_every_ms": 20,
+    "active_sample_count": 328,
+    "active_peak_same_tick": {
+      "elapsed_ms": 8798.7,
+      "api_kib": 261503,
+      "driver_kib": 152796,
+      "sum_kib": 414299
+    },
+    "post_burst_sample_interval_ms": 1000,
+    "post_burst_sample_count": 61,
+    "post_burst_api_pss_kib_min": 256708,
+    "post_burst_api_pss_kib_max": 256830,
+    "post_burst_driver_pss_kib_min": 91430,
+    "post_burst_driver_pss_kib_max": 153602,
+    "post_burst_sum_pss_kib_min": 348154,
+    "post_burst_sum_pss_kib_max": 410326,
+    "post_burst_first_sample": {
+      "seconds_after_cohort": 0,
+      "api_kib": 256708,
+      "driver_kib": 153602,
+      "sum_kib": 410310
+    },
+    "post_burst_last_sample": {
+      "seconds_after_cohort": 60,
+      "api_kib": 256830,
+      "driver_kib": 91947,
+      "sum_kib": 348777
+    },
+    "execution_ids": [
+      "f495df7d-dc87-4375-8480-d754d534b973",
+      "a73714d5-2079-4552-b408-41d0c153a427",
+      "dc6b9546-35e0-4623-9df7-37fa7cc8aaaf",
+      "ae7076f4-c5d6-4bed-a3f7-78d9cb4d2182",
+      "4dd145c2-6b55-4ac2-bef9-44b8f6e06fe5",
+      "5e9150c2-b507-41ed-b0bc-1c5b10b88957",
+      "ef3fe862-154a-4c0f-a732-f35a9bb976bb",
+      "018005b5-d5a0-45fa-ba37-a9499aa4f850",
+      "025daed5-9c5f-4587-8a61-d715abe0e1c8",
+      "04264f53-b070-4303-958e-6bd2126d922a"
+    ],
+    "artifacts_verified": {
+      "count": 10,
+      "dimensions": "2560x6400",
+      "size_bytes_each": 71139,
+      "distinct_sha256_count": 1,
+      "sha256": "7179c42bd9b4a30a39a1e70236b273ce6a70ef93869068e7a59d697a53c33fd0"
+    },
+    "interpretation": "after ten managed full-page writes, driver PSS returned near its pre-run baseline while API PSS remained about198MiB above its pre-run value for at least60 seconds; this localizes retained residency to the API process but does not distinguish live heap from unreleased Go heap pages"
+  },
+  "jpeg_regression": {
+    "test": "TestScreenshotJPEGRasterOverBudgetFailsBeforeFullDecode",
+    "fixture": "1x1 JPEG with SOF dimensions changed to10000x10000; DecodeConfig reads header; FileWriter must reject on estimated budget before full image decode and must not store screenshot",
+    "focused_test": "go test ./automation/execution-writer -run ^TestScreenshotJPEGRasterOverBudgetFailsBeforeFullDecode$ -count=1 passed",
+    "package_test": "go test ./automation/execution-writer -count=1 passed"
+  },
+  "runtime_limit_probe": {
+    "producer": "docs/internal/evidence/rehabilitation/screenshot-decode-writer-probe-2026-09-23.go; actual FileWriter with ten concurrent calls in isolated processes",
+    "direct_writer_results": [
+      {
+        "gomemlimit": "default",
+        "peak_pss_kib": 149303,
+        "group_completion_ms": 627,
+        "stored_artifacts": 10
+      },
+      {
+        "gomemlimit": "128MiB",
+        "peak_pss_kib": 146563,
+        "group_completion_ms": 664,
+        "stored_artifacts": 10
+      },
+      {
+        "gomemlimit": "96MiB",
+        "peak_pss_kib": 105435,
+        "group_completion_ms": 735,
+        "stored_artifacts": 10
+      },
+      {
+        "gomemlimit": "96MiB",
+        "peak_pss_kib": 106191,
+        "group_completion_ms": 811,
+        "stored_artifacts": 10
+      },
+      {
+        "gomemlimit": "64MiB",
+        "peak_pss_kib": 104231,
+        "group_completion_ms": 849,
+        "stored_artifacts": 10
+      }
+    ],
+    "same_process_reclaim_experiment": {
+      "ten_concurrent_writer_peak_pss_kib_without_forced_gc": 149167,
+      "after_runtime_gc_pss_kib": 139463,
+      "after_debug_free_os_memory_pss_kib": 20575,
+      "free_os_memory_elapsed_ms": 6,
+      "interpretation": "measurement-only experiment; no forced-GC production behavior was introduced"
+    }
+  },
+  "managed_limit_96_followup": {
+    "configuration_owner": ".vrooli/service.json components.api.run.env.GOMEMLIMIT=96MiB",
+    "live_process_environment_verified": true,
+    "restart": "make -C scenarios/browser-automation-studio restart; healthy, zero required credential gaps",
+    "protected_profile_preserved": {
+      "id": "305e1254-28fc-4bfb-8774-a46aa0bc0d1d",
+      "name": "channel-manager-synthetic-p1",
+      "identity_and_metadata_unchanged": true,
+      "file_hashes_unchanged": true,
+      "files": [
+        ".keyring-witness",
+        ".profiles.lock",
+        "305e1254-28fc-4bfb-8774-a46aa0bc0d1d.json"
+      ]
+    },
+    "idle_baseline": {
+      "samples": 31,
+      "interval_ms": 1000,
+      "driver_kib_min": null,
+      "driver_kib_max": null,
+      "sum_kib_min": 106257,
+      "sum_kib_max": 106559,
+      "note": "combined range captured; component breakdown was not retained for this window"
+    },
+    "cohort": {
+      "attempts": 10,
+      "completed": 10,
+      "elapsed_ms": 8149.4,
+      "execution_ids": [
+        "5b2c05e8-f02e-43c6-bb68-01f60d90701e",
+        "5b00a1e2-263e-4ff0-93eb-4d41e6c5589d",
+        "073ed0ac-1dd5-48fe-9421-fae7fea04f8e",
+        "3a3f5873-4b6e-488b-9bc1-10ffa77709f8",
+        "4855393b-0444-474c-b834-3267f5c76e9b",
+        "13b25337-1c0f-4dda-93c9-e22bd81c8648",
+        "e3848713-a42d-453e-8e49-0c0a603aa885",
+        "7d0f2ed5-95d1-4707-8f39-cd710a159c53",
+        "b8090852-ce58-40fa-8da9-dc53a8a8ead3",
+        "d5310a7d-9df8-4fe5-b004-25155b609c42"
+      ],
+      "active_sampling_interval_ms": 20,
+      "active_sample_count": 301,
+      "active_peak_same_tick": {
+        "elapsed_ms": 8039.2,
+        "api_kib": 125972,
+        "driver_kib": 237246,
+        "sum_kib": 363218
+      },
+      "post_burst_samples": 61,
+      "post_burst_interval_ms": 1000,
+      "post_burst_api_pss_kib_min": 122541,
+      "post_burst_api_pss_kib_max": 122791,
+      "post_burst_driver_pss_kib_min": 82618,
+      "post_burst_driver_pss_kib_max": 237278,
+      "post_burst_sum_pss_kib_min": 205200,
+      "post_burst_sum_pss_kib_max": 359843,
+      "post_burst_first_sample": {
+        "seconds_after_cohort": 0,
+        "api_kib": 122541,
+        "driver_kib": 237278,
+        "sum_kib": 359819
+      },
+      "post_burst_last_sample": {
+        "seconds_after_cohort": 60,
+        "api_kib": 122791,
+        "driver_kib": 83267,
+        "sum_kib": 206058
+      },
+      "artifacts_verified": {
+        "count": 10,
+        "dimensions": "2560x6400",
+        "size_bytes_each": 71139,
+        "distinct_sha256_count": 1,
+        "sha256": "7179c42bd9b4a30a39a1e70236b273ce6a70ef93869068e7a59d697a53c33fd0"
+      }
+    },
+    "maintained_capture_performance": {
+      "performance_health_operation_id": "b117f8172d618f22f0363832c8767e82",
+      "attempts": 100,
+      "warmups": 1,
+      "service_p95_ms": 441,
+      "wall_p95_ms": 635.548562,
+      "band_ms": 2000,
+      "result": "in band",
+      "build_identity": "sha256:ef761d7c5f55d6f9607ff98f3a2a57765e6f71370c9b0e70c1554d1dce12d02a",
+      "receipt_sha256": "a0d6b8047cbf432b07b25bfb6b505a0b2f37c2162a865ce17aad3e08b66ae353",
+      "comparison": "441/635.55 ms is within the retained comparable service-p95 range; wall p95 is 13\u2013113 ms above two older observations. No causal regression is attributed."
+    },
+    "test_genie": {
+      "run_id": "20260923-231621-3aca1543",
+      "phase": "performance",
+      "result": "passed",
+      "duration_seconds": 61,
+      "observations": 0
+    },
+    "governed_setpoint_read": {
+      "program_run_id": "prog_2e24c040-a76f-42d4-9805-6b1f6938e5aa",
+      "result": "completed",
+      "qualified_outcomes": 1,
+      "total_outcomes": 17,
+      "unavailable_outcomes": 16,
+      "product_qualified": false
+    },
+    "interpretation": "GOMEMLIMIT materially reduced retained managed API PSS and the 60-second post-burst combined reading returned below the 300 MiB idle target. The active peak was 363218 KiB, so this is not an active-process PSS cap. The maintained capture workload remains within its 2-second band; a single cohort does not attribute latency changes to the heap limit."
+  },
+  "managed_jpeg_reproduction_before_extension_fix": {
+    "candidate_build_identity": "sha256:ef761d7c5f55d6f9607ff98f3a2a57765e6f71370c9b0e70c1554d1dce12d02a",
+    "route": "Transient workflows execute-adhoc full-page screenshot action with quality=80; driver captureCompressedScreenshot -> execution outcome -> production FileWriter -> managed FileStorage",
+    "quality": 80,
+    "attempts": 10,
+    "completed": 10,
+    "idle_baseline_samples": 5,
+    "idle_baseline_sum_pss_kib_each": [
+      157936,
+      157936,
+      157936,
+      157936,
+      157936
+    ],
+    "active_samples": 105,
+    "active_sample_interval_ms": 20,
+    "active_peak_same_tick": {
+      "elapsed_ms": 2345.4,
+      "api_kib": 127544,
+      "driver_kib": 124993,
+      "sum_kib": 252537
+    },
+    "post_burst_samples": 61,
+    "post_burst_interval_ms": 1000,
+    "post_burst_sum_pss_kib_min": 187196,
+    "post_burst_sum_pss_kib_max": 240799,
+    "post_burst_first_sample": {
+      "seconds_after_cohort": 0,
+      "api_kib": 126033,
+      "driver_kib": 114706,
+      "sum_kib": 240739
+    },
+    "post_burst_last_sample": {
+      "seconds_after_cohort": 60,
+      "api_kib": 125882,
+      "driver_kib": 61687,
+      "sum_kib": 187569
+    },
+    "artifacts": [
+      {
+        "execution_id": "1d4d07bc-0eef-49cd-875f-9bbe54e8c28a",
+        "artifact_id": "383ccb89-d138-48de-80bd-ac7eef634c89",
+        "path": "<user-home>/.vrooli/data/vrooli/browser-automation-studio/recordings/1d4d07bc-0eef-49cd-875f-9bbe54e8c28a/artifacts/screenshots/00002--rf119-managed-fullpage-jpeg-probe--screenshot--ACTION_TYPE_SCREENSHOT.png",
+        "reported_extension": ".png",
+        "content_type": "image/jpeg",
+        "dimensions": [
+          2560,
+          6400
+        ],
+        "size_bytes": 101301,
+        "sha256": "17b30bf2f974f644a3157225dd491a13362578c7b4d81dc0ba832c29d1ceaaf7",
+        "jpeg_magic": "ffd8"
+      },
+      {
+        "execution_id": "9dc1e247-1959-42b4-a02c-1f1bf3bb0a9d",
+        "artifact_id": "3a5c9a2f-ba90-4b8d-aa12-1817570474ce",
+        "path": "<user-home>/.vrooli/data/vrooli/browser-automation-studio/recordings/9dc1e247-1959-42b4-a02c-1f1bf3bb0a9d/artifacts/screenshots/00002--rf119-managed-fullpage-jpeg-probe--screenshot--ACTION_TYPE_SCREENSHOT.png",
+        "reported_extension": ".png",
+        "content_type": "image/jpeg",
+        "dimensions": [
+          2560,
+          6400
+        ],
+        "size_bytes": 101301,
+        "sha256": "17b30bf2f974f644a3157225dd491a13362578c7b4d81dc0ba832c29d1ceaaf7",
+        "jpeg_magic": "ffd8"
+      },
+      {
+        "execution_id": "614dfee2-a105-4266-98c2-e81560304edf",
+        "artifact_id": "5f1801fe-52b7-486a-ab4f-4e64bab5cd16",
+        "path": "<user-home>/.vrooli/data/vrooli/browser-automation-studio/recordings/614dfee2-a105-4266-98c2-e81560304edf/artifacts/screenshots/00002--rf119-managed-fullpage-jpeg-probe--screenshot--ACTION_TYPE_SCREENSHOT.png",
+        "reported_extension": ".png",
+        "content_type": "image/jpeg",
+        "dimensions": [
+          2560,
+          6400
+        ],
+        "size_bytes": 101301,
+        "sha256": "17b30bf2f974f644a3157225dd491a13362578c7b4d81dc0ba832c29d1ceaaf7",
+        "jpeg_magic": "ffd8"
+      },
+      {
+        "execution_id": "2aca9da7-4977-4c5a-bfb2-b44d7152deb8",
+        "artifact_id": "2d1cdef5-76be-4d4b-b56d-f8e5dd5088bd",
+        "path": "<user-home>/.vrooli/data/vrooli/browser-automation-studio/recordings/2aca9da7-4977-4c5a-bfb2-b44d7152deb8/artifacts/screenshots/00002--rf119-managed-fullpage-jpeg-probe--screenshot--ACTION_TYPE_SCREENSHOT.png",
+        "reported_extension": ".png",
+        "content_type": "image/jpeg",
+        "dimensions": [
+          2560,
+          6400
+        ],
+        "size_bytes": 101301,
+        "sha256": "17b30bf2f974f644a3157225dd491a13362578c7b4d81dc0ba832c29d1ceaaf7",
+        "jpeg_magic": "ffd8"
+      },
+      {
+        "execution_id": "df353e87-9e20-4394-b05b-b9c1e0dc4a93",
+        "artifact_id": "d557bf1e-2c82-464c-925f-de0f9169d677",
+        "path": "<user-home>/.vrooli/data/vrooli/browser-automation-studio/recordings/df353e87-9e20-4394-b05b-b9c1e0dc4a93/artifacts/screenshots/00002--rf119-managed-fullpage-jpeg-probe--screenshot--ACTION_TYPE_SCREENSHOT.png",
+        "reported_extension": ".png",
+        "content_type": "image/jpeg",
+        "dimensions": [
+          2560,
+          6400
+        ],
+        "size_bytes": 101301,
+        "sha256": "17b30bf2f974f644a3157225dd491a13362578c7b4d81dc0ba832c29d1ceaaf7",
+        "jpeg_magic": "ffd8"
+      },
+      {
+        "execution_id": "7f7030b7-eeab-4874-b22a-49bebd321b7b",
+        "artifact_id": "9c3ad1bc-9c67-4548-a0e1-54f984dd8e2c",
+        "path": "<user-home>/.vrooli/data/vrooli/browser-automation-studio/recordings/7f7030b7-eeab-4874-b22a-49bebd321b7b/artifacts/screenshots/00002--rf119-managed-fullpage-jpeg-probe--screenshot--ACTION_TYPE_SCREENSHOT.png",
+        "reported_extension": ".png",
+        "content_type": "image/jpeg",
+        "dimensions": [
+          2560,
+          6400
+        ],
+        "size_bytes": 101301,
+        "sha256": "17b30bf2f974f644a3157225dd491a13362578c7b4d81dc0ba832c29d1ceaaf7",
+        "jpeg_magic": "ffd8"
+      },
+      {
+        "execution_id": "74611676-8538-4d9f-8afe-2b62c0607c0e",
+        "artifact_id": "8f33eb3f-b696-4369-8541-d5958e2cc750",
+        "path": "<user-home>/.vrooli/data/vrooli/browser-automation-studio/recordings/74611676-8538-4d9f-8afe-2b62c0607c0e/artifacts/screenshots/00002--rf119-managed-fullpage-jpeg-probe--screenshot--ACTION_TYPE_SCREENSHOT.png",
+        "reported_extension": ".png",
+        "content_type": "image/jpeg",
+        "dimensions": [
+          2560,
+          6400
+        ],
+        "size_bytes": 101301,
+        "sha256": "17b30bf2f974f644a3157225dd491a13362578c7b4d81dc0ba832c29d1ceaaf7",
+        "jpeg_magic": "ffd8"
+      },
+      {
+        "execution_id": "faaba354-f63d-42b5-91b5-a38488a474d1",
+        "artifact_id": "80b21603-3d71-4d56-b95b-59554777bea7",
+        "path": "<user-home>/.vrooli/data/vrooli/browser-automation-studio/recordings/faaba354-f63d-42b5-91b5-a38488a474d1/artifacts/screenshots/00002--rf119-managed-fullpage-jpeg-probe--screenshot--ACTION_TYPE_SCREENSHOT.png",
+        "reported_extension": ".png",
+        "content_type": "image/jpeg",
+        "dimensions": [
+          2560,
+          6400
+        ],
+        "size_bytes": 101301,
+        "sha256": "17b30bf2f974f644a3157225dd491a13362578c7b4d81dc0ba832c29d1ceaaf7",
+        "jpeg_magic": "ffd8"
+      },
+      {
+        "execution_id": "606381b5-a608-46dd-908b-ae2870bd7491",
+        "artifact_id": "e6de2d4a-5a94-4fea-bd41-fbf778cdef2a",
+        "path": "<user-home>/.vrooli/data/vrooli/browser-automation-studio/recordings/606381b5-a608-46dd-908b-ae2870bd7491/artifacts/screenshots/00002--rf119-managed-fullpage-jpeg-probe--screenshot--ACTION_TYPE_SCREENSHOT.png",
+        "reported_extension": ".png",
+        "content_type": "image/jpeg",
+        "dimensions": [
+          2560,
+          6400
+        ],
+        "size_bytes": 101301,
+        "sha256": "17b30bf2f974f644a3157225dd491a13362578c7b4d81dc0ba832c29d1ceaaf7",
+        "jpeg_magic": "ffd8"
+      },
+      {
+        "execution_id": "71c45dbe-2227-4a41-823e-5cd683ca0747",
+        "artifact_id": "8e9ce10a-507d-42f4-8923-62c94b811960",
+        "path": "<user-home>/.vrooli/data/vrooli/browser-automation-studio/recordings/71c45dbe-2227-4a41-823e-5cd683ca0747/artifacts/screenshots/00002--rf119-managed-fullpage-jpeg-probe--screenshot--ACTION_TYPE_SCREENSHOT.png",
+        "reported_extension": ".png",
+        "content_type": "image/jpeg",
+        "dimensions": [
+          2560,
+          6400
+        ],
+        "size_bytes": 101301,
+        "sha256": "17b30bf2f974f644a3157225dd491a13362578c7b4d81dc0ba832c29d1ceaaf7",
+        "jpeg_magic": "ffd8"
+      }
+    ],
+    "interpretation": "All ten valid 2560x6400 JPEG artifacts were byte-identical at101301 bytes (SHA256 17b30bf2f974f644a3157225dd491a13362578c7b4d81dc0ba832c29d1ceaaf7), persisted and decoded correctly. Content type was image/jpeg, but each durable path was suffixed .png; this is a reproducible BAS-RF-121 evidence identity defect. On this cohort active PSS peaked252537KiB and returned to187569KiB at60seconds, below the idle target; the active workload differs from the PNG cohort and is not a direct latency comparison. The retained measurement duration includes the 60-second recovery window; no exact request-group latency is claimed.",
+    "measurement_elapsed_including_60s_recovery_ms": 64089.5
+  },
+  "managed_jpeg_after_extension_fix": {
+    "build_identity": "sha256:3e81cd3eecfb96b02422eda46141cfab78209c1a47adbc31627aa2e08e1fb9f9",
+    "managed_restart_operation_id": "startop-b528f71642b4b341091f7e1d8071e84f",
+    "managed_restart_result": "succeeded; healthy",
+    "protected_profile_preserved": true,
+    "profile_id": "305e1254-28fc-4bfb-8774-a46aa0bc0d1d",
+    "profile_metadata_unchanged": true,
+    "profile_files_sha256_unchanged": {
+      ".keyring-witness": "4e65f504068c332b21bded15b935050ec1ebcea087d0853bdfc96123ad56d4cf",
+      ".profiles.lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "305e1254-28fc-4bfb-8774-a46aa0bc0d1d.json": "856a690e24a0d44865c552af999bfb38f63aff074b10339a93725c9aa36be8ab"
+    },
+    "jpeg_execution_id": "e1968fbd-287d-4489-bca3-1c4f52d00df7",
+    "jpeg_artifact": {
+      "artifact_id": "ac29a784-d940-402c-ab56-093753d4b240",
+      "url": "/api/v1/screenshots/e1968fbd-287d-4489-bca3-1c4f52d00df7/artifacts/screenshots/00002--rf119-managed-fullpage-jpeg-probe--screenshot--ACTION_TYPE_SCREENSHOT.jpg",
+      "content_type": "image/jpeg",
+      "dimensions": "2560x6400",
+      "size_bytes": 101301,
+      "sha256": "17b30bf2f974f644a3157225dd491a13362578c7b4d81dc0ba832c29d1ceaaf7",
+      "jpeg_magic": "ffd8ffe000104a46"
+    },
+    "png_execution_id": "04151191-2702-41fb-bccf-3171a3f54717",
+    "png_artifact": {
+      "artifact_id": "2ed42956-3ef0-4c32-9e6c-c6e0fa10378c",
+      "url": "/api/v1/screenshots/04151191-2702-41fb-bccf-3171a3f54717/artifacts/screenshots/00002--rf119-managed-fullpage-probe--screenshot--ACTION_TYPE_SCREENSHOT.png",
+      "content_type": "image/png",
+      "dimensions": "2560x6400",
+      "size_bytes": 71139,
+      "sha256": "7179c42bd9b4a30a39a1e70236b273ce6a70ef93869068e7a59d697a53c33fd0",
+      "png_magic": "89504e470d0a1a0a"
+    },
+    "result": "JPEG now has .jpg path and image/jpeg metadata; PNG remains .png and image/png. Both decoded at full dimensions, stored hashes match prior valid artifacts, and earlier artifacts were not rewritten."
+  },
+  "current_build_capture_after_storage_fix": {
+    "performance_health_operation_id": "0605ca0361859dce949575726f1e8af1",
+    "build_identity": "sha256:3e81cd3eecfb96b02422eda46141cfab78209c1a47adbc31627aa2e08e1fb9f9",
+    "attempts": 101,
+    "measured_samples": 100,
+    "warmups": 1,
+    "service_p95_ms": 419,
+    "wall_p95_ms": 607.570705,
+    "budget_ms": 2000,
+    "within_budget": true,
+    "receipt_sha256": "56d521704a6ec90e7f449a4002677d0161fcbe8c50596ccf24f4f14f0806c454",
+    "producer_digest": "62456dbce61bba14f9feb78efc1e806448fc482e734c2e8a18bf2938b6ed4a52",
+    "contract_digest": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+    "configuration_digest": "1a2776b5338b0074036293f43952bd03d3be2ef1ccabfef38787e06d4a63b167",
+    "fixture_revision": "dcabe2e264925a3c8264eef9ecd37b0b7b16ee11ce3c57bb1310a80ede1e3367",
+    "receipt_path": "/home/matthalloran8/.vrooli/test-runs/performance-health/workloads/0605ca0361859dce949575726f1e8af1/producer/receipt.json"
+  },
+  "test_genie_unit_after_storage_fix": {
+    "run_id": "20260923-233436-bfac32e7",
+    "verdict": "FAIL",
+    "duration_seconds": 504,
+    "observations": 0,
+    "errors": 1,
+    "warnings": 82,
+    "failure": "TEST_EXECUTION_FAILURE at /usr/bin/pnpm run test:coverage; a direct reproduction confirms merged coverage is below unchanged 85% floor (30.52% statements/lines, 33.61% functions, 67.26% branches).",
+    "findings_artifact_id": "artifact_c3c47d056fc2c4b74062af776d11ee7b",
+    "artifact_catalog": "findings.report only; direct UI rerun supplies the exact merged coverage failure"
+  },
+  "test_genie_performance_after_storage_fix": {
+    "run_id": "20260923-234725-be3fdcdd",
+    "verdict": "PASS",
+    "duration_seconds": 61,
+    "observations": 0,
+    "provider": "performance-health",
+    "level": "L3"
+  },
+  "direct_ui_coverage_reproduction": {
+    "command": "pnpm run test:coverage",
+    "workspace": "scenarios/browser-automation-studio/ui",
+    "exit_code": 1,
+    "terminal_failure": "Merged UI coverage is below the unchanged 85% floor: statements/lines 30.52%, functions 33.61%, branches 67.26%.",
+    "observations": "Displayed test projects reported passing suites through shared; the command terminal failure was the merged coverage threshold.",
+    "interpretation": "This confirms the Test Genie unit command failure is an existing BAS-RF-014 coverage debt, not a runner outage or RF121 regression. Do not lower or waive the threshold."
+  }
+}

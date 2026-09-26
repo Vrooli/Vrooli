@@ -3,8 +3,6 @@ package projects
 import (
 	"context"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
@@ -15,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
 	projectsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects/projectsconnect"
@@ -276,10 +275,7 @@ func newTestClient(t *testing.T, d clientDeps) projectsconnect.ProjectsServiceCl
 		d.executor = &fakeExecutor{}
 	}
 	mount := Module(Deps{Catalog: d.catalog, Executor: d.executor, Paths: d.paths, Logger: logger})
-	mux := http.NewServeMux()
-	mux.Handle(mount.Path, mount.Handler)
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
+	srv := testutil.StartConnectServer(t, mount.Path, mount.Handler)
 	return projectsconnect.NewProjectsServiceClient(srv.Client(), srv.URL)
 }
 

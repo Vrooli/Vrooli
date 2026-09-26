@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "stage": "verify",
+  "observedAt": "2026-09-24T05:13:57.979Z",
+  "apiUrl": "http://127.0.0.1:17116",
+  "contractSha256": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+  "harnessSha256": "70173eb21193f402cd0510dd9b86e4c1d5f104446a78dcd6d0bba35e9df09d69",
+  "beforeHealth": {
+    "status": "healthy",
+    "service": "browser-automation-studio-api",
+    "timestamp": "2026-09-24T05:13:57Z",
+    "readiness": true,
+    "version": "1.0.0",
+    "build_identity": "sha256:39dda9b36b35c078721ea5141738ff1e8de58bf6ad16491febe5882fec72ebf6",
+    "uptime_seconds": 6.32630536,
+    "dependencies": {
+      "automation_engine": {
+        "connected": true
+      },
+      "database": {
+        "connected": true,
+        "latency_ms": 0.059
+      },
+      "playwright_driver": {
+        "connected": true,
+        "latency_ms": 1.242
+      },
+      "profile_checkpoints": {
+        "connected": true,
+        "latency_ms": 0
+      },
+      "storage": {
+        "connected": true,
+        "latency_ms": 0.125
+      }
+    },
+    "metrics": {
+      "goroutines": 111,
+      "heap_mb": 20.381256103515625,
+      "uptime_seconds": 6.32630536
+    }
+  },
+  "afterHealth": {
+    "status": "healthy",
+    "service": "browser-automation-studio-api",
+    "timestamp": "2026-09-24T05:13:57Z",
+    "readiness": true,
+    "version": "1.0.0",
+    "build_identity": "sha256:39dda9b36b35c078721ea5141738ff1e8de58bf6ad16491febe5882fec72ebf6",
+    "uptime_seconds": 6.855749321,
+    "dependencies": {
+      "automation_engine": {
+        "connected": true
+      },
+      "database": {
+        "connected": true,
+        "latency_ms": 0.02
+      },
+      "playwright_driver": {
+        "connected": true,
+        "latency_ms": 0.78
+      },
+      "profile_checkpoints": {
+        "connected": true,
+        "latency_ms": 0
+      },
+      "storage": {
+        "connected": true,
+        "latency_ms": 0.078
+      }
+    },
+    "metrics": {
+      "goroutines": 88,
+      "heap_mb": 39.41303253173828,
+      "uptime_seconds": 6.855749321
+    }
+  },
+  "results": [
+    {
+      "check": "alpha identity survives managed API/driver restart",
+      "passed": true
+    },
+    {
+      "check": "beta identity survives managed API/driver restart",
+      "passed": true
+    }
+  ],
+  "samples": [],
+  "cleanup": [
+    {
+      "kind": "profile",
+      "passed": true
+    },
+    {
+      "kind": "profile",
+      "passed": true
+    }
+  ]
+}

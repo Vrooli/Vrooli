@@ -15,6 +15,7 @@
  * 3. Keep manager.ts as the orchestrator
  */
 
+import { isDeepStrictEqual } from 'node:util';
 import type { SessionSpec, SessionState } from '../types';
 
 // =============================================================================
@@ -56,6 +57,30 @@ export function matchesByLabels(session: SessionState, labels?: Record<string, s
 }
 
 /**
+ * A released browser context can cross execution owners only when its
+ * identity-bearing profile revision and context inputs still match. Labels
+ * choose a pool; they do not prove that browser state belongs to the caller.
+ */
+export function matchesReusableContext(session: SessionState, requested: SessionSpec): boolean {
+  const retained = session.spec;
+  return (
+    retained.session_profile_version === requested.session_profile_version &&
+    isDeepStrictEqual(retained.viewport, requested.viewport) &&
+    isDeepStrictEqual(retained.storage_state, requested.storage_state) &&
+    isDeepStrictEqual(retained.browser_profile, requested.browser_profile) &&
+    isDeepStrictEqual(retained.user_agent, requested.user_agent) &&
+    isDeepStrictEqual(retained.locale, requested.locale) &&
+    isDeepStrictEqual(retained.timezone, requested.timezone) &&
+    isDeepStrictEqual(retained.geolocation, requested.geolocation) &&
+    isDeepStrictEqual(retained.permissions, requested.permissions) &&
+    isDeepStrictEqual(retained.service_worker_control, requested.service_worker_control) &&
+    isDeepStrictEqual(retained.fake_media, requested.fake_media) &&
+    isDeepStrictEqual(retained.app_target, requested.app_target) &&
+    isDeepStrictEqual(retained.validation_context, requested.validation_context)
+  );
+}
+
+/**
  * Find a session by execution ID.
  * Used for idempotent session creation.
  *
@@ -91,30 +116,38 @@ export function findByExecutionId(
  * @returns true if the session may be pooled across executions
  */
 export function isSafeForLabelReuse(session: SessionState): boolean {
-  return session.phase === 'ready' && !session.instructionInFlight && session.leaseReleasedAt !== undefined;
+  return (
+    session.phase === 'ready' &&
+    !session.instructionInFlight &&
+    session.leaseReleasedAt !== undefined
+  );
 }
 
 /**
- * Find a reusable session by labels.
+ * Find a reusable session by labels and context identity.
  * Used when reuse_mode is 'reuse' or 'clean'.
  * Sessions that are busy with another execution are skipped (see
  * isSafeForLabelReuse); if every matching session is busy, the caller
  * creates a fresh session instead.
  *
  * @param sessions - All active sessions
- * @param labels - Labels to match
+ * @param requested - The requested labels and context-defining session options
  * @returns The first idle matching session or null
  */
 export function findByLabels(
   sessions: Iterable<SessionState>,
-  labels?: Record<string, string>
+  requested: SessionSpec
 ): SessionState | null {
-  if (!labels) {
+  if (!requested.labels) {
     return null;
   }
 
   for (const session of sessions) {
-    if (matchesByLabels(session, labels) && isSafeForLabelReuse(session)) {
+    if (
+      matchesByLabels(session, requested.labels) &&
+      matchesReusableContext(session, requested) &&
+      isSafeForLabelReuse(session)
+    ) {
       return session;
     }
   }

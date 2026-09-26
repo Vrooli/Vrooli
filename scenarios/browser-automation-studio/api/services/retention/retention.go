@@ -66,6 +66,16 @@ type ExecutionStore interface {
 	DeleteExecution(ctx context.Context, id uuid.UUID) error
 }
 
+type latestTerminalExecutionsPerWorkflow interface {
+	ListLatestTerminalExecutionsPerWorkflow(
+		ctx context.Context,
+		workflowIDs []uuid.UUID,
+		projectID *uuid.UUID,
+		statuses []string,
+		limit int,
+	) ([]*database.ExecutionIndex, error)
+}
+
 // Service performs retention sweeps.
 type Service struct {
 	store          ExecutionStore
@@ -177,12 +187,15 @@ func (s *Service) Sweep(ctx context.Context, opts Options) (*Report, error) {
 		return candidates[i].StartedAt.After(candidates[j].StartedAt)
 	})
 
-	protected := s.computeProtected(candidates, opts.KeepLatest)
 	if opts.MaxItems > 0 && len(candidates) > opts.MaxItems {
 		// candidates are newest-first; retain the oldest slice so a bounded tick
-		// makes steady progress through expired evidence while keep_latest
-		// remains protected in the full candidate set above.
+		// makes steady progress through expired evidence. Protection is resolved
+		// separately against the full per-workflow history below.
 		candidates = candidates[len(candidates)-opts.MaxItems:]
+	}
+	protected, err := s.computeProtected(ctx, candidates, opts, status)
+	if err != nil {
+		return nil, err
 	}
 	selectedBySize := s.selectByMaxBytes(candidates, protected, opts)
 
@@ -380,13 +393,68 @@ func (s *Service) gatherCandidates(ctx context.Context, opts Options, status str
 	return out, nil
 }
 
-func (s *Service) computeProtected(candidates []*database.ExecutionIndex, keepLatest int) map[uuid.UUID]bool {
+func (s *Service) computeProtected(ctx context.Context, candidates []*database.ExecutionIndex, opts Options, status string) (map[uuid.UUID]bool, error) {
+	keepLatest := opts.KeepLatest
 	protected := map[uuid.UUID]bool{}
 	if keepLatest <= 0 {
-		return protected
+		return protected, nil
 	}
+
+	// A bounded/preview candidate batch is only a removal window, not the
+	// population from which keep_latest is defined. Query the newest terminal
+	// rows per workflow separately so an old row cannot protect itself merely
+	// because newer rows were omitted from the batch.
+	if opts.MaxItems > 0 || len(opts.ExecutionIDs) > 0 {
+		workflows := make(map[uuid.UUID]struct{}, len(candidates))
+		for _, candidate := range candidates {
+			if candidate != nil {
+				workflows[candidate.WorkflowID] = struct{}{}
+			}
+		}
+		statuses := []string{database.ExecutionStatusCompleted, database.ExecutionStatusFailed, database.ExecutionStatusCancelled}
+		if status != "" {
+			statuses = []string{status}
+		}
+		workflowIDs := make([]uuid.UUID, 0, len(workflows))
+		for workflowID := range workflows {
+			workflowIDs = append(workflowIDs, workflowID)
+		}
+		var latest []*database.ExecutionIndex
+		if reader, ok := s.store.(latestTerminalExecutionsPerWorkflow); ok {
+			rows, err := reader.ListLatestTerminalExecutionsPerWorkflow(ctx, workflowIDs, opts.ProjectID, statuses, keepLatest)
+			if err != nil {
+				return nil, err
+			}
+			latest = rows
+		} else {
+			latest = make([]*database.ExecutionIndex, 0, len(workflows)*keepLatest)
+			for _, workflowID := range workflowIDs {
+				for _, candidateStatus := range statuses {
+					rows, _, err := s.store.ListExecutions(ctx, database.ExecutionQuery{
+						WorkflowID: &workflowID,
+						ProjectID:  opts.ProjectID,
+						Status:     candidateStatus,
+						Limit:      keepLatest,
+					})
+					if err != nil {
+						return nil, fmt.Errorf("list latest executions for workflow %s status %q: %w", workflowID, candidateStatus, err)
+					}
+					latest = append(latest, rows...)
+				}
+			}
+		}
+		return computeProtectedFromCandidates(latest, keepLatest), nil
+	}
+	return computeProtectedFromCandidates(candidates, keepLatest), nil
+}
+
+func computeProtectedFromCandidates(candidates []*database.ExecutionIndex, keepLatest int) map[uuid.UUID]bool {
+	protected := map[uuid.UUID]bool{}
 	byWorkflow := map[uuid.UUID][]*database.ExecutionIndex{}
 	for _, e := range candidates {
+		if e == nil {
+			continue
+		}
 		byWorkflow[e.WorkflowID] = append(byWorkflow[e.WorkflowID], e)
 	}
 	for _, list := range byWorkflow {

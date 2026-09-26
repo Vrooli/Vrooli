@@ -1,0 +1,42 @@
+{
+  "cycle": "102",
+  "recorded_at": "2026-09-23",
+  "status": "integrity_repair_reverified",
+  "issues": [
+    "BAS-RF-060"
+  ],
+  "scope": "Reconcile the stale screenshot sanitizer issue row against current code and maintained tests",
+  "prior_art": {
+    "direct_receipt": "internal/evidence/rehabilitation/screenshot-storage-2026-09-22.json",
+    "review_finding": "Cycle023's implementation and test receipt repair the behavior described as still broken in the RF060 register row.",
+    "source_behavior": "Oversized encoded images are omitted with an explicit reason, caller-owned screenshot and notes are copied before shaping, full PNG/JPEG decode rejects malformed and truncated streams, storage receipts validate object name/URL/size, and required capture failure is persisted and returned."
+  },
+  "current_verification": {
+    "command": "go test ./automation/execution-writer -run TestScreenshotEvidenceRequiresValidReceipt -count=1",
+    "result": "passed",
+    "duration_seconds": 1.038,
+    "fault_cases": [
+      "valid storage receipt and byte-for-byte readback",
+      "store error and nil receipt",
+      "empty URL/object name and wrong size",
+      "missing storage and missing image",
+      "invalid image, truncated PNG and over-budget image",
+      "no-artifact capture policy"
+    ],
+    "oracles": "Caller screenshot bytes/dimensions/media type and caller notes remain unchanged; successful stored bytes match the encoded input and decode; failed required capture persists a failed outcome without publishing an image URL."
+  },
+  "tracking": {
+    "problem_register": "BAS-RF-060 now records the integrity behavior as resolved, cites both the original receipt and this current rerun, and retains resource/latency qualifications as separate limitations.",
+    "feedback": "BAS-FB-008 is unchanged and already retained verbatim; no duplicate entry was added."
+  },
+  "known_limits": {
+    "historical_isolated_benchmark": "Cycle023 complete image validation measured median writer time 32.071ms to 38.079ms (+18.7%) and allocations about113KB/op to3.863MB/op; exact numbers and workload are retained in screenshot-storage-2026-09-22.json.",
+    "hostile_dimensions": "No decoded-pixel memory bound or hostile-dimension resource receipt exists.",
+    "product_impact": "The current capture workload remains 419ms service p95 under its 2000ms budget; the writer-only benchmark does not prove an end-to-end regression or improvement."
+  },
+  "candidate": {
+    "source_changed": false,
+    "managed_build_identity": "sha256:0da400807449f9ae90fade170c03225ef71859f8ebf21bdfa8177543847cf9c4"
+  },
+  "next_review": "Only add a pixel/memory limit if it can be derived from a declared resource budget and retained browser/image capabilities. First determine whether a safe, less allocating validator can preserve truncated/corrupt-image rejection and whether the isolated cost affects the measured browser workload."
+}

@@ -50,49 +50,162 @@ new paid access, credentials or real-account effects still need their actual
 authority; defer only an unauthorized effect and continue useful work. Do not
 ask the operator to unblock the loop or solve its validation prerequisites.
 
-### Durable tracking and resume protocol
+### Durable tracking and bounded resume protocol
 
-All paths below are within this scenario. There is no external plan/log dependency.
+All paths below are within this scenario. There is no external plan/log
+dependency. These files are state, not an append-only conversation transcript.
 
 | File | Single responsibility |
 | --- | --- |
-| `docs/internal/REFRACTOR_CONTRACT.json` | Outcomes, unchanged preservation obligations, bands, scope and continuation policy |
+| `docs/internal/REFRACTOR_CONTRACT.json` | Outcomes, preservation obligations, bands, scope and continuation policy |
 | `docs/concepts/ARCHITECTURE.md` | Current and intended owners, interfaces and product design |
-| `docs/PROBLEMS.md` | Sole BAS-RF issue register, including new adversarial findings and dated resolutions |
-| `docs/internal/REFRACTOR_PROGRESS.md` | Current checkpoint plus append-only experiment/review history and measured deltas |
-| `docs/internal/OPERATOR_FEEDBACK.md` | Verbatim feedback captured before acting, with discrete statuses and resolution receipts |
+| `docs/PROBLEMS.md` | Sole BAS-RF defect register; search for the IDs referenced by the active epoch instead of reading the whole ledger |
+| `docs/internal/REFRACTOR_PROGRESS.md` | Active epoch, exact resume checkpoint and recent epoch summaries only |
+| `docs/internal/OPERATOR_FEEDBACK.md` | Open material directives/findings plus an index to the verbatim archive |
 | `docs/internal/DECISIONS.md` | Durable architecture decisions and tradeoffs |
-| `docs/internal/REFRACTOR_*_2026-09-*.json` | Dated baseline/assessment observations; append an amendment rather than rewrite history |
-| `docs/internal/evidence/rehabilitation/` | Dated design/review records and historical evidence |
-| `.vrooli/runtime/rehabilitation-evidence/` | Current build-bound owner receipts and raw artifacts; this ignored runtime directory is excluded from managed build identity |
+| `docs/internal/REFRACTOR_*_2026-09-*.json` | Dated baseline observations; historical, not routine resume input |
+| `docs/internal/evidence/rehabilitation/` | Referenced durable evidence and compressed historical records |
+| `.vrooli/runtime/rehabilitation-evidence/` | Current-candidate receipts and owner artifacts; superseded cohorts belong in its verified `archive/` |
 
-On every start or resume, read the goal, contract, this protocol, feedback and
-latest progress; then inspect the relevant issue and source. Recover pending
-owner operation IDs before admitting another run. An unchecked item is unknown,
-not completed merely because the previous agent said it was.
+The **active resume packet** is the goal, this protocol, the contract, the top
+current checkpoint in `REFRACTOR_PROGRESS.md`, unresolved entries in
+`OPERATOR_FEEDBACK.md`, referenced BAS-RF entries, and only the relevant
+architecture/decision sections. Do not routinely read historical assessments,
+archives, raw receipts, resolved feedback or the complete problem ledger.
+Recover a referenced historical record only when a present decision depends on
+it. Recover pending owner operation IDs before admitting another run. An
+unchecked item is unknown, not complete because a prior agent said so.
 
-Choose a real high-impact issue or a falsifiable investigation. Prioritize data
-loss, ownership/security defects and broken core journeys, then recurring
-friction, performance and structural simplification using measured impact.
-Document the hypothesis and discriminating check; repair the whole ownership
-boundary, validate, critique the result and select the next concern. This is a
-repeatable loop, not an ordered implementation plan or fixed list of phases.
+Keep the active resume packet at or below **96 KiB**. Count the goal, progress,
+feedback and the protocol plus quoted active BAS-RF excerpts; do not count the
+full linked contract or architecture reference. If the packet exceeds the
+budget, consolidate before further implementation: update current state in
+place, move superseded narrative to a compressed dated archive, record its
+SHA-256 and retrieval command, and repair inbound references. Never remove a
+unique directive, decision, defect, limitation, measurement or proof merely to
+meet the budget.
 
-After each coherent change or experiment and before compaction/interruption,
-update the current checkpoint and append a record with: issue/outcome IDs;
-source/build identity and changed paths; hypothesis and result; commands and
-receipt IDs; before/after performance, complexity, duplication and coupling;
-converted callers/deleted paths; rejected ideas; unverified limitations and
-attempted remedies; pending operations; next useful action. Give limitations
-explicit recheck triggers so unchanged failures are not retried indefinitely.
-Keep full proof with its producer; link it instead of duplicating issue tables.
+Capture a new material operator directive or finding verbatim once before
+acting. Classify it as open or resolved and link semantic repeats to the
+original entry. Routine status questions, acknowledgements and bare
+continuations do not become permanent active entries. Resolve feedback with a
+specific code, test, checkpoint or decision reference. When an active file
+accumulates superseded narrative, compact it during the current epoch rather
+than waiting for another size complaint.
 
-Append every new operator instruction verbatim to the feedback ledger before
-acting, including requests that alter the target or scope. Resolve each with
-specific evidence. Keep implementing while any actionable feedback or defect
-remains. At interruption, report changed, verified, remaining and unverified;
-the checkpoint supports resumption and is not a completion claim. No external
-restart service is configured by this text or by preparing the goal.
+### Candidate-epoch execution protocol
+
+A **candidate epoch** is the smallest independently shippable vertical product
+slice or complete ownership boundary that produces a meaningful user/system
+improvement. It contains many work units and normally survives multiple context
+compactions. A work unit may be a defect, experiment, sensor, receipt, test or
+helper change. One work unit, one score row or whatever fits before the next
+compaction is not normally an epoch.
+
+Prefer related batches from these lanes, in order of the evidence:
+
+1. trustworthy foundation: capture, evidence, profile, cancellation and passive recording;
+2. browser quality: interactive use, motion, readiness, workspace and resources;
+3. dependable automation: preservation, known flows, agent usefulness and structural debt;
+4. release expansion: soak, desktop portability and adversarial review.
+
+At epoch admission, write one active checkpoint containing:
+
+- the user/system outcome and independently shippable boundary;
+- affected journeys, contract rows, BAS-RF issues and owners;
+- the falsifiable hypothesis, expected product/debt improvement and baseline;
+- shared invalidation roots: source/build identity, lifecycle, schema, browser
+  state, external sessions and qualification owners;
+- known callers, old paths, shims and migrations that must be converted or
+  deleted;
+- the semantic exit gate, unavailable external evidence and permitted split
+  conditions.
+
+Reject or enlarge an epoch when it is only one assertion, defect, helper,
+sensor, receipt or row; when known actionable work remains in the same
+ownership boundary; when a replaced old path still has callers; or when its
+result can be described only as validation/score movement. A short epoch is
+valid only if it is still independently shippable and complete.
+
+During implementation, use focused discriminating checks after related edits.
+Do not rebuild, restart, run the exact evidence phase, refresh every receipt or
+invoke the setpoint after each work unit. Batch changes with the same
+invalidation roots. New qualification infrastructure is justified only when it
+makes a required outcome truthfully measurable or replaces an inferior path;
+report its cost separately from product progress.
+
+Track three truths independently:
+
+1. **implementation** — product behavior and debt changes supported by focused tests;
+2. **sensor readiness** — the owner can measure the intended behavior honestly;
+3. **candidate qualification** — a frozen managed build has applicable current receipts.
+
+A source edit can invalidate candidate qualification without erasing proven
+implementation or sensor readiness. Never report a stale receipt as a product
+regression or redo unaffected implementation merely to restore a score.
+
+Compaction, a status request or an interruption creates an **in-epoch
+checkpoint**, not an epoch boundary. Update the same checkpoint in place with:
+unchanged exit gate; completed work units; source/runtime state; focused checks;
+pending operations; rejected hypotheses; prioritized remaining units; exact
+next action; and recheck triggers for unavailable conditions. Do not qualify
+solely because context is ending.
+
+Early epoch closure is allowed only for a security/data-loss emergency, a
+shared owner needing separately attributable repair, a native/platform window,
+an investigation that disproves the grouping, or increasing rollback ambiguity.
+Record the split and the successor boundary. Convenience, compaction, a green
+test, a score change or elapsed time is not a split condition.
+
+When the semantic exit gate is met, freeze the candidate and qualify once:
+
+1. run the focused regression set for changed owners;
+2. rebuild/restart the managed candidate once when required;
+3. refresh only invalidated owner receipts;
+4. run the exact `rehabilitation-evidence` phase once;
+5. run the governed rehabilitation setpoint once;
+6. conduct one adversarial review of the result, debt delta and preservation obligations.
+
+A product defect found here reopens the epoch. An unrelated sensor weakness is
+recorded for its owning epoch unless it prevents truthful qualification. Explain
+every out-of-cadence rebuild, restart, evidence-phase or setpoint invocation.
+The agent never commits; the owner controls Git commits.
+
+At epoch closure replace the active checkpoint with a compact summary of user
+outcome, production-source delta, product tests, qualification-only changes,
+retired paths, measured debt/complexity delta, receipts, score and all three
+truth states. Include counts of rebuilds, restarts, exact evidence phases and
+setpoint reads, plus risks and the next candidate epoch. Move detailed command
+chronology to the compressed history; do not append it to active progress.
+
+### Evidence retention protocol
+
+The flat runtime evidence root is a **working set**, not permanent history.
+Keep directly readable only the newest applicable cohort per owner/candidate,
+its transitive owner artifacts, any pending-operation output and artifacts
+explicitly referenced by the active checkpoint. Before and after epoch
+qualification, archive superseded, stale-build, failed-attempt and duplicate
+artifacts as one dated `.tar.gz` under `archive/`, with a manifest recording
+selection rule, file count, uncompressed bytes, archive SHA-256 and retrieval
+command. Verify the archive listing before removing originals.
+
+The working set should remain below **128 files, 16 MiB and 250,000 text
+lines**. Exceeding any limit requires retention cleanup before another broad
+producer run, unless the active owner needs the excess files; record that
+temporary exception and its cleanup trigger. Producers must write bounded
+summaries by default and put high-cardinality samples in raw owner artifacts,
+not duplicate them across logs, receipts and Markdown.
+
+Durable `docs/internal/evidence/rehabilitation/` contains only cited design or
+repair evidence and compressed histories. Do not copy transient qualification
+cohorts into it. Compress historical Markdown/JSON when it no longer needs
+search indexing; retain a small active index with checksums and retrieval
+commands. Archives are evidence, not resume input.
+
+Keep implementing while actionable feedback or defects remain. At interruption
+report changed, verified, remaining and unverified. The checkpoint enables
+resumption and is not a completion claim. No external restart service is
+configured by this text or by preparing the goal.
 
 ## Non-blocking validation policy
 
@@ -134,6 +247,14 @@ execution statistics do not measure these outcomes. Building the qualification
 fixtures, receipt producers, governed reads and joins is authorized implementation
 work. A successful board invocation does not satisfy an unavailable row.
 
+The contract preparation validator checks that each contract-bound and
+partial-protocol preservation reference still names an existing file and exact
+test function/title. That is traceability only; a resolvable test reference is
+not a pass receipt.
+Run its regressions with `python3 -m unittest discover -s
+scenarios/browser-automation-studio/docs/internal -p 'test_*.py'` from the
+repository root.
+
 Run from the repository root:
 
 ```bash
@@ -171,7 +292,8 @@ It neither restarts services nor cleans retained evidence. Its controlled oracle
 checks run with `go test ./internal/capturequalification ./cmd/capture-cohort`.
 Standalone observations do not certify a rehabilitation row. Performance Health
 owns invocation, applicability, retention and the governed reading through
-`sweep workload-run browser-automation-studio capture --json` and `sweep workload-get`;
+`performance-health sweep workload-run browser-automation-studio capture --json` and
+`performance-health sweep workload-get`;
 Test Genie retains the performance gate result. The dated090 evidence records
 the first qualified local capture reading; fresh candidates need fresh receipts.
 
@@ -212,9 +334,11 @@ node scenarios/browser-automation-studio/api/cmd/motion-cohort/qualification.mjs
 ```
 
 The owner runs the focused UI one-active/newest-pending decoder regression,
-focused Go relay, driver-settings JSON and API response regressions, and a
-managed API-to-viewer cohort. The driver/API wire keeps fractional `current_fps`
-values so a capture shortfall remains observable. The
+the complete CDP screencast-strategy unit file, focused Go relay, driver-settings
+JSON and API response regressions, and a managed API-to-viewer cohort. Its
+receipt binds both the CDP strategy implementation and its unit-test file, so
+the cadence regression is required evidence for this row. The driver/API wire
+keeps fractional `current_fps` values so a capture shortfall remains observable. The
 live fixture changes a 16-bit visual marker at 30 FPS. Its five-minute baseline
 requires at least 9,000 rendered and unique fixture frames, p95 frame age at
 most 100 ms, p95 decode at most 100 ms, maximum decode at most 250 ms, and frame
@@ -285,7 +409,7 @@ owner artifacts whose SHA256 does not match.
 Run the managed Chromium-to-journal owner from `playwright-driver/`:
 
 ```bash
-BAS_REHAB_LIVE_API_BASE=http://127.0.0.1:17116 BAS_PASSIVE_FIDELITY_RECEIPT=.vrooli/runtime/rehabilitation-evidence/passive-fidelity-managed-current.json pnpm exec jest tests/integration/saved-workflow-fresh-context.test.ts --runInBand --coverage=false --silent=false --testNamePattern='persists 10000 native fixture clicks through the managed API journal'
+BAS_REHAB_LIVE_API_BASE=http://127.0.0.1:17116 BAS_PASSIVE_FIDELITY_RECEIPT="../.vrooli/runtime/rehabilitation-evidence/passive-fidelity-managed-<tag>.json" pnpm exec jest tests/integration/saved-workflow-fresh-context.test.ts --runInBand --coverage=false --silent=false --testNamePattern='persists 10000 native fixture clicks through the managed API journal'
 ```
 
 Run the crash/reconnect and browser-semantics owners from their owning
@@ -293,7 +417,7 @@ directories with observation output enabled:
 
 ```bash
 cd api && BAS_PASSIVE_FIDELITY_CRASH_OBSERVATION=/absolute/path/to/.vrooli/runtime/rehabilitation-evidence/passive-fidelity-crash-current.json GOTOOLCHAIN=local GOPROXY=off go test ./services/recording -run '^TestJournalSameIDRetryRecoversAcrossServiceProcessDeath$' -count=1
-cd ../playwright-driver && BAS_PASSIVE_FIDELITY_SEMANTICS_OBSERVATIONS=.vrooli/runtime/rehabilitation-evidence/passive-fidelity-semantics-current.jsonl pnpm exec jest tests/integration/pipeline-e2e.test.ts --runInBand --coverage=false --silent=false --testNamePattern='should capture all core event types in single session|should capture navigation events|should continue capturing events after navigation'
+cd ../playwright-driver && BAS_PASSIVE_FIDELITY_SEMANTICS_OBSERVATIONS="../.vrooli/runtime/rehabilitation-evidence/passive-fidelity-semantics-<tag>.jsonl" pnpm exec jest tests/integration/pipeline-e2e.test.ts --runInBand --coverage=false --silent=false --testNamePattern='should capture all core event types in single session|should capture navigation events|should continue capturing events after navigation'
 ```
 
 After those three owners pass and write their raw observations, assemble the
@@ -399,23 +523,39 @@ descriptor change, restart the managed Test Genie scenario with
 a run; a running service can retain a stale catalog and disagree with the CLI.
 
 The status binding's typed projection must preserve `build_identity` in both
-its scenario and runtime objects. A focused regression covers that conversion:
+its scenario and runtime objects. The typed read-only
+`vrooli/scenario/freshness` binding carries the lifecycle artifact verdict for
+the named scenario. BAS rehabilitation reads it before capture or Test Genie;
+every artifact check must be present and fresh. A stale, failed, incomplete or
+unavailable verdict makes all 17 rows unavailable and skips those evidence
+reads. This prevents a healthy process from making evidence look current when
+its serving artifacts no longer match source. Focused regressions cover the
+RPC mapping and fresh, stale and unknown reader cases:
 
 ```bash
-GOTOOLCHAIN=local GOPROXY=off go test ./internal/api -run '^TestScenarioStatusPreservesManagedBuildIdentityAcrossTypedProjection$' -count=1
+GOTOOLCHAIN=local GOPROXY=off go test ./internal/api -run 'TestScenarioFreshnessRPCUsesLifecycleReport|TestScenarioControlPlaneServiceIsMounted' -count=1
+python3 -m unittest discover -s scenarios/browser-automation-studio/.vrooli/program-runtime/tests -p test_workflows.py -k rehabilitation
+(cd scenarios/program-runtime/api && go test ./internal/bindings -run 'TestProjectManifestBindsControlPlaneMethods|TestProjectControlPlaneBindingsAreOwnedBySharedCLIContracts' -count=1)
 ```
 
-The running root API must load that projection change before the setpoint can
-join the live status identity. BAS has no root-API scenario lifecycle target;
-until its owning project lifecycle refreshes the server, a missing identity is
-reported unavailable rather than inferred from the CLI or receipt.
+The running root API must load the generated control-plane method before the
+binding can be called. Run `vrooli build` after proto or control-plane changes,
+then `vrooli develop --restart-api` to refresh that managed API; restarting
+alone does not rebuild it. This leaves scenarios and resources running. BAS has
+no root-API scenario lifecycle target. Missing or stale freshness never falls
+back to inferring artifact state from a shell command or retained receipt.
 
 `refactor_contract.py` validates preparation and returns no product verdict;
 the setpoint reads required outcomes; `refactor_inventory.py` measures source
-size, not complexity. Use only the file responsibilities above. Test Genie and
-platform owners retain their receipts; the progress file links those receipts
-and owns the checkpoint. Do not create a second issue register or a replacement
-tracking application.
+size, not complexity. Its default mode measures tracked source, matching the
+retained baseline. With `--include-untracked`, `tracked_source_*` and
+`untracked_source_*` remain separate; `selected_source_*`, `runtime_*`, and
+largest runtime files describe the included population. Compare baseline runtime
+counts with default mode and review inclusive mode for new source. Line counts
+are not a complexity or debt score. Use only the file responsibilities above.
+Test Genie and platform owners retain their receipts; the progress file links
+those receipts and owns the checkpoint. Do not create a second issue register or
+a replacement tracking application.
 
 ### Producer and oracle contract
 
@@ -454,6 +594,21 @@ probe or a stubbed I/O reproduction alone does not qualify the full journey.
 | J23 | Measured FPS, quality, headers and current frame after reconnect on a stable page; unsupported controls explicit | Stream/UI performance suites |
 | J24 | Public CLI assertion enforcement plus primitive/map/struct/pointer typed outcome round-trips including failure/attempt identity | CLI-core/API/driver public contract tests |
 
+### Partial preservation-test references (not qualification)
+
+Keep focused test references outside `REFRACTOR_CONTRACT.json`: every outcome
+receipt hashes that contract, so changing a test link there invalidates unrelated
+owner evidence. This table records only existing partial coverage; J06 remains
+planned until the full recording/profile failure and applicable physical-
+interruption recovery cases are qualified.
+
+| Journey | Exact test reference | Coverage |
+| --- | --- | --- |
+| BAS-RH-J06 | `api/services/session-profile/persistence/file_repository_test.go :: TestFileRepositoryCommitPreservesAcknowledgedSnapshot` | Profile write and rename failures do not acknowledge the update; reopening recovers the previous snapshot |
+| BAS-RH-J06 | `api/services/session-profile/persistence/file_repository_test.go :: TestFileRepositoryUpdateFailurePreservesSnapshot` | Callback, commit, lock and identity failures preserve the previously committed bytes |
+| BAS-RH-J06 | `api/services/recording/service_test.go :: TestJournalHistorySurvivesPaginationReopenAndConcurrentWriters` | One rejected journal write is not acknowledged, retry retains the event once, and all 10,000 prior IDs/sequences survive reopen |
+| BAS-RH-J06 | `api/services/recording/service_test.go :: TestJournalSameIDRetryRecoversAcrossServiceProcessDeath` | A child process is killed after commit-before-ack; reopening recovers the event and same-ID retry does not duplicate it |
+
 RF-026's profile-scoped live routing guard has a focused owner regression. It
 keeps multiple active sessions bound, rejects profile-only live operations
 when that binding is ambiguous, and proves no service-worker or navigation
@@ -485,26 +640,43 @@ intervals. No discarded failures, arbitrary idle sleeps, smaller workloads or
 changed screenshot fidelity to improve a result. Apply the contract's 5% relative
 regression rule only when repeated comparable trials distinguish it from noise.
 
-### Interactive-feedback local owner
+### Interactive-feedback owner
 
-The current local owner correlates 1,000 recording inputs with applied receipts
-and the corresponding viewer-canvas pixels. Run only this case from
-`playwright-driver/`; set `BAS_REHAB_RECEIPT_PATH` to retain its complete sample
-set, contract and test-source hashes, and managed API build identity:
+The owner correlates 1,000 recording inputs with applied receipts and the
+corresponding viewer-canvas pixels. Run one cohort at a time from
+`playwright-driver/`. `local` is the default; `remote` applies Chromium CDP
+emulation at 50 ms latency and 10 Mbps in each direction. This is an emulated
+network cohort, not a physical remote-network result. Each receipt retains the
+complete sample set, cohort, contract and test-source hashes, and managed API
+build identity:
 
 ```bash
 BAS_REHAB_LIVE_API_BASE=http://127.0.0.1:17116/api/v1 \
 BAS_REHAB_LIVE_UI_BASE=http://127.0.0.1:21794 \
 BAS_REHAB_LIVE_SAMPLE_COUNT=1000 \
+BAS_REHAB_NETWORK_PROFILE=local \
 BAS_REHAB_RECEIPT_PATH=../.vrooli/runtime/rehabilitation-evidence/interactive-feedback-local-<run-id>.json \
 pnpm exec jest tests/integration/input-feedback.test.ts --runInBand --coverage=false \
   --testNamePattern='correlates live UI inputs with applied receipts and viewer-canvas pixels'
 ```
 
+After inspecting the local receipt, run the remote cohort separately:
+
+```bash
+BAS_REHAB_LIVE_API_BASE=http://127.0.0.1:17116/api/v1 \
+BAS_REHAB_LIVE_UI_BASE=http://127.0.0.1:21794 \
+BAS_REHAB_LIVE_SAMPLE_COUNT=1000 \
+BAS_REHAB_NETWORK_PROFILE=remote \
+BAS_REHAB_RECEIPT_PATH=../.vrooli/runtime/rehabilitation-evidence/interactive-feedback-remote-<run-id>.json \
+pnpm exec jest tests/integration/input-feedback.test.ts --runInBand --coverage=false \
+  --testNamePattern='correlates live UI inputs with applied receipts and viewer-canvas pixels'
+```
+
 The output path is restricted to the ignored rehabilitation-evidence directory.
-The receipt is local diagnostic evidence: the outcome remains unqualified until
-the separate remote p95 cohort and governed sensor are present. Do not infer the
-remote band from the loopback result.
+The row remains unqualified until both current-build cohorts pass and the
+governed sensor verifies their source, contract, build, correlation counts and
+latency bands. Do not run Test Genie before that sensor is bound, or infer the
+remote band from the local result.
 
 Long soaks and native matrices are scheduled once after their affected paths
 stabilize. Focused regressions and relevant Test Genie phases govern iterations:
@@ -525,14 +697,16 @@ phase does not substitute for correlated browser measurements.
 ### Driver coverage
 
 The Node driver is a required product surface. Its current Jest suites and
-`playwright-driver/jest.config.js` are real; the current unit policy lacks a
-required driver role. The instrument work must add the role through the unit
-provider's supported adapter and verify that a deliberately failing driver
-sentinel fails the Test Genie unit verdict. Preserve all existing coverage
-floors. Until that routing is qualified, run the driver directly as a focused
-package check and retain its result separately; generic unit success cannot
-claim driver coverage. Dependency installation still uses Scenario Dependency
-Analyzer.
+`playwright-driver/jest.config.js` are real, and
+`.vrooli/testing.json` requires the `playwright-driver` role through the
+`node-jest` Unit Health adapter. The 2026-09-25 Unit Health assessment
+discovered four ready workspaces and planned `pnpm test:coverage` for the
+driver. That static assessment did not execute tests (`executed=not_requested`),
+so it is not a passing driver run. Use focused Jest suites during iteration;
+run the `unit` phase when validating the provider's execution verdict. Preserve
+all existing coverage floors. A controlled failing-driver sentinel has not yet
+been exercised through that phase, so do not claim that specific gate check.
+Dependency installation still uses Scenario Dependency Analyzer.
 
 ## Simplicity and replacement completion
 

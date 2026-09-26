@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "work": "BAS-WORK-131",
+  "issue": "BAS-RF-011",
+  "contractRow": "profile-durability",
+  "observedAt": "2026-09-24T05:13:57.979Z",
+  "sourceHead": "8707b970a48f82665662450766ad8233d6def9e7",
+  "contractSha256": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+  "sourceFiles": {
+    "playwright-driver/src/session/manager.ts": "5dfc1926f3f69e68bfbc0c105e9d066fba22fbcfbc92bc779b166fc1f99536f8",
+    "api/cmd/profile-durability-cohort/qualification.mjs": "70173eb21193f402cd0510dd9b86e4c1d5f104446a78dcd6d0bba35e9df09d69"
+  },
+  "runtime": {
+    "managedBuildIdentityBeforeSeedAndAfterRestart": "sha256:39dda9b36b35c078721ea5141738ff1e8de58bf6ad16491febe5882fec72ebf6",
+    "managedServiceHealthAfterVerification": "healthy"
+  },
+  "cohort": {
+    "producer": "api/cmd/profile-durability-cohort/qualification.mjs",
+    "seedCommand": "node cmd/profile-durability-cohort/qualification.mjs seed /tmp/bas-profile-durability-131",
+    "verifyCommand": "node cmd/profile-durability-cohort/qualification.mjs verify /tmp/bas-profile-durability-131",
+    "seedOwnerReceipt": {
+      "path": "internal/evidence/rehabilitation/profile-durability-131-seed-owner.json",
+      "sha256": "a62a2980e18f103728ec6105f0dbb53f6400fc7c1383ad9dca31e5b8effb1873"
+    },
+    "restartOwnerReceipt": {
+      "path": "internal/evidence/rehabilitation/profile-durability-131-restart-owner.json",
+      "sha256": "83e68654cd94ce60e92dc6cac70e6194b54a6f0b4125c9a0da29f3d3b4698610"
+    },
+    "allChecksPassed": true,
+    "seedChecks": 5,
+    "restartChecks": 2,
+    "checkpointVisibleAfterMs": 1550.7814110000002,
+    "checkpointPollSamples": 30,
+    "alphaCookieLocalStorageIndexedDBCloseReopen": "passed",
+    "betaCookieLocalStorageIndexedDB": "passed",
+    "alphaBetaIsolation": "passed",
+    "alphaAndBetaAfterManagedApiDriverRestart": "passed",
+    "syntheticProfilesDeleted": 2
+  },
+  "testGenie": {
+    "selectedRunId": "20260924-052843-5342932d",
+    "status": "passed",
+    "plannedPhases": [
+      "profile-durability"
+    ],
+    "phases": [
+      {
+        "name": "profile-durability",
+        "status": "passed",
+        "durationSeconds": 1
+      }
+    ],
+    "completedAt": "2026-09-24T05:28:43Z",
+    "evidenceTier": "degraded",
+    "treeDigest": "td:ff9974ebf10a16bfbd111c065c8c51da7b0c5040d7bb43c66aab93557d79c30a",
+    "gitSha": "8707b970a48f82665662450766ad8233d6def9e7",
+    "earlierTargetedRunId": "20260924-051822-fdec2297",
+    "degradationNote": "Shared checkout was dirty; provider independently matched the retained product receipts to current build and source hashes."
+  },
+  "qualificationStatus": "Current managed Linux build passed all retained seed, automatic checkpoint, close/reopen, independent profile isolation, managed API/driver restart, and cleanup assertions.",
+  "limitations": [
+    "Checkpoint timing is one trial; repeatability is unverified.",
+    "Abrupt process-death or power-loss recovery was not exercised.",
+    "Only the Linux managed candidate was exercised; other platform targets remain unverified."
+  ],
+  "freshCaptureWorkload": {
+    "operationId": "e742a59a26f245b5feabfdebff77d6e7",
+    "outcome": "WORKLOAD_OUTCOME_MEASURED",
+    "samples": 100,
+    "attemptsIncludingWarmup": 101,
+    "serviceP95Ms": 473,
+    "wallP95Ms": 668.552432,
+    "budgetMs": 2000,
+    "buildIdentity": "sha256:39dda9b36b35c078721ea5141738ff1e8de58bf6ad16491febe5882fec72ebf6",
+    "receiptPath": "/home/matthalloran8/.vrooli/test-runs/performance-health/workloads/e742a59a26f245b5feabfdebff77d6e7/producer/receipt.json",
+    "receiptSha256": "c51616f0e5ac51fcf8c83808df9f265a45e24041030a78e47a5174e9fc8c0aaf",
+    "producerDigest": "62456dbce61bba14f9feb78efc1e806448fc482e734c2e8a18bf2938b6ed4a52",
+    "contractDigest": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+    "configurationDigest": "1a2776b5338b0074036293f43952bd03d3be2ef1ccabfef38787e06d4a63b167",
+    "fixtureRevision": "dcabe2e264925a3c8264eef9ecd37b0b7b16ee11ce3c57bb1310a80ede1e3367"
+  },
+  "setpointRead": {
+    "programId": "prog_7f34f892-c20c-472f-af54-155bdd5ea3fa",
+    "qualifiedRows": 2,
+    "unknownRows": 15,
+    "productQualified": false
+  },
+  "captureTrialHistory": [
+    {
+      "operationId": "ac27ba6cfd380b48c44c655cf2a4ae67",
+      "outcome": "WORKLOAD_OUTCOME_MEASURED",
+      "serviceP95Ms": 622,
+      "wallP95Ms": 795.97214,
+      "capturedAt": "2026-09-24T05:15:04.680603432Z",
+      "note": "First measured trial on current build; in budget."
+    },
+    {
+      "operationId": "f358065339c34cfeca678250d3870775",
+      "outcome": "WORKLOAD_OUTCOME_FAILED",
+      "receiptPath": "/home/matthalloran8/.vrooli/test-runs/performance-health/workloads/f358065339c34cfeca678250d3870775/producer/receipt.json",
+      "receiptSha256": "5dabe16366d13dcbfe094dd66342c1783a7d95a98e1064020695e505aaef7bc7",
+      "failedAttempt": 4,
+      "failure": "driver returned RESOURCE_LIMIT 429 at max 10 concurrent sessions; producer observed 10 preexisting sessions and zero after cleanup; source payload also reported unexpected end of JSON input.",
+      "capturedAt": "2026-09-24T05:22:58.866144818Z"
+    },
+    {
+      "operationId": "e742a59a26f245b5feabfdebff77d6e7",
+      "outcome": "WORKLOAD_OUTCOME_MEASURED",
+      "serviceP95Ms": 473,
+      "wallP95Ms": 668.552432,
+      "capturedAt": "2026-09-24T05:27:34.15191469Z",
+      "note": "Fresh measured trial after health showed zero sessions; in budget."
+    }
+  ],
+  "sourceInventory": {
+    "sha256": "a1b27425a7ffa4a47b552e2ca6824330b7e8dabc4a4d0788aea406d992d1a624",
+    "runtimeSourceLines": {
+      "api": 92665,
+      "playwrightDriver": 52510,
+      "ui": 130198
+    },
+    "priorObservation": "W130 before this provider addition",
+    "interpretation": "Physical source inventory only; no structural complexity reduction is claimed."
+  }
+}

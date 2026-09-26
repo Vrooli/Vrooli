@@ -2,6 +2,8 @@ package workflow
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -66,7 +68,7 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 	}
 
 	// Manual flat parameters remain in @store/; other execution options use defaults.
-	s.startExecutionRunnerWithOptions(ctx, getResp.Workflow, exec.ID, parameters, nil, nil, nil, nil, nil, nil, "", "", "", false, nil, "", nil)
+	s.startExecutionRunnerWithOptions(ctx, getResp.Workflow, exec.ID, parameters, nil, nil, nil, nil, nil, "", nil, "", "", "", false, nil, "", nil)
 	return exec, nil
 }
 
@@ -187,6 +189,7 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 	var storageState json.RawMessage
 	var profileBrowserSettings *sessionprofilepersistence.BrowserProfile
 	var openTabs []sessionprofilepersistence.TabState
+	var sessionProfileVersion string
 	if sessionProfileID != "" && s.sessionProfileService != nil {
 		profile, err := s.sessionProfileService.GetProfile(sessionprofilepersistence.ProfileID(sessionProfileID))
 		if err != nil {
@@ -194,6 +197,7 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 		}
 		storageState = profile.StorageState
 		profileBrowserSettings = profile.BrowserProfile
+		sessionProfileVersion = profileVersionForReuse(profile)
 
 		// Load open tabs if tab restoration is requested
 		if restoreTabs && len(profile.OpenTabs) > 0 {
@@ -204,6 +208,9 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 		if _, err := s.sessionProfileService.Touch(sessionprofilepersistence.ProfileID(sessionProfileID)); err != nil && s.log != nil {
 			s.log.WithError(err).WithField("session_profile_id", sessionProfileID).Warn("Failed to update session profile usage timestamp")
 		}
+	}
+	if sessionProfileVersion == "" && saveSessionProfileID != "" {
+		sessionProfileVersion = profileVersionForReuse(&sessionprofilepersistence.SessionProfile{ID: sessionprofilepersistence.ProfileID(saveSessionProfileID)})
 	}
 
 	// Extract workflow default browser profile and merge with execution override
@@ -241,7 +248,7 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 		return nil, err
 	}
 
-	completion := s.startExecutionRunnerWithOptions(ctx, workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
+	completion := s.startExecutionRunnerWithOptions(ctx, workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, finalBrowserProfile, storageState, sessionProfileVersion, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
 
 	if req.WaitForCompletion {
 		latest, err := s.waitForExecutionCompletion(ctx, exec.ID, completion)
@@ -414,7 +421,7 @@ func navigateWaitEventToString(e basactions.NavigateWaitEvent) string {
 	}
 }
 
-func (s *WorkflowService) startExecutionRunnerWithOptions(parent context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool) <-chan struct{} {
+func (s *WorkflowService) startExecutionRunnerWithOptions(parent context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, sessionProfileVersion string, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool) <-chan struct{} {
 	if coredb.IsTestMode(parent) {
 		browserProfile = withTestModeBrowserHeader(browserProfile)
 	}
@@ -428,7 +435,7 @@ func (s *WorkflowService) startExecutionRunnerWithOptions(parent context.Context
 		defer func() {
 			close(completion)
 		}()
-		if err := s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, browserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError); err != nil && s.log != nil {
+		if err := s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, browserProfile, storageState, sessionProfileVersion, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError); err != nil && s.log != nil {
 			s.log.WithError(err).WithField("execution_id", executionID).Warn("Execution did not complete successfully")
 		}
 	}()
@@ -486,7 +493,7 @@ func detachedExecutionContext(parent context.Context) context.Context {
 // restoreTabs indicates whether to restore tabs from the session profile before execution.
 // openTabs contains the saved tab states to restore (only used when restoreTabs is true).
 // navigationWaitUntil and continueOnError are execution-level defaults that override workflow settings.
-func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool) (runErr error) {
+func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, sessionProfileVersion string, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool) (runErr error) {
 	defer s.cancelExecutionByID(executionID)
 
 	// Execution cancellation must stop the runner, but it must not cancel the
@@ -625,22 +632,23 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		// Leave this unset so the executor resolves the workflow's declared
 		// sessionReuseMode metadata. The historical explicit "reuse" value
 		// silently overrode an adhoc caller's isolation policy.
-		ReuseMode:           "",
-		WorkflowResolver:    s,
-		PlanCompiler:        s.planCompiler,
-		MaxSubflowDepth:     5,
-		ProjectRoot:         projectRoot,
-		InitialStore:        store,
-		InitialParams:       params,
-		Env:                 env,
-		StartURL:            strings.TrimSpace(startURL),
-		ArtifactConfig:      artifactCfg,
-		BrowserProfile:      browserProfile,
-		StorageState:        storageState,
-		RestoreTabs:         restoreTabs,
-		OpenTabs:            openTabs,
-		NavigationWaitUntil: navigationWaitUntil,
-		ContinueOnError:     continueOnError,
+		ReuseMode:             "",
+		SessionProfileVersion: sessionProfileVersion,
+		WorkflowResolver:      s,
+		PlanCompiler:          s.planCompiler,
+		MaxSubflowDepth:       5,
+		ProjectRoot:           projectRoot,
+		InitialStore:          store,
+		InitialParams:         params,
+		Env:                   env,
+		StartURL:              strings.TrimSpace(startURL),
+		ArtifactConfig:        artifactCfg,
+		BrowserProfile:        browserProfile,
+		StorageState:          storageState,
+		RestoreTabs:           restoreTabs,
+		OpenTabs:              openTabs,
+		NavigationWaitUntil:   navigationWaitUntil,
+		ContinueOnError:       continueOnError,
 	}
 	if opts != nil {
 		req.ResumeAfterStep = opts.ResumeAfterStep
@@ -693,6 +701,24 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 	}
 
 	return executionErr
+}
+
+func profileVersionForReuse(profile *sessionprofilepersistence.SessionProfile) string {
+	if profile == nil || profile.ID == "" {
+		return ""
+	}
+	browserProfile, err := json.Marshal(profile.BrowserProfile)
+	if err != nil {
+		return ""
+	}
+	contextVersion := make([]byte, 0, len(profile.ID)+len(profile.StorageState)+len(browserProfile)+2)
+	contextVersion = append(contextVersion, string(profile.ID)...)
+	contextVersion = append(contextVersion, 0)
+	contextVersion = append(contextVersion, profile.StorageState...)
+	contextVersion = append(contextVersion, 0)
+	contextVersion = append(contextVersion, browserProfile...)
+	sum := sha256.Sum256(contextVersion)
+	return hex.EncodeToString(sum[:])
 }
 
 // finalizeExecution is the sole terminal index and notification owner.

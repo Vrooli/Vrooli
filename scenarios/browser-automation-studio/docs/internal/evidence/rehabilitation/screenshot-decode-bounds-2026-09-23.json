@@ -1,0 +1,62 @@
+{
+  "cycle": "103",
+  "date": "2026-09-23",
+  "status": "resource_bounds_review_inconclusive",
+  "issue": "BAS-RF-060",
+  "journey": "J08",
+  "question": "Does the existing complete PNG/JPEG integrity decode have a demonstrated, bounded memory cost for browser-produced screenshots, and can a safe pixel cap be selected from current policy?",
+  "source_review": {
+    "writer": "api/automation/execution-writer/file_writer.go",
+    "capture_path": "Active explicit screenshot handler (playwright-driver/src/handlers/screenshot.ts) defaults fullPage=true when omitted. Passive telemetry (playwright-driver/src/telemetry/screenshot.ts) is viewport-only by default; fullPage is opt-in via SCREENSHOT_FULL_PAGE=true. Either path can produce full-page output when explicitly requested or configured.",
+    "input_constraints": "Driver request parsing rejects request bodies over 5 MiB, and the API writer defaults to a 4 MiB encoded screenshot retention limit. No decoded-pixel or decoder-memory budget is declared.",
+    "decoder_behavior": "Go 1.26 standard-library PNG decoding allocates image.NewNRGBA/NewRGBA/NewNRGBA64 buffers from header dimensions; JPEG decoding allocates raster buffers from image bounds. DecodeConfig alone does not prove complete image integrity, as retained truncated-PNG regression demonstrates.",
+    "threat_boundary": "The driver is local, but arbitrary website content can influence dimensions of an explicit full-page screenshot or opted-in full-page telemetry. A bounded hostile-dimension decode was not executed because the active process memory envelope is not established."
+  },
+  "verification": {
+    "integrity_test": {
+      "command": "go test ./automation/execution-writer -run '^TestScreenshotEvidenceRequiresValidReceipt$' -count=1",
+      "result": "passed",
+      "duration_seconds": 0.788
+    },
+    "writer_benchmark": {
+      "command": "go test ./automation/execution-writer -run '^$' -bench '^BenchmarkScreenshotOutcomePersistence$' -benchtime=1s -benchmem",
+      "fixture": "1280x720 fixed-pattern PNG through full writer and in-memory screenshot storage",
+      "result": "passed",
+      "ns_per_op": 36374753,
+      "bytes_per_op": 3878791,
+      "allocs_per_op": 1503,
+      "interpretation": "One local isolated workload only; does not bound hostile dimensions or establish end-to-end browser latency."
+    },
+    "contract_preparation": {
+      "command": "python3 scenarios/browser-automation-studio/docs/internal/refactor_contract.py",
+      "result": "passed",
+      "journeys": 24,
+      "errors": 0,
+      "product_qualified": false
+    },
+    "setpoint": {
+      "command": "program-runtime library run browser-automation-studio.setpoint-read --input profile=rehabilitation",
+      "program_run": "prog_e0a0f26f-f102-4eb1-a43e-8505a5167af3",
+      "result": "succeeded",
+      "qualified": 1,
+      "unavailable": 16,
+      "capture_p95_ms": 419,
+      "capture_workload": "1e9fc96f5be8bc29ab6ef9599f28b301",
+      "product_qualified": false
+    },
+    "inventory": {
+      "command": "python3 scenarios/browser-automation-studio/docs/internal/refactor_inventory.py --include-untracked",
+      "observed_at": "2026-09-23T20:59:02.061087+00:00",
+      "source_digest_sha256": "34a87bcd7221f6defe500a86d13ec8d4e083043d04d7ff2b6dbdc8b22735f085",
+      "scope_note": "Shared worktree contains other BAS modifications; preserve them and interpret this digest only as this scan's selected source population."
+    },
+    "diff_check": "git diff --check -- scenarios/browser-automation-studio/api/config/config.go passed"
+  },
+  "decision": {
+    "source_behavior_change": false,
+    "documentation_change": "Corrected ArtifactLimitsConfig.MaxScreenshotBytes comment: encoded images are omitted intact when over limit, not truncated.",
+    "pixel_cap": "Not selected. The repository declares no decoder-memory budget; a cap would be unsupported policy. A safe streaming PNG/JPEG integrity validator or explicit runtime budget may provide a grounded next step.",
+    "issue_disposition": "RF060 remains resolved for integrity and receipt validation; decoded-memory bound and end-to-end capture cost remain unqualified."
+  },
+  "next_action": "Establish a resource budget for the managed local driver/API path and validate realistic full-page dimensions in a controlled browser fixture. Do not execute a hostile-size full decode before a safe memory envelope exists."
+}

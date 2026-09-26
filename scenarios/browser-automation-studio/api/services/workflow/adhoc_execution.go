@@ -141,6 +141,7 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	var storageState json.RawMessage
 	var profileBrowserSettings *sessionprofilepersistence.BrowserProfile
 	var openTabs []sessionprofilepersistence.TabState
+	var sessionProfileVersion string
 	if sessionProfileID != "" && s.sessionProfileService != nil {
 		profile, err := s.sessionProfileService.GetProfile(sessionprofilepersistence.ProfileID(sessionProfileID))
 		if err != nil {
@@ -148,6 +149,7 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 		}
 		storageState = profile.StorageState
 		profileBrowserSettings = profile.BrowserProfile
+		sessionProfileVersion = profileVersionForReuse(profile)
 
 		// Load open tabs if tab restoration is requested
 		if restoreTabs && len(profile.OpenTabs) > 0 {
@@ -158,6 +160,9 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 		if _, err := s.sessionProfileService.Touch(sessionprofilepersistence.ProfileID(sessionProfileID)); err != nil && s.log != nil {
 			s.log.WithError(err).WithField("session_profile_id", sessionProfileID).Warn("Failed to update session profile usage timestamp")
 		}
+	}
+	if sessionProfileVersion == "" && saveSessionProfileID != "" {
+		sessionProfileVersion = profileVersionForReuse(&sessionprofilepersistence.SessionProfile{ID: sessionprofilepersistence.ProfileID(saveSessionProfileID)})
 	}
 
 	// Extract adhoc workflow's default browser profile and merge with execution override
@@ -189,7 +194,7 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	}
 
 	// Use the standard async runner so status polling, stop requests, and result indexing work.
-	completion := s.startExecutionRunnerWithOptions(ctx, wf, executionID, store, params, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
+	completion := s.startExecutionRunnerWithOptions(ctx, wf, executionID, store, params, env, artifactCfg, finalBrowserProfile, storageState, sessionProfileVersion, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
 
 	if req.WaitForCompletion {
 		latest, err := s.waitForExecutionCompletion(ctx, executionID, completion)

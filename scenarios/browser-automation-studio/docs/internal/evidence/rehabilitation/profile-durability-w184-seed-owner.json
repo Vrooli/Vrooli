@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "stage": "seed",
+  "observedAt": "2026-09-24T21:03:07.332Z",
+  "apiUrl": "http://127.0.0.1:17116",
+  "contractSha256": "4ec793e57754a709183024dd9a8a6cfa683c42c4a8c96541ed120897bccfc54a",
+  "harnessSha256": "70173eb21193f402cd0510dd9b86e4c1d5f104446a78dcd6d0bba35e9df09d69",
+  "beforeHealth": {
+    "status": "healthy",
+    "service": "browser-automation-studio-api",
+    "timestamp": "2026-09-24T21:03:05Z",
+    "readiness": true,
+    "version": "1.0.0",
+    "build_identity": "sha256:f7bcb29ab5c6f8bafab4b504172616a3bcb4a50a9988d4a691d708da2bd4d034",
+    "uptime_seconds": 1298.480873416,
+    "dependencies": {
+      "automation_engine": {
+        "connected": true
+      },
+      "database": {
+        "connected": true,
+        "latency_ms": 0.109
+      },
+      "playwright_driver": {
+        "connected": true,
+        "latency_ms": 0.768
+      },
+      "profile_checkpoints": {
+        "connected": true,
+        "latency_ms": 0.001
+      },
+      "storage": {
+        "connected": true,
+        "latency_ms": 0.098
+      }
+    },
+    "metrics": {
+      "goroutines": 33,
+      "heap_mb": 15.007972717285156,
+      "uptime_seconds": 1298.480873416
+    }
+  },
+  "afterHealth": {
+    "status": "healthy",
+    "service": "browser-automation-studio-api",
+    "timestamp": "2026-09-24T21:03:07Z",
+    "readiness": true,
+    "version": "1.0.0",
+    "build_identity": "sha256:f7bcb29ab5c6f8bafab4b504172616a3bcb4a50a9988d4a691d708da2bd4d034",
+    "uptime_seconds": 1299.95617338,
+    "dependencies": {
+      "automation_engine": {
+        "connected": true
+      },
+      "database": {
+        "connected": true,
+        "latency_ms": 0.036
+      },
+      "playwright_driver": {
+        "connected": true,
+        "latency_ms": 0.595
+      },
+      "profile_checkpoints": {
+        "connected": true,
+        "latency_ms": 0.001
+      },
+      "storage": {
+        "connected": true,
+        "latency_ms": 0.087
+      }
+    },
+    "metrics": {
+      "goroutines": 37,
+      "heap_mb": 22.76306915283203,
+      "uptime_seconds": 1299.95617338
+    }
+  },
+  "results": [
+    {
+      "check": "alpha cookie/localStorage/IndexedDB fixture writes",
+      "passed": true
+    },
+    {
+      "check": "automatic checkpoint visible within 5000ms of committed fixture writes",
+      "observedAfterMs": 700.030435,
+      "sampleCount": 14,
+      "passed": true
+    },
+    {
+      "check": "alpha identity survives close/reopen",
+      "passed": true
+    },
+    {
+      "check": "beta identity seeds independently",
+      "passed": true
+    },
+    {
+      "check": "beta profile activity does not replace alpha identity",
+      "passed": true
+    }
+  ],
+  "samples": [
+    {
+      "elapsedMs": 4.011654000000021,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 58.23586,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 112.08963599999998,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 165.805361,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 219.54262700000004,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 272.88848200000007,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 327.17044799999996,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 381.206054,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 434.65537000000006,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 489.20719600000007,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 542.536181,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 595.674397,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 647.601081,
+      "hasStorageState": false
+    },
+    {
+      "elapsedMs": 700.030435,
+      "hasStorageState": true
+    }
+  ],
+  "cleanup": [],
+  "manifest": {
+    "profiles": {
+      "alpha": "f44cdcd4-ed89-4547-af95-e87eca8aacd3",
+      "beta": "348fd03d-7a28-45eb-97a7-e82429cf6e91"
+    },
+    "identities": {
+      "alpha": "4332c352-e4e1-41d0-9fed-b2cbb1e9f20f",
+      "beta": "75aeb393-3bc7-43c4-a8ff-8ebd97e27d7e"
+    },
+    "fixturePort": 46039
+  }
+}

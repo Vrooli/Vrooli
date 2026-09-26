@@ -1,6 +1,7 @@
 """Promotion and orchestration invariants with bounded owner responses."""
 import contextlib
 import io
+import json
 from pathlib import Path
 from types import SimpleNamespace as NS
 import unittest
@@ -38,6 +39,14 @@ class Handle:
     def __init__(self,rows):self.rows=rows
     def head(self,n):return self.rows[:n]
     def count(self):return len(self.rows)
+
+
+def lifecycle_scenario(build, freshness):
+    """Build the shared lifecycle binding shape used by rehabilitation-reader tests."""
+    return NS(scenario=NS(
+        status=lambda **_kw: NS(raw=lambda: {'runtime': {'buildIdentity': build}}),
+        freshness=lambda **_kw: NS(raw=lambda: freshness),
+    ))
 
 class Step:
     def __init__(self): self.record = {'outcome': 'unknown'}
@@ -100,6 +109,7 @@ class Learn:
 class Program:
     def __init__(self, inputs): self._inputs = inputs
     def inputs(self): return self._inputs
+    def attach(self, envelope): self.envelope = envelope
     def fail(self, status, klass, detail, where):
         import inspect
         envelope = inspect.currentframe().f_back.f_globals.get('envelope')
@@ -113,14 +123,149 @@ class Program:
             state = states[state]()
 
 class Programs(unittest.TestCase):
-    def run_program(self,name,inputs,api=None,lib=None,learn=None,ai=None,search_hub_rows=None,workflow_health_rows=None):
+    def run_program(self,name,inputs,api=None,lib=None,learn=None,ai=None,search_hub_rows=None,workflow_health_rows=None,
+                    performance_health=None,test_genie=None,vrooli=None):
         self.learn = learn or Learn()
         self.learn.program = name
         scope={'inputs':inputs,'browser_automation_studio':api,'lib':lib,'program':Program(inputs),'learn':self.learn,'ai':ai,
+               'performance_health':performance_health,'test_genie':test_genie,'vrooli':vrooli,
                'search_hub':NS(query=NS(query=lambda **kw:Handle(list(search_hub_rows or [])))),
                'workflow_health':NS(workflows=NS(search=lambda **kw:Handle(list(workflow_health_rows or []))))}
         with contextlib.redirect_stdout(io.StringIO()):exec(compile((ROOT/(name+'.py')).read_text(),name,'exec'),scope)
         return scope['envelope']
+
+    def test_rehabilitation_read_budget_outlives_binding_invoke_budget(self):
+        # Program Runtime allows a 90 s bridge call and a 100 s kernel invoke;
+        # this program must not time out at 60 s while its read-only RPC runs on.
+        contract = json.loads((ROOT / 'setpoint-read.json').read_text())
+        wall_ms = contract['budget']['wall_ms']
+        self.assertGreater(wall_ms, 100_000)
+        self.assertLess(wall_ms, 120_000)
+
+    def test_rehabilitation_l0_is_unavailable_not_a_measured_product_failure(self):
+        build = 'sha256:' + 'a' * 64
+        capture = {
+            'outcome': 'WORKLOAD_OUTCOME_MEASURED', 'sampleCount': 100,
+            'declaredWarmups': 1, 'budgetMs': 2000, 'withinBudget': True,
+            'operationId': 'capture-op', 'receiptSha256': 'b' * 64,
+            'buildIdentity': build, 'capturedAt': '2026-09-25T15:19:00Z',
+            'p95Ms': 463, 'wallP95Ms': 637,
+        }
+        owner_run = {
+            'plannedPhases': ['rehabilitation-evidence'], 'status': 'failed',
+            'completedAt': '2026-09-25T15:24:18Z', 'runId': 'rehab-run',
+            'phases': [{'name': 'rehabilitation-evidence', 'status': 'failed'}],
+        }
+        findings = {
+            'name': 'rehabilitation-evidence',
+            'phasePresentation': {'capabilities': [
+                {'id': 'motion', 'currentLevel': 'L0', 'currentLevelLabel': 'Unavailable'},
+                {'id': 'profile-durability', 'currentLevel': 'L0', 'currentLevelLabel': 'Unavailable'},
+                {'id': 'cancellation-recovery', 'currentLevel': 'L1', 'clean': False},
+                {'id': 'evidence-completeness', 'currentLevel': 'L1', 'clean': True},
+            ]},
+        }
+        result = self.run_program(
+            'setpoint-read', {'profile': 'rehabilitation'},
+            performance_health=NS(sweep=NS(workload_get=lambda **kw: Handle([capture]))),
+            test_genie=NS(runs=NS(
+                list=lambda **kw: Handle([owner_run]),
+                findings=lambda **kw: Handle([findings]),
+            )),
+            vrooli=NS(scenario=NS(
+                status=lambda **kw: NS(raw=lambda: {'runtime': {'buildIdentity': build}}),
+                freshness=lambda **kw: NS(raw=lambda: {
+                    'success': True, 'scenario': 'browser-automation-studio', 'stale': False,
+                    'checks': [{'target': 'api/api', 'stale': False}, {'target': 'ui/dist', 'stale': False}],
+                }),
+            )),
+        )
+
+        rows = {row['row']: row for row in result['signals']['rows']}
+        self.assertTrue(rows['capture']['in_band'])
+        self.assertTrue(rows['evidence-completeness']['in_band'])
+        self.assertIsNone(rows['motion']['in_band'])
+        self.assertTrue(rows['motion']['unavailable'])
+        self.assertIsNone(rows['profile-durability']['in_band'])
+        self.assertTrue(rows['profile-durability']['unavailable'])
+        self.assertFalse(rows['cancellation-recovery']['in_band'])
+        self.assertFalse(rows['cancellation-recovery']['unavailable'])
+        self.assertEqual(3, result['signals']['readable'])
+        self.assertEqual(14, result['signals']['unavailable'])
+        self.assertFalse(result['signals']['product_qualified'])
+
+    def test_rehabilitation_stale_candidate_withholds_all_rows_before_evidence_reads(self):
+        build = 'sha256:' + 'a' * 64
+        calls = {'capture': 0, 'runs': 0}
+        def workload_get(**_kw):
+            calls['capture'] += 1
+            return Handle([])
+        def runs_list(**_kw):
+            calls['runs'] += 1
+            return Handle([])
+        result = self.run_program(
+            'setpoint-read', {'profile': 'rehabilitation'},
+            performance_health=NS(sweep=NS(workload_get=workload_get)),
+            test_genie=NS(runs=NS(list=runs_list)),
+            vrooli=NS(scenario=NS(
+                status=lambda **_kw: NS(raw=lambda: {'runtime': {'buildIdentity': build}}),
+                freshness=lambda **_kw: NS(raw=lambda: {
+                    'success': True, 'scenario': 'browser-automation-studio', 'stale': True,
+                    'checks': [{'target': 'api/api', 'stale': True, 'cause': 'content changed', 'file': 'api/handler.go'}],
+                }),
+            )),
+        )
+        rows = result['signals']['rows']
+        self.assertEqual(17, len(rows))
+        self.assertTrue(all(r['unavailable'] and r['in_band'] is None for r in rows))
+        self.assertIn('api/api stale', result['signals']['candidate_freshness']['reason'])
+        self.assertIn('see candidate_freshness', result['signals']['rows'][0]['reason'])
+        self.assertEqual({'capture': 0, 'runs': 0}, calls)
+        self.assertEqual(17, result['signals']['unavailable'])
+        self.assertFalse(result['signals']['product_qualified'])
+
+    def test_rehabilitation_proto3_freshness_defaults_allow_current_candidate(self):
+        # Connect's proto3 JSON omits false bool scalars, including `stale`.
+        build = 'sha256:' + 'a' * 64
+        result = self.run_program(
+            'setpoint-read', {'profile': 'rehabilitation'},
+            performance_health=NS(sweep=NS(workload_get=lambda **_kw: Handle([]))),
+            test_genie=NS(runs=NS(list=lambda **_kw: Handle([]))),
+            vrooli=lifecycle_scenario(build, {
+                    'success': True, 'scenario': 'browser-automation-studio',
+                    'checks': [{'target': 'api/api'}, {'target': 'ui/dist/index.html'}],
+                }),
+        )
+        self.assertTrue(result['signals']['candidate_freshness']['fresh'])
+        self.assertEqual(2, result['signals']['candidate_freshness']['check_count'])
+        self.assertNotIn('stale', result['signals']['candidate_freshness'])
+
+    def test_rehabilitation_missing_freshness_fails_closed(self):
+        build = 'sha256:' + 'a' * 64
+        result = self.run_program(
+            'setpoint-read', {'profile': 'rehabilitation'},
+            vrooli=lifecycle_scenario(build, {'success': True, 'checks': []}),
+        )
+        self.assertTrue(all(r['unavailable'] and r['in_band'] is None for r in result['signals']['rows']))
+        self.assertIn('no artifact checks', result['signals']['candidate_freshness']['reason'])
+        self.assertEqual(17, result['signals']['unavailable'])
+        self.assertEqual('partial', result['status'])
+
+    def test_rehabilitation_freshness_binding_error_fails_closed(self):
+        build = 'sha256:' + 'a' * 64
+        def freshness_error(**_kw):
+            raise RuntimeError('scenario_not_running')
+        result = self.run_program(
+            'setpoint-read', {'profile': 'rehabilitation'},
+            vrooli=NS(scenario=NS(
+                status=lambda **_kw: NS(raw=lambda: {'runtime': {'buildIdentity': build}}),
+                freshness=freshness_error,
+            )),
+        )
+        self.assertTrue(all(r['unavailable'] and r['in_band'] is None for r in result['signals']['rows']))
+        self.assertIn('lifecycle freshness unavailable', result['signals']['candidate_freshness']['reason'])
+        self.assertEqual(17, result['signals']['unavailable'])
+        self.assertEqual('partial', result['status'])
 
     def author(self,status):
         calls=[]

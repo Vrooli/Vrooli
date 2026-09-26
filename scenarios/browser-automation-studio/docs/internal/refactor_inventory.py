@@ -28,9 +28,10 @@ def git(*args):
 def inventory(include_untracked=False):
     files = []
     digest = hashlib.sha256()
-    selection = ["--cached", "--others", "--exclude-standard"] if include_untracked else []
-    candidates = sorted(set(filter(None, git("ls-files", "-z", *selection, "--", str(SCENARIO)).split("\0"))))
-    for name in candidates:
+    tracked = set(filter(None, git("ls-files", "-z", "--cached", "--", str(SCENARIO)).split("\0")))
+    untracked = set(filter(None, git("ls-files", "-z", "--others", "--exclude-standard", "--", str(SCENARIO)).split("\0")))
+    candidates = tracked | (untracked if include_untracked else set())
+    for name in sorted(candidates):
         path = ROOT / name
         if not path.is_file() or path.suffix not in SUFFIXES:
             continue
@@ -54,19 +55,32 @@ def inventory(include_untracked=False):
         files.append({
             "path": relative.as_posix(), "lines": len(text.splitlines()),
             "bytes": len(data), "test": test, "runtime_source": bool(runtime),
+            "git_status": "tracked" if name in tracked else "untracked",
             "sha256": content_hash,
         })
     surfaces = {}
     for surface in sorted({f["path"].split("/")[0] for f in files}):
         rows = [f for f in files if f["path"].split("/")[0] == surface]
+        tracked_rows = [f for f in rows if f["git_status"] == "tracked"]
+        untracked_rows = [f for f in rows if f["git_status"] == "untracked"]
         runtime = [f for f in rows if f["runtime_source"]]
+        tracked_runtime = [f for f in tracked_rows if f["runtime_source"]]
+        untracked_runtime = [f for f in untracked_rows if f["runtime_source"]]
         surfaces[surface] = {
-            "tracked_source_files": len(rows),
-            "tracked_source_lines": sum(f["lines"] for f in rows),
+            "tracked_source_files": len(tracked_rows),
+            "tracked_source_lines": sum(f["lines"] for f in tracked_rows),
+            "untracked_source_files": len(untracked_rows),
+            "untracked_source_lines": sum(f["lines"] for f in untracked_rows),
+            "selected_source_files": len(rows),
+            "selected_source_lines": sum(f["lines"] for f in rows),
             "runtime_files": len(runtime),
             "runtime_lines": sum(f["lines"] for f in runtime),
             "runtime_over_500_lines": sum(f["lines"] > 500 for f in runtime),
             "runtime_over_1000_lines": sum(f["lines"] > 1000 for f in runtime),
+            "tracked_runtime_files": len(tracked_runtime),
+            "tracked_runtime_lines": sum(f["lines"] for f in tracked_runtime),
+            "untracked_runtime_files": len(untracked_runtime),
+            "untracked_runtime_lines": sum(f["lines"] for f in untracked_runtime),
         }
     return {
         "schema_version": 1,
@@ -75,7 +89,7 @@ def inventory(include_untracked=False):
         "scenario_worktree_status": git("status", "--short", "--", str(SCENARIO)).splitlines(),
         "source_digest_sha256": digest.hexdigest(),
         "method": {
-            "population": ("Git-tracked plus nonignored untracked" if include_untracked else "Git-tracked") + " Go/TS/TSX/JS/MJS/Python files; physical lines include blanks and comments. tracked_source_* keys describe this selected population.",
+            "population": ("Git-tracked plus nonignored untracked" if include_untracked else "Git-tracked") + " Go/TS/TSX/JS/MJS/Python files; physical lines include blanks and comments. tracked_source_* and untracked_source_* split selected files by Git status; selected_source_* and runtime_* describe the selected population.",
             "include_untracked": include_untracked,
             "excluded": sorted(EXCLUDED) + ["filenames containing .generated."],
             "runtime": "api/cli Go and ui/driver src, excluding named tests, testutil/testing directories, testutil_* and test-setup* helpers.",

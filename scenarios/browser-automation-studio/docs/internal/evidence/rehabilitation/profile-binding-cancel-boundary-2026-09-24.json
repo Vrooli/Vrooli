@@ -1,0 +1,68 @@
+{
+  "work": "BAS-WORK-126",
+  "issue": "BAS-RF-118",
+  "journeys": ["J06", "J14"],
+  "observed_at": "2026-09-24T04:04:56Z",
+  "source_head": "8707b970a48f82665662450766ad8233d6def9e7",
+  "source_inventory_digest_sha256": "56752432f7914eb2a3df4713786d47ecd7e4423184433c7d8cc6a20f59762933",
+  "contract_sha256": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+  "changed_paths": [
+    "api/services/session-profile/service.go",
+    "api/services/session-profile/service_test.go",
+    "docs/PROBLEMS.md",
+    "docs/internal/REFRACTOR_PROGRESS.md"
+  ],
+  "hypotheses": [
+    {
+      "claim": "Cancellation after the post-capture check but while waiting for the registry lock still allows a stale snapshot to commit.",
+      "prediction": "A deterministic lock-held interleaving returns nil and changes the profile before the repair.",
+      "result": "confirmed; the new regression failed with nil instead of context.Canceled"
+    },
+    {
+      "claim": "The post-capture context check is already a sufficient commit linearization point.",
+      "prediction": "Cancellation after that check cannot invalidate the snapshot, so the profile should remain unchanged only for earlier cancellation.",
+      "result": "rejected by the deterministic regression and canceled-request contract"
+    }
+  ],
+  "fix": "Recheck request context under the registry mutex after validating the current binding and before the aggregate repository update.",
+  "validation": {
+    "red_test": {
+      "command": "go test ./services/session-profile -run '^TestService_PersistSessionStateRechecksCancellationBeforeCommit$' -count=1",
+      "result": "failed before fix as expected",
+      "observed": "cancelled snapshot returned nil, want context.Canceled"
+    },
+    "targeted_race_tests": [
+      {
+        "command": "go test -race ./services/session-profile -run '^(TestService_PersistSessionStateRechecksCancellationBeforeCommit|TestService_ProfileCapturesSerializeAndRespectCancellation)$' -count=1",
+        "result": "passed"
+      },
+      {
+        "command": "go test -race ./handlers -run '^TestRecordingProfileSnapshotRequiresCurrentBinding$' -count=1",
+        "result": "passed"
+      }
+    ],
+    "contract_preparation": {
+      "result": "passed",
+      "journeys": 24,
+      "errors": 0,
+      "product_qualified": false
+    },
+    "setpoint": {
+      "program_id": "prog_831891ed-8a77-4dfb-8dfd-497410aabab3",
+      "qualified_rows": 1,
+      "unknown_rows": 16,
+      "product_qualified": false
+    },
+    "diff_check": "passed"
+  },
+  "complexity": {
+    "production_source_lines_added": 3,
+    "production_source_lines_removed": 0,
+    "reduction_claimed": false
+  },
+  "limitations": [
+    "The repair covers request cancellation before aggregate commit and binding invalidation during capture; it does not prove RF-011 checkpoint timing or abrupt process-death recovery.",
+    "Profile-durability remains pending_telemetry because its owner receipt is not yet consumed by a governed sensor.",
+    "No Test Genie run was started."
+  ]
+}

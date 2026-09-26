@@ -280,7 +280,7 @@ export class SessionManager {
     // Handle reuse mode (match by labels)
     // Decision logic is in session-decisions.ts
     if (shouldAttemptReuse(spec.reuse_mode)) {
-      const existingSession = findByLabels(this.sessions.values(), spec.labels);
+      const existingSession = findByLabels(this.sessions.values(), spec);
       if (existingSession) {
         logger.info(scopedLog(LogContext.SESSION, 'reusing existing'), {
           sessionId: existingSession.id,

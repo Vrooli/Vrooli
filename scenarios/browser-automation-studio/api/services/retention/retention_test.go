@@ -283,6 +283,53 @@ func TestSweep_KeepLatestProtectsNewest(t *testing.T) {
 	}
 }
 
+func TestSweep_BoundedBatchKeepsLatestGlobalToWorkflow(t *testing.T) {
+	wf := uuid.New()
+	oldest := mkExec(t, database.ExecutionStatusCompleted, 10, wf)
+	middle := mkExec(t, database.ExecutionStatusCompleted, 5, wf)
+	newest := mkExec(t, database.ExecutionStatusCompleted, 1, wf)
+	store := &fakeStore{execs: []*database.ExecutionIndex{newest, oldest, middle}}
+	fs := newFakeFS()
+	for _, execution := range store.execs {
+		fs.sizes[filepath.Join(testRoot, execution.ID.String())] = 10
+	}
+
+	service := newService(store, fs)
+	preview, err := service.Sweep(context.Background(), Options{
+		MaxAgeDays: 3,
+		MaxItems:   1,
+		KeepLatest: 1,
+	})
+	if err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+	if preview.RemovedCount != 1 || preview.Removed[0].ExecutionID != oldest.ID {
+		t.Fatalf("bounded preview selected %#v, want only the globally oldest execution %s", preview.Removed, oldest.ID)
+	}
+	if len(store.deleted) != 0 || len(fs.removed) != 0 {
+		t.Fatalf("preview mutated data: deleted=%v artifacts=%v", store.deleted, fs.removed)
+	}
+
+	apply, err := service.Sweep(context.Background(), Options{
+		MaxAgeDays:     3,
+		KeepLatest:     1,
+		ExecutionIDs:   []uuid.UUID{preview.Removed[0].ExecutionID},
+		EstimatedBytes: map[uuid.UUID]int64{oldest.ID: 10},
+		Apply:          true,
+	})
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if apply.RemovedCount != 1 || apply.Removed[0].ExecutionID != oldest.ID {
+		t.Fatalf("bounded apply removed %#v, want only the previewed oldest execution %s", apply.Removed, oldest.ID)
+	}
+	for _, id := range store.deleted {
+		if id == newest.ID {
+			t.Fatalf("keep_latest must protect the newest workflow execution %s", newest.ID)
+		}
+	}
+}
+
 func TestSweep_AgeFilterSkipsTooNew(t *testing.T) {
 	wf := uuid.New()
 	tooNew := mkExec(t, database.ExecutionStatusCompleted, 0, wf)
@@ -410,7 +457,7 @@ func TestSweep_NonTerminalStatusFilterRejected(t *testing.T) {
 func TestActiveEvidenceRefusesDeletionUntilExportFinishes(t *testing.T) {
 	root := t.TempDir()
 	target := filepath.Join(root, "capture")
-	if err := os.Mkdir(target, 0755); err != nil {
+	if err := os.Mkdir(target, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	release := BeginEvidenceActivity(target)

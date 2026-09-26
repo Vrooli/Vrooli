@@ -51,6 +51,8 @@ def validate(contract, scenario=SCENARIO):
             errors.append(f"Missing behavioral assertion: {journey.get('id')}")
         if not journey.get("oracle") or not journey.get("phases"):
             errors.append(f"Missing independent oracle/phase: {journey.get('id')}")
+        errors.extend(validate_evidence_references(journey, scenario))
+    errors.extend(validate_protocol_evidence_references(journeys, scenario))
     for key in ("design", "assessment", "issue_register", "qualification_protocol"):
         if not (scenario / contract.get(key, "missing")).is_file():
             errors.append(f"Missing source: {key}")
@@ -75,6 +77,74 @@ def validate(contract, scenario=SCENARIO):
     registry = json.loads((scenario / "requirements/08-rehabilitation/module.json").read_text())
     if {r["id"] for r in registry["requirements"]} != expected:
         errors.append("Preservation requirement registry is incomplete")
+    return errors
+
+
+def validate_evidence_references(journey, scenario):
+    """Ensure each contract evidence link still names a source file and test."""
+    errors = []
+    journey_id = journey.get("id", "unknown")
+    for reference in journey.get("evidence", []):
+        errors.extend(validate_evidence_reference(journey_id, reference, scenario))
+    return errors
+
+
+def validate_evidence_reference(journey_id, reference, scenario):
+    """Validate one `path :: exact test name` link without running the test."""
+    errors = []
+    source_path, separator, selector = str(reference).partition(" :: ")
+    if not separator or not source_path or not selector:
+        return [f"Invalid evidence reference for {journey_id}: {reference!r}"]
+
+    relative = Path(source_path)
+    if relative.is_absolute() or ".." in relative.parts:
+        return [f"Invalid evidence reference path for {journey_id}: {source_path!r}"]
+    base = ROOT if relative.parts and relative.parts[0] == "scenarios" else scenario
+    candidate = base / relative
+    try:
+        candidate.resolve().relative_to(base.resolve())
+    except ValueError:
+        return [f"Invalid evidence reference path for {journey_id}: {source_path!r}"]
+    if not candidate.is_file():
+        return [f"Missing evidence reference source for {journey_id}: {source_path!r}"]
+
+    # Receipts may append the managed candidate identity to the test label.
+    selector = selector.split(" (managed build ", 1)[0].strip()
+    if selector not in candidate.read_text(errors="replace"):
+        errors.append(f"Missing evidence reference test for {journey_id}: {reference!r}")
+    return errors
+
+
+def validate_protocol_evidence_references(journeys, scenario, protocol=None):
+    """Validate partial test links kept in TESTING.md, outside the contract hash."""
+    errors = []
+    if protocol is None:
+        protocol = (scenario / "docs/internal/TESTING.md").read_text()
+    heading = "### Partial preservation-test references (not qualification)"
+    if heading not in protocol:
+        return ["Missing partial preservation-test reference table in TESTING.md"]
+    section = protocol.split(heading, 1)[1]
+    lines = section.splitlines()
+    rows = []
+    in_table = False
+    for line in lines:
+        if line.startswith("|"):
+            in_table = True
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            if len(cells) == 3 and cells[0] not in ("Journey", "---") and not all(set(cell) <= {"-", " ", ":"} for cell in cells):
+                rows.append(cells)
+        elif in_table:
+            break
+
+    known = {journey.get("id") for journey in journeys}
+    for cells in rows:
+        journey_id, reference, _coverage = cells
+        journey_id = journey_id.strip(" `")
+        reference = reference.strip(" `")
+        if journey_id not in known:
+            errors.append(f"Unknown journey in TESTING.md evidence reference: {journey_id!r}")
+            continue
+        errors.extend(validate_evidence_reference(journey_id, reference, scenario))
     return errors
 
 

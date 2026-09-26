@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "contractRow": "evidence-completeness",
+  "result": "passed",
+  "managedBuildIdentity": "sha256:7edf0d1607d8dd8112027e713edf6922db7dfcfd3873d9b708463d9cb1638bd4",
+  "sourceSha256": {
+    "docs/internal/REFRACTOR_CONTRACT.json": "8a9da35f075fb09bbe5f16fdb3785426a2c69b5643e49dd8d6a6b319d6948011",
+    "api/automation/execution-writer/file_writer.go": "76b7ffbbcab48209499e73a9141672ee5f581db08f9bffe13615ad9cc77f1bc0",
+    "api/automation/execution-writer/file_writer_test.go": "765131accf11bd5288bc32811f84fb9180573a01b025cc430924cb875139ea99",
+    "api/automation/execution-writer/external_artifacts.go": "94cc804bfd4fad58bb96599f3e97f334f8d75d77679c1d943b672d977dc6f1b7",
+    "api/automation/execution-writer/external_artifacts_test.go": "6b904128f33d1016dc4e5405cee46285e1c48579c79f067b62821e3671ca35a3",
+    "api/automation/execution-writer/evidence_manifest.go": "944bdacb0d7d275e4a53a448093d7b64bb2390ccecedef0f9153810972bd5ab0",
+    "api/automation/execution-writer/evidence_manifest_test.go": "b04e24cc6bd3f2d9e316019546380b5c996a41ddc68965898206d786d453f49f",
+    "api/services/retention/retention.go": "d99d68ab93a4ab5ff166fa89fa4d05e9ee1e29e2fcd3ca34e9e4dcd2212912d8",
+    "api/services/retention/retention_test.go": "33d688759690e80bdfe91bab41d1782a425ec59038c697b07c37839cbc6d96c1",
+    "api/internal/evidencecompletenessqualification/receipt.go": "158b69c9d6ce2797cdca95ad1f56cac51ec8b75d786a1c82cc38b93722b1ae21",
+    "api/internal/evidencecompletenessqualification/receipt_test.go": "67b8ccf65d3d9a380d772003ed51957aa426adad76c34eb583056ba70f362aa0",
+    "api/handlers/profilevalidation/provider.go": "a27c6b374cc1749b9a97ec9a58095eee2b540a6daaf61c3fffa4fa9844d06320",
+    "api/handlers/profilevalidation/provider_test.go": "89eca9481defcf46e8b2edf42c4ad0bc85ab99fde3ab471971f6464df7d4c0eb",
+    "api/internal/testutil/testutil.go": "28eee57f3653e5ec759adf986f38f14b9a61e93b6ac01f2a5410a17e3fe5b03d",
+    ".vrooli/test-genie.json": "d1829c637cfbbd1da31715108782e996aad4352dfe52421427aac225a6deaa6f",
+    ".vrooli/program-runtime/setpoint-read.py": "d2b99b491ee87465e816683168b3c4de00ac536834adf9d4188082716402dee1",
+    "api/cmd/evidence-completeness-cohort/qualification.mjs": "e7591eaef7813c1fec2ba7f99ead3a93f15bf5cef13a237ef882f6376204ea8a"
+  },
+  "artifacts": [
+    {
+      "path": ".vrooli/runtime/rehabilitation-evidence/evidence-completeness-owner-681501ec-d842-4532-b45d-082cad1e2511.jsonl",
+      "sha256": "5dc0af0bb7747c689131b7215b4c5e925b5b1c6c79cf0fa500d52a22598c2c8e",
+      "tests": [
+        "TestScreenshotAndOutcomeWriteFailuresBothSurvive",
+        "TestInlineTelemetryRemainsAttributableWhenSnapshotStorageFails",
+        "TestExternalArtifactsRejectMissingOrUncommittedEvidence"
+      ]
+    },
+    {
+      "path": ".vrooli/runtime/rehabilitation-evidence/evidence-completeness-owner-25ed1922-e5fe-41b6-9eff-11a43969363b.jsonl",
+      "sha256": "fb96b8ed865e8121f7878c25fedf253aad7c1d1c36905ecd20ba659b706708c6",
+      "tests": [
+        "TestActiveEvidenceRefusesDeletionUntilExportFinishes"
+      ]
+    }
+  ]
+}

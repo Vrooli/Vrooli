@@ -2,15 +2,47 @@ package workflow
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/browser-automation-studio/database"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
+
+func TestProfileVersionForReuseTracksIdentityAndContextRevision(t *testing.T) {
+	profile := &sessionprofilepersistence.SessionProfile{
+		ID:           "profile-a",
+		StorageState: json.RawMessage(`{"cookies":[{"name":"identity","value":"first"}],"origins":[]}`),
+	}
+	initial := profileVersionForReuse(profile)
+	if initial == "" {
+		t.Fatal("profile context version is empty")
+	}
+
+	touched := *profile
+	touched.UpdatedAt = time.Now().UTC()
+	touched.LastUsedAt = touched.UpdatedAt
+	if got := profileVersionForReuse(&touched); got != initial {
+		t.Fatalf("usage-only timestamp change altered context version: %q != %q", got, initial)
+	}
+
+	otherIdentity := *profile
+	otherIdentity.ID = "profile-b"
+	if got := profileVersionForReuse(&otherIdentity); got == initial {
+		t.Fatal("different profile identity received the same context version")
+	}
+
+	changedState := *profile
+	changedState.StorageState = json.RawMessage(`{"cookies":[{"name":"identity","value":"second"}],"origins":[]}`)
+	if got := profileVersionForReuse(&changedState); got == initial {
+		t.Fatal("changed storage state received the same context version")
+	}
+}
 
 func TestDetachedExecutionContextPreservesTestModeWithoutRequestCancellation(t *testing.T) {
 	parent, cancel := context.WithCancel(coredb.WithTestMode(context.Background()))

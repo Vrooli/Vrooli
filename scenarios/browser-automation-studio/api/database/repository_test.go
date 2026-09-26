@@ -248,6 +248,67 @@ func TestExecutionCRUD(t *testing.T) {
 	}
 }
 
+func TestListLatestTerminalExecutionsPerWorkflow(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := NewRepository(db, logrus.New())
+	ctx := context.Background()
+	projectID := uuid.New()
+	if err := repo.CreateProject(ctx, &ProjectIndex{ID: projectID, Name: "retention", FolderPath: "/retention"}); err != nil {
+		t.Fatal(err)
+	}
+	createWorkflow := func(name string) uuid.UUID {
+		t.Helper()
+		workflowID := uuid.New()
+		if err := repo.CreateWorkflow(ctx, &WorkflowIndex{
+			ID: workflowID, ProjectID: &projectID, Name: name,
+			FolderPath: "/retention/workflows", FilePath: "workflows/" + name + ".json", Version: 1,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return workflowID
+	}
+	first, second := createWorkflow("first"), createWorkflow("second")
+	base := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	createExecution := func(workflowID uuid.UUID, status string, offset int) uuid.UUID {
+		t.Helper()
+		id := uuid.New()
+		if err := repo.CreateExecution(ctx, &ExecutionIndex{
+			ID: id, WorkflowID: workflowID, Status: status, StartedAt: base.Add(time.Duration(offset) * time.Hour),
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	createExecution(first, ExecutionStatusCompleted, 1)
+	createExecution(first, ExecutionStatusFailed, 2)
+	wantFirst := createExecution(first, ExecutionStatusCancelled, 3)
+	createExecution(second, ExecutionStatusCompleted, 1)
+	wantSecond := createExecution(second, ExecutionStatusFailed, 2)
+
+	reader, ok := repo.(interface {
+		ListLatestTerminalExecutionsPerWorkflow(context.Context, []uuid.UUID, *uuid.UUID, []string, int) ([]*ExecutionIndex, error)
+	})
+	if !ok {
+		t.Fatal("repository does not expose per-workflow retention selection")
+	}
+	got, err := reader.ListLatestTerminalExecutionsPerWorkflow(ctx, []uuid.UUID{first, second, first}, &projectID,
+		[]string{ExecutionStatusCompleted, ExecutionStatusFailed, ExecutionStatusCancelled}, 1)
+	if err != nil {
+		t.Fatalf("ListLatestTerminalExecutionsPerWorkflow: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("got %d protected executions, want one per workflow", len(got))
+	}
+	ids := map[uuid.UUID]bool{}
+	for _, execution := range got {
+		ids[execution.ID] = true
+	}
+	if !ids[wantFirst] || !ids[wantSecond] {
+		t.Fatalf("protected execution IDs = %v, want newest IDs %s and %s", ids, wantFirst, wantSecond)
+	}
+}
+
 func TestCreateExecutionSupportsLegacyTriggerTypeSchema(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "bas-legacy.db")

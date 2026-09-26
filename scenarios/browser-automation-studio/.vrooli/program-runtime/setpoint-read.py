@@ -90,6 +90,43 @@ def capability_standing(findings, capability_id):
     return None
 
 
+def capability_reading(standing):
+    """Keep missing maturity evidence unknown instead of calling it a product failure."""
+    level = standing.get("level")
+    label = standing.get("label")
+    clean = standing.get("clean")
+    if level == "L1" and clean is True:
+        return True, False, None
+    if level == "L0" or label == "Unavailable":
+        return None, True, "provider maturity is unavailable; no applicable owner receipt"
+    if level:
+        return False, False, f"capability remains at {level}"
+    return None, True, "provider maturity standing is incomplete"
+
+
+def candidate_freshness(response):
+    """Require a complete lifecycle verdict before crediting rehabilitation evidence."""
+    if not isinstance(response, dict) or response.get("success") is not True:
+        return False, "lifecycle freshness response is missing or unsuccessful"
+    checks = response.get("checks")
+    if not isinstance(checks, list) or not checks:
+        return False, "lifecycle freshness response contains no artifact checks"
+    # Proto3 JSON omits false scalar values unless the transport asks it to
+    # emit defaults. A missing stale field therefore means false; true remains
+    # an explicit fail-closed verdict.
+    stale_checks = [check for check in checks if not isinstance(check, dict) or check.get("stale") is True]
+    if response.get("stale") is True or stale_checks:
+        first = stale_checks[0] if stale_checks else {}
+        target = first.get("target") or "managed artifact"
+        cause = first.get("cause") or "stale or incomplete verdict"
+        file = first.get("file")
+        detail = f"lifecycle reports {target} stale: {cause}"
+        if file:
+            detail += f" ({file})"
+        return False, detail
+    return True, None
+
+
 def step_validate():
     if profile not in ("operations", "rehabilitation"):
         return fail("failed", "invalid_input", "unknown qualification profile", "validate")
@@ -106,22 +143,6 @@ def step_collect():  # COLLECT · one governed read; the evidence sample is read
     envelope["phase"] = "collect"
     if profile == "rehabilitation":
         try:
-            result = performance_health.sweep.workload_get(scenario="browser-automation-studio", workload="capture")
-            readings = result.head(1)
-            handles["capture"] = readings[0] if readings else {}
-        except Exception as exc:
-            _, klass = program.classify(exc)
-            handles["capture"] = {}
-            handles["capture_error"] = klass
-        try:
-            handles["test_genie_runs"] = test_genie.runs.list(scenario="browser-automation-studio", limit=10).head(10)
-        except Exception as exc:
-            _, klass = program.classify(exc)
-            handles["test_genie_runs"] = []
-            handles["test_genie_error"] = klass
-        try:
-            # meta() contains only descriptor-selected top-level fields; the
-            # managed build identity is nested, so read the governed response.
             api_status = vrooli.scenario.status(name="browser-automation-studio").raw() or {}
             runtime = api_status.get("runtime") or {}
             scenario = api_status.get("scenario") or {}
@@ -135,6 +156,36 @@ def step_collect():  # COLLECT · one governed read; the evidence sample is read
             _, klass = program.classify(exc)
             handles["current_build"] = ""
             handles["runtime_error"] = klass
+        try:
+            freshness = vrooli.scenario.freshness(name="browser-automation-studio").raw() or {}
+            handles["artifact_freshness"] = freshness
+            fresh, reason = candidate_freshness(freshness)
+            handles["artifact_fresh"] = fresh
+            handles["artifact_freshness_reason"] = reason
+            if not fresh:
+                handles["freshness_error"] = reason
+        except Exception as exc:
+            _, klass = program.classify(exc)
+            handles["artifact_fresh"] = False
+            handles["artifact_freshness"] = {}
+            handles["artifact_freshness_reason"] = f"lifecycle freshness unavailable: {klass}"
+            handles["freshness_error"] = klass
+        if not handles.get("current_build") or not handles.get("artifact_fresh"):
+            return "classify"
+        try:
+            result = performance_health.sweep.workload_get(scenario="browser-automation-studio", workload="capture")
+            readings = result.head(1)
+            handles["capture"] = readings[0] if readings else {}
+        except Exception as exc:
+            _, klass = program.classify(exc)
+            handles["capture"] = {}
+            handles["capture_error"] = klass
+        try:
+            handles["test_genie_runs"] = test_genie.runs.list(scenario="browser-automation-studio", limit=10).head(10)
+        except Exception as exc:
+            _, klass = program.classify(exc)
+            handles["test_genie_runs"] = []
+            handles["test_genie_error"] = klass
         capture = handles.get("capture", {})
         current_build = handles.get("current_build", "")
         if (capture.get("buildIdentity", capture.get("build_identity", "")) == current_build
@@ -196,6 +247,28 @@ def step_collect():  # COLLECT · one governed read; the evidence sample is read
 
 
 def classify_rehabilitation():
+    if not handles.get("artifact_fresh") or not handles.get("current_build"):
+        reason = (handles.get("artifact_freshness_reason")
+                  or handles.get("runtime_error")
+                  or "lifecycle freshness is unavailable")
+        envelope["signals"]["candidate_freshness"] = {
+            "fresh": False,
+            "reason": reason,
+            "build_identity": handles.get("current_build", ""),
+        }
+        envelope["evidence"].append("vrooli/scenario/freshness")
+        row_reason = ("managed artifacts are stale; see candidate_freshness"
+                      if reason.startswith("lifecycle reports")
+                      else "lifecycle freshness unavailable; see candidate_freshness")
+        for name in REHABILITATION_ROWS:
+            row(name, None, "bas-rehabilitation-v1#" + name, None,
+                unavailable=True, reason=row_reason)
+        envelope["signals"]["required"] = len(REHABILITATION_ROWS)
+        envelope["signals"]["unmet"] = len(REHABILITATION_ROWS)
+        envelope["signals"]["product_qualified"] = False
+        envelope["status"] = "partial"
+        return "report"
+
     capture = handles.get("capture", {})
     applicable = (capture.get("outcome") == "WORKLOAD_OUTCOME_MEASURED"
                   and capture.get("sampleCount") == 100
@@ -231,13 +304,12 @@ def classify_rehabilitation():
         elif name in ("motion", "passive-fidelity", "profile-durability", "cancellation-recovery", "resource-budget", "evidence-completeness") and applicable and owner_run and owner_findings["phases"]:
             standing = capability_standing(owner_findings, name)
             if standing and standing.get("level"):
-                verified = standing.get("level") == "L1" and standing.get("clean") is True
                 reading = {"current_level": standing.get("level"),
                            "clean": standing.get("clean")}
-                row(name, reading, "bas-rehabilitation-v1#" + name, verified,
+                in_band, unavailable, reason = capability_reading(standing)
+                row(name, reading, "bas-rehabilitation-v1#" + name, in_band,
+                    unavailable=unavailable, reason=reason,
                     sensor="test-genie/runs/findings")
-                if not verified:
-                    envelope["signals"]["rows"][-1]["reason"] = f"capability remains at {standing.get('level')}"
             else:
                 row(name, None, "bas-rehabilitation-v1#" + name, None, unavailable=True,
                     reason="exact phase findings lack the named capability standing",
@@ -265,7 +337,13 @@ def classify_rehabilitation():
     envelope["signals"]["required"] = len(REHABILITATION_ROWS)
     envelope["signals"]["unmet"] = sum(r["in_band"] is not True for r in envelope["signals"]["rows"])
     envelope["signals"]["product_qualified"] = envelope["signals"]["unmet"] == 0
-    envelope["status"] = "partial" if any(handles.get(key) for key in ("capture_error", "test_genie_error", "findings_error", "runtime_error")) else "ok"
+    envelope["signals"]["candidate_freshness"] = {
+        "fresh": True,
+        "check_count": len((handles.get("artifact_freshness") or {}).get("checks") or []),
+        "build_identity": handles.get("current_build"),
+    }
+    envelope["evidence"].append("vrooli/scenario/freshness")
+    envelope["status"] = "partial" if any(handles.get(key) for key in ("capture_error", "test_genie_error", "findings_error", "runtime_error", "freshness_error")) else "ok"
     return "report"
 
 

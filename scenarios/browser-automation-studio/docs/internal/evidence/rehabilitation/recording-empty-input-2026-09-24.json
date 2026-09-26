@@ -1,0 +1,41 @@
+{
+  "date": "2026-09-24",
+  "issue": "BAS-RF-004",
+  "behavior": "An input event whose final value is the empty string is a recorded full-value snapshot; recording stop flushes pending snapshots before acknowledging stop.",
+  "source": {
+    "path": "playwright-driver/src/recording/capture/browser-scripts/recording-script.js",
+    "sha256": "440e6c84eab36cb7b6ec66caa277ee92b070b3764e5c982c5645772fd0322dd3",
+    "change": "flushInput now gates on the presence of an input target, not truthiness of its value. Empty strings are retained as valid replacement snapshots."
+  },
+  "test_source": {
+    "path": "playwright-driver/tests/integration/recording-injection.test.ts",
+    "sha256": "57513cf973cdd625a1a09d012dfbd0857c3f2ed6defcd0812325bec017e04b31",
+    "new_cases": [
+      "records the final empty input value when recording stops",
+      "flushes a debounced input edit before acknowledging recording stop"
+    ]
+  },
+  "red": {
+    "command": "pnpm exec jest tests/integration/recording-injection.test.ts --runInBand --coverage=false --testNamePattern='records the final empty input value|flushes a debounced input edit'",
+    "result": "The empty-value case failed: expected one type event and received zero. The pending nonempty stop case passed."
+  },
+  "green": {
+    "browser_owner": {
+      "command": "pnpm exec jest tests/integration/recording-injection.test.ts --runInBand --coverage=false",
+      "result": "15/15 tests passed, including empty-value stop, pending nonempty stop, passive secret redaction, normal input capture, and navigation."
+    },
+    "workflow_merge_owner": {
+      "command": "GOTOOLCHAIN=local GOPROXY=off go test ./services/live-capture -run 'TestMergeSnapshotsPreservesHistoryAndTarget|MergeConsecutiveActions|GenerateWorkflow' -count=1",
+      "result": "Passed. Existing target-specific snapshot merge covers page, driver page, frame, URL, selector and submit boundaries; empty latest text replaces the earlier full snapshot."
+    }
+  },
+  "runtime": {
+    "managed_build_identity": "sha256:d8694c89b82a07446f7654007c6bc2335916fef26217cc560b9f392f084dd843",
+    "deployed": false,
+    "note": "The browser owner executed the current source template in real Chromium; managed services were not restarted."
+  },
+  "limits": [
+    "This receipt proves browser event capture and the stop acknowledgement boundary, not full UI-to-workflow replay semantics.",
+    "Native IME behavior and complete record-to-replay preservation remain open under RF-004."
+  ]
+}

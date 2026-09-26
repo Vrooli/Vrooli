@@ -356,6 +356,10 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
   liveFeedbackTest('correlates live UI inputs with applied receipts and viewer-canvas pixels', async () => {
     const apiBase = process.env.BAS_REHAB_LIVE_API_BASE as string;
     const uiBase = process.env.BAS_REHAB_LIVE_UI_BASE as string;
+    const networkProfile = process.env.BAS_REHAB_NETWORK_PROFILE ?? 'local';
+    if (networkProfile !== 'local' && networkProfile !== 'remote') {
+      throw new Error('BAS_REHAB_NETWORK_PROFILE must be local or remote');
+    }
     const count = Number(process.env.BAS_REHAB_LIVE_SAMPLE_COUNT ?? 1000);
     if (!Number.isSafeInteger(count) || count < 1 || count > 1000) {
       throw new Error('BAS_REHAB_LIVE_SAMPLE_COUNT must be an integer from 1 through 1000');
@@ -367,6 +371,7 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
     const fixture = `<!doctype html><html><body style="margin:0;background:rgb(119,119,119)"><div style="position:fixed;left:30px;top:30px;display:flex;gap:4px">${cells}</div><script>window.__inputCount=0;addEventListener('pointermove',()=>{const id=++window.__inputCount;document.querySelectorAll('[data-bit]').forEach((cell,index)=>cell.style.backgroundColor=((id>>(9-index))&1)?'white':'black')})</script></body></html>`;
     let sessionId: string | undefined;
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+    let networkSession: Awaited<ReturnType<typeof page.context>['newCDPSession']> | undefined;
     await page.addInitScript(() => {
       const probeWindow = window as FeedbackProbeWindow;
       probeWindow.__basPointerEventTimes = [];
@@ -425,6 +430,17 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
     });
 
     try {
+      if (networkProfile === 'remote') {
+        networkSession = await page.context().newCDPSession(page);
+        await networkSession.send('Network.enable');
+        await networkSession.send('Network.emulateNetworkConditions', {
+          offline: false,
+          latency: 50,
+          downloadThroughput: 1_250_000,
+          uploadThroughput: 1_250_000,
+          connectionType: 'wifi',
+        });
+      }
       const created = await fetch(`${apiBase}/recordings/live/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -564,7 +580,11 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
 
       const report = {
         producer: 'playwright-driver/tests/integration/input-feedback.test.ts',
-        scope: 'managed BAS recording input over WebSocket through Go input forwarding, driver page mutation, Go frame relay and BAS useFrameStream canvas draw; local loopback only',
+        cohort: networkProfile,
+        scope: 'managed BAS recording input over WebSocket through Go input forwarding, driver page mutation, Go frame relay and BAS useFrameStream canvas draw',
+        network: networkProfile === 'remote'
+          ? { emulation: 'Chromium CDP Network.emulateNetworkConditions', rttMs: 50, throughputMbps: 10 }
+          : { emulation: 'none', rttMs: 0, throughputMbps: null },
         browserVersion: browser.version(),
         viewport: dimensions,
         sampleCount: samplesMs.length,
@@ -585,6 +605,9 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
         },
         samplesMs,
       };
+      const withinBand = networkProfile === 'remote'
+        ? report.p95Ms <= 200
+        : report.p50Ms <= 50 && report.p95Ms <= 100 && report.p99Ms <= 200;
       const receiptPath = process.env.BAS_REHAB_RECEIPT_PATH;
       if (receiptPath) {
         const scenarioRoot = resolve(process.cwd(), '..');
@@ -605,11 +628,12 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
         const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
         const receipt = {
           schema_version: 1,
-          evidence_kind: 'diagnostic_partial_remote_cohort_pending',
+          evidence_kind: 'interactive_feedback_cohort',
           outcome_id: 'interactive-feedback',
           contract_row: 'bas-rehabilitation-v1#interactive-feedback',
+          cohort: networkProfile,
           observed_at: new Date().toISOString(),
-          status: 'local_cohort_measured_remote_unmeasured',
+          status: withinBand && count === 1000 ? 'passed' : 'out_of_band_or_incomplete',
           managed_build_identity: health.build_identity,
           source_sha256: {
             'docs/internal/REFRACTOR_CONTRACT.json': sha256(contractBytes),
@@ -618,13 +642,12 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
           producer: {
             owner: 'playwright-driver live BAS integration test',
             test: 'correlates live UI inputs with applied receipts and viewer-canvas pixels',
-            result: 'passed',
+            result: withinBand && count === 1000 ? 'passed' : 'failed',
           },
           measurement: report,
-          limitations: [
-            'local loopback only; contract remote p95 cohort remains unmeasured',
-            'no governed sensor consumes this receipt, so it cannot award setpoint credit',
-          ],
+          limitations: networkProfile === 'remote'
+            ? ['remote latency/bandwidth are emulated in Chromium; this is not a physical remote-network receipt']
+            : [],
         };
         await mkdir(dirname(outputPath), { recursive: true });
         await writeFile(outputPath, `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
@@ -640,11 +663,13 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
       expect(appliedSequences).toHaveLength(count);
       expect(report.receiptSequencesMonotonic).toBe(true);
       expect(report.correlationComplete).toBe(true);
+      if (count === 1000) expect(withinBand).toBe(true);
     } finally {
       if (sessionId) {
         await fetch(`${apiBase}/recordings/live/${sessionId}/stop`, { method: 'POST' }).catch(() => undefined);
         await fetch(`${apiBase}/recordings/live/session/${sessionId}/close`, { method: 'POST' }).catch(() => undefined);
       }
+      if (networkSession) await networkSession.detach().catch(() => undefined);
       await page.close();
     }
   }, 180000);

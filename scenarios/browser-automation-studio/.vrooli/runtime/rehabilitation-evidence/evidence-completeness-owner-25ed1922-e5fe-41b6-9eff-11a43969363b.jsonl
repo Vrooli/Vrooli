@@ -1,0 +1,8 @@
+{"Time":"2026-09-26T00:14:39.516927203-04:00","Action":"start","Package":"github.com/vrooli/browser-automation-studio/services/retention"}
+{"Time":"2026-09-26T00:14:39.522535025-04:00","Action":"run","Package":"github.com/vrooli/browser-automation-studio/services/retention","Test":"TestActiveEvidenceRefusesDeletionUntilExportFinishes"}
+{"Time":"2026-09-26T00:14:39.522566465-04:00","Action":"output","Package":"github.com/vrooli/browser-automation-studio/services/retention","Test":"TestActiveEvidenceRefusesDeletionUntilExportFinishes","Output":"=== RUN   TestActiveEvidenceRefusesDeletionUntilExportFinishes\n"}
+{"Time":"2026-09-26T00:14:39.522704755-04:00","Action":"output","Package":"github.com/vrooli/browser-automation-studio/services/retention","Test":"TestActiveEvidenceRefusesDeletionUntilExportFinishes","Output":"--- PASS: TestActiveEvidenceRefusesDeletionUntilExportFinishes (0.00s)\n"}
+{"Time":"2026-09-26T00:14:39.522710795-04:00","Action":"pass","Package":"github.com/vrooli/browser-automation-studio/services/retention","Test":"TestActiveEvidenceRefusesDeletionUntilExportFinishes","Elapsed":0}
+{"Time":"2026-09-26T00:14:39.522716645-04:00","Action":"output","Package":"github.com/vrooli/browser-automation-studio/services/retention","Output":"PASS\n"}
+{"Time":"2026-09-26T00:14:39.523011495-04:00","Action":"output","Package":"github.com/vrooli/browser-automation-studio/services/retention","Output":"ok  \tgithub.com/vrooli/browser-automation-studio/services/retention\t0.006s\n"}
+{"Time":"2026-09-26T00:14:39.523030195-04:00","Action":"pass","Package":"github.com/vrooli/browser-automation-studio/services/retention","Elapsed":0.006}

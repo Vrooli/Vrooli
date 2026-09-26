@@ -35,6 +35,19 @@ class Socket {
   }
 
 }
+function currentSocket(): Socket {
+  return socketAt(0);
+}
+function socketAt(index: number): Socket {
+  const active = sockets[index];
+  if (!active) throw new Error('Expected viewer socket to be created');
+  return active;
+}
+function decodeAt(index: number) {
+  const decode = decodes[index];
+  if (!decode) throw new Error(`Expected decode ${index} to be queued`);
+  return decode;
+}
 function framePacket(overrides: Record<string, unknown> = {}) {
   const header = new TextEncoder().encode(JSON.stringify({version:1, session_id:'session-a', page_id:'page-a', captured_at:'2026-09-23T03:00:00Z', ...overrides}));
   const packet = new Uint8Array(4 + header.length + 4);
@@ -51,10 +64,10 @@ const config = {API_URL: 'http://fixture.test/api/v1', WS_URL: 'ws://fixture.tes
 const payload = {session_id:'session-a',page_id:'page-a',image: 'data:image/jpeg;base64,/9j/2Q==', width: 640, height: 480, captured_at: '2026-09-23T03:00:00Z', page_title: 'Current', page_url: 'https://fixture.test'};
 const drain = async () => {for(let n=0;n<20;n++)await Promise.resolve();};
 const advance = async (ms: number) => {await act(async () => {await vi.advanceTimersByTimeAsync(ms);});};
-function bitmap(id: number) {return {width:640,height:480,id,close:vi.fn()} as unknown as ImageBitmap & {id: number; close: ReturnType<typeof vi.fn>};}
-async function resolveDecode(index: number) {
-  const image = bitmap(index + 1);
-  await act(async () => {decodes[index]!.resolve(image); await drain();});
+function bitmap(id: number,width=640,height=480) {return {width,height,id,close:vi.fn()} as unknown as ImageBitmap & {id: number; close: ReturnType<typeof vi.fn>};}
+async function resolveDecode(index: number,width=640,height=480) {
+  const image = bitmap(index + 1,width,height);
+  await act(async () => {decodeAt(index).resolve(image); await drain();});
   return image;
 }
 function paint() {act(() => {for(const [id, callback] of [...paints]){paints.delete(id);callback(performance.now());}});}
@@ -88,36 +101,68 @@ describe('live viewer transport and lifetime', () => {
 
   it('subscribes through the configured API route without guessing a driver port',async()=>{
     await mount();expect(sockets[0]?.url).toBe(config.WS_URL);
-    act(()=>sockets[0]!.open());
-    expect(sockets[0]!.send).toHaveBeenCalledWith(JSON.stringify({type:'subscribe_recording',session_id:'session-a'}));
+    act(()=>currentSocket().open());
+    expect(currentSocket().send).toHaveBeenCalledWith(JSON.stringify({type:'subscribe_recording',session_id:'session-a'}));
   });
   it('keeps fallback polling until a usable socket frame is painted',async()=>{
-    await mount();act(()=>sockets[0]!.open());const before=polls().length;
+    await mount();act(()=>currentSocket().open());const before=polls().length;
     await advance(1000);expect(polls().length).toBeGreaterThan(before);
   });
+  it('preserves sequential frames when a paint callback crosses the next source frame',async()=>{
+    await mount();act(()=>currentSocket().open());
+    act(()=>currentSocket().frame());await resolveDecode(0);
+    act(()=>currentSocket().frame());await resolveDecode(1);
+
+    paint();
+    expect(draw.mock.calls.map(([image])=>(image as {id:number}).id)).toEqual([1]);
+    paint();
+    expect(draw.mock.calls.map(([image])=>(image as {id:number}).id)).toEqual([1,2]);
+  });
   it('bounds a hundred-frame decode burst and retains the newest pending image',async()=>{
-    await mount();act(()=>{sockets[0]!.open();for(let i=0;i<100;i++)sockets[0]!.frame();});
+    await mount();act(()=>{currentSocket().open();for(let i=0;i<100;i++)currentSocket().frame();});
     expect(decodes.length).toBe(1);
     await resolveDecode(0);expect(decodes.length).toBe(2);
-    await resolveDecode(1);paint();expect(draw.mock.calls.at(-1)?.[0].id).toBe(2);
+    await resolveDecode(1);paint();paint();expect(draw.mock.calls.map(([image])=>(image as {id:number}).id)).toEqual([1,2]);
+  });
+  it('bounds delayed paints and retains only the newest two decoded frames',async()=>{
+    await mount();act(()=>currentSocket().open());
+    const images: Array<ImageBitmap & {id:number; close:ReturnType<typeof vi.fn>}> = [];
+    for(let i=0;i<10;i++){
+      act(()=>currentSocket().frame());
+      images.push(await resolveDecode(i));
+    }
+
+    paint();paint();
+    expect(draw.mock.calls.map(([image])=>(image as {id:number}).id)).toEqual([9,10]);
+    expect(images.map(image=>image.close.mock.calls.length)).toEqual(Array(10).fill(1));
+  });
+  it('drops the older raster before pending decoded pixels exceed the byte budget',async()=>{
+    await mount();act(()=>currentSocket().open());
+    act(()=>currentSocket().frame());const first=await resolveDecode(0,2048,1536);
+    act(()=>currentSocket().frame());const second=await resolveDecode(1,2048,1536);
+
+    expect(first.close).toHaveBeenCalledTimes(1);
+    paint();paint();
+    expect(draw.mock.calls.map(([image])=>(image as {id:number}).id)).toEqual([2]);
+    expect(second.close).toHaveBeenCalledTimes(1);
   });
   it('cannot reorder same-millisecond frames when decodes complete in reverse order',async()=>{
-    await mount();act(()=>{sockets[0]!.open();sockets[0]!.frame();sockets[0]!.frame();});
+    await mount();act(()=>{currentSocket().open();currentSocket().frame();currentSocket().frame();});
     if(decodes.length>1){await resolveDecode(1);paint();await resolveDecode(0);paint();}
     else {await resolveDecode(0);paint();await resolveDecode(1);paint();}
     expect(draw.mock.calls.at(-1)?.[0].id).toBe(2);
   });
   it.each(['session','page','unmount'] as const)('disposes a decode completing after %s ownership ends',async(kind)=>{
-    const h=await mount();act(()=>{sockets[0]!.open();sockets[0]!.frame();});
+    const h=await mount();act(()=>{currentSocket().open();currentSocket().frame();});
     if(kind==='unmount')h.unmount();
     else h.rerender({sessionId:kind==='session'?'session-b':'session-a',pageId:kind==='page'?'page-b':'page-a'});
     await act(drain);const old=await resolveDecode(0);paint();
     expect(old.close).toHaveBeenCalled();expect(draw).not.toHaveBeenCalled();expect(paints.size).toBe(0);
   });
   it('bounds decoding across replacement sessions while an old decode is still pending',async()=>{
-    const h=await mount();act(()=>{sockets[0]!.open();sockets[0]!.frame();});
+    const h=await mount();act(()=>{currentSocket().open();currentSocket().frame();});
     h.rerender({sessionId:'session-b',pageId:'page-b'});await act(drain);
-    act(()=>{sockets.at(-1)!.open();sockets.at(-1)!.frame('session-b','page-b');});
+    act(()=>{socketAt(sockets.length-1).open();socketAt(sockets.length-1).frame('session-b','page-b');});
     expect(decodes).toHaveLength(1);
     const old=await resolveDecode(0);expect(old.close).toHaveBeenCalled();
     expect(decodes).toHaveLength(2);await resolveDecode(1);paint();
@@ -130,51 +175,51 @@ describe('live viewer transport and lifetime', () => {
     expect(sockets.every(s=>s.close.mock.calls.length>0)).toBe(true);
   });
   it('does not reconnect a disposed socket after switching pages',async()=>{
-    const h=await mount();act(()=>sockets[0]!.open());const old=sockets[0]!;
+    const h=await mount();act(()=>currentSocket().open());const old=currentSocket();
     h.rerender({sessionId:'session-a',pageId:'page-b'});await act(drain);
     const admitted=sockets.length;act(()=>old.onclose?.());await advance(1000);
     expect(sockets).toHaveLength(admitted);
   });
   it('keeps fallback active after an invalid binary image',async()=>{
-    const h=await mount();act(()=>{sockets[0]!.open();sockets[0]!.frame();});
-    await act(async()=>{decodes[0]!.reject(new Error('invalid JPEG'));await drain();});
+    const h=await mount();act(()=>{currentSocket().open();currentSocket().frame();});
+    await act(async()=>{decodeAt(0).reject(new Error('invalid JPEG'));await drain();});
     const before=polls().length;await advance(1000);
     expect(h.result.current.isWsFrameActive).toBe(false);expect(polls().length).toBeGreaterThan(before);
   });
   it('resumes fallback when a connected stream stops delivering usable frames',async()=>{
-    const h=await mount();act(()=>{sockets[0]!.open();sockets[0]!.frame();});await resolveDecode(0);paint();
+    const h=await mount();act(()=>{currentSocket().open();currentSocket().frame();});await resolveDecode(0);paint();
     expect(h.result.current.isWsFrameActive).toBe(true);const before=polls().length;
     await advance(2500);expect(polls().length).toBeGreaterThan(before);expect(h.result.current.isWsFrameActive).toBe(false);
   });
   it('discards a polling response admitted before a newer socket frame',async()=>{
     const pending=deferred<Response>();fetchMock.mockImplementation(async(url:string)=>url==='/config'?new Response(JSON.stringify(config)):pending.promise);
-    await mount();act(()=>{sockets[0]!.open();sockets[0]!.frame();});await resolveDecode(0);paint();
+    await mount();act(()=>{currentSocket().open();currentSocket().frame();});await resolveDecode(0);paint();
     await act(async()=>{pending.resolve(new Response(JSON.stringify(payload)));await drain();});
     expect(decodes).toHaveLength(1);expect(draw.mock.calls.at(-1)?.[0].id).toBe(1);
   });
   it('does not cache an ETag before its image has decoded successfully',async()=>{
     fetchMock.mockImplementation(async(url:string)=>url==='/config'?new Response(JSON.stringify(config)):
       new Response(JSON.stringify(payload),{headers:{ETag:'"bad-image"'}}));
-    await mount();await act(async()=>{decodes[0]!.reject(new Error('bad image'));await drain();});
+    await mount();await act(async()=>{decodeAt(0).reject(new Error('bad image'));await drain();});
     await advance(1000);expect(polls().length).toBeGreaterThan(1);
     expect(new Headers(polls().at(-1)?.[1]?.headers).has('If-None-Match')).toBe(false);
   });
   it('paints a source-bearing API frame and counts only JPEG bytes',async()=>{
-    const h=await mount();act(()=>{sockets[0]!.open();sockets[0]!.frame();});
+    const h=await mount();act(()=>{currentSocket().open();currentSocket().frame();});
     await resolveDecode(0);paint();expect(h.result.current.hasFrame).toBe(true);
     expect(h.result.current.isWsFrameActive).toBe(true);expect(mocks.recordFrame).toHaveBeenCalledWith(4);
   });
   it.each(['page','session'] as const)('rejects a valid envelope from a different %s before decoding',async(kind)=>{
-    const h=await mount();act(()=>sockets[0]!.frame(kind==='session'?'retired':'session-a',kind==='page'?'retired':'page-a'));
+    const h=await mount();act(()=>currentSocket().frame(kind==='session'?'retired':'session-a',kind==='page'?'retired':'page-a'));
     expect(decodes).toHaveLength(0);expect(h.result.current.error).toBeNull();
-    act(()=>sockets[0]!.frame());await resolveDecode(0);paint();expect(h.result.current.hasFrame).toBe(true);
+    act(()=>currentSocket().frame());await resolveDecode(0);paint();expect(h.result.current.hasFrame).toBe(true);
   });
   it.each(['anonymous','timestamp','version','length','identity','date'] as const)('rejects malformed or legacy %s frames and keeps fallback available',async(kind)=>{
     const h=await mount();let data: ArrayBuffer;
     if(kind==='anonymous')data=new Uint8Array([255,216,255,217]).buffer;
     else if(kind==='timestamp'){data=new ArrayBuffer(12);new DataView(data).setBigInt64(0,BigInt(Date.now()));new Uint8Array(data).set([255,216,255,217],8);}
     else {data=framePacket(kind==='version'?{version:2}:kind==='identity'?{page_id:''}:kind==='date'?{captured_at:'invalid'}:{});if(kind==='length')new DataView(data).setUint32(0,65536);}
-    act(()=>sockets[0]!.onmessage?.({data}));expect(decodes).toHaveLength(0);
+    act(()=>currentSocket().onmessage?.({data}));expect(decodes).toHaveLength(0);
     const before=polls().length;await advance(1000);expect(polls().length).toBeGreaterThan(before);
     expect(h.result.current.isWsFrameActive).toBe(false);
   });
@@ -193,7 +238,7 @@ describe('live viewer transport and lifetime', () => {
     expect(h.result.current.isWsFrameActive).toBe(false);
   });
   it('ignores data delivered by a socket after its viewer is disposed',async()=>{
-    const h=await mount();const socket=sockets[0]!;act(()=>socket.open());h.unmount();
+    const h=await mount();const socket=currentSocket();act(()=>socket.open());h.unmount();
     act(()=>socket.frame());expect(decodes).toHaveLength(0);expect(socket.close).toHaveBeenCalledTimes(1);
   });
   it('does not publish an old HTTP failure into a replacement session',async()=>{
@@ -204,9 +249,9 @@ describe('live viewer transport and lifetime', () => {
     expect(h.result.current.error).toBeNull();expect(decodes).toHaveLength(0);
   });
   it('stops the viewer when the final tab closes and resumes for a fresh tab',async()=>{
-    const h=await mount();act(()=>{sockets[0]!.open();sockets[0]!.frame();});await resolveDecode(0);paint();
+    const h=await mount();act(()=>{currentSocket().open();currentSocket().frame();});await resolveDecode(0);paint();
     expect(h.result.current.hasFrame).toBe(true);clear.mockClear();
-    const old=sockets[0]!;const count=polls().length;
+    const old=currentSocket();const count=polls().length;
     await act(async()=>{h.rerender({sessionId:'session-a',pageId:null});await drain();});
     expect(h.result.current.hasFrame).toBe(false);expect(clear).toHaveBeenCalled();
     expect(old.close).toHaveBeenCalledTimes(1);
@@ -215,13 +260,13 @@ describe('live viewer transport and lifetime', () => {
     expect(h.result.current.error).toBeNull();
     h.rerender({sessionId:'session-a',pageId:'page-new'});await act(drain);
     expect(sockets).toHaveLength(2);expect(polls().at(-1)?.[0]).toContain('page_id=page-new');
-    act(()=>{sockets[1]!.open();sockets[1]!.frame('session-a','page-new');});await resolveDecode(1);paint();
+    act(()=>{socketAt(1).open();socketAt(1).frame('session-a','page-new');});await resolveDecode(1);paint();
     expect(h.result.current.hasFrame).toBe(true);
   });
   it('aborts in-flight polling and discards late decode after the final tab closes',async()=>{
     const pending=deferred<Response>();fetchMock.mockReturnValue(pending.promise);
     const h=await mount();const signal=polls()[0]?.[1]?.signal as AbortSignal;
-    act(()=>{sockets[0]!.open();sockets[0]!.frame();});
+    act(()=>{currentSocket().open();currentSocket().frame();});
     h.rerender({sessionId:'session-a',pageId:null});await act(drain);
     expect(signal.aborted).toBe(true);
     await act(async()=>{pending.resolve(new Response(JSON.stringify(payload)));await drain();});
@@ -233,7 +278,7 @@ describe('live viewer transport and lifetime', () => {
   it('keeps implicit active-page preview available when page ID is omitted',async()=>{
     const h=await mount();h.rerender({sessionId:'session-a',pageId:undefined});await act(drain);
     expect(sockets).toHaveLength(2);expect(polls().at(-1)?.[0]).not.toContain('page_id=');
-    act(()=>{sockets[1]!.open();sockets[1]!.frame();});await resolveDecode(0);paint();
+    act(()=>{socketAt(1).open();socketAt(1).frame();});await resolveDecode(0);paint();
     expect(h.result.current.hasFrame).toBe(true);
   });
 });

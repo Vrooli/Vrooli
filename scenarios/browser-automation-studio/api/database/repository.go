@@ -584,6 +584,78 @@ func (r *repository) ListExecutions(ctx context.Context, query ExecutionQuery) (
 	return executions, total, nil
 }
 
+// ListLatestTerminalExecutionsPerWorkflow returns at most limit rows per
+// workflow, ordered newest first within each workflow. Workflow IDs are
+// chunked so the query remains below SQLite's bind-parameter limit.
+func (r *repository) ListLatestTerminalExecutionsPerWorkflow(
+	ctx context.Context,
+	workflowIDs []uuid.UUID,
+	projectID *uuid.UUID,
+	statuses []string,
+	limit int,
+) ([]*ExecutionIndex, error) {
+	if limit <= 0 || len(workflowIDs) == 0 || len(statuses) == 0 {
+		return nil, nil
+	}
+	uniqueWorkflows := make([]uuid.UUID, 0, len(workflowIDs))
+	seenWorkflows := make(map[uuid.UUID]struct{}, len(workflowIDs))
+	for _, workflowID := range workflowIDs {
+		if _, ok := seenWorkflows[workflowID]; ok {
+			continue
+		}
+		seenWorkflows[workflowID] = struct{}{}
+		uniqueWorkflows = append(uniqueWorkflows, workflowID)
+	}
+	for _, status := range statuses {
+		if !IsTerminalStatus(status) {
+			return nil, fmt.Errorf("status %q is not terminal", status)
+		}
+	}
+
+	const workflowChunkSize = 400
+	var executions []*ExecutionIndex
+	for start := 0; start < len(uniqueWorkflows); start += workflowChunkSize {
+		end := min(start+workflowChunkSize, len(uniqueWorkflows))
+		workflowChunk := uniqueWorkflows[start:end]
+		workflowMarks := strings.TrimSuffix(strings.Repeat("?,", len(workflowChunk)), ",")
+		statusMarks := strings.TrimSuffix(strings.Repeat("?,", len(statuses)), ",")
+		args := make([]any, 0, len(workflowChunk)+len(statuses)+2)
+		for _, workflowID := range workflowChunk {
+			args = append(args, workflowID)
+		}
+		for _, status := range statuses {
+			args = append(args, status)
+		}
+		where := "workflow_id IN (" + workflowMarks + ") AND status IN (" + statusMarks + ")"
+		if projectID != nil {
+			where += " AND workflow_id IN (SELECT id FROM workflows WHERE project_id = ?)"
+			args = append(args, *projectID)
+		}
+
+		query := fmt.Sprintf(
+			"SELECT %s FROM (SELECT %s, ROW_NUMBER() OVER (PARTITION BY workflow_id ORDER BY started_at DESC, id DESC) AS keep_rank FROM executions WHERE %s) AS ranked WHERE keep_rank <= ? ORDER BY workflow_id, started_at DESC, id DESC",
+			executionSelectColumns,
+			executionSelectColumns,
+			where,
+		)
+		args = append(args, limit)
+		rows, err := r.db.QueryxContext(ctx, r.db.Rebind(query), args...)
+		if err != nil {
+			return nil, fmt.Errorf("list latest terminal executions per workflow: %w", err)
+		}
+		var batch []*ExecutionIndex
+		if err := sqlx.StructScan(rows, &batch); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("scan latest terminal executions per workflow: %w", err)
+		}
+		if err := rows.Close(); err != nil {
+			return nil, fmt.Errorf("close latest terminal executions rows: %w", err)
+		}
+		executions = append(executions, batch...)
+	}
+	return executions, nil
+}
+
 // ============================================================================
 // Schedule Operations
 // ============================================================================

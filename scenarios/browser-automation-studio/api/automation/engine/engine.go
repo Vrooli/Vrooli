@@ -32,17 +32,18 @@ type FrameStreamingConfig struct {
 
 // SessionSpec describes the session needed for an execution.
 type SessionSpec struct {
-	ExecutionID    uuid.UUID
-	WorkflowID     uuid.UUID
-	ViewportWidth  int
-	ViewportHeight int
-	ReuseMode      SessionReuseMode
-	BaseURL        string
-	Labels         map[string]string
-	Capabilities   contracts.CapabilityRequirement           // Required capabilities derived from plan.
-	FrameStreaming *FrameStreamingConfig                     // Optional: enables live frame streaming during execution.
-	BrowserProfile *sessionprofilepersistence.BrowserProfile // Optional: anti-detection and human-like behavior settings.
-	StorageState   json.RawMessage                           // Optional: session profile's storage state (cookies, localStorage) for authenticated execution.
+	ExecutionID           uuid.UUID
+	WorkflowID            uuid.UUID
+	ViewportWidth         int
+	ViewportHeight        int
+	ReuseMode             SessionReuseMode
+	SessionProfileVersion string
+	BaseURL               string
+	Labels                map[string]string
+	Capabilities          contracts.CapabilityRequirement           // Required capabilities derived from plan.
+	FrameStreaming        *FrameStreamingConfig                     // Optional: enables live frame streaming during execution.
+	BrowserProfile        *sessionprofilepersistence.BrowserProfile // Optional: anti-detection and human-like behavior settings.
+	StorageState          json.RawMessage                           // Optional: session profile's storage state (cookies, localStorage) for authenticated execution.
 	// FakeMicrophoneWav is an absolute WAV path served as a deterministic fake
 	// microphone. Requires a dedicated browser instance (Chromium launch flag).
 	FakeMicrophoneWav string

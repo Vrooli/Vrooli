@@ -603,6 +603,18 @@ func TestManager_ReuseMode_Default(t *testing.T) {
 	}
 }
 
+func TestManager_BuildRequestCarriesSessionProfileVersion(t *testing.T) {
+	m := &Manager{}
+	request := m.buildRequest(Spec{
+		ExecutionID:           uuid.New(),
+		WorkflowID:            uuid.New(),
+		Mode:                  ModeExecution,
+		SessionProfileVersion: "opaque-profile-context-version",
+	})
+
+	require.Equal(t, "opaque-profile-context-version", request.SessionProfileVersion)
+}
+
 // =============================================================================
 // buildArtifactPaths Tests
 // =============================================================================

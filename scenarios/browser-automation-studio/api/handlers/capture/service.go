@@ -83,99 +83,184 @@ func (s *service) Capture(
 ) (*connect.Response[capturev1.CaptureResponse], error) {
 	start := s.deps.Now()
 	msg := req.Msg
-	if err := s.validator.Validate(msg); err != nil {
-		var invalid *protovalidate.ValidationError
-		if errors.As(err, &invalid) {
-			return nil, connect.NewError(connect.CodeInvalidArgument, err)
-		}
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("validate capture request: %w", err))
-	}
-
-	resolvedURL, err := s.resolveURL(ctx, msg.GetUrl())
+	plan, err := s.prepareCapture(ctx, msg)
 	if err != nil {
 		return nil, err
-	}
-
-	captures, err := normalizeCaptures(msg.GetCaptures())
-	if err != nil {
-		return nil, err
-	}
-
-	width, height, err := resolveDimensions(msg.GetDimensions())
-	if err != nil {
-		return nil, err
-	}
-
-	capturesRoot := strings.TrimSpace(s.deps.CapturesRoot)
-	if capturesRoot == "" {
-		capturesRoot = filepath.Join(os.TempDir(), "bas-capture")
-	}
-	outDir := strings.TrimSpace(msg.GetOutDir())
-	switch {
-	case outDir == "":
-		outDir = filepath.Join(capturesRoot, uuid.NewString())
-	case !filepath.IsAbs(outDir):
-		// Relative out dirs anchor to the captures root, not the API
-		// process's working directory. Reject traversal that would escape it.
-		joined := filepath.Join(capturesRoot, outDir)
-		if rel, relErr := filepath.Rel(capturesRoot, joined); relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("out dir %q escapes the captures root", msg.GetOutDir()))
-		}
-		outDir = joined
 	}
 
 	if isDryRun(req.Header().Get("X-Dry-Run")) {
-		execID := "dry-run-" + uuid.NewString()
-		artifacts := synthesizeArtifacts(outDir, captures)
-		attachArtifactReferences(execID, artifacts)
-		return connect.NewResponse(&capturev1.CaptureResponse{
-			ExecutionId: execID,
-			OutDir:      outDir,
-			Artifacts:   artifacts,
-			DurationMs:  0,
-			DryRun:      true,
-			Readiness:   captureReadinessDiagnostics(msg.GetWaitFor(), "generic-navigation", "dry-run", 0, "dry run does not navigate"),
-		}), nil
+		return dryRunResponse(msg, plan)
 	}
 
-	releaseEvidence := retention.BeginEvidenceActivity(filepath.Clean(outDir))
+	releaseEvidence := retention.BeginEvidenceActivity(filepath.Clean(plan.outDir))
 	defer releaseEvidence()
-	adhocReq, domNodeIDs, err := buildAdhocRequest(resolvedURL, msg, width, height, s.deps.InlineDom.Expression)
+	adhocReq, domNodeIDs, err := buildAdhocRequest(plan.resolvedURL, msg, plan.width, plan.height, s.deps.InlineDom.Expression)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	// Explicit caller waits are authoritative. For a known local scenario with
-	// no explicit wait, ask Experience Manager for its compiled profile and add
-	// the selected required-surface binding as a post-navigation Wait action.
-	// Missing/unavailable profiles intentionally fall back to generic capture.
-	selectedReadiness := "generic-navigation"
-	var declaredResolution ReadinessResolution
-	fallbackReason := ""
-	if msg.GetWaitFor() != nil {
-		selectedReadiness = requestedReadinessStrategy(msg.GetWaitFor())
+	readiness := s.resolveCaptureReadiness(ctx, msg, adhocReq)
+	opts := captureExecutionOptions(plan.captures, msg)
+	execution, err := s.executeCapture(ctx, adhocReq, opts, plan.outDir)
+	if err != nil {
+		return nil, err
 	}
-	if msg.GetWaitFor() == nil && s.deps.ReadinessResolver != nil {
-		if scenario, route, ok := scenarioTarget(msg.GetUrl()); ok {
-			if resolution, resolveErr := s.deps.ReadinessResolver.ResolveReadinessWaits(ctx, scenario, route); resolveErr == nil {
-				declaredResolution = resolution
-				if len(resolution.Waits) > 0 {
-					appendPostNavigationWaits(adhocReq, resolution.Waits)
-					selectedReadiness = "declared-surface"
-				} else if resolution.ProfileVersion == "" {
-					fallbackReason = "declared readiness profile returned no version"
-				} else if !resolution.RouteMatched {
-					fallbackReason = "declared readiness profile does not include the requested route"
-				} else {
-					fallbackReason = "declared readiness route has no bound required surfaces"
-				}
-			} else {
-				fallbackReason = "declared readiness profile unavailable: " + resolveErr.Error()
-			}
+	artifacts, inline, err := s.materializeCaptureArtifacts(ctx, msg, plan.captures, execution, domNodeIDs)
+	if err != nil {
+		return nil, err
+	}
+	inline.accessibilityJSON = s.readInlineAccessibility(msg, execution.outDir)
+	duration := s.deps.Now().Sub(start).Milliseconds()
+	timing := s.captureReadinessTiming(execution.outDir, readiness.selected)
+	return connect.NewResponse(&capturev1.CaptureResponse{
+		ExecutionId:       execution.id,
+		OutDir:            execution.outDir,
+		Artifacts:         artifacts,
+		DurationMs:        duration,
+		DomHtml:           inline.domHTMLForResponse(msg),
+		AccessibilityJson: inline.accessibilityJSON,
+		DomTreeJson:       inline.domTreeForResponse(msg),
+		Readiness: captureReadinessDiagnosticsWithTiming(msg.GetWaitFor(), readiness.selected,
+			readiness.outcome(timing), duration, readiness.fallbackReason, readiness.declaredResolution, timing),
+	}), nil
+}
+
+type capturePlan struct {
+	resolvedURL string
+	captures    []capturev1.CaptureType
+	width       int32
+	height      int32
+	outDir      string
+}
+
+type captureReadiness struct {
+	selected           string
+	fallbackReason     string
+	declaredResolution ReadinessResolution
+}
+
+func (r captureReadiness) outcome(timing readinessTimelineTiming) string {
+	if r.selected == "declared-surface" && timing.outcome != "" {
+		return timing.outcome
+	}
+	return "ready"
+}
+
+type captureExecution struct {
+	id     string
+	uuid   uuid.UUID
+	outDir string
+}
+
+type captureInlineResults struct {
+	domHTML           string
+	domTreeJSON       string
+	accessibilityJSON string
+	domHTMLTruncated  bool
+	domTreeTruncated  bool
+}
+
+func (s *service) prepareCapture(ctx context.Context, msg *capturev1.CaptureRequest) (capturePlan, error) {
+	if err := s.validator.Validate(msg); err != nil {
+		var invalid *protovalidate.ValidationError
+		if errors.As(err, &invalid) {
+			return capturePlan{}, connect.NewError(connect.CodeInvalidArgument, err)
 		}
+		return capturePlan{}, connect.NewError(connect.CodeInternal, fmt.Errorf("validate capture request: %w", err))
 	}
+	resolvedURL, err := s.resolveURL(ctx, msg.GetUrl())
+	if err != nil {
+		return capturePlan{}, err
+	}
+	captures, err := normalizeCaptures(msg.GetCaptures())
+	if err != nil {
+		return capturePlan{}, err
+	}
+	width, height, err := resolveDimensions(msg.GetDimensions())
+	if err != nil {
+		return capturePlan{}, err
+	}
+	outDir, err := resolveCaptureOutDir(s.deps.CapturesRoot, msg.GetOutDir())
+	if err != nil {
+		return capturePlan{}, err
+	}
+	return capturePlan{resolvedURL: resolvedURL, captures: captures, width: width, height: height, outDir: outDir}, nil
+}
+
+func resolveCaptureOutDir(capturesRoot, requested string) (string, error) {
+	capturesRoot = strings.TrimSpace(capturesRoot)
+	if capturesRoot == "" {
+		capturesRoot = filepath.Join(os.TempDir(), "bas-capture")
+	}
+	outDir := strings.TrimSpace(requested)
+	switch {
+	case outDir == "":
+		return filepath.Join(capturesRoot, uuid.NewString()), nil
+	case filepath.IsAbs(outDir):
+		return outDir, nil
+	}
+	// Relative out dirs anchor to the captures root, not the API process's
+	// working directory. Reject traversal that would escape it.
+	joined := filepath.Join(capturesRoot, outDir)
+	rel, err := filepath.Rel(capturesRoot, joined)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("out dir %q escapes the captures root", requested))
+	}
+	return joined, nil
+}
+
+func dryRunResponse(msg *capturev1.CaptureRequest, plan capturePlan) (*connect.Response[capturev1.CaptureResponse], error) {
+	execID := "dry-run-" + uuid.NewString()
+	artifacts := synthesizeArtifacts(plan.outDir, plan.captures)
+	attachArtifactReferences(execID, artifacts)
+	return connect.NewResponse(&capturev1.CaptureResponse{
+		ExecutionId: execID,
+		OutDir:      plan.outDir,
+		Artifacts:   artifacts,
+		DurationMs:  0,
+		DryRun:      true,
+		Readiness:   captureReadinessDiagnostics(msg.GetWaitFor(), "generic-navigation", "dry-run", 0, "dry run does not navigate"),
+	}), nil
+}
+
+func (s *service) resolveCaptureReadiness(ctx context.Context, msg *capturev1.CaptureRequest, adhocReq *basexecution.ExecuteAdhocRequest) captureReadiness {
+	readiness := captureReadiness{selected: "generic-navigation"}
+	if msg.GetWaitFor() != nil {
+		readiness.selected = requestedReadinessStrategy(msg.GetWaitFor())
+		return readiness
+	}
+	if s.deps.ReadinessResolver == nil {
+		return readiness
+	}
+	scenario, route, ok := scenarioTarget(msg.GetUrl())
+	if !ok {
+		return readiness
+	}
+	resolution, err := s.deps.ReadinessResolver.ResolveReadinessWaits(ctx, scenario, route)
+	if err != nil {
+		readiness.fallbackReason = "declared readiness profile unavailable: " + err.Error()
+		return readiness
+	}
+	readiness.declaredResolution = resolution
+	if len(resolution.Waits) > 0 {
+		appendPostNavigationWaits(adhocReq, resolution.Waits)
+		readiness.selected = "declared-surface"
+		return readiness
+	}
+	switch {
+	case resolution.ProfileVersion == "":
+		readiness.fallbackReason = "declared readiness profile returned no version"
+	case !resolution.RouteMatched:
+		readiness.fallbackReason = "declared readiness profile does not include the requested route"
+	default:
+		readiness.fallbackReason = "declared readiness route has no bound required surfaces"
+	}
+	return readiness
+}
+
+func captureExecutionOptions(captures []capturev1.CaptureType, msg *capturev1.CaptureRequest) *workflow.ExecuteOptions {
 	opts := &workflow.ExecuteOptions{}
-	for _, ct := range captures {
-		switch ct {
+	for _, captureType := range captures {
+		switch captureType {
 		case capturev1.CaptureType_CAPTURE_TYPE_VIDEO:
 			opts.RequiresVideo = true
 		case capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE:
@@ -184,80 +269,103 @@ func (s *service) Capture(
 			opts.RequiresAccessibility = true
 		}
 	}
-	// inline_accessibility independently drives the AX capture (mirrors how
-	// inline_dom injects its own read regardless of the captures list), so a
-	// caller can request the inline snapshot without also listing ACCESSIBILITY.
+	// Inline accessibility independently drives the AX capture.
 	if msg.GetInlineAccessibility() || msg.GetInlineComputedStyle() {
 		opts.RequiresAccessibility = true
 	}
+	return opts
+}
 
-	resp, err := s.deps.Executor.ExecuteAdhocWorkflowAPIWithOptions(ctx, adhocReq, opts)
+func (s *service) executeCapture(ctx context.Context, req *basexecution.ExecuteAdhocRequest, opts *workflow.ExecuteOptions, outDir string) (captureExecution, error) {
+	response, err := s.deps.Executor.ExecuteAdhocWorkflowAPIWithOptions(ctx, req, opts)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("execute adhoc: %w", err))
+		return captureExecution{}, connect.NewError(connect.CodeInternal, fmt.Errorf("execute adhoc: %w", err))
 	}
-
-	execID := resp.GetExecutionId()
-	readinessOutcome := readinessOutcomeForExecutionStatus(resp.GetStatus())
-	executionOutDir := filepath.Join(outDir, execID)
-
+	execID := response.GetExecutionId()
 	executionUUID, err := uuid.Parse(execID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid execution id %q from executor: %w", execID, err))
+		return captureExecution{}, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid execution id %q from executor: %w", execID, err))
 	}
+	executionOutDir := filepath.Join(outDir, execID)
 	if err := s.deps.Executor.ExportToFolder(ctx, executionUUID, executionOutDir, s.deps.Storage); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("export artifacts: %w", err))
+		return captureExecution{}, connect.NewError(connect.CodeInternal, fmt.Errorf("export artifacts: %w", err))
 	}
-	if resp.GetStatus() != basebase.ExecutionStatus_EXECUTION_STATUS_COMPLETED {
-		failure := strings.TrimSpace(resp.GetError())
-		if failure == "" {
-			failure = strings.TrimSpace(resp.GetMessage())
-		}
-		if failure == "" {
-			failure = strings.ToLower(strings.TrimPrefix(resp.GetStatus().String(), "EXECUTION_STATUS_"))
-		}
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("capture execution %s finished %s: %s", execID, strings.ToLower(strings.TrimPrefix(resp.GetStatus().String(), "EXECUTION_STATUS_")), failure))
+	if response.GetStatus() != basebase.ExecutionStatus_EXECUTION_STATUS_COMPLETED {
+		status := strings.ToLower(strings.TrimPrefix(response.GetStatus().String(), "EXECUTION_STATUS_"))
+		failure := firstNonEmpty(strings.TrimSpace(response.GetError()), strings.TrimSpace(response.GetMessage()), status)
+		return captureExecution{}, connect.NewError(connect.CodeInternal, fmt.Errorf("capture execution %s finished %s: %s", execID, status, failure))
 	}
+	return captureExecution{
+		id: execID, uuid: executionUUID, outDir: executionOutDir,
+	}, nil
+}
 
-	artifacts, err := s.deps.Producers.ProduceAll(captures, executionOutDir)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("harvest artifacts: %w", err))
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
 	}
-	// Inline DOM is best-effort: a failed in-page read degrades to an empty
-	// dom_html (documented on the proto field) rather than failing a capture
-	// whose other artifacts are already on disk.
-	domHTML := ""
-	domTreeJSON := ""
-	domHTMLTruncated := false
-	domTreeTruncated := false
-	if domNodeIDs.html != "" {
-		inlineDom := s.deps.InlineDom
-		domHTML, domHTMLTruncated, err = inlineDom.readInlineDom(executionOutDir, domNodeIDs.html)
+	return ""
+}
+
+func (s *service) materializeCaptureArtifacts(ctx context.Context, msg *capturev1.CaptureRequest, captures []capturev1.CaptureType, execution captureExecution, domNodeIDs inlineDomNodeIDs) ([]*capturev1.CaptureArtifact, captureInlineResults, error) {
+	artifacts, err := s.deps.Producers.ProduceAll(captures, execution.outDir)
+	if err != nil {
+		return nil, captureInlineResults{}, connect.NewError(connect.CodeInternal, fmt.Errorf("harvest artifacts: %w", err))
+	}
+	inline := s.readInlineCaptureResults(msg, execution.outDir, domNodeIDs)
+	if slices.Contains(captures, capturev1.CaptureType_CAPTURE_TYPE_DOM) && inline.domHTML != "" {
+		if err := publishInlineArtifact(execution.outDir, artifacts, capturev1.CaptureType_CAPTURE_TYPE_DOM, inline.domHTML, inline.domHTMLTruncated); err != nil {
+			return nil, captureInlineResults{}, connect.NewError(connect.CodeInternal, fmt.Errorf("write DOM artifact: %w", err))
+		}
+	}
+	if (slices.Contains(captures, capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE) || msg.GetInlineDomTree()) && inline.domTreeJSON != "" {
+		if err := publishInlineArtifact(execution.outDir, artifacts, capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE, inline.domTreeJSON, inline.domTreeTruncated); err != nil {
+			return nil, captureInlineResults{}, connect.NewError(connect.CodeInternal, fmt.Errorf("write DOM-tree artifact: %w", err))
+		}
+	}
+	attachArtifactReferences(execution.id, artifacts)
+	if err := s.publishCaptureArtifacts(ctx, execution, artifacts); err != nil {
+		return nil, captureInlineResults{}, err
+	}
+	return artifacts, inline, nil
+}
+
+func (s *service) readInlineCaptureResults(msg *capturev1.CaptureRequest, outDir string, ids inlineDomNodeIDs) captureInlineResults {
+	var inline captureInlineResults
+	if ids.html != "" {
+		var err error
+		inline.domHTML, inline.domHTMLTruncated, err = s.deps.InlineDom.readInlineDom(outDir, ids.html)
 		if err != nil && s.deps.Logger != nil {
 			s.deps.Logger.WithError(err).Warn("capture: inline DOM read failed")
 		}
 	}
-	if domNodeIDs.tree != "" {
+	if ids.tree != "" {
 		treeReader := s.deps.InlineDom
 		treeReader.Expression = defaultInlineDomTreeExpression
 		treeReader.MaxBytes = 16 << 20
-		domTreeJSON, domTreeTruncated, err = treeReader.readInlineDom(executionOutDir, domNodeIDs.tree)
+		var err error
+		inline.domTreeJSON, inline.domTreeTruncated, err = treeReader.readInlineDom(outDir, ids.tree)
 		if err != nil && s.deps.Logger != nil {
 			s.deps.Logger.WithError(err).Warn("capture: inline DOM-tree read failed")
 		}
 	}
-	if slices.Contains(captures, capturev1.CaptureType_CAPTURE_TYPE_DOM) && domHTML != "" {
-		if err := publishInlineArtifact(executionOutDir, artifacts, capturev1.CaptureType_CAPTURE_TYPE_DOM, domHTML, domHTMLTruncated); err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("write DOM artifact: %w", err))
-		}
+	return inline
+}
+
+func (s *service) readInlineAccessibility(msg *capturev1.CaptureRequest, outDir string) string {
+	if !msg.GetInlineAccessibility() && !msg.GetInlineComputedStyle() {
+		return ""
 	}
-	if (slices.Contains(captures, capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE) || msg.GetInlineDomTree()) && domTreeJSON != "" {
-		if err := publishInlineArtifact(executionOutDir, artifacts, capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE, domTreeJSON, domTreeTruncated); err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("write DOM-tree artifact: %w", err))
-		}
+	accessibilityJSON, err := s.deps.InlineAccessibility.readInlineAccessibility(outDir)
+	if err != nil && s.deps.Logger != nil {
+		s.deps.Logger.WithError(err).Warn("capture: inline accessibility read failed")
 	}
-	// Materialize DOM outputs before publication so generated files receive the
-	// same durable storage URLs and manifest treatment as executor exports.
-	attachArtifactReferences(execID, artifacts)
+	return accessibilityJSON
+}
+
+func (s *service) publishCaptureArtifacts(ctx context.Context, execution captureExecution, artifacts []*capturev1.CaptureArtifact) error {
 	for _, artifact := range artifacts {
 		if s.deps.Storage == nil {
 			break
@@ -265,17 +373,12 @@ func (s *service) Capture(
 		if artifact == nil || artifact.GetPath() == "" || artifact.GetMetadata()["unavailable"] == "true" {
 			continue
 		}
-		contentType := mime.TypeByExtension(filepath.Ext(artifact.GetPath()))
-		stored, storeErr := s.deps.Storage.StoreArtifactFromFile(
-			ctx,
-			executionUUID,
+		stored, err := s.deps.Storage.StoreArtifactFromFile(ctx, execution.uuid,
 			"capture/"+strings.ToLower(strings.TrimPrefix(artifact.GetType().String(), "CAPTURE_TYPE_")),
-			artifact.GetPath(),
-			contentType,
-		)
-		if storeErr != nil {
+			artifact.GetPath(), mime.TypeByExtension(filepath.Ext(artifact.GetPath())))
+		if err != nil {
 			if s.deps.Logger != nil {
-				s.deps.Logger.WithError(storeErr).WithField("artifact", artifact.GetPath()).Warn("capture artifact URL publication failed")
+				s.deps.Logger.WithError(err).WithField("artifact", artifact.GetPath()).Warn("capture artifact URL publication failed")
 			}
 			continue
 		}
@@ -285,61 +388,38 @@ func (s *service) Capture(
 		artifact.Metadata["view_url"] = stored.URL
 		artifact.Metadata["content_type"] = stored.ContentType
 	}
-	if err := writeCaptureArtifactSummary(executionOutDir, artifacts); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("write capture artifact summary: %w", err))
+	if err := writeCaptureArtifactSummary(execution.outDir, artifacts); err != nil {
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("write capture artifact summary: %w", err))
 	}
+	return nil
+}
 
-	responseDomHTML := ""
-	if msg.GetInlineDom() {
-		responseDomHTML = domHTML
-	}
-	responseDomTreeJSON := ""
-	if msg.GetInlineDomTree() {
-		responseDomTreeJSON = domTreeJSON
-	}
-
-	// Inline accessibility is best-effort: a missing/failed AX capture
-	// degrades to an empty accessibility_json (documented on the proto field)
-	// rather than failing a capture whose other artifacts are on disk. The
-	// snapshot the driver produced is written by ExportToFolder as
-	// accessibility.json in the execution out dir, so we read it back here.
-	accessibilityJSON := ""
-	if msg.GetInlineAccessibility() || msg.GetInlineComputedStyle() {
-		accessibilityJSON, err = s.deps.InlineAccessibility.readInlineAccessibility(executionOutDir)
-		if err != nil && s.deps.Logger != nil {
-			s.deps.Logger.WithError(err).Warn("capture: inline accessibility read failed")
-		}
-	}
-
-	duration := s.deps.Now().Sub(start).Milliseconds()
-	timing := readinessTimelineTiming{}
-	timingAvailable := false
-	if observedTiming, timingErr := readinessTiming(executionOutDir); timingErr != nil {
+func (s *service) captureReadinessTiming(outDir, selected string) readinessTimelineTiming {
+	timing, err := readinessTiming(outDir)
+	if err != nil {
 		if s.deps.Logger != nil {
-			s.deps.Logger.WithError(timingErr).Warn("capture: readiness timing unavailable")
+			s.deps.Logger.WithError(err).Warn("capture: readiness timing unavailable")
 		}
-	} else {
-		timing = observedTiming
-		timingAvailable = true
+		return readinessTimelineTiming{}
 	}
-	if selectedReadiness == "declared-surface" {
-		if timing.outcome != "" {
-			readinessOutcome = timing.outcome
-		} else if !timingAvailable && s.deps.Logger != nil {
-			s.deps.Logger.Warn("capture: declared readiness outcome unavailable")
-		}
+	if selected == "declared-surface" && timing.outcome == "" && s.deps.Logger != nil {
+		s.deps.Logger.Warn("capture: declared readiness outcome unavailable")
 	}
-	return connect.NewResponse(&capturev1.CaptureResponse{
-		ExecutionId:       execID,
-		OutDir:            executionOutDir,
-		Artifacts:         artifacts,
-		DurationMs:        duration,
-		DryRun:            false,
-		DomHtml:           responseDomHTML,
-		AccessibilityJson: accessibilityJSON,
-		DomTreeJson:       responseDomTreeJSON,
-		Readiness:         captureReadinessDiagnosticsWithTiming(msg.GetWaitFor(), selectedReadiness, readinessOutcome, duration, fallbackReason, declaredResolution, timing),
-	}), nil
+	return timing
+}
+
+func (r captureInlineResults) domHTMLForResponse(msg *capturev1.CaptureRequest) string {
+	if msg.GetInlineDom() {
+		return r.domHTML
+	}
+	return ""
+}
+
+func (r captureInlineResults) domTreeForResponse(msg *capturev1.CaptureRequest) string {
+	if msg.GetInlineDomTree() {
+		return r.domTreeJSON
+	}
+	return ""
 }
 
 func publishInlineArtifact(outDir string, artifacts []*capturev1.CaptureArtifact, captureType capturev1.CaptureType, contents string, truncated bool) error {
@@ -370,26 +450,6 @@ func attachArtifactReferences(executionID string, artifacts []*capturev1.Capture
 			continue
 		}
 		artifact.Reference = fmt.Sprintf("bas-capture://%s/%s", executionID, strings.ToLower(strings.TrimPrefix(artifact.GetType().String(), "CAPTURE_TYPE_")))
-	}
-}
-
-// readinessOutcomeForExecutionStatus preserves the readiness contract's
-// user-facing success value while deriving it from the executor's terminal
-// state rather than assuming every completed RPC is ready.
-func readinessOutcomeForExecutionStatus(status basebase.ExecutionStatus) string {
-	switch status {
-	case basebase.ExecutionStatus_EXECUTION_STATUS_COMPLETED:
-		return "ready"
-	case basebase.ExecutionStatus_EXECUTION_STATUS_FAILED:
-		return "failed"
-	case basebase.ExecutionStatus_EXECUTION_STATUS_CANCELLED:
-		return "cancelled"
-	case basebase.ExecutionStatus_EXECUTION_STATUS_RUNNING:
-		return "running"
-	case basebase.ExecutionStatus_EXECUTION_STATUS_PENDING:
-		return "pending"
-	default:
-		return "unknown"
 	}
 }
 
@@ -675,42 +735,7 @@ func buildAdhocRequest(
 		predecessorIDs = spliced.terminals
 	}
 
-	domNodeIDs := inlineDomNodeIDs{}
-	appendDomRead := func(expression string) string {
-		domNode := &workflowsv1.WorkflowNodeV2{
-			Id: uuid.NewString(),
-			Action: &actionsv1.ActionDefinition{
-				Type: actionsv1.ActionType_ACTION_TYPE_EVALUATE,
-				Params: &actionsv1.ActionDefinition_Evaluate{
-					Evaluate: &actionsv1.EvaluateParams{Expression: expression},
-				},
-			},
-		}
-		appendNode(domNode)
-		return domNode.Id
-	}
-	if msg.GetInlineDom() || slices.Contains(msg.GetCaptures(), capturev1.CaptureType_CAPTURE_TYPE_DOM) {
-		domNodeIDs.html = appendDomRead(inlineDomExpression)
-	}
-	if msg.GetInlineDomTree() || slices.Contains(msg.GetCaptures(), capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE) {
-		domNodeIDs.tree = appendDomRead(defaultInlineDomTreeExpression)
-	}
-
-	// The requested image is an explicit final action. Setup and snapshot steps
-	// retain failure diagnostics through the capture profile, without producing
-	// redundant successful-step images. Keep interaction screenshots as authored.
-	if selector := strings.TrimSpace(msg.GetScreenshotSelector()); selector != "" || len(msg.GetCaptures()) == 0 || slices.Contains(msg.GetCaptures(), capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT) {
-		screenshotNode := &workflowsv1.WorkflowNodeV2{
-			Id: uuid.NewString(),
-			Action: &actionsv1.ActionDefinition{
-				Type: actionsv1.ActionType_ACTION_TYPE_SCREENSHOT,
-				Params: &actionsv1.ActionDefinition_Screenshot{
-					Screenshot: &actionsv1.ScreenshotParams{Selector: &selector, FullPage: proto.Bool(false)},
-				},
-			},
-		}
-		appendNode(screenshotNode)
-	}
+	domNodeIDs := appendCapturePostlude(msg, inlineDomExpression, appendNode)
 
 	flowName := "capture"
 	flowDesc := "capture @ " + resolvedURL
@@ -730,18 +755,7 @@ func buildAdhocRequest(
 	startURL := resolvedURL
 	w := width
 	h := height
-	browserProfile := msg.GetBrowserProfile()
-	if dimensions := msg.GetDimensions(); dimensions != nil && dimensions.DeviceScaleFactor != nil {
-		if browserProfile == nil {
-			browserProfile = &basebase.BrowserProfile{}
-		} else {
-			browserProfile = proto.Clone(browserProfile).(*basebase.BrowserProfile)
-		}
-		if browserProfile.Fingerprint == nil {
-			browserProfile.Fingerprint = &basebase.FingerprintSettings{}
-		}
-		browserProfile.Fingerprint.DeviceScaleFactor = proto.Float64(dimensions.GetDeviceScaleFactor())
-	}
+	browserProfile := captureBrowserProfile(msg)
 	return &basexecution.ExecuteAdhocRequest{
 		FlowDefinition: flow,
 		Metadata: &basexecution.ExecutionMetadata{
@@ -757,6 +771,69 @@ func buildAdhocRequest(
 		},
 		WaitForCompletion: true,
 	}, domNodeIDs, nil
+}
+
+// appendCapturePostlude attaches only the requested DOM reads and final image
+// after every interaction terminal, preserving the original graph branching.
+func appendCapturePostlude(msg *capturev1.CaptureRequest, inlineDomExpression string, appendNode func(*workflowsv1.WorkflowNodeV2)) inlineDomNodeIDs {
+	var ids inlineDomNodeIDs
+	appendDomRead := func(expression string) string {
+		node := &workflowsv1.WorkflowNodeV2{
+			Id: uuid.NewString(),
+			Action: &actionsv1.ActionDefinition{
+				Type: actionsv1.ActionType_ACTION_TYPE_EVALUATE,
+				Params: &actionsv1.ActionDefinition_Evaluate{
+					Evaluate: &actionsv1.EvaluateParams{Expression: expression},
+				},
+			},
+		}
+		appendNode(node)
+		return node.Id
+	}
+	if msg.GetInlineDom() || slices.Contains(msg.GetCaptures(), capturev1.CaptureType_CAPTURE_TYPE_DOM) {
+		ids.html = appendDomRead(inlineDomExpression)
+	}
+	if msg.GetInlineDomTree() || slices.Contains(msg.GetCaptures(), capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE) {
+		ids.tree = appendDomRead(defaultInlineDomTreeExpression)
+	}
+	if captureRequestsScreenshot(msg) {
+		selector := strings.TrimSpace(msg.GetScreenshotSelector())
+		appendNode(&workflowsv1.WorkflowNodeV2{
+			Id: uuid.NewString(),
+			Action: &actionsv1.ActionDefinition{
+				Type: actionsv1.ActionType_ACTION_TYPE_SCREENSHOT,
+				Params: &actionsv1.ActionDefinition_Screenshot{
+					Screenshot: &actionsv1.ScreenshotParams{Selector: &selector, FullPage: proto.Bool(false)},
+				},
+			},
+		})
+	}
+	return ids
+}
+
+func captureRequestsScreenshot(msg *capturev1.CaptureRequest) bool {
+	return strings.TrimSpace(msg.GetScreenshotSelector()) != "" || len(msg.GetCaptures()) == 0 ||
+		slices.Contains(msg.GetCaptures(), capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT)
+}
+
+// captureBrowserProfile applies the per-capture scale override without mutating
+// the caller's reusable profile or replacing unrelated fingerprint settings.
+func captureBrowserProfile(msg *capturev1.CaptureRequest) *basebase.BrowserProfile {
+	profile := msg.GetBrowserProfile()
+	dimensions := msg.GetDimensions()
+	if dimensions == nil || dimensions.DeviceScaleFactor == nil {
+		return profile
+	}
+	if profile == nil {
+		profile = &basebase.BrowserProfile{}
+	} else {
+		profile = proto.Clone(profile).(*basebase.BrowserProfile)
+	}
+	if profile.Fingerprint == nil {
+		profile.Fingerprint = &basebase.FingerprintSettings{}
+	}
+	profile.Fingerprint.DeviceScaleFactor = proto.Float64(dimensions.GetDeviceScaleFactor())
+	return profile
 }
 
 // splicedFlow holds the nodes/edges contributed by an interaction flow,

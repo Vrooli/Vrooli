@@ -3,8 +3,6 @@ package replay_config
 import (
 	"context"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -13,6 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	replayconfigv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/replay_config"
 	replayconfigconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/replay_config/replay_configconnect"
 )
@@ -59,10 +58,7 @@ func newTestClient(t *testing.T, store SettingsStore) replayconfigconnect.Replay
 	logger := logrus.New()
 	logger.SetOutput(testWriter{t})
 	mount := Module(Deps{Store: store, Logger: logger})
-	mux := http.NewServeMux()
-	mux.Handle(mount.Path, mount.Handler)
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
+	srv := testutil.StartConnectServer(t, mount.Path, mount.Handler)
 	return replayconfigconnect.NewReplayConfigServiceClient(srv.Client(), srv.URL)
 }
 

@@ -1,0 +1,49 @@
+{
+  "work": "BAS-WORK-188",
+  "captured_at": "2026-09-24T22:34:12.029Z",
+  "scope": "current-build managed passive-fidelity owner; joined with current crash/reconnect and semantics receipts",
+  "contractRow": "passive-fidelity",
+  "command": "BAS_REHAB_LIVE_API_BASE=http://127.0.0.1:17116 BAS_PASSIVE_FIDELITY_RECEIPT=.vrooli/runtime/rehabilitation-evidence/passive-fidelity-managed-w188.json pnpm exec jest tests/integration/saved-workflow-fresh-context.test.ts --runInBand --coverage=false --silent=false --testNamePattern='persists 10000 native fixture clicks through the managed API journal'",
+  "result": "passed",
+  "tests": "1/1",
+  "duration_seconds": 44.569,
+  "owner_receipt": {
+    "schemaVersion": 1,
+    "contractRow": "passive-fidelity",
+    "capturedAt": "2026-09-24T22:34:12.029Z",
+    "managedBuildIdentityBefore": "sha256:a74ff8db5ab1a9d5346a721a2df458d83ab0c985e8ea559fb935faa6651a88eb",
+    "managedBuildIdentityAfter": "sha256:a74ff8db5ab1a9d5346a721a2df458d83ab0c985e8ea559fb935faa6651a88eb",
+    "actions": 10000,
+    "fixtureEffects": 10000,
+    "uniqueJournalIds": 10000,
+    "strictlyIncreasingJournalSequence": true,
+    "appliedInputReceipts": 10000,
+    "strictlyIncreasingAppliedSequence": true,
+    "storageIsolation": {
+      "routedTestPool": true,
+      "testPoolRequests": 32441,
+      "primaryRequestsDuringTestMode": 0,
+      "temporaryDatabase": true
+    },
+    "elapsedMs": 43612
+  },
+  "owner_artifact": {
+    "path": "playwright-driver/.vrooli/runtime/rehabilitation-evidence/passive-fidelity-managed-w188.json",
+    "sha256": "630459e7bdd21a7f55b8796665b7b0012f6a3582e5b1edc9d414b538ed988902"
+  },
+  "source_sha256": {
+    "docs/internal/REFRACTOR_CONTRACT.json": "4ec793e57754a709183024dd9a8a6cfa683c42c4a8c96541ed120897bccfc54a",
+    "playwright-driver/tests/integration/saved-workflow-fresh-context.test.ts": "915e3e30f9f19b3377dd285420a3583aeca12ea4bcfacfcb2afe4bca7ea46ff7",
+    "playwright-driver/src/recording/capture/browser-scripts/recording-script.js": "440e6c84eab36cb7b6ec66caa277ee92b070b3764e5c982c5645772fd0322dd3",
+    "playwright-driver/src/recording/orchestration/pipeline-manager.ts": "543fa6f60c453f465fefff6fb5529b6b7050d32eb2c04f64c76fb8cab4b55cdc",
+    "api/handlers/record_mode.go": "be8dabb3725b125393b10fdc28ade4fae43e9d16cd5a46c8ba7250a77b053b2b",
+    "api/services/recording/service.go": "c05b3b78dcd324c62cbaa717d8a0e533a3a318b3b6b848ea453a8d61a6d3b84d",
+    "api/services/recording/persistence/sqlite.go": "7ba6fb8bbf7a683022b6af24efc284d55d85c9be55abd4d4f8061019b073d753"
+  },
+  "test_genie_phase_run": false,
+  "qualification": {
+    "score_credit_claimed": false,
+    "managed_build_identity": "sha256:a74ff8db5ab1a9d5346a721a2df458d83ab0c985e8ea559fb935faa6651a88eb",
+    "latest_setpoint_before": "3/17;14 unavailable;product_qualified=false"
+  }
+}

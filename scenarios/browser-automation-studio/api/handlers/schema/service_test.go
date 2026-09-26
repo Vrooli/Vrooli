@@ -4,14 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"connectrpc.com/connect"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"github.com/vrooli/browser-automation-studio/workflow/validator"
 	schemav1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/schema"
 	schemaconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/schema/schemaconnect"
@@ -59,10 +58,7 @@ func newTestClient(t *testing.T, p *fakeProvider) schemaconnect.SchemaServiceCli
 	logger.SetOutput(testWriter{t})
 	mount, err := Module(Deps{Provider: p, Logger: logger})
 	require.NoError(t, err)
-	mux := http.NewServeMux()
-	mux.Handle(mount.Path, mount.Handler)
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
+	srv := testutil.StartConnectServer(t, mount.Path, mount.Handler)
 	return schemaconnect.NewSchemaServiceClient(srv.Client(), srv.URL)
 }
 

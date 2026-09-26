@@ -104,14 +104,15 @@ func (e *PlaywrightEngine) Capabilities(ctx context.Context) (contracts.EngineCa
 func (e *PlaywrightEngine) StartSession(ctx context.Context, spec SessionSpec) (EngineSession, error) {
 	// Convert engine.SessionSpec to session.Spec
 	sessionSpec := session.Spec{
-		ExecutionID:    spec.ExecutionID,
-		WorkflowID:     spec.WorkflowID,
-		Mode:           session.ModeExecution,
-		ViewportWidth:  spec.ViewportWidth,
-		ViewportHeight: spec.ViewportHeight,
-		ReuseMode:      string(spec.ReuseMode),
-		BaseURL:        spec.BaseURL,
-		Labels:         spec.Labels,
+		ExecutionID:           spec.ExecutionID,
+		WorkflowID:            spec.WorkflowID,
+		Mode:                  session.ModeExecution,
+		ViewportWidth:         spec.ViewportWidth,
+		ViewportHeight:        spec.ViewportHeight,
+		ReuseMode:             string(spec.ReuseMode),
+		SessionProfileVersion: spec.SessionProfileVersion,
+		BaseURL:               spec.BaseURL,
+		Labels:                spec.Labels,
 		Capabilities: session.CapabilityRequirement{
 			NeedsParallelTabs:  spec.Capabilities.NeedsParallelTabs,
 			NeedsIframes:       spec.Capabilities.NeedsIframes,

@@ -208,11 +208,12 @@ func (m *Manager) buildRequest(spec Spec) *driver.CreateSessionRequest {
 			Width:  spec.ViewportWidth,
 			Height: spec.ViewportHeight,
 		},
-		ReuseMode:         spec.ReuseMode,
-		Labels:            spec.Labels,
-		BrowserProfile:    spec.BrowserProfile,
-		AppTarget:         spec.AppTarget,
-		ValidationContext: spec.ValidationContext,
+		ReuseMode:             spec.ReuseMode,
+		Labels:                spec.Labels,
+		SessionProfileVersion: spec.SessionProfileVersion,
+		BrowserProfile:        spec.BrowserProfile,
+		AppTarget:             spec.AppTarget,
+		ValidationContext:     spec.ValidationContext,
 	}
 
 	// Frame streaming (all modes support live preview)

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "contractRow": "passive-fidelity",
+  "captured_at": "2026-09-24T22:13:52Z",
+  "result": "passed",
+  "tests": "1/1",
+  "ownerTest": "TestJournalSameIDRetryRecoversAcrossServiceProcessDeath",
+  "owner": {
+    "actionsBeforeCrash": 10000,
+    "case": "recording-service-process-death",
+    "childTerminatedAbruptly": true,
+    "committedBeforeAcknowledgment": true,
+    "expectedPrefixIntactAndOrdered": true,
+    "reopenedTotal": 10001,
+    "retriedSameEventId": true,
+    "totalAfterRetry": 10001
+  },
+  "owner_artifact": {
+    "path": ".vrooli/runtime/rehabilitation-evidence/passive-fidelity-crash-w188.json",
+    "sha256": "ffa303bd7a0165c26daed09bdf447ee658b696e2e7ceef585120fa6c834fbd74"
+  },
+  "source_sha256": {
+    "docs/internal/REFRACTOR_CONTRACT.json": "4ec793e57754a709183024dd9a8a6cfa683c42c4a8c96541ed120897bccfc54a",
+    "api/services/recording/service.go": "c05b3b78dcd324c62cbaa717d8a0e533a3a318b3b6b848ea453a8d61a6d3b84d",
+    "api/services/recording/service_test.go": "c4e4457dcbf331e7856bb98225514e497b2c2b925754025e0912be9eb0466d95",
+    "api/services/recording/persistence/sqlite.go": "7ba6fb8bbf7a683022b6af24efc284d55d85c9be55abd4d4f8061019b073d753"
+  }
+}

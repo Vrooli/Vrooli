@@ -1,0 +1,3 @@
+{"case":"core-events","observedAt":"2026-09-25T01:08:45.516Z","actionTypes":["click","type","scroll"],"assertions":["one independent click effect","typed value and input selector retained","positive scroll delta retained","unique increasing sequence numbers"]}
+{"case":"navigation","observedAt":"2026-09-25T01:08:46.117Z","actionTypes":["click","navigate"],"assertions":["click triggering navigation retained","navigation entry identifies /page-2"]}
+{"case":"capture-after-navigation","observedAt":"2026-09-25T01:08:47.257Z","actionTypes":["click","navigate","click"],"assertions":["pre-navigation click retained","navigation completed","post-navigation click retained"]}

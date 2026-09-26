@@ -1,0 +1,53 @@
+{
+  "work": "BAS-WORK-125",
+  "issue": "BAS-RF-119",
+  "journey": "J08",
+  "observed_at": "2026-09-24T03:55:52Z",
+  "source_head": "8707b970a48f82665662450766ad8233d6def9e7",
+  "source_inventory_digest_sha256": "3d08c0dfa95e42d08df5b4d863d4421e38fad98e8803e356e2250b418a23c790",
+  "contract_sha256": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+  "changed_paths": [
+    "api/automation/execution-writer/screenshot_decode_budget_test.go",
+    "docs/PROBLEMS.md",
+    "docs/internal/REFRACTOR_PROGRESS.md"
+  ],
+  "hypothesis": "The maintained screenshot decode weight guard accepts the largest raster within its configured budget and rejects the first pixel above the limit without integer overflow.",
+  "commands": [
+    "gofmt -w automation/execution-writer/screenshot_decode_budget_test.go",
+    "go test ./automation/execution-writer -run 'TestScreenshotDecode(WeightEnforcesRasterBudget|BudgetWaitsForWeightedCapacity)$' -count=1",
+    "python3 docs/internal/refactor_contract.py",
+    "program-runtime library run browser-automation-studio.setpoint-read --input profile=rehabilitation",
+    "git diff --check -- api/automation/execution-writer/screenshot_decode_budget_test.go"
+  ],
+  "verification": {
+    "targeted_tests": {
+      "result": "passed",
+      "count": 2,
+      "duration_seconds": 0.048
+    },
+    "contract_preparation": {
+      "result": "passed",
+      "journeys": 24,
+      "errors": 0,
+      "product_qualified": false
+    },
+    "setpoint": {
+      "program_id": "prog_9af1bd21-3aa0-4a03-adb1-8216695ad273",
+      "qualified_rows": 1,
+      "unknown_rows": 16,
+      "profile_durability": "pending_telemetry",
+      "product_qualified": false
+    },
+    "diff_check": "passed"
+  },
+  "complexity": {
+    "production_source_changed": false,
+    "reduction_claimed": false
+  },
+  "limitations": [
+    "The regression proves raster estimate arithmetic only, not a hard process RSS cap.",
+    "Steady-state heap recovery and managed hostile-dimension behavior across formats remain unverified.",
+    "Windows/macOS screenshot memory and storage backpressure remain unverified.",
+    "No Test Genie run was started."
+  ]
+}

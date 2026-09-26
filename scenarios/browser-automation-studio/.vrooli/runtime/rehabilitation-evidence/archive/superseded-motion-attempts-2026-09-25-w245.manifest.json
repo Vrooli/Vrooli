@@ -1,0 +1,37 @@
+{
+  "archive": "superseded-motion-attempts-2026-09-25-w245.tar.gz",
+  "count": 6,
+  "files": [
+    {
+      "path": "motion-live-owner-2026-09-25T17-17-15.719Z-40d5fea4-cb59-4547-b688-9dbf09b30990.json",
+      "size_bytes": 1656206,
+      "sha256": "2892f18f265be0bba5ff1ca61856066f857460a997c74a0e525b59fed6843e9d"
+    },
+    {
+      "path": "motion-owner-ui-tests-2026-09-25T17-17-15.719Z-40d5fea4-cb59-4547-b688-9dbf09b30990.log",
+      "size_bytes": 333,
+      "sha256": "c06e59985219e628cdeb3df7b5cdd2771d8fd059e6b3b56de82a09060b481ee2"
+    },
+    {
+      "path": "motion-owner-live-test-2026-09-25T17-17-15.719Z-40d5fea4-cb59-4547-b688-9dbf09b30990.log",
+      "size_bytes": 1367,
+      "sha256": "4a2a348af70afa8bac49d7b78548b5c5dd237bd20b5904b1138936685b93208f"
+    },
+    {
+      "path": "motion-owner-relay-tests-2026-09-25T17-17-15.719Z-40d5fea4-cb59-4547-b688-9dbf09b30990.log",
+      "size_bytes": 4901,
+      "sha256": "8594828ccbd8302c5cc4265bb44bce1e22a94c27f84c8c3159e2edb7cbb9fab8"
+    },
+    {
+      "path": "motion-owner-tests-2026-09-25T17-17-15.719Z-40d5fea4-cb59-4547-b688-9dbf09b30990.log",
+      "size_bytes": 6603,
+      "sha256": "ad1f5ca9cc3a796f0583d708e94fc5f8618ca77180f64cb1088107c46436c220"
+    },
+    {
+      "path": "motion-receipt-2026-09-25T17-43-23.184Z-54e0028b-f01c-4742-a002-c2887caaeb82.json",
+      "size_bytes": 1661451,
+      "sha256": "ba8a3231b266e35f507b61f5bd355a1f6bb3e49c13cb0956eaaea3a145d908d5"
+    }
+  ],
+  "source_directory": ".vrooli/runtime/rehabilitation-evidence"
+}

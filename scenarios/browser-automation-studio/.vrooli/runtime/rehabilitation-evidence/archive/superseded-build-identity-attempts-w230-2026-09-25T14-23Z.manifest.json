@@ -1,0 +1,56 @@
+{
+  "archive": "superseded-build-identity-attempts-w230-2026-09-25T14-23Z.tar.gz",
+  "archiveSha256": "5d598f346fa96636b605c56069cd56caf456ea39637f266a76993de930a3db85",
+  "files": [
+    {
+      "path": "evidence-completeness-2026-09-25T13-46-25-910Z-30a4ca40.json",
+      "size": 2968,
+      "sha256": "8cbb53c8a3201d981de3ab0695179c373511ccbbd41c07779e4f3b0480322201"
+    },
+    {
+      "path": "profile-durability-w230-2026-09-25T13-38-43Z/manifest.json",
+      "size": 279,
+      "sha256": "ea6b7218f57587da8de4edc654572547cd9f7d2ec3c552c0f7749105526f6a54"
+    },
+    {
+      "path": "profile-durability-w230-2026-09-25T13-38-43Z/seed-receipt.json",
+      "size": 3899,
+      "sha256": "b61a05cab3429a083c8335172f6f29cc118d204cd2fbff732232ed24913ec4d3"
+    },
+    {
+      "path": "profile-durability-w230-2026-09-25T13-38-43Z/verify-receipt.json",
+      "size": 2442,
+      "sha256": "a5a2c71f03c691ef6ff4eddaff07f013d022fc8e2ed02e8dc486c96e470404d0"
+    },
+    {
+      "path": "profile-durability-w230-postrestart-2026-09-25T13-41-57Z/manifest.json",
+      "size": 279,
+      "sha256": "f3cdbee9634b9b5520975cd4d98632406feaf8de303219e0625007922387f14d"
+    },
+    {
+      "path": "profile-durability-w230-postrestart-2026-09-25T13-41-57Z/seed-receipt.json",
+      "size": 4107,
+      "sha256": "27dd99c70a8fdd5b749a6b3832e4eea58147da353bc3e3d5ca1dbbcf3535915f"
+    },
+    {
+      "path": "profile-durability-w230-postrestart-2026-09-25T13-41-57Z/verify-receipt.json",
+      "size": 2445,
+      "sha256": "9191c4c5e85db96c8396c14b796365f6f95c97f8d19f2b3c08d4c49da389065a"
+    },
+    {
+      "path": "profile-durability-w230-postrestart-2026-09-25T13-41-57Z.json",
+      "size": 1308,
+      "sha256": "06d915334e46099ae1e471fbf12d95ac98a0fbaf89fa5187c3eed4809cca8596"
+    },
+    {
+      "path": "resource-budget-owner-w189-2026-09-25T13-46-38-346Z.json",
+      "size": 22846,
+      "sha256": "647429dd4d810282132f0800fc86c587f25257c9a5f05f437c0eceef65cc7885"
+    },
+    {
+      "path": "resource-budget-w189-receipt-2026-09-25T13-46-38-346Z.json",
+      "size": 23066,
+      "sha256": "0b5690a8ccbf715ac1ff4f3e5a4a42e2fc2f88b4325ead1263790dbc891023bb"
+    }
+  ]
+}

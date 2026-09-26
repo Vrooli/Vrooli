@@ -1,0 +1,53 @@
+{
+  "work": "BAS-WORK-181",
+  "captured_at": "2026-09-24T20:00:38Z",
+  "scope": "API recording-service child-process crash/reconnect after 10,000 committed fixture actions; not a managed whole-scenario restart",
+  "contractRow": "passive-fidelity",
+  "owner": {
+    "name": "same-ID retry after recording-service process death before simulated acknowledgement",
+    "command": "go test ./services/recording -run '^TestJournalSameIDRetryRecoversAcrossServiceProcessDeath$' -count=1 -v",
+    "working_directory": "scenarios/browser-automation-studio/api",
+    "result": "passed",
+    "tests": "1/1",
+    "duration_seconds": 2.126,
+    "precrash_actions": 10000,
+    "observed": [
+      "all 10,000 initial observations were retained with independently generated IDs and sequences",
+      "a child service process committed a new observation and signaled before its simulated client acknowledgement",
+      "the child service process was forcibly killed after its durable commit",
+      "a fresh service process reopened the same SQLite journal and found the committed identity at sequence 10001",
+      "retrying the same ID after recovery left one copy at sequence 10001 and preserved all original page identities/order"
+    ],
+    "oracle": "independent expected ID list created before append and compared against every reopened journal page",
+    "limitation": "The helper kills a Go test subprocess running the recording service package; it does not restart the managed BAS HTTP API or driver/browser process."
+  },
+  "related_evidence": [
+    "docs/internal/evidence/rehabilitation/passive-fidelity-10k-2026-09-24.json",
+    "docs/internal/evidence/rehabilitation/passive-fidelity-journal-10k-2026-09-24.json"
+  ],
+  "source_sha256": {
+    "docs/internal/REFRACTOR_CONTRACT.json": "4ec793e57754a709183024dd9a8a6cfa683c42c4a8c96541ed120897bccfc54a",
+    "api/services/recording/service.go": "c05b3b78dcd324c62cbaa717d8a0e533a3a318b3b6b848ea453a8d61a6d3b84d",
+    "api/services/recording/service_test.go": "f6820951b98dcdbd48f7d71fd4d2738b2c70446db1c24f4c0dc2fb81b9bdfd9f",
+    "api/services/recording/persistence/sqlite.go": "7ba6fb8bbf7a683022b6af24efc284d55d85c9be55abd4d4f8061019b073d753"
+  },
+  "test_genie_phase_run": false,
+  "managed_build_identity": null,
+  "qualification": {
+    "score_credit_claimed": false,
+    "remaining": [
+      "join the 10,000 browser events to this durable journal owner",
+      "driver/browser process death with pending browser observations",
+      "full supported recording event semantics",
+      "current-build retained receipt validator and governed passive-fidelity sensor"
+    ]
+  },
+  "latest_setpoint": {
+    "program_run_id": "prog_314394ff-24c1-4d56-b1d1-e4110ea0674e",
+    "in_band": "3/17",
+    "unavailable": 14,
+    "unavailable_reason": "pending_telemetry",
+    "product_qualified": false,
+    "passive_fidelity_in_band": null
+  }
+}

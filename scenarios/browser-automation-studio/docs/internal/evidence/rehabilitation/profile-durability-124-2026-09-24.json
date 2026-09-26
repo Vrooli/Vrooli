@@ -1,0 +1,88 @@
+{
+  "work": "BAS-WORK-124",
+  "issue": "BAS-RF-011",
+  "contract_row": "profile-durability",
+  "observed_at": "2026-09-24T03:38:26Z",
+  "source_head": "8707b970a48f82665662450766ad8233d6def9e7",
+  "source_inventory_digest_sha256": "dd132b4d13fc3af89f5b10aeaf743600b10d184aa22759e564adade1be01bb24",
+  "contract_sha256": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+  "producer": {
+    "path": "api/cmd/profile-durability-cohort/qualification.mjs",
+    "sha256": "70173eb21193f402cd0510dd9b86e4c1d5f104446a78dcd6d0bba35e9df09d69",
+    "commands": [
+      "node cmd/profile-durability-cohort/qualification.mjs seed /tmp/bas-profile-durability-124",
+      "make restart",
+      "node cmd/profile-durability-cohort/qualification.mjs verify /tmp/bas-profile-durability-124"
+    ],
+    "measurement_start": "fixture POST acknowledgment after cookie, localStorage and IndexedDB write transactions completed",
+    "measurement_method": "Read SessionProfilesService.List every 50ms until hasStorageState=true or the monotonic 5000ms deadline; include the final API read completion time.",
+    "seed_receipt": "/tmp/bas-profile-durability-124/seed-receipt.json",
+    "restart_receipt": "/tmp/bas-profile-durability-124/verify-receipt.json"
+  },
+  "automatic_checkpoint": {
+    "observed_after_ms": 1170.868017,
+    "poll_samples": 23,
+    "target_ms": 5000,
+    "in_band": true
+  },
+  "identity_checks": {
+    "fixture_state": ["cookie", "localStorage", "IndexedDB"],
+    "alpha_close_reopen": "passed",
+    "beta_profile_isolation": "passed; beta activity did not change alpha state",
+    "alpha_after_restart": "passed",
+    "beta_after_restart": "passed"
+  },
+  "managed_candidate": {
+    "before_probe_build": "sha256:484089a05a799a8b78a9995fac6cc43c8f23d58d11f646a099580e8ae9ddd006",
+    "after_restart_build": "sha256:feb8fcb826bb5102b950678eeb7dd49abc1e753b86581766efafe8900063a6c5",
+    "restart": "make restart completed healthy",
+    "api_health_after": "healthy and ready",
+    "driver_health_after": "ready; zero sessions and zero recordings"
+  },
+  "current_owner_tests": {
+    "command": "pnpm exec jest tests/integration/profile-storage-continuity.test.ts --runInBand --coverage=false",
+    "result": "passed",
+    "suites": 1,
+    "tests": 7,
+    "duration_seconds": 6.721
+  },
+  "current_candidate_capture_workload": {
+    "operation_id": "94ef9d09a8bc6b04807c762d74d18fae",
+    "outcome": "WORKLOAD_OUTCOME_MEASURED",
+    "samples": 100,
+    "attempts_including_warmup": 101,
+    "warmups": 1,
+    "service_p95_ms": 446,
+    "wall_p95_ms": 647.963119,
+    "budget_ms": 2000,
+    "in_band": true,
+    "build_identity": "sha256:feb8fcb826bb5102b950678eeb7dd49abc1e753b86581766efafe8900063a6c5",
+    "receipt_sha256": "86abc9af5a25c6484c1422227d42bebf307c7d97bee62b487ffaf63d9a3fb100",
+    "receipt_path": "/home/matthalloran8/.vrooli/test-runs/performance-health/workloads/94ef9d09a8bc6b04807c762d74d18fae/producer/receipt.json"
+  },
+  "prior_receipt_correction": {
+    "receipt": "internal/evidence/rehabilitation/periodic-checkpoint-097-2026-09-23.json",
+    "invalid_assertion": "The harness waited 5500ms and checked only that hasStorageState was true, yet labeled it a five-second pass.",
+    "observed_after_ms": 5504.810455,
+    "corrected_interpretation": "Prior evidence does not establish the <=5000ms band. This new bounded probe measures and passes the band on the recorded current candidate."
+  },
+  "cleanup": {
+    "synthetic_profiles_deleted": 2,
+    "owned_sessions_remaining": 0,
+    "active_recordings": 0
+  },
+  "qualification_status": "Owner evidence covers all listed profile-durability behavior for this Linux managed cohort. The global row remains pending_telemetry until the governed setpoint reader consumes a controlled owner receipt.",
+  "limitations": [
+    "No abrupt process-death or power-loss checkpoint recovery was exercised.",
+    "The managed restart spans two build identities; the old probe build persisted state into the freshly built current source candidate.",
+    "Only one timing trial was performed; repeatability is not established."
+  ],
+  "governed_setpoint_read": {
+    "program_id": "prog_c6b1e551-62f2-410f-9f87-ff179e847067",
+    "qualified_rows": 1,
+    "unknown_rows": 16,
+    "product_qualified": false,
+    "profile_durability_reason": "pending_telemetry; current reader has no governed binding to consume this owner receipt"
+  },
+  "test_genie": "not_run; focused owner Jest suite and managed cohort were used under BAS-FB-016"
+}

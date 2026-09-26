@@ -13,6 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	uxsvc "github.com/vrooli/browser-automation-studio/services/uxmetrics"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics/contracts"
@@ -71,10 +72,7 @@ func newTestClient(t *testing.T, svc uxsvc.Service) uxmetricsconnect.UXMetricsSe
 	logger := logrus.New()
 	logger.SetOutput(testWriter{t})
 	mount := Module(Deps{Service: svc, Logger: logger})
-	mux := http.NewServeMux()
-	mux.Handle(mount.Path, mount.Handler)
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
+	srv := testutil.StartConnectServer(t, mount.Path, mount.Handler)
 	return uxmetricsconnect.NewUXMetricsServiceClient(srv.Client(), srv.URL)
 }
 

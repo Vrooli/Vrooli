@@ -1,0 +1,25 @@
+{
+  "schema_version": "bas-rehabilitation-evidence-archive/v1",
+  "created_at": "2026-09-26",
+  "reason": "Bound the flat runtime evidence working set before adopting candidate epochs; preserve superseded attempts and high-cardinality capture samples without keeping them in routine scans.",
+  "selection": {
+    "superseded_before_epoch_protocol": "Top-level working-set entries with mtime at or before 2026-09-25 22:50 America/New_York, excluding archive/.",
+    "capture_sample_cohort": "The current-candidate capture-w273-20260926-0320 raw 100-sample cohort; retained as a separate archive because its 304 files exceeded the working-set file budget."
+  },
+  "archives": [
+    {
+      "path": "superseded-before-epoch-protocol-2026-09-26.tar.gz",
+      "sha256": "ec093bd91efb78df90ed9c23260d060d8277b79bcbd5a9eb0bbd80b7d063996f",
+      "entries": 298,
+      "compressed_bytes": 2027562
+    },
+    {
+      "path": "capture-sample-cohort-w273-2026-09-26.tar.gz",
+      "sha256": "979ea0d6dac51e85b9f24af3e07fbc0d6d770e8741530449de0964d58ff693bb",
+      "entries": 305,
+      "compressed_bytes": 91714
+    }
+  ],
+  "verification": "From this directory run: sha256sum -c <(jq -r '.archives[] | \"\\(.sha256)  \\(.path)\"' epoch-protocol-cleanup-2026-09-26.manifest.json); then run tar -tzf for the selected archive.",
+  "restore": "From the rehabilitation-evidence directory run: tar -xzf archive/<archive-name>.tar.gz"
+}

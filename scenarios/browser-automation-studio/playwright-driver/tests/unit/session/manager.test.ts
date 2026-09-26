@@ -108,6 +108,63 @@ describe('SessionManager', () => {
       expect(result.createdAt).toBeInstanceOf(Date);
     });
 
+    describe('released-session context compatibility', () => {
+      const original: SessionSpec = {
+        execution_id: 'profile-owner',
+        workflow_id: 'profile-workflow',
+        base_url: 'https://example.com',
+        viewport: { width: 1280, height: 720 },
+        reuse_mode: 'reuse',
+        session_profile_version: 'profile-a@1',
+        storage_state: { cookies: [{ name: 'identity', value: 'first' }], origins: [] },
+        labels: { pool: 'shared' },
+        required_capabilities: {},
+      };
+
+      it.each([
+        ['profile identity or revision', (spec: SessionSpec) => ({ ...spec, session_profile_version: 'profile-b@1' })],
+        ['clean mode with another profile', (spec: SessionSpec) => ({ ...spec, reuse_mode: 'clean' as const, session_profile_version: 'profile-b@1' })],
+        ['storage snapshot', (spec: SessionSpec) => ({ ...spec, storage_state: { cookies: [{ name: 'identity', value: 'second' }], origins: [] } })],
+        ['viewport', (spec: SessionSpec) => ({ ...spec, viewport: { width: 390, height: 844 } })],
+      ])('does not pool a released session across a changed %s', async (_change, change) => {
+        const first = await manager.startSession(original);
+        expect(manager.releaseExecutionLease(first.sessionId, original.execution_id, first.leaseId)).toBe(true);
+
+        const requested = change({
+          ...original,
+          execution_id: 'different-owner',
+          workflow_id: 'different-workflow',
+        });
+        const second = await manager.startSession(requested);
+
+        expect(second.reused).toBe(false);
+        expect(second.sessionId).not.toBe(first.sessionId);
+        expect(mockBrowser.newContext).toHaveBeenCalled();
+        const lastContextOptions = mockBrowser.newContext.mock.calls.at(-1)?.[0];
+        expect(lastContextOptions).toEqual(expect.objectContaining({
+          viewport: requested.viewport,
+          storageState: requested.storage_state,
+        }));
+        if (requested.viewport.width <= 480) {
+          expect(lastContextOptions).toEqual(expect.objectContaining({ isMobile: true, hasTouch: true }));
+        }
+      });
+
+      it('pools a released session when profile identity and context inputs match', async () => {
+        const first = await manager.startSession(original);
+        expect(manager.releaseExecutionLease(first.sessionId, original.execution_id, first.leaseId)).toBe(true);
+
+        const second = await manager.startSession({
+          ...original,
+          execution_id: 'same-profile-owner',
+          workflow_id: 'same-profile-workflow',
+        });
+
+        expect(second.reused).toBe(true);
+        expect(second.sessionId).toBe(first.sessionId);
+      });
+    });
+
     it('should launch browser on first session', async () => {
       await manager.startSession(sessionSpec);
 

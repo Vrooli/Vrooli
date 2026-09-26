@@ -1,0 +1,29 @@
+{
+  "contractRow": "profile-durability",
+  "contractSha256": "4ec793e57754a709183024dd9a8a6cfa683c42c4a8c96541ed120897bccfc54a",
+  "sourceFiles": {
+    "api/cmd/profile-durability-cohort/qualification.mjs": "70173eb21193f402cd0510dd9b86e4c1d5f104446a78dcd6d0bba35e9df09d69",
+    "playwright-driver/src/session/manager.ts": "226e505eaa42aa6f3f32e274ddd3a7bd24fd03336f13ab58b9f249fbf152fa9e",
+    "api/services/session-profile/service.go": "e7432e93dbe113f161c9b7ad1e7be15c15a8947b6c0729b1bcfe136419a723e4"
+  },
+  "runtime": {
+    "managedBuildIdentityBeforeSeedAndAfterRestart": "sha256:f6925a1e924e7536b928f3bc7836a95298e4217fc2e004b929cff5f039d3e84d"
+  },
+  "cohort": {
+    "allChecksPassed": true,
+    "seedChecks": 5,
+    "restartChecks": 2,
+    "checkpointVisibleAfterMs": 1773.757444,
+    "alphaBetaIsolation": "passed",
+    "alphaAndBetaAfterManagedApiDriverRestart": "passed",
+    "syntheticProfilesDeleted": 2,
+    "seedOwnerReceipt": {
+      "path": "internal/evidence/rehabilitation/profile-durability-w185-seed-owner.json",
+      "sha256": "044a67502ff3025ef26f26be1454e096a9d6260681ab22c4822fbf5569783cd6"
+    },
+    "restartOwnerReceipt": {
+      "path": "internal/evidence/rehabilitation/profile-durability-w185-verify-owner.json",
+      "sha256": "3cd2bceec1f0e0a96695add0dba6b0081e1d3e6057f925c785ed34c3d4fb9115"
+    }
+  }
+}

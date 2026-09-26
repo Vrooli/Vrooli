@@ -1,0 +1,8 @@
+
+### W220 outcome — managed capture passed; owner setup blocked replay evidence
+
+After the authorized managed restart, driver health returned with zero sessions and zero recordings. The focused live owner then independently observed final input snapshots across paused typing, replacement, deletion, synthetic paste and composition, empty clear, and later typing. Both failure cleanup paths acknowledged their owned entries and closed their owned sessions; API fixture project cleanup also passed. The controlled harness remains unchanged without `--j02-input`.
+
+The same live run then failed at API workflow generation: input snapshots carried a driver page UUID that had no API logical-page binding. This owner creates and navigates its browser session directly through the driver, bypassing the API session lifecycle that owns logical pages. The error is therefore a test-owner integration gap, not evidence yet of a product replay defect. The managed owner did not reach fresh-context or saved-workflow replay. Fix the owner to create/drive its session through the API before using its result as J02 replay evidence. Native OS IME remains untested. No Test Genie phase ran.
+
+Focused `node --check tests/e2e/record-mode-e2e.mjs` and the 16-case controlled `node --test tests/e2e/record-mode-e2e.test.mjs` pass. The live driver is managed and healthy; the prior stale session was cleared and each subsequent test-owned session closed. Scope remains W2 evidence only: no qualification, setpoint gain, or complexity reduction is claimed. Latest governed score before W220 was 7/17 in-band, 10 pending, 0 out of band, `product_qualified=false`; this experiment has no setpoint sensor and cannot change it.

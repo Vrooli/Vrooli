@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "alpha": "ea32cb31-146e-41e4-8dc7-302baa94d31c",
+    "beta": "b08477ba-2ceb-4275-ac1f-d00ea1f75a91"
+  },
+  "identities": {
+    "alpha": "f5248692-9853-47a2-bcf7-033c14ae73e1",
+    "beta": "f232c0a0-02c4-4227-8f43-b0d0e5dc7f6f"
+  },
+  "fixturePort": 40205
+}

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "contractRow": "passive-fidelity",
+  "captured_at": "2026-09-24T22:13:54.974Z",
+  "result": "passed",
+  "tests": "3/3",
+  "ownerTests": [
+    "[CRITICAL] should capture all core event types in single session",
+    "[CRITICAL] should capture navigation events",
+    "[CRITICAL] should continue capturing events after navigation"
+  ],
+  "cases": [
+    {
+      "case": "core-events",
+      "observedAt": "2026-09-24T22:13:53.245Z",
+      "actionTypes": [
+        "click",
+        "type",
+        "scroll"
+      ],
+      "assertions": [
+        "one independent click effect",
+        "typed value and input selector retained",
+        "positive scroll delta retained",
+        "unique increasing sequence numbers"
+      ]
+    },
+    {
+      "case": "navigation",
+      "observedAt": "2026-09-24T22:13:53.837Z",
+      "actionTypes": [
+        "click",
+        "navigate"
+      ],
+      "assertions": [
+        "click triggering navigation retained",
+        "navigation entry identifies /page-2"
+      ]
+    },
+    {
+      "case": "capture-after-navigation",
+      "observedAt": "2026-09-24T22:13:54.974Z",
+      "actionTypes": [
+        "click",
+        "navigate",
+        "click"
+      ],
+      "assertions": [
+        "pre-navigation click retained",
+        "navigation completed",
+        "post-navigation click retained"
+      ]
+    }
+  ],
+  "owner_artifact": {
+    "path": "playwright-driver/.vrooli/runtime/rehabilitation-evidence/passive-fidelity-semantics-w188.jsonl",
+    "sha256": "9da0098ef073ac4bfdb3c4d8e7dc13ee7d91d6b13cf94c156f6f140494964ed0"
+  },
+  "source_sha256": {
+    "docs/internal/REFRACTOR_CONTRACT.json": "4ec793e57754a709183024dd9a8a6cfa683c42c4a8c96541ed120897bccfc54a",
+    "playwright-driver/tests/integration/pipeline-e2e.test.ts": "3c041a0b4968aa1cb5b26902f8ee8429e0e2dedd46ebf5d15c0ddd756cb4f2b2",
+    "playwright-driver/src/recording/capture/browser-scripts/recording-script.js": "440e6c84eab36cb7b6ec66caa277ee92b070b3764e5c982c5645772fd0322dd3",
+    "playwright-driver/src/recording/orchestration/pipeline-manager.ts": "543fa6f60c453f465fefff6fb5529b6b7050d32eb2c04f64c76fb8cab4b55cdc",
+    "playwright-driver/src/proto/recording.ts": "81fe7312c6771e34514e0a5e983c39c4edc12806a9e73764847be56adf98b2d8"
+  }
+}

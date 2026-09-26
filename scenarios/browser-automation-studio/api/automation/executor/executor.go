@@ -19,18 +19,19 @@ import (
 
 // Request wires together the dependencies required to run a compiled plan.
 type Request struct {
-	Plan              contracts.ExecutionPlan
-	EngineName        string
-	EngineFactory     engine.Factory
-	Recorder          executionwriter.ExecutionWriter
-	EventSink         events.Sink
-	HeartbeatInterval time.Duration
-	ReuseMode         engine.SessionReuseMode
-	WorkflowResolver  WorkflowResolver // Required for subflow resolution.
-	PlanCompiler      PlanCompiler     // Optional; defaults to engine-registered compiler.
-	MaxSubflowDepth   int              // Optional; defaults to 5.
-	SubflowStack      []uuid.UUID      // Internal: call stack to avoid recursion.
-	EngineCaps        *contracts.EngineCapabilities
+	Plan                  contracts.ExecutionPlan
+	EngineName            string
+	EngineFactory         engine.Factory
+	Recorder              executionwriter.ExecutionWriter
+	EventSink             events.Sink
+	HeartbeatInterval     time.Duration
+	ReuseMode             engine.SessionReuseMode
+	SessionProfileVersion string
+	WorkflowResolver      WorkflowResolver // Required for subflow resolution.
+	PlanCompiler          PlanCompiler     // Optional; defaults to engine-registered compiler.
+	MaxSubflowDepth       int              // Optional; defaults to 5.
+	SubflowStack          []uuid.UUID      // Internal: call stack to avoid recursion.
+	EngineCaps            *contracts.EngineCapabilities
 
 	// CredentialPolicy switches execution into the authority-bound browser
 	// mode. The policy contains no secret value and causes every action to pass

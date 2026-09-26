@@ -3,8 +3,6 @@ package scenarios
 import (
 	"context"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -12,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vrooli/browser-automation-studio/internal/scenarioport"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	scenariosv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/scenarios"
 	scenariosconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/scenarios/scenariosconnect"
 )
@@ -46,10 +45,7 @@ func newTestClient(t *testing.T, d *fakeDiscovery) scenariosconnect.ScenariosSer
 	logger := logrus.New()
 	logger.SetOutput(testWriter{t})
 	mount := Module(Deps{Discovery: d, Logger: logger})
-	mux := http.NewServeMux()
-	mux.Handle(mount.Path, mount.Handler)
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
+	srv := testutil.StartConnectServer(t, mount.Path, mount.Handler)
 	return scenariosconnect.NewScenariosServiceClient(srv.Client(), srv.URL)
 }
 

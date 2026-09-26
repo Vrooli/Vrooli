@@ -198,11 +198,12 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 		return err
 	}
 	spec := engine.SessionSpec{
-		ExecutionID:    req.Plan.ExecutionID,
-		WorkflowID:     req.Plan.WorkflowID,
-		ReuseMode:      reuseMode,
-		ViewportWidth:  viewportWidth,
-		ViewportHeight: viewportHeight,
+		ExecutionID:           req.Plan.ExecutionID,
+		WorkflowID:            req.Plan.WorkflowID,
+		ReuseMode:             reuseMode,
+		SessionProfileVersion: req.SessionProfileVersion,
+		ViewportWidth:         viewportWidth,
+		ViewportHeight:        viewportHeight,
 		// The fake_microphone label partitions session pooling: a session
 		// bound to a fake-media browser must never be reused by an execution
 		// that expects real devices, and vice versa.

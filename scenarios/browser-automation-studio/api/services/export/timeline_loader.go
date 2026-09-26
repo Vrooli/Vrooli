@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
@@ -66,6 +67,7 @@ func (l *TimelineLoader) LoadTimelineProto(ctx context.Context, executionID uuid
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, &parsed); err != nil {
 		return nil, fmt.Errorf("parse proto timeline: %w", err)
 	}
+	redactSensitiveTimelineEntries(parsed.Entries)
 
 	// Ensure key fields reflect current index data.
 	if strings.TrimSpace(parsed.ExecutionId) == "" {
@@ -99,7 +101,14 @@ func (l *TimelineLoader) LoadReplayPackage(ctx context.Context, executionID uuid
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, &pack); err != nil {
 		return nil, fmt.Errorf("parse replay package: %w", err)
 	}
+	redactSensitiveTimelineEntries(pack.Timeline)
 	return &pack, nil
+}
+
+func redactSensitiveTimelineEntries(entries []*bastimeline.TimelineEntry) {
+	for _, entry := range entries {
+		driver.RedactSensitiveTimelineEntry(entry)
+	}
 }
 
 // LoadTimeline assembles replay-ready timeline data for a given execution.

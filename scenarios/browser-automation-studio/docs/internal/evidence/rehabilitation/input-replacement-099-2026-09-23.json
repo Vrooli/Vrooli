@@ -1,0 +1,119 @@
+{
+  "cycle": "099",
+  "issues": [
+    "BAS-RF-056"
+  ],
+  "recorded_at": "2026-09-23",
+  "status": "deployed_partial_qualification",
+  "scope": "Playwright driver recording-to-proto input replacement semantics and typed input/click replay checks",
+  "builds": {
+    "before_restart": "sha256:6a42c3c70ce9eef005d95bfcd0b9d94587e55eb9e9ab0618b8d884201f2e691e",
+    "after_restart": "sha256:f0f3f08cc48ca8a0e39265b7a882bb4738f790e35f2ae650b7d0f28ee4825a3b",
+    "managed_restart": {
+      "command": "make restart",
+      "exit_code": 0,
+      "elapsed_seconds": 127,
+      "health": "healthy",
+      "ports_listening": [
+        17116,
+        24478,
+        24485,
+        21794
+      ],
+      "optional_credential_gap": "Claude Code Anthropic API key unavailable; scenario remained healthy"
+    }
+  },
+  "reproduction": {
+    "browser": "Chromium",
+    "journey": "Prefill input with original, record Ctrl+A followed by replacement, then replay into a fresh page with the same prefilled value",
+    "before_fix": {
+      "recorded_value": "replacement",
+      "clear_first": false,
+      "replay_result": "original"
+    },
+    "expected": "replacement",
+    "root_cause": "The recorder captures the complete current input value, while the typed conversion defaulted clearFirst to false, making replay append the snapshot."
+  },
+  "changes": {
+    "implementation": "The recording converter now defaults clearFirst to true for full-value input snapshots while preserving an explicit false value.",
+    "tests": [
+      "Added Chromium record/replay coverage that verifies replacement into a prefilled field and Control+A modifier effect.",
+      "Added Chromium typed click coverage for right button, click count two, Shift modifier and the requested delay."
+    ],
+    "contract_or_architecture_changes": "none",
+    "debt_reduction_claim": "none; this is a behavior correction and adds focused coverage"
+  },
+  "checks": {
+    "timeline_validation_integration": {
+      "passed": 15,
+      "failed": 0,
+      "command": "pnpm exec jest tests/integration/timeline-validation.test.ts --runInBand --coverage=false"
+    },
+    "interaction_keyboard_handler_tests": {
+      "passed": 15,
+      "failed": 0,
+      "command": "pnpm exec jest tests/unit/handlers/interaction.test.ts tests/unit/handlers/keyboard.test.ts --runInBand --coverage=false"
+    },
+    "driver_typecheck": "passed",
+    "touched_file_eslint": "passed",
+    "pre_fix_red_evidence": "The new regression first failed because clearFirst was false; replay of the recorded full-value snapshot left the initialized field unchanged. The test expectation remained unchanged after the implementation fix.",
+    "test_genie_unit": {
+      "run_id": "20260923-193334-f1a001cc",
+      "verdict": "failed",
+      "duration_seconds": 500,
+      "blocking_command": "playwright-driver: pnpm run test:coverage",
+      "terminal_finding": "TEST_EXECUTION_FAILURE",
+      "limitations": "The terminal summary reported the failing command but did not expose its detailed command output or a more specific cause. This owner-run unit phase is not qualified; the focused changed-module tests above passed."
+    }
+  },
+  "performance_capture": {
+    "operation_id": "716ba7a3f03f8f291031d096323e9534",
+    "outcome": "measured_within_budget",
+    "sample_count": 100,
+    "attempt_count": 101,
+    "warmups": 1,
+    "p95_ms": 442,
+    "wall_p95_ms": 615.907924,
+    "budget_ms": 2000,
+    "build_identity": "sha256:f0f3f08cc48ca8a0e39265b7a882bb4738f790e35f2ae650b7d0f28ee4825a3b",
+    "producer_digest": "62456dbce61bba14f9feb78efc1e806448fc482e734c2e8a18bf2938b6ed4a52",
+    "contract_digest": "34c10de050aa59532f824628cc060cb1bae1e29a210ae33e62713ee058558e8b",
+    "configuration_digest": "1a2776b5338b0074036293f43952bd03d3be2ef1ccabfef38787e06d4a63b167",
+    "fixture_revision": "dcabe2e264925a3c8264eef9ecd37b0b7b16ee11ce3c57bb1310a80ede1e3367",
+    "receipt_path": "/home/matthalloran8/.vrooli/test-runs/performance-health/workloads/716ba7a3f03f8f291031d096323e9534/producer/receipt.json",
+    "receipt_sha256": "279454d0225285b20cf59657d802aae28e2a900c87d5ea7e8cf202bd8ca58446"
+  },
+  "setpoint_read": {
+    "program_run": "prog_d65e636d-2f2b-44f7-9418-b23e0fd7c838",
+    "program": "browser-automation-studio.setpoint-read",
+    "profile": "rehabilitation",
+    "required": 17,
+    "qualified": 1,
+    "unavailable": 16,
+    "product_qualified": false,
+    "capture_in_band": true
+  },
+  "qualification": {
+    "positive": [
+      "The actual Chromium recording/replay regression reproduced the defect before the fix and passes after the fix.",
+      "Typed right-button click count, Shift modifier and delay effects are observed in Chromium.",
+      "The managed scenario restarted and is healthy on the code-bearing build identity.",
+      "A fresh 100-sample capture cohort on that identity is within the existing budget."
+    ],
+    "limits": [
+      "The Test Genie unit phase failed its playwright-driver coverage command; detailed command output was unavailable in its terminal summary.",
+      "Saved-workflow API round-trip for the replacement case is not verified.",
+      "Typed input submit behavior is not verified.",
+      "A headless Chromium fixture does not qualify native OS input or cross-platform behavior.",
+      "The rehabilitation setpoint remains 1/17 qualified; product qualification remains false.",
+      "RF056 remains open pending the saved-workflow and typed-submit checks."
+    ]
+  },
+  "source_inventory": {
+    "command": "python3 scenarios/browser-automation-studio/docs/internal/refactor_inventory.py --include-untracked",
+    "observed_at": "2026-09-23T19:47:49.905679+00:00",
+    "source_digest_sha256": "a1480e69fde5ff927fb45e30b193653ea554794d753ba418d05e0ecba7ed0139",
+    "interpretation": "Selected-source inventory only; not a code-quality score, AST complexity measure or coverage result."
+  },
+  "pending_operations": {}
+}

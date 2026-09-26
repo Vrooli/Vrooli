@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "diagnostic_partial_remote_cohort_pending",
+  "outcome_id": "interactive-feedback",
+  "observed_date": "2026-09-25",
+  "status": "local_full_stack_cohort_passed_remote_unmeasured_sensor_missing",
+  "managed_build_identity": "sha256:d3711b61d0d174b2ef935f13c91a9191d25baacdfd7193ae453b7128a2d3ebb7",
+  "managed_health": {
+    "status": "healthy",
+    "observed_at": "2026-09-25T11:19:49Z"
+  },
+  "source_sha256": {
+    "playwright-driver/tests/integration/input-feedback.test.ts": "9e651beb9cebabe5863316e40ac13d0f008675cb026cdb7292e55ab06a48909f",
+    "docs/internal/REFRACTOR_CONTRACT.json": "8a9da35f075fb09bbe5f16fdb3785426a2c69b5643e49dd8d6a6b319d6948011"
+  },
+  "producer": {
+    "owner": "playwright-driver live BAS integration test",
+    "command": "BAS_JEST_VERBOSE_LOGS=1 BAS_REHAB_LIVE_API_BASE=http://127.0.0.1:17116/api/v1 BAS_REHAB_LIVE_UI_BASE=http://127.0.0.1:21794 BAS_REHAB_LIVE_SAMPLE_COUNT=1000 pnpm exec jest tests/integration/input-feedback.test.ts --runInBand --coverage=false --silent=false --testNamePattern='correlates live UI inputs with applied receipts and viewer-canvas pixels'",
+    "result": "passed",
+    "duration_ms": 51387,
+    "terminal_summary_retained": true,
+    "raw_sample_log_retained": false
+  },
+  "measurement": {
+    "scope": "managed BAS recording input over WebSocket through Go input forwarding, driver page mutation, Go frame relay and BAS useFrameStream canvas draw; local loopback only",
+    "browser_version": "136.0.7103.25",
+    "viewport": {
+      "width": 1080,
+      "height": 836
+    },
+    "sample_count": 1000,
+    "correlated_receipt_count": 1000,
+    "correlated_canvas_paint_count": 1000,
+    "correlation_complete": true,
+    "receipt_sequences_monotonic": true,
+    "p50_ms": 36.7,
+    "p95_ms": 39.4,
+    "p99_ms": 53.8,
+    "min_ms": 17.5,
+    "max_ms": 55.9,
+    "components_p50_ms": {
+      "input_to_socket_send": 0.1,
+      "socket_send_to_applied_ack": 17.1,
+      "applied_ack_to_canvas_pixels": 19.4
+    },
+    "components_p95_ms": {
+      "input_to_socket_send": 0.2,
+      "socket_send_to_applied_ack": 17.9,
+      "applied_ack_to_canvas_pixels": 35.3
+    },
+    "components_p99_ms": {
+      "input_to_socket_send": 0.3,
+      "socket_send_to_applied_ack": 18.9,
+      "applied_ack_to_canvas_pixels": 38.5
+    }
+  },
+  "limitations": [
+    "local loopback only; contract remote p95 cohort remains unmeasured",
+    "raw per-sample log was not retained, so this is diagnostic and not a qualified owner receipt",
+    "interactive-feedback has no governed sensor binding and receives no setpoint credit"
+  ]
+}

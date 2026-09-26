@@ -35,3 +35,77 @@
 //   - integration/ — shared skip gates for optional local services and tools
 //     such as Playwright, Ollama, MinIO, and FFmpeg.
 package testutil
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+// WriteJSONFile creates the parent directory and writes a private JSON fixture.
+func WriteJSONFile(t testing.TB, path string, value any) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("create JSON fixture directory for %s: %v", path, err)
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		t.Fatalf("encode JSON fixture %s: %v", path, err)
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatalf("write JSON fixture %s: %v", path, err)
+	}
+}
+
+// WriteFiles creates a fixture tree from relative paths and file contents.
+func WriteFiles(t testing.TB, root string, files map[string][]byte) {
+	t.Helper()
+	for relative, content := range files {
+		path := filepath.Join(root, filepath.FromSlash(relative))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("create fixture directory for %s: %v", relative, err)
+		}
+		if err := os.WriteFile(path, content, 0o600); err != nil {
+			t.Fatalf("write fixture %s: %v", relative, err)
+		}
+	}
+}
+
+// CopyFiles copies repository-relative source files into a temporary fixture
+// tree and returns their destination paths keyed by the original relative path.
+func CopyFiles(t testing.TB, sourceRoot, targetRoot string, relativePaths []string) map[string]string {
+	t.Helper()
+
+	destinations := make(map[string]string, len(relativePaths))
+	for _, relative := range relativePaths {
+		source := filepath.Join(sourceRoot, filepath.FromSlash(relative))
+		data, err := os.ReadFile(source)
+		if err != nil {
+			t.Fatalf("read fixture source %s: %v", relative, err)
+		}
+
+		destination := filepath.Join(targetRoot, filepath.FromSlash(relative))
+		if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+			t.Fatalf("create fixture directory for %s: %v", relative, err)
+		}
+		if err := os.WriteFile(destination, data, 0o600); err != nil {
+			t.Fatalf("write fixture source %s: %v", relative, err)
+		}
+		destinations[relative] = destination
+	}
+
+	return destinations
+}
+
+// StartConnectServer mounts one Connect handler and closes its server with the test.
+func StartConnectServer(t testing.TB, path string, handler http.Handler) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	return server
+}

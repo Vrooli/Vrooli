@@ -8,7 +8,7 @@ import runpy
 import unittest
 from types import SimpleNamespace
 
-from refactor_contract import SCENARIO, validate
+from refactor_contract import SCENARIO, validate, validate_protocol_evidence_references
 from refactor_regressions import classify
 
 
@@ -35,18 +35,24 @@ class ProgramHarness:
             state = states[state]()
 
 
-def board(inputs):
-    # No BAS/lib bindings exist here. The preparation profile must be usable
-    # before broken product sensors exist, without treating them as passing.
+def board(inputs, *, freshness_binding=True):
+    # No BAS outcome bindings exist here. Model a successful lifecycle freshness
+    # guard by default so the harness tests unavailable product sensors, not a
+    # missing build-identity precondition.
     output = io.StringIO()
     empty = SimpleNamespace(head=lambda limit: [])
     performance = SimpleNamespace(sweep=SimpleNamespace(workload_get=lambda **_: empty))
     test_genie = SimpleNamespace(runs=SimpleNamespace(list=lambda **_: empty))
-    vrooli = SimpleNamespace(scenario=SimpleNamespace(
-        status=lambda **_: SimpleNamespace(raw=lambda: {
-            "runtime": {"buildIdentity": "sha256:current"},
+    scenario = SimpleNamespace(status=lambda **_: SimpleNamespace(raw=lambda: {
+        "runtime": {"buildIdentity": "sha256:current"},
+    }))
+    if freshness_binding:
+        scenario.freshness = lambda **_: SimpleNamespace(raw=lambda: {
+            "success": True,
+            "stale": False,
+            "checks": [{"target": "fixture-api", "stale": False}],
         })
-    ))
+    vrooli = SimpleNamespace(scenario=scenario)
     with contextlib.redirect_stdout(output):
         namespace = runpy.run_path(str(SCENARIO / ".vrooli/program-runtime/setpoint-read.py"),
                                    init_globals={"program": ProgramHarness(inputs),
@@ -62,6 +68,66 @@ class PreparationTest(unittest.TestCase):
 
     def test_preparation_is_consistent(self):
         self.assertEqual([], validate(self.contract))
+
+    def test_continuous_goal_uses_large_epochs_and_bounded_active_state(self):
+        goal = (SCENARIO / "docs/internal/REFRACTOR_GOAL.md").read_text()
+        protocol = (SCENARIO / "docs/internal/TESTING.md").read_text()
+        progress = (SCENARIO / "docs/internal/REFRACTOR_PROGRESS.md").read_text()
+        feedback = (SCENARIO / "docs/internal/OPERATOR_FEEDBACK.md").read_text()
+        normalized_protocol = " ".join(protocol.split())
+
+        self.assertLessEqual(len(goal), 2048)
+        for required in (
+            "normally survives multiple context compactions",
+            "One work unit, one score row or whatever fits before the next",
+            "Compaction, a status request or an interruption creates an **in-epoch",
+            "rebuild/restart the managed candidate once",
+            "The agent never commits",
+            "active resume packet",
+            "96 KiB",
+            "128 files, 16 MiB and 250,000 text",
+        ):
+            self.assertIn(required, normalized_protocol)
+
+        self.assertLessEqual(sum(len(item.encode()) for item in (goal, protocol, progress, feedback)),
+                             96 * 1024)
+        self.assertIn("## Active candidate epoch", progress)
+        self.assertNotIn("recent append-only execution history", progress)
+
+    def test_evidence_references_must_resolve_to_current_tests(self):
+        for replacement in (
+            "api/missing_test.go :: TestDoesNotExist",
+            "api/services/session-profile/persistence/file_repository_test.go :: TestRenamedWithoutUpdatingContract",
+        ):
+            with self.subTest(reference=replacement):
+                changed = copy.deepcopy(self.contract)
+                changed["journeys"][0]["evidence"] = [replacement]
+                errors = validate(changed)
+                self.assertTrue(any("evidence reference" in error.lower() for error in errors), errors)
+
+    def test_j06_partial_fault_tests_do_not_qualify_the_journey(self):
+        journey = next(item for item in self.contract["journeys"] if item["id"] == "BAS-RH-J06")
+        self.assertEqual("planned", journey["state"])
+        self.assertEqual([], journey["evidence"], "partial links must not change the hashed acceptance contract")
+        protocol = (SCENARIO / "docs/internal/TESTING.md").read_text()
+        references = [
+            ("api/services/session-profile/persistence/file_repository_test.go", "TestFileRepositoryCommitPreservesAcknowledgedSnapshot"),
+            ("api/services/session-profile/persistence/file_repository_test.go", "TestFileRepositoryUpdateFailurePreservesSnapshot"),
+            ("api/services/recording/service_test.go", "TestJournalHistorySurvivesPaginationReopenAndConcurrentWriters"),
+            ("api/services/recording/service_test.go", "TestJournalSameIDRetryRecoversAcrossServiceProcessDeath"),
+        ]
+        for path, name in references:
+            with self.subTest(test=name):
+                source = (SCENARIO / path).read_text()
+                self.assertIn(f"| BAS-RH-J06 | `{path} :: {name}` |", protocol)
+                self.assertIn(name, source)
+        self.assertGreaterEqual((SCENARIO / references[0][0]).read_text().count("[REQ:BAS-RH-J06]"), 2)
+
+    def test_partial_protocol_references_cannot_go_stale(self):
+        protocol = (SCENARIO / "docs/internal/TESTING.md").read_text()
+        broken = protocol.replace("TestFileRepositoryUpdateFailurePreservesSnapshot", "TestRenamedWithoutUpdatingProtocol")
+        errors = validate_protocol_evidence_references(self.contract["journeys"], SCENARIO, broken)
+        self.assertTrue(any("evidence reference test" in error.lower() for error in errors), errors)
 
     def test_unavailable_validation_cannot_block_or_be_relabelled_passed(self):
         for key in ("unavailable_validation_stops_work", "unknown_evidence_counts_as_pass"):
@@ -100,6 +166,16 @@ class PreparationTest(unittest.TestCase):
         for row in result["signals"]["rows"]:
             self.assertTrue(row["unavailable"])
             self.assertIsNone(row["reading"])
+            self.assertIsNone(row["in_band"])
+
+    def test_missing_freshness_binding_withholds_all_rows(self):
+        result, _, _ = board({"profile": "rehabilitation"}, freshness_binding=False)
+        self.assertEqual("partial", result["status"])
+        self.assertFalse(result["signals"]["product_qualified"])
+        self.assertFalse(result["signals"]["candidate_freshness"]["fresh"])
+        self.assertEqual(len(self.contract["rows"]), result["signals"]["unmet"])
+        for row in result["signals"]["rows"]:
+            self.assertTrue(row["unavailable"])
             self.assertIsNone(row["in_band"])
 
     def test_unknown_profile_fails_without_domain_calls(self):

@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "contractRow": "capture",
+  "diagnostic": "controlled-session-admission-saturation",
+  "observedAt": "2026-09-24T21:45:30Z",
+  "managedBuildIdentity": "sha256:f6925a1e924e7536b928f3bc7836a95298e4217fc2e004b929cff5f039d3e84d",
+  "runtimeHealth": {
+    "api": "healthy",
+    "driverReady": true,
+    "driverSessionsAfterCleanup": 0,
+    "activeRecordingsAfterCleanup": 0
+  },
+  "sourceFiles": {
+    "api/automation/driver/client.go": "4323c2eda7e25b814b5dc84943935c46384f732c1a4943712b31b01d11b59d16",
+    "api/automation/executor/simple_executor.go": "782ea66ce5dfac2210c7d0d3d937c14730ee674c3928eda357e86a24c44cea7f",
+    "playwright-driver/src/session/manager.ts": "226e505eaa42aa6f3f32e274ddd3a7bd24fd03336f13ab58b9f249fbf152fa9e"
+  },
+  "method": {
+    "entrypoint": "browser-automation-studio.capture-surface",
+    "url": "http://127.0.0.1:21794",
+    "settleMs": 0,
+    "driverMaxConcurrentSessions": 10,
+    "saturation": "Ten direct managed-driver recording sessions were held with distinct execution IDs; an eleventh start received HTTP 429 RESOURCE_LIMIT. One session was closed after a controlled delay, then all remaining sessions were closed.",
+    "cleanup": "10/10 diagnostic leases closed; driver health returned to sessions=0 and active_recordings=0."
+  },
+  "observations": [
+    {
+      "role": "baseline",
+      "executionId": "f4198f65-0a0d-4025-9232-ea8752d78f7a",
+      "programId": "prog_1a8dccac-ccf4-4125-a032-d139637585d8",
+      "heldSessions": 0,
+      "programWallMs": 4990,
+      "timelineStartedAt": "2026-09-24T21:43:27.294876964Z",
+      "firstStepAt": "2026-09-24T21:43:27.357358013Z",
+      "preFirstStepMs": 62.5,
+      "firstStepDurationMs": 102,
+      "timelineDurationMs": 2415.8,
+      "readinessDurationMs": 2502,
+      "navigationDurationMs": 102,
+      "readinessWaitDurationMs": 1011,
+      "captureStatus": "ok"
+    },
+    {
+      "role": "saturated-release-after-2s",
+      "executionId": "54bd6506-067a-4301-ae85-61b9a265fb44",
+      "programId": "prog_6253c906-2410-4d3b-8419-943bff4c1e89",
+      "heldSessions": 10,
+      "releaseAfterMs": 2000.5,
+      "programWallMs": 7629,
+      "timelineStartedAt": "2026-09-24T21:42:51.168794450Z",
+      "firstStepAt": "2026-09-24T21:42:51.976589171Z",
+      "preFirstStepMs": 807.8,
+      "firstStepDurationMs": 154,
+      "timelineDurationMs": 3248.9,
+      "captureStatus": "ok",
+      "captureCapacity429At": [
+        "2026-09-24T21:42:51.178Z",
+        "2026-09-24T21:42:51.429Z"
+      ]
+    },
+    {
+      "role": "saturated-release-after-6s",
+      "executionId": "8c317644-cdb1-4c2f-8d79-d729dd33f5ee",
+      "programId": "prog_b3f91f37-74bf-40df-92d7-ecf3a40028ee",
+      "heldSessions": 10,
+      "releaseAfterMs": 6000.5,
+      "programWallMs": 9704,
+      "timelineStartedAt": "2026-09-24T21:45:22.128153733Z",
+      "firstStepAt": "2026-09-24T21:45:27.928645962Z",
+      "preFirstStepMs": 5800.5,
+      "firstStepDurationMs": 84,
+      "timelineDurationMs": 8050.5,
+      "readinessDurationMs": 8123,
+      "navigationDurationMs": 84,
+      "readinessWaitDurationMs": 1015,
+      "captureStatus": "ok",
+      "captureCapacity429At": [
+        "2026-09-24T21:45:22.138Z",
+        "2026-09-24T21:45:22.890Z",
+        "2026-09-24T21:45:23.891Z",
+        "2026-09-24T21:45:25.892Z"
+      ],
+      "sessionInitializedAt": "2026-09-24T21:45:27.893Z"
+    }
+  ],
+  "finding": "With all ten driver slots occupied, BAS capture received explicit capacity 429 responses and did not begin its first workflow action until a slot became available. The six-second controlled hold produced 5.80s pre-first-step delay; the zero-session baseline produced 62.5ms. This confirms capacity admission as a causal latency contributor under saturation.",
+  "limits": "One controlled loopback capture is diagnostic, not a workload qualification or a reproduction of the historical 12.163s p95 / 30.297s maximum. The original cohort logs are unavailable, so this does not prove those individual outliers were capacity waits. Shared-host load was not isolated.",
+  "admissionPolicySource": {
+    "budgetMs": 30000,
+    "initialDelayMs": 250,
+    "maximumDelayMs": 2000,
+    "source": "api/automation/driver/client.go waitForSessionAdmission"
+  },
+  "claims": {
+    "currentCaptureSetpointChanged": false,
+    "historicalOutlierCauseProven": false,
+    "productSourceChanged": false,
+    "complexityReduction": false
+  }
+}

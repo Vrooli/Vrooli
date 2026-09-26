@@ -140,6 +140,8 @@ type CreateSessionRequest struct {
 	Viewport    Viewport          `json:"viewport"`
 	ReuseMode   string            `json:"reuse_mode"`
 	Labels      map[string]string `json:"labels,omitempty"`
+	// SessionProfileVersion binds label-pooled contexts to a profile identity and revision.
+	SessionProfileVersion string `json:"session_profile_version,omitempty"`
 
 	// Recording mode - storage state as raw JSON
 	StorageState json.RawMessage `json:"storage_state,omitempty"`

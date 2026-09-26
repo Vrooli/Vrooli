@@ -3,8 +3,6 @@ package entitlement
 import (
 	"context"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -12,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"github.com/vrooli/browser-automation-studio/services/credits"
 	entsvc "github.com/vrooli/browser-automation-studio/services/entitlement"
 	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
@@ -142,10 +141,7 @@ func newTestClient(t *testing.T, d clientDeps) entitlementconnect.EntitlementSer
 		settings = d.settings
 	}
 	mount := Module(Deps{Provider: d.provider, Credits: credSvc, Settings: settings, Logger: logger})
-	mux := http.NewServeMux()
-	mux.Handle(mount.Path, mount.Handler)
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
+	srv := testutil.StartConnectServer(t, mount.Path, mount.Handler)
 	return entitlementconnect.NewEntitlementServiceClient(srv.Client(), srv.URL)
 }
 

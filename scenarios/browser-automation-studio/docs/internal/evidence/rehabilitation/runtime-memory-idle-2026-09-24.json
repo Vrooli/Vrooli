@@ -1,0 +1,130 @@
+{
+  "date": "2026-09-24",
+  "issue": "BAS-RF-010",
+  "candidate": {
+    "build_identity": "sha256:d8694c89b82a07446f7654007c6bc2335916fef26217cc560b9f392f084dd843",
+    "api_pid": 2878741,
+    "driver_pid": 2878894,
+    "ui_pid": 2878759
+  },
+  "owner_capture_workload": {
+    "command": "performance-health sweep workload-run browser-automation-studio capture --json",
+    "operation_id": "b5e265fd3d01da3e5536d4e598d3b597",
+    "receipt_sha256": "56c2a7f59a5e564f75b68173c9c7a77432a94ebf43c16a2545aac51f07b99351",
+    "outcome": "WORKLOAD_OUTCOME_MEASURED",
+    "within_budget": true,
+    "build_identity": "sha256:d8694c89b82a07446f7654007c6bc2335916fef26217cc560b9f392f084dd843",
+    "samples": 100,
+    "warmups": 1,
+    "service_p95_ms": 437,
+    "wall_p95_ms": 639.844636,
+    "budget_ms": 2000,
+    "duration_seconds": 59.285,
+    "process_sampling_interval_ms": 100,
+    "active_samples": 557,
+    "pre_workload": {
+      "api_pss_kib": 68296,
+      "driver_pss_kib": 45690,
+      "api_swap_kib": 2396,
+      "driver_swap_kib": 34360
+    },
+    "active_peak_kib": {
+      "api_pss": 82324,
+      "driver_pss": 98381,
+      "api_swap": 2396,
+      "driver_swap": 34360
+    },
+    "recovery_window": {
+      "duration_seconds": 60,
+      "samples": 60,
+      "api_pss_kib": {"min": 82260, "max": 82269, "last": 82269},
+      "driver_pss_kib": {"min": 98116, "max": 98134, "last": 98134},
+      "api_swap_kib": {"min": 1560, "max": 1560, "last": 1560},
+      "driver_swap_kib": {"min": 18776, "max": 18792, "last": 18776}
+    },
+    "health_after_recovery": {
+      "status": "healthy",
+      "heap_mb": 22.735595703125,
+      "goroutines": 34
+    },
+    "interpretation": "API and driver remained healthy. Their approximately176.2MiB combined end-of-recovery PSS was below the300MiB idle bound. PSS was stable rather than returning to the earlier lower idle sample within60s; the pre-workload API PSS was also already higher than the first idle sample, so this cohort alone does not attribute that difference or establish a leak."
+  },
+  "post_capture_phase": {
+    "run_id": "20260924-145319-7ef87a94",
+    "completed_at": "2026-09-24T14:53:20Z",
+    "phase": "rehabilitation-evidence",
+    "status": "passed",
+    "current_level": "L1",
+    "clean": true,
+    "capabilities": ["profile-durability", "cancellation-recovery"],
+    "evidence_tier": "degraded"
+  },
+  "sampling": {
+    "started_at": "2026-09-24T14:44:33Z",
+    "ended_at": "2026-09-24T14:45:33Z",
+    "duration_seconds": 60.03,
+    "samples_per_process": 60,
+    "sources": [
+      "/proc/<pid>/smaps_rollup",
+      "/proc/<pid>/status",
+      "/proc/<pid>/stat",
+      "GET http://127.0.0.1:17116/health"
+    ],
+    "workload": "No workload was started; live observability reported zero sessions and zero recordings at 2026-09-24T14:46:48.794Z."
+  },
+  "health": {
+    "start": {
+      "status": "healthy",
+      "heap_mb": 11.390800476074219,
+      "goroutines": 32
+    },
+    "end": {
+      "status": "healthy",
+      "heap_mb": 12.155235290527344,
+      "goroutines": 33
+    }
+  },
+  "processes": {
+    "api": {
+      "rss_kib": {"min": 45432, "max": 45808, "start": 45808, "end": 45476},
+      "pss_kib": {"min": 42793, "max": 43168, "start": 43167, "end": 42838},
+      "pss_anon_kib": {"min": 21924, "max": 21944, "start": 21924, "end": 21960},
+      "swap_kib": {"min": 3276, "max": 3292, "start": 3292, "end": 3260},
+      "threads": {"start": 16, "end": 16},
+      "cpu_ticks_delta": 4
+    },
+    "driver": {
+      "rss_kib": {"min": 76408, "max": 77252, "start": 76868, "end": 76588},
+      "pss_kib": {"min": 44762, "max": 45606, "start": 45219, "end": 44939},
+      "pss_anon_kib": {"min": 36672, "max": 37516, "start": 37132, "end": 36848},
+      "swap_kib": {"min": 34436, "max": 34476, "start": 34476, "end": 34436},
+      "threads": {"start": 11, "end": 11},
+      "cpu_ticks_delta": 2
+    },
+    "ui": {
+      "rss_kib": {"min": 50344, "max": 50524, "start": 50344, "end": 50524},
+      "pss_kib": {"min": 18825, "max": 19008, "start": 18825, "end": 19007},
+      "pss_anon_kib": {"min": 11052, "max": 11232, "start": 11052, "end": 11232},
+      "swap_kib": {"min": 3708, "max": 3712, "start": 3712, "end": 3708},
+      "threads": {"start": 11, "end": 11},
+      "cpu_ticks_delta": 1
+    }
+  },
+  "interpretation": {
+    "result": "The older multi-gigabyte heap/goroutine/swap report was not reproduced in this current-build idle sample.",
+    "governed_resource_budget": "Still unavailable: this direct observation is not the governed qualification producer and does not cover an active browser fixture or Windows private memory.",
+    "limits": [
+      "One Linux host, one build, one short idle window.",
+      "No active capture, post-burst recovery, or long soak was measured.",
+      "Per-process swap is reported separately from host-wide swap.",
+      "Historical live heap/stack attribution remains unknown."
+    ]
+  },
+  "governed_setpoint": {
+    "program_run_id": "prog_a55e3914-41bc-4edb-9d8b-44ef2d6d25e9",
+    "readable_outcomes": 3,
+    "required_outcomes": 17,
+    "unavailable_outcomes": 14,
+    "product_qualified": false
+  }
+}

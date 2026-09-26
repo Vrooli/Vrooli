@@ -1,0 +1,26 @@
+{
+  "contractRow": "passive-fidelity",
+  "result": "passed",
+  "tests": "1/1",
+  "ownerTest": "TestJournalSameIDRetryRecoversAcrossServiceProcessDeath",
+  "source_sha256": {
+    "docs/internal/REFRACTOR_CONTRACT.json": "8a9da35f075fb09bbe5f16fdb3785426a2c69b5643e49dd8d6a6b319d6948011",
+    "api/services/recording/service.go": "c05b3b78dcd324c62cbaa717d8a0e533a3a318b3b6b848ea453a8d61a6d3b84d",
+    "api/services/recording/service_test.go": "c4e4457dcbf331e7856bb98225514e497b2c2b925754025e0912be9eb0466d95",
+    "api/services/recording/persistence/sqlite.go": "7ba6fb8bbf7a683022b6af24efc284d55d85c9be55abd4d4f8061019b073d753"
+  },
+  "owner_artifact": {
+    "path": ".vrooli/runtime/rehabilitation-evidence/passive-fidelity-crash-w273-20260926-0315.json",
+    "sha256": "ffa303bd7a0165c26daed09bdf447ee658b696e2e7ceef585120fa6c834fbd74"
+  },
+  "owner": {
+    "actionsBeforeCrash": 10000,
+    "case": "recording-service-process-death",
+    "childTerminatedAbruptly": true,
+    "committedBeforeAcknowledgment": true,
+    "expectedPrefixIntactAndOrdered": true,
+    "reopenedTotal": 10001,
+    "retriedSameEventId": true,
+    "totalAfterRetry": 10001
+  }
+}

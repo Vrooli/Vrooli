@@ -1,0 +1,121 @@
+{
+  "work": "BAS-WORK-188",
+  "method": {
+    "managedDriverSessionsHeld": 10,
+    "releaseAfterMs": 2000,
+    "entrypoint": "browser-automation-studio.capture-surface",
+    "captureStartedAt": "2026-09-24T22:46:36.004Z",
+    "releaseAt": "2026-09-24T22:46:38.008Z"
+  },
+  "managedBuildIdentity": "sha256:a74ff8db5ab1a9d5346a721a2df458d83ab0c985e8ea559fb935faa6651a88eb",
+  "driverHealthAfter": {
+    "immediateAfterCapture": {
+      "sessions": 9,
+      "active_recordings": 0
+    },
+    "afterCleanupSettled": {
+      "sessions": 0,
+      "active_recordings": 0
+    }
+  },
+  "programId": "prog_e2413eb5-c5d8-40da-971b-7277f0cb09bf",
+  "programStatus": "PROGRAM_STATUS_SUCCEEDED",
+  "captureEnvelope": {
+    "program": "browser-automation-studio.capture-surface",
+    "version": "1",
+    "status": "ok",
+    "phase": "report",
+    "inputs": {
+      "url": "http://127.0.0.1:21794",
+      "viewport": "desktop",
+      "theme": "light",
+      "direction": "ltr",
+      "wait_for": null,
+      "wait_until": "load",
+      "settle_ms": 0,
+      "device_scale_factor": 1
+    },
+    "signals": {
+      "artifact_id": "df4f84ab-4a01-4e57-8de0-610c93d2d7e3",
+      "screenshot_ref": "bas-capture://df4f84ab-4a01-4e57-8de0-610c93d2d7e3/screenshot",
+      "snapshot_ref": "bas-capture://df4f84ab-4a01-4e57-8de0-610c93d2d7e3/dom_tree",
+      "url": "http://127.0.0.1:21794",
+      "viewport": "desktop",
+      "theme": "light",
+      "direction": "ltr",
+      "captured_at": null,
+      "readiness": {
+        "durationMs": "3109",
+        "navigationDurationMs": "100",
+        "outcome": "ready",
+        "readinessWaitDurationMs": "1017",
+        "requestedStrategy": "explicit-delay",
+        "selectedStrategy": "explicit-delay"
+      }
+    },
+    "errors": [],
+    "evidence": [
+      "execution:df4f84ab-4a01-4e57-8de0-610c93d2d7e3",
+      "screenshot:bas-capture://df4f84ab-4a01-4e57-8de0-610c93d2d7e3/screenshot",
+      "snapshot:bas-capture://df4f84ab-4a01-4e57-8de0-610c93d2d7e3/dom_tree"
+    ]
+  },
+  "execution": {
+    "execution": {
+      "executionId": "df4f84ab-4a01-4e57-8de0-610c93d2d7e3",
+      "workflowId": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+      "workflowVersion": 1,
+      "status": "EXECUTION_STATUS_COMPLETED",
+      "triggerType": "TRIGGER_TYPE_API",
+      "startedAt": "2026-09-24T22:46:37.619564059Z",
+      "completedAt": "2026-09-24T22:46:40.655113050Z",
+      "createdAt": "2026-09-24T22:46:37Z",
+      "updatedAt": "2026-09-24T22:46:40.655113050Z",
+      "parameters": {
+        "startUrl": "http://127.0.0.1:21794",
+        "viewportWidth": 1440,
+        "viewportHeight": 900,
+        "artifactConfig": {
+          "profile": "capture"
+        },
+        "browserProfile": {
+          "fingerprint": {
+            "deviceScaleFactor": 1,
+            "colorScheme": "light"
+          }
+        }
+      }
+    }
+  },
+  "programResultKeys": [
+    "program"
+  ],
+  "baselineW186": {
+    "releaseAfterMs": 2000.5,
+    "preFirstStepMs": 807.8,
+    "build": "sha256:f6925a1e924e7536b928f3bc7836a95298e4217fc2e004b929cff5f039d3e84d"
+  },
+  "claims": {
+    "candidateSourceIncludes500msRetryCap": true,
+    "historicalF7OutliersAttributed": false,
+    "causalDeltaEstimateMs": null,
+    "saturatedCaptureRemainedQueuedUntilSlotRelease": true,
+    "retrySpacingEffectIsolated": false
+  },
+  "admissionMeasurement": {
+    "readinessDurationMs": 3109.0,
+    "navigationDurationMs": 100.0,
+    "explicitReadinessWaitDurationMs": 1017.0,
+    "estimatedPreNavigationAdmissionMs": 1992.0,
+    "captureCompletedAt": "2026-09-24T22:46:40.655113050Z",
+    "interpretation": "The estimate subtracts navigation and explicit readiness wait from the end-to-end readiness duration. It is consistent with the 2000ms full-capacity hold, but the owner does not record individual retry timestamps and therefore does not isolate the retry-spacing cap effect."
+  },
+  "captureExecutionId": "df4f84ab-4a01-4e57-8de0-610c93d2d7e3",
+  "baselineSerialW188": {
+    "operationId": "82c3f80a56afe5f6b634fc7490b52097",
+    "samples": 100,
+    "serviceP95Ms": 423,
+    "wallP95Ms": 593.515205,
+    "build": "sha256:a74ff8db5ab1a9d5346a721a2df458d83ab0c985e8ea559fb935faa6651a88eb"
+  }
+}

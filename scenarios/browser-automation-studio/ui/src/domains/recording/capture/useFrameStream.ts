@@ -52,6 +52,9 @@ const EMPTY_VIEW: ViewState = {
   isFetching: false, isWsFrameActive: false, isPageSwitching: false,
 };
 const STREAM_STALE_MS = 1000;
+// Keep one missed-RAF frame pair without allowing delayed viewers to grow memory use.
+const MAX_PENDING_PAINT_FRAMES = 2;
+const MAX_PENDING_PAINT_BYTES = 16 * 1024 * 1024;
 
 interface FrameJob {
   id: number;
@@ -149,13 +152,15 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
   }, [view.hasFrame, view.isWsFrameActive, view.displayedTimestamp]);
 
   useEffect(() => {
+    const currentDecoder = decoder.current;
     let disposed = false;
     let socket: WebSocket | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
     let request: AbortController | null = null;
     let raf: number | null = null;
-    let pendingPaint: {frame: FrameJob; bitmap: ImageBitmap} | null = null;
+    let pendingPaint: Array<{frame: FrameJob; bitmap: ImageBitmap; byteSize: number}> = [];
+    let pendingPaintBytes = 0;
     let sequence = 0;
     let newestAdmission = 0;
     let lastPainted = 0;
@@ -187,9 +192,9 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
     };
     const draw = () => {
       raf = null;
-      const ready = pendingPaint;
-      pendingPaint = null;
+      const ready = pendingPaint.shift();
       if (!ready) return;
+      pendingPaintBytes -= ready.byteSize;
       const {frame,bitmap} = ready;
       try {
         if (disposed || frame.id <= lastPainted) return;
@@ -227,18 +232,28 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
         fail('Failed to render live frame');
       } finally {
         bitmap.close();
+        if (!disposed && pendingPaint.length > 0 && raf === null) raf = requestAnimationFrame(draw);
       }
     };
     const deliver = (frame: FrameJob, bitmap: ImageBitmap) => {
-      pendingPaint?.bitmap.close();
-      pendingPaint = {frame,bitmap};
+      const byteSize = bitmap.width * bitmap.height * 4;
+      // A single oversize image remains displayable; never retain another beside it.
+      while (pendingPaint.length > 0 &&
+        (pendingPaint.length >= MAX_PENDING_PAINT_FRAMES || pendingPaintBytes + byteSize > MAX_PENDING_PAINT_BYTES)) {
+        const discarded = pendingPaint.shift();
+        if (!discarded) break;
+        pendingPaintBytes -= discarded.byteSize;
+        discarded.bitmap.close();
+      }
+      pendingPaint.push({frame,bitmap,byteSize});
+      pendingPaintBytes += byteSize;
       if (raf === null) raf = requestAnimationFrame(draw);
     };
     const enqueue = (frame: Omit<FrameJob,'owns'|'deliver'|'fail'>) => {
       if (disposed || document.hidden || frame.id < newestAdmission) return;
       newestAdmission = frame.id;
-      decoder.current.pending = {...frame,owns,deliver,fail};
-      void decodeLatest(decoder.current);
+      currentDecoder.pending = {...frame,owns,deliver,fail};
+      void decodeLatest(currentDecoder);
     };
     const matchesSource = (frame: FrameIdentity) => frame.session_id === sessionId &&
       (pageId === undefined || frame.page_id === pageId);
@@ -321,8 +336,10 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
       if (reconnectTimer !== null) clearTimeout(reconnectTimer);
       if (pollTimer !== null) clearTimeout(pollTimer);
       if (raf !== null) cancelAnimationFrame(raf);
-      pendingPaint?.bitmap.close();
-      if (decoder.current.pending?.owns === owns) decoder.current.pending = null;
+      for (const pending of pendingPaint) pending.bitmap.close();
+      pendingPaint = [];
+      pendingPaintBytes = 0;
+      if (currentDecoder.pending?.owns === owns) currentDecoder.pending = null;
     };
   }, [sessionId,pageId,quality,fps,useWebSocketFrames,refreshToken,recordFrame,resetStats]);
 

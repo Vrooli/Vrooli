@@ -1,4 +1,4 @@
-import type { SessionPhase, SessionState } from '../../../src/types';
+import type { SessionPhase, SessionSpec, SessionState } from '../../../src/types';
 import {
   findByExecutionId,
   findByLabels,
@@ -19,6 +19,9 @@ function makeSession(overrides: {
     id: `session-${overrides.executionId ?? 'x'}`,
     spec: {
       execution_id: overrides.executionId ?? 'exec-1',
+      workflow_id: 'workflow-1',
+      viewport: { width: 1280, height: 720 },
+      reuse_mode: 'reuse',
       labels: overrides.labels ?? { mode: 'execution' },
     },
     phase: overrides.phase ?? 'ready',
@@ -56,12 +59,16 @@ describe('session decisions', () => {
   });
 
   it('neither pools nor reaps a reset session while its earlier instruction is still settling', () => {
-    const session = makeSession({ phase: 'ready', leaseReleasedAt: new Date(), lastUsedAt: new Date(0) });
+    const session = makeSession({
+      phase: 'ready',
+      leaseReleasedAt: new Date(),
+      lastUsedAt: new Date(0),
+    });
     session.instructionInFlight = true;
-    expect(findByLabels([session], { mode: 'execution' })).toBeNull();
+    expect(findByLabels([session], session.spec as SessionSpec)).toBeNull();
     expect(findIdleSessions(new Map([[session.id, session]]), 100, 1000)).toEqual([]);
     session.instructionInFlight = false;
-    expect(findByLabels([session], { mode: 'execution' })).toBe(session);
+    expect(findByLabels([session], session.spec as SessionSpec)).toBe(session);
     expect(findIdleSessions(new Map([[session.id, session]]), 100, 1000)).toEqual([session.id]);
   });
 
@@ -72,7 +79,7 @@ describe('session decisions', () => {
       // hijacked the first's session mid-instruction, aborting its navigation
       // (net::ERR_ABORTED) and racing into SESSION_BUSY.
       const busy = makeSession({ executionId: 'exec-1', phase: 'executing' });
-      const found = findByLabels([busy], { mode: 'execution' });
+      const found = findByLabels([busy], busy.spec as SessionSpec);
       expect(found).toBeNull();
     });
 
@@ -83,7 +90,7 @@ describe('session decisions', () => {
         phase: 'ready',
         leaseReleasedAt: new Date(),
       });
-      const found = findByLabels([busy, idle], { mode: 'execution' });
+      const found = findByLabels([busy, idle], idle.spec as SessionSpec);
       expect(found).toBe(idle);
     });
 
@@ -93,7 +100,9 @@ describe('session decisions', () => {
         labels: { mode: 'record' },
         leaseReleasedAt: new Date(),
       });
-      expect(findByLabels([idle], { mode: 'execution' })).toBeNull();
+      expect(
+        findByLabels([idle], { ...idle.spec, labels: { mode: 'execution' } } as SessionSpec)
+      ).toBeNull();
     });
   });
 
