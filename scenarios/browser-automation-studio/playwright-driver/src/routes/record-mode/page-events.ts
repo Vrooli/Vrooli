@@ -171,6 +171,7 @@ export function setupPageLifecycleListeners(
   const newPage = async (page: Page): Promise<void> => {
     if (!active) return;
     const createdAt = new Date().toISOString();
+    const alreadyRegistered = session.pageToIdMap.has(page);
     const pageId = registerRecordingPage(session, page);
     let settle!: (published: boolean) => void;
     const admitted = new Promise<boolean>((resolve) => { settle = resolve; });
@@ -188,7 +189,10 @@ export function setupPageLifecycleListeners(
       });
       published = true;
     } finally {
-      if (!published) detach?.();
+      if (!published) {
+        detach?.();
+        if (!alreadyRegistered) unregisterRecordingPage(session, page);
+      }
       settle(published);
     }
   };

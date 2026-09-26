@@ -57,14 +57,16 @@ def run_case(name, directory, cache):
         completed = subprocess.run(argv, cwd=SCENARIO / "api", capture_output=True,
                                    text=True, timeout=120,
                                    env={**os.environ, "GOPROXY": "off", "GOTOOLCHAIN": "local", "LOG_LEVEL": "error"})
-        payload = json.loads(completed.stdout)
-        status = classify(payload) if completed.returncode == 0 else "unavailable"
-        (directory / f"{name}.json").write_text(completed.stdout)
-        result = {"case": name, "status": status, "producer_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-                  "observations": payload.get("results", []), "scope": payload.get("scope"),
-                  "producer_exit": completed.returncode}
         if completed.returncode:
-            result["error"] = completed.stderr[-2000:]
+            result = {"case": name, "status": "unavailable", "producer_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                      "observations": [], "scope": None, "producer_exit": completed.returncode,
+                      "error": (completed.stderr or completed.stdout)[-2000:]}
+        else:
+            payload = json.loads(completed.stdout)
+            (directory / f"{name}.json").write_text(completed.stdout)
+            result = {"case": name, "status": classify(payload), "producer_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                      "observations": payload.get("results", []), "scope": payload.get("scope"),
+                      "producer_exit": completed.returncode}
     except (subprocess.SubprocessError, OSError, ValueError) as exc:
         result = {"case": name, "status": "unavailable", "reason": str(exc)[:2000]}
     cache[name] = result

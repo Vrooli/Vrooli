@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { execFile } from 'node:child_process';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { validateObservation } from './validation.mjs';
+import { buildIdentity, sha256File } from '../qualification-support.mjs';
 
 const execFileAsync = promisify(execFile);
 const scenarioRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -39,6 +40,7 @@ const sourceFiles = [
   'api/websocket/hub.go',
   'api/websocket/hub_test.go',
   'api/cmd/motion-cohort/qualification.mjs',
+  'api/cmd/qualification-support.mjs',
   'api/cmd/motion-cohort/validation.mjs',
   'playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts',
   'playwright-driver/tests/integration/motion-qualification.test.ts',
@@ -47,26 +49,11 @@ const sourceFiles = [
   'ui/src/domains/recording/capture/useFrameStream.test.ts',
 ];
 
-async function sha256(path) {
-  return createHash('sha256').update(await readFile(path)).digest('hex');
-}
-
-async function buildIdentity() {
-  const healthURL = new URL(api);
-  healthURL.pathname = `${healthURL.pathname.replace(/\/api\/v1\/?$/, '').replace(/\/$/, '')}/health`;
-  const response = await fetch(healthURL, { signal: AbortSignal.timeout(5000) });
-  if (!response.ok) throw new Error(`BAS health returned ${response.status}`);
-  const health = await response.json();
-  const identity = String(health.build_identity || '').trim();
-  if (!identity) throw new Error('BAS health returned no build_identity');
-  return identity;
-}
-
 async function writeReceipt(observation, observationPath, combinedLogPath, build, receiptPath) {
-  const sourceSHA256 = Object.fromEntries(await Promise.all(sourceFiles.map(async (path) => [path, await sha256(join(scenarioRoot, path))])));
+  const sourceSHA256 = Object.fromEntries(await Promise.all(sourceFiles.map(async (path) => [path, await sha256File(join(scenarioRoot, path))])));
   const artifact = async (path) => ({
     path: relative(scenarioRoot, path).replaceAll('\\', '/'),
-    sha256: await sha256(path),
+    sha256: await sha256File(path),
   });
   const receipt = {
     schemaVersion: 1,
@@ -136,7 +123,7 @@ if (process.argv[2] === 'assemble-existing') {
   observation.slowReader.maxApiQueueBytes = Number(relayMetric[1]);
   observation.slowReader.apiQueueBudgetBytes = Number(relayMetric[2]);
   validateObservation(observation, 12 * 1024 * 1024 + 4 * 1024);
-  const build = await buildIdentity();
+  const build = await buildIdentity(api);
   const id = `${new Date().toISOString().replaceAll(':', '-')}-${randomUUID()}`;
   const receiptPath = join(evidenceRoot, `motion-receipt-reassembled-${id}.json`);
   const receipt = await writeReceipt(observation, observationPath, combinedLogPath, build, receiptPath);
@@ -153,7 +140,7 @@ const relayLogPath = join(evidenceRoot, `motion-owner-relay-tests-${id}.log`);
 const liveLogPath = join(evidenceRoot, `motion-owner-live-test-${id}.log`);
 const combinedLogPath = join(evidenceRoot, `motion-owner-tests-${id}.log`);
 const receiptPath = join(evidenceRoot, `motion-receipt-${id}.json`);
-const buildBefore = await buildIdentity();
+const buildBefore = await buildIdentity(api);
 
 let unitRun;
 try {
@@ -257,7 +244,7 @@ observation.slowReader.maxApiQueueBytes = Number(relayMetric[1]);
 observation.slowReader.apiQueueBudgetBytes = Number(relayMetric[2]);
 validateObservation(observation, 12 * 1024 * 1024 + 4 * 1024);
 
-const buildAfter = await buildIdentity();
+const buildAfter = await buildIdentity(api);
 if (buildAfter !== buildBefore) throw new Error(`managed BAS build changed during motion owner: ${buildBefore} -> ${buildAfter}`);
 const receipt = await writeReceipt(observation, observationPath, combinedLogPath, buildBefore, receiptPath);
 process.stdout.write(`${JSON.stringify(summarizeReceipt(receiptPath, receipt), null, 2)}\n`);

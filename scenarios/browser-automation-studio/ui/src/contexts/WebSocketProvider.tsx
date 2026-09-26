@@ -151,16 +151,18 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     setIsConnected(false);
   }, []);
 
-  const send = useCallback((message: unknown) => {
+  const send = useCallback((message: unknown): boolean => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       logger.warn('Cannot send: WebSocket not connected', { component: 'WebSocketContext', action: 'send' });
-      return;
+      return false;
     }
 
     try {
       wsRef.current.send(JSON.stringify(message));
+      return true;
     } catch (err) {
       logger.warn('Failed to send WebSocket message', { component: 'WebSocketContext', action: 'send', err });
+      return false;
     }
   }, []);
 

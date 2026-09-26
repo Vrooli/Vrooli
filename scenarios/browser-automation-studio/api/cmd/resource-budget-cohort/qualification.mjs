@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { createServer } from 'node:http';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -7,6 +7,7 @@ import { dirname, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
+import { sha256, sha256File } from '../qualification-support.mjs';
 
 const execFileAsync = promisify(execFile);
 const scenarioRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -22,6 +23,7 @@ const maxIdleCPUPercent = 2;
 const sourceFiles = [
   'docs/internal/REFRACTOR_CONTRACT.json',
   'api/cmd/resource-budget-cohort/qualification.mjs',
+  'api/cmd/qualification-support.mjs',
   'api/automation/driver/client.go',
   'playwright-driver/src/routes/session-start.ts',
   'playwright-driver/src/session/manager.ts',
@@ -41,14 +43,6 @@ async function json(url, body) {
   const value = await response.json();
   if (!response.ok) throw new Error(`${url}: HTTP ${response.status}: ${JSON.stringify(value)}`);
   return value;
-}
-
-function sha256(data) {
-  return createHash('sha256').update(data).digest('hex');
-}
-
-async function shaFile(path) {
-  return sha256(await readFile(resolve(scenarioRoot, path)));
 }
 
 async function managedPIDs() {
@@ -224,7 +218,7 @@ try {
   if (afterHealth.build_identity !== buildBefore || finalHealth.sessions !== 0 || finalHealth.active_recordings !== 0) {
     throw new Error('build identity changed or the fixture session did not clean up');
   }
-  const sourceSHA256 = Object.fromEntries(await Promise.all(sourceFiles.map(async (path) => [path, await shaFile(path)])));
+  const sourceSHA256 = Object.fromEntries(await Promise.all(sourceFiles.map(async (path) => [path, await sha256File(resolve(scenarioRoot, path))])));
   const startedAt = idleSamples[0].observedAt;
   const endedAt = idleSamples.at(-1).observedAt;
   const durationMs = Date.parse(endedAt) - Date.parse(startedAt);

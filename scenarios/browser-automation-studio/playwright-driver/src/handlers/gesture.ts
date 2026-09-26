@@ -108,11 +108,11 @@ export class GestureHandler extends BaseHandler {
       // Dispatch to appropriate handler based on resolved type
       switch (gestureType) {
         case 'drag':
-          return this.handleDragDrop(instruction, context);
+          return await this.handleDragDrop(instruction, context);
         case 'swipe':
         case 'pinch':
         case 'zoom':
-          return this.handleGesture(instruction, context);
+          return await this.handleGesture(instruction, context);
         case 'unknown':
           return {
             success: false,
@@ -140,6 +140,23 @@ export class GestureHandler extends BaseHandler {
           retryable: driverError.retryable,
         },
       };
+    }
+  }
+
+  /**
+   * Own a mouse-down gesture until its release is acknowledged. A rejected
+   * Playwright call may still have reached the browser, so cleanup is a
+   * best-effort second release and never hides the original error.
+   */
+  private async withHeldMouse(page: Page, gesture: () => Promise<void>): Promise<void> {
+    let releaseRequired = true;
+    try {
+      await page.mouse.down();
+      await gesture();
+      await page.mouse.up();
+      releaseRequired = false;
+    } finally {
+      if (releaseRequired) await page.mouse.up().catch(() => undefined);
     }
   }
 
@@ -369,7 +386,7 @@ export class GestureHandler extends BaseHandler {
     const delayMs = validated.delayMs || (behavior ? 15 : 0); // Default delay if behavior enabled
 
     await page.mouse.move(sourceX, sourceY);
-    await page.mouse.down();
+    await this.withHeldMouse(page, async () => {
 
     // Use human-like path if behavior is enabled with bezier/natural movement
     if (behavior && behavior.getMouseMovementStyle() !== 'linear') {
@@ -414,7 +431,7 @@ export class GestureHandler extends BaseHandler {
       await page.mouse.move(targetX, targetY);
     }
 
-    await page.mouse.up();
+    });
 
     // Apply post-drag micro-pause
     await applyPostActionPause(behavior);
@@ -590,7 +607,7 @@ export class GestureHandler extends BaseHandler {
 
     // Execute swipe with human-like movement if behavior enabled
     await page.mouse.move(startX, startY);
-    await page.mouse.down();
+    await this.withHeldMouse(page, async () => {
 
     if (behavior && behavior.getMouseMovementStyle() !== 'linear') {
       // Use natural path for swipe
@@ -624,7 +641,7 @@ export class GestureHandler extends BaseHandler {
       }
     }
 
-    await page.mouse.up();
+    });
     await this.markGesture(target, params, 'end');
 
     // Apply post-swipe micro-pause

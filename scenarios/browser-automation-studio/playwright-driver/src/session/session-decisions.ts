@@ -63,6 +63,16 @@ export function matchesByLabels(session: SessionState, labels?: Record<string, s
  */
 export function matchesReusableContext(session: SessionState, requested: SessionSpec): boolean {
   const retained = session.spec;
+  // Capture paths and capability switches are execution-owned state, not
+  // browser-context identity. A released session with either side capturing
+  // evidence must not cross an execution boundary: transferring it would
+  // retain the previous execution's trace/HAR/video destinations and could
+  // silently omit newly required capture. Let admission create a fresh
+  // context, whose builder resolves an immutable destination for the new
+  // execution.
+  const retainedCapture = hasExecutionCapture(retained.required_capabilities);
+  const requestedCapture = hasExecutionCapture(requested.required_capabilities);
+  if (retainedCapture || requestedCapture) return false;
   return (
     retained.session_profile_version === requested.session_profile_version &&
     isDeepStrictEqual(retained.viewport, requested.viewport) &&
@@ -77,6 +87,16 @@ export function matchesReusableContext(session: SessionState, requested: Session
     isDeepStrictEqual(retained.fake_media, requested.fake_media) &&
     isDeepStrictEqual(retained.app_target, requested.app_target) &&
     isDeepStrictEqual(retained.validation_context, requested.validation_context)
+  );
+}
+
+function hasExecutionCapture(capabilities: SessionSpec['required_capabilities']): boolean {
+  return Boolean(
+    capabilities?.video ||
+    capabilities?.har ||
+    capabilities?.tracing ||
+    capabilities?.performance_trace ||
+    capabilities?.accessibility
   );
 }
 

@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { dirname, resolve } from 'node:path';
-import { chromium, type Browser, type Page } from 'rebrowser-playwright';
+import { chromium, type Browser } from 'rebrowser-playwright';
 
 type MotionSample = {
   capturedAt: string;
@@ -30,6 +30,15 @@ type MotionWindow = {
   samples: MotionSample[];
 };
 
+type MotionSummary = MotionWindow & {
+  renderedFps: number;
+  p95FrameAgeMs: number;
+  maxFrameAgeMs: number;
+  maxFrameBytes: number;
+  p95DecodeMs: number;
+  maxDecodeMs: number;
+};
+
 type MotionProbeWindow = Window & {
   __basMotionProbe?: {
     collecting: boolean;
@@ -55,7 +64,7 @@ function percentile(values: number[], quantile: number): number {
   return ordered[Math.ceil(quantile * ordered.length) - 1] ?? 0;
 }
 
-function summarize(window: MotionWindow) {
+function summarize(window: MotionWindow): MotionSummary {
   const ages = window.samples.map((sample) => sample.frameAgeMs);
   const decodeTimes = window.samples.map((sample) => sample.decodeMs);
   const uniqueFixtureFrames = new Set(
@@ -73,13 +82,13 @@ function summarize(window: MotionWindow) {
   };
 }
 
-function expectBaselineInBand(baseline: ReturnType<typeof summarize>) {
+function expectBaselineInBand(baseline: ReturnType<typeof summarize>): void {
   // A finite capture window can start and stop between frame boundaries. Allow
   // one frame of endpoint uncertainty while still requiring 9,000 distinct
   // rendered frames and the full five-minute observation.
-  const boundaryFps = 1000 / baseline.durationMs;
+  const requiredFrames = Math.ceil(30 * baseline.durationMs / 1000);
   expect(baseline.durationMs).toBeGreaterThanOrEqual(300_000);
-  expect(baseline.renderedFps + boundaryFps).toBeGreaterThanOrEqual(30);
+  expect(baseline.renderedFrames + 1).toBeGreaterThanOrEqual(requiredFrames);
   expect(baseline.uniqueFixtureFrames).toBeGreaterThanOrEqual(9_000);
   expect(baseline.p95FrameAgeMs).toBeLessThanOrEqual(100);
   expect(baseline.maxFrameBytes).toBeLessThanOrEqual(12 * 1024 * 1024 + 4 * 1024);
@@ -185,7 +194,7 @@ describe('managed BAS live motion qualification', () => {
       let activeFrame: { capturedAt: string; frameBytes: number; inWindow: boolean } | null = null;
 
       const blobConstructor = new Proxy(window.Blob, {
-        construct(target, args) {
+        construct(target, args): Blob {
           const blob = Reflect.construct(target, args) as Blob;
           if (activeFrame) blobFrames.set(blob, activeFrame);
           return blob;
@@ -204,7 +213,9 @@ describe('managed BAS live motion qualification', () => {
         configurable: true,
         enumerable: messageProperty.enumerable,
         get() {
-          return messageProperty.get?.call(this);
+          return messageProperty.get?.call(this) as
+            | ((event: MessageEvent<unknown>) => void)
+            | null;
         },
         set(handler: ((event: MessageEvent<unknown>) => void) | null) {
           if (!handler) {
@@ -270,7 +281,7 @@ describe('managed BAS live motion qualification', () => {
       const nativeDrawImage = CanvasRenderingContext2D.prototype.drawImage;
       CanvasRenderingContext2D.prototype.drawImage = function observeDrawImage(
         ...args: Parameters<typeof nativeDrawImage>
-      ) {
+      ): void {
         const result = nativeDrawImage.apply(this, args);
         const frame = bitmapFrames.get(args[0] as ImageBitmap);
         if (frame?.inWindow && this.canvas.width >= 450 && this.canvas.height >= 450) {
@@ -311,7 +322,7 @@ describe('managed BAS live motion qualification', () => {
       }, 5000);
     });
 
-    const openSession = async () => {
+    const openSession = async (): Promise<string> => {
       const created = await fetch(`${apiBase}/recordings/live/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -351,7 +362,7 @@ describe('managed BAS live motion qualification', () => {
       );
       return value.session_id;
     };
-    const closeSession = async (sessionId: string) => {
+    const closeSession = async (sessionId: string): Promise<void> => {
       await fetch(`${apiBase}/recordings/live/${sessionId}/stop`, { method: 'POST' }).catch(
         () => undefined
       );
@@ -360,7 +371,7 @@ describe('managed BAS live motion qualification', () => {
       });
       if (!closed.ok) throw new Error(`Session ${sessionId} cleanup failed (${closed.status})`);
     };
-    const startWindow = async (slowReader: boolean, durationMs: number) => {
+    const startWindow = async (slowReader: boolean, durationMs: number): Promise<void> => {
       await page.evaluate(({ isSlowReader, durationMs: windowDurationMs }) => {
         const probe = (window as MotionProbeWindow).__basMotionProbe;
         if (!probe) throw new Error('Motion frame probe was not installed');
@@ -494,7 +505,8 @@ describe('managed BAS live motion qualification', () => {
         expect(streamResponse.ok).toBe(true);
         return;
       }
-      expectBaselineInBand(observations.baseline!);
+      if (!observations.baseline) throw new Error('Motion baseline was not recorded');
+      expectBaselineInBand(observations.baseline);
       await closeSession(sessionId);
       sessionId = undefined;
 

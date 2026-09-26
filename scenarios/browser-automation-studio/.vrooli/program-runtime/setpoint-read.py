@@ -301,7 +301,7 @@ def classify_rehabilitation():
                        "build_identity": capture.get("buildIdentity"), "captured_at": capture.get("capturedAt")}
             row(name, reading, "bas-rehabilitation-v1#capture", capture.get("withinBudget") is True,
                 sensor="performance-health sweep workload-get browser-automation-studio capture")
-        elif name in ("motion", "passive-fidelity", "profile-durability", "cancellation-recovery", "resource-budget", "evidence-completeness") and applicable and owner_run and owner_findings["phases"]:
+        elif name in ("interactive-feedback", "motion", "passive-fidelity", "profile-durability", "cancellation-recovery", "resource-budget", "evidence-completeness") and applicable and owner_run and owner_findings["phases"]:
             standing = capability_standing(owner_findings, name)
             if standing and standing.get("level"):
                 reading = {"current_level": standing.get("level"),

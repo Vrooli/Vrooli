@@ -329,6 +329,12 @@ export interface SessionState {
    */
   pageLifecycleCleanup?: () => void;
 
+  /**
+   * Lifecycle owner for background AI navigation. Reset and close must invoke
+   * and await this hook before mutating or disposing any session page.
+   */
+  aiNavigationCleanup?: () => Promise<void>;
+
   /** Bounded receipts and monotonic highwater owned by this lease. */
   instructionReceipts?: Map<number, InstructionReceipt>;
   lastInstructionSequence: number;

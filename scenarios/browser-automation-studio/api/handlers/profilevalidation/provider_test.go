@@ -13,6 +13,7 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v5"
 	"github.com/vrooli/browser-automation-studio/internal/cancellationqualification"
 	"github.com/vrooli/browser-automation-studio/internal/evidencecompletenessqualification"
+	"github.com/vrooli/browser-automation-studio/internal/interactivefeedbackqualification"
 	"github.com/vrooli/browser-automation-studio/internal/motionqualification"
 	"github.com/vrooli/browser-automation-studio/internal/resourcebudgetqualification"
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
@@ -59,8 +60,8 @@ func TestValidateRejectsBuildMismatch(t *testing.T) {
 	provider := newProviderEvidenceFixture(t, "sha256:recorded")
 	provider.deps.BuildIdentity = func(context.Context) (string, error) { return "sha256:stale", nil }
 	findings := provider.validate(context.Background())
-	if len(findings) != 6 {
-		t.Fatalf("findings = %+v, want all six owner capabilities rejected on build mismatch", findings)
+	if len(findings) != 7 {
+		t.Fatalf("findings = %+v, want all seven owner capabilities rejected on build mismatch", findings)
 	}
 }
 
@@ -178,6 +179,7 @@ func newProviderEvidenceFixture(t *testing.T, build string) *provider {
 	fixtureSources := append([]string{
 		"docs/internal/REFRACTOR_CONTRACT.json",
 		"api/cmd/profile-durability-cohort/qualification.mjs",
+		interactivefeedbackqualification.RequiredSourceFile,
 		"playwright-driver/src/session/manager.ts",
 	}, cancellationqualification.RequiredSourceFiles...)
 	destinations := testutil.CopyFiles(t, scenarioSource, root, fixtureSources)
@@ -224,6 +226,21 @@ func newProviderEvidenceFixture(t *testing.T, build string) *provider {
 		},
 	}
 	testutil.WriteJSONFile(t, filepath.Join(evidenceDir, "profile-durability-test-receipt.json"), cohort)
+	for _, cohortName := range []string{"local", "remote"} {
+		testutil.WriteJSONFile(t, filepath.Join(evidenceDir, "interactive-feedback-"+cohortName+"-test.json"), map[string]any{
+			"evidence_kind": "interactive_feedback_cohort", "outcome_id": "interactive-feedback", "status": "passed",
+			"managed_build_identity": build, "cohort": cohortName,
+			"source_sha256": map[string]string{
+				"docs/internal/REFRACTOR_CONTRACT.json":             contractSHA,
+				interactivefeedbackqualification.RequiredSourceFile: fileSHAForTest(t, destinations[interactivefeedbackqualification.RequiredSourceFile]),
+			},
+			"measurement": map[string]any{
+				"sample_count": 1000, "correlated_receipt_count": 1000, "correlated_canvas_paint_count": 1000,
+				"correlation_complete": true, "receipt_sequences_monotonic": true,
+				"p50_ms": 40, "p95_ms": 80, "p99_ms": 150,
+			},
+		})
+	}
 
 	cancellationSources := map[string]string{}
 	for _, relative := range cancellationqualification.RequiredSourceFiles {

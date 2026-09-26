@@ -1,0 +1,10 @@
+{
+  "selection_rule": "Archive all stale f993bf and f455348a owner artifacts, both failed motion attempts from 09-51-34Z and 09-57-14Z, and the superseded pre-restart evidence/resource refresh outputs; retain only stabilized fa5d068 owner receipts and their transitive artifacts at the working-set root.",
+  "top_level_entry_count": 35,
+  "file_count": 340,
+  "uncompressed_bytes": 10103064,
+  "archive": "superseded-owner-refresh-2026-09-26T10-09-51Z.tar.gz",
+  "archive_sha256": "b56c14577af4301a486d3f9286ce912b2c12c438a97e537b2953b2311f6fa76c",
+  "verified_listing": true,
+  "retrieval_command": "tar -xzf superseded-owner-refresh-2026-09-26T10-09-51Z.tar.gz -C restore-2026-09-26T10-09-51Z"
+}

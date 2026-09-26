@@ -12,6 +12,23 @@ import { handleSessionReset } from '../../src/routes/session-reset';
 import type { SessionSpec } from '../../src/types';
 import { createTestConfig } from '../helpers';
 
+type IdentityState = {
+  cookie: string;
+  localStorage: string | null;
+  indexedDB: string | null;
+};
+
+type ResetReply = {
+  error?: { code?: string };
+  success?: boolean;
+  phase?: string;
+};
+
+const required = <T>(value: T | undefined | null, label: string): T => {
+  if (value === undefined || value === null) throw new Error(`${label} was not available`);
+  return value;
+};
+
 // [REQ:BAS-RH-J01] Observe authentication independently of the captured snapshot.
 describe('profile authentication continuity', () => {
   let server: http.Server;
@@ -49,7 +66,9 @@ describe('profile authentication continuity', () => {
     await new Promise<void>((resolve, reject) => server?.close((error) => error ? reject(error) : resolve()));
   });
 
-  async function start(storageState?: SessionSpec['storage_state']) {
+  async function start(
+    storageState?: SessionSpec['storage_state']
+  ): Promise<Awaited<ReturnType<SessionManager['startSession']>> & { page: Page }> {
     const session = await manager.startSession({
       execution_id: randomUUID(),
       workflow_id: 'synthetic-profile-continuity',
@@ -64,38 +83,41 @@ describe('profile authentication continuity', () => {
     return { ...session, page };
   }
 
-  async function writeIdentity(page: Page | Frame, identity: string) {
+  async function writeIdentity(page: Page | Frame, identity: string): Promise<void> {
     await page.evaluate(async (value) => {
       document.cookie = `fixture_identity=${value}; Path=/; SameSite=Lax`;
       localStorage.setItem('fixture_identity', value);
       const database = await new Promise<IDBDatabase>((resolve, reject) => {
         const request = indexedDB.open('fixture-auth', 1);
-        request.onupgradeneeded = () => request.result.createObjectStore('tokens');
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
+        request.onupgradeneeded = (): void => { request.result.createObjectStore('tokens'); };
+        request.onsuccess = (): void => resolve(request.result);
+        request.onerror = (): void => reject(request.error);
       });
       await new Promise<void>((resolve, reject) => {
         const transaction = database.transaction('tokens', 'readwrite');
         transaction.objectStore('tokens').put({ identity: value }, 'current');
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = () => reject(transaction.error);
+        transaction.oncomplete = (): void => resolve();
+        transaction.onerror = (): void => reject(transaction.error);
       });
       database.close();
     }, identity);
   }
 
-  async function readIdentity(page: Page | Frame) {
-    return page.evaluate(async () => {
+  async function readIdentity(page: Page | Frame): Promise<IdentityState> {
+    return page.evaluate(async (): Promise<IdentityState> => {
       const database = await new Promise<IDBDatabase>((resolve, reject) => {
         const request = indexedDB.open('fixture-auth', 1);
-        request.onupgradeneeded = () => request.result.createObjectStore('tokens');
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
+        request.onupgradeneeded = (): void => { request.result.createObjectStore('tokens'); };
+        request.onsuccess = (): void => resolve(request.result);
+        request.onerror = (): void => reject(request.error);
       });
       const identity = await new Promise<string | null>((resolve, reject) => {
         const request = database.transaction('tokens').objectStore('tokens').get('current');
-        request.onsuccess = () => resolve(request.result?.identity ?? null);
-        request.onerror = () => reject(request.error);
+        request.onsuccess = (): void => {
+          const result = request.result as { identity?: unknown } | undefined;
+          resolve(typeof result?.identity === 'string' ? result.identity : null);
+        };
+        request.onerror = (): void => reject(request.error);
       });
       database.close();
       return { cookie: document.cookie, localStorage: localStorage.getItem('fixture_identity'), indexedDB: identity };
@@ -149,7 +171,7 @@ describe('profile authentication continuity', () => {
         const response = await fetch(`${origin}/session/${next.sessionId}/reset`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credentials),
         });
-        const reply = await response.json();
+        const reply = (await response.json()) as ResetReply;
         expect({ status: response.status, code: reply.error?.code }).toEqual({
           status: credentialCase === 'missing' ? 400 : 404,
           code: credentialCase === 'missing' ? 'INVALID_INSTRUCTION' : 'SESSION_NOT_FOUND',
@@ -193,9 +215,10 @@ describe('profile authentication continuity', () => {
         });
       }
       await primary.goto(`${origin}/frame-host`, { timeout: 5000 });
-      await primary.frames()[1]!.waitForLoadState();
-      await writeIdentity(primary.frames()[1]!, 'partitioned-frame');
-      await primary.frames()[1]!.evaluate(() => sessionStorage.setItem('frame-session', 'must-clear'));
+      const partitionedFrame = required(primary.frames()[1], 'partitioned frame');
+      await partitionedFrame.waitForLoadState();
+      await writeIdentity(partitionedFrame, 'partitioned-frame');
+      await partitionedFrame.evaluate(() => sessionStorage.setItem('frame-session', 'must-clear'));
       const extra = await session.context.newPage();
       await extra.goto(origin);
       session.pages.push(extra);
@@ -221,7 +244,9 @@ describe('profile authentication continuity', () => {
       session.lastInstructionSequence = sequence;
       session.instructionReceipts?.set(sequence, { fingerprint: 'old', response: '{}' });
       let applicationRequests = 0;
-      const observe = (request: http.IncomingMessage) => { if (request.url === '/' || request.url === '/worker.js') applicationRequests++; };
+      const observe = (request: http.IncomingMessage): void => {
+        if (request.url === '/' || request.url === '/worker.js') applicationRequests++;
+      };
       server.on('request', observe);
       let response: Response;
       try {
@@ -229,38 +254,39 @@ describe('profile authentication continuity', () => {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ execution_id: owner, lease_id: first.leaseId }),
         });
-        const reply = await response.json();
+        const reply = (await response.json()) as ResetReply;
         expect({ status: response.status, reply }).toEqual({ status: 200, reply: { success: true, phase: 'ready' } });
       } finally {
         server.off('request', observe);
       }
       expect(applicationRequests).toBe(0);
-      expect(session.context.pages()).toEqual([primary]);
-      expect(session.page).toBe(primary);
-      expect(primary.isClosed()).toBe(false);
-      expect(active.isClosed()).toBe(true);
+      expect(session.context.pages()).toEqual([active]);
+      expect(session.page).toBe(active);
+      expect(primary.isClosed()).toBe(true);
+      expect(active.isClosed()).toBe(false);
       expect(session.pageIdMap.size).toBe(1);
-      expect(session.pageIdMap.has(activeId)).toBe(false);
-      expect(session.pageToIdMap.has(active)).toBe(false);
-      expect(primary.url()).toBe('about:blank');
+      expect(session.pageIdMap.has(activeId)).toBe(true);
+      expect(session.pageToIdMap.has(active)).toBe(true);
+      expect(active.url()).toBe('about:blank');
       expect(session.phase).toBe('ready');
       expect(session.lastInstructionSequence).toBe(sequence);
       expect(session.instructionReceipts?.size).toBe(0);
       for (const url of [origin, remoteOrigin, importedOrigin, closedOrigin, cacheOnlyOrigin]) {
-        await primary.route(`${url}/**`, route => route.fulfill({ contentType: 'text/html', body: '<title>Storage oracle</title>' }));
-        await primary.goto(url);
-        expect(await primary.evaluate(async () => ({
+        await active.route(`${url}/**`, route => route.fulfill({ contentType: 'text/html', body: '<title>Storage oracle</title>' }));
+        await active.goto(url);
+        expect(await active.evaluate(async () => ({
           cookie: document.cookie, localStorage: Object.keys(localStorage), sessionStorage: Object.keys(sessionStorage),
           indexedDB: (await indexedDB.databases()).map(db => db.name), caches: globalThis.caches ? await caches.keys() : [],
           serviceWorkers: navigator.serviceWorker ? (await navigator.serviceWorker.getRegistrations()).length : 0,
         }))).toEqual({ cookie: '', localStorage: [], sessionStorage: [], indexedDB: [], caches: [], serviceWorkers: 0 });
       }
-      await primary.route(`${origin}/frame-oracle`, route => route.fulfill({
+      await active.route(`${origin}/frame-oracle`, route => route.fulfill({
         contentType: 'text/html', body: `<iframe src="${remoteOrigin}/third"></iframe>`,
       }));
-      await primary.goto(`${origin}/frame-oracle`, { timeout: 5000 });
-      await primary.frames()[1]!.waitForLoadState();
-      expect(await primary.frames()[1]!.evaluate(async () => ({
+      await active.goto(`${origin}/frame-oracle`, { timeout: 5000 });
+      const oracleFrame = required(active.frames()[1], 'oracle frame');
+      await oracleFrame.waitForLoadState();
+      expect(await oracleFrame.evaluate(async () => ({
         local: Object.keys(localStorage), session: Object.keys(sessionStorage), databases: await indexedDB.databases(),
       }))).toEqual({ local: [], session: [], databases: [] });
       expect(await readIdentity(unrelated.page)).toEqual({
@@ -291,18 +317,22 @@ describe('profile authentication continuity', () => {
       expect(session.page).toBe(page);
       await page.goto(origin);
       const captured: Array<ActionType | undefined> = [];
-      await session.pipelineManager!.startRecording({
+      const pipelineManager = required(session.pipelineManager, 'profile pipeline manager');
+      await pipelineManager.startRecording({
         sessionId, recordingId: randomUUID(), onEntry: entry => { captured.push(entry.action?.type); },
       });
       await page.click('#capture');
-      await session.pipelineManager!.stopRecording();
+      await pipelineManager.stopRecording();
       expect(await page.getAttribute('#capture', 'data-clicked')).toBe('1');
       expect(captured).toContain(ActionType.CLICK);
+      expect(page.video()).not.toBeNull();
       const result = await owned.closeSession(sessionId);
       expect(result.videoPaths).toHaveLength(1);
       expect(result.tracePath).toBeTruthy();
       expect(result.harPath).toBeTruthy();
-      for (const file of [...result.videoPaths, result.tracePath!, result.harPath!]) {
+      const tracePath = required(result.tracePath, 'trace path');
+      const harPath = required(result.harPath, 'HAR path');
+      for (const file of [...result.videoPaths, tracePath, harPath]) {
         expect((await stat(file)).size).toBeGreaterThan(0);
       }
     } finally {
@@ -323,7 +353,7 @@ describe('profile authentication continuity', () => {
         await first.page.goto(url);
         await first.page.evaluate(() => { localStorage.setItem('file', 'clear'); sessionStorage.setItem('file', 'clear'); });
       }
-      await control.page.goto(urls[0]!);
+      await control.page.goto(required(urls[0], 'first file URL'));
       await control.page.evaluate(() => { localStorage.setItem('file', 'preserve'); sessionStorage.setItem('file', 'preserve'); });
       await manager.resetSession(first.sessionId);
       for (const url of urls) {

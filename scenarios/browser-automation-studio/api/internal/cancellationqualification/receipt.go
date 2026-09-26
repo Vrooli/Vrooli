@@ -33,6 +33,7 @@ var RequiredSourceFiles = []string{
 	"api/internal/cancellationqualification/receipt.go",
 	"api/internal/cancellationqualification/receipt_test.go",
 	"api/cmd/cancellation-restart-cohort/qualification.mjs",
+	"api/cmd/qualification-support.mjs",
 	"playwright-driver/src/session/manager.ts",
 	"playwright-driver/src/routes/session-run.ts",
 	"playwright-driver/src/routes/session-close.ts",

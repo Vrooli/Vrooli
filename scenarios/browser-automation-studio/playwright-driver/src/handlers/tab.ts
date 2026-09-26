@@ -45,6 +45,10 @@ export class TabHandler extends BaseHandler {
     return ['tab-switch', 'tab', 'tabs'];
   }
 
+  private failure(message: string, code: string): HandlerResult {
+    return { success: false, error: { message, code, kind: 'user', retryable: false } };
+  }
+
   async execute(
     instruction: HandlerInstruction,
     context: HandlerContext
@@ -73,15 +77,7 @@ export class TabHandler extends BaseHandler {
         case 'list':
           return this.handleListTabs(context, logger);
         default:
-          return {
-            success: false,
-            error: {
-              message: `Unknown tab action: ${validated.action}`,
-              code: 'INVALID_ACTION',
-              kind: 'user',
-              retryable: false,
-            },
-          };
+          return this.failure(`Unknown tab action: ${validated.action}`, 'INVALID_ACTION');
       }
     } catch (error) {
       logger.error('Tab operation failed', {
@@ -222,15 +218,7 @@ export class TabHandler extends BaseHandler {
     const sessionId = context.sessionId;
 
     if (!context.tabStack || context.tabStack.length === 0) {
-      return {
-        success: false,
-        error: {
-          message: 'No tabs available to switch',
-          code: 'NO_TABS',
-          kind: 'user',
-          retryable: false,
-        },
-      };
+      return this.failure('No tabs available to switch', 'NO_TABS');
     }
 
     let targetPage: Page | null = null;
@@ -240,27 +228,11 @@ export class TabHandler extends BaseHandler {
     if (params.index !== undefined) {
       targetIndex = params.index;
       if (targetIndex < 0 || targetIndex >= context.tabStack.length) {
-        return {
-          success: false,
-          error: {
-            message: `Tab index out of range: ${targetIndex} (valid: 0-${context.tabStack.length - 1})`,
-            code: 'INVALID_INDEX',
-            kind: 'user',
-            retryable: false,
-          },
-        };
+        return this.failure(`Tab index out of range: ${targetIndex} (valid: 0-${context.tabStack.length - 1})`, 'INVALID_INDEX');
       }
       const candidate = context.tabStack[targetIndex];
       if (!candidate) {
-        return {
-          success: false,
-          error: {
-            message: `Tab not found at index: ${targetIndex}`,
-            code: 'TAB_NOT_FOUND',
-            kind: 'user',
-            retryable: false,
-          },
-        };
+        return this.failure(`Tab not found at index: ${targetIndex}`, 'TAB_NOT_FOUND');
       }
       targetPage = candidate;
     }
@@ -280,15 +252,7 @@ export class TabHandler extends BaseHandler {
         }
       }
       if (!targetPage) {
-        return {
-          success: false,
-          error: {
-            message: `No tab found with title matching: ${params.title}`,
-            code: 'TAB_NOT_FOUND',
-            kind: 'user',
-            retryable: false,
-          },
-        };
+        return this.failure(`No tab found with title matching: ${params.title}`, 'TAB_NOT_FOUND');
       }
     }
     // Switch by URL pattern
@@ -306,39 +270,15 @@ export class TabHandler extends BaseHandler {
         }
       }
       if (!targetPage) {
-        return {
-          success: false,
-          error: {
-            message: `No tab found with URL matching: ${params.urlPattern}`,
-            code: 'TAB_NOT_FOUND',
-            kind: 'user',
-            retryable: false,
-          },
-        };
+        return this.failure(`No tab found with URL matching: ${params.urlPattern}`, 'TAB_NOT_FOUND');
       }
     } else {
-      return {
-        success: false,
-        error: {
-          message: 'Must provide index, title, or urlPattern to switch tabs',
-          code: 'MISSING_PARAMS',
-          kind: 'user',
-          retryable: false,
-        },
-      };
+      return this.failure('Must provide index, title, or urlPattern to switch tabs', 'MISSING_PARAMS');
     }
 
     // Safety check (should never happen due to logic above)
     if (!targetPage) {
-      return {
-        success: false,
-        error: {
-          message: 'Tab not found',
-          code: 'TAB_NOT_FOUND',
-          kind: 'user',
-          retryable: false,
-        },
-      };
+      return this.failure('Tab not found', 'TAB_NOT_FOUND');
     }
 
     // Idempotency: If already on the target tab, this is a no-op
@@ -398,53 +338,21 @@ export class TabHandler extends BaseHandler {
     const sessionId = context.sessionId;
 
     if (!context.tabStack || context.tabStack.length === 0) {
-      return {
-        success: false,
-        error: {
-          message: 'No tabs available to close',
-          code: 'NO_TABS',
-          kind: 'user',
-          retryable: false,
-        },
-      };
+      return this.failure('No tabs available to close', 'NO_TABS');
     }
 
     if (context.tabStack.length === 1) {
-      return {
-        success: false,
-        error: {
-          message: 'Cannot close the last remaining tab',
-          code: 'LAST_TAB',
-          kind: 'user',
-          retryable: false,
-        },
-      };
+      return this.failure('Cannot close the last remaining tab', 'LAST_TAB');
     }
 
     const index = params.index ?? context.tabStack.indexOf(context.page);
     if (index < 0 || index >= context.tabStack.length) {
-      return {
-        success: false,
-        error: {
-          message: `Tab index out of range: ${index} (valid: 0-${context.tabStack.length - 1})`,
-          code: 'INVALID_INDEX',
-          kind: 'user',
-          retryable: false,
-        },
-      };
+      return this.failure(`Tab index out of range: ${index} (valid: 0-${context.tabStack.length - 1})`, 'INVALID_INDEX');
     }
 
     const pageToClose = context.tabStack[index];
     if (!pageToClose) {
-      return {
-        success: false,
-        error: {
-          message: `Tab not found at index: ${index}`,
-          code: 'TAB_NOT_FOUND',
-          kind: 'user',
-          retryable: false,
-        },
-      };
+      return this.failure(`Tab not found at index: ${index}`, 'TAB_NOT_FOUND');
     }
 
     logger.debug(scopedLog(LogContext.INSTRUCTION, 'closing tab'), {
@@ -468,15 +376,7 @@ export class TabHandler extends BaseHandler {
       const newIndex = Math.min(closedIndex === -1 ? index : closedIndex, context.tabStack.length - 1);
       const nextPage = context.tabStack[newIndex];
       if (!nextPage) {
-        return {
-          success: false,
-          error: {
-            message: 'No remaining tab available after close',
-            code: 'TAB_NOT_FOUND',
-            kind: 'user',
-            retryable: false,
-          },
-        };
+        return this.failure('No remaining tab available after close', 'TAB_NOT_FOUND');
       }
       context.page = nextPage;
       await context.page.bringToFront();
@@ -511,15 +411,7 @@ export class TabHandler extends BaseHandler {
     const sessionId = context.sessionId;
 
     if (!context.tabStack || context.tabStack.length === 0) {
-      return {
-        success: false,
-        error: {
-          message: 'No tabs available',
-          code: 'NO_TABS',
-          kind: 'user',
-          retryable: false,
-        },
-      };
+      return this.failure('No tabs available', 'NO_TABS');
     }
 
     const tabs = await Promise.all(

@@ -14,6 +14,7 @@ function makeSession(overrides: {
   phase?: SessionPhase;
   leaseReleasedAt?: Date;
   lastUsedAt?: Date;
+  requiredCapabilities?: SessionSpec['required_capabilities'];
 }): SessionState {
   return {
     id: `session-${overrides.executionId ?? 'x'}`,
@@ -23,6 +24,7 @@ function makeSession(overrides: {
       viewport: { width: 1280, height: 720 },
       reuse_mode: 'reuse',
       labels: overrides.labels ?? { mode: 'execution' },
+      required_capabilities: overrides.requiredCapabilities,
     },
     phase: overrides.phase ?? 'ready',
     leaseReleasedAt: overrides.leaseReleasedAt,
@@ -65,10 +67,10 @@ describe('session decisions', () => {
       lastUsedAt: new Date(0),
     });
     session.instructionInFlight = true;
-    expect(findByLabels([session], session.spec as SessionSpec)).toBeNull();
+    expect(findByLabels([session], session.spec)).toBeNull();
     expect(findIdleSessions(new Map([[session.id, session]]), 100, 1000)).toEqual([]);
     session.instructionInFlight = false;
-    expect(findByLabels([session], session.spec as SessionSpec)).toBe(session);
+    expect(findByLabels([session], session.spec)).toBe(session);
     expect(findIdleSessions(new Map([[session.id, session]]), 100, 1000)).toEqual([session.id]);
   });
 
@@ -79,7 +81,7 @@ describe('session decisions', () => {
       // hijacked the first's session mid-instruction, aborting its navigation
       // (net::ERR_ABORTED) and racing into SESSION_BUSY.
       const busy = makeSession({ executionId: 'exec-1', phase: 'executing' });
-      const found = findByLabels([busy], busy.spec as SessionSpec);
+      const found = findByLabels([busy], busy.spec);
       expect(found).toBeNull();
     });
 
@@ -90,7 +92,7 @@ describe('session decisions', () => {
         phase: 'ready',
         leaseReleasedAt: new Date(),
       });
-      const found = findByLabels([busy, idle], idle.spec as SessionSpec);
+      const found = findByLabels([busy, idle], idle.spec);
       expect(found).toBe(idle);
     });
 
@@ -103,6 +105,28 @@ describe('session decisions', () => {
       expect(
         findByLabels([idle], { ...idle.spec, labels: { mode: 'execution' } } as SessionSpec)
       ).toBeNull();
+    });
+
+    it('does not transfer execution-owned capture state across a released session', () => {
+      const retained = makeSession({
+        executionId: 'exec-1',
+        leaseReleasedAt: new Date(),
+        requiredCapabilities: { video: true, tracing: true },
+      });
+      const requested = {
+        ...retained.spec,
+        execution_id: 'exec-2',
+        required_capabilities: { video: true, tracing: true },
+      } as SessionSpec;
+
+      expect(findByLabels([retained], requested)).toBeNull();
+    });
+
+    it('continues to reuse a released session when neither execution requests capture', () => {
+      const retained = makeSession({ executionId: 'exec-1', leaseReleasedAt: new Date() });
+      const requested = { ...retained.spec, execution_id: 'exec-2' } as SessionSpec;
+
+      expect(findByLabels([retained], requested)).toBe(retained);
     });
   });
 

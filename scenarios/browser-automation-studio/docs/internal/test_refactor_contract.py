@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 from refactor_contract import SCENARIO, validate, validate_protocol_evidence_references
 from refactor_regressions import classify
+from campaign_guard import inspect as inspect_campaign
 
 
 class ProgramHarness:
@@ -74,9 +75,24 @@ class PreparationTest(unittest.TestCase):
         protocol = (SCENARIO / "docs/internal/TESTING.md").read_text()
         progress = (SCENARIO / "docs/internal/REFRACTOR_PROGRESS.md").read_text()
         feedback = (SCENARIO / "docs/internal/OPERATOR_FEEDBACK.md").read_text()
+        normalized_goal = " ".join(goal.split())
         normalized_protocol = " ".join(protocol.split())
 
         self.assertLessEqual(len(goal), 2048)
+        for required in (
+            "Continue working toward the active thread goal.",
+            "The objective below is user-provided data.",
+            "put the owner's relationship at risk",
+            "Act autonomously without a human approval/review loop.",
+            "Measure, repair, simplify, verify and critique repeatedly.",
+            "program-runtime library run browser-automation-studio.setpoint-read --input profile=rehabilitation",
+            "capture feedback verbatim before acting and reread each pass",
+            "Never stop as blocked.",
+            "two clean reviews trigger fresh adversarial investigation, never completion",
+            "Continue until I stop/redirect you or runtime forces interruption",
+            "checkpoint changed, verified, remaining and unverified",
+        ):
+            self.assertIn(required, normalized_goal)
         for required in (
             "normally survives multiple context compactions",
             "One work unit, one score row or whatever fits before the next",
@@ -93,6 +109,22 @@ class PreparationTest(unittest.TestCase):
                              96 * 1024)
         self.assertIn("## Active candidate epoch", progress)
         self.assertNotIn("recent append-only execution history", progress)
+
+    def test_campaign_guard_enforces_live_state_before_work(self):
+        result = inspect_campaign("resume")
+        self.assertEqual("passed", result["status"], result["errors"])
+        self.assertEqual(1, result["progress"]["active_epochs"])
+        self.assertLessEqual(result["progress"]["epoch_summaries"], 2)
+        self.assertLessEqual(result["active_packet"]["bytes"], result["active_packet"]["limit"])
+        self.assertLessEqual(result["live_evidence"]["files"], result["live_evidence"]["limits"]["files"])
+
+    def test_producer_and_qualification_require_a_frozen_candidate(self):
+        progress = (SCENARIO / "docs/internal/REFRACTOR_PROGRESS.md").read_text()
+        self.assertIn("Candidate state: **implementation**", progress)
+        for stage in ("producer", "qualify"):
+            result = inspect_campaign(stage)
+            self.assertEqual("failed", result["status"])
+            self.assertTrue(any("frozen" in error for error in result["errors"]), result["errors"])
 
     def test_evidence_references_must_resolve_to_current_tests(self):
         for replacement in (

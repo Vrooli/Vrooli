@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useInputForwarding } from './useInputForwarding';
 
-const socket = vi.hoisted(() => ({isConnected: false, send: vi.fn(), listeners: new Set<(message: Record<string, unknown>) => void>()}));
+const socket = vi.hoisted(() => ({isConnected: false, send: vi.fn(() => true), listeners: new Set<(message: Record<string, unknown>) => void>()}));
 vi.mock('@/contexts/WebSocketContext', () => ({
   useWebSocket: () => socket,
   useWebSocketMessage: (callback: (message: Record<string, unknown>) => void) => { socket.listeners.add(callback); },
@@ -40,7 +40,7 @@ describe('browser input semantic preservation [REQ:BAS-RH-J03]', () => {
   const fetchInput = vi.fn();
   beforeEach(() => {
     socket.isConnected = true;
-    socket.send.mockReset();
+    socket.send.mockReset().mockReturnValue(true);
     socket.listeners.clear();
     fetchInput.mockReset().mockImplementation(async (_url, request) => {
       const input = JSON.parse(request.body);
@@ -172,6 +172,18 @@ describe('browser input semantic preservation [REQ:BAS-RH-J03]', () => {
     await act(async () => { mounted.rerender(); await Promise.resolve(); });
 
     expect(fetchInput).not.toHaveBeenCalled();
+  });
+
+  it('falls back immediately when the socket closes between connection state and send', async () => {
+    socket.send.mockReturnValue(false);
+    const hook = inputHook();
+    const wheel = { deltaX: 1, deltaY: 2, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as React.WheelEvent<HTMLElement>;
+
+    await act(async () => { hook.handleWheel(wheel, true); await Promise.resolve(); });
+
+    expect(socket.send).toHaveBeenCalledTimes(1);
+    expect(fetchInput).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchInput.mock.calls[0]?.[1].body)).toMatchObject({ type: 'wheel', input_id: expect.any(String) });
   });
 
   it('does not forward or consume IME composition Process keydown', () => {

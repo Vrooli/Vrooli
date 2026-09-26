@@ -23,7 +23,7 @@ export type WebSocketMessageCallback = (message: WebSocketMessage) => void;
 
 export interface WebSocketContextValue {
   isConnected: boolean;
-  send: (message: unknown) => void;
+  send: (message: unknown) => boolean;
   subscribe: (executionId: string) => void;
   unsubscribe: () => void;
   reconnect: () => void;

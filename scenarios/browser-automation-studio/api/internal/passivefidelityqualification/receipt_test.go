@@ -36,6 +36,20 @@ func TestValidateRejectsStaleBuildAndMissingSemanticAssertions(t *testing.T) {
 	})
 }
 
+func TestValidateSkipsLexicallyNewerStaleOwnerReceipt(t *testing.T) {
+	root := newEvidenceFixture(t)
+	path := filepath.Join(root, EvidenceDir, "passive-fidelity-semantics-w188-test.json")
+	stale := repocontracttest.ReadJSONFileInto[semanticsEvidence](t, path)
+	stale.SourceSHA256["playwright-driver/tests/integration/pipeline-e2e.test.ts"] = "0000000000000000000000000000000000000000000000000000000000000000"
+	// This tag sorts after the valid fixture despite representing an older
+	// capture style; selection must follow current source identity, not a tag's
+	// lexical shape.
+	testutil.WriteJSONFile(t, filepath.Join(root, EvidenceDir, "passive-fidelity-semantics-z-test.json"), stale)
+	if err := Validate(root, "sha256:test-build"); err != nil {
+		t.Fatalf("accepted current evidence only when stale lexically newer receipt is absent: %v", err)
+	}
+}
+
 func TestValidateRejectsStorageEscapeAndDuplicateCrashRetry(t *testing.T) {
 	t.Run("primary database write", func(t *testing.T) {
 		root := newEvidenceFixture(t)

@@ -8,6 +8,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const crypto = require('node:crypto');
 const { createRequire } = require('node:module');
+const nativeRequire = require;
 const root = path.resolve(__dirname, '../..');
 const req = createRequire(path.join(root, 'playwright-driver/package.json'));
 const ts = req('typescript');
@@ -23,7 +24,11 @@ function evaluate(relative, mocks, globals = {}) {
   } }).outputText;
   const module = { exports: {} };
   vm.runInNewContext(code, { module, exports: module.exports,
-    require(name) { if (!Object.hasOwn(mocks, name)) throw new Error(`Unexpected dependency ${relative}: ${name}`); return mocks[name]; },
+    require(name) {
+      if (Object.hasOwn(mocks, name)) return mocks[name];
+      if (name.startsWith('node:')) return nativeRequire(name);
+      throw new Error(`Unexpected dependency ${relative}: ${name}`);
+    },
     console, crypto, process: { env: {} }, ...globals,
   }, { filename });
   return module.exports;
@@ -37,21 +42,25 @@ const machine = driver('session/state-machine', { '../utils': utils });
 const inspection = driver('session/session-inspection', { './session-decisions': decisions });
 const guard = driver('infra/in-flight-guard', { '../utils': utils });
 const registry = driver('infra/session-cleanup-registry', { '../utils': utils });
-const reset = driver('session/session-reset', { '../infra': registry, '../utils': utils });
+const reset = driver('session/session-reset', {
+  '../infra': registry, '../recording': { removeRecordingBuffer() {}, assertRecordingAcknowledged() {} },
+  '../frame-streaming': { stopFrameStreaming: async () => {} }, '../utils': utils,
+});
 const teardown = driver('session/session-teardown', {
   'node:fs': { constants: fs.constants },
   'node:fs/promises': { mkdir() { throw new Error('Unexpected filesystem call'); }, rename() { throw new Error('Unexpected filesystem call'); } },
-  'node:path': path, '../recording': { removeRecordingBuffer() {} }, '../utils': utils,
+  'node:path': path, '../recording': { removeRecordingBuffer() {}, assertRecordingAcknowledged() {} }, '../frame-streaming': { stopFrameStreaming: async () => {} }, '../utils': utils,
 });
-const page = id => ({ id, closed: false, isClosed() { return this.closed; }, on() {}, viewportSize: () => ({ width: 1280, height: 720 }),
+const page = id => ({ id, closed: false, isClosed() { return this.closed; }, on() {}, once() {}, viewportSize: () => ({ width: 1280, height: 720 }),
   async goto() {}, async evaluate() {}, async unroute() {}, async close() { this.closed = true; } });
 const session = (id = 'synthetic-session') => {
   const initial = page('first');
+  const pages = [initial];
   return { id, spec: { execution_id: 'owner', labels: { pool: 'fixture' } }, ownerExecutionId: 'owner', leaseId: 'lease',
     phase: 'ready', createdAt: new Date(), lastUsedAt: new Date(), page: initial, pages: [initial],
     pageIdMap: new Map([['first', initial]]), pageToIdMap: new WeakMap([[initial, 'first']]),
     frameStack: [], activeMocks: new Map(), executedInstructions: new Map(), instructionCount: 0,
-    context: { async clearCookies() {}, async clearPermissions() {} } };
+    storageOrigins: new Set(), pages, context: { on() {}, pages: () => pages, async clearCookies() {}, async clearPermissions() {} } };
 };
 class Pipeline {
   async initialize() {}
@@ -62,7 +71,7 @@ const { SessionManager } = driver('session/manager', {
   'node:path': path, '../utils': utils,
   './context-builder': { async buildContext() {
     contextCount++;
-    return { context: { async newPage() { return page('fresh'); }, async close() {} },
+    return { context: { on() {}, async newPage() { return page('fresh'); }, async close() {} },
       actualViewport: { width: 1280, height: 720, source: 'requested' },
       serviceWorkerController: { async enable() {} } };
   } },
@@ -174,6 +183,7 @@ function frameHarness() {
   const stats = { stats: {}, recordFrame() {}, reset() {} };
   class Socket {
     constructor(url) { this.url = url; sockets.push(this); }
+    send() {}
     close() { this.closed = true; } // async close-event timing is outside this probe
   }
   class Clock extends Date { static now() { return now; } }
@@ -181,9 +191,9 @@ function frameHarness() {
     react, '@/config': { getConfig: async () => ({ API_URL: 'https://fixture.invalid' }) },
     '@/contexts/WebSocketContext': { useWebSocket() {} }, '../hooks/useFrameStats': { useFrameStats: () => stats },
     '@utils/latencyLogger': { LatencyLogger: class { record() {} getSampleCount() { return 1; } } },
-    '../stores': { useSessionStore: selector => selector(store) },
+    '../stores': { useSessionStore: Object.assign(selector => selector(store), { getState: () => store }) },
   }, {
-    Date: Clock, ArrayBuffer, DataView, Blob, performance, atob, WebSocket: Socket,
+    Date: Clock, ArrayBuffer, DataView, Blob, TextEncoder, TextDecoder, performance, atob, AbortController, WebSocket: Socket,
     document: { hidden: false, addEventListener() {}, removeEventListener() {}, createElement: () => canvas },
     fetch: async url => {
       if (url === '/config') return { ok: true, json: async () => ({ playwrightDriverPort: 24485 }) };
@@ -202,8 +212,13 @@ function frameHarness() {
   }
   function send(time = now) {
     now = time;
-    const data = new ArrayBuffer(9); new DataView(data).setBigInt64(0, BigInt(now));
-    sockets.at(-1).onmessage({ data });
+    const header = new TextEncoder().encode(JSON.stringify({ version: 1, session_id: 'session-a',
+      execution_id: 'owner', lease_id: 'lease', page_id: 'page-a', captured_at: new Date(now).toISOString() }));
+    const jpeg = new Uint8Array([255, 216, 255, 217]);
+    const data = new Uint8Array(4 + header.length + jpeg.length);
+    new DataView(data.buffer).setUint32(0, header.length);
+    data.set(header, 4); data.set(jpeg, 4 + header.length);
+    sockets.at(-1).onmessage({ data: data.buffer });
   }
   async function resolve(index, id) {
     const bitmap = { id, width: 1280, height: 720, closed: false, close() { this.closed = true; } };
@@ -231,16 +246,18 @@ async function frameProbes() {
 
   const collision = await connectedHarness();
   collision.send(1700000000000); collision.send(1700000000000);
-  await collision.resolve(1, 'newer'); collision.paint();
   await collision.resolve(0, 'older'); collision.paint();
+  await drain();
+  await collision.resolve(1, 'newer'); collision.paint();
   record('same-millisecond-frame-order', 'Older frame cannot overwrite newer frame after out-of-order decode',
     { drawn_order: collision.draws }, collision.draws.at(-1) === 'newer');
   collision.unmount();
 
   const sequence = await connectedHarness();
   sequence.send(1700000000000); sequence.send(1700000000001);
+  const discarded = await sequence.resolve(0, 'older');
+  await drain();
   await sequence.resolve(1, 'newer'); sequence.paint();
-  const discarded = await sequence.resolve(0, 'older'); sequence.paint();
   record('distinct-timestamp-frame-control', 'Older frame with a distinct timestamp is discarded and closed',
     { drawn_order: sequence.draws, older_bitmap_closed: discarded.closed }, sequence.draws.join() === 'newer' && discarded.closed);
   sequence.unmount();

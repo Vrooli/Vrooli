@@ -6,6 +6,7 @@ import { appendFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
+import { buildIdentity } from "../qualification-support.mjs";
 
 const execFileAsync = promisify(execFile);
 const sourcePath = fileURLToPath(import.meta.url);
@@ -64,13 +65,6 @@ async function post(path, body) {
   if (!response.ok)
     throw new Error(`${path}: ${response.status}: ${JSON.stringify(result)}`);
   return result;
-}
-
-async function buildIdentity() {
-  const health = await get("/health");
-  const identity = String(health.build_identity || "").trim();
-  if (!identity) throw new Error("/health returned no build_identity");
-  return identity;
 }
 
 async function waitForEffect(promise, timeoutMs, label) {
@@ -204,7 +198,7 @@ let restartFinishedAt;
 let outcome;
 
 try {
-  beforeBuild = await buildIdentity();
+  beforeBuild = await buildIdentity(api);
   server = createServer((request, response) => {
     if (request.method !== "GET" || request.url !== "/effect") {
       response.writeHead(404).end();
@@ -306,7 +300,7 @@ try {
     );
   }
 
-  const afterBuild = await buildIdentity();
+  const afterBuild = await buildIdentity(api);
   if (afterBuild !== beforeBuild) {
     throw new Error(
       `managed restart changed candidate identity from ${beforeBuild} to ${afterBuild}; discard this observation`,

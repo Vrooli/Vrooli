@@ -3,8 +3,9 @@ import type { Page } from 'rebrowser-playwright';
 import type { FrameStatsReporter, WebSocketProvider, StreamingStrategyConfig } from '../../../src/frame-streaming/strategies';
 import { PollingStrategy } from '../../../src/frame-streaming/strategies';
 import { MAX_QUEUED_FRAME_BYTES } from '../../../src/frame-streaming/types';
+import { createDeferred, createMockPage } from '../../helpers';
 
-const imageBytes = (packet: Buffer) => packet.subarray(4 + packet.readUInt32BE(0));
+const imageBytes = (packet: Buffer): Buffer => packet.subarray(4 + packet.readUInt32BE(0));
 
 const createConfig = (overrides?: Partial<StreamingStrategyConfig>): StreamingStrategyConfig => ({
   sessionId: 'session-1',
@@ -16,36 +17,53 @@ const createConfig = (overrides?: Partial<StreamingStrategyConfig>): StreamingSt
   ...overrides,
 });
 
+type PollingStats = { onFrameSent: jest.MockedFunction<FrameStatsReporter['onFrameSent']>; onFrameSkipped: jest.MockedFunction<FrameStatsReporter['onFrameSkipped']> };
+type PollingFixture = { page: Page; screenshot: jest.MockedFunction<() => Promise<Buffer>>; protocol: { send: jest.MockedFunction<() => Promise<{ data: string }>>; detach: jest.MockedFunction<() => Promise<void>> }; socket: { readyState: number; send: jest.MockedFunction<(packet: Buffer) => void> }; stats: PollingStats };
+
+function createPollingFixture(capture: () => Promise<Buffer> = (): Promise<Buffer> => Promise.resolve(Buffer.from('pixels'))): PollingFixture {
+  const screenshot = jest.fn(capture) as jest.MockedFunction<() => Promise<Buffer>>;
+  const protocol = {
+    send: jest.fn(async () => ({ data: (await screenshot()).toString('base64') })) as jest.MockedFunction<() => Promise<{ data: string }>>,
+    detach: jest.fn().mockResolvedValue(undefined) as jest.MockedFunction<() => Promise<void>>,
+  };
+  const page = createMockPage({ viewportSize: jest.fn().mockReturnValue({ width: 640, height: 480 }), screenshot,
+    context: jest.fn().mockReturnValue({ newCDPSession: () => Promise.resolve(protocol) }) });
+  const socket = { readyState: 1, send: jest.fn() as jest.MockedFunction<(packet: Buffer) => void> };
+  const stats: PollingStats = { onFrameSent: jest.fn(), onFrameSkipped: jest.fn() };
+  return { page, screenshot, protocol, socket, stats };
+}
+
 describe('PollingStrategy', () => {
   it('includes the producing page and lease with performance mode disabled [REQ:BAS-RH-J22]',async()=>{
     const source={session_id:'session-1',execution_id:'execution-a',lease_id:'lease-a',page_id:'page-a'};
-    const page={viewportSize:()=>({width:640,height:480}),screenshot:jest.fn().mockResolvedValue(Buffer.from('owned-jpeg'))} as unknown as Page;
-    const socket={readyState:1,send:jest.fn()};
-    let delivered!:()=>void;const sent=new Promise<void>(resolve=>{delivered=resolve;});
-    const config={...createConfig(),sourceForPage:()=>source};
-    const handle=await new PollingStrategy().start(()=>page,config,
-      {isReady:()=>true,getWebSocket:()=>socket},{onFrameSent:delivered,onFrameSkipped:jest.fn()});
+    const f = createPollingFixture(() => Promise.resolve(Buffer.from('owned-jpeg')));
+    const sent = createDeferred<void>();
+    const config={...createConfig(),sourceForPage:(): typeof source => source};
+    const handle=await new PollingStrategy().start(()=>f.page,config,
+      {isReady:()=>true,getWebSocket:()=>f.socket},{onFrameSent:sent.resolve,onFrameSkipped:jest.fn()});
     try {
-      await sent;const packet=socket.send.mock.calls[0]?.[0] as Buffer;const length=packet.readUInt32BE(0);
+      await sent.promise;const packet=f.socket.send.mock.calls[0]?.[0] as Buffer;const length=packet.readUInt32BE(0);
       expect(length).toBeGreaterThan(0);expect(length).toBeLessThan(packet.length-4);
-      expect(JSON.parse(packet.subarray(4,4+length).toString())).toMatchObject({version:1,source,captured_at:expect.any(String)});
+      const metadata = JSON.parse(packet.subarray(4,4+length).toString()) as { version: number; source: typeof source; captured_at: string };
+      expect(metadata).toMatchObject({version:1,source});
+      expect(metadata.captured_at).toEqual(expect.any(String));
       expect(packet.subarray(4+length).toString()).toBe('owned-jpeg');
     } finally {await handle.stop();}
   });
   it('discards capture completed under a retired lease even when the page is unchanged',async()=>{
     jest.useFakeTimers();
     let source={session_id:'session-1',execution_id:'execution-a',lease_id:'lease-a',page_id:'page-a'};
-    let finish!:(bytes:Buffer)=>void;
-    const screenshot=jest.fn().mockImplementationOnce(()=>new Promise<Buffer>(resolve=>{finish=resolve;})).mockResolvedValue(Buffer.from('new-lease'));
-    const page={viewportSize:()=>({width:640,height:480}),screenshot} as unknown as Page;
-    const socket={readyState:1,send:jest.fn()};
-    const handle=await new PollingStrategy().start(()=>page,createConfig({sourceForPage:()=>source}),
-      {isReady:()=>true,getWebSocket:()=>socket},{onFrameSent:jest.fn(),onFrameSkipped:jest.fn()});
+    const finish = createDeferred<Buffer>();
+    const f = createPollingFixture();
+    f.screenshot.mockResolvedValue(Buffer.from('new-lease'));
+    f.screenshot.mockImplementationOnce(() => finish.promise);
+    const handle=await new PollingStrategy().start(()=>f.page,createConfig({sourceForPage:()=>source}),
+      {isReady:()=>true,getWebSocket:()=>f.socket},f.stats);
     try {
-      source={...source,lease_id:'lease-b'};finish(Buffer.from('retired-lease'));
-      await jest.advanceTimersByTimeAsync(0);expect(socket.send).not.toHaveBeenCalled();
+      source={...source,lease_id:'lease-b'};finish.resolve(Buffer.from('retired-lease'));
+      await jest.advanceTimersByTimeAsync(0);expect(f.socket.send).not.toHaveBeenCalled();
       await jest.advanceTimersByTimeAsync(150);
-      expect(socket.send.mock.calls.map(([packet])=>imageBytes(packet as Buffer).toString())).toEqual(['new-lease']);
+      expect(f.socket.send.mock.calls.map(([packet])=>imageBytes(packet).toString())).toEqual(['new-lease']);
     } finally {await handle.stop();jest.useRealTimers();}
   });
 
@@ -145,8 +163,8 @@ describe('PollingStrategy', () => {
     const handle = await strategy.start(() => page, createConfig(), wsProvider, statsReporter);
 
     await sentPromise;
-    handle.updateQuality?.(150);
-    handle.updateTargetFps?.(120);
+    void handle.updateQuality?.(150);
+    void handle.updateTargetFps?.(120);
 
     await jest.advanceTimersByTimeAsync(150);
     await unchangedPromise;
@@ -170,31 +188,9 @@ describe('polling capture ownership [REQ:BAS-RH-J22]', () => {
     jest.useRealTimers();
   });
 
-  function deferred<T>() {
-    let resolve!: (value: T) => void;
-    const promise = new Promise<T>((done) => { resolve = done; });
-    return { promise, resolve };
-  }
-
-  function fixture(capture: () => Promise<Buffer> = async () => Buffer.from('pixels')) {
-    const screenshot = jest.fn(capture);
-    const protocol = {
-      send: jest.fn(async () => ({ data: (await screenshot()).toString('base64') })),
-      detach: jest.fn().mockResolvedValue(undefined),
-    };
-    const page = {
-      viewportSize: () => ({ width: 640, height: 480 }),
-      screenshot,
-      context: () => ({ newCDPSession: async () => protocol }),
-    } as unknown as Page;
-    const socket = { readyState: 1, send: jest.fn() };
-    const stats = { onFrameSent: jest.fn(), onFrameSkipped: jest.fn() };
-    return { page, screenshot, protocol, socket, stats };
-  }
-
   it('retains only the current sleep listener and releases it at stop', async () => {
     const add = jest.spyOn(AbortSignal.prototype, 'addEventListener');
-    const f = fixture();
+    const f = createPollingFixture();
     const handle = await new PollingStrategy().start(() => f.page, createConfig(),
       { isReady: () => false, getWebSocket: () => f.socket }, f.stats);
     try {
@@ -210,18 +206,18 @@ describe('polling capture ownership [REQ:BAS-RH-J22]', () => {
   });
 
   it('captures a viewport when the browser does not provide CDP', async () => {
-    const f = fixture();
-    f.page.context = (() => ({ newCDPSession: async () => { throw new Error('CDP unavailable'); } })) as Page['context'];
+    const f = createPollingFixture();
+    f.page.context = ((): ReturnType<Page['context']> => ({ newCDPSession: () => Promise.reject(new Error('CDP unavailable')) })) as Page['context'];
     const handle = await new PollingStrategy().start(() => f.page, createConfig(),
       { isReady: () => true, getWebSocket: () => f.socket }, f.stats);
     try {
       await jest.advanceTimersByTimeAsync(1);
-      expect(f.socket.send.mock.calls.map(([packet]) => imageBytes(packet as Buffer).toString())).toContain('pixels');
+      expect(f.socket.send.mock.calls.map(([packet]) => imageBytes(packet).toString())).toContain('pixels');
     } finally { await handle.stop(); }
   });
 
   it('leaves no deadline timer after completed capture and stop', async () => {
-    const f = fixture();
+    const f = createPollingFixture();
     const handle = await new PollingStrategy().start(() => f.page, createConfig(),
       { isReady: () => true, getWebSocket: () => f.socket }, f.stats);
     await jest.advanceTimersByTimeAsync(1);
@@ -232,8 +228,8 @@ describe('polling capture ownership [REQ:BAS-RH-J22]', () => {
   });
 
   it('joins in-flight capture for every stop caller and never publishes after stop', async () => {
-    const pending = deferred<Buffer>();
-    const f = fixture(() => pending.promise);
+    const pending = createDeferred<Buffer>();
+    const f = createPollingFixture(() => pending.promise);
     const handle = await new PollingStrategy().start(() => f.page, createConfig(),
       { isReady: () => true, getWebSocket: () => f.socket }, f.stats);
     await jest.advanceTimersByTimeAsync(1);
@@ -251,9 +247,9 @@ describe('polling capture ownership [REQ:BAS-RH-J22]', () => {
   });
 
   it('drops a capture when its page is replaced while the screenshot is pending', async () => {
-    const pending = deferred<Buffer>();
-    const old = fixture(() => pending.promise);
-    const next = fixture(async () => Buffer.from('new-page'));
+    const pending = createDeferred<Buffer>();
+    const old = createPollingFixture(() => pending.promise);
+    const next = createPollingFixture(() => Promise.resolve(Buffer.from('new-page')));
     let currentPage = old.page;
     const handle = await new PollingStrategy().start(() => currentPage, createConfig(),
       { isReady: () => true, getWebSocket: () => old.socket }, old.stats);
@@ -262,14 +258,14 @@ describe('polling capture ownership [REQ:BAS-RH-J22]', () => {
       currentPage = next.page;
       pending.resolve(Buffer.from('old-page'));
       await jest.advanceTimersByTimeAsync(200);
-      const delivered = old.socket.send.mock.calls.map(([buffer]) => imageBytes(buffer as Buffer).toString());
+      const delivered = old.socket.send.mock.calls.map(([buffer]) => imageBytes(buffer).toString());
       expect(delivered).toContain('new-page');
       expect(delivered).not.toContain('old-page');
     } finally { pending.resolve(Buffer.from('old-page')); await handle.stop(); }
   });
 
   it('sends stable pixels to a replacement viewer', async () => {
-    const f = fixture();
+    const f = createPollingFixture();
     const replacement = { readyState: 1, send: jest.fn() };
     let viewer = f.socket;
     const handle = await new PollingStrategy().start(() => f.page, createConfig(),
@@ -285,8 +281,8 @@ describe('polling capture ownership [REQ:BAS-RH-J22]', () => {
   });
 
   it('does not deliver an in-flight capture to a newly connected viewer', async () => {
-    const pending = deferred<Buffer>();
-    const f = fixture(() => pending.promise);
+    const pending = createDeferred<Buffer>();
+    const f = createPollingFixture(() => pending.promise);
     const replacement = { readyState: 1, send: jest.fn() };
     let viewer = f.socket;
     const handle = await new PollingStrategy().start(() => f.page, createConfig(),
@@ -305,7 +301,7 @@ describe('polling capture ownership [REQ:BAS-RH-J22]', () => {
 
   it('caps adaptive delivery at the target instead of doubling it', async () => {
     let frame = 0;
-    const f = fixture(async () => Buffer.from(`frame-${frame++}`));
+    const f = createPollingFixture(() => Promise.resolve(Buffer.from(`frame-${frame++}`)));
     const handle = await new PollingStrategy().start(() => f.page, createConfig({ targetFps: 2 }),
       { isReady: () => true, getWebSocket: () => f.socket }, f.stats);
     try {
@@ -315,7 +311,7 @@ describe('polling capture ownership [REQ:BAS-RH-J22]', () => {
   });
 
   it('applies performance headers even when the next captured pixels are unchanged', async () => {
-    const f = fixture();
+    const f = createPollingFixture();
     const handle = await new PollingStrategy().start(() => f.page, createConfig(),
       { isReady: () => true, getWebSocket: () => f.socket }, f.stats);
     try {
@@ -323,7 +319,7 @@ describe('polling capture ownership [REQ:BAS-RH-J22]', () => {
       handle.updatePerfMode?.(true);
       await jest.advanceTimersByTimeAsync(100);
       expect(f.socket.send).toHaveBeenCalledTimes(2);
-      const packet = f.socket.send.mock.calls[1][0] as Buffer;
+      const packet = f.socket.send.mock.calls[1][0];
       const length = packet.readUInt32BE(0);
       expect(JSON.parse(packet.subarray(4, 4 + length).toString())).toMatchObject({ timing: { frame_bytes: 6 } });
       expect(packet.subarray(4 + length).toString()).toBe('pixels');
@@ -331,7 +327,7 @@ describe('polling capture ownership [REQ:BAS-RH-J22]', () => {
   });
 
   it('retries stable pixels after a failed transport send', async () => {
-    const f = fixture();
+    const f = createPollingFixture();
     f.socket.send.mockImplementationOnce(() => { throw new Error('transport failure'); });
     const handle = await new PollingStrategy().start(() => f.page, createConfig(),
       { isReady: () => true, getWebSocket: () => f.socket }, f.stats);

@@ -160,6 +160,7 @@ class Programs(unittest.TestCase):
             'name': 'rehabilitation-evidence',
             'phasePresentation': {'capabilities': [
                 {'id': 'motion', 'currentLevel': 'L0', 'currentLevelLabel': 'Unavailable'},
+                {'id': 'interactive-feedback', 'currentLevel': 'L1', 'currentLevelLabel': 'Measured', 'clean': True},
                 {'id': 'profile-durability', 'currentLevel': 'L0', 'currentLevelLabel': 'Unavailable'},
                 {'id': 'cancellation-recovery', 'currentLevel': 'L1', 'clean': False},
                 {'id': 'evidence-completeness', 'currentLevel': 'L1', 'clean': True},
@@ -184,14 +185,15 @@ class Programs(unittest.TestCase):
         rows = {row['row']: row for row in result['signals']['rows']}
         self.assertTrue(rows['capture']['in_band'])
         self.assertTrue(rows['evidence-completeness']['in_band'])
+        self.assertTrue(rows['interactive-feedback']['in_band'])
         self.assertIsNone(rows['motion']['in_band'])
         self.assertTrue(rows['motion']['unavailable'])
         self.assertIsNone(rows['profile-durability']['in_band'])
         self.assertTrue(rows['profile-durability']['unavailable'])
         self.assertFalse(rows['cancellation-recovery']['in_band'])
         self.assertFalse(rows['cancellation-recovery']['unavailable'])
-        self.assertEqual(3, result['signals']['readable'])
-        self.assertEqual(14, result['signals']['unavailable'])
+        self.assertEqual(4, result['signals']['readable'])
+        self.assertEqual(13, result['signals']['unavailable'])
         self.assertFalse(result['signals']['product_qualified'])
 
     def test_rehabilitation_stale_candidate_withholds_all_rows_before_evidence_reads(self):

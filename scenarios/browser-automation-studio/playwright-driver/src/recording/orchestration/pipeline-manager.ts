@@ -403,8 +403,7 @@ export class RecordingPipelineManager {
       const injectionResult = await waitForScriptReady(this.page, timeoutMs);
 
       // Check if event route is active
-      const routeStats = this.contextInitializer.getRouteHandlerStats();
-      const eventRouteActive = routeStats.eventsReceived > 0 || true; // Assume active if no events yet
+      const eventRouteActive = this.contextInitializer.hasEventRoute(this.page);
 
       const verification: PipelineVerification = {
         scriptLoaded: injectionResult.loaded,
@@ -603,6 +602,10 @@ export class RecordingPipelineManager {
 
       return recordingId;
     } catch (error) {
+      // A failed start retains the delivery owner so stopRecording() can retry
+      // buffered observations, but it must not keep observing new pages after
+      // the recording has entered terminal error.
+      this.detachRecordingTopology();
       const message = error instanceof Error ? error.message : String(error);
       this.stateMachine.dispatch({
         type: 'ERROR',
@@ -722,9 +725,10 @@ export class RecordingPipelineManager {
         }
 
         case 'EVENT_ROUTE_FAILED': {
-          // Re-setup route
+          // Re-setup the route, then refresh verification so the recovered
+          // state cannot retain the failed route predicate.
           await this.setupPageEventRoute(this.page, { force: true });
-          this.stateMachine.dispatch({ type: 'RECOVER' });
+          await this.verifyPipeline({ timeoutMs: 5000, retries: 0 });
           break;
         }
 
@@ -974,19 +978,20 @@ export class RecordingPipelineManager {
     for (const page of this.pageHandlers.keys()) this.unwatchPage(page);
   }
 
-  /**
-   * Cleanup resources.
-   */
-  private cleanup(): void {
+  private detachRecordingTopology(): void {
     if (this.newPageHandler) {
       this.context.off('page', this.newPageHandler);
       this.newPageHandler = null;
     }
-
-    // Remove all page and frame listeners
     this.cleanupPageHandlers();
-
     this.stopLoopDetection();
+  }
+
+  /**
+   * Cleanup resources.
+   */
+  private cleanup(): void {
+    this.detachRecordingTopology();
     this.contextInitializer.clearEventHandler();
     this.entryCallback = null;
     this.errorCallback = null;

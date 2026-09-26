@@ -5,6 +5,7 @@
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
 const crypto = require('node:crypto');
 const { createRequire } = require('node:module');
+const nativeRequire = require;
 const root = path.resolve(__dirname, '../..');
 const ts = createRequire(path.join(root, 'playwright-driver/package.json'))('typescript');
 const sources = {}, results = [];
@@ -22,7 +23,11 @@ function driver(name, mocks = {}, globals = {}) {
   } }).outputText;
   const module = { exports: {} };
   vm.runInNewContext(code, { module, exports: module.exports, Buffer, console,
-    require(dep) { if (!Object.hasOwn(mocks, dep)) throw new Error(`Unexpected dependency ${relative}: ${dep}`); return mocks[dep]; },
+    require(dep) {
+      if (dep.startsWith('node:')) return nativeRequire(dep);
+      if (!Object.hasOwn(mocks, dep)) throw new Error(`Unexpected dependency ${relative}: ${dep}`);
+      return mocks[dep];
+    },
     ...globals,
   }, { filename });
   return module.exports;
@@ -31,7 +36,8 @@ function managerHarness(strategy) {
   const sockets = [];
   const manager = driver('frame-streaming/manager', {
     '../utils': utils, '../config': { loadConfig: () => ({ performance: { enabled: false }, frameStreaming: { useScreencast: true, fallbackToPolling: false } }) },
-    '../performance': { PerfCollector: { fromConfig: () => ({ recordFrame() {}, recordSkipped() {}, shouldLogSummary: () => false }) } },
+    '../performance': { PerfCollector: { fromConfig: () => ({ recordFrame() {}, recordSkipped() {}, getAggregatedStats: () => ({}), shouldLogSummary: () => false }) } },
+    './frame': { captureFrameSource: () => ({ session_id: 'synthetic-session', execution_id: 'owner', lease_id: 'lease', page_id: 'page' }) },
     './strategies': { createCdpScreencastStrategy: () => strategy, createPollingStrategy: () => ({ name: 'polling' }) },
     './websocket': { buildWebSocketUrl: () => 'ws://synthetic.invalid', createWebSocketConnectionManager: () => {
       const s = { closed: false, connect() {}, close() { this.closed = true; },
@@ -63,8 +69,9 @@ async function managerProbes() {
 
   const startGate = deferred(), late = fakeHandle();
   const pending = managerHarness({ name: 'cdp-screencast', isSupported: async () => true, start: () => startGate.promise });
-  pending.begin(); await drain(); await pending.stopFrameStreaming('fixture');
-  startGate.resolve(late); await drain();
+  pending.begin(); await drain();
+  const pendingStop = pending.stopFrameStreaming('fixture');
+  startGate.resolve(late); await pendingStop; await drain();
   record('start-completes-after-stop', 'A capture start completing after stop is cancelled or immediately disposed',
     { tracked: !!pending.getFrameStreamSettings('fixture'), late_handle_active: late.active, late_stop_calls: late.stops }, !late.active);
   await late.stop();
@@ -87,7 +94,7 @@ function cdpHarness() {
   let timerId = 0, nextSessionGate = null, ready = true, now = 1000;
   const createSession = () => {
     const calls = [], handlers = new Map();
-    const s = { calls, handlers, detached: false, on: (name, cb) => handlers.set(name, cb),
+    const s = { calls, handlers, detached: false, on: (name, cb) => handlers.set(name, cb), off: name => handlers.delete(name),
       async send(name, params) { calls.push({ name, params }); }, async detach() { this.detached = true; },
       emit(data, id = 1) { handlers.get('Page.screencastFrame')?.({ data: Buffer.from(data).toString('base64'), sessionId: id, metadata: {} }); } };
     sessions.push(s); return s;
@@ -103,8 +110,9 @@ function cdpHarness() {
   });
   let currentPage = makePage('a');
   const interfaces = driver('frame-streaming/strategies/interface');
+  const frame = driver('frame-streaming/frame');
   const { CdpScreencastStrategy } = driver('frame-streaming/strategies/cdp-screencast', {
-    '../../utils': utils, './interface': interfaces,
+    '../../utils': utils, './interface': interfaces, '../frame': frame, '../types': { MAX_QUEUED_FRAME_BYTES: 12 * 1024 * 1024 + 4096 },
   }, {
     performance: { now: () => now }, Date, global: {},
     setInterval(cb, ms) { const id = ++timerId; intervals.set(id, { cb, ms }); return id; },
@@ -117,12 +125,13 @@ function cdpHarness() {
     provider: () => currentPage,
     ws: { isReady: () => ready, getWebSocket: () => ({ readyState: ready ? 1 : 0, send: b => sent.push(b) }) },
     reporter: { onFrameSent: s => stats.push(s), onFrameSkipped() {} },
-    config: { sessionId: 'fixture', quality: 65, targetFps: 30, scale: 'css', includePerfHeaders: false },
+    config: { sessionId: 'fixture', quality: 65, targetFps: 30, scale: 'css', includePerfHeaders: false,
+      sourceForPage: page => ({ session_id: 'fixture', execution_id: 'owner', lease_id: 'lease', page_id: page.label }) },
     ready(value) { ready = value; }, clock(value) { now = value; },
     delayNextSession() { nextSessionGate = deferred(); return nextSessionGate; },
     switchPage() { currentPage = makePage('b'); },
     async tick() { for (const { cb } of [...intervals.values()]) cb(); await drain(); },
-    payloads() { return sent.map(b => b.subarray(8).toString()); },
+    payloads() { return sent.map(b => b.subarray(4 + b.readUInt32BE(0)).toString()); },
   };
 }
 async function cdpProbes() {
@@ -131,7 +140,7 @@ async function cdpProbes() {
   h.ready(true); await h.tick();
   record('ready-without-new-paint-buffer-flush', 'A retained initial frame becomes deliverable when transport is ready without requiring another page paint',
     { frames_sent_after_ready: h.sent.length, acknowledged: h.sessions[0].calls.filter(c => c.name === 'Page.screencastFrameAck').length }, h.sent.length === 1);
-  h.sessions[0].emit('next-frame', 2); await drain();
+  h.clock(1100); h.sessions[0].emit('next-frame', 2); await drain();
   record('next-paint-flush-control', 'A later compositor frame delivers current content through the ready transport',
     { payload_order: h.payloads() }, h.payloads().at(-1) === 'next-frame');
   await handle.stop();
@@ -145,8 +154,10 @@ async function cdpProbes() {
   await crossHandle.stop();
 
   const race = cdpHarness(), raceHandle = await race.strategy.start(race.provider, race.config, race.ws, race.reporter);
-  const gate = race.delayNextSession(), resizing = raceHandle.updateViewport(1400, 800);
-  await drain(); await raceHandle.stop(); gate.resolve(); await resizing;
+  const racePage = race.provider(); racePage.setViewportSize({ width: 1400, height: 800 });
+  const gate = race.delayNextSession(), resizing = raceHandle.updateViewport(racePage);
+  await drain(); const stopping = raceHandle.stop(); gate.resolve();
+  await Promise.allSettled([resizing, stopping]);
   record('cdp-restart-completes-after-stop', 'A resize restart cannot acquire an active CDP screencast after stream stop',
     { handle_active: raceHandle.isActive(), new_session_detached: race.sessions[1].detached,
       new_start_calls: race.sessions[1].calls.filter(c => c.name === 'Page.startScreencast').length },
@@ -154,7 +165,8 @@ async function cdpProbes() {
   await race.sessions[1].detach();
 
   const controls = cdpHarness(), good = await controls.strategy.start(controls.provider, controls.config, controls.ws, controls.reporter);
-  await good.updateViewport(1400, 800);
+  const goodPage = controls.provider(); await goodPage.setViewportSize({ width: 1400, height: 800 });
+  await good.updateViewport(goodPage);
   record('settled-resize-control', 'A settled resize starts capture with the new dimensions and detaches the old CDP session',
     { old_detached: controls.sessions[0].detached, viewport: controls.provider().viewportSize(),
       start: controls.sessions[1].calls.find(c => c.name === 'Page.startScreencast')?.params },
@@ -170,7 +182,7 @@ async function settingsProbes() {
   const wrapped = { name: 'cdp-screencast', isSupported: async () => true,
     async start(_page, config) { handle = await c.strategy.start(c.provider, config, c.ws, c.reporter); return handle; } };
   const m = managerHarness(wrapped); m.begin(); await drain();
-  const changed = m.updateFrameStreamSettings('fixture', { quality: 20, fps: 1, perfMode: true });
+  const changed = await m.updateFrameStreamSettings('fixture', { quality: 20, fps: 1, perfMode: true });
   const reported = m.getFrameStreamSettings('fixture');
   record('quality-update-reports-before-application', 'A successful quality update is applied or explicitly reported as pending',
     { changed, reported_quality: reported.quality,
@@ -183,7 +195,8 @@ async function settingsProbes() {
   record('perf-header-setting-not-effective', 'Enabling performance headers changes outgoing framing before success is reported',
     { reported_perf_mode: reported.perfMode, first_payload_uses_timestamp_format: c.payloads()[0] === 'frame-0' },
     c.payloads()[0] !== 'frame-0');
-  await handle.updateViewport(1500, 850);
+  const resizePage = c.provider(); await resizePage.setViewportSize({ width: 1500, height: 850 });
+  await handle.updateViewport(resizePage);
   record('quality-applies-on-restart-control', 'The retained quality setting takes effect at the next screencast restart',
     { restart_quality: c.sessions[1].calls.find(call => call.name === 'Page.startScreencast')?.params.quality },
     c.sessions[1].calls.some(call => call.name === 'Page.startScreencast' && call.params.quality === 20));

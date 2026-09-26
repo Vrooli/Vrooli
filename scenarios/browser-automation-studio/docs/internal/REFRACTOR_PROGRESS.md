@@ -1,132 +1,155 @@
 # Browser rehabilitation progress
 
-This file is the active resume checkpoint, not an execution transcript. Follow
-[TESTING.md](TESTING.md). Search only the referenced entries in
-[PROBLEMS.md](../PROBLEMS.md). Detailed prior chronology is compressed and is
-not routine resume input.
+This is the single active resume checkpoint, not an execution transcript. Read
+[TESTING.md](TESTING.md), run the campaign guard, and search only the referenced
+entries in [PROBLEMS.md](../PROBLEMS.md). Do not read the histories during
+routine resume.
 
-## Active candidate epoch E01 — integrate the stopped rehabilitation candidate
+Full chronology through the stopped 2026-09-26 run is preserved at
+[`evidence/rehabilitation/refactor-progress-history-2026-09-26-agent-run.md.gz`](evidence/rehabilitation/refactor-progress-history-2026-09-26-agent-run.md.gz),
+SHA-256 `b18da33354046fb9a36205810e3d8b7ae2fe3f8fa4128e49e1905df9c45cf74b`.
+Retrieve only when a present decision depends on it with `gzip -cd <path>`.
 
-Status: implementation in progress; sensor readiness is mixed; current-source
-candidate qualification is unknown. The previous worker was stopped on
-2026-09-26. Preserve its product changes and do not commit.
+## Active candidate epoch E04 — lifecycle and passive-recording ownership convergence
 
-### Outcome and boundary
+Candidate state: **implementation**
 
-Deliver one coherent, independently shippable BAS browser/capture execution
-boundary from the accumulated stopped-agent work: capture and export results,
-session/input semantics, frame delivery, retention and their honest managed
-qualification must agree without parallel legacy paths. This is an integration
-epoch over existing work, not permission to add unrelated features or refresh
-scores piecemeal.
+Qualification cycle: **unused**
 
-Affected product journeys include capture evidence, ad-hoc execution results,
-recording/export retention, managed browser sessions, interactive input and
-viewer frame delivery. Start with BAS-RF-143–146 and follow references only when
-a changed path requires them. Shared invalidation roots are API/driver/UI source
-identity, `.vrooli/service.json`, lifecycle freshness, managed browser state and
-the six rehabilitation owner receipts.
+### Outcome and independently shippable boundary
 
-Hypothesis: the stopped changes contain several useful repairs, but they were
-developed and qualified as small work records. Reviewing them as one ownership
-boundary will expose incomplete conversions and avoid repeated build/receipt
-churn; after coherence and focused regressions, one frozen-candidate cycle can
-truthfully qualify the result.
+Make the browser/session lifecycle one coherent ownership boundary from
+profile-backed session admission through recording, input, navigation,
+replacement and teardown. A user can reuse or reset a persistent browser,
+record actions passively, interrupt work and recover without duplicated
+effects, stale frames/callbacks, leaked input state, lost acknowledged events or
+competing cleanup paths. Finish the replacement: remove obsolete callers,
+fixtures and compatibility paths, and reduce test/production complexity rather
+than moving it.
+
+This epoch includes the related session manager/reset/teardown, recording
+pipeline and event routes, input/gesture/keyboard recovery, AI-navigation
+cancellation, frame/WebSocket replacement, profile durability,
+cancellation/recovery and passive-fidelity ownership already changed in the
+dirty worktree. It does not split each defect, test file, receipt or setpoint
+row into another epoch.
+
+Affected contract surfaces: persistent sessions, passive recording fidelity,
+interactive browser feedback, cancellation/recovery, artifact evidence and
+the associated preservation journeys. Active issues: BAS-FB-020–033 cadence,
+BAS-FB-036 test quality and BAS-RF entries found while completing this boundary.
+
+### Falsifiable hypothesis and baseline
+
+Hypothesis: the accumulated lifecycle repairs can be reduced to one explicit
+owner per transition, with focused tests proving ordering, cancellation,
+cleanup and recovery and with less duplication than the pre-epoch tree. It is
+false if any transition has two mutation/cleanup owners, acknowledged input or
+recording can be lost/replayed, a replaced page/session can still publish, a
+focused test process does not terminate, or measured source/test complexity is
+not improved.
+
+Baseline from the stopped run: 42 purported epoch summaries, 17 managed
+restarts, 29 exact evidence phase identities, 29 setpoint identities, repeated
+stale-receipt `0/17` presentations, and one Jest process hung for about six
+hours. The last comparable frozen candidate reached 8/17 readable; current
+qualification is unknown, not a product regression. The campaign guard now
+enforces one active epoch, a 96 KiB packet, a 16 KiB progress file and bounded
+live evidence before more work.
 
 ### Semantic exit gate
 
-Keep E01 open until all of the following are true:
+Remain in `implementation` across compactions until all of the following are
+true:
 
-- every changed production path in the boundary is mapped to an intended
-  behavior and BAS-RF/decision, with unrelated edits separated rather than
-  silently absorbed;
-- callers use one owner for each behavior; obsolete paths, shims and runtime
-  migrations in the touched boundary are deleted;
-- focused failing-before/fixed-after tests cover the repaired user-visible
-  behavior and preservation obligations;
-- the production and test-only line/complexity/duplication deltas are reported
-  separately, with no claim that moving code reduced debt;
-- no known actionable defect remains in this same ownership boundary;
-- source is frozen, the managed candidate is rebuilt once, only invalidated
-  owners are refreshed, the exact evidence phase runs once, the governed
-  setpoint runs once and one adversarial review is recorded.
+- the complete dirty lifecycle/passive-recording diff is understood and every
+  changed owner has focused expected-behavior coverage;
+- obsolete callers, parallel cleanup paths, compatibility shims and duplicate
+  fixtures in this boundary are removed or explicitly proven necessary;
+- session/profile/input/recording/navigation/frame teardown and replacement
+  pass focused ordering, fault, cancellation and recovery checks;
+- every invoked focused test exits and leaves no owned child process; the
+  stopped run's orphaned Jest is either explained and prevented or recorded as
+  a reproducible defect with an owned repair;
+- production and test debt deltas are measured against the pre-epoch diff and
+  demonstrate real simplification, not helper proliferation;
+- `campaign_guard.py --stage resume` passes and no implementation work remains
+  behind a qualification-only task.
 
-Permitted split conditions are only those in TESTING.md. Context compaction,
-elapsed time, one green package or a score change does not close E01.
+Only then change the state to `frozen`. Before generating receipts run the
+producer guard, create only the invalidated current-candidate cohorts, and run
+one closure cycle: focused regressions, at most one needed managed
+rebuild/restart, one exact rehabilitation-evidence phase, one setpoint read and
+one adversarial review. A product failure reopens this same epoch; a stale
+receipt does not erase implementation evidence or create another epoch.
 
-### Current truth
+### Completed work units retained from the stopped run
 
-- **Implementation:** multiple focused repairs exist in the dirty worktree.
-  W273's bounded two-frame UI paint queue passed 34/34 focused viewer tests and
-  the prior worker reported targeted TypeScript/ESLint success. Capture-handler
-  cohesion, session semantics, workflow results, retention, export and
-  qualification infrastructure also changed and still require boundary-level
-  reconciliation before this epoch can close.
-- **Sensor readiness:** current owner implementations exist for evidence
-  completeness, profile durability, cancellation/recovery, passive fidelity,
-  resource budget and motion. Interactive-feedback still has the BAS-RF-144
-  remote-owner/sensor gap. Treat this state as mixed until focused owner tests
-  are reconfirmed after reconciliation.
-- **Candidate qualification:** unknown for current source. The last reported
-  managed candidate `sha256:7edf0d16…` scored 4/17, but later source and manifest
-  edits make that historical evidence, not a current baseline. Do not refresh
-  receipts or quote a new score until E01 freezes.
+- Repaired session reuse artifact ownership, active-tab reset semantics and
+  external-target handling; closed stale bitmap publication in the UI frame
+  decoder.
+- Added immediate HTTP fallback when a WebSocket closes during send admission;
+  local and emulated-remote cohorts reported 1,000/1,000 correlated actions.
+- Repaired video flush, live-input drain, modifier/pointer recovery,
+  AI-navigation cancellation, page callbacks, frame replacement and
+  session/pipeline teardown across the affected owners.
+- Consolidated receipt identity/hash logic and fixed passive-fidelity selection
+  so a lexically newer stale receipt cannot hide a source-valid receipt.
+- Focused profile durability, passive fidelity and evidence-completeness owners
+  passed individually on the prior managed candidate. Their later aggregate
+  failures named other stale receipts; they did not disprove those behaviors.
+- SessionManager owner cleanup reported a 79-line reduction and zero lint
+  findings. Broader net debt reduction remains unproven.
 
-No lifecycle restart, build, broad Test Genie suite, evidence phase or setpoint
-was run during the documentation/evidence-control pass.
+These statements are inherited evidence, not permission to skip inspection or
+rerun qualification. Preserve the user's uncommitted changes; the agent never
+commits.
 
-### Resume exactly here
+### Exact next actions
 
-1. Inspect the existing BAS diff by ownership boundary; do not reset, discard or
-   rewrite stopped-agent changes.
-2. Build a short table in this checkpoint mapping each changed production path
-   to intended behavior, focused checks, old paths/callers to remove and its
-   E01 relevance. Move genuinely unrelated work to a documented successor
-   epoch; do not qualify it independently during E01.
-3. Begin with the capture/workflow/export/retention chain because it crosses the
-   largest related API delta, then reconcile driver/session/frame behavior.
-4. Run only focused discriminating tests while implementing. Update this same
-   checkpoint before compaction with completed units, failures, pending
-   operations and the exact next source action.
-5. Use the boundary qualification sequence only after the semantic exit gate is
-   satisfied.
+1. Run `python3 scenarios/browser-automation-studio/docs/internal/campaign_guard.py --stage resume`.
+2. Inspect the current dirty diff by lifecycle owner and reconcile it with the
+   focused tests already changed. Do not start with Test Genie, a restart,
+   receipt generation or the setpoint.
+3. Run the smallest focused suites for related completed work units, with a
+   bounded timeout and post-run child-process check. Diagnose any non-exiting
+   Jest owner before expanding validation.
+4. Continue the same ownership boundary: finish callers/removals, repair actual
+   failures, simplify fixtures and measure production/test debt deltas.
+5. Freeze and qualify only when the semantic exit gate—not context length,
+   elapsed time or a green individual test—is satisfied.
 
-## Evidence and documentation maintenance — 2026-09-26
+### Current evidence and interruption state
 
-The runtime evidence root measured 610 files, about 38 MiB and 977,008 text
-lines before cleanup. Superseded top-level attempts and the 304-file raw capture
-cohort were moved to two recoverable archives. Archive listing and SHA-256 were
-verified before originals were removed. The directly readable working set is
-now 31 files, 5,608,203 bytes and 134,066 text lines, within TESTING.md's
-128-file/16-MiB/250,000-line budget.
+The live runtime evidence root was intentionally emptied before resume. Its 387
+files, 12,574,234 bytes and 285,793 text lines were recoverably archived in
+`.vrooli/runtime/rehabilitation-evidence/archive/superseded-working-set-before-campaign-gate-2026-09-26.tar.gz`
+with manifest and verified SHA-256
+`64dc4e20a79cd3df5f8619e957cf2703cb02717a4d4bd70c53de6aefdb4265c1`.
+Do not restore it wholesale. It represents mixed candidates and failed/stale
+attempts; retrieve a named artifact only for diagnosis.
 
-Manifest:
-`.vrooli/runtime/rehabilitation-evidence/archive/epoch-protocol-cleanup-2026-09-26.manifest.json`.
-The archive SHA-256 values are `ec093bd91efb78df90ed9c23260d060d8277b79bcbd5a9eb0bbd80b7d063996f`
-and `979ea0d6dac51e85b9f24af3e07fbc0d6d770e8741530449de0964d58ff693bb`.
-This cleanup changes evidence storage only; it does not promote or invalidate a
-product result.
+The six-hour orphaned Jest child from the stopped agent was terminated by PID
+after its exact command and ownership were verified. BAS's managed API was not
+stopped. No product qualification was performed during campaign cleanup.
 
-The complete pre-compaction feedback ledger is preserved as
-[`operator-feedback-history-2026-09-26.md.gz`](evidence/rehabilitation/operator-feedback-history-2026-09-26.md.gz)
-(SHA-256 `ae92b5350d625ee6ae3a0b576ad3354a7bfa1e87ec9b3435ea5298d3ea97e0db`).
-The previous active progress is preserved as
-[`refactor-progress-snapshot-2026-09-26.md.gz`](evidence/rehabilitation/refactor-progress-snapshot-2026-09-26.md.gz)
-(SHA-256 `c70ec68f474376aa4ab60b1ea641e2ae084ced9191a3d55df136406ea5c1358c`).
-Earlier W228–W266 history is preserved as
-[`refactor-progress-history-2026-09-25.md.gz`](evidence/rehabilitation/refactor-progress-history-2026-09-25.md.gz)
-(SHA-256 `35f2231f66373a3881b2a22096924f5258e5b26a04fb86d5f43a5fd1662b51b6`).
-Retrieve any of these with `gzip -cd <path>` only when a current decision needs
-the historical detail.
+Changed: campaign state was compacted, runtime evidence was archived, and a
+mechanical guard was added. Verified: archive listing/hash and stopped child
+termination. Remaining: complete this epoch's implementation and focused
+checks. Unverified: current candidate qualification, native/device/desktop
+behavior and full complexity reduction.
 
-## Recent epoch summary
+## Epoch summary — prior stable owner-boundary candidate — 2026-09-26
 
-Before the protocol change, W267–W277 repeatedly refreshed build-bound evidence
-around focused repairs. The useful durable results were: lifecycle freshness is
-now read by the setpoint; duplicate closure-cache work and the root API response
-deadline were repaired; capture construction was decomposed; the viewer's
-delayed-paint frame loss gained a deterministic regression and bounded queue;
-owner cohorts reached clean observations on prior candidates; and shared browser
-sessions were not closed to force qualification. The repeated candidate resets,
-score reads and receipt refreshes are historical evidence of the inefficient
-cadence that E01 must not repeat.
+The last stable candidate before later source edits reached 8/17 readable rows:
+seven owner-backed capabilities plus capture. Interactive transport continuity,
+owner receipt identity and several lifecycle defects were materially repaired.
+That score is historical comparison evidence only; later source edits
+invalidated candidate-bound receipts without proving product regressions.
+
+## Epoch summary — campaign-control reset — 2026-09-26
+
+The stopped run delivered useful code but violated epoch, active-packet,
+evidence-retention and process-hygiene rules. Its narrative and mixed runtime
+cohorts were archived recoverably. Resume under the executable guard and this
+single large epoch; do not reconstruct the 42 micro-epochs in active state.

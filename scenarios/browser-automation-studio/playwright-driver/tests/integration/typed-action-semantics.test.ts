@@ -1,7 +1,9 @@
 import { EventEmitter } from 'node:events';
 import { createServer } from 'node:http';
+import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { appendFile, readFile, rm } from 'node:fs/promises';
+import { Script } from 'node:vm';
 import { cleanupSession } from '../../src/infra/session-cleanup-registry';
 import {
   chromium,
@@ -80,6 +82,38 @@ for(const type of ['click','dblclick','contextmenu','mousedown','mouseup','keydo
 }
 </script>`;
 
+function createTestSessionState(
+  browser: Browser,
+  browserContext: BrowserContext,
+  page: Page,
+  overrides: Partial<SessionState> & Pick<SessionState, 'id' | 'ownerExecutionId' | 'leaseId' | 'spec'>
+): SessionState {
+  return {
+    phase: 'ready',
+    browser,
+    context: browserContext,
+    page,
+    pages: [page],
+    createdAt: new Date(),
+    lastUsedAt: new Date(),
+    instructionCount: 0,
+    instructionReceipts: new Map(),
+    lastInstructionSequence: 0,
+    ...overrides,
+  } as unknown as SessionState;
+}
+
+type FixtureEvent = {
+  type: string;
+  target?: string;
+  key?: string;
+  detail?: number;
+  ctrl?: boolean;
+  shift?: boolean;
+  button?: number;
+  at?: number;
+};
+
 // [REQ:BAS-RH-J13] Browser effects are observed independently of handler output.
 describe('typed browser action semantics', () => {
   let browser: Browser;
@@ -93,7 +127,8 @@ describe('typed browser action semantics', () => {
     nodeId: 'fixture',
     action,
   });
-  const events = () => page.evaluate('window.fixtureEvents');
+  const events = (): Promise<FixtureEvent[]> =>
+    page.evaluate(() => (window as Window & { fixtureEvents: FixtureEvent[] }).fixtureEvents);
 
   beforeAll(async () => {
     browser = await chromium.launch({ headless: true });
@@ -143,7 +178,8 @@ describe('typed browser action semantics', () => {
       expect(result.success).toBe(true);
       expect(requests).toBe(1);
       expect(result.extracted_data?.filename).toBe('url-fixture.txt');
-      expect(await readFile(saved!, 'utf8')).toBe(bytes);
+      if (!saved) throw new Error('Download did not return a path');
+      expect(await readFile(saved, 'utf8')).toBe(bytes);
     } finally {
       if (saved) await rm(saved, { force: true });
     }
@@ -448,8 +484,8 @@ describe('typed browser action semantics', () => {
   it('frame-switch makes later public instructions affect only the selected document', async () => {
     await page.evaluate(() => {
       (window as unknown as { frameEffects: string[] }).frameEffects = [];
-      window.addEventListener('message', (event) => {
-        if (typeof event.data?.fixtureFrame === 'string') {
+      window.addEventListener('message', (event: MessageEvent<{ fixtureFrame?: unknown }>) => {
+        if (typeof event.data.fixtureFrame === 'string') {
           (window as unknown as { frameEffects: string[] }).frameEffects.push(
             event.data.fixtureFrame
           );
@@ -466,24 +502,14 @@ describe('typed browser action semantics', () => {
     await page.frameLocator('#right').locator('#button').waitFor();
     const config = createTestConfig({ execution: { defaultTimeoutMs: 1000 } });
     const manager = new SessionManager(config);
-    const session = {
+    const session = createTestSessionState(browser, browserContext, page, {
       id: 'frame-effect-fixture',
-      phase: 'ready',
-      browser,
-      context: browserContext,
-      page,
-      pages: [page],
-      currentPageIndex: 0,
-      frameStack: [],
       ownerExecutionId: 'owner',
       leaseId: 'lease',
       spec: { execution_id: 'owner', reuse_mode: 'fresh' },
-      createdAt: new Date(),
-      lastUsedAt: new Date(),
-      instructionCount: 0,
-      instructionReceipts: new Map(),
-      lastInstructionSequence: 0,
-    } as unknown as SessionState;
+      currentPageIndex: 0,
+      frameStack: [],
+    });
     Reflect.set(manager, 'sessions', new Map([[session.id, session]]));
     const registry = new HandlerRegistry();
     for (const handler of [
@@ -562,7 +588,8 @@ describe('typed browser action semantics', () => {
       mainClicks: (await events()).filter((event: { type: string }) => event.type === 'click')
         .length,
     }).toEqual({ frames: ['left'], mainClicks: 0 });
-    const left = session.frameStack[0]!;
+    const left = session.frameStack[0];
+    if (!left) throw new Error('Frame switch did not select the left frame');
     await left.evaluate(() => {
       document.body.insertAdjacentHTML(
         'beforeend',
@@ -579,8 +606,11 @@ describe('typed browser action semantics', () => {
         (window as unknown as { childKeys: string[] }).childKeys.push(event.key)
       );
     });
-    const typed = (type: string, params: Record<string, unknown>) =>
-      run(createTypedInstruction(type, params).action!);
+    const typed = (type: string, params: Record<string, unknown>) => {
+      const instruction = createTypedInstruction(type, params);
+      if (!instruction.action) throw new Error(`Typed instruction ${type} has no action`);
+      return run(instruction.action);
+    };
     await typed('input', { selector: '#input', value: 'child' });
     await typed('focus', { selector: '#input' });
     await page.focus('#input'); // Physical keyboard must restore the selected document's focus.
@@ -740,7 +770,8 @@ describe('typed browser action semantics', () => {
       });
     });
     await page.goto('http://parent.test/');
-    const child = page.frames().find((frame) => frame.url() === 'http://child.test/')!;
+    const child = page.frames().find((frame) => frame.url() === 'http://child.test/');
+    if (!child) throw new Error('Child frame did not load');
     context.frameStack = [child];
     const cookie = await new CookieStorageHandler().execute(
       instruction(
@@ -827,22 +858,12 @@ describe('typed browser action semantics', () => {
         await gate;
       },
     });
-    const session = {
+    const session = createTestSessionState(browser, browserContext, page, {
       id: 'browser-admission-fixture',
-      phase: 'ready',
-      browser,
       ownerExecutionId: 'fixture-execution',
       leaseId: 'fixture-lease',
-      context: browserContext,
-      page,
-      pages: [page],
       spec: { execution_id: 'fixture-execution', reuse_mode: 'fresh' },
-      createdAt: new Date(),
-      lastUsedAt: new Date(),
-      instructionCount: 0,
-      instructionReceipts: new Map(),
-      lastInstructionSequence: 0,
-    } as unknown as SessionState;
+    });
     Reflect.set(manager, 'sessions', new Map([[session.id, session]]));
     const registry = new HandlerRegistry();
     registry.register(interaction);
@@ -942,26 +963,16 @@ describe('typed browser action semantics', () => {
 
   it('[REQ:BAS-RH-J07] close interrupts a pending browser wait and retains an uncertain receipt', async () => {
     const manager = new SessionManager(createTestConfig());
-    const session = {
+    const session = createTestSessionState(browser, browserContext, page, {
       id: 'browser-close-pending-action',
-      phase: 'ready',
-      browser,
       ownerExecutionId: 'fixture-execution',
       leaseId: 'fixture-lease',
-      context: browserContext,
-      page,
-      pages: [page],
-      currentPageIndex: 0,
       spec: { execution_id: 'fixture-execution', reuse_mode: 'fresh' },
-      createdAt: new Date(),
-      lastUsedAt: new Date(),
-      instructionCount: 0,
+      currentPageIndex: 0,
       frameStack: [],
       pageIdMap: new Map(),
       pageToIdMap: new WeakMap(),
-      instructionReceipts: new Map(),
-      lastInstructionSequence: 0,
-    } as unknown as SessionState;
+    });
     Reflect.set(manager, 'sessions', new Map([[session.id, session]]));
     const registry = new HandlerRegistry();
     registry.register(new WaitHandler());
@@ -1063,23 +1074,13 @@ describe('typed browser action semantics', () => {
   it('only the current unreleased lease can execute or retrieve cached browser effects', async () => {
     const config = createTestConfig();
     const manager = new SessionManager(config);
-    const session = {
+    const session = createTestSessionState(browser, browserContext, page, {
       id: 'lease-effect-fixture',
-      phase: 'ready',
-      browser,
-      context: browserContext,
-      page,
-      pages: [page],
       ownerExecutionId: 'owner-1',
       leaseId: 'lease-1',
-      leaseReleasedAt: undefined,
       spec: { execution_id: 'owner-1', reuse_mode: 'fresh' },
-      createdAt: new Date(),
-      lastUsedAt: new Date(),
-      instructionCount: 0,
-      instructionReceipts: new Map(),
-      lastInstructionSequence: 0,
-    } as unknown as SessionState;
+      leaseReleasedAt: undefined,
+    });
     Reflect.set(manager, 'sessions', new Map([[session.id, session]]));
     const registry = new HandlerRegistry();
     registry.register(interaction);
@@ -1135,22 +1136,12 @@ describe('typed browser action semantics', () => {
   it('repeats logical loop effects while retransmissions remain the same operation', async () => {
     const config = createTestConfig();
     const manager = new SessionManager(config);
-    const session = {
+    const session = createTestSessionState(browser, browserContext, page, {
       id: 'operation-effect-fixture',
-      phase: 'ready',
-      browser,
-      context: browserContext,
-      page,
-      pages: [page],
       ownerExecutionId: 'owner',
       leaseId: 'lease',
       spec: { execution_id: 'owner', reuse_mode: 'fresh' },
-      createdAt: new Date(),
-      lastUsedAt: new Date(),
-      instructionCount: 0,
-      instructionReceipts: new Map(),
-      lastInstructionSequence: 0,
-    } as unknown as SessionState;
+    });
     Reflect.set(manager, 'sessions', new Map([[session.id, session]]));
     const registry = new HandlerRegistry();
     registry.register(interaction);
@@ -1203,22 +1194,12 @@ describe('typed browser action semantics', () => {
     async (failureSite) => {
       const config = createTestConfig();
       const manager = new SessionManager(config);
-      const session = {
+      const session = createTestSessionState(browser, browserContext, page, {
         id: 'uncertain-effect-fixture',
-        phase: 'ready',
-        browser,
-        context: browserContext,
-        page,
-        pages: [page],
         ownerExecutionId: 'owner',
         leaseId: 'lease',
         spec: { execution_id: 'owner', reuse_mode: 'fresh' },
-        createdAt: new Date(),
-        lastUsedAt: new Date(),
-        instructionCount: 0,
-        instructionReceipts: new Map(),
-        lastInstructionSequence: 0,
-      } as unknown as SessionState;
+      });
       Reflect.set(manager, 'sessions', new Map([[session.id, session]]));
       const registry = new HandlerRegistry();
       registry.register(interaction);
@@ -1293,7 +1274,9 @@ describe('typed browser action semantics', () => {
         ).toHaveLength(1);
         expect(executeSpy).toHaveBeenCalledTimes(1);
         expect(attached).toHaveLength(1);
-        await expect(attached[0]!.send('Runtime.evaluate', { expression: '1' })).rejects.toThrow();
+        const attachedSession = attached[0];
+        if (!attachedSession) throw new Error('Expected a captured CDP session');
+        await expect(attachedSession.send('Runtime.evaluate', { expression: '1' })).rejects.toThrow();
         if (failureSite === 'handler') {
           expect(first.getJSON().consoleLogs).toEqual(
             expect.arrayContaining([expect.objectContaining({ text: 'diagnostic after effect' })])
@@ -1337,10 +1320,9 @@ describe.each([false, true])('native frame contexts (site isolation: %s)', (isol
         return route.fulfill({ contentType: 'text/html', body });
       });
       const page = await context.newPage();
-      await page.goto(`data:text/html,${encodeURIComponent(fixture)}`);
-      expect(await page.evaluate('window.fixtureEvents')).toEqual([]);
       await page.goto('http://parent.test/root');
-      const cross = page.frames().find((frame) => frame.url() === 'http://child.test/child')!;
+      const cross = page.frames().find((frame) => frame.url() === 'http://child.test/child');
+      if (!cross) throw new Error('Cross-origin frame did not load');
       if (isolated) {
         const session = await context.newCDPSession(cross);
         expect((await session.send('Target.getTargetInfo')).targetInfo.type).toBe('iframe');
@@ -1355,8 +1337,11 @@ describe.each([false, true])('native frame contexts (site isolation: %s)', (isol
           await frame.locator('html').evaluate((element) => element.ownerDocument.location.href)
         ).toBe(expected);
       }
-      const left = (await (await page.$('#left'))!.contentFrame())!;
-      const right = (await (await page.$('#right'))!.contentFrame())!;
+      const leftElement = await page.$('#left');
+      const rightElement = await page.$('#right');
+      const left = await leftElement?.contentFrame();
+      const right = await rightElement?.contentFrame();
+      if (!left || !right) throw new Error('Nested frame did not load');
       await left.evaluate('window.localSentinel="left"');
       await right.evaluate('window.localSentinel="right"');
       expect(await left.evaluate('window.localSentinel')).toBe('left');
@@ -1384,7 +1369,7 @@ describe.each([false, true])('native frame contexts (site isolation: %s)', (isol
               return '';
             },
           });
-          console.debug(error);
+          globalThis.console.debug(error);
           return detected;
         })
       ).toBe(false);
@@ -1456,9 +1441,17 @@ describe('SDK context acknowledgement', () => {
   it.each([false, true])(
     'joins only the matching delayed binding receipt (initially absent: %s)',
     async (initiallyAbsent) => {
-      const playwrightRoot = dirname(require.resolve('rebrowser-playwright'));
-      const coreRoot = dirname(require.resolve('playwright-core', { paths: [playwrightRoot] }));
-      const { CRSession } = require(join(coreRoot, 'lib/server/chromium/crConnection.js'));
+      const requireModule = createRequire(__filename);
+      const playwrightRoot = dirname(requireModule.resolve('rebrowser-playwright'));
+      const coreRoot = dirname(requireModule.resolve('playwright-core', { paths: [playwrightRoot] }));
+      type InternalCRSession = {
+        prototype: {
+          __re__getMainWorld: (this: unknown, params: { client: unknown; frameId: string; isWorker: boolean }) => Promise<number>;
+        };
+      };
+      const { CRSession } = requireModule(join(coreRoot, 'lib/server/chromium/crConnection.js')) as unknown as {
+        CRSession: InternalCRSession;
+      };
       const client = new EventEmitter() as EventEmitter & {
         send: jest.Mock;
         _sendMayFail: jest.Mock;
@@ -1467,15 +1460,18 @@ describe('SDK context acknowledgement', () => {
       let absent = initiallyAbsent;
       const payloads: string[] = [];
       client.send = jest.fn(
-        async (method: string, params: { name?: string; expression?: string }) => {
-          if (method === 'Runtime.addBinding') binding = params.name!;
+        (method: string, params: { name?: string; expression?: string }): Promise<{ result?: { value?: unknown } }> => {
+          if (method === 'Runtime.addBinding') {
+            if (!params.name) throw new Error('Expected a binding name');
+            binding = params.name;
+          }
           if (method === 'Runtime.evaluate') {
-            const world = absent
+            const world: Record<string, unknown> = absent
               ? {}
               : {
-                  [binding]: (payload: string) => {
+                  [binding]: (payload: string): void => {
                     payloads.push(payload);
-                    setImmediate(() => {
+                    setImmediate((): void => {
                       client.emit('Runtime.bindingCalled', {
                         name: binding,
                         payload: 'wrong-receipt',
@@ -1490,10 +1486,10 @@ describe('SDK context acknowledgement', () => {
                   },
                 };
             absent = false;
-            const value = new Function('globalThis', `return ${params.expression}`)(world);
-            return { result: { value } };
+            const value: unknown = new Script(params.expression ?? '').runInNewContext(world) as unknown;
+            return Promise.resolve({ result: { value } });
           }
-          return {};
+          return Promise.resolve({});
         }
       );
       client._sendMayFail = jest.fn().mockResolvedValue({});
@@ -1507,7 +1503,7 @@ describe('SDK context acknowledgement', () => {
         ).resolves.toBe(17);
       }
       expect(client.listenerCount('Runtime.bindingCalled')).toBe(0);
-      const registrations = client.send.mock.calls.filter(
+      const registrations = (client.send.mock.calls as Array<[string, { name?: string }]>).filter(
         ([method]) => method === 'Runtime.addBinding'
       );
       expect(registrations).toHaveLength(initiallyAbsent ? 3 : 2);
@@ -1526,10 +1522,19 @@ describe('SDK viewport and screenshot ordering', () => {
   it.each([false, true])(
     'waits for an admitted capture (capture fails=%s) before applying viewport',
     async (fails) => {
-      const playwrightRoot = dirname(require.resolve('rebrowser-playwright'));
-      const coreRoot = dirname(require.resolve('playwright-core', { paths: [playwrightRoot] }));
-      const { Page: SDKPage } = require(join(coreRoot, 'lib/server/page.js'));
-      const { Screenshotter } = require(join(coreRoot, 'lib/server/screenshotter.js'));
+      const requireModule = createRequire(__filename);
+      const playwrightRoot = dirname(requireModule.resolve('rebrowser-playwright'));
+      const coreRoot = dirname(requireModule.resolve('playwright-core', { paths: [playwrightRoot] }));
+      type InternalPage = {
+        prototype: {
+          setViewportSize: (this: unknown, size: { width: number; height: number }) => Promise<unknown>;
+        };
+      };
+      type InternalScreenshotter = new (page: unknown) => {
+        _queue: { postTask: (task: () => Promise<void>) => Promise<unknown> };
+      };
+      const { Page: SDKPage } = requireModule(join(coreRoot, 'lib/server/page.js')) as unknown as { Page: InternalPage };
+      const { Screenshotter } = requireModule(join(coreRoot, 'lib/server/screenshotter.js')) as unknown as { Screenshotter: InternalScreenshotter };
       let release!: () => void;
       let entered!: () => void;
       const held = new Promise<void>((resolve) => {
@@ -1539,14 +1544,18 @@ describe('SDK viewport and screenshot ordering', () => {
         entered = resolve;
       });
       const prior = { viewport: { width: 640, height: 480 }, screen: { width: 640, height: 480 } };
-      const page = {
+      const page: {
+        _emulatedSize: typeof prior;
+        _delegate: { updateEmulatedViewportSize: jest.Mock };
+        _screenshotter?: InstanceType<InternalScreenshotter>;
+      } = {
         _emulatedSize: prior,
         _delegate: { updateEmulatedViewportSize: jest.fn().mockResolvedValue(undefined) },
-        _screenshotter: undefined as any,
       };
-      page._screenshotter = new Screenshotter(page);
-      const capture = page._screenshotter._queue
-        .postTask(async () => {
+      const screenshotter = new Screenshotter(page);
+      page._screenshotter = screenshotter;
+      const capture = screenshotter._queue
+        .postTask(async (): Promise<void> => {
           entered();
           await held;
           if (fails) throw new Error('controlled screenshot failure');

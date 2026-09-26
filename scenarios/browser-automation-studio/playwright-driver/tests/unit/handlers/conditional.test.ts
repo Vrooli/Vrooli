@@ -6,7 +6,10 @@ import { getActionType } from '../../../src/proto';
 import { createMockPage, createMockContext, createTestConfig, createTestInstruction } from '../../helpers';
 import { logger, metrics } from '../../../src/utils';
 
-const instruction = (conditionType: ConditionalType, params: Partial<ConditionalParams>) => createTestInstruction({
+const instruction = (
+  conditionType: ConditionalType,
+  params: Partial<ConditionalParams>
+): ReturnType<typeof createTestInstruction> => createTestInstruction({
   type: 'conditional', action: create(ActionDefinitionSchema, { type: ActionType.CONDITIONAL,
     params: { case: 'conditional', value: create(ConditionalParamsSchema, { ...params, conditionType }) } }),
 });
@@ -18,11 +21,16 @@ describe('ConditionalHandler [REQ:BAS-RH-J24]', () => {
   beforeEach(() => {
     page = createMockPage();
     context = { page, browserContext: createMockContext(), config: createTestConfig(), logger, metrics, sessionId: 'conditional-test' };
-    page.evaluate.mockImplementation((fn: any, arg: any) => fn(arg));
+    const evaluate = page.evaluate as unknown as jest.MockedFunction<
+      (fn: (arg: unknown) => unknown, arg: unknown) => unknown
+    >;
+    evaluate.mockImplementation((fn, arg): unknown => fn(arg));
   });
 
-  it.each(['true', 'return true;', 'Promise.resolve(true)', 'return Promise.resolve(true);', 'false', 'return false;', '0', 'null'])
-  ('evaluates expression/body syntax %s', async expression => {
+  it.each([
+    'true', 'return true;', 'Promise.resolve(true)', 'return Promise.resolve(true);',
+    'false', 'return false;', '0', 'null',
+  ])('evaluates expression/body syntax %s', async (expression: string) => {
     const expected = expression.includes('true');
     for (const negate of [false, true]) {
       const input = instruction(ConditionalType.EXPRESSION, { expression, negate });
@@ -46,8 +54,7 @@ describe('ConditionalHandler [REQ:BAS-RH-J24]', () => {
     } finally { Reflect.deleteProperty(globalThis, '__basConditionalEffects'); }
   });
 
-  it.each([false, true].flatMap(present => [false, true].map(negate => ({ present, negate }))))
-  ('observes timed presence=$present, negate=$negate', async ({ present, negate }) => {
+  it.each([false, true].flatMap((present) => [false, true].map((negate) => ({ present, negate }))))('observes timed presence=$present, negate=$negate', async ({ present, negate }) => {
     const dispose = jest.fn().mockResolvedValue(undefined);
     page.waitForFunction = present ? jest.fn().mockResolvedValue({ dispose })
       : jest.fn().mockRejectedValue(new errors.TimeoutError('presence timed out'));

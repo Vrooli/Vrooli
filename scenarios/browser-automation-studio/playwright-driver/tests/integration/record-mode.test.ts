@@ -172,10 +172,10 @@ function createMockPipelineManager(overrides?: Partial<{
       } : undefined,
     })),
     startRecording: jest.fn<Promise<string>, []>()
-      .mockImplementation(async () => {
+      .mockImplementation(() => {
         config.isRecording = true;
         generation++;
-        return config.recordingId || 'recording-123';
+        return Promise.resolve(config.recordingId || 'recording-123');
       }),
     stopRecording: jest.fn<Promise<{ recordingId: string; actionCount: number }>, []>()
       .mockResolvedValue({

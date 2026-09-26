@@ -1,0 +1,10 @@
+{
+  "selection_rule": "Archive every top-level entry in rehabilitation-evidence except the current f993bf owner artifacts, the current motion receipt/log family identified by the 2026-09-26T09-26-22.281Z-f455348a-6920-4887-8cd7-1f0dd4a10d19 run, and the current receipt transitive artifacts explicitly retained for evidence-completeness, resource-budget, and cancellation-recovery.",
+  "top_level_entry_count": 198,
+  "file_count": 824,
+  "uncompressed_bytes": 49203538,
+  "archive": "superseded-runtime-evidence-2026-09-26T09-38-19Z.tar.gz",
+  "archive_sha256": "f5e8cff1bc0618676d4bfb25f7c6d318664609394a75d06e4583327b13b00399",
+  "verified_listing": true,
+  "retrieval_command": "tar -xzf superseded-runtime-evidence-2026-09-26T09-38-19Z.tar.gz -C restore-2026-09-26T09-38-19Z"
+}

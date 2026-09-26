@@ -75,7 +75,11 @@ interface AINavigateResponse {
 /**
  * Track active navigations per session (to support abort).
  */
-const activeNavigations = new Map<string, { agent: ReturnType<typeof createVisionAgent>; navigationId: string }>();
+const activeNavigations = new Map<string, {
+  agent: ReturnType<typeof createVisionAgent>;
+  navigationId: string;
+  settled: Promise<unknown>;
+}>();
 const AI_GATEWAY_TIMEOUT_MS = 120000;
 
 /**
@@ -225,9 +229,6 @@ export async function handleSessionAINavigate(
   // Create vision agent
   const agent = createVisionAgent(deps);
 
-  // Store in active navigations
-  activeNavigations.set(sessionId, { agent, navigationId });
-
   // Navigation config
   const navConfig: NavigationConfig = {
     effectPolicy: body.effect_policy,
@@ -251,29 +252,18 @@ export async function handleSessionAINavigate(
     },
   };
 
-  // Send immediate response (navigation runs in background)
-  const response: AINavigateResponse = {
-    navigation_id: navigationId,
-    status: 'started',
-    model: body.model,
-    max_steps: maxSteps,
+  // Start navigation before publishing the lifecycle hook so reset/close can
+  // stop and join the exact background owner. The promise is deliberately
+  // retained only for this active session, not as a second cancellation path.
+  const navigation = agent.navigate(navConfig);
+  const lifecycle = { settled: Promise.resolve() };
+  const cleanup = async (): Promise<void> => {
+    const active = activeNavigations.get(sessionId);
+    if (!active || active.navigationId !== navigationId) return;
+    active.agent.abort();
+    await lifecycle.settled;
   };
-
-  sendJson(res, 202, response);
-
-  // Start navigation in background
-  logger.info('Starting AI navigation', {
-    sessionId,
-    navigationId,
-    prompt: body.prompt,
-    model: body.model,
-    maxSteps,
-    callbackUrl: body.callback_url,
-  });
-
-  // Run navigation asynchronously
-  agent
-    .navigate(navConfig)
+  const settled = navigation
     .then((result) => {
       logger.info('AI navigation completed', {
         sessionId,
@@ -325,9 +315,36 @@ export async function handleSessionAINavigate(
       emitNavigationComplete(body.callback_url, failureEvent).catch(() => {});
     })
     .finally(() => {
-      // Clean up
-      activeNavigations.delete(sessionId);
+      // Clean up only the registration created by this navigation. A stale
+      // completion must not remove a newer owner after a retry or lease handoff.
+      const active = activeNavigations.get(sessionId);
+      if (active?.navigationId === navigationId) activeNavigations.delete(sessionId);
+      if (session.aiNavigationCleanup === cleanup) session.aiNavigationCleanup = undefined;
     });
+  lifecycle.settled = settled;
+
+  // Send immediate response (navigation runs in background)
+  const response: AINavigateResponse = {
+    navigation_id: navigationId,
+    status: 'started',
+    model: body.model,
+    max_steps: maxSteps,
+  };
+
+  sendJson(res, 202, response);
+
+  // Start navigation in background
+  logger.info('Starting AI navigation', {
+    sessionId,
+    navigationId,
+    prompt: body.prompt,
+    model: body.model,
+    maxSteps,
+    callbackUrl: body.callback_url,
+  });
+
+  activeNavigations.set(sessionId, { agent, navigationId, settled });
+  session.aiNavigationCleanup = cleanup;
 }
 
 /**

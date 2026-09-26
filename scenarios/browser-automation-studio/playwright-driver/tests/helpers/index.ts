@@ -21,6 +21,12 @@ export * from './fetch-mocks';
 // Playwright mock versions
 export { createMockRequest, createMockResponse } from './playwright-mocks';
 
+export function createDeferred<T = void>(): { promise: Promise<T>; resolve: (value: T extends void ? void | undefined : T) => void } {
+  let resolve!: (value: T extends void ? void | undefined : T) => void;
+  const promise = new Promise<T>(done => { resolve = done; });
+  return { promise, resolve };
+}
+
 // Config
 export * from './test-config';
 

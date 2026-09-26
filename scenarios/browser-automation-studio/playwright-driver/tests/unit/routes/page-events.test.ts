@@ -1,7 +1,7 @@
 import { handleRecordStart } from '../../../src/routes/record-mode/recording-lifecycle';
 import { EventEmitter } from 'node:events';
 import type { Page } from 'rebrowser-playwright';
-import { createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
+import { createDeferred, createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
 import { handleRecordNewPage, emitHistoryCallback } from '../../../src/routes/record-mode/recording-pages';
 import * as pageEvents from '../../../src/routes/record-mode/page-events';
 import type { Config } from '../../../src/config';
@@ -10,11 +10,18 @@ import { installFetchMock } from '../../helpers';
 
 const { sendPageEvent, setupPageLifecycleListeners, pageEventCircuitBreaker } = pageEvents;
 
-jest.mock('../../../src/routes/record-mode/recording-pages', () => ({
-  ...jest.requireActual('../../../src/routes/record-mode/recording-pages'),
-  captureThumbnail: jest.fn().mockResolvedValue('thumb'),
-  emitHistoryCallback: jest.fn().mockResolvedValue(undefined),
-}));
+type PageEventPayload = { eventType?: string; faviconUrl?: string; driverPageId?: string; url?: string; title?: string };
+const parsePageEvent = (body: unknown): PageEventPayload => {
+  if (typeof body !== 'string') throw new Error('page-event fixture did not return a JSON body');
+  return JSON.parse(body) as PageEventPayload;
+};
+const pageEventBodies = (fetchMock: ReturnType<typeof installFetchMock>): PageEventPayload[] =>
+  fetchMock.mock.calls.map(call => parsePageEvent((call[1] as { body?: unknown } | undefined)?.body));
+
+jest.mock('../../../src/routes/record-mode/recording-pages', () => {
+  const actual = jest.requireActual<typeof import('../../../src/routes/record-mode/recording-pages')>('../../../src/routes/record-mode/recording-pages');
+  return { ...actual, captureThumbnail: jest.fn().mockResolvedValue('thumb'), emitHistoryCallback: jest.fn().mockResolvedValue(undefined) };
+});
 
 describe('page event routes', () => {
   const config: Config = {
@@ -140,12 +147,6 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
   });
   afterEach(() => pageEventCircuitBreaker.cleanup('owned-tabs'));
 
-  function deferred<T>() {
-    let resolve!: (value: T) => void;
-    const promise = new Promise<T>((done) => { resolve = done; });
-    return { promise, resolve };
-  }
-
   function fixture() {
     const context = new EventEmitter();
     const events = new EventEmitter();
@@ -154,19 +155,19 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
       opener: jest.fn().mockResolvedValue(null),
       waitForLoadState: jest.fn().mockResolvedValue(undefined),
       goto: jest.fn().mockResolvedValue(undefined),
-      url: () => 'https://fixture.invalid/first',
+      url: (): string => 'https://fixture.invalid/first',
       title: jest.fn().mockResolvedValue('First page'),
       evaluate: jest.fn().mockResolvedValue('https://fixture.invalid/custom.svg'),
-      mainFrame: () => frame,
-      isClosed: () => false,
+      mainFrame: (): object => frame,
+      isClosed: (): boolean => false,
     }) as unknown as Page & EventEmitter;
     const session = {
       id: 'owned-tabs', phase: 'recording', ownerExecutionId: 'owner', leaseId: 'lease',
       context, pages: [], pageIdMap: new Map(), pageToIdMap: new WeakMap(),
       page, currentPageIndex: 0, frameStack: [],
     } as unknown as ReturnType<SessionManager['getSession']>;
-    const setup = () => setupPageLifecycleListeners('owned-tabs', session, 'http://callback', config);
-    const open = () => (context.listeners('page')[0] as (page: Page) => Promise<void>)(page);
+    const setup = (): ReturnType<typeof setupPageLifecycleListeners> => setupPageLifecycleListeners('owned-tabs', session, 'http://callback', config);
+    const open = (): Promise<void> => (context.listeners('page')[0] as (page: Page) => Promise<void>)(page);
     return { context, page, frame, session, setup, open };
   }
 
@@ -175,7 +176,7 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
     try {
       await f.open();
       await (f.page.listeners('framenavigated')[0] as (frame: unknown) => Promise<void>)(f.frame);
-      const events = fetchMock.mock.calls.map(([, init]) => JSON.parse(init!.body as string));
+      const events = pageEventBodies(fetchMock);
       expect(events.map(e => e.eventType)).toEqual(['created', 'navigated']);
       expect(events[0].faviconUrl).toBeUndefined();
       expect(events[1].faviconUrl).toBe('https://fixture.invalid/custom.svg');
@@ -185,7 +186,7 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
   });
 
   it('publishes creation without waiting for document readiness, then orders navigation metadata', async () => {
-    const f = fixture(); const readiness = deferred<void>();
+    const f = fixture(); const readiness = createDeferred<void>();
     jest.mocked(f.page.waitForLoadState).mockReturnValueOnce(readiness.promise);
     const {cleanup} = f.setup();
     try {
@@ -196,13 +197,13 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
       expect(f.page.waitForLoadState).not.toHaveBeenCalled();
 
       await new Promise(setImmediate);
-      f.page.url = () => 'https://fixture.invalid/new-document';
+      f.page.url = (): string => 'https://fixture.invalid/new-document';
       f.page.emit('framenavigated', f.frame);
       await new Promise(setImmediate);
       expect(fetchMock).toHaveBeenCalledTimes(1);
       readiness.resolve();
       await new Promise(setImmediate);
-      const events = fetchMock.mock.calls.map(([, init]) => JSON.parse(init!.body as string));
+      const events = pageEventBodies(fetchMock);
       expect(events.map(e => e.eventType)).toEqual(['created', 'navigated']);
       expect(events[1]).toMatchObject({url: 'https://fixture.invalid/new-document', faviconUrl: 'https://fixture.invalid/custom.svg'});
     } finally {readiness.resolve(); cleanup();}
@@ -211,7 +212,7 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
   it.each(['cleanup', 'replacement'])('discards icon metadata after %s while the DOM read waits', async kind => {
     const f = fixture(); const {cleanup} = f.setup();
     await f.open(); fetchMock.mockClear(); jest.mocked(f.page.evaluate).mockClear();
-    const icon = deferred<string>(); const reading = deferred<void>();
+    const icon = createDeferred<string>(); const reading = createDeferred<void>();
     jest.mocked(f.page.evaluate).mockImplementation(() => {reading.resolve(); return icon.promise;});
     const navigation = (f.page.listeners('framenavigated')[0] as (frame: unknown) => Promise<void>)(f.frame);
     try {
@@ -219,7 +220,7 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
       await new Promise(setImmediate);
       expect(f.page.evaluate).toHaveBeenCalled();
       if (kind === 'cleanup') cleanup();
-      else f.page.url = () => 'https://fixture.invalid/replaced';
+      else f.page.url = (): string => 'https://fixture.invalid/replaced';
       icon.resolve('https://fixture.invalid/old.svg');
       await navigation;
       expect(fetchMock).not.toHaveBeenCalled();
@@ -243,16 +244,16 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
 
   it.each(['opener', 'created callback'])('preserves navigation while awaiting %s', async (stage) => {
     const f = fixture();
-    const opener = deferred<Page | null>();
-    const delivery = deferred<Response>();
-    const sent = deferred<void>();
+    const opener = createDeferred<Page | null>();
+    const delivery = createDeferred<Response>();
+    const sent = createDeferred<void>();
     if (stage === 'opener') jest.mocked(f.page.opener).mockReturnValue(opener.promise);
     else fetchMock.mockImplementationOnce(() => { sent.resolve(); return delivery.promise; });
     const { cleanup } = f.setup();
     const opening = f.open();
     try {
       if (stage === 'created callback') await sent.promise;
-      f.page.url = () => 'https://fixture.invalid/blue';
+      f.page.url = (): string => 'https://fixture.invalid/blue';
       jest.mocked(f.page.title).mockResolvedValue('Blue page');
       f.page.emit('framenavigated', f.frame);
       expect(fetchMock).toHaveBeenCalledTimes(stage === 'opener' ? 0 : 1);
@@ -260,7 +261,7 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
       delivery.resolve({ ok: true, status: 200, statusText: 'OK' } as Response);
       await opening;
       await new Promise(setImmediate);
-      const events = fetchMock.mock.calls.map(([, init]) => JSON.parse(init!.body as string));
+      const events = pageEventBodies(fetchMock);
       expect(events.map(event => event.eventType)).toEqual(['created', 'navigated']);
       expect(events[1]).toMatchObject({
         driverPageId: events[0].driverPageId, url: 'https://fixture.invalid/blue', title: 'Blue page',
@@ -269,7 +270,7 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
   });
 
   it('discards navigation queued behind creation when recording stops', async () => {
-    const f = fixture(); const sent = deferred<void>(); const delivery = deferred<Response>();
+    const f = fixture(); const sent = createDeferred<void>(); const delivery = createDeferred<Response>();
     fetchMock.mockImplementationOnce(() => { sent.resolve(); return delivery.promise; });
     const { cleanup } = f.setup(); const opening = f.open();
     await sent.promise;
@@ -284,19 +285,36 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
   });
 
   it('cannot attach or publish a pending popup after cleanup', async () => {
-    const f = fixture(); const opener = deferred<Page | null>();
+    const f = fixture(); const opener = createDeferred<Page | null>();
     jest.mocked(f.page.opener).mockReturnValue(opener.promise);
     const { cleanup } = f.setup(); const opening = f.open();
     cleanup(); opener.resolve(null); await opening;
     expect(f.page.listenerCount('framenavigated')).toBe(0);
     expect(f.page.listenerCount('close')).toBe(0);
+    expect(f.session.pages).toHaveLength(0);
+    expect(f.session.pageIdMap.size).toBe(0);
+    expect(f.session.pageToIdMap.has(f.page)).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not roll back a page already owned by the session', async () => {
+    const f = fixture(); const opener = createDeferred<Page | null>();
+    jest.mocked(f.page.opener).mockReturnValue(opener.promise);
+    const pageId = 'existing-page';
+    f.session.pages.push(f.page);
+    f.session.pageIdMap.set(pageId, f.page);
+    f.session.pageToIdMap.set(f.page, pageId);
+    const { cleanup } = f.setup(); const opening = f.open();
+    cleanup(); opener.resolve(null); await opening;
+    expect(f.session.pages).toEqual([f.page]);
+    expect(f.session.pageIdMap.get(pageId)).toBe(f.page);
+    expect(f.session.pageToIdMap.get(f.page)).toBe(pageId);
   });
 
   it('cannot publish a pending navigation title after cleanup', async () => {
     const f = fixture(); const { cleanup } = f.setup();
     await f.open();
-    const title = deferred<string>();
+    const title = createDeferred<string>();
     jest.mocked(f.page.title).mockReturnValue(title.promise);
     const navigation = (f.page.listeners('framenavigated')[0] as (frame: unknown) => Promise<void>)(f.frame);
     cleanup(); title.resolve('Late title'); await navigation;
@@ -321,7 +339,8 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
       const listeners = f.page.listeners('framenavigated');
       expect(listeners).toHaveLength(1);
       await (listeners[0] as (frame: unknown) => Promise<void>)(f.frame);
-      const payload = JSON.parse(fetchMock.mock.calls[0][1]!.body as string);
+      const payload = pageEventBodies(fetchMock)[0];
+      if (!payload) throw new Error('page-event fixture did not return a payload');
       expect(payload).toMatchObject({ driverPageId: 'first-id', eventType: 'navigated', url: 'https://fixture.invalid/first', title: 'First page' });
       expect(other.page.title).not.toHaveBeenCalled();
     } finally { cleanup(); }
@@ -335,12 +354,12 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
     let generation = 0;
     f.session.pipelineManager = {
       isRecording: () => capturing,
-      startRecording: async () => { capturing = true; generation++; return 'recording-id'; },
+      startRecording: () => { capturing = true; generation++; return Promise.resolve('recording-id'); },
       getGeneration: () => generation,
       getState: () => ({ phase: capturing ? 'capturing' : 'ready' }),
       getVerification: () => undefined,
     } as unknown as typeof f.session.pipelineManager;
-    const title = deferred<string>(); const reading = deferred<void>();
+    const title = createDeferred<string>(); const reading = createDeferred<void>();
     jest.mocked(f.page.title).mockImplementation(() => { reading.resolve(); return title.promise; });
     const manager = { getSession: () => f.session, getSessionForLease: () => f.session, updateActivity: jest.fn(), setSessionPhase: jest.fn() } as unknown as SessionManager;
     const response = createMockHttpResponse();
@@ -357,10 +376,10 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
   });
 
   it.each([false, true])('settles a close during pending creation callback, stopped=%s', async (stopped) => {
-    const f = fixture(); const sent = deferred<void>(); const delivery = deferred<Response>();
+    const f = fixture(); const sent = createDeferred<void>(); const delivery = createDeferred<Response>();
     fetchMock.mockImplementationOnce(() => { sent.resolve(); return delivery.promise; });
     let closed = false;
-    f.page.isClosed = () => closed;
+    f.page.isClosed = (): boolean => closed;
     const { cleanup } = f.setup(); const opening = f.open();
     try {
       await sent.promise;
@@ -368,7 +387,7 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
       if (stopped) cleanup();
       delivery.resolve({ ok: true, status: 200, statusText: 'OK' } as Response);
       await opening;
-      const events = fetchMock.mock.calls.map(([, init]) => JSON.parse(init!.body as string).eventType);
+      const events = pageEventBodies(fetchMock).map(event => event.eventType);
       expect(events).toEqual(stopped ? ['created'] : ['created', 'closed']);
       expect(f.page.listenerCount('close')).toBe(0);
       expect(f.page.listenerCount('framenavigated')).toBe(0);
@@ -383,7 +402,7 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
   it('registers an explicitly created tab once and uses the same callback and response identity', async () => {
     const f = fixture(); const { cleanup } = f.setup();
     let discovered: Promise<void> | undefined;
-    f.session.context.newPage = jest.fn(async () => { discovered = f.open(); return f.page; });
+    f.session.context.newPage = jest.fn(() => { discovered = f.open(); return Promise.resolve(f.page); });
     const manager = { getSession: () => f.session, getSessionForLease: () => f.session, updateActivity: jest.fn() } as unknown as SessionManager;
     const response = createMockHttpResponse();
     try {
@@ -392,7 +411,8 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
       expect(response.statusCode).toBe(201);
       expect(f.session.pages).toEqual([f.page]);
       expect(f.session.pageIdMap.size).toBe(1);
-      const payload = JSON.parse(fetchMock.mock.calls[0][1]!.body as string);
+      const payload = pageEventBodies(fetchMock)[0];
+      if (!payload) throw new Error('page-event fixture did not return a payload');
       expect(response.getJSON().driver_page_id).toBe(payload.driverPageId);
       expect(f.session.pageToIdMap.get(f.page)).toBe(payload.driverPageId);
     } finally { cleanup(); }

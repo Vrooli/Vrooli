@@ -202,6 +202,59 @@ export class SessionManager {
       );
   }
 
+  /** Register the shared session lifecycle once for every browser target. */
+  private initializeSessionRegistration(session: SessionState): void {
+    trackSessionPageStack(session);
+    setupDiagnosticLogging(session.context, session.id);
+    const pipelineManager = session.pipelineManager;
+    if (!pipelineManager) {
+      session.pipelineReadyPromise = Promise.resolve(false);
+      return;
+    }
+    session.pipelineReadyPromise = pipelineManager
+      .initialize()
+      .then(() => pipelineManager.verifyPipeline({ timeoutMs: 5000, retries: 1 }))
+      .then((verification) => {
+        const ready = verification.scriptLoaded && verification.scriptReady && verification.inMainContext;
+        if (ready) {
+          logger.debug(scopedLog(LogContext.SESSION, 'recording pipeline verified'), {
+            sessionId: session.id,
+            handlersCount: verification.handlersCount,
+          });
+        } else {
+          logger.warn(scopedLog(LogContext.SESSION, 'recording pipeline verification incomplete'), {
+            sessionId: session.id,
+            verification,
+            hint: 'Recording may require re-verification on first use',
+          });
+        }
+        return ready;
+      })
+      .catch((error: unknown) => {
+        logger.warn(scopedLog(
+          LogContext.SESSION,
+          session.externalTarget ? 'external target recording init failed' : 'recording pipeline init failed'
+        ), {
+          sessionId: session.id,
+          error: getErrorMessage(error),
+          hint: 'Recording will retry initialization when started',
+        });
+        return false;
+      });
+  }
+
+  private async completeSessionRegistration(session: SessionState): Promise<void> {
+    await safeInvoke(this.instrumentation.onSessionStart?.bind(this.instrumentation), {
+      sessionId: session.id,
+      executionId: session.spec.execution_id,
+    });
+  }
+
+  private recordSessionMetrics(): void {
+    metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
+    metrics.sessionCount.set({ state: 'total' }, this.sessions.size);
+  }
+
   /**
    * Start a new session
    *
@@ -575,55 +628,10 @@ export class SessionManager {
       };
 
       this.sessions.set(sessionId, session);
-      trackSessionPageStack(session);
 
       try {
-        // Setup diagnostic logging for redirect loop debugging
-        // Enable with DIAGNOSTIC_LOGGING=true environment variable
-        setupDiagnosticLogging(context, sessionId);
-
-        // Initialize recording pipeline (early verification)
-        // This runs injection and verification so the pipeline is ready before recording starts
-        // The promise is stored in session.pipelineReadyPromise so consumers can await it
-        const pipelineReadyPromise = pipelineManager
-          .initialize()
-          .then(() => {
-            return pipelineManager.verifyPipeline({ timeoutMs: 5000, retries: 1 });
-          })
-          .then((verification) => {
-            if (
-              verification.scriptLoaded &&
-              verification.scriptReady &&
-              verification.inMainContext
-            ) {
-              logger.debug(scopedLog(LogContext.SESSION, 'recording pipeline verified'), {
-                sessionId,
-                handlersCount: verification.handlersCount,
-              });
-              return true;
-            } else {
-              logger.warn(
-                scopedLog(LogContext.SESSION, 'recording pipeline verification incomplete'),
-                {
-                  sessionId,
-                  verification,
-                  hint: 'Recording may require re-verification on first use',
-                }
-              );
-              return false;
-            }
-          })
-          .catch((err: unknown) => {
-            logger.warn(scopedLog(LogContext.SESSION, 'recording pipeline init failed'), {
-              sessionId,
-              error: getErrorMessage(err),
-              hint: 'Recording will retry initialization when started',
-            });
-            return false;
-          });
-
-        // Store the promise in session state for consumers to await
-        session.pipelineReadyPromise = pipelineReadyPromise;
+        // Register shared diagnostics and recording readiness before target-specific setup.
+        this.initializeSessionRegistration(session);
 
         // Enable service worker monitoring and handle unregisterOnStart
         await serviceWorkerController.enable(page);
@@ -647,9 +655,7 @@ export class SessionManager {
           initialPageId,
         });
 
-        // Update metrics
-        metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
-        metrics.sessionCount.set({ state: 'total' }, this.sessions.size);
+        this.recordSessionMetrics();
 
         // Performance tracing (Tier 0 CDP trace + web-vitals). Started here —
         // after the page exists but before the first navigate instruction — so
@@ -705,11 +711,7 @@ export class SessionManager {
           }
         }
 
-        // Session-level instrumentation hook (no-op by default).
-        await safeInvoke(this.instrumentation.onSessionStart?.bind(this.instrumentation), {
-          sessionId,
-          executionId: spec.execution_id,
-        });
+        await this.completeSessionRegistration(session);
 
         // Return actualViewport from buildContext (includes source attribution)
         return { sessionId, leaseId: session.leaseId, reused: false, createdAt, actualViewport };
@@ -846,28 +848,9 @@ export class SessionManager {
         pipelineManager,
       };
       this.sessions.set(sessionId, session);
-      trackSessionPageStack(session);
-      setupDiagnosticLogging(context, sessionId);
-      session.pipelineReadyPromise = pipelineManager
-        .initialize()
-        .then(() => pipelineManager.verifyPipeline({ timeoutMs: 5000, retries: 1 }))
-        .then(
-          (verification) =>
-            verification.scriptLoaded && verification.scriptReady && verification.inMainContext
-        )
-        .catch((error: unknown) => {
-          logger.warn(scopedLog(LogContext.SESSION, 'external target recording init failed'), {
-            sessionId,
-            error: getErrorMessage(error),
-          });
-          return false;
-        });
-      await safeInvoke(this.instrumentation.onSessionStart?.bind(this.instrumentation), {
-        sessionId,
-        executionId: spec.execution_id,
-      });
-      metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
-      metrics.sessionCount.set({ state: 'total' }, this.sessions.size);
+      this.initializeSessionRegistration(session);
+      await this.completeSessionRegistration(session);
+      this.recordSessionMetrics();
       const viewport = page.viewportSize() || spec.viewport;
       return {
         sessionId,

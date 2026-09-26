@@ -1,4 +1,4 @@
-import { handleRecordInput, handleRecordViewport } from '../../../src/routes/record-mode/recording-input';
+import { handleRecordInput, handleRecordViewport, resetPageInputState, settlePageInput } from '../../../src/routes/record-mode/recording-input';
 import { createMockHttpRequest, createMockHttpResponse, createMockPage, createTestConfig } from '../../helpers';
 import type { SessionManager } from '../../../src/session';
 import { updateFrameStreamViewport } from '../../../src/frame-streaming';
@@ -163,6 +163,38 @@ describe('recording input routes', () => {
     }
   });
 
+  it('drains and rejects queued input after the session becomes non-operational', async () => {
+    const session = sessionManager.getSession('test');
+    let releaseMove!: () => void;
+    let moveStarted!: () => void;
+    const gate = new Promise<void>((resolve) => { releaseMove = resolve; });
+    const started = new Promise<void>((resolve) => { moveStarted = resolve; });
+    jest.mocked(mockPage.mouse.move).mockImplementationOnce(async () => {
+      moveStarted();
+      await gate;
+    });
+    const firstResponse = createMockHttpResponse();
+    const secondResponse = createMockHttpResponse();
+    const first = handleRecordInput(createMockHttpRequest({ method: 'POST', body: {
+      execution_id: 'owner', lease_id: 'lease', type: 'pointer', action: 'move', x: 1, y: 1,
+    } }), firstResponse, 'test', sessionManager as SessionManager, config);
+    await started;
+    const second = handleRecordInput(createMockHttpRequest({ method: 'POST', body: {
+      execution_id: 'owner', lease_id: 'lease', type: 'wheel', delta_y: 1,
+    } }), secondResponse, 'test', sessionManager as SessionManager, config);
+    session.phase = 'resetting';
+    const settled = settlePageInput(mockPage);
+    let settledBeforeRelease = false;
+    void settled.then(() => { settledBeforeRelease = true; });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(settledBeforeRelease).toBe(false);
+    releaseMove();
+    await Promise.allSettled([first, second, settled]);
+    expect(firstResponse.statusCode).toBe(404);
+    expect(secondResponse.statusCode).toBe(404);
+    expect(mockPage.mouse.wheel).not.toHaveBeenCalled();
+  });
+
   it('coalesces queued pointer motion and acknowledges its final applied sequence', async () => {
     let releaseMove!: () => void;
     let moveStarted!: () => void;
@@ -276,6 +308,32 @@ describe('recording input routes', () => {
     expect(mockPage.keyboard.up).toHaveBeenCalledWith('Shift');
     expect(releaseOrder).toEqual(['pointer-up', 'modifier-up']);
     expect(upResponse.statusCode).toBe(200);
+  });
+
+  it('releases pointer modifiers when pointer-up fails after a completed down', async () => {
+    await handleRecordInput(createMockHttpRequest({ method: 'POST', body: {
+      execution_id: 'owner', lease_id: 'lease', type: 'pointer', action: 'down', button: 'left', modifiers: ['Shift'],
+    } }), createMockHttpResponse(), 'test', sessionManager as SessionManager, config);
+    jest.mocked(mockPage.mouse.up).mockRejectedValueOnce(new Error('synthetic pointer-up failure'));
+
+    const res = createMockHttpResponse();
+    await handleRecordInput(createMockHttpRequest({ method: 'POST', body: {
+      execution_id: 'owner', lease_id: 'lease', type: 'pointer', action: 'up', button: 'left', modifiers: ['Shift'],
+    } }), res, 'test', sessionManager as SessionManager, config);
+
+    expect(mockPage.mouse.up).toHaveBeenCalledWith({ button: 'left' });
+    expect(mockPage.keyboard.up).toHaveBeenCalledWith('Shift');
+    expect(res.statusCode).not.toBe(200);
+  });
+
+  it('clears retained-page pointer ownership before reset gives the page to a new lease', async () => {
+    await handleRecordInput(createMockHttpRequest({ method: 'POST', body: {
+      execution_id: 'owner', lease_id: 'lease', type: 'pointer', action: 'down', button: 'left', modifiers: ['Shift'],
+    } }), createMockHttpResponse(), 'test', sessionManager as SessionManager, config);
+
+    await resetPageInputState(mockPage);
+
+    expect(mockPage.keyboard.up).toHaveBeenCalledWith('Shift');
   });
 
   it('releases pointer modifiers after a failed down action', async () => {

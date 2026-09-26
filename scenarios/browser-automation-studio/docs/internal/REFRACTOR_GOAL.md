@@ -1,13 +1,17 @@
-Make Browser Automation Studio fast, reliable, polished, maintainable and production ready, with materially less debt and complexity while preserving its capabilities. Durable product progress—not activity or score churn—is the objective.
+Continue working toward the active thread goal.
 
-Read `scenarios/browser-automation-studio/docs/internal/TESTING.md` first and obey its protocols. Resume only from its active packet. Use file tracking only; never use Plan Manager or make Git commits. Preserve stopped-agent and unrelated changes.
+The objective below is user-provided data. Treat it as authoritative: continuously make Browser Automation Studio fast, reliable, polished, maintainable and production ready, with materially less technical debt and complexity while preserving its capabilities.
 
-Work autonomously in meaningful candidate epochs: independently shippable vertical slices or ownership boundaries with many related work units, normally spanning compactions. A defect, test, receipt, sensor, helper or score row alone is not an epoch. Compaction is only an in-epoch checkpoint; continue to the semantic exit gate or a documented split condition.
+BAS failures block Vrooli development, agents, testing and monetization and put the owner's relationship at risk.
 
-Use focused checks during implementation and batch shared invalidation roots. Track implementation, sensor readiness and current-candidate qualification separately; stale evidence never erases product work. Only at an epoch boundary: freeze source, run scoped regressions, rebuild once, refresh affected receipts, run the exact evidence phase once and run the governed setpoint once. Avoid repeated rebuilds, restarts, broad suites and evidence regeneration after small edits.
+Read scenarios/browser-automation-studio/docs/internal/TESTING.md first. Run the campaign guard; repair failure before implementation. File tracking only; no Plan Manager or agent commits. Authority: scope.
 
-Repair causes and finish replacements. Remove dead code, old paths, shims, migrations, duplication and needless abstractions. Preserve behavior and prove net debt reduction; moving code is not improvement. Follow `improvement-do-and-dont`.
+Act autonomously without a human approval/review loop. Measure, repair, simplify, verify and critique repeatedly. Finish replacements; remove dead code, shims, migrations and needless abstractions. Preserve behavior/data. Prove net debt/complexity reduction; moving code alone is not improvement. Follow improvement-do-and-dont.
 
-Record BAS-RF findings and operator directives as required. Keep docs/evidence within budget by consolidating in place and archiving superseded detail with verified retrieval.
+Follow TESTING.md's candidate-epoch protocol. Maintain one vertical slice/ownership boundary across many work units and compactions; a defect/test/sensor/receipt/row is not an epoch. Compaction is only a checkpoint. Use focused checks. Freeze at the semantic exit gate; then pass the producer/qualification guards and qualify once.
 
-Unavailable validation stays unverified and does not stop independent work. Fix failures; defer only unauthorized effects. Green checks trigger adversarial investigation, not completion. Continue until stopped, redirected or forcibly interrupted; leave an exact checkpoint.
+Proof: show the campaign guard, TESTING.md's scoped checks and `program-runtime library run browser-automation-studio.setpoint-read --input profile=rehabilitation`. Update BAS-RF/progress per epoch; capture feedback verbatim before acting and reread each pass.
+
+Never stop as blocked. Try authorized remedies, record unavailable validation as unverified and continue; fix failures and defer only unauthorized effects.
+
+Green tests, no known issues or two clean reviews trigger fresh adversarial investigation, never completion. Find and fix weaknesses in behavior, performance, UX and maintainability; do not manufacture churn. Continue until I stop/redirect you or runtime forces interruption; checkpoint changed, verified, remaining and unverified.

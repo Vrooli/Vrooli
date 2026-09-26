@@ -121,8 +121,8 @@ describe('live viewer transport and lifetime', () => {
   it('bounds a hundred-frame decode burst and retains the newest pending image',async()=>{
     await mount();act(()=>{currentSocket().open();for(let i=0;i<100;i++)currentSocket().frame();});
     expect(decodes.length).toBe(1);
-    await resolveDecode(0);expect(decodes.length).toBe(2);
-    await resolveDecode(1);paint();paint();expect(draw.mock.calls.map(([image])=>(image as {id:number}).id)).toEqual([1,2]);
+    const stale = await resolveDecode(0);expect(stale.close).toHaveBeenCalledTimes(1);expect(decodes.length).toBe(2);
+    await resolveDecode(1);paint();paint();expect(draw.mock.calls.map(([image])=>(image as {id:number}).id)).toEqual([2]);
   });
   it('bounds delayed paints and retains only the newest two decoded frames',async()=>{
     await mount();act(()=>currentSocket().open());

@@ -37,6 +37,7 @@ var RequiredSources = []string{
 	"api/websocket/hub.go",
 	"api/websocket/hub_test.go",
 	"api/cmd/motion-cohort/qualification.mjs",
+	"api/cmd/qualification-support.mjs",
 	"api/cmd/motion-cohort/validation.mjs",
 	"playwright-driver/src/frame-streaming/strategies/cdp-screencast.ts",
 	"playwright-driver/tests/integration/motion-qualification.test.ts",

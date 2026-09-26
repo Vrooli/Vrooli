@@ -39,6 +39,7 @@ var RequiredSources = []string{
 	".vrooli/test-genie.json",
 	".vrooli/program-runtime/setpoint-read.py",
 	"api/cmd/evidence-completeness-cohort/qualification.mjs",
+	"api/cmd/qualification-support.mjs",
 }
 
 var RequiredTests = []string{

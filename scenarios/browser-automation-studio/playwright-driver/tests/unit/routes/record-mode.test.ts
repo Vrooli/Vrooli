@@ -9,11 +9,16 @@ import * as pages from '../../../src/routes/record-mode/recording-pages';
 import { createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
 import { SessionManager } from '../../../src/session/manager';
 
-const mockHistoryCDP = { send: jest.fn(async () => ({ currentIndex: 0, entries: [{ id: 1, url: 'https://example.com', title: 'Example' }] })), detach: jest.fn(async () => {}) };
+const mockHistoryCDP = { send: jest.fn(() => Promise.resolve({ currentIndex: 0, entries: [{ id: 1, url: 'https://example.com', title: 'Example' }] })), detach: jest.fn(() => Promise.resolve()) };
+
+type NavigationHistory = { currentIndex: number; entries: Array<{ id: number; url: string; title: string }> };
+type NavigationPage = { context: () => { newCDPSession: jest.Mock }; goto: jest.Mock; reload: jest.Mock; goBack: jest.Mock; goForward: jest.Mock; url: jest.Mock<string, []>; title: jest.Mock; screenshot: jest.Mock };
+type RecordOperation = 'navigate' | 'reload' | 'go-back' | 'go-forward';
+type NavigationFixture = { id: string; page: NavigationPage; session: { page: NavigationPage; pageToIdMap: WeakMap<object, string>; phase: string; ownerExecutionId: string; leaseId: string; leaseReleasedAt: Date | undefined }; manager: SessionManager; call: (operation: RecordOperation, body?: Record<string, unknown>) => { response: ReturnType<typeof createMockHttpResponse>; pending: Promise<void> }; read: (stack?: boolean, query?: Record<string, string>) => Promise<ReturnType<typeof createMockHttpResponse>>; history: NavigationHistory; cdp: { send: jest.Mock; detach: jest.Mock }; attach: jest.Mock };
 
 // Minimal session manager stub to avoid spinning up Playwright
 const mockPage = {
-  context: () => ({ newCDPSession: async () => mockHistoryCDP }),
+  context: (): { newCDPSession: () => Promise<typeof mockHistoryCDP> } => ({ newCDPSession: () => Promise.resolve(mockHistoryCDP) }),
   on: jest.fn(),
   goto: jest.fn().mockResolvedValue(undefined),
   screenshot: jest.fn().mockResolvedValue(Buffer.from('image-bytes')),
@@ -27,7 +32,7 @@ const mockSessionManager: Pick<SessionManager, 'getSession'> = {
 describe('recording navigation ownership and browser history [REQ:BAS-RH-J17] [REQ:BAS-RH-J04]', () => {
   const handlers = { navigate: handleRecordNavigate, reload: handleRecordReload, 'go-back': handleRecordGoBack, 'go-forward': handleRecordGoForward };
   const methods = { navigate: 'goto', reload: 'reload', 'go-back': 'goBack', 'go-forward': 'goForward' } as const;
-  type Operation = keyof typeof handlers;
+  type Operation = RecordOperation;
   const operations = Object.keys(handlers) as Operation[];
   const config = createTestConfig({ history: { callbackUrl: '', thumbnailEnabled: false } });
   let clearCache: jest.SpyInstance, historyCallback: jest.SpyInstance;
@@ -37,51 +42,52 @@ describe('recording navigation ownership and browser history [REQ:BAS-RH-J17] [R
   });
   afterEach(() => jest.restoreAllMocks());
 
-  function fixture(operation: Operation = 'navigate') {
+  function fixture(operation: Operation = 'navigate'): NavigationFixture {
     const id = `navigation-${operation}`;
     // Browser-created entries exist before any recording navigation command.
-    const history = { currentIndex: operation === 'go-forward' ? 0 : 1, entries: [
+    const history: NavigationHistory = { currentIndex: operation === 'go-forward' ? 0 : 1, entries: [
       { id: 11, url: 'https://a.test', title: '' }, { id: 12, url: 'https://b.test', title: '' },
     ] };
     const cdp = {
-      send: jest.fn(async (_method: string) => structuredClone(history)),
-      detach: jest.fn(async () => {}),
+      send: jest.fn((_method: string) => Promise.resolve(structuredClone(history))),
+      detach: jest.fn(() => Promise.resolve()),
     };
-    const attach = jest.fn(async () => cdp);
+    const attach = jest.fn(() => Promise.resolve(cdp));
     const page = {
-      context: () => ({ newCDPSession: attach }),
-      goto: jest.fn(async (next: string) => {
+      context: (): { newCDPSession: jest.Mock } => ({ newCDPSession: attach }),
+      goto: jest.fn((next: string) => {
         history.entries.splice(history.currentIndex + 1, Infinity, { id: 13, url: next, title: '' });
-        history.currentIndex++; return {};
+        history.currentIndex++; return Promise.resolve({});
       }),
-      reload: jest.fn(async () => ({})),
-      goBack: jest.fn(async (): Promise<object | null> => { history.currentIndex--; return null; }),
-      goForward: jest.fn(async (): Promise<object | null> => { history.currentIndex++; return null; }),
-      url: () => history.entries[history.currentIndex].url,
-      title: jest.fn(async () => 'fixture title'),
-      screenshot: jest.fn(async () => Buffer.from('fixture screenshot')),
+      reload: jest.fn(() => Promise.resolve({})),
+      goBack: jest.fn((): Promise<object | null> => { history.currentIndex--; return Promise.resolve(null); }),
+      goForward: jest.fn((): Promise<object | null> => { history.currentIndex++; return Promise.resolve(null); }),
+      url: (): string => history.entries[history.currentIndex].url,
+      title: jest.fn(() => Promise.resolve('fixture title')),
+      screenshot: jest.fn(() => Promise.resolve(Buffer.from('fixture screenshot'))),
     };
     const session = { page, pageToIdMap: new WeakMap([[page, 'original-driver-page']]), phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', leaseReleasedAt: undefined as Date | undefined };
     const activity = jest.fn();
     const manager = {
-      getSession: () => { activity(); return session; }, peekSession: () => session,
+      getSession: (): typeof session => { activity(); return session; }, peekSession: (): typeof session => session,
       getSessionForLease: SessionManager.prototype.getSessionForLease,
       updateActivity: activity,
     } as unknown as SessionManager;
-    const call = (op: Operation, body: Record<string, unknown> = {}) => {
+    const call = (op: Operation, body: Record<string, unknown> = {}): ReturnType<NavigationFixture['call']> => {
       const response = createMockHttpResponse();
       const pending = handlers[op](createMockHttpRequest({ method: 'POST', body: { execution_id: 'owner', lease_id: 'lease', url: 'https://c.test', ...body } }), response, id, manager, config);
       return { response, pending };
     };
-    const read = async (stack = false, query: Record<string, string> = {}) => {
+    const read = async (stack = false, query: Record<string, string> = {}): Promise<ReturnType<typeof createMockHttpResponse>> => {
       const response = createMockHttpResponse();
-      await (stack ? handleRecordNavigationStack : handleRecordNavigationState)(createMockHttpRequest({url: `/session/${id}/record/navigation-${stack ? 'stack' : 'state'}?${new URLSearchParams({execution_id: 'owner', lease_id: 'lease', expected_page_id: session.pageToIdMap.get(session.page) ?? '', ...query})}`}), response, id, manager, config);
+      const search = new URLSearchParams({ execution_id: 'owner', lease_id: 'lease', expected_page_id: session.pageToIdMap.get(session.page) ?? '', ...query }).toString();
+      await (stack ? handleRecordNavigationStack : handleRecordNavigationState)(createMockHttpRequest({url: `/session/${id}/record/navigation-${stack ? 'stack' : 'state'}?${search}`}), response, id, manager, config);
       return response;
     };
     return { id, page, session, manager, call, read, history, cdp, attach };
   }
 
-  function deferred() {
+  function deferred(): { promise: Promise<void>; resolve: () => void } {
     let resolve!: () => void;
     const promise = new Promise<void>(done => { resolve = done; });
     return { promise, resolve };
@@ -246,7 +252,7 @@ describe('recording navigation ownership and browser history [REQ:BAS-RH-J17] [R
 
   it.each([false, true])('rejects a page replacement during history read (stack=%s)', async stack => {
     const f = fixture();
-    f.cdp.send.mockImplementationOnce(async () => { f.session.page = { ...f.page }; return structuredClone(f.history); });
+    f.cdp.send.mockImplementationOnce(() => { f.session.page = { ...f.page }; return Promise.resolve(structuredClone(f.history)); });
     const response = await f.read(stack);
     expect(response.statusCode).toBe(404);
     expect(f.cdp.detach).toHaveBeenCalledTimes(1);
@@ -268,7 +274,7 @@ describe('recording navigation ownership and browser history [REQ:BAS-RH-J17] [R
     });
     it('discards a lease handoff during the CDP read and detaches', async () => {
       const f = fixture();
-      f.cdp.send.mockImplementationOnce(async () => { f.session.leaseId = 'replacement'; return structuredClone(f.history); });
+      f.cdp.send.mockImplementationOnce(() => { f.session.leaseId = 'replacement'; return Promise.resolve(structuredClone(f.history)); });
       const response = await f.read(stack);
       expect(response.statusCode).toBe(404);
       expect(response.getJSON().url).toBeUndefined();
@@ -347,7 +353,7 @@ describe('Record Mode Routes', () => {
     initRecordingBuffer(sessionId);
     bufferTimelineEntry(sessionId, create(TimelineEntrySchema, { id: 'pending', sequenceNum: 0 }));
     try {
-      const read = (query = '') => {
+      const read = (query = ''): ReturnType<typeof createMockHttpResponse> => {
         const res = createMockHttpResponse();
         handleRecordActions(createMockHttpRequest({ url: `/session/${sessionId}/record/actions${query}` }), res, sessionId, mockSessionManager as SessionManager);
         return res;
@@ -378,9 +384,9 @@ describe('Record Mode Routes', () => {
     const entry = create(TimelineEntrySchema, { id: 'delivery' });
     const fetch = jest.spyOn(globalThis, 'fetch');
     try {
-      fetch.mockImplementation(async () => new Response(JSON.stringify(receipt), { status }));
+      fetch.mockImplementation(() => Promise.resolve(new Response(JSON.stringify(receipt), { status })));
       await expect(streamRecordingEntry('http://fixture.test/commit', entry)).rejects.toThrow();
-      fetch.mockImplementation(async () => new Response(JSON.stringify({ status: 'ok', entry_id: entry.id }), { status: 200 }));
+      fetch.mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ status: 'ok', entry_id: entry.id }), { status: 200 })));
       await expect(streamRecordingEntry('http://fixture.test/commit', entry)).resolves.toBeUndefined();
       expect(fetch).toHaveBeenCalledTimes(2);
     } finally { fetch.mockRestore(); }
@@ -392,8 +398,8 @@ describe('Record Mode Routes', () => {
     const session = {
       phase: 'ready', page: mockPage,
       pipelineManager: {
-        isRecording: () => false, getRecordingId: () => 'recording', getGeneration: () => 1,
-        getRecordingData: () => ({ actionCount: 7, stoppedAt }), stopRecording: stop,
+        isRecording: (): boolean => false, getRecordingId: (): string => 'recording', getGeneration: (): number => 1,
+        getRecordingData: (): { actionCount: number; stoppedAt: string } => ({ actionCount: 7, stoppedAt }), stopRecording: stop,
       },
     };
     const manager = { getSession: () => session, getSessionForLease: () => session, updateActivity: jest.fn(), setSessionPhase: jest.fn() } as unknown as SessionManager;

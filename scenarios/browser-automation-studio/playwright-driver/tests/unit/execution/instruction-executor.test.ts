@@ -1,5 +1,6 @@
 import type { HandlerInstruction } from '../../../src/proto';
 import type { HandlerRegistry } from '../../../src/handlers';
+import type { InstructionHandler } from '../../../src/handlers/base';
 import type { HandlerResult } from '../../../src/outcome';
 import type { Metrics } from '../../../src/utils/metrics';
 import type { ExecutionContext } from '../../../src/execution';
@@ -29,6 +30,14 @@ import { executeInstruction, validateInstruction } from '../../../src/execution'
 import { createTestConfig } from '../../helpers/test-config';
 
 const typedAction = {} as HandlerInstruction['action'];
+
+const createTestRegistry = (execute: InstructionHandler['execute']): HandlerRegistry => {
+  const handler: InstructionHandler = {
+    getSupportedTypes: (): string[] => ['click'],
+    execute,
+  };
+  return { getHandler: (): InstructionHandler => handler } as unknown as HandlerRegistry;
+};
 
 describe('Instruction executor', () => {
   const observeInstructionDuration = jest.fn();
@@ -120,14 +129,12 @@ describe('Instruction executor', () => {
       const handlerResult: HandlerResult = { success: true };
 
       const executeHandler = jest.fn().mockResolvedValue(handlerResult);
-      const handler = {
+      const handler: InstructionHandler = {
+        getSupportedTypes: (): string[] => ['click'],
         execute: executeHandler,
       };
-
-      const getHandler = jest.fn().mockReturnValue(handler);
-      const handlerRegistry = {
-        getHandler,
-      } as unknown as HandlerRegistry;
+      const getHandler = jest.fn<InstructionHandler, [HandlerInstruction]>().mockReturnValue(handler);
+      const handlerRegistry = { getHandler } as unknown as HandlerRegistry;
 
       const outcome = { durationMs: 12 };
       const driverOutcome = { success: true };
@@ -167,14 +174,7 @@ describe('Instruction executor', () => {
       };
 
       const executeHandler = jest.fn().mockResolvedValue(handlerResult);
-      const handler = {
-        execute: executeHandler,
-      };
-
-      const getHandler = jest.fn().mockReturnValue(handler);
-      const handlerRegistry = {
-        getHandler,
-      } as unknown as HandlerRegistry;
+      const handlerRegistry = createTestRegistry(executeHandler);
 
       const outcome = { durationMs: 20 };
       (buildStepOutcome as jest.Mock).mockReturnValue(outcome);
@@ -196,20 +196,13 @@ describe('Instruction executor', () => {
       };
 
       const executeHandler = jest.fn().mockRejectedValue(new Error('boom'));
-      const handler = {
-        execute: executeHandler,
-      };
-
-      const getHandler = jest.fn().mockReturnValue(handler);
-      const handlerRegistry = {
-        getHandler,
-      } as unknown as HandlerRegistry;
+      const handlerRegistry = createTestRegistry(executeHandler);
 
       const result = await executeInstruction(instruction, baseContext, handlerRegistry);
       expect(result.success).toBe(false);
-      expect(result.handlerResult.error).toMatchObject({
-        code: 'INSTRUCTION_OUTCOME_UNCERTAIN', retryable: false, message: expect.stringContaining('boom'),
-      });
+      expect(result.handlerResult.error?.code).toBe('INSTRUCTION_OUTCOME_UNCERTAIN');
+      expect(result.handlerResult.error?.retryable).toBe(false);
+      expect(result.handlerResult.error?.message).toContain('boom');
       expect(mockTelemetryInstance.collectForStep).toHaveBeenCalledWith(result.handlerResult, { skipScreenshot: false });
       expect(result.telemetry.screenshot).toBeDefined();
       expect(executeHandler).toHaveBeenCalledTimes(1);
@@ -218,8 +211,8 @@ describe('Instruction executor', () => {
     it.each(['start', 'collect', 'build', 'wire'])('releases collectors after a %s failure', async (site) => {
       const instruction = { index: 0, nodeId: 'fault', action: typedAction };
       const execute = jest.fn().mockResolvedValue({ success: true });
-      const registry = { getHandler: () => ({ execute }) } as unknown as HandlerRegistry;
-      const fail = () => { throw new Error(`${site} fault`); };
+      const registry = createTestRegistry(execute);
+      const fail = (): never => { throw new Error(`${site} fault`); };
       if (site === 'start') mockTelemetryInstance.start.mockRejectedValueOnce(new Error('start fault'));
       if (site === 'collect') mockTelemetryInstance.collectForStep.mockImplementationOnce(fail);
       if (site === 'build') (buildStepOutcome as jest.Mock).mockImplementationOnce(fail);
@@ -231,7 +224,8 @@ describe('Instruction executor', () => {
 
     it('retains capture and the known result when a metrics observer throws', async () => {
       observeInstructionDuration.mockImplementationOnce(() => { throw new Error('metrics unavailable'); });
-      const registry = { getHandler: () => ({ execute: async () => ({ success: true }) }) } as unknown as HandlerRegistry;
+      const execute = (): Promise<HandlerResult> => Promise.resolve({ success: true });
+      const registry = createTestRegistry(execute);
       const result = await executeInstruction({ index: 0, nodeId: 'metrics', action: typedAction }, baseContext, registry);
       expect(result.success).toBe(true);
       expect(result.telemetry.screenshot).toBeDefined();
@@ -240,7 +234,9 @@ describe('Instruction executor', () => {
 
     it.each([true, false])('reports partial evidence while preserving a declared failure (handler success=%s)', async (success) => {
       const declaredError = { code: 'ASSERTION_FAILED', kind: 'engine', message: 'expected button absent', retryable: false };
-      const registry = { getHandler: () => ({ execute: async () => ({ success, error: success ? undefined : declaredError }) }) } as unknown as HandlerRegistry;
+      const execute = (): Promise<HandlerResult> =>
+        Promise.resolve({ success, error: success ? undefined : declaredError });
+      const registry = createTestRegistry(execute);
       mockTelemetryInstance.collectForStep.mockResolvedValueOnce({ captureErrors: ['dom: transport failed'], consoleLogs: [{ text: 'available' }] });
       (buildStepOutcome as jest.Mock).mockReturnValueOnce({ durationMs: 10, notes: {} });
       const result = await executeInstruction({ index: 0, nodeId: 'partial', action: typedAction }, baseContext, registry);

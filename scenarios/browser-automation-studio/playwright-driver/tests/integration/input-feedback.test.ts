@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve, sep } from 'node:path';
 import { chromium, type Browser, type Page } from 'rebrowser-playwright';
-import { once } from 'node:events';
 import WebSocket = require('ws');
 import { handleRecordInput } from '../../src/routes/record-mode/recording-input';
 import { startFrameStreaming, stopFrameStreaming } from '../../src/frame-streaming';
@@ -20,17 +19,34 @@ type FeedbackProbeEvent = {
 type FeedbackProbeWindow = Window & {
   __basPointerEventTimes?: number[];
   __basInputEvents?: FeedbackProbeEvent[];
+  __basOpenedWebSockets?: number;
 };
 type FrameSocket = {
   on: (event: 'message', listener: (message: Buffer) => void) => void;
   terminate: () => void;
 };
+type NetworkSession = {
+  send: (method: string, params?: Record<string, unknown>) => Promise<void>;
+  detach: () => Promise<void>;
+};
+type LiveObservation = {
+  pointerEventCount: number;
+  pointerEventMs: number | undefined;
+  sent: FeedbackProbeEvent | undefined;
+  applied: FeedbackProbeEvent | undefined;
+  marker: number;
+  canvasObservedMs: number | undefined;
+};
+type TestWebSocketServer = {
+  once: (event: 'listening', listener: () => void) => void;
+  on: (event: 'connection', listener: (socket: FrameSocket) => void) => void;
+  address: () => { port: number } | string | null;
+  clients: Set<FrameSocket>;
+  close: (callback: () => void) => void;
+};
+type TestWebSocketServerConstructor = new (options: { host: string; port: number }) => TestWebSocketServer;
 
-function isFrameSocket(value: unknown): value is FrameSocket {
-  if (typeof value !== 'object' || value === null) return false;
-  const candidate = value as { on?: unknown; terminate?: unknown };
-  return typeof candidate.on === 'function' && typeof candidate.terminate === 'function';
-}
+const createTestWebSocketServer = WebSocket.Server as unknown as TestWebSocketServerConstructor;
 
 async function calibrateClock(page: Page): Promise<ClockSample> {
   let best: ClockSample | undefined;
@@ -216,14 +232,14 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
       getSessionForLease: () => session,
       updateActivity: jest.fn(),
     } as unknown as SessionManager;
-    const server = new WebSocket.Server({ host: '127.0.0.1', port: 0 });
+    const server = new createTestWebSocketServer({ host: '127.0.0.1', port: 0 });
     const frameBuffers: Buffer[] = [];
     const frameWaiters: Array<(frame: Buffer) => void> = [];
     let socket: FrameSocket | undefined;
     const count = 1000;
 
     try {
-      await once(server, 'listening');
+      await new Promise<void>((resolve) => server.once('listening', resolve));
       const address = server.address();
       if (typeof address === 'string') throw new Error('Expected an ephemeral WebSocket port');
       await page.goto(`data:text/html,${encodeURIComponent('<!doctype html><html><body style="margin:0;background:#777"><div id="marker" style="position:fixed;left:30px;top:30px;display:flex;gap:4px"></div></body></html>')}`, {
@@ -250,15 +266,11 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
           });
         });
       });
-      const connected = once(server, 'connection');
+      const connected = new Promise<FrameSocket>((resolve) => server.on('connection', resolve));
       startFrameStreaming(sessionId, { getSession: () => session }, {
         callbackUrl: `http://127.0.0.1:${address.port}/frames`, quality: 65, fps: 30,
       });
-      const connectionEvent: unknown = await connected;
-      if (!Array.isArray(connectionEvent) || !isFrameSocket(connectionEvent[0])) {
-        throw new Error('Frame stream did not establish a usable WebSocket');
-      }
-      socket = connectionEvent[0];
+      socket = await connected;
       socket.on('message', (message) => {
         const frame = Buffer.from(message);
         const waiter = frameWaiters.shift();
@@ -371,17 +383,61 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
     const fixture = `<!doctype html><html><body style="margin:0;background:rgb(119,119,119)"><div style="position:fixed;left:30px;top:30px;display:flex;gap:4px">${cells}</div><script>window.__inputCount=0;addEventListener('pointermove',()=>{const id=++window.__inputCount;document.querySelectorAll('[data-bit]').forEach((cell,index)=>cell.style.backgroundColor=((id>>(9-index))&1)?'white':'black')})</script></body></html>`;
     let sessionId: string | undefined;
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-    let networkSession: Awaited<ReturnType<typeof page.context>['newCDPSession']> | undefined;
+    let networkSession: NetworkSession | undefined;
     await page.addInitScript(() => {
       const probeWindow = window as FeedbackProbeWindow;
       probeWindow.__basPointerEventTimes = [];
       probeWindow.__basInputEvents = [];
+      probeWindow.__basOpenedWebSockets = 0;
+
+      const NativeWebSocket = window.WebSocket;
+      const InstrumentedWebSocket = function instrumentedWebSocket(
+        this: WebSocket,
+        url: string | URL,
+        protocols?: string | string[],
+      ): WebSocket {
+        const socket = protocols === undefined
+          ? new NativeWebSocket(url)
+          : new NativeWebSocket(url, protocols);
+        socket.addEventListener('open', () => {
+          probeWindow.__basOpenedWebSockets = (probeWindow.__basOpenedWebSockets ?? 0) + 1;
+        }, { once: true });
+        return socket;
+      } as unknown as typeof WebSocket;
+      InstrumentedWebSocket.prototype = NativeWebSocket.prototype;
+      Object.setPrototypeOf(InstrumentedWebSocket, NativeWebSocket);
+      window.WebSocket = InstrumentedWebSocket;
+
       window.addEventListener('pointermove', () => {
         probeWindow.__basPointerEventTimes?.push(performance.now());
       }, true);
 
-      const nativeSend = WebSocket.prototype.send;
-      WebSocket.prototype.send = function sendWithProbe(data): void {
+      const nativeFetch = window.fetch.bind(window);
+      window.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const response = await nativeFetch(input, init);
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        if (url.includes('/recordings/live/') && url.endsWith('/input') && typeof init?.body === 'string') {
+          try {
+            const payload = JSON.parse(init.body) as { input_id?: string };
+            if (typeof payload.input_id === 'string') {
+              probeWindow.__basInputEvents?.push({kind: 'recording_input', inputId: payload.input_id, atMs: performance.now()});
+              if (response.ok) {
+                const receipt = await response.clone().json() as { input_id?: string; applied_sequence?: number };
+                if (receipt.input_id === payload.input_id && typeof receipt.applied_sequence === 'number') {
+                  probeWindow.__basInputEvents?.push({kind: 'recording_input_applied', inputId: receipt.input_id, appliedSequence: receipt.applied_sequence, atMs: performance.now()});
+                }
+              }
+            }
+          } catch {
+            // Non-input requests and malformed test responses remain invisible to the probe.
+          }
+        }
+        return response;
+      }) as typeof window.fetch;
+
+      const browserWebSocket = window.WebSocket;
+      const nativeSend = browserWebSocket.prototype.send;
+      browserWebSocket.prototype.send = function sendWithProbe(this: WebSocket, data: Parameters<typeof nativeSend>[0]): void {
         if (typeof data === 'string') {
           try {
             const message = JSON.parse(data) as { type?: string; input?: { input_id?: string } };
@@ -396,12 +452,13 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
         nativeSend.call(this, data);
       };
 
-      const messageHandler = Object.getOwnPropertyDescriptor(WebSocket.prototype, 'onmessage');
+      const messageHandler = Object.getOwnPropertyDescriptor(browserWebSocket.prototype, 'onmessage');
       if (!messageHandler?.get || !messageHandler.set) throw new Error('WebSocket onmessage instrumentation is unavailable');
-      Object.defineProperty(WebSocket.prototype, 'onmessage', {
+      const getMessageHandler = messageHandler.get as ((this: globalThis.WebSocket) => ((event: MessageEvent<unknown>) => void) | null);
+      Object.defineProperty(browserWebSocket.prototype, 'onmessage', {
         configurable: true,
         enumerable: messageHandler.enumerable,
-        get() { return messageHandler.get?.call(this); },
+        get() { return getMessageHandler.call(this as globalThis.WebSocket); },
         set(handler: ((event: MessageEvent<unknown>) => void) | null) {
           if (!handler) {
             messageHandler.set?.call(this, handler);
@@ -431,15 +488,8 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
 
     try {
       if (networkProfile === 'remote') {
-        networkSession = await page.context().newCDPSession(page);
+        networkSession = await page.context().newCDPSession(page) as unknown as NetworkSession;
         await networkSession.send('Network.enable');
-        await networkSession.send('Network.emulateNetworkConditions', {
-          offline: false,
-          latency: 50,
-          downloadThroughput: 1_250_000,
-          uploadThroughput: 1_250_000,
-          connectionType: 'wifi',
-        });
       }
       const created = await fetch(`${apiBase}/recordings/live/session`, {
         method: 'POST',
@@ -474,6 +524,19 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
         const firstCell = context.getImageData(42, 42, 1, 1).data;
         return background[0] > 90 && background[0] < 150 && firstCell[0] > 180;
       }, { timeout: 30000 });
+      await page.waitForFunction(() => {
+        const probeWindow = window as FeedbackProbeWindow;
+        return (probeWindow.__basOpenedWebSockets ?? 0) > 0;
+      }, { timeout: 30000 });
+      if (networkSession) {
+        await networkSession.send('Network.emulateNetworkConditions', {
+          offline: false,
+          latency: 50,
+          downloadThroughput: 1_250_000,
+          uploadThroughput: 1_250_000,
+          connectionType: 'wifi',
+        });
+      }
       const canvas = page.locator('canvas').first();
       const box = await canvas.boundingBox();
       if (!box) throw new Error('The BAS viewer canvas has no visible bounds');
@@ -490,7 +553,7 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
       }> = [];
       const appliedSequences: number[] = [];
 
-      const observeSample = async (pointerIndex: number, inputSendIndex: number, wantedMarker: number) => page.evaluate(({ pointerIndex: expectedPointer, inputSendIndex: expectedSend, marker: expectedMarker }) => {
+      const observeSample = async (pointerIndex: number, inputSendIndex: number, wantedMarker: number): Promise<LiveObservation> => page.evaluate<LiveObservation>(({ pointerIndex: expectedPointer, inputSendIndex: expectedSend, marker: expectedMarker }: { pointerIndex: number; inputSendIndex: number; marker: number }) => {
         const probeWindow = window as FeedbackProbeWindow;
         const pointerTimes = probeWindow.__basPointerEventTimes ?? [];
         const inputEvents = probeWindow.__basInputEvents ?? [];
@@ -541,14 +604,14 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
           await new Promise(resolve => setTimeout(resolve, 5));
           observation = await observeSample(counts.pointer, counts.sends, wantedMarker);
         }
-        if (!observation.sent || !observation.applied || observation.marker !== wantedMarker || observation.canvasObservedMs === undefined) {
+        if (!observation.sent || !observation.applied || observation.marker !== wantedMarker || observation.canvasObservedMs === undefined || observation.pointerEventMs === undefined) {
           throw new Error(`Input ${index + 1} did not correlate with its receipt and canvas pixels: ${JSON.stringify({ sent: Boolean(observation.sent), receipt: Boolean(observation.applied), marker: observation.marker, wantedMarker })}`);
         }
         if (typeof observation.applied.appliedSequence !== 'number') {
           throw new Error(`Input ${index + 1} receipt omitted applied_sequence`);
         }
         correlatedTimings.push({
-          pointerEventMs: observation.pointerEventMs as number,
+          pointerEventMs: observation.pointerEventMs,
           socketSendMs: observation.sent.atMs,
           appliedAckMs: observation.applied.atMs,
           canvasObservedMs: observation.canvasObservedMs,
@@ -570,7 +633,13 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
         sample.canvasObservedMs - sample.appliedAckMs
       );
 
-      const summarize = (values: number[]) => ({
+      const summarize = (values: number[]): {
+        p50Ms: number;
+        p95Ms: number;
+        p99Ms: number;
+        minMs: number;
+        maxMs: number;
+      } => ({
         p50Ms: percentile(values, 0.50),
         p95Ms: percentile(values, 0.95),
         p99Ms: percentile(values, 0.99),
@@ -581,7 +650,7 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
       const report = {
         producer: 'playwright-driver/tests/integration/input-feedback.test.ts',
         cohort: networkProfile,
-        scope: 'managed BAS recording input over WebSocket through Go input forwarding, driver page mutation, Go frame relay and BAS useFrameStream canvas draw',
+        scope: 'managed BAS recording input over WebSocket/HTTP fallback through Go input forwarding, driver page mutation, Go frame relay and BAS useFrameStream canvas draw',
         network: networkProfile === 'remote'
           ? { emulation: 'Chromium CDP Network.emulateNetworkConditions', rttMs: 50, throughputMbps: 10 }
           : { emulation: 'none', rttMs: 0, throughputMbps: null },
@@ -625,7 +694,7 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
         if (!healthResponse.ok) throw new Error(`Managed API health read failed (${healthResponse.status})`);
         const health = await healthResponse.json() as { build_identity?: string };
         if (!health.build_identity) throw new Error('Managed API health omitted build_identity');
-        const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
+        const sha256 = (bytes: Buffer): string => createHash('sha256').update(bytes).digest('hex');
         const receipt = {
           schema_version: 1,
           evidence_kind: 'interactive_feedback_cohort',

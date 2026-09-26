@@ -6,20 +6,28 @@ import type { SessionState } from '../types';
 import { assertRecordingAcknowledged, removeRecordingBuffer } from '../recording';
 import { metrics } from '../utils';
 import { stopFrameStreaming } from '../frame-streaming';
+import { settlePageInput } from '../routes/record-mode/recording-input';
 
 /** Retain progress on the session until every required teardown stage succeeds. */
 export async function teardownSessionResources(session: SessionState): Promise<string[]> {
-  const progress = session.closeProgress ??= { completed: new Set(), videoPaths: new Map() };
+  const progress: NonNullable<SessionState['closeProgress']> = session.closeProgress ??= {
+    completed: new Set<string>(), videoPaths: new Map<number, string>(),
+  };
   const once = async (operation: string, run: () => Promise<unknown>): Promise<void> => {
     if (progress.completed.has(operation)) return;
     try {
       await run();
       progress.completed.add(operation);
     } catch (cause) {
-      metrics.cleanupFailures.inc({ operation: operation.split(':')[0]! });
+      metrics.cleanupFailures.inc({ operation: operation.split(':')[0] ?? operation });
       throw new Error(`${operation}: ${cause instanceof Error ? cause.message : String(cause)}`, { cause });
     }
   };
+
+  // A background AI navigator can still be awaiting a model, callback, or
+  // human intervention while close begins. Its page owner must settle before
+  // teardown mutates or disposes browser resources.
+  await once('ai_navigation_stop', async () => session.aiNavigationCleanup?.());
 
   // Flush before disposing the browser. A failure leaves its recovery owner and
   // recording buffer intact; successful stages are not repeated on retry.
@@ -30,10 +38,23 @@ export async function teardownSessionResources(session: SessionState): Promise<s
   await once('recording_stop', async () => {
     if (session.pipelineManager?.isRecording()) await session.pipelineManager.stopRecording();
   });
+  // Pipeline registration starts during session admission but is intentionally
+  // not part of the admission response. Join it after any admitted recording
+  // has flushed, before touching browser resources, so verification cannot
+  // continue against a closed page/context.
+  if (!session.externalTarget) {
+    await once('pipeline_ready', async () => {
+      await session.pipelineReadyPromise?.catch(() => undefined);
+    });
+  }
   assertRecordingAcknowledged(session.id);
-  await once('page_callbacks_stop', async () => {
+  await once('live_input_settle', async () => {
+    await Promise.all([...new Set([...session.pages, session.page])].map((page) => settlePageInput(page)));
+  });
+  await once('page_callbacks_stop', () => {
     session.pageLifecycleCleanup?.();
     session.pageLifecycleCleanup = undefined;
+    return Promise.resolve();
   });
   await once('frame_stream_stop', async () => stopFrameStreaming(session.id));
   await once('service_worker_disable', async () => session.serviceWorkerController?.disable());
@@ -42,7 +63,8 @@ export async function teardownSessionResources(session: SessionState): Promise<s
   if (session.tracing && session.tracePath) {
     await once('tracing_stop', async () => session.context.tracing.stop({ path: session.tracePath }));
   }
-  if (session.tracePath) await once('trace_file', async () => readableArtifact(session.tracePath!));
+  const tracePath = session.tracePath;
+  if (tracePath) await once('trace_file', () => readableArtifact(tracePath));
 
   if (session.externalTarget) {
     // Detach BAS's CDP connection. The target owner controls its pages/process.
@@ -52,6 +74,14 @@ export async function teardownSessionResources(session: SessionState): Promise<s
     const pages = [...session.pages.entries()];
     if (!pages.some(([, page]) => page === session.page)) {
       pages.push([pages.length, session.page]);
+    }
+    // Playwright may release the Video handle when its page closes. Capture
+    // the handles while the pages are still live, then close and flush the
+    // context before moving the completed files.
+    const videos = new Map<number, Video>();
+    for (const [index, page] of pages) {
+      const video = page.video();
+      if (video) videos.set(index, video);
     }
     if (session.instructionInterrupted) {
       pages.sort((left, right) => Number(right[1] === session.page) - Number(left[1] === session.page));
@@ -65,18 +95,22 @@ export async function teardownSessionResources(session: SessionState): Promise<s
     // video.path() yields a destination, not proof that the encoder finished.
     // Context close flushes capture before any file is moved or published.
     await once('context_close', async () => session.context.close());
-    for (const [index, page] of session.pages.entries()) {
+    for (const [index, video] of videos) {
       await once(`video_file:${index}`, async () => {
-        const video = page.video();
-        if (video) progress.videoPaths.set(index, await moveVideo(video, session, index));
+        progress.videoPaths.set(index, await moveVideo(video, session, index));
       });
     }
   }
-  if (session.harPath) await once('har_file', async () => readableArtifact(session.harPath!));
-  const videoPaths = [...progress.videoPaths.entries()].sort(([a], [b]) => a - b).map(([, file]) => file);
+  const harPath = session.harPath;
+  if (harPath) await once('har_file', () => readableArtifact(harPath));
+  const videoEntries: Array<[number, string]> = Array.from(progress.videoPaths.entries());
+  videoEntries.sort((left, right) => left[0] - right[0]);
+  const videoPaths: string[] = videoEntries.map((entry) => entry[1]);
   // A prior attempt may have validated a file before another stage failed.
   // Check every published reference again at the successful close boundary.
-  const artifacts = [...videoPaths, session.tracePath, session.harPath].filter((file): file is string => !!file);
+  const artifacts: string[] = [...videoPaths];
+  if (tracePath) artifacts.push(tracePath);
+  if (harPath) artifacts.push(harPath);
   await Promise.all(artifacts.map(readableArtifact));
   removeRecordingBuffer(session.id);
   return videoPaths;

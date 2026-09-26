@@ -202,7 +202,24 @@ func latestCrashEvidence(scenarioRoot string) (crashEvidence, error) {
 	if err != nil {
 		return crashEvidence{}, err
 	}
-	return readFirst[crashEvidence](paths, "current process crash/reconnect evidence")
+	contractSHA, err := fileSHA(filepath.Join(scenarioRoot, "docs/internal/REFRACTOR_CONTRACT.json"))
+	if err != nil {
+		return crashEvidence{}, fmt.Errorf("read passive-fidelity contract: %w", err)
+	}
+	for _, path := range paths {
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			continue
+		}
+		var candidate crashEvidence
+		if json.Unmarshal(data, &candidate) != nil {
+			continue
+		}
+		if validateSourceSet(scenarioRoot, candidate.SourceSHA256, crashSources, contractSHA) == nil {
+			return candidate, nil
+		}
+	}
+	return crashEvidence{}, fmt.Errorf("no current process crash/reconnect evidence")
 }
 
 func latestSemanticsEvidence(scenarioRoot string) (semanticsEvidence, error) {
@@ -210,22 +227,24 @@ func latestSemanticsEvidence(scenarioRoot string) (semanticsEvidence, error) {
 	if err != nil {
 		return semanticsEvidence{}, err
 	}
-	return readFirst[semanticsEvidence](paths, "current browser semantics evidence")
-}
-
-func readFirst[T any](paths []string, label string) (T, error) {
-	var zero T
+	contractSHA, err := fileSHA(filepath.Join(scenarioRoot, "docs/internal/REFRACTOR_CONTRACT.json"))
+	if err != nil {
+		return semanticsEvidence{}, fmt.Errorf("read passive-fidelity contract: %w", err)
+	}
 	for _, path := range paths {
-		data, err := os.ReadFile(path)
-		if err != nil {
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
 			continue
 		}
-		var result T
-		if json.Unmarshal(data, &result) == nil {
-			return result, nil
+		var candidate semanticsEvidence
+		if json.Unmarshal(data, &candidate) != nil {
+			continue
+		}
+		if validateSourceSet(scenarioRoot, candidate.SourceSHA256, semanticsSources, contractSHA) == nil {
+			return candidate, nil
 		}
 	}
-	return zero, fmt.Errorf("no %s receipt", label)
+	return semanticsEvidence{}, fmt.Errorf("no current browser semantics evidence")
 }
 
 func evidencePaths(scenarioRoot, pattern string) ([]string, error) {

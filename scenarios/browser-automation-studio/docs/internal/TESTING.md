@@ -15,6 +15,59 @@ child plan or Swarm plan-backed item for this engagement. Its target is durable;
 its next intervention comes from current evidence. This instruction overrides
 the plan-backed templates in goal and campaign skills for this engagement only.
 
+## North Star
+
+BAS rehabilitation evidence is a trustworthy, current-build contract for
+browser automation: every declared capability has an owner, a fail-closed
+receipt, a governed maturity standing, and a runnable next repair. A clean
+provider phase means the evidence contract itself is dependable, not that every
+browser outcome is already qualified.
+
+## The rungs and their gates
+
+The rehabilitation provider exposes one ladder per owner capability. L0 means
+the current-build receipt is unavailable or invalid; L1 means the owner receipt
+passes its declared behavioral band, source/contract identity, and managed-build
+identity. The gate is the exact `rehabilitation-evidence` phase plus its focused
+owner tests; the governed setpoint remains false until all required contract
+rows have applicable evidence.
+
+Each non-top rung has one next unlock: produce or refresh the current owner
+receipt for that capability. The provider maps a failed receipt to the matching
+required finding, so the scorecard cannot silently skip an owner. The provider
+contract itself is checked with `provider-conformance`.
+
+## What each finding means
+
+`PROFILE_EVIDENCE_INVALID`, `CANCELLATION_EVIDENCE_INVALID`,
+`PASSIVE_FIDELITY_EVIDENCE_INVALID`, `RESOURCE_BUDGET_EVIDENCE_INVALID`,
+`MOTION_EVIDENCE_INVALID`, `EVIDENCE_COMPLETENESS_INVALID`, and
+`INTERACTIVE_FEEDBACK_EVIDENCE_INVALID` each cap their named capability at L0.
+They mean the current receipt is missing, stale, malformed, out of band, or
+does not match the current source, contract, or managed build. They are required
+error findings and therefore fail the evidence phase until repaired.
+
+## The canonical fix
+
+Run the focused owner producer named by the finding, retain its bounded receipt
+under `.vrooli/runtime/rehabilitation-evidence/`, and preserve source,
+contract, and managed-build identity in that receipt. Do not weaken an
+assertion, delete a failed cohort, or count local diagnostics as remote proof.
+For provider-conformance findings, repair `.vrooli/test-genie.json`, this
+document, or the `profilevalidation` response owner according to the finding;
+do not add a second maturity or provider path.
+
+## How to verify
+
+Run focused owner tests from `scenarios/browser-automation-studio/api`, the
+driver owner regression and typecheck, then run:
+
+```bash
+vrooli scenario test browser-automation-studio --phases provider-conformance
+vrooli scenario test browser-automation-studio --phases rehabilitation-evidence
+program-runtime library run browser-automation-studio.setpoint-read --input profile=rehabilitation
+```
+
 Read `prompt-manager skill read browser-automation-studio-improve` for the
 scenario's rehabilitation posture and `prompt-manager skill read
 improvement-do-and-dont` for anti-gaming. Use `scientific-debugging` when a cause
@@ -93,6 +146,22 @@ specific code, test, checkpoint or decision reference. When an active file
 accumulates superseded narrative, compact it during the current epoch rather
 than waiting for another size complaint.
 
+The campaign guard makes these limits admission rules rather than optional
+prose. Run it immediately after resume and after every checkpoint rewrite:
+
+```bash
+python3 scenarios/browser-automation-studio/docs/internal/campaign_guard.py --stage resume
+```
+
+It must exit zero before implementation continues. Run `--stage producer`
+before any high-cardinality owner/evidence producer and `--stage qualify`
+before the exact evidence phase or setpoint read. Those stages require the
+active checkpoint to say `Candidate state: **frozen**`; qualification also
+requires `Qualification cycle: **unused**`. A failed guard is campaign
+maintenance to repair immediately, never permission to bypass a limit, create
+a second epoch or run qualification anyway. The guard does not certify product
+behavior.
+
 ### Candidate-epoch execution protocol
 
 A **candidate epoch** is the smallest independently shippable vertical product
@@ -120,6 +189,14 @@ At epoch admission, write one active checkpoint containing:
   deleted;
 - the semantic exit gate, unavailable external evidence and permitted split
   conditions.
+
+The checkpoint also carries exactly one candidate-state line and one
+qualification-cycle line. Use `Candidate state: **implementation**` while
+source work remains, change it to `Candidate state: **frozen**` only after the
+semantic exit gate is satisfied, and use `Candidate state: **reopened**` when
+closure exposes a product defect. Start with `Qualification cycle: **unused**`;
+after the single closure cycle, replace it with the phase/run identities and
+counts. Never reset it inside the same epoch to obtain another attempt.
 
 Reject or enlarge an epoch when it is only one assertion, defect, helper,
 sensor, receipt or row; when known actionable work remains in the same
@@ -195,6 +272,13 @@ producer run, unless the active owner needs the excess files; record that
 temporary exception and its cleanup trigger. Producers must write bounded
 summaries by default and put high-cardinality samples in raw owner artifacts,
 not duplicate them across logs, receipts and Markdown.
+
+The campaign guard excludes `archive/` from these working-set counts. Before a
+producer is rerun, archive its superseded cohort and transitive raw artifacts;
+do not retain several tags for the same owner at the live root. A producer that
+regularly requires manual cleanup is itself unfinished: change it to replace or
+rotate its prior owner/candidate cohort as part of that ownership-boundary
+epoch.
 
 Durable `docs/internal/evidence/rehabilitation/` contains only cited design or
 repair evidence and compressed histories. Do not copy transient qualification

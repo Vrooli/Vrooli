@@ -11,14 +11,17 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/browser-automation-studio/internal/cancellationqualification"
 	"github.com/vrooli/browser-automation-studio/internal/evidencecompletenessqualification"
+	"github.com/vrooli/browser-automation-studio/internal/interactivefeedbackqualification"
 	"github.com/vrooli/browser-automation-studio/internal/motionqualification"
 	"github.com/vrooli/browser-automation-studio/internal/passivefidelityqualification"
 	"github.com/vrooli/browser-automation-studio/internal/resourcebudgetqualification"
 	"github.com/vrooli/maturity-go/assessment"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
@@ -92,6 +95,7 @@ func Module(scenarioDir string) (scenariovalidationv1connect.ScenarioValidationS
 }
 
 func (p *provider) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+	started := time.Now()
 	scenario := strings.TrimSpace(req.Msg.GetScenario())
 	if scenario == "" {
 		scenario = providerScenario
@@ -100,17 +104,21 @@ func (p *provider) ValidateScenario(ctx context.Context, req *connect.Request[sc
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("provider only validates %s", providerScenario))
 	}
 	if !req.Msg.GetIncludeExecution() {
-		return p.response(scenario, nil)
+		return p.response(scenario, nil, started)
 	}
-	return p.response(scenario, p.validate(ctx))
+	return p.response(scenario, p.validate(ctx), started)
 }
 
-func (p *provider) response(scenario string, findings []assessment.Finding) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+func (p *provider) response(scenario string, findings []assessment.Finding, started time.Time) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
 	a, err := assessment.BuildProtoAssessment(assessment.BuildInput{Scenario: scenario, Spec: *p.spec, Findings: findings})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	r, err := assessment.BuildValidationResponse(scenario, a, nil, nil)
+	elapsed := time.Since(started).Milliseconds()
+	if elapsed < 1 {
+		elapsed = 1
+	}
+	r, err := assessment.BuildValidationResponse(scenario, a, nil, &commonv1.ExecutionMetrics{WallClockMs: elapsed})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -120,13 +128,13 @@ func (p *provider) response(scenario string, findings []assessment.Finding) (*co
 func (p *provider) validate(ctx context.Context) []assessment.Finding {
 	root, err := filepath.Abs(p.deps.ScenarioDir)
 	if err != nil {
-		return []assessment.Finding{profileFinding(err), cancellationFinding(err), passiveFidelityFinding(err), resourceBudgetFinding(err), motionFinding(err), evidenceCompletenessFinding(err)}
+		return []assessment.Finding{profileFinding(err), cancellationFinding(err), passiveFidelityFinding(err), resourceBudgetFinding(err), motionFinding(err), evidenceCompletenessFinding(err), interactiveFeedbackFinding(err)}
 	}
 	build, err := p.deps.BuildIdentity(ctx)
 	if err != nil {
-		return []assessment.Finding{profileFinding(err), cancellationFinding(err), passiveFidelityFinding(err), resourceBudgetFinding(err), motionFinding(err), evidenceCompletenessFinding(err)}
+		return []assessment.Finding{profileFinding(err), cancellationFinding(err), passiveFidelityFinding(err), resourceBudgetFinding(err), motionFinding(err), evidenceCompletenessFinding(err), interactiveFeedbackFinding(err)}
 	}
-	findings := make([]assessment.Finding, 0, 6)
+	findings := make([]assessment.Finding, 0, 7)
 	if err := p.validateProfile(root, build); err != nil {
 		findings = append(findings, profileFinding(err))
 	}
@@ -144,6 +152,9 @@ func (p *provider) validate(ctx context.Context) []assessment.Finding {
 	}
 	if err := evidencecompletenessqualification.Validate(root, build); err != nil {
 		findings = append(findings, evidenceCompletenessFinding(err))
+	}
+	if err := interactivefeedbackqualification.Validate(root, build); err != nil {
+		findings = append(findings, interactiveFeedbackFinding(err))
 	}
 	return findings
 }
@@ -170,6 +181,10 @@ func motionFinding(err error) assessment.Finding {
 
 func evidenceCompletenessFinding(err error) assessment.Finding {
 	return assessment.Finding{Code: "EVIDENCE_COMPLETENESS_INVALID", Severity: "SEVERITY_ERROR", Title: "Evidence-completeness owner tests are stale or invalid", Message: err.Error(), Location: evidencecompletenessqualification.EvidenceGlob, Remediation: "Run the focused screenshot, inline telemetry, external video/trace, and active-retention owners for the current BAS source and build."}
+}
+
+func interactiveFeedbackFinding(err error) assessment.Finding {
+	return assessment.Finding{Code: "INTERACTIVE_FEEDBACK_EVIDENCE_INVALID", Severity: "SEVERITY_ERROR", Title: "Interactive-feedback evidence is stale or incomplete", Message: err.Error(), Location: interactivefeedbackqualification.EvidenceGlob, Remediation: "Run both the local and 50 ms/10 Mbps remote interactive-feedback cohorts with 1,000 correlated inputs against the current BAS build."}
 }
 
 func (p *provider) validateProfile(root, build string) error {

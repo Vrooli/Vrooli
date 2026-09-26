@@ -10,7 +10,34 @@ import { playwrightProvider } from '../../../src/playwright';
 import { SessionManager } from '../../../src/session/manager';
 import { ServiceWorkerController } from '../../../src/service-worker';
 import { SessionNotFoundError, ResourceLimitError } from '../../../src/utils/errors';
-import { createMockBrowser, createMockContext, createMockPage, createTestConfig, createMockHttpRequest, createMockHttpResponse } from '../../helpers';
+import { createDeferred, createMockBrowser, createMockContext, createMockPage, createTestConfig, createMockHttpRequest, createMockHttpResponse } from '../../helpers';
+
+jest.mock('../../../src/routes/record-mode/recording-input', () => {
+  const actual = jest.requireActual<typeof import('../../../src/routes/record-mode/recording-input')>('../../../src/routes/record-mode/recording-input');
+  return {
+    ...actual,
+    settlePageInput: jest.fn().mockResolvedValue(undefined),
+    resetPageInputState: jest.fn().mockResolvedValue(undefined),
+  };
+});
+import * as recordingInput from '../../../src/routes/record-mode/recording-input';
+jest.mock('../../../src/handlers/keyboard', () => {
+  const actual = jest.requireActual<typeof import('../../../src/handlers/keyboard')>('../../../src/handlers/keyboard');
+  return { ...actual, resetKeyboardState: jest.fn().mockResolvedValue(undefined) };
+});
+import * as keyboardHandler from '../../../src/handlers/keyboard';
+
+function createSessionSpec(overrides: Partial<SessionSpec> = {}): SessionSpec {
+  return {
+    execution_id: 'exec-123',
+    workflow_id: 'workflow-123',
+    base_url: 'https://example.com',
+    viewport: { width: 1280, height: 720 },
+    reuse_mode: 'fresh',
+    required_capabilities: {},
+    ...overrides,
+  };
+}
 
 describe('SessionManager', () => {
   let manager: InstanceType<typeof SessionManager>;
@@ -60,14 +87,53 @@ describe('SessionManager', () => {
       const cleanup = jest.fn(() => { active = false; });
       session.pageLifecycleCleanup = cleanup;
       const browserEffects: boolean[] = [];
-      mockPage.goto.mockImplementation(async () => { browserEffects.push(active); return null; });
-      mockPage.close.mockImplementation(async () => { browserEffects.push(active); });
+      mockPage.goto.mockImplementation(() => { browserEffects.push(active); return Promise.resolve(null); });
+      mockPage.close.mockImplementation(() => { browserEffects.push(active); return Promise.resolve(); });
       if (operation === 'reset') await manager.resetSession(sessionId);
       else await manager.closeSession(sessionId);
       expect(cleanup).toHaveBeenCalledTimes(1);
       expect(session.pageLifecycleCleanup).toBeUndefined();
       expect(browserEffects.length).toBeGreaterThan(0);
       expect(browserEffects.every((callbacksActive) => !callbacksActive)).toBe(true);
+    });
+
+    it.each(['reset', 'close'] as const)('joins live input before session %s browser effects', async (operation) => {
+      const { sessionId } = await manager.startSession({
+        execution_id: `input-settle-${operation}`, viewport: { width: 800, height: 600 },
+        reuse_mode: 'fresh', required_capabilities: {},
+      });
+      jest.mocked(recordingInput.settlePageInput).mockClear();
+      if (operation === 'reset') await manager.resetSession(sessionId);
+      else await manager.closeSession(sessionId);
+      expect(recordingInput.settlePageInput).toHaveBeenCalledWith(mockPage);
+      if (operation === 'reset') expect(recordingInput.resetPageInputState).toHaveBeenCalledWith(mockPage);
+      if (operation === 'reset') expect(keyboardHandler.resetKeyboardState).toHaveBeenCalledWith(mockPage);
+    });
+
+    it.each(['reset', 'close'] as const)('joins background AI navigation before session %s browser effects', async (operation) => {
+      const { sessionId } = await manager.startSession({
+        execution_id: `ai-navigation-${operation}`, viewport: { width: 800, height: 600 },
+        reuse_mode: 'fresh', required_capabilities: {},
+      });
+      const session = manager.getSession(sessionId);
+      let release!: () => void;
+      let entered!: () => void;
+      const started = new Promise<void>((resolve) => { entered = resolve; });
+      const pending = new Promise<void>((resolve) => { release = resolve; });
+      session.aiNavigationCleanup = jest.fn(async () => {
+        entered();
+        await pending;
+      });
+      mockPage.goto.mockClear();
+      mockPage.close.mockClear();
+
+      const lifecycle = operation === 'reset' ? manager.resetSession(sessionId) : manager.closeSession(sessionId);
+      await started;
+      expect(mockPage.goto).not.toHaveBeenCalled();
+      expect(mockPage.close).not.toHaveBeenCalled();
+      release();
+      await lifecycle;
+      expect(session.aiNavigationCleanup).toHaveBeenCalledTimes(1);
     });
 
     it('retains failed callback disposal for explicit close retry', async () => {
@@ -89,14 +155,7 @@ describe('SessionManager', () => {
   });
 
   describe('startSession', () => {
-    const sessionSpec: SessionSpec = {
-      execution_id: 'exec-123',
-      workflow_id: 'workflow-123',
-      base_url: 'https://example.com',
-      viewport: { width: 1280, height: 720 },
-      reuse_mode: 'fresh',
-      required_capabilities: {},
-    };
+    const sessionSpec = createSessionSpec();
 
     it('should create a new session', async () => {
       const result = await manager.startSession(sessionSpec);
@@ -122,10 +181,10 @@ describe('SessionManager', () => {
       };
 
       it.each([
-        ['profile identity or revision', (spec: SessionSpec) => ({ ...spec, session_profile_version: 'profile-b@1' })],
-        ['clean mode with another profile', (spec: SessionSpec) => ({ ...spec, reuse_mode: 'clean' as const, session_profile_version: 'profile-b@1' })],
-        ['storage snapshot', (spec: SessionSpec) => ({ ...spec, storage_state: { cookies: [{ name: 'identity', value: 'second' }], origins: [] } })],
-        ['viewport', (spec: SessionSpec) => ({ ...spec, viewport: { width: 390, height: 844 } })],
+        ['profile identity or revision', (spec: SessionSpec): SessionSpec => ({ ...spec, session_profile_version: 'profile-b@1' })],
+        ['clean mode with another profile', (spec: SessionSpec): SessionSpec => ({ ...spec, reuse_mode: 'clean' as const, session_profile_version: 'profile-b@1' })],
+        ['storage snapshot', (spec: SessionSpec): SessionSpec => ({ ...spec, storage_state: { cookies: [{ name: 'identity', value: 'second' }], origins: [] } })],
+        ['viewport', (spec: SessionSpec): SessionSpec => ({ ...spec, viewport: { width: 390, height: 844 } })],
       ])('does not pool a released session across a changed %s', async (_change, change) => {
         const first = await manager.startSession(original);
         expect(manager.releaseExecutionLease(first.sessionId, original.execution_id, first.leaseId)).toBe(true);
@@ -399,14 +458,7 @@ describe('SessionManager', () => {
 
   describe('getSession', () => {
     it('should return session by ID', async () => {
-      const spec: SessionSpec = {
-        execution_id: 'exec-123',
-        workflow_id: 'workflow-123',
-        base_url: 'https://example.com',
-        viewport: { width: 1280, height: 720 },
-        reuse_mode: 'fresh',
-        required_capabilities: {},
-      };
+      const spec = createSessionSpec();
       const { sessionId } = await manager.startSession(spec);
 
       const session = manager.getSession(sessionId);
@@ -430,7 +482,9 @@ describe('SessionManager', () => {
         });
         const session = manager.peekSession(sessionId);
         await session.pipelineReadyPromise;
-        jest.spyOn(session.pipelineManager!, 'isReady').mockReturnValue(false);
+        const pipelineManager = session.pipelineManager;
+        if (!pipelineManager) throw new Error('readiness fixture did not create a pipeline manager');
+        jest.spyOn(pipelineManager, 'isReady').mockReturnValue(false);
         let resolve!: (value: boolean) => void;
         let reject!: (error: Error) => void;
         session.pipelineReadyPromise = new Promise((yes, no) => { resolve = yes; reject = no; });
@@ -454,14 +508,7 @@ describe('SessionManager', () => {
 
   describe('resetSession', () => {
     it('should clear cookies and permissions', async () => {
-      const spec: SessionSpec = {
-        execution_id: 'exec-123',
-        workflow_id: 'workflow-123',
-        base_url: 'https://example.com',
-        viewport: { width: 1280, height: 720 },
-        reuse_mode: 'fresh',
-        required_capabilities: {},
-      };
+      const spec = createSessionSpec();
       const { sessionId } = await manager.startSession(spec);
 
       await manager.resetSession(sessionId);
@@ -471,14 +518,7 @@ describe('SessionManager', () => {
     });
 
     it('should update last used time', async () => {
-      const spec: SessionSpec = {
-        execution_id: 'exec-123',
-        workflow_id: 'workflow-123',
-        base_url: 'https://example.com',
-        viewport: { width: 1280, height: 720 },
-        reuse_mode: 'fresh',
-        required_capabilities: {},
-      };
+      const spec = createSessionSpec();
       const { sessionId } = await manager.startSession(spec);
 
       // Wait a bit
@@ -495,7 +535,7 @@ describe('SessionManager', () => {
     });
 
 
-    async function resetFixture() {
+    async function resetFixture(): Promise<{ sessionId: string; session: ReturnType<SessionManager['peekSession']> }> {
       const { sessionId } = await manager.startSession({
         execution_id: 'reset-fault-owner', workflow_id: 'reset-fixture',
         viewport: { width: 640, height: 480 }, reuse_mode: 'fresh', required_capabilities: {},
@@ -521,6 +561,30 @@ describe('SessionManager', () => {
       expect(mockContext.clearCookies).toHaveBeenCalledTimes(1);
     });
 
+    it('waits for pending pipeline registration before mutating browser state', async () => {
+      const readiness = createDeferred<Awaited<ReturnType<typeof verification.waitForScriptReady>>>();
+      readinessSpy.mockReturnValueOnce(readiness.promise);
+      const { sessionId } = await manager.startSession({
+        execution_id: 'pending-pipeline-reset', workflow_id: 'fixture', base_url: 'about:blank',
+        viewport: { width: 800, height: 600 }, reuse_mode: 'fresh', required_capabilities: {},
+      });
+      mockPage.goto.mockClear();
+      mockContext.clearCookies.mockClear();
+      const resetting = manager.resetSession(sessionId);
+
+      await Promise.resolve();
+      expect(mockPage.goto).not.toHaveBeenCalled();
+      expect(mockContext.clearCookies).not.toHaveBeenCalled();
+
+      readiness.resolve({
+        loaded: true, ready: true, inMainContext: true, handlersCount: 1,
+        loadTime: 1, version: 'fixture',
+      });
+      await resetting;
+      expect(mockPage.goto).toHaveBeenCalledWith('about:blank');
+      expect(mockContext.clearCookies).toHaveBeenCalledTimes(1);
+    });
+
     it.each([false, true])('joins a pending reset before close even when reset fails=%s', async (fail) => {
       const { sessionId, session } = await resetFixture();
       let finish!: () => void;
@@ -541,8 +605,9 @@ describe('SessionManager', () => {
       } finally {
         finish();
         const settled = await Promise.allSettled([reset, close]);
-        expect(settled[0]!.status).toBe(fail ? 'rejected' : 'fulfilled');
-        expect(settled[1]!.status).toBe('fulfilled');
+        const [resetResult, closeResult] = settled;
+        expect(resetResult.status).toBe(fail ? 'rejected' : 'fulfilled');
+        expect(closeResult.status).toBe('fulfilled');
       }
       expect(session.phase).toBe('closing');
       expect(mockContext.close).toHaveBeenCalledTimes(1);
@@ -591,14 +656,7 @@ describe('SessionManager', () => {
 
   describe('closeSession', () => {
     it('should close session and remove from map', async () => {
-      const spec: SessionSpec = {
-        execution_id: 'exec-123',
-        workflow_id: 'workflow-123',
-        base_url: 'https://example.com',
-        viewport: { width: 1280, height: 720 },
-        reuse_mode: 'fresh',
-        required_capabilities: {},
-      };
+      const spec = createSessionSpec();
       const { sessionId } = await manager.startSession(spec);
 
       await manager.closeSession(sessionId);
@@ -607,14 +665,7 @@ describe('SessionManager', () => {
     });
 
     it('should close page', async () => {
-      const spec: SessionSpec = {
-        execution_id: 'exec-123',
-        workflow_id: 'workflow-123',
-        base_url: 'https://example.com',
-        viewport: { width: 1280, height: 720 },
-        reuse_mode: 'fresh',
-        required_capabilities: {},
-      };
+      const spec = createSessionSpec();
       const { sessionId } = await manager.startSession(spec);
 
       await manager.closeSession(sessionId);
@@ -623,14 +674,7 @@ describe('SessionManager', () => {
     });
 
     it('should close context', async () => {
-      const spec: SessionSpec = {
-        execution_id: 'exec-123',
-        workflow_id: 'workflow-123',
-        base_url: 'https://example.com',
-        viewport: { width: 1280, height: 720 },
-        reuse_mode: 'fresh',
-        required_capabilities: {},
-      };
+      const spec = createSessionSpec();
       const { sessionId } = await manager.startSession(spec);
 
       await manager.closeSession(sessionId);
@@ -643,14 +687,7 @@ describe('SessionManager', () => {
     });
 
     it('should handle already closed page gracefully', async () => {
-      const spec: SessionSpec = {
-        execution_id: 'exec-123',
-        workflow_id: 'workflow-123',
-        base_url: 'https://example.com',
-        viewport: { width: 1280, height: 720 },
-        reuse_mode: 'fresh',
-        required_capabilities: {},
-      };
+      const spec = createSessionSpec();
       const { sessionId } = await manager.startSession(spec);
 
       mockPage.isClosed.mockReturnValue(true);
@@ -660,7 +697,7 @@ describe('SessionManager', () => {
   });
 
   describe('close recovery ownership', () => {
-    const create = async () => {
+    const create = async (): Promise<Awaited<ReturnType<SessionManager['startSession']>>> => {
       const created = await manager.startSession({
         execution_id: 'close-recovery', workflow_id: 'fixture', base_url: 'about:blank',
         viewport: { width: 800, height: 600 }, reuse_mode: 'fresh', required_capabilities: {},
@@ -671,11 +708,35 @@ describe('SessionManager', () => {
       mockContext.close.mockClear();
       return created;
     };
-    const close = async (sessionId: string, leaseId: string) => {
+    const close = async (sessionId: string, leaseId: string): Promise<ReturnType<typeof createMockHttpResponse>> => {
       const res = createMockHttpResponse();
       await handleSessionClose(createMockHttpRequest({ body: { execution_id: 'close-recovery', lease_id: leaseId } }), res, sessionId, manager);
       return res;
     };
+
+    it('waits for pending pipeline registration before disposing browser resources', async () => {
+      const readiness = createDeferred<Awaited<ReturnType<typeof verification.waitForScriptReady>>>();
+      readinessSpy.mockReturnValueOnce(readiness.promise);
+      const { sessionId } = await manager.startSession({
+        execution_id: 'pending-pipeline-close', workflow_id: 'fixture', base_url: 'about:blank',
+        viewport: { width: 800, height: 600 }, reuse_mode: 'fresh', required_capabilities: {},
+      });
+      mockPage.close.mockClear();
+      mockContext.close.mockClear();
+      const closing = manager.closeSession(sessionId);
+
+      await Promise.resolve();
+      expect(mockPage.close).not.toHaveBeenCalled();
+      expect(mockContext.close).not.toHaveBeenCalled();
+
+      readiness.resolve({
+        loaded: true, ready: true, inMainContext: true, handlersCount: 1,
+        loadTime: 1, version: 'fixture',
+      });
+      await closing;
+      expect(mockPage.close).toHaveBeenCalledTimes(1);
+      expect(mockContext.close).toHaveBeenCalledTimes(1);
+    });
 
     it('reports a trace flush failure and retains the context for an explicit retry', async () => {
       const { sessionId, leaseId } = await create();
@@ -684,8 +745,11 @@ describe('SessionManager', () => {
       try {
         session.tracing = true;
         session.tracePath = path.join(dir, 'trace.zip');
-        mockContext.tracing.stop.mockRejectedValueOnce(new Error('trace flush fault'));
-        mockContext.tracing.stop.mockImplementationOnce(async () => { await fs.writeFile(session.tracePath!, 'retained trace'); });
+        const traceStop = jest.mocked(mockContext.tracing.stop);
+        traceStop.mockRejectedValueOnce(new Error('trace flush fault'));
+        const tracePath = session.tracePath;
+        if (!tracePath) throw new Error('trace recovery fixture did not create a trace path');
+        traceStop.mockImplementationOnce(() => fs.writeFile(tracePath, 'retained trace'));
         const failed = await close(sessionId, leaseId);
         expect(failed.statusCode).toBe(500);
         expect(manager.peekSession(sessionId).phase).toBe('closing');
@@ -694,7 +758,7 @@ describe('SessionManager', () => {
         const retried = await close(sessionId, leaseId);
         expect(retried.statusCode).toBe(200);
         expect(retried.getJSON().trace_path).toBe(session.tracePath);
-        expect(await fs.readFile(session.tracePath!, 'utf8')).toBe('retained trace');
+        expect(await fs.readFile(tracePath, 'utf8')).toBe('retained trace');
         expect(() => manager.peekSession(sessionId)).toThrow(SessionNotFoundError);
       } finally {
         await fs.rm(dir, { recursive: true, force: true });
@@ -753,7 +817,7 @@ describe('SessionManager', () => {
         await fs.writeFile(source, 'original video');
         await fs.writeFile(blockedDirectory, 'blocks relocation');
         session.videoDir = blockedDirectory;
-        const video = { path: async () => source } as never;
+        const video = { path: () => Promise.resolve(source) } as never;
         expect(await moveVideo(video, session, 0)).toBe(source);
         expect(await fs.readFile(source, 'utf8')).toBe('original video');
         await fs.unlink(source);
@@ -850,7 +914,7 @@ describe('SessionManager', () => {
       const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'bas-close-video-flush-'));
       const source = path.join(dir, 'video.webm');
       session.videoDir = dir;
-      mockPage.video.mockReturnValue({ path: async () => source } as never);
+      mockPage.video.mockReturnValue({ path: () => Promise.resolve(source) } as never);
       mockContext.close.mockImplementationOnce(async () => { await fs.writeFile(source, 'final video bytes'); });
       try {
         const response = await close(sessionId, leaseId);
@@ -858,7 +922,9 @@ describe('SessionManager', () => {
         expect(response.statusCode).toBe(200);
         const videoPaths = response.getJSON().video_paths as string[];
         expect(videoPaths).toHaveLength(1);
-        expect(await fs.readFile(videoPaths[0]!, 'utf8')).toBe('final video bytes');
+        const [videoPath] = videoPaths;
+        if (!videoPath) throw new Error('video flush fixture did not return a video path');
+        expect(await fs.readFile(videoPath, 'utf8')).toBe('final video bytes');
       } finally {
         if (manager.getAllSessionIds().includes(sessionId)) {
           await fs.writeFile(source, 'cleanup bytes');
@@ -935,14 +1001,7 @@ describe('SessionManager', () => {
       });
       const managerShortIdle = new SessionManager(configShortIdle);
 
-      const spec: SessionSpec = {
-        execution_id: 'exec-123',
-        workflow_id: 'workflow-123',
-        base_url: 'https://example.com',
-        viewport: { width: 1280, height: 720 },
-        reuse_mode: 'fresh',
-        required_capabilities: {},
-      };
+      const spec = createSessionSpec();
       const { sessionId } = await managerShortIdle.startSession(spec);
 
       // Wait for session to become idle
@@ -956,14 +1015,7 @@ describe('SessionManager', () => {
     });
 
     it('should not close active sessions', async () => {
-      const spec: SessionSpec = {
-        execution_id: 'exec-123',
-        workflow_id: 'workflow-123',
-        base_url: 'https://example.com',
-        viewport: { width: 1280, height: 720 },
-        reuse_mode: 'fresh',
-        required_capabilities: {},
-      };
+      const spec = createSessionSpec();
       const { sessionId } = await manager.startSession(spec);
 
       await manager.cleanupIdleSessions();
@@ -974,22 +1026,8 @@ describe('SessionManager', () => {
 
   describe('shutdown', () => {
     it('should close all sessions', async () => {
-      const spec1: SessionSpec = {
-        execution_id: 'exec-1',
-        workflow_id: 'workflow-1',
-        base_url: 'https://example.com',
-        viewport: { width: 1280, height: 720 },
-        reuse_mode: 'fresh',
-        required_capabilities: {},
-      };
-      const spec2: SessionSpec = {
-        execution_id: 'exec-2',
-        workflow_id: 'workflow-2',
-        base_url: 'https://example.com',
-        viewport: { width: 1280, height: 720 },
-        reuse_mode: 'fresh',
-        required_capabilities: {},
-      };
+      const spec1 = createSessionSpec({ execution_id: 'exec-1', workflow_id: 'workflow-1' });
+      const spec2 = createSessionSpec({ execution_id: 'exec-2', workflow_id: 'workflow-2' });
 
       const { sessionId: sessionId1 } = await manager.startSession(spec1);
       const { sessionId: sessionId2 } = await manager.startSession(spec2);
@@ -1001,14 +1039,7 @@ describe('SessionManager', () => {
     });
 
     it('should close browser', async () => {
-      const spec: SessionSpec = {
-        execution_id: 'exec-123',
-        workflow_id: 'workflow-123',
-        base_url: 'https://example.com',
-        viewport: { width: 1280, height: 720 },
-        reuse_mode: 'fresh',
-        required_capabilities: {},
-      };
+      const spec = createSessionSpec();
       await manager.startSession(spec);
 
       await manager.shutdown();
@@ -1024,14 +1055,7 @@ describe('SessionManager', () => {
 
   describe('updateActivity', () => {
     it('should update last used time', async () => {
-      const spec: SessionSpec = {
-        execution_id: 'exec-123',
-        workflow_id: 'workflow-123',
-        base_url: 'https://example.com',
-        viewport: { width: 1280, height: 720 },
-        reuse_mode: 'fresh',
-        required_capabilities: {},
-      };
+      const spec = createSessionSpec();
       const { sessionId } = await manager.startSession(spec);
 
       // Wait a bit

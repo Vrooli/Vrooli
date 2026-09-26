@@ -282,7 +282,7 @@ export function createEventRouteManager(options: EventRouteOptions): EventRouteM
     }
 
     // Prevent duplicate concurrent registrations using a lock
-    if (!force && pagesBeingSetUp.has(page)) {
+    if (pagesBeingSetUp.has(page)) {
       logger.debug(scopedLog(LogContext.RECORDING, 'page event route setup already in progress, skipping'), {
         url: page.url()?.slice(0, 50),
       });

@@ -363,7 +363,10 @@ export function recordingReducer(
     }
 
     case 'VERIFICATION_COMPLETE': {
-      if (state.phase !== 'verifying') {
+      if (
+        state.phase !== 'verifying' &&
+        !(state.phase === 'error' && state.error?.recoverable)
+      ) {
         return state;
       }
       const { verification } = transition;
@@ -373,7 +376,8 @@ export function recordingReducer(
         verification.scriptLoaded &&
         verification.scriptReady &&
         verification.inMainContext &&
-        verification.handlersCount > 0;
+        verification.handlersCount > 0 &&
+        verification.eventRouteActive;
 
       if (!passed) {
         return {

@@ -8,6 +8,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const crypto = require('node:crypto');
 const { createRequire } = require('node:module');
+const nativeRequire = require;
 const root = path.resolve(__dirname, '../..');
 const ts = createRequire(path.join(root, 'playwright-driver/package.json'))('typescript');
 const sources = {}, results = [];
@@ -23,8 +24,9 @@ function driver(name, mocks = {}) {
   vm.runInNewContext(code, { module, exports: module.exports, crypto, URL,
     process: { env: {} }, console,
     require(dependency) {
-      if (!Object.hasOwn(mocks, dependency)) throw new Error(`Unexpected dependency ${relative}: ${dependency}`);
-      return mocks[dependency];
+      if (Object.hasOwn(mocks, dependency)) return mocks[dependency];
+      if (dependency.startsWith('node:')) return nativeRequire(dependency);
+      throw new Error(`Unexpected dependency ${relative}: ${dependency}`);
     },
   }, { filename });
   return module.exports;
@@ -38,17 +40,20 @@ const machine = driver('session/state-machine', { '../utils': utils });
 const inspection = driver('session/session-inspection', { './session-decisions': decisions });
 const guard = driver('infra/in-flight-guard', { '../utils': utils });
 const registry = driver('infra/session-cleanup-registry', { '../utils': utils });
-const reset = driver('session/session-reset', { '../infra': registry, '../utils': utils });
+const reset = driver('session/session-reset', {
+  '../infra': registry, '../recording': { removeRecordingBuffer() {}, assertRecordingAcknowledged() {} },
+  '../frame-streaming': { stopFrameStreaming: async () => {} }, '../utils': utils,
+});
 const moves = [], traceStops = [];
 const teardown = driver('session/session-teardown', {
   'node:fs': { constants: fs.constants },
   'node:fs/promises': { async stat() { return { isFile: () => true }; }, async access() {}, async mkdir() {}, async rename(from, to) { moves.push({ from, to }); } },
-  'node:path': path, '../recording': { removeRecordingBuffer() {} }, '../utils': utils,
+  'node:path': path, '../recording': { removeRecordingBuffer() {}, assertRecordingAcknowledged() {} }, '../frame-streaming': { stopFrameStreaming: async () => {} }, '../utils': utils,
 });
 const appTarget = driver('session/electron-target', { 'node:path': path });
 const artifactPaths = driver('session/artifact-paths', { path });
 function page(viewport, video = false) {
-  return { closed: false, isClosed() { return this.closed; }, on() {}, viewportSize: () => viewport,
+  return { closed: false, isClosed() { return this.closed; }, on() {}, once() {}, viewportSize: () => viewport,
     async goto() {}, async evaluate() {}, async unroute() {}, async close() { this.closed = true; },
     video: () => video ? { async path() { return '/synthetic/a/videos/random.webm'; } } : null };
 }
@@ -62,19 +67,24 @@ let builds = 0;
 function contextFor(request, video = false) {
   const p = page(request.viewport, video);
   return { marker: request.storage_state.cookies[0].value, originalProfile: request.browser_profile, p,
+    on() {}, pages: () => [p],
     async newPage() { return p; }, async close() {}, async clearCookies() { this.marker = null; },
     async clearPermissions() {}, tracing: { async stop(options) { traceStops.push(options.path); } } };
 }
 class Pipeline {
   async initialize() {}
   async verifyPipeline() { return { scriptLoaded: true, scriptReady: true, inMainContext: true }; }
+  isRecording() { return false; }
+  async stopRecording() {}
 }
 const { SessionManager } = driver('session/manager', {
   'node:path': path, '../utils': utils,
   './context-builder': { async buildContext(_browser, request) {
     builds++;
+    const resolved = artifactPaths.resolveArtifactPaths(request.artifact_paths, request.required_capabilities, request.execution_id);
     return { context: contextFor(request), actualViewport: { ...request.viewport, source: 'requested' },
-      serviceWorkerController: { async enable() {} } };
+      ...resolved,
+      serviceWorkerController: { async enable() {}, async disable() {} } };
   } },
   uuid: { v4: crypto.randomUUID }, '../recording': { RecordingPipelineManager: Pipeline },
   '../service-worker': {}, '../infra': guard, './browser-manager': {}, './audio': {}, './audio/device-evidence': {},
@@ -98,12 +108,14 @@ function seed(m, { evidence = false, released = true, external = false } = {}) {
     pageIdMap: new Map([['first', context.p]]), pageToIdMap: new WeakMap([[context.p, 'first']]),
     frameStack: [], activeMocks: new Map(), executedInstructions: new Map(), instructionCount: 3,
     tracing: evidence, video: evidence, ...paths,
-    externalTarget: external, browser: { async close() {} } };
+    externalTarget: external, browser: { async close() {} },
+    pipelineManager: { isRecording: () => false, async stopRecording() {} } };
   m.sessions.set(session.id, session);
   if (released) m.releaseExecutionLease(session.id, 'a', 'lease-a');
   return session;
 }
 const { handleSessionStart } = driver('routes/session-start', {
+  '../session': { isOperational: phase => phase === 'ready' || phase === 'recording' },
   '../middleware': { async parseJsonBody(req) { return req.body; },
     sendJson(res, status, body) { Object.assign(res, { status, body }); },
     sendError(res, error) { Object.assign(res, { status: 'error', error: error.message }); } },
@@ -125,12 +137,13 @@ async function isolationProbes() {
     record(`${reuse_mode}-profile-isolation`, 'A different requested identity is applied in an isolated context or rejected', {
       status: response.status, same_context: m.sessions.get(response.body?.session_id)?.context === old.context,
       requested_identity: 'b', context_identity: old.context.marker,
+      created_identity: m.sessions.get(response.body?.session_id)?.context.marker,
       spec_identity_after: old.spec.storage_state.cookies[0].value, context_builds: builds - before,
-    }, response.status !== 200 || old.context.marker === 'b');
+    }, response.status !== 200 || (m.sessions.get(response.body?.session_id)?.context !== old.context && m.sessions.get(response.body?.session_id)?.context.marker === 'b'));
     record(`${reuse_mode}-context-settings`, 'Accepted viewport, locale and proxy agree with effective context settings', {
       status: response.status, requested_viewport: { width: 390, height: 844 }, actual_viewport: response.body?.actual_viewport,
       requested_profile: profile('b'), effective_profile: old.context.originalProfile,
-    }, response.status !== 200 || (old.context.originalProfile.fingerprint.locale === 'fr-FR' && old.page.viewportSize().width === 390));
+    }, response.status !== 200 || (m.sessions.get(response.body?.session_id)?.context.originalProfile.fingerprint.locale === 'fr-FR' && m.sessions.get(response.body?.session_id)?.page.viewportSize().width === 390));
   }
   const fresh = manager(), old = seed(fresh), response = await start(fresh, spec('b', { reuse_mode: 'fresh' }));
   const created = fresh.sessions.get(response.body?.session_id);
@@ -159,19 +172,26 @@ async function evidenceProbes() {
   const response = await start(m, request);
   const wanted = artifactPaths.resolveArtifactPaths(request.artifact_paths, request.required_capabilities, 'b');
   const oldPaths = { tracePath: s.tracePath, harPath: s.harPath, videoDir: s.videoDir };
+  const current = response.status === 200 ? m.sessions.get(response.body.session_id) : undefined;
   record('reuse-artifact-destination', 'New execution evidence uses its requested destination and an explicit capture boundary',
-    { status: response.status, requested: wanted, effective: oldPaths, current_owner: s.ownerExecutionId },
-    response.status !== 200 || Object.entries(wanted).every(([k, v]) => s[k] === v));
-  const closed = await m.closeSessionForLease(s.id, 'b', response.body.lease_id);
+    { status: response.status, error: response.error, requested: wanted, previous: oldPaths,
+      effective: current && { tracePath: current.tracePath, harPath: current.harPath, videoDir: current.videoDir },
+      current_owner: current?.ownerExecutionId },
+    response.status !== 200 || (current && Object.entries(wanted).every(([k, v]) => current[k] === v)));
+  const closed = response.status === 200
+    ? await m.closeSessionForLease(response.body.session_id, 'b', response.body.lease_id)
+    : { error: response.error };
   record('reuse-artifact-close-receipt', 'The new owner close receipt and video name do not mix execution identities',
     { receipt: closed, trace_stop_paths: traceStops, simulated_video_moves: moves },
-    closed.tracePath === wanted.tracePath && closed.harPath === wanted.harPath && closed.videoPaths.every(p => p.startsWith('/synthetic/b/')));
+    response.status !== 200 || (closed.tracePath === wanted.tracePath && closed.harPath === wanted.harPath && closed.videoPaths.every(p => p.startsWith('/synthetic/b/'))));
 
   const bare = manager(), bareSession = seed(bare), enabled = await start(bare, request);
   record('reuse-enables-required-evidence', 'A newly required capture capability starts collecting or admission fails',
-    { status: enabled.status, requested: request.required_capabilities, effective_tracing: bareSession.tracing,
-      effective_video: bareSession.video, effective_har: !!bareSession.harPath },
-    enabled.status !== 200 || (bareSession.tracing && bareSession.video && !!bareSession.harPath));
+    { status: enabled.status, requested: request.required_capabilities,
+      effective_tracing: bare.sessions.get(enabled.body?.session_id)?.tracing,
+      effective_video: bare.sessions.get(enabled.body?.session_id)?.video,
+      effective_har: !!bare.sessions.get(enabled.body?.session_id)?.harPath },
+    enabled.status !== 200 || (bare.sessions.get(enabled.body?.session_id)?.tracing && bare.sessions.get(enabled.body?.session_id)?.video && !!bare.sessions.get(enabled.body?.session_id)?.harPath));
   const invalid = await start(manager(), spec('b', { required_capabilities: { video: true } }));
   record('artifact-root-validation-control', 'The route rejects required recording without an artifact root', invalid,
     invalid.status === 'error' && invalid.error.includes('artifact_paths.root'));
@@ -187,14 +207,16 @@ async function targetProbes() {
     record(`${kind}-reuse-validation`, 'Released reuse also enforces target identity and validation context',
       { status: reused.status, requested_target: kind, actual_external_target: s.externalTarget,
         spec_target_after: s.spec.app_target?.target_kind, retained_managed_context: m.sessions.get(reused.body?.session_id)?.context === s.context },
-      reused.status !== 200);
+      reused.status !== 200 || m.sessions.get(reused.body?.session_id)?.context !== s.context);
   }
   const m = manager(), s = seed(m, { external: true });
   s.spec.app_target = target('electron');
   const r = await start(m, spec('b'));
   record('external-to-managed-reuse', 'A managed-browser request cannot silently inherit an external app renderer',
-    { status: r.status, external_target_after: s.externalTarget, spec_target_after: s.spec.app_target ?? null },
-    r.status !== 200 || !s.externalTarget);
+    { status: r.status, external_target_after: s.externalTarget,
+      created_external_target: m.sessions.get(r.body?.session_id)?.externalTarget ?? false,
+      spec_target_after: s.spec.app_target ?? null },
+    r.status === 200 && !m.sessions.get(r.body?.session_id)?.externalTarget && m.sessions.get(r.body?.session_id)?.context !== s.context);
 }
 
 (async () => {

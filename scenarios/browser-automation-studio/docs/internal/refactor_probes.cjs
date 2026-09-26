@@ -7,6 +7,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { createRequire } = require('node:module');
 const { EventEmitter } = require('node:events');
+const { webcrypto } = require('node:crypto');
 const driver = path.resolve(__dirname, '../../playwright-driver');
 const req = createRequire(path.join(driver, 'package.json'));
 req('ts-node').register({ transpileOnly: true, project: path.join(driver, 'tsconfig.json') });
@@ -92,50 +93,6 @@ async function poolProbe() {
     requestOutcome.status === 'rejected' && !shutdownPool.get('late') && closedOnShutdown.length === 1 && closedOnShutdown[0] === lateBrowser);
 }
 
-async function directFrameProbe() {
-  const { DirectFrameServer } = load('frame-streaming/websocket/server.ts');
-  const server = new DirectFrameServer(0);
-  // Call actual connection/broadcast methods with synthetic sockets. No port is opened.
-  server.isRunning = true;
-  const makeSocket = () => Object.assign(new EventEmitter(), {
-    readyState: 1, bufferedAmount: 64 * 1024 * 1024, sent: [],
-    send(data) { this.sent.push(data); }, close() {},
-  });
-  const anonymous = makeSocket(), wrong = makeSocket(), matching = makeSocket();
-  server.handleConnection(anonymous, { url: '/frames', headers: { origin: 'https://fixture.invalid' } });
-  server.handleConnection(wrong, { url: '/frames?session_id=other', headers: {} });
-  server.handleConnection(matching, { url: '/frames?session_id=target', headers: {} });
-  for (let i = 0; i < 10; i++) server.broadcast(Buffer.from('synthetic-frame'), 'target');
-  const binaryCount = socket => socket.sent.filter(Buffer.isBuffer).length;
-  record('direct-frame-subscription', 'A connection without a session receives no session frames',
-    { anonymous_frames: binaryCount(anonymous), wrong_session_frames: binaryCount(wrong), matching_frames: binaryCount(matching) },
-    binaryCount(anonymous) === 0 && binaryCount(wrong) === 0);
-  record('direct-frame-backpressure', 'A socket already holding 64 MiB cannot accumulate ten more frame sends',
-    { initial_buffered_bytes: matching.bufferedAmount, additional_frames: binaryCount(matching) }, binaryCount(matching) <= 1);
-}
-
-async function inputOrderingProbe() {
-  // Synthetic HTTP parsing and page I/O; the input handler itself is unchanged.
-  const { handleRecordInput } = load('routes/record-mode/recording-input.ts', {
-    '../../middleware': { parseJsonBody: async request => request.body, sendJson() {}, sendError(_, error) { throw error; } },
-    '../../frame-streaming': { updateFrameStreamViewport() {} },
-  });
-  const effects = [];
-  let resumeDown, enteredDown;
-  const downEntered = new Promise(resolve => { enteredDown = resolve; });
-  const page = { mouse: {
-    move: async x => { if (x === 1) { enteredDown(); await new Promise(resolve => { resumeDown = resolve; }); } },
-    down: async () => { effects.push('down'); }, up: async () => { effects.push('up'); },
-  } };
-  const manager = { getSession: () => ({ page }) };
-  const down = handleRecordInput({ body: { type: 'pointer', action: 'down', x: 1 } }, {}, 'synthetic', manager, {});
-  await downEntered;
-  await handleRecordInput({ body: { type: 'pointer', action: 'up', x: 2 } }, {}, 'synthetic', manager, {});
-  resumeDown(); await down;
-  record('concurrent-input-order', 'A down request started before up applies down before up',
-    { applied_order: effects }, effects.join(',') === 'down,up');
-}
-
 function recorderFixture(fetchImpl) {
   const handlers = new Map(), timers = new Map(), storage = new Map();
   let timerId = 0;
@@ -161,7 +118,7 @@ function recorderFixture(fetchImpl) {
     CSS: { escape: s => s }, Node: { ELEMENT_NODE: 1 },
     sessionStorage: { getItem: k => storage.get(k) || null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k) },
     setTimeout(fn) { timers.set(++timerId, fn); return timerId; }, clearTimeout(id) { timers.delete(id); },
-    setInterval() { return 999; }, clearInterval() {}, fetch: fetchImpl,
+    setInterval() { return 999; }, clearInterval() {}, fetch: fetchImpl, crypto: webcrypto, AbortController,
   });
   context.window = context;
   vm.createContext(context);
@@ -172,6 +129,7 @@ function recorderFixture(fetchImpl) {
   return {
     context, field, storage,
     input(value) { field.value = value; emit('document', 'input', { target: field }); },
+    start(sessionId) { emit('window', 'message', { source: context, data: { type: '__VROOLI_RECORDING_CONTROL__', action: 'start', sessionId } }); },
     flush() { const pending = [...timers.values()]; timers.clear(); pending.forEach(fn => fn()); },
     stop() { emit('window', 'message', { source: context, data: { type: '__VROOLI_RECORDING_CONTROL__', action: 'stop' } }); },
     pending() { return JSON.parse(storage.get('__vrooli_pending_events__') || '[]'); },
@@ -180,10 +138,19 @@ function recorderFixture(fetchImpl) {
 
 async function recorderProbes() {
   const sent = [];
-  const f = recorderFixture((url, options) => { sent.push(JSON.parse(options.body)); return Promise.resolve({ ok: true, status: 200 }); });
+  const f = recorderFixture((url, options) => {
+    const body = JSON.parse(options.body);
+    sent.push(body);
+    return Promise.resolve({ ok: true, status: 200, json: async () => ({ ok: true, entry_id: body.id }) });
+  });
+  f.start('synthetic-session');
+  await drain();
+  record('recorder-start', 'Recording control activates the synthetic recorder',
+    { active: f.context.__isRecordingActive() }, f.context.__isRecordingActive() === true);
   for (const text of ['a', 'ab', '']) { f.input(text); f.flush(); await drain(); }
   record('recorder-clear-field', 'Input snapshots include the final empty value',
-    { captured_texts: sent.map(e => e.payload.text) }, sent.at(-1)?.payload.text === '');
+    { captured_texts: sent.map(e => e.payload.text), telemetry: f.context.__vrooli_recording_telemetry, queue: f.pending() },
+    sent.at(-1)?.payload.text === '');
   f.field.type = 'password'; f.input('SYNTHETIC-NOT-A-REAL-SECRET'); f.flush(); await drain();
   const passwordEvent = sent.at(-1);
   record('recorder-password', 'A password sentinel is absent from raw recording transport',
@@ -195,13 +162,20 @@ async function recorderProbes() {
     { new_events_after_stop: sent.length - beforeStop }, sent.length > beforeStop);
 
   const rejected = recorderFixture(() => Promise.resolve({ ok: false, status: 500 }));
+  await rejected.start('synthetic-session');
   rejected.input('must-remain-pending'); rejected.flush(); await drain();
   record('recorder-http-error-ack', 'An HTTP 500 does not acknowledge or discard a pending event',
     { pending_count: rejected.pending().length, success_count: rejected.context.__vrooli_recording_telemetry.eventsSendSuccess },
     rejected.pending().length === 1);
 
   const completions = [];
-  const colliding = recorderFixture(() => new Promise(resolve => completions.push(resolve)));
+  const colliding = recorderFixture((url, options) => {
+    const body = JSON.parse(options.body);
+    return new Promise(resolve => completions.push(() => resolve({
+      ok: true, status: 200, json: async () => ({ ok: true, entry_id: body.id }),
+    })));
+  });
+  await colliding.start('synthetic-session');
   colliding.input('first'); colliding.flush(); colliding.input('second'); colliding.flush();
   const pendingBefore = colliding.pending().length;
   completions[0]({ ok: true, status: 200 }); await drain();
@@ -211,7 +185,7 @@ async function recorderProbes() {
 }
 
 (async () => {
-  for (const probe of [networkProbe, poolProbe, directFrameProbe, inputOrderingProbe, recorderProbes]) {
+  for (const probe of [networkProbe, poolProbe, recorderProbes]) {
     try { await probe(); } catch (e) { results.push({ probe: probe.name, probe_error: e.stack }); }
   }
   console.log(JSON.stringify({ schema_version: 1, observed_at: new Date().toISOString(), scope: 'isolated actual-module probes with synthetic I/O; not a browser E2E or certification run', results }, null, 2));

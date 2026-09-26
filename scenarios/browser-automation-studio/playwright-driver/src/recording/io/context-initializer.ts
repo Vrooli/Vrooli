@@ -175,6 +175,7 @@ export class RecordingContextInitializer {
   private readonly requestedStrategy: InjectionStrategyName | 'auto';
   private sanityCheckRun = false;
   private context: BrowserContext | null = null;
+  private initializationPromise: Promise<void> | null = null;
 
   // Composed modules
   private eventRouteManager: EventRouteManager | null = null;
@@ -263,6 +264,16 @@ export class RecordingContextInitializer {
   }
 
   /**
+   * Check whether the event route is registered for a page.
+   *
+   * Registration is distinct from receiving an event: verification runs before
+   * recording starts, so an event counter cannot prove the route is active.
+   */
+  hasEventRoute(page: Page): boolean {
+    return this.eventRouteManager?.hasEventRoute(page) ?? false;
+  }
+
+  /**
    * Initialize recording capability on a browser context.
    *
    * This sets up:
@@ -276,6 +287,30 @@ export class RecordingContextInitializer {
   async initialize(context: BrowserContext): Promise<void> {
     if (this.initialized) {
       this.logger.debug(scopedLog(LogContext.RECORDING, 'context already initialized, skipping'));
+      return;
+    }
+
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+      return;
+    }
+
+    const initialization = this.initializeContext(context);
+    this.initializationPromise = initialization;
+    try {
+      await initialization;
+    } catch (error) {
+      // A failed setup must remain retryable, while concurrent callers still
+      // observe the same failure from this attempt.
+      if (this.initializationPromise === initialization) {
+        this.initializationPromise = null;
+      }
+      throw error;
+    }
+  }
+
+  private async initializeContext(context: BrowserContext): Promise<void> {
+    if (this.initialized) {
       return;
     }
 

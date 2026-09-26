@@ -37,14 +37,31 @@ func (s *memoryStore) GetExecution(_ context.Context, id uuid.UUID) (*database.E
 	}
 	return nil, database.ErrNotFound
 }
-func (s *memoryStore) ListExecutions(_ context.Context, workflow, project *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
+func (s *memoryStore) ListExecutions(_ context.Context, query database.ExecutionQuery) ([]*database.ExecutionIndex, int, error) {
 	var out []*database.ExecutionIndex
 	for _, row := range s.rows {
-		if workflow == nil || row.WorkflowID == *workflow {
-			out = append(out, row)
+		if query.WorkflowID != nil && row.WorkflowID != *query.WorkflowID {
+			continue
 		}
+		if query.Status != "" && row.Status != query.Status {
+			continue
+		}
+		out = append(out, row)
 	}
-	return out, nil
+	if query.OldestFirst {
+		sort.Slice(out, func(i, j int) bool { return out[i].StartedAt.Before(out[j].StartedAt) })
+	} else {
+		sort.Slice(out, func(i, j int) bool { return out[i].StartedAt.After(out[j].StartedAt) })
+	}
+	total := len(out)
+	if query.Offset >= len(out) {
+		return nil, total, nil
+	}
+	out = out[query.Offset:]
+	if query.Limit > 0 && len(out) > query.Limit {
+		out = out[:query.Limit]
+	}
+	return out, total, nil
 }
 func (s *memoryStore) byStatus(status string, limit, offset int, oldest bool) []*database.ExecutionIndex {
 	var out []*database.ExecutionIndex

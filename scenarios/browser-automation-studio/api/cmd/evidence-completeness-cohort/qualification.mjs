@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
+import { buildIdentity, sha256File } from "../qualification-support.mjs";
 
 const execFileAsync = promisify(execFile);
 const scenarioRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -33,6 +34,7 @@ const sourceFiles = [
   ".vrooli/test-genie.json",
   ".vrooli/program-runtime/setpoint-read.py",
   "api/cmd/evidence-completeness-cohort/qualification.mjs",
+  "api/cmd/qualification-support.mjs",
 ];
 const suites = [
   {
@@ -52,20 +54,7 @@ const suites = [
 const evidenceRoot = join(scenarioRoot, ".vrooli/runtime/rehabilitation-evidence");
 await mkdir(evidenceRoot, { recursive: true });
 
-async function sha256(path) {
-  return createHash("sha256").update(await readFile(path)).digest("hex");
-}
-
-async function buildIdentity() {
-  const response = await fetch(`${api}/health`, { signal: AbortSignal.timeout(5000) });
-  if (!response.ok) throw new Error(`BAS health returned ${response.status}`);
-  const health = await response.json();
-  const identity = String(health.build_identity || "").trim();
-  if (!identity) throw new Error("BAS health returned no build_identity");
-  return identity;
-}
-
-const buildBefore = await buildIdentity();
+const buildBefore = await buildIdentity(api);
 const artifacts = [];
 const ownerTests = [];
 for (const suite of suites) {
@@ -101,16 +90,16 @@ for (const suite of suites) {
   }
   artifacts.push({
     path: `.vrooli/runtime/rehabilitation-evidence/${basename(outputPath)}`,
-    sha256: await sha256(outputPath),
+    sha256: await sha256File(outputPath),
     tests: suite.tests,
   });
   process.stdout.write(`${suite.package}: passed ${suite.tests.join(", ")}\n`);
 }
 
-const buildAfter = await buildIdentity();
+const buildAfter = await buildIdentity(api);
 if (buildAfter !== buildBefore) throw new Error(`managed BAS identity changed during owners: ${buildBefore} -> ${buildAfter}`);
 const sourceSHA256 = {};
-for (const relative of sourceFiles) sourceSHA256[relative] = await sha256(join(scenarioRoot, relative));
+for (const relative of sourceFiles) sourceSHA256[relative] = await sha256File(join(scenarioRoot, relative));
 const receipt = {
   schemaVersion: 1,
   contractRow: "evidence-completeness",

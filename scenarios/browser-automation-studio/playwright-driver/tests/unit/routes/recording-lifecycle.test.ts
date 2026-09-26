@@ -6,7 +6,7 @@ import { SessionManager } from '../../../src/session';
 import { acknowledgeTimelineEntries, bufferTimelineEntry, getTimelineEntries } from '../../../src/recording';
 import { createNavigateTimelineEntry } from '../../../src/proto/recording';
 import { shouldCleanupSession } from '../../../src/session/session-decisions';
-import { createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
+import { createDeferred, createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
 
 type PipelineManagerStub = {
   getGeneration: jest.Mock;
@@ -18,8 +18,7 @@ type PipelineManagerStub = {
 };
 
 describe('recording acknowledgement ownership [REQ:BAS-RH-J17]', () => {
-  it.each(['missing', 'blank', 'invalid', 'stale', 'released', 'closing', 'handoff', 'current'])
-  ('preserves unacknowledged entries for rejected %s callers', async (kind) => {
+  it.each(['missing', 'blank', 'invalid', 'stale', 'released', 'closing', 'handoff', 'current'])('preserves unacknowledged entries for rejected %s callers', async (kind) => {
     const sessionId = `ack-owner-${kind}`;
     const entries = [1, 2].map(sequenceNum => createNavigateTimelineEntry('http://fixture.invalid/owned', { sessionId, sequenceNum }));
     entries.forEach(entry => bufferTimelineEntry(sessionId, entry));
@@ -38,7 +37,9 @@ describe('recording acknowledgement ownership [REQ:BAS-RH-J17]', () => {
       execution_id: kind === 'invalid' ? 123 : 'owner',
       lease_id: kind === 'blank' ? ' ' : kind === 'stale' ? 'old' : 'lease',
     };
-    const body = { ...ownership, entry_ids: [entries[0]!.id] };
+    const firstEntry = entries[0];
+    if (!firstEntry) throw new Error('acknowledgement fixture did not create its first entry');
+    const body = { ...ownership, entry_ids: [firstEntry.id] };
     try {
       const res = createMockHttpResponse();
       const pending = handleRecordActionsAck(createMockHttpRequest({ method: 'POST', body }), res, sessionId, manager, createTestConfig());
@@ -54,7 +55,9 @@ describe('recording acknowledgement ownership [REQ:BAS-RH-J17]', () => {
         await handleRecordActionsAck(createMockHttpRequest({ method: 'POST', body }), retry, sessionId, manager, createTestConfig());
         expect(retry.statusCode).toBe(200);
         expect(retry.getJSON()).toEqual({ entry_ids: body.entry_ids });
-        expect(getTimelineEntries(sessionId).map(entry => entry.id)).toEqual([entries[1]!.id]);
+        const secondEntry = entries[1];
+        if (!secondEntry) throw new Error('acknowledgement fixture did not create its second entry');
+        expect(getTimelineEntries(sessionId).map(entry => entry.id)).toEqual([secondEntry.id]);
       }
     } finally {
       acknowledgeTimelineEntries(sessionId, entries.map(entry => entry.id), true);
@@ -215,24 +218,19 @@ describe('recording lifecycle routes', () => {
 
 describe('recording start continuation ownership [REQ:BAS-RH-J17]', () => {
   const config = createTestConfig();
-  function deferred() {
-    let resolve!: () => void;
-    const promise = new Promise<void>((done) => { resolve = done; });
-    return { promise, resolve };
-  }
   function fixture() {
     const state = { phase: 'ready', generation: 0 };
     const pipeline = {
       isRecording: jest.fn(() => state.phase === 'capturing'),
-      getState: () => ({ phase: state.phase }),
-      getGeneration: () => state.generation,
-      getRecordingId: () => 'same-public-id',
-      getRecordingData: () => ({ recordingId: 'same-public-id', generation: state.generation, actionCount: 0, startedAt: 'fixture-start' }),
-      getVerification: () => undefined,
-      startRecording: jest.fn(async () => { state.phase = 'capturing'; state.generation++; return 'same-public-id'; }),
-      stopRecording: jest.fn(async () => { state.phase = 'ready'; return { recordingId: 'same-public-id', actionCount: 0 }; }),
+      getState: (): { phase: string } => ({ phase: state.phase }),
+      getGeneration: (): number => state.generation,
+      getRecordingId: (): string => 'same-public-id',
+      getRecordingData: (): { recordingId: string; generation: number; actionCount: number; startedAt: string } => ({ recordingId: 'same-public-id', generation: state.generation, actionCount: 0, startedAt: 'fixture-start' }),
+      getVerification: (): undefined => undefined,
+      startRecording: jest.fn(() => { state.phase = 'capturing'; state.generation++; return Promise.resolve('same-public-id'); }),
+      stopRecording: jest.fn(() => { state.phase = 'ready'; return Promise.resolve({ recordingId: 'same-public-id', actionCount: 0 }); }),
     };
-    const page = { url: () => 'https://fixture.invalid', waitForLoadState: jest.fn().mockResolvedValue(undefined) };
+    const page = { url: (): string => 'https://fixture.invalid', waitForLoadState: jest.fn().mockResolvedValue(undefined) };
     const session = { spec: { execution_id: 'owner-1', workflow_id: 'fixture', reuse_mode: 'fresh', viewport: { width: 640, height: 480 } }, phase: 'ready', lastUsedAt: new Date(0), ownerExecutionId: 'owner-1', leaseId: 'lease-1', leaseReleasedAt: undefined as number | undefined, page, pipelineManager: pipeline,
       pageLifecycleCleanup: undefined as (() => void) | undefined };
     const manager = {
@@ -244,7 +242,7 @@ describe('recording start continuation ownership [REQ:BAS-RH-J17]', () => {
       },
       setSessionPhase: jest.fn((_id: string, phase: string) => { session.phase = phase; return true; }),
     } as unknown as SessionManager;
-    const start = (body = { frame_callback_url: 'http://fixture.invalid/frames' }) => {
+    const start = (body = { frame_callback_url: 'http://fixture.invalid/frames' }): { response: ReturnType<typeof createMockHttpResponse>; finished: Promise<void> } => {
       const response = createMockHttpResponse();
       const finished = handleRecordStart(createMockHttpRequest({ method: 'POST', body: { execution_id: 'owner-1', lease_id: 'lease-1', ...body } }), response, 'recording-session', manager, config);
       return { response, finished };
@@ -291,7 +289,7 @@ describe('recording start continuation ownership [REQ:BAS-RH-J17]', () => {
   });
 
   it.each(['generation', 'lease', 'phase'] as const)('does not let an old stop clean up a newer %s after pipeline shutdown [REQ:BAS-RH-J17]', async (changed) => {
-    const f = fixture(); const entered = deferred(); const proceed = deferred(); const cleanup = jest.fn();
+    const f = fixture(); const entered = createDeferred<void>(); const proceed = createDeferred<void>(); const cleanup = jest.fn();
     f.state.phase = 'capturing'; f.session.phase = 'recording'; f.state.generation = 1;
     f.session.pageLifecycleCleanup = cleanup;
     f.pipeline.stopRecording.mockImplementation(async () => {
@@ -331,7 +329,7 @@ describe('recording start continuation ownership [REQ:BAS-RH-J17]', () => {
   );
 
   it('starts preview after pipeline readiness without waiting again for DOM load', async () => {
-    const f = fixture(); const dom = deferred();
+    const f = fixture(); const dom = createDeferred<void>();
     f.page.waitForLoadState.mockReturnValue(dom.promise);
     const { finished, response } = f.start();
     await new Promise<void>((resolve) => setImmediate(resolve));
@@ -343,7 +341,7 @@ describe('recording start continuation ownership [REQ:BAS-RH-J17]', () => {
 
   it.each(['ready', 'stopping'])('rejects a start whose pipeline became %s before its completion', async (phase) => {
     const f = fixture();
-    f.pipeline.startRecording.mockImplementation(async () => { f.state.generation++; f.state.phase = phase; return 'same-public-id'; });
+    f.pipeline.startRecording.mockImplementation(() => { f.state.generation++; f.state.phase = phase; return Promise.resolve('same-public-id'); });
     const { finished, response } = f.start(); await finished;
     expect(response.statusCode).toBe(409);
     expect(frameStreaming.startFrameStreaming).not.toHaveBeenCalled();
@@ -361,7 +359,7 @@ describe('recording start continuation ownership [REQ:BAS-RH-J17]', () => {
   });
 
   it('rejects ownership transferred during pipeline startup', async () => {
-    const f = fixture(); const entered = deferred(); const proceed = deferred();
+    const f = fixture(); const entered = createDeferred<void>(); const proceed = createDeferred<void>();
     f.pipeline.startRecording.mockImplementation(async () => {
       entered.resolve(); await proceed.promise;
       f.state.generation++; f.state.phase = 'capturing'; return 'same-public-id';
@@ -386,8 +384,8 @@ describe('recording start continuation ownership [REQ:BAS-RH-J17]', () => {
 
   it('does not accept a newer generation with the same public ID as completion of the admitted start', async () => {
     const f = fixture();
-    f.pipeline.startRecording.mockImplementation(async () => {
-      f.state.generation += 2; f.state.phase = 'capturing'; return 'same-public-id';
+    f.pipeline.startRecording.mockImplementation(() => {
+      f.state.generation += 2; f.state.phase = 'capturing'; return Promise.resolve('same-public-id');
     });
     const { finished, response } = f.start(); await finished;
     expect(response.statusCode).toBe(409);
@@ -408,7 +406,7 @@ describe('recording start continuation ownership [REQ:BAS-RH-J17]', () => {
   });
 
   it('does not let an old stop remove new callbacks after preview disposal yields', async () => {
-    const f = fixture(); const entered = deferred(); const proceed = deferred(); const cleanup = jest.fn();
+    const f = fixture(); const entered = createDeferred<void>(); const proceed = createDeferred<void>(); const cleanup = jest.fn();
     f.state.phase = 'capturing'; f.session.phase = 'recording'; f.state.generation = 1;
     jest.mocked(frameStreaming.stopFrameStreaming).mockImplementation(async () => { entered.resolve(); await proceed.promise; });
     const res = createMockHttpResponse();
@@ -422,7 +420,7 @@ describe('recording start continuation ownership [REQ:BAS-RH-J17]', () => {
   });
 
   it('does not report current success after stop wins during initial page callback readiness', async () => {
-    const f = fixture(); const ready = deferred(); const attached = deferred(); const cleanup = jest.fn();
+    const f = fixture(); const ready = createDeferred<void>(); const attached = createDeferred<void>(); const cleanup = jest.fn();
     jest.spyOn(pageEvents, 'setupPageLifecycleListeners').mockImplementation(() => {
       attached.resolve(); return { cleanup, ready: ready.promise };
     });

@@ -61,6 +61,7 @@ func (w *memoryWriter) RecordStepOutcome(ctx context.Context, _ contracts.Execut
 func (*memoryWriter) RecordTelemetry(context.Context, contracts.ExecutionPlan, contracts.StepTelemetry) error {
 	return nil
 }
+func (*memoryWriter) RecordCheckpoint(context.Context, writer.Checkpoint) error { return nil }
 func (*memoryWriter) UpdateCheckpoint(context.Context, uuid.UUID, int, int) error { return nil }
 func (*memoryWriter) RecordExecutionArtifacts(context.Context, contracts.ExecutionPlan, []writer.ExternalArtifact) error {
 	return nil

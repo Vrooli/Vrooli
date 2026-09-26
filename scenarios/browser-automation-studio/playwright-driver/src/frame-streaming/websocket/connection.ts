@@ -101,8 +101,10 @@ export class WebSocketConnectionManager {
         ? new WS(this.state.url, { headers: { 'X-Vrooli-Test-Mode': '1' } })
         : new WS(this.state.url);
       this.state.ws = ws;
+      const ownsSocket = (): boolean => this.state.ws === ws;
 
       ws.on('open', () => {
+        if (!ownsSocket()) return;
         this.state.isReady = true;
         logger.info(scopedLog(LogContext.RECORDING, 'frame WebSocket connected'), {
           sessionId: this.sessionId,
@@ -110,6 +112,7 @@ export class WebSocketConnectionManager {
       });
 
       ws.on('close', () => {
+        if (!ownsSocket()) return;
         this.state.isReady = false;
         logger.debug(scopedLog(LogContext.RECORDING, 'frame WebSocket closed'), {
           sessionId: this.sessionId,
@@ -117,11 +120,14 @@ export class WebSocketConnectionManager {
 
         // Reconnect if still active
         if (this.state.isActive) {
-          setTimeout(() => this.connect(), this.reconnectDelayMs);
+          setTimeout(() => {
+            if (this.state.isActive && ownsSocket()) this.connect();
+          }, this.reconnectDelayMs);
         }
       });
 
       ws.on('error', (err: Error) => {
+        if (!ownsSocket()) return;
         this.state.isReady = false;
         logger.warn(scopedLog(LogContext.RECORDING, 'frame WebSocket error'), {
           sessionId: this.sessionId,

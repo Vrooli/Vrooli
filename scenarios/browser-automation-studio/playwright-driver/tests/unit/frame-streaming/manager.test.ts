@@ -5,9 +5,23 @@ import {
   getFrameStreamSettings,
   updateFrameStreamViewport,
 } from '../../../src/frame-streaming/manager';
-import type { FrameStreamOptions } from '../../../src/frame-streaming/types';
+import type { Page } from 'rebrowser-playwright';
+import type {
+  FrameStreamOptions,
+  SessionProvider,
+} from '../../../src/frame-streaming/types';
+import type {
+  FrameStreamingStrategy,
+  StreamingHandle,
+} from '../../../src/frame-streaming/strategies';
+import type { WebSocketConnectionManager } from '../../../src/frame-streaming/websocket';
 
-const mockLoadConfig = jest.fn();
+type TestConfig = {
+  frameStreaming: { useScreencast: boolean; fallbackToPolling: boolean };
+  performance: { enabled: boolean; includeTimingHeaders: boolean };
+};
+
+const mockLoadConfig = jest.fn<TestConfig, []>();
 const mockPerfCollector = {
   recordFrame: jest.fn(),
   recordSkipped: jest.fn(),
@@ -24,56 +38,63 @@ const mockPerfCollector = {
 };
 const mockPerfCollectorFromConfig = jest.fn(() => mockPerfCollector);
 
-const mockCdpStrategy = {
+const mockCdpStrategy: jest.Mocked<FrameStreamingStrategy> = {
   name: 'cdp-screencast',
   isSupported: jest.fn(),
   start: jest.fn(),
 };
-const mockPollingStrategy = {
+const mockPollingStrategy: jest.Mocked<FrameStreamingStrategy> = {
   name: 'polling',
   isSupported: jest.fn(),
   start: jest.fn(),
 };
 
-const mockCreateCdp = jest.fn(() => mockCdpStrategy);
-const mockCreatePolling = jest.fn(() => mockPollingStrategy);
+const mockCreateCdp = jest.fn((): FrameStreamingStrategy => mockCdpStrategy);
+const mockCreatePolling = jest.fn((): FrameStreamingStrategy => mockPollingStrategy);
 
-const mockWsManager = {
+type WebSocketManagerMethods = Pick<
+  WebSocketConnectionManager,
+  'connect' | 'close' | 'isReady' | 'getWebSocket'
+>;
+
+const mockWsManager: jest.Mocked<WebSocketManagerMethods> = {
   connect: jest.fn(),
   close: jest.fn(),
   isReady: jest.fn().mockReturnValue(true),
   getWebSocket: jest.fn().mockReturnValue({}),
 };
-const mockCreateWsManager = jest.fn(() => mockWsManager);
-const mockBuildWsUrl = jest.fn(() => 'ws://example.com/stream');
+const mockCreateWsManager = jest.fn((): WebSocketManagerMethods => mockWsManager);
+const mockBuildWsUrl = jest.fn((_callbackUrl: string, _sessionId: string): string => 'ws://example.com/stream');
 
 jest.mock('../../../src/config', () => ({
-  loadConfig: () => mockLoadConfig(),
+  loadConfig: (): TestConfig => mockLoadConfig(),
 }));
 
 jest.mock('../../../src/performance', () => ({
   PerfCollector: {
-    fromConfig: (...args: unknown[]) => mockPerfCollectorFromConfig(...args),
+    fromConfig: (_sessionId: string, _config: TestConfig, _fps: number): typeof mockPerfCollector =>
+      mockPerfCollectorFromConfig(),
   },
 }));
 
 jest.mock('../../../src/frame-streaming/strategies', () => ({
-  createCdpScreencastStrategy: () => mockCreateCdp(),
-  createPollingStrategy: () => mockCreatePolling(),
+  createCdpScreencastStrategy: (): FrameStreamingStrategy => mockCreateCdp(),
+  createPollingStrategy: (): FrameStreamingStrategy => mockCreatePolling(),
 }));
 
 jest.mock('../../../src/frame-streaming/websocket', () => ({
-  createWebSocketConnectionManager: () => mockCreateWsManager(),
-  buildWebSocketUrl: (...args: unknown[]) => mockBuildWsUrl(...args),
+  createWebSocketConnectionManager: (): WebSocketManagerMethods => mockCreateWsManager(),
+  buildWebSocketUrl: (callbackUrl: string, sessionId: string): string =>
+    mockBuildWsUrl(callbackUrl, sessionId),
 }));
 
 const flushPromises = async (): Promise<void> => {
   await new Promise((resolve) => setImmediate(resolve));
 };
 
-const fixturePage = {name:'page',isClosed:()=>false};
-const sessionProvider = {
-  getSession: (id:string) => ({id,ownerExecutionId:'execution-a',leaseId:'lease-a',page:fixturePage,
+const fixturePage = { name: 'page', isClosed: (): boolean => false } as unknown as Page;
+const sessionProvider: SessionProvider = {
+  getSession: (id: string) => ({ id, ownerExecutionId: 'execution-a', leaseId: 'lease-a', leaseReleasedAt: undefined, page: fixturePage,
     pageToIdMap:new WeakMap([[fixturePage,'page-a']])}),
 };
 
@@ -82,6 +103,17 @@ const baseOptions: FrameStreamOptions = {
   quality: 60,
   fps: 30,
   scale: 'css',
+};
+
+type TestStreamingHandle = StreamingHandle & {
+  updateQuality: jest.Mock;
+  updateViewport: jest.Mock;
+};
+
+const getStartedHandle = async (): Promise<TestStreamingHandle> => {
+  const result = mockCdpStrategy.start.mock.results[0];
+  if (!result || result.type !== 'return') throw new Error('Expected a started capture');
+  return (await (result.value as unknown as Promise<StreamingHandle>)) as TestStreamingHandle;
 };
 
 describe('frame streaming manager', () => {
@@ -136,7 +168,7 @@ describe('frame streaming manager', () => {
   });
 
   it('binds each source receipt to the captured lease and actual active page [REQ:BAS-RH-J22]',async()=>{
-    const blue={name:'blue',isClosed:()=>false};
+    const blue = { name: 'blue', isClosed: (): boolean => false } as unknown as Page;
     const owned={...sessionProvider.getSession('session-1')};
     owned.pageToIdMap.set(blue,'page-b');
     startFrameStreaming('session-1',{getSession:()=>owned},baseOptions);await flushPromises();
@@ -201,7 +233,7 @@ describe('frame streaming manager', () => {
     it('keeps the prior quality and pending receipt until the capture owner applies the change', async () => {
       startFrameStreaming('session-1', sessionProvider, baseOptions);
       await flushPromises();
-      const handle = await mockCdpStrategy.start.mock.results[0].value;
+      const handle = await getStartedHandle();
       let applied!: () => void;
       const captureChange = new Promise<void>((resolve) => { applied = resolve; });
       handle.updateQuality.mockReturnValue(captureChange);
@@ -221,7 +253,7 @@ describe('frame streaming manager', () => {
     it('joins pending control application at stop without acknowledging the obsolete update', async () => {
       startFrameStreaming('session-1', sessionProvider, baseOptions);
       await flushPromises();
-      const handle = await mockCdpStrategy.start.mock.results[0].value;
+      const handle = await getStartedHandle();
       let applied!: () => void;
       handle.updateQuality.mockReturnValue(new Promise<void>((resolve) => { applied = resolve; }));
       const update = updateFrameStreamSettings('session-1', { quality: 20 });
@@ -241,7 +273,7 @@ describe('frame streaming manager', () => {
     it('does not acknowledge quality that the capture owner rejected', async () => {
       startFrameStreaming('session-1', sessionProvider, baseOptions);
       await flushPromises();
-      const handle = await mockCdpStrategy.start.mock.results[0].value;
+      const handle = await getStartedHandle();
       const failure = Promise.reject(new Error('encoder rejected quality'));
       void failure.catch(() => {});
       handle.updateQuality.mockReturnValue(failure);
@@ -254,17 +286,17 @@ describe('frame streaming manager', () => {
     startFrameStreaming('session-1', sessionProvider, baseOptions);
     await flushPromises();
 
-    await updateFrameStreamViewport('session-1', fixturePage as unknown as import('rebrowser-playwright').Page);
-    const handle = await mockCdpStrategy.start.mock.results[0].value;
+    await updateFrameStreamViewport('session-1', fixturePage);
+    const handle = await getStartedHandle();
     expect(handle.updateViewport).toHaveBeenCalledWith(fixturePage);
   });
   describe('lifecycle ownership', () => {
-    const deferred = <T>() => {
+    const deferred = <T>(): { promise: Promise<T>; resolve: (value: T) => void } => {
       let resolve!: (value: T) => void;
       const promise = new Promise<T>((done) => { resolve = done; });
       return { promise, resolve };
     };
-    const handle = () => ({
+    const handle = (): { stop: jest.Mock; isActive: jest.Mock; getFrameCount: jest.Mock } => ({
       stop: jest.fn().mockResolvedValue(undefined),
       isActive: jest.fn().mockReturnValue(true),
       getFrameCount: jest.fn().mockReturnValue(0),
@@ -301,7 +333,9 @@ describe('frame streaming manager', () => {
         await flushPromises();
         expect(settled).toBe(false);
         expect(mockWsManager.close).toHaveBeenCalled();
-        const transport = mockCdpStrategy.start.mock.calls[0]![2];
+        const startCall = mockCdpStrategy.start.mock.calls[0];
+        if (!startCall) throw new Error('Expected capture start call');
+        const transport = startCall[2];
         expect(transport.isReady()).toBe(false);
       } finally {
         gate.resolve(late);

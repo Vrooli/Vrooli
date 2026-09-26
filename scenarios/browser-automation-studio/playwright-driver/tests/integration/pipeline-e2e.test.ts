@@ -17,11 +17,10 @@ import { dirname } from 'node:path';
 
 import { setupPageLifecycleListeners } from '../../src/routes/record-mode/page-events';
 import { handleRecordNewPage } from '../../src/routes/record-mode/recording-pages';
-import { createMockHttpRequest, createMockHttpResponse } from '../helpers';
+import { createDeferred, createMockHttpRequest, createMockHttpResponse } from '../helpers';
 import { chromium, Browser, BrowserContext, Page } from 'rebrowser-playwright';
 import * as http from 'http';
-import { once } from 'node:events';
-import { WebSocketServer } from 'ws';
+import WebSocket = require('ws');
 import { SessionManager } from '../../src/session/manager';
 import { createTestConfig } from '../helpers/test-config';
 import * as driverConfig from '../../src/config';
@@ -38,6 +37,41 @@ import {
   acknowledgeTimelineEntries,
 } from '../../src/recording';
 import { ActionType } from '../../src/proto/recording';
+
+type NativeWsSocket = {
+  once(event: 'message', listener: (data: Buffer) => void): NativeWsSocket;
+  once(event: 'close', listener: () => void): NativeWsSocket;
+  on(event: 'message', listener: (data: Buffer) => void): NativeWsSocket;
+  terminate(): void;
+};
+
+type NativeWsServer = {
+  address(): string | { port: number } | null;
+  clients: Set<NativeWsSocket>;
+  on(event: 'connection', listener: (socket: NativeWsSocket) => void): NativeWsServer;
+  once(event: 'connection' | 'listening', listener: ((socket: NativeWsSocket) => void) | (() => void)): NativeWsServer;
+  close(callback?: (error?: Error) => void): void;
+};
+
+const WebSocketServer = WebSocket.Server as unknown as {
+  new (options?: { host?: string; port?: number }): NativeWsServer;
+};
+
+function waitForServerListening(server: NativeWsServer): Promise<void> {
+  return new Promise((resolve) => server.once('listening', resolve));
+}
+
+function waitForServerConnection(server: NativeWsServer): Promise<NativeWsSocket> {
+  return new Promise((resolve) => server.once('connection', resolve));
+}
+
+function waitForSocketMessage(socket: NativeWsSocket): Promise<Buffer> {
+  return new Promise((resolve) => socket.once('message', resolve));
+}
+
+function waitForSocketClose(socket: NativeWsSocket): Promise<void> {
+  return new Promise((resolve) => socket.once('close', resolve));
+}
 
 // Increase timeout for comprehensive E2E testing
 jest.setTimeout(120000);
@@ -207,6 +241,24 @@ function getEntryUrl(entry: TimelineEntry): string | undefined {
   return typeof rawUrl === 'string' ? rawUrl : undefined;
 }
 
+type DecodedJpegPixel = { width: number; height: number; rgb: number[] };
+
+async function decodeJpegPixel(page: Page, encoded: string): Promise<DecodedJpegPixel> {
+  return page.evaluate(async (base64): Promise<DecodedJpegPixel> => {
+    const bytes = Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+    const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const drawing = canvas.getContext('2d');
+    if (!drawing) throw new Error('Could not create native pixel decoder context');
+    drawing.drawImage(bitmap, 0, 0);
+    const rgb = Array.from(drawing.getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data);
+    bitmap.close();
+    return { width: canvas.width, height: canvas.height, rgb };
+  }, encoded);
+}
+
 describe('Pipeline E2E Tests', () => {
   let browser: Browser;
   let server: PipelineTestServer;
@@ -236,7 +288,7 @@ describe('Pipeline E2E Tests', () => {
       if (page.isClosed()) attemptsAfterClose++;
       const session = await createSession(target);
       const detach = session.detach.bind(session);
-      session.detach = async () => { await detach(); firstChecked(); };
+      session.detach = async (): Promise<void> => { await detach(); firstChecked(); };
       firstAttached();
       return session;
     });
@@ -259,10 +311,11 @@ describe('Pipeline E2E Tests', () => {
   describe('complete pipeline validation', () => {
     let context: BrowserContext;
     let page: Page;
-    let pageIdentities: WeakMap<Page, string>;
-    let initializer: RecordingContextInitializer;
-    let pipelineManager: RecordingPipelineManager;
-    let capturedEntries: TimelineEntry[];
+  let pageIdentities: WeakMap<Page, string>;
+  let initializer: RecordingContextInitializer;
+  let pipelineManager: RecordingPipelineManager;
+  let capturedEntries: TimelineEntry[];
+  const captureEntry = (entry: TimelineEntry): void => { capturedEntries.push(entry); };
 
     beforeEach(async () => {
       context = await browser.newContext();
@@ -296,7 +349,7 @@ describe('Pipeline E2E Tests', () => {
         await observer.send('Runtime.enable');
         await page.goto(server.getUrl('/'));
         if (capturing) await pipelineManager.startRecording({
-          sessionId: 'pipeline-e2e-test', onEntry: entry => { capturedEntries.push(entry); },
+          sessionId: 'pipeline-e2e-test', onEntry: captureEntry,
         });
         await page.click('#test-btn');
         if (capturing) await pipelineManager.stopRecording();
@@ -305,8 +358,9 @@ describe('Pipeline E2E Tests', () => {
           expression: '({ready:window.__vrooli_recording_ready,detected:window.__vrooli_recording_telemetry.eventsDetected})',
           returnByValue: true,
         });
-        expect(telemetry.result.value).toMatchObject({ ready: true });
-        expect(telemetry.result.value.detected).toBeGreaterThan(0);
+        const telemetryValue = telemetry.result.value as { ready?: boolean; detected?: number };
+        expect(telemetryValue).toMatchObject({ ready: true });
+        expect(telemetryValue.detected).toBeGreaterThan(0);
         await observer.send('Runtime.evaluate', { expression: 'console.error("application-error-sentinel")' });
         expect(consoleEvents).toContainEqual({ type: 'error', text: 'application-error-sentinel' });
         expect(consoleEvents.filter(event => event.text !== 'application-error-sentinel')).toEqual([]);
@@ -320,17 +374,14 @@ describe('Pipeline E2E Tests', () => {
       await pipelineManager.verifyPipeline({ timeoutMs: 5000 });
       const configuration = jest.spyOn(driverConfig, 'loadConfig').mockReturnValue(createTestConfig());
       const frames = new WebSocketServer({ host: '127.0.0.1', port: 0 });
-      await once(frames, 'listening');
+      await waitForServerListening(frames);
       const address = frames.address();
       if (typeof address === 'string') throw new Error('Expected WebSocket port');
-      let releaseDom!: () => void;
-      let enteredDom!: () => void;
-      const dom = new Promise<void>((resolve) => { releaseDom = resolve; });
-      const entered = new Promise<void>((resolve) => { enteredDom = resolve; });
-      const load = jest.spyOn(page, 'waitForLoadState').mockImplementation(async () => { enteredDom(); await dom; });
-      let received!: () => void;
-      const receivedFrame = new Promise<void>((resolve) => { received = resolve; });
-      frames.on('connection', (socket) => socket.once('message', () => received()));
+      const dom = createDeferred<void>();
+      const entered = createDeferred<void>();
+      const load = jest.spyOn(page, 'waitForLoadState').mockImplementation(async () => { entered.resolve(); await dom.promise; });
+      const receivedFrame = createDeferred<void>();
+      frames.on('connection', (socket) => socket.once('message', () => receivedFrame.resolve()));
       const session = { id: 'pipeline-e2e-test', spec: { execution_id: 'owner', workflow_id: 'fixture', reuse_mode: 'fresh', viewport: { width: 800, height: 600 } }, page, pipelineManager, phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', pageToIdMap: new WeakMap([[page, 'initial-page']]) };
       const manager = {
         getSession: () => session,
@@ -349,16 +400,16 @@ describe('Pipeline E2E Tests', () => {
           execution_id: 'owner', lease_id: 'lease',
           frame_callback_url: `http://127.0.0.1:${address.port}/frames`,
         } }), response, session.id, manager, createTestConfig());
-        const first = await Promise.race([start.then(() => 'started'), entered.then(() => 'extra-dom-wait')]);
+        const first = await Promise.race([start.then(() => 'started'), entered.promise.then(() => 'extra-dom-wait')]);
         if (first === 'started') {
-          await Promise.race([receivedFrame, new Promise<never>((_, reject) => {
+          await Promise.race([receivedFrame.promise, new Promise<never>((_, reject) => {
             deadline = setTimeout(() => reject(new Error('Native recording preview exceeded5000ms')), 5000);
           })]);
           clearTimeout(deadline);
         }
         const stopped = createMockHttpResponse();
         await handleRecordStop(createMockHttpRequest({ method: 'POST', body: { execution_id: 'owner', lease_id: 'lease' } }), stopped, session.id, manager);
-        releaseDom(); await start;
+        dom.resolve(); await start;
         expect(stopped.statusCode).toBe(200);
         expect(first).toBe('started');
         expect(response.statusCode).toBe(200);
@@ -366,7 +417,7 @@ describe('Pipeline E2E Tests', () => {
         expect(getFrameStreamSettings(session.id)).toBeNull();
         expect(pipelineManager.isRecording()).toBe(false);
       } finally {
-        releaseDom(); if (deadline) clearTimeout(deadline);
+        dom.resolve(); if (deadline) clearTimeout(deadline);
         await start;
         await stopFrameStreaming(session.id);
         if (pipelineManager.isRecording()) await pipelineManager.stopRecording();
@@ -385,15 +436,14 @@ describe('Pipeline E2E Tests', () => {
       await page.goto(server.getUrl('/'));
       await waitForScriptReady(page, 5000);
       let recoveredEntryId: string | undefined;
-      let resolveRecovered!: (id: string) => void;
-      const recovered = new Promise<string>((resolve) => { resolveRecovered = resolve; });
+      const recovered = createDeferred<string>();
       await pipelineManager.startRecording({
         sessionId: 'pipeline-e2e-test',
         recordingId: 'browser-retry',
         onEntry: (entry) => {
           if (getActionType(entry) === ActionType.CLICK) {
             recoveredEntryId = entry.id;
-            resolveRecovered(entry.id);
+            recovered.resolve(entry.id);
           }
         },
       });
@@ -420,7 +470,7 @@ describe('Pipeline E2E Tests', () => {
       allowAcknowledgement = true;
       let deadline: ReturnType<typeof setTimeout> | undefined;
       try {
-        await Promise.race([recovered, new Promise<never>((_, reject) => { deadline = setTimeout(() => reject(new Error('rejected browser event was not recovered after reload')), 6000); })]);
+        await Promise.race([recovered.promise, new Promise<never>((_, reject) => { deadline = setTimeout(() => reject(new Error('rejected browser event was not recovered after reload')), 6000); })]);
       } finally { if (deadline) clearTimeout(deadline); }
       expect(recoveredEntryId).toBe(posts[0]?.id);
       expect(posts.every((event) => event.id === posts[0]?.id)).toBe(true);
@@ -440,8 +490,10 @@ describe('Pipeline E2E Tests', () => {
           }
         },
       });
-      const response = page.waitForResponse((r) => r.url().endsWith('/__vrooli_recording_event__') &&
-        r.request().postDataJSON()?.actionType === 'click');
+      const response = page.waitForResponse((r) => {
+        const event = r.request().postDataJSON() as { actionType?: string };
+        return r.url().endsWith('/__vrooli_recording_event__') && event.actionType === 'click';
+      });
       await page.click('#test-btn');
       expect((await response).status()).toBeGreaterThanOrEqual(500);
       expect(attempts.length).toBeGreaterThan(0);
@@ -457,18 +509,16 @@ describe('Pipeline E2E Tests', () => {
     it('does not report stopped while an admitted delivery is uncommitted', async () => {
       await page.goto(server.getUrl('/'));
       await waitForScriptReady(page, 5000);
-      let admit!: () => void;
-      let commit!: () => void;
-      const admitted = new Promise<void>((resolve) => { admit = resolve; });
-      const committed = new Promise<void>((resolve) => { commit = resolve; });
+      const admitted = createDeferred<void>();
+      const committed = createDeferred<void>();
       await pipelineManager.startRecording({
         sessionId: 'pipeline-e2e-test', recordingId: 'delayed-delivery',
         onEntry: async (entry) => {
-          if (getActionType(entry) === ActionType.CLICK) { admit(); await committed; }
+          if (getActionType(entry) === ActionType.CLICK) { admitted.resolve(); await committed.promise; }
         },
       });
       await page.click('#test-btn');
-      await admitted;
+      await admitted.promise;
       let reportedSuccess = false;
       const stop = pipelineManager.stopRecording().then(() => { reportedSuccess = true; });
       try {
@@ -476,7 +526,7 @@ describe('Pipeline E2E Tests', () => {
         await new Promise<void>((resolve) => setTimeout(resolve, 100));
         expect(reportedSuccess).toBe(false);
       } finally {
-        commit();
+        committed.resolve();
         await stop;
       }
       expect(reportedSuccess).toBe(true);
@@ -486,7 +536,7 @@ describe('Pipeline E2E Tests', () => {
       await page.goto(server.getUrl('/'));
       await pipelineManager.startRecording({
         sessionId: 'pipeline-e2e-test',
-        onEntry: (entry) => { capturedEntries.push(entry); },
+        onEntry: captureEntry,
       });
       await page.fill('#test-input', 'final value');
       const result = await pipelineManager.stopRecording();
@@ -498,20 +548,18 @@ describe('Pipeline E2E Tests', () => {
 
     it('joins an admitted start before stop and leaves browser capture inactive', async () => {
       await page.goto(server.getUrl('/'));
-      let admit!: () => void;
-      let commit!: () => void;
-      const admitted = new Promise<void>((resolve) => { admit = resolve; });
-      const committed = new Promise<void>((resolve) => { commit = resolve; });
+      const admitted = createDeferred<void>();
+      const committed = createDeferred<void>();
       const start = pipelineManager.startRecording({
         sessionId: 'pipeline-e2e-test', recordingId: 'overlapping-start-stop',
-        onEntry: async (entry) => { capturedEntries.push(entry); admit(); await committed; },
+        onEntry: async (entry) => { capturedEntries.push(entry); admitted.resolve(); await committed.promise; },
       });
-      await Promise.race([admitted, start]);
+      await Promise.race([admitted.promise, start]);
       const stop = pipelineManager.stopRecording();
       try {
         expect(pipelineManager.getState().phase).toBe('starting');
         await expect(pipelineManager.startRecording({ sessionId: 'pipeline-e2e-test', onEntry: () => {} })).rejects.toThrow('already owned');
-      } finally { commit(); }
+      } finally { committed.resolve(); }
       await start;
       const stopped = await stop;
       expect(stopped.actionCount).toBe(1);
@@ -519,7 +567,7 @@ describe('Pipeline E2E Tests', () => {
       await page.click('#test-btn');
       await page.waitForTimeout(100);
       expect(capturedEntries).toHaveLength(1);
-      const pending = await page.evaluate(() => JSON.parse(sessionStorage.getItem('__vrooli_pending_events__') || '[]'));
+      const pending = await page.evaluate(() => JSON.parse(sessionStorage.getItem('__vrooli_pending_events__') || '[]') as unknown[]);
       expect(pending).toEqual([]);
     });
 
@@ -527,18 +575,17 @@ describe('Pipeline E2E Tests', () => {
       await page.goto(server.getUrl('/'));
       const target = server.getUrl('/page-2').replace('localhost', '127.0.0.1');
       await page.evaluate((url) => { (document.querySelector('#test-link') as HTMLAnchorElement).href = url; }, target);
-      let commit!: () => void;
-      const committed = new Promise<void>((resolve) => { commit = resolve; });
+      const committed = createDeferred<void>();
       await pipelineManager.startRecording({
         sessionId: 'pipeline-e2e-test', recordingId: 'cross-origin-pending',
         onEntry: async (entry) => {
-          if (getActionType(entry) === ActionType.CLICK) await committed;
+          if (getActionType(entry) === ActionType.CLICK) await committed.promise;
           capturedEntries.push(entry);
         },
       });
       try {
         await Promise.all([page.waitForURL(target), page.click('#test-link')]);
-      } finally { commit(); }
+      } finally { committed.resolve(); }
       await pipelineManager.stopRecording();
       expect(capturedEntries.some((entry) => entry.action?.params.case === 'navigate' && entry.action.params.value.url === target)).toBe(true);
     });
@@ -547,7 +594,7 @@ describe('Pipeline E2E Tests', () => {
       await page.goto(server.getUrl('/'));
       await pipelineManager.startRecording({
         sessionId: 'pipeline-e2e-test',
-        onEntry: (entry) => { capturedEntries.push(entry); },
+        onEntry: captureEntry,
       });
       const target = server.getUrl('/').replace('localhost', '127.0.0.1');
       await page.evaluate((url) => {
@@ -562,7 +609,7 @@ describe('Pipeline E2E Tests', () => {
 
     it('preserves distinct tab identities for equal selectors in the recording timeline', async () => {
       await page.goto(server.getUrl('/'));
-      await pipelineManager.startRecording({ sessionId: 'pipeline-e2e-test', onEntry: (entry) => { capturedEntries.push(entry); } });
+      await pipelineManager.startRecording({ sessionId: 'pipeline-e2e-test', onEntry: captureEntry });
 
       const secondPage = await context.newPage();
       pageIdentities.set(secondPage, 'pipeline-secondary-tab');
@@ -616,7 +663,7 @@ describe('Pipeline E2E Tests', () => {
       expect(inputs.length).toBeGreaterThan(0);
       expect(scrolls.length).toBeGreaterThan(0);
 
-      const fixtureClicks = await page.evaluate(() => (window as any).__fixtureClickCount as number);
+      const fixtureClicks = await page.evaluate(() => (window as Window & { __fixtureClickCount: number }).__fixtureClickCount);
       expect(fixtureClicks).toBe(1);
       expect(await page.locator('#test-input').inputValue()).toBe('test');
       expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(50);
@@ -853,7 +900,7 @@ describe('Pipeline E2E Tests', () => {
             notifyProgress = undefined;
             reject(new Error(`Only ${clickEntries.length}/${target} clicks reached the journal`));
           }, 30000);
-          notifyProgress = () => {
+          notifyProgress = (): void => {
             if (clickEntries.length < target) return;
             clearTimeout(timeout);
             notifyProgress = undefined;
@@ -994,7 +1041,7 @@ describe('session-owned frame transport', () => {
   afterEach(() => { configuration.mockRestore(); });
   it.each(['close', 'reset'] as const)('disposes its preview on session %s', async (operation) => {
     const sockets = new WebSocketServer({ host: '127.0.0.1', port: 0 });
-    await once(sockets, 'listening');
+    await waitForServerListening(sockets);
     const address = sockets.address();
     if (typeof address === 'string') throw new Error('Expected local socket port');
     const manager = new SessionManager(createTestConfig());
@@ -1008,13 +1055,13 @@ describe('session-owned frame transport', () => {
         viewport: { width: 640, height: 480 }, reuse_mode: 'fresh', required_capabilities: {},
       });
       sessionId = session.sessionId;
-      const connected = once(sockets, 'connection');
+      const connected = waitForServerConnection(sockets);
       startFrameStreaming(sessionId, manager, { callbackUrl: `http://127.0.0.1:${address.port}/frames` });
-      const [socket] = await connected;
-      const painted = once(socket, 'message');
+      const socket = await connected;
+      const painted = waitForSocketMessage(socket);
       await manager.peekSession(sessionId).page.evaluate(() => { document.body.style.background = 'tomato'; });
       await painted;
-      const closed = once(socket, 'close').then(() => true);
+      const closed = waitForSocketClose(socket).then(() => true);
       if (operation === 'close') await manager.closeSession(sessionId);
       else await manager.resetSession(sessionId);
       const observed = await Promise.race([
@@ -1075,7 +1122,7 @@ describe('native capture page identity', () => {
       capture = await new CdpScreencastStrategy().start(
         () => current,
         { sessionId: 'native-page-identity', sourceForPage: page => ({session_id:'native-page-identity',execution_id:'native-owner',lease_id:'native-lease',page_id:page===red?'red':'blue'}), quality: 65, targetFps: 30, scale: 'css', includePerfHeaders: false, cdp: { pageCheckIntervalMs: 25 } },
-        { isReady: () => ready, getWebSocket: () => ({ readyState: 1, send: (bytes: Buffer) => { frames.push(Buffer.from(bytes.subarray(4 + bytes.readUInt32BE(0)))); frameSent(); } }) },
+        { isReady: () => ready, getWebSocket: () => ({ readyState: 1, send: (bytes: Buffer): void => { frames.push(Buffer.from(bytes.subarray(4 + bytes.readUInt32BE(0)))); frameSent(); } }) },
         { onFrameSent: () => {}, onFrameSkipped: () => {} },
       );
       await bounded(redFrame);
@@ -1086,20 +1133,10 @@ describe('native capture page identity', () => {
       await capture.stop();
       expect(frames.length).toBeGreaterThan(0);
       for (const frame of frames) {
-        const rgb = await decoder.evaluate(async (encoded) => {
-          const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
-          const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
-          const canvas = document.createElement('canvas');
-          canvas.width = bitmap.width; canvas.height = bitmap.height;
-          const context = canvas.getContext('2d')!;
-          context.drawImage(bitmap, 0, 0);
-          const color = Array.from(context.getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data);
-          bitmap.close();
-          return color;
-        }, frame.toString('base64'));
-        expect(rgb[0]).toBeLessThan(40);
-        expect(rgb[1]).toBeLessThan(40);
-        expect(rgb[2]).toBeGreaterThan(210);
+        const observed = await decodeJpegPixel(decoder, frame.toString('base64'));
+        expect(observed.rgb[0]).toBeLessThan(40);
+        expect(observed.rgb[1]).toBeLessThan(40);
+        expect(observed.rgb[2]).toBeGreaterThan(210);
       }
     } finally {
       if (timer) clearTimeout(timer);
@@ -1122,7 +1159,7 @@ describe('native polling fallback [REQ:BAS-RH-J22]', () => {
       jest.spyOn(context, 'newCDPSession').mockRejectedValue(new Error('Public CDP unavailable'));
       let sent!: (frame: Buffer) => void;
       const delivered = new Promise<Buffer>((resolve) => { sent = resolve; });
-      const socket = { readyState: 1, send: (frame: Buffer) => sent(Buffer.from(frame)) };
+      const socket = { readyState: 1, send: (frame: Buffer): void => sent(Buffer.from(frame)) };
       capture = await new PollingStrategy().start(() => page,
         { sessionId: `native-polling-${scale}`, sourceForPage: () => ({session_id:`native-polling-${scale}`,execution_id:'native-owner',lease_id:'native-lease',page_id:'blue'}), quality: 65, targetFps: 10, scale, includePerfHeaders: false },
         { isReady: () => true, getWebSocket: () => socket },
@@ -1132,17 +1169,7 @@ describe('native polling fallback [REQ:BAS-RH-J22]', () => {
       })]);
       clearTimeout(deadline);
       await capture.stop();
-      const observed = await page.evaluate(async (encoded) => {
-        const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
-        const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
-        const canvas = document.createElement('canvas');
-        canvas.width = bitmap.width; canvas.height = bitmap.height;
-        const context = canvas.getContext('2d')!;
-        context.drawImage(bitmap, 0, 0);
-        const rgb = Array.from(context.getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data);
-        bitmap.close();
-        return { width: canvas.width, height: canvas.height, rgb };
-      }, frame.subarray(4 + frame.readUInt32BE(0)).toString('base64'));
+      const observed = await decodeJpegPixel(page, frame.subarray(4 + frame.readUInt32BE(0)).toString('base64'));
       expect(observed.width).toBe(scale === 'css' ? 320 : 640);
       expect(observed.height).toBe(scale === 'css' ? 240 : 480);
       expect(observed.rgb[0]).toBeLessThan(40);
@@ -1164,17 +1191,23 @@ describe('native recording tab ownership [REQ:BAS-RH-J03]', () => {
     let deadline: ReturnType<typeof setTimeout> | undefined;
     let deliver!: (event: { driverPageId: string }) => void;
     const created = new Promise<{ driverPageId: string }>((resolve) => { deliver = resolve; });
-    const fetchMock = jest.spyOn(global, 'fetch').mockImplementation(async (_url, init) => {
-      const event = JSON.parse(init!.body as string);
+    const fetchMock = jest.spyOn(global, 'fetch').mockImplementation((_url, init) => {
+      const body = init?.body;
+      if (typeof body !== 'string') throw new Error('Expected callback request body');
+      const event = JSON.parse(body) as { eventType?: string; driverPageId?: string };
       if (event.eventType === 'created') deliver(event);
-      return { ok: true, status: 200, statusText: 'OK' } as Response;
+      return Promise.resolve({ ok: true, status: 200, statusText: 'OK' } as Response);
     });
     try {
       const context = await browser.newContext();
-      const counts = new Map<Page, { navigation: number; close: number }>();
-      context.on('page', (page) => counts.set(page, {
-        navigation: page.listenerCount('framenavigated'), close: page.listenerCount('close'),
-      }));
+      type ListenerCountPage = { listenerCount(event: string): number };
+      const counts = new Map<ListenerCountPage, { navigation: number; close: number }>();
+      context.on('page', (rawPage: unknown): void => {
+        const page = rawPage as ListenerCountPage;
+        counts.set(page, {
+          navigation: page.listenerCount('framenavigated'), close: page.listenerCount('close'),
+        });
+      });
       const initial = await context.newPage();
       const session = {
         id: 'native-tab-owner', phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', context, page: initial, pages: [initial],
@@ -1230,7 +1263,7 @@ describe('native stream controls [REQ:BAS-RH-J23]', () => {
     const sessionId = `native-scale-${dpr}-${scale}`;
     let deadline: ReturnType<typeof setTimeout> | undefined;
     try {
-      await once(server, 'listening');
+      await waitForServerListening(server);
       const address = server.address();
       if (typeof address === 'string') throw new Error('Expected socket port');
       const context = await browser.newContext({ viewport: { width: 320, height: 240 }, deviceScaleFactor: dpr });
@@ -1250,21 +1283,11 @@ describe('native stream controls [REQ:BAS-RH-J23]', () => {
       // Both strategies preserve source identity before the JPEG bytes.
       const jpeg = packet.subarray(4 + packet.readUInt32BE(0));
       const decoder = await browser.newPage();
-      const pixels = await decoder.evaluate(async (encoded) => {
-        const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
-        const image = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
-        const canvas = document.createElement('canvas');
-        canvas.width = image.width; canvas.height = image.height;
-        const drawing = canvas.getContext('2d')!;
-        drawing.drawImage(image, 0, 0);
-        const result = { width: image.width, height: image.height, blue: drawing.getImageData(10, 10, 1, 1).data[2] };
-        image.close();
-        return result;
-      }, jpeg.toString('base64'));
+      const pixels = await decodeJpegPixel(decoder, jpeg.toString('base64'));
       const factor = scale === 'device' ? dpr : 1;
       expect(pixels.width).toBe(320 * factor);
       expect(pixels.height).toBe(240 * factor);
-      expect(pixels.blue).toBeGreaterThan(240);
+      expect(pixels.rgb[2]).toBeGreaterThan(240);
       expect(getFrameStreamSettings(sessionId)).toBeNull();
     } finally {
       if (deadline) clearTimeout(deadline);
@@ -1287,7 +1310,7 @@ describe('native stream controls [REQ:BAS-RH-J23]', () => {
     const sessionId = `native-controls-${useScreencast}`;
     let deadline: ReturnType<typeof setTimeout> | undefined;
     try {
-      await once(server, 'listening');
+      await waitForServerListening(server);
       const address = server.address();
       if (typeof address === 'string') throw new Error('Expected socket port');
       const context = await browser.newContext({ viewport: { width: 640, height: 480 } });
@@ -1306,22 +1329,24 @@ describe('native stream controls [REQ:BAS-RH-J23]', () => {
       });
       const screenshot = page.screenshot.bind(page);
       jest.spyOn(page, 'screenshot').mockImplementation(async (options) => {
-        qualityCalls.push(options!.quality!);
+        const quality = options?.quality;
+        if (quality === undefined) throw new Error('Expected native screenshot quality');
+        qualityCalls.push(quality);
         return screenshot(options);
       });
       const provider = { getSession: () => ({ id:sessionId,ownerExecutionId:'native-owner',leaseId:'native-lease',page,pageToIdMap:new WeakMap([[page,'native-page']]) }) } as unknown as SessionManager;
       const observations: { at: number; jpeg: Buffer; header: { frame_bytes: number } }[] = [];
       let observed!: () => void;
       const threeFrames = new Promise<void>((resolve) => { observed = resolve; });
-      const connected = once(server, 'connection');
+      const connected = waitForServerConnection(server);
       startFrameStreaming(sessionId, provider, { callbackUrl: `http://127.0.0.1:${address.port}/frames`, quality: 65, fps: 30 });
-      const [socket] = await connected;
+      const socket = await connected;
       socket.on('message', (data: Buffer) => {
         if (data.length < 5) return;
         const length = data.readUInt32BE(0);
         if (length > data.length - 4 || data[4] !== 123) return;
         let envelope: { timing?: { frame_bytes: number } };
-        try { envelope = JSON.parse(data.subarray(4, 4 + length).toString()); }
+        try { envelope = JSON.parse(data.subarray(4, 4 + length).toString()) as unknown as typeof envelope; }
         catch { return; }
         if (!envelope.timing) return;
         observations.push({ at: performance.now(), jpeg: Buffer.from(data.subarray(4 + length)), header: envelope.timing });
@@ -1329,10 +1354,10 @@ describe('native stream controls [REQ:BAS-RH-J23]', () => {
       });
       // Connection precedes capture readiness. First native frame is the oracle
       // that the strategy handle exists before submitting the settings request.
-      const first = once(socket, 'message');
+      const first = waitForSocketMessage(socket);
       await page.evaluate(() => {
         let frame = 0;
-        const paint = () => {
+        const paint = (): void => {
           document.body.style.background = `rgb(${(frame++ * 23) % 256},20,180)`;
           requestAnimationFrame(paint);
         };

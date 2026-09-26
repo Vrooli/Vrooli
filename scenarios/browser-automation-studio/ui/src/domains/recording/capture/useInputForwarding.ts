@@ -174,7 +174,14 @@ export function useInputForwarding({
         if (pageId) {
           message.page_id = pageId;
         }
-        send(message);
+        if (!send(message)) {
+          void sendHttpInput(pending).then(() => {
+            pendingInputsRef.current.delete(inputId);
+          }).catch(err => {
+            const message = err instanceof Error ? err.message : 'Failed to forward input';
+            onError?.(message);
+          });
+        }
         return;
       }
 

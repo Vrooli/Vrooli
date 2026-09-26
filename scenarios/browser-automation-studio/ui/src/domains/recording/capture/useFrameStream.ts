@@ -55,6 +55,11 @@ const STREAM_STALE_MS = 1000;
 // Keep one missed-RAF frame pair without allowing delayed viewers to grow memory use.
 const MAX_PENDING_PAINT_FRAMES = 2;
 const MAX_PENDING_PAINT_BYTES = 16 * 1024 * 1024;
+// Keep a bounded visual cadence when decoding is slower than admission. A
+// frame that is only a few admissions behind can still be useful; a much older
+// decode is discarded so a burst cannot paint stale pixels after a newer frame
+// has already been admitted.
+const MAX_ADMISSION_LAG = 3;
 
 interface FrameJob {
   id: number;
@@ -163,6 +168,7 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
     let pendingPaintBytes = 0;
     let sequence = 0;
     let newestAdmission = 0;
+    let newestAdmissionTimestamp = '';
     let lastPainted = 0;
     let lastSocketPaint = -Infinity;
     let reconnectAttempts = 0;
@@ -236,6 +242,18 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
       }
     };
     const deliver = (frame: FrameJob, bitmap: ImageBitmap) => {
+      // A newer frame may arrive while this decode is in flight. Do not put
+      // stale pixels into the paint queue; close the bitmap at the ownership
+      // boundary and let the latest pending frame advance instead.
+      const frameTime = Date.parse(frame.timestamp);
+      const newestTime = Date.parse(newestAdmissionTimestamp);
+      const adjacentTimestampStale = frame.id < newestAdmission &&
+        Number.isFinite(frameTime) && Number.isFinite(newestTime) &&
+        newestTime > frameTime && newestTime - frameTime <= 1;
+      if (newestAdmission - frame.id > MAX_ADMISSION_LAG || adjacentTimestampStale) {
+        bitmap.close();
+        return;
+      }
       const byteSize = bitmap.width * bitmap.height * 4;
       // A single oversize image remains displayable; never retain another beside it.
       while (pendingPaint.length > 0 &&
@@ -252,6 +270,7 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
     const enqueue = (frame: Omit<FrameJob,'owns'|'deliver'|'fail'>) => {
       if (disposed || document.hidden || frame.id < newestAdmission) return;
       newestAdmission = frame.id;
+      newestAdmissionTimestamp = frame.timestamp;
       currentDecoder.pending = {...frame,owns,deliver,fail};
       void decodeLatest(currentDecoder);
     };

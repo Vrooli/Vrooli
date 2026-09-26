@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
+import { buildIdentity } from "../qualification-support.mjs";
 
 const execFileAsync = promisify(execFile);
 const sourcePath = fileURLToPath(import.meta.url);
@@ -27,17 +28,6 @@ const executionTests =
   "^(TestStopExecutionRetainsUncertainOutcomeAndJoinsLeasedDriverClose|TestExecuteTimeoutDuringLiveInstructionClosesSessionWithoutReplay|TestExecuteDriverDeathRetainsUncertainEffectWithoutReplay)$";
 const retryTest =
   "close keeps a completed click uncertain while denying retry admission";
-
-async function buildIdentity() {
-  const response = await fetch(`${api}/health`, {
-    signal: AbortSignal.timeout(5000),
-  });
-  if (!response.ok) throw new Error(`BAS health returned ${response.status}`);
-  const health = await response.json();
-  const identity = String(health.build_identity || "").trim();
-  if (!identity) throw new Error("BAS health returned no build_identity");
-  return identity;
-}
 
 async function run(command, args, cwd, observationsPath) {
   let result;
@@ -69,7 +59,7 @@ async function run(command, args, cwd, observationsPath) {
 
 const temporaryDirectory = await mkdtemp(join(tmpdir(), "bas-j07-"));
 const observationsPath = join(temporaryDirectory, "observations.jsonl");
-const buildBefore = await buildIdentity();
+const buildBefore = await buildIdentity(api);
 const outputPath =
   process.env.BAS_J07_RECEIPT ||
   resolve(
@@ -117,7 +107,7 @@ try {
     observationsPath,
   );
 
-  const buildAfter = await buildIdentity();
+  const buildAfter = await buildIdentity(api);
   if (buildAfter !== buildBefore) {
     throw new Error(
       `managed BAS identity changed during owner cohort: ${buildBefore} -> ${buildAfter}`,

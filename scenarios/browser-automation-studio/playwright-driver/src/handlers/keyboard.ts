@@ -5,15 +5,31 @@ import { getKeyboardParams, getShortcutParams } from '../types';
 import { normalizeError } from '../utils';
 import { getActionType } from '../proto';
 
+const heldKeysByPage = new WeakMap<Page, Set<string>>();
+
+/** Release executor-owned persistent keys before a retained page changes lease. */
+export async function resetKeyboardState(page: Page): Promise<void> {
+  const held = heldKeysByPage.get(page);
+  if (!held) return;
+  let releaseError: unknown;
+  for (const key of [...held].reverse()) {
+    try {
+      await page.keyboard.up(key);
+      held.delete(key);
+    } catch (error) {
+      releaseError ??= error;
+    }
+  }
+  if (releaseError) throw releaseError;
+  heldKeysByPage.delete(page);
+}
+
 /**
  * Keyboard handler
  *
  * Handles keyboard operations: press, down, up, and shortcuts
  */
 export class KeyboardHandler extends BaseHandler {
-  // Persistent key-down actions belong to their page and survive temporary chords.
-  private readonly heldKeys = new WeakMap<Page, Set<string>>();
-
   getSupportedTypes(): string[] {
     return ['keyboard', 'shortcut'];
   }
@@ -111,9 +127,13 @@ export class KeyboardHandler extends BaseHandler {
     });
 
     await this.focusDocument(context);
-    const held = this.heldKeys.get(page) ?? new Set<string>();
-    this.heldKeys.set(page, held);
+    // Persistent key-down actions belong to their page and survive temporary
+    // chords, but resetKeyboardState clears them before a retained page changes
+    // lease.
+    const held = heldKeysByPage.get(page) ?? new Set<string>();
+    heldKeysByPage.set(page, held);
     const acquired: string[] = [];
+    let cleanupError: unknown;
     try {
       for (const modifier of params.modifiers ?? []) {
         if (held.has(modifier) || acquired.includes(modifier)) continue;
@@ -127,8 +147,17 @@ export class KeyboardHandler extends BaseHandler {
             await page.keyboard.press(key);
             break;
           case 'down':
-            await page.keyboard.down(key);
             held.add(key);
+            try {
+              await page.keyboard.down(key);
+            } catch (error) {
+              // A rejected transport may still have applied the key-down.
+              // Remove the uncertain logical hold and make one best-effort
+              // release so a failed action cannot strand a key in the page.
+              held.delete(key);
+              await page.keyboard.up(key).catch(() => undefined);
+              throw error;
+            }
             break;
           case 'up':
             await page.keyboard.up(key);
@@ -146,8 +175,9 @@ export class KeyboardHandler extends BaseHandler {
           .map((modifier) => page.keyboard.up(modifier))
       );
       const failed = releases.find((result) => result.status === 'rejected');
-      if (failed?.status === 'rejected') throw failed.reason;
+      if (failed?.status === 'rejected') cleanupError = failed.reason;
     }
+    if (cleanupError) throw cleanupError;
 
     logger.info('Keyboard operation successful', {
       action,

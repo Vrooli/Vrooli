@@ -1,0 +1,10 @@
+{
+  "selection_rule": "Archive the six remaining f993-era owner receipts and transitive raw artifacts after all corresponding fa5d068 receipts passed; retain current-build evidence only.",
+  "top_level_entry_count": 6,
+  "file_count": 6,
+  "uncompressed_bytes": 70375,
+  "archive": "superseded-stale-f993-receipts-2026-09-26T10-19-44Z.tar.gz",
+  "archive_sha256": "fe6a80b74790ac0bd08803907101671a189fe94c6ba2264f3c370282a821fffa",
+  "verified_listing": true,
+  "retrieval_command": "tar -xzf superseded-stale-f993-receipts-2026-09-26T10-19-44Z.tar.gz -C restore-2026-09-26T10-19-44Z"
+}

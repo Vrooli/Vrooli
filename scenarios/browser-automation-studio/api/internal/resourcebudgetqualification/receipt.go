@@ -26,6 +26,7 @@ const (
 var RequiredSources = []string{
 	"docs/internal/REFRACTOR_CONTRACT.json",
 	"api/cmd/resource-budget-cohort/qualification.mjs",
+	"api/cmd/qualification-support.mjs",
 	"api/automation/driver/client.go",
 	"playwright-driver/src/routes/session-start.ts",
 	"playwright-driver/src/session/manager.ts",

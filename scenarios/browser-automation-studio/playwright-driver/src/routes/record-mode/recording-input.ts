@@ -37,7 +37,7 @@ class InputIDConflictError extends Error {
 type CachedInputReceipt = { fingerprint: string; done: boolean; promise: Promise<InputReceipt> };
 type InputWaiter = { resolve: (receipt: InputReceipt) => void; reject: (error: unknown) => void };
 type QueuedInput = { sequence: number; coalesceKey?: string; apply: () => Promise<void>; waiters: InputWaiter[] };
-type PageInputQueue = { nextSequence: number; running: boolean; pending: QueuedInput[] };
+type PageInputQueue = { nextSequence: number; running: boolean; pending: QueuedInput[]; drain?: Promise<void> };
 const inputQueues = new WeakMap<Page, PageInputQueue>();
 const inputReceipts = new WeakMap<Page, Map<string, CachedInputReceipt>>();
 
@@ -100,8 +100,18 @@ function enqueueInput(page: Page, apply: () => Promise<void>, coalesceKey?: stri
     }
     queue.pending.push({ sequence, coalesceKey, apply, waiters: [waiter] });
   });
-  void drainInputQueue(queue);
+  scheduleInputDrain(queue);
   return promise;
+}
+
+function scheduleInputDrain(queue: PageInputQueue): void {
+  if (queue.drain) return;
+  const drain = drainInputQueue(queue);
+  queue.drain = drain;
+  void drain.finally(() => {
+    if (queue.drain === drain) queue.drain = undefined;
+    if (queue.pending.length > 0) scheduleInputDrain(queue);
+  }).catch(() => undefined);
 }
 
 async function drainInputQueue(queue: PageInputQueue): Promise<void> {
@@ -123,8 +133,20 @@ async function drainInputQueue(queue: PageInputQueue): Promise<void> {
     }
   } finally {
     queue.running = false;
-    if (queue.pending.length > 0) void drainInputQueue(queue);
   }
+}
+
+/** Join admitted live input before lifecycle owners mutate or dispose its page. */
+export function settlePageInput(page: Page): Promise<void> {
+  return inputQueues.get(page)?.drain ?? Promise.resolve();
+}
+
+/** Release driver-owned modifier state before a retained page changes lease. */
+export async function resetPageInputState(page: Page): Promise<void> {
+  const held = heldPointerModifiers.get(page);
+  if (held) await releasePointerModifiers(page, held);
+  pointerDownPages.delete(page);
+  heldPointerModifiers.delete(page);
 }
 
 function getHeldPointerModifiers(page: Page): Set<PointerModifier> {
@@ -263,6 +285,13 @@ export async function handleRecordInput(
           } catch (error) {
             if (pointerAction === 'down' && downAttempted && !downCompleted) {
               await page.mouse.up({ button }).catch(() => undefined);
+              pointerDownPages.delete(page);
+            }
+            if (pointerAction === 'up') {
+              // The browser may have applied the release before reporting a
+              // transport error. Do not retain logical button ownership and
+              // thereby suppress modifier recovery or leak it to the next
+              // lease; retrying the uncertain button effect would be unsafe.
               pointerDownPages.delete(page);
             }
             throw error;

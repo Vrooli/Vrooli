@@ -511,7 +511,7 @@ it can qualify receipts.
 | BAS-RF-017 | A / capture, API ingress/read and managed synthetic secret screenshots repaired; history, exports and credential-use remain unqualified | New passive values are removed before persistence; live reads redact legacy copies; AI extraction omits sensitive-field data selectors and screenshot text. Managed Chromium comparisons across password, OTP, cc-number, cc-csc and hidden inputs produce pixel-identical screenshots when synthetic values change; hidden input is omitted. | BAS recording/evidence | Synthetic secret absent from every storage/export/screenshot/AI path; historical data safely handled and intended credential-use behavior qualified. |
 | BAS-RF-018 | B / compatibility unknown | Provider comments overpromise detection compatibility; injection changes page behavior | BAS runtime/provider | Versioned site/fixture compatibility results, challenge/human recovery and persistent-profile evidence; bounded claims. |
 | BAS-RF-019 | A / installed Request-prototype reproduction repaired in source and maintained tests | String identity collapsed distinct requests to `[object Object]`, misattributing one status and dropping the other event. The collector now keys pending entries by Request object; overlapping response attribution passes its owner regression and actual-module probe. | BAS driver network evidence | Same/different URL and method, redirect, failure, and eviction cases retain correct identity with no evidence loss. |
-| BAS-RF-020 | A / driver order repaired; input receipts and reconnect replay now covered by focused owner tests | Concurrent live input could apply mouse up before preceding down. Per-page driver FIFO returns monotonic applied-sequence receipts through HTTP and WebSocket; adjacent pending motion coalesces and queued work is capped. Stable input IDs deduplicate transport retries and reject payload conflicts within a bounded per-page receipt cache. The UI tracks WebSocket inputs until receipt and replays pending inputs over HTTP in order before releasing held pointers after disconnect. | BAS session input coordinator | Retain delayed down/up ordering, coalescing/bound, same-ID duplicate/conflict and reconnect replay regressions. Full UI reload, server-side session cancellation, key/button recovery beyond tracked UI buttons and retries after receipt eviction remain unqualified. |
+| BAS-RF-020 | A / driver order repaired; reset/close join the page input drain; failed-up, retained-page modifier, executor key, and gesture recovery repaired; focused owner tests pass | Concurrent live input could apply mouse up before preceding down, survive into browser disposal, or leave modifier ownership behind after a failed pointer-up/reset. Per-page driver FIFO returns monotonic applied-sequence receipts through HTTP and WebSocket; adjacent pending motion coalesces and queued work is capped. Stable input IDs deduplicate transport retries and reject payload conflicts within a bounded per-page receipt cache. Reset and close await the existing page queue before mutation/disposal; invalidated queued work rejects without a browser effect. Failed pointer-up clears uncertain logical button ownership so modifier cleanup runs, reset clears retained-page modifier state before the next lease, executor key-down uncertainty receives best-effort key-up, and drag/swipe owns uncertain mouse release recovery. The UI tracks WebSocket inputs until receipt and replays pending inputs over HTTP in order before releasing held pointers after disconnect. | BAS session input coordinator | Retain delayed down/up ordering, coalescing/bound, same-ID duplicate/conflict, reconnect replay, failed-up modifier recovery, retained-page reset cleanup, executor key uncertainty, gesture release recovery, and reset/close settlement regressions. Full UI reload, server-side cancellation during long browser waits, native input/button semantics, and retries after receipt eviction remain unqualified. |
 | BAS-RF-021 | A / isolated reproductions + deployed binary inspection | UX wrapper bypasses queue cleanup; closing underlying sink discards accepted terminal events | BAS execution/event lifecycle | Wrapped/unwrapped success/failure/cancel paths drain terminal evidence then release queues; controlled cohort/stack attribution and bounded resource counts. |
 | BAS-RF-022 | A / prior full-script VM reproductions; current driver/API owner regressions pass | Repaired: callback success requires a matching committed event ID; pending observations use unique IDs and survive delivery rejection, retry and navigation until exact-ID acknowledgement. Same-sequence events remain distinct. | BAS recording delivery/journal | Keep the callback receipt, retry/pending-retention and navigation regressions; qualify production incidence through a maintained full-script owner. |
 | BAS-RF-023 | A / terminal cleanup owner tests; 16- and 64-execution retained-heap cohorts | Repaired: `ForgetExecution` releases result, timeline and per-execution settings; archive ingestion defers release after its final write on success, write failure or cancellation. Current race-tested owners preserve durable history and unrelated active execution state. Active-run bounds and late-writer handling remain unqualified. | BAS execution writer | Retain terminal cleanup on every exit, bounded active accumulation, readable persisted history and late-writer handling; repeat retained-heap evidence on the current candidate. |
@@ -549,11 +549,11 @@ it can qualify receipts.
 | BAS-RF-040 | A / public executor with cancelling engine and context-sensitive writer | Graph cancellation persists the step through a cancelled context and loses its terminal outcome; linear control saves it | BAS graph/linear execution finalization | Bounded cancellation-independent persistence for all execution shapes; terminal step evidence and cancellation cause survive real storage faults. |
 | BAS-RF-041 | A / actual instruction pipeline and telemetry collectors | Unexpected handler throw disposes collected console context without failure capture;027 now retains a nonretryable uncertain outcome but still loses diagnostics | BAS instruction failure/evidence pipeline | Preserve available diagnostics and bounded failure captures before disposal; distinguish ordinary returned failure, thrown exception, crash and uncertain effects. |
 | BAS-RF-042 | A / W249 repaired and deployed on `sha256:2d572e29…`; released-session manager regression passes changed profile, clean/profile switch, storage, mobile viewport and matching-reuse cases | Label-only pooling handed a released context to a different profile/storage snapshot/viewport; clean reuse cleared the prior context without importing the selected profile | BAS execution profile identity → driver session-reuse policy | Opaque profile-context version binds profile identity to saved storage/settings; the driver pools only when profile version, storage, browser profile, viewport and other context-defining settings match. Otherwise it creates the requested context and imports its state. Real multi-browser/platform reuse qualification remains open. |
-| BAS-RF-043 | A / actual reuse/teardown with synthetic capture handles and filesystem | Released reuse retains prior execution evidence paths/capture configuration; newly required video/HAR/trace can remain absent | BAS evidence/session finalization | Capture has an explicit execution boundary and immutable artifact ownership; required capabilities are effective before admission; close manifest cannot mix old directories and new owner names. |
-| BAS-RF-044 | A / actual start route/manager/app-target validators | Released reuse bypasses desktop/Android validation and can return a managed browser for an external-target request, or the reverse | BAS runtime adapter/target admission | Validate target/context/lease/capabilities on every admission path before reuse; exact target identity is part of compatibility; incompatible kinds cannot substitute silently. |
-| BAS-RF-045 | A / actual frame manager with deferred capture/stop seams | Old stream cleanup deletes replacement tracking; late startup survives stop; failed startup leaves its socket open | BAS frame lifecycle coordinator | Generation-owned registry updates and bounded cancellation/disposal for pending starts; stop/restart/fallback faults leave every capture/socket owned and stoppable. |
-| BAS-RF-046 | A / actual CDP strategy with controlled scheduling | Resize restart starts capture after stop; old-page pending frame survives a page switch | BAS CDP capture lifecycle | Capture generations fence every await and pending frame; late CDP acquisition is disposed; no old-page bytes publish into a new page generation. |
-| BAS-RF-047 | B / actual frame manager/CDP settings probes | Quality/FPS/performance-header settings report changes before or without effective application; current_fps echoes target | BAS stream configuration/observability | Separate requested, effective, pending and unsupported settings; enforce or reject FPS control; current FPS comes from measured frames; validate outgoing framing. |
+| BAS-RF-043 | Repaired in current source; isolated reuse/teardown probe passes | Released reuse could retain prior execution evidence paths/capture configuration or omit newly required video/HAR/trace | BAS evidence/session finalization | Capture capability is now an execution-owned boundary: any retained/requested capture forces a fresh context, and the new context resolves immutable owner paths before ready. Managed qualification remains pending. |
+| BAS-RF-044 | Repaired in current source; isolated target-admission probe passes | Released reuse could bypass desktop/Android validation and silently substitute a managed browser or external renderer | BAS runtime adapter/target admission | Context/target compatibility is checked before reuse; incompatible external/managed targets create the correct new context or reject invalid validation. Managed platform qualification remains pending. |
+| BAS-RF-045 | Repaired owner probe passes | Old stream cleanup deletes replacement tracking; late startup survives stop; failed startup leaves its socket open | BAS frame lifecycle coordinator | Generation-owned registry updates and bounded cancellation/disposal for pending starts; focused stream probe passes all lifecycle observations. |
+| BAS-RF-046 | Repaired owner probe passes | Resize restart could start capture after stop; old-page pending frame could survive a page switch | BAS CDP capture lifecycle | Capture generations fence every await and pending frame; focused CDP probe passes late-stop, resize, and page-generation observations. |
+| BAS-RF-047 | Repaired owner probe passes | Quality/FPS/performance-header settings could report changes before or without effective application; current_fps could echo target | BAS stream configuration/observability | Settings updates are awaited and reported after application; FPS uses measured collector output; focused manager/CDP probe passes. Managed qualification remains pending. |
 | BAS-RF-048 | A / live CLI reproduction + shared source inspection | Documented require-assertion flag fails before RPC; explicit true syntax is also rejected | Shared cli-core proto binding + BAS CLI contract | Fix boolean presence encoding in the owning shared binding; positive/negative assertion-enforcement tests through the public CLI. Published owner report knw-1790042809480136792. |
 | BAS-RF-049 | A / real writer→disk structured round-trip and invalid-payload controls | Raw step_outcome artifacts become debug strings instead of structured values, including pointer representations | BAS execution evidence/proto projection | Structured versioned outcome round-trip through persistence, timeline and replay; typed assertions and other preserved fields stay intact; malformed historical projection has explicit handling. |
 | BAS-RF-050 | C / owner-reported documentation validation | Documentation qualification fails; current command/source/doc references, document placement, remaining manifest metadata and an external link need repair or valid provider attribution | BAS documentation owners; knowledge-observatory/CLI Health for demonstrated validation defects | Repair actual stale references and metadata without suppressing findings; distinguish historical examples and provider limitations. Retain applicable docs receipts. Runs 20260922-030931-9015f688 and 20260922-031112-03ee86df. |
@@ -3585,3 +3585,87 @@ declaration. Declare the exact imported paths in `.vrooli/service.json` and
 guard parity with a focused regression. Rebuild the managed candidate and
 refresh build-bound evidence after the shared driver is naturally idle; ten
 sessions were active during diagnosis and must not be closed for validation.
+
+### BAS-RF-147 — rehabilitation provider conformance is incomplete — 2026-09-26
+
+The focused `provider-conformance` phase run
+`20260926-054544-4943de82` failed with terminal provider-owned contract
+findings. The BAS rehabilitation descriptor's seven capability ladders lack
+`next_unlock` metadata on non-top rungs and `capability_summary` on top rungs;
+the phase documentation lacks the required remediation headings (`North Star`,
+`The rungs and their gates`, `What each finding means`, `The canonical fix`,
+and `How to verify`); and the validation response omits common execution
+metrics (`PROVIDER_METRICS_MISSING`). The new interactive-feedback capability
+is included in the same finding set, so it is not counted as qualified merely
+because its receipt validator exists.
+
+Status: open. Owner: BAS profile-validation provider and rehabilitation phase
+descriptor/docs, with common response metrics at the provider seam. Next:
+repair the descriptor/docs contract and attach execution metrics on all
+validation response paths, then rerun the focused provider-conformance phase.
+
+Source repair, 2026-09-26: `TESTING.md` now contains the required five H2
+sections; all seven descriptor capabilities have `capability_summary` on every
+rung and `next_unlock` on each non-top rung; and
+`profilevalidation.ValidateScenario` attaches measured `common.v1.ExecutionMetrics`
+on both execution and non-execution response paths. Focused provider and
+descriptor tests pass. The live conformance result remains unverified until a
+managed rebuild/restart at the E01 semantic exit gate because the current
+managed process predates this source repair.
+
+Resolution, 2026-09-26: the final managed `provider-conformance` run
+`20260926-060127-ca7b2b1c` passed. The exact rehabilitation phase
+`20260926-064119-f19f8d79` also passed with all seven BAS capabilities at L1
+Verified and no findings. The remaining `PROVIDER_RUNG_UNGATED` items are
+advisory descriptor hardening warnings, not blocking provider findings.
+
+E01 qualification follow-up, 2026-09-26: BAS-RF-144's local and emulated
+remote cohorts now pass 1,000/1,000 receipt-to-canvas correlations on the
+current managed build, and BAS-RF-146's final motion owner passes 9,000/9,000
+baseline frames plus the slow-reader budget. The exact rehabilitation phase
+records both capabilities at L1 Verified. The historical open wording above is
+retained as evidence of the original defect; these current receipts supersede
+its pending qualification state.
+
+AI navigation lifecycle follow-up, 2026-09-26: BAS-RF-011's cancellation
+ownership now includes the driver-side vision navigator. A session-owned
+abort-and-settle hook is registered by the AI navigation route and joined by
+reset/close before page teardown; route and SessionManager regressions pass.
+The current managed candidate has no matching owner receipts, so this source
+repair is implementation evidence only and does not promote the RF-011 or J07
+standing. Native/provider cancellation evidence remains unverified.
+
+Current-build J07 follow-up, 2026-09-26: the maintained cancellation owner
+producer assembled all five required cases on `sha256:2707a738…`; each keeps
+one independent effect, releases resources to zero, preserves uncertainty, and
+denies replay. The exact phase recognizes cancellation/recovery at L1, while
+six other stale owner receipts keep the aggregate phase and governed setpoint
+unqualified. API-restart input-stop latency measured 126 seconds and remains
+an explicit performance risk for a later bounded investigation.
+
+Artifact evidence owner follow-up, 2026-09-26: the four maintained
+evidence-completeness cases pass in the current managed candidate and their
+receipt is source/build bound with two hashed raw Go test artifacts. Full
+execution-writer and retention race cohorts pass. The exact phase recognizes
+evidence-completeness at L1; five other stale owner receipts keep aggregate
+qualification unavailable. No product artifact contract was changed.
+
+Profile durability owner follow-up, 2026-09-26: the maintained seed/restart/
+verify/assemble producer passed all five seed checks, both post-restart
+identity checks, and cleanup on the refreshed managed build. Profile
+validation and session-profile race checks pass. The exact phase recognizes
+profile durability at L1, while passive fidelity, resource budget, motion, and
+interactive feedback remain stale and keep the aggregate standing unavailable.
+No profile product contract changed; next priority is the managed passive-
+fidelity owner batch.
+
+Passive-fidelity owner and selector follow-up, 2026-09-26: the first current-
+build phase exposed a validator selection defect where reverse lexical receipt
+ordering selected the stale `20260926-fa5d068` semantics receipt over the valid
+current tag and reported a false source mismatch. The validator now filters
+crash and semantics candidates by current contract/source digests, with a
+regression for mixed tag formats. Rebuilt build
+`sha256:b7ec0d7b…` passed the 10,000-action managed owner, crash/reconnect
+owner, and all three semantics cases; the exact phase recognizes passive
+fidelity at L1. Other owner receipts are stale for this build; no passive
+recording contract changed.

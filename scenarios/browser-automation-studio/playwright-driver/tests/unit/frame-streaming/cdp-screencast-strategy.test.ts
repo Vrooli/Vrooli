@@ -6,20 +6,34 @@ import type {
 import { CdpScreencastStrategy } from '../../../src/frame-streaming/strategies';
 import { MAX_QUEUED_FRAME_BYTES } from '../../../src/frame-streaming/types';
 
-const sourceForSession = (sessionId: string) => {
+type SourceIdentity = {
+  session_id: string;
+  execution_id: string;
+  lease_id: string;
+  page_id: string;
+};
+
+const sourceForSession = (sessionId: string): ((page: Page) => SourceIdentity) => {
   const pages = new WeakMap<Page, string>();
   let count = 0;
-  return (page: Page) => {
+  return (page: Page): SourceIdentity => {
     if (!pages.has(page)) pages.set(page, `page-${++count}`);
+    const pageId = pages.get(page);
+    if (!pageId) throw new Error('Page identity was not assigned');
     return {
       session_id: sessionId,
       execution_id: 'execution-a',
       lease_id: 'lease-a',
-      page_id: pages.get(page)!,
+      page_id: pageId,
     };
   };
 };
-const imageBytes = (packet: Buffer) => packet.subarray(4 + packet.readUInt32BE(0));
+const imageBytes = (packet: Buffer): Buffer => packet.subarray(4 + packet.readUInt32BE(0));
+
+const required = <T>(value: T | undefined, label: string): T => {
+  if (value === undefined) throw new Error(`${label} was not available`);
+  return value;
+};
 
 type FrameHandler = (event: {
   data: string;
@@ -57,15 +71,43 @@ const createCdpSession = (): {
   return { session, send, detach };
 };
 
+type PageFixture = {
+  viewport?: { width: number; height: number };
+  isClosed?: () => boolean;
+  setViewportSize?: jest.Mock;
+};
+
+const createCdpPage = (
+  acquire: CDPSession | (() => CDPSession | Promise<CDPSession>),
+  options: PageFixture = {}
+): Page => {
+  const newCDPSession = (): Promise<CDPSession> =>
+    typeof acquire === 'function' ? Promise.resolve(acquire()) : Promise.resolve(acquire);
+  const defaultIsClosed = (): boolean => false;
+  return {
+    context: () => ({ newCDPSession }),
+    viewportSize: () => options.viewport ?? { width: 640, height: 480 },
+    setViewportSize: options.setViewportSize ?? jest.fn().mockResolvedValue(undefined),
+    isClosed: options.isClosed ?? defaultIsClosed,
+  } as unknown as Page;
+};
+
+const createViewportFixture = (
+  cdpSession: CDPSession,
+  newCDPSession: jest.Mock = jest.fn().mockResolvedValue(cdpSession)
+): { page: Page; viewportSize: jest.Mock; setViewportSize: jest.Mock } => {
+  const viewportSize = jest.fn().mockReturnValue({ width: 1280, height: 720 });
+  const setViewportSize = jest.fn().mockResolvedValue(undefined);
+  const page = createCdpPage(newCDPSession, { setViewportSize });
+  page.viewportSize = viewportSize;
+  return { page, viewportSize, setViewportSize };
+};
+
 describe('CdpScreencastStrategy', () => {
   it('keeps target cadence when timer delivery is repeatedly rounded up', async () => {
     jest.useFakeTimers();
     const cdp = createCdpSession();
-    const page = {
-      context: () => ({ newCDPSession: async () => cdp.session }),
-      viewportSize: () => ({ width: 640, height: 480 }),
-      isClosed: () => false,
-    } as unknown as Page;
+    const page = createCdpPage(cdp.session);
     const socket = { readyState: 1, send: jest.fn() };
     const handle = await new CdpScreencastStrategy().start(
       () => page,
@@ -102,11 +144,7 @@ describe('CdpScreencastStrategy', () => {
     'includes immutable source identity independent of performance mode (%s) [REQ:BAS-RH-J22]',
     async (includePerfHeaders) => {
       const cdp = createCdpSession();
-      const page = {
-        context: () => ({ newCDPSession: async () => cdp.session }),
-        viewportSize: () => ({ width: 640, height: 480 }),
-        isClosed: () => false,
-      } as unknown as Page;
+      const page = createCdpPage(cdp.session);
       const source = {
         session_id: 'source-owner',
         execution_id: 'execution-a',
@@ -120,7 +158,7 @@ describe('CdpScreencastStrategy', () => {
         targetFps: 30,
         scale: 'css' as const,
         includePerfHeaders,
-        sourceForPage: () => source,
+        sourceForPage: (_page: Page): typeof source => source,
       };
       const handle = await new CdpScreencastStrategy().start(
         () => page,
@@ -134,16 +172,21 @@ describe('CdpScreencastStrategy', () => {
           metadata: {},
           data: Buffer.from('owned-jpeg').toString('base64'),
         });
-        const packet = socket.send.mock.calls[0]?.[0] as Buffer;
-        expect(packet).toBeDefined();
+        const sentCalls = socket.send.mock.calls as unknown as Array<[Buffer]>;
+        const packet = required(sentCalls[0]?.[0], 'first frame packet');
         const length = packet.readUInt32BE(0);
         expect(length).toBeGreaterThan(0);
         expect(length).toBeLessThan(packet.length - 4);
-        expect(JSON.parse(packet.subarray(4, 4 + length).toString())).toMatchObject({
+        const header = JSON.parse(packet.subarray(4, 4 + length).toString()) as {
+          version: number;
+          source: typeof source;
+          captured_at: string;
+        };
+        expect(header).toMatchObject({
           version: 1,
           source,
-          captured_at: expect.any(String),
         });
+        expect(typeof header.captured_at).toBe('string');
         expect(packet.subarray(4 + length).toString()).toBe('owned-jpeg');
       } finally {
         await handle.stop();
@@ -153,11 +196,7 @@ describe('CdpScreencastStrategy', () => {
   it('discards a buffered frame when its lease changes before reconnection', async () => {
     jest.useFakeTimers();
     const cdp = createCdpSession();
-    const page = {
-      context: () => ({ newCDPSession: async () => cdp.session }),
-      viewportSize: () => ({ width: 640, height: 480 }),
-      isClosed: () => false,
-    } as unknown as Page;
+    const page = createCdpPage(cdp.session);
     let source = {
       session_id: 'session-1',
       execution_id: 'execution-a',
@@ -207,11 +246,7 @@ describe('CdpScreencastStrategy', () => {
 
   it('does not add a frame when the viewer transport queue is at its byte bound', async () => {
     const cdp = createCdpSession();
-    const page = {
-      context: () => ({ newCDPSession: () => Promise.resolve(cdp.session) }),
-      viewportSize: () => ({ width: 640, height: 480 }),
-      isClosed: () => false,
-    } as unknown as Page;
+    const page = createCdpPage(cdp.session);
     const socket = { readyState: 1, bufferedAmount: MAX_QUEUED_FRAME_BYTES, send: jest.fn() };
     const stats: FrameStatsReporter = { onFrameSent: jest.fn(), onFrameSkipped: jest.fn() };
     const handle = await new CdpScreencastStrategy().start(
@@ -243,11 +278,7 @@ describe('CdpScreencastStrategy', () => {
   it('rejects unsupported physical-pixel capture before acquiring resources [REQ:BAS-RH-J23]', async () => {
     const { session: cdpSession } = createCdpSession();
     const newCDPSession = jest.fn().mockResolvedValue(cdpSession);
-    const page = {
-      context: () => ({ newCDPSession }),
-      viewportSize: () => ({ width: 320, height: 240 }),
-      isClosed: () => false,
-    } as unknown as Page;
+    const page = createCdpPage(newCDPSession, { viewport: { width: 320, height: 240 } });
     let handle: Awaited<ReturnType<CdpScreencastStrategy['start']>> | undefined;
     try {
       await expect(
@@ -297,17 +328,7 @@ describe('CdpScreencastStrategy', () => {
   it('delivers the newest buffered frame when transport reconnects', async () => {
     const strategy = new CdpScreencastStrategy();
     const { session: cdpSession, send } = createCdpSession();
-
-    const newCDPSession = jest.fn().mockResolvedValue(cdpSession);
-    const viewportSize = jest.fn().mockReturnValue({ width: 1280, height: 720 });
-    const setViewportSize = jest.fn().mockResolvedValue(undefined);
-    const isClosed = jest.fn().mockReturnValue(false);
-    const page = {
-      context: () => ({ newCDPSession }),
-      viewportSize,
-      setViewportSize,
-      isClosed,
-    } as unknown as Page;
+    const { page } = createViewportFixture(cdpSession);
 
     let isReady = false;
     const ws = { readyState: 1, send: jest.fn() };
@@ -356,7 +377,8 @@ describe('CdpScreencastStrategy', () => {
       });
 
       expect(ws.send).toHaveBeenCalledTimes(1);
-      const packet = ws.send.mock.calls[0][0] as Buffer;
+      const sentCalls = ws.send.mock.calls as unknown as Array<[Buffer]>;
+      const packet = required(sentCalls[0]?.[0], 'reconnected frame packet');
       const headerLength = packet.readUInt32BE(0);
       expect(packet.subarray(4 + headerLength).toString()).toBe('frame-2');
       expect(onFrameSent).toHaveBeenCalledTimes(1);
@@ -368,17 +390,7 @@ describe('CdpScreencastStrategy', () => {
   it('skips viewport updates below threshold', async () => {
     const strategy = new CdpScreencastStrategy();
     const { session: cdpSession } = createCdpSession();
-
-    const newCDPSession = jest.fn().mockResolvedValue(cdpSession);
-    const viewportSize = jest.fn().mockReturnValue({ width: 1280, height: 720 });
-    const setViewportSize = jest.fn().mockResolvedValue(undefined);
-    const isClosed = jest.fn().mockReturnValue(false);
-    const page = {
-      context: () => ({ newCDPSession }),
-      viewportSize,
-      setViewportSize,
-      isClosed,
-    } as unknown as Page;
+    const { page, viewportSize, setViewportSize } = createViewportFixture(cdpSession);
 
     const wsProvider: WebSocketProvider = {
       isReady: () => true,
@@ -432,15 +444,11 @@ describe('CdpScreencastStrategy', () => {
       newCDPSession,
     };
 
-    const viewportSize = jest.fn().mockReturnValue({ width: 1280, height: 720 });
-    const setViewportSize = jest.fn().mockResolvedValue(undefined);
-    const isClosed = jest.fn().mockReturnValue(false);
-    const page = {
-      context: () => context,
-      viewportSize,
-      setViewportSize,
-      isClosed,
-    } as unknown as Page;
+    const { page, viewportSize, setViewportSize } = createViewportFixture(
+      firstSession.session,
+      newCDPSession
+    );
+    page.context = (): typeof context => context;
 
     const wsProvider: WebSocketProvider = {
       isReady: () => true,
@@ -484,10 +492,7 @@ describe('CdpScreencastStrategy', () => {
     try {
       const strategy = new CdpScreencastStrategy();
       const { session: cdpSession, send, detach } = createCdpSession();
-      const page = {
-        context: () => ({ newCDPSession: jest.fn().mockResolvedValue(cdpSession) }),
-        viewportSize: () => ({ width: 1280, height: 720 }),
-      } as unknown as Page;
+      const page = createCdpPage(cdpSession, { viewport: { width: 1280, height: 720 } });
       let available = true;
       const pageProvider = jest.fn<() => Page>().mockImplementation(() => {
         if (!available) throw new Error('Session not found: closed-session');
@@ -531,13 +536,12 @@ describe('CdpScreencastStrategy', () => {
     jest.useFakeTimers();
     try {
       const { session, send, detach } = createCdpSession();
-      send.mockImplementation(async (method: string) => {
-        if (method === 'Page.startScreencast') throw new Error('start capture failed');
-      });
-      const page = {
-        context: () => ({ newCDPSession: async () => session }),
-        viewportSize: () => ({ width: 640, height: 480 }),
-      } as unknown as Page;
+      send.mockImplementation((method: string) =>
+        method === 'Page.startScreencast'
+          ? Promise.reject(new Error('start capture failed'))
+          : Promise.resolve()
+      );
+      const page = createCdpPage(session);
       await expect(
         new CdpScreencastStrategy().start(
           () => page,
@@ -566,10 +570,7 @@ describe('CdpScreencastStrategy', () => {
     jest.useFakeTimers();
     try {
       const { session } = createCdpSession();
-      const page = {
-        context: () => ({ newCDPSession: async () => session }),
-        viewportSize: () => ({ width: 640, height: 480 }),
-      } as unknown as Page;
+      const page = createCdpPage(session);
       const capture = await new CdpScreencastStrategy().start(
         () => page,
         {
@@ -596,7 +597,7 @@ describe('CdpScreencastStrategy', () => {
   });
 
   describe('capture generation ownership', () => {
-    const deferred = <T>() => {
+    const deferred = <T>(): { promise: Promise<T>; resolve: (value: T) => void } => {
       let resolve!: (value: T) => void;
       const promise = new Promise<T>((done) => {
         resolve = done;
@@ -612,21 +613,19 @@ describe('CdpScreencastStrategy', () => {
       includePerfHeaders: false,
       cdp: { pageCheckIntervalMs: 25 },
     };
-    const reporter = () => ({ onFrameSent: jest.fn(), onFrameSkipped: jest.fn() });
-    const emit = (cdp: ReturnType<typeof createCdpSession>, id: number, data: string) => {
+    const reporter = (): FrameStatsReporter => ({
+      onFrameSent: jest.fn(),
+      onFrameSkipped: jest.fn(),
+    });
+    const emit = (cdp: ReturnType<typeof createCdpSession>, id: number, data: string): void => {
       cdp.session.emit('Page.screencastFrame', {
         sessionId: id,
         metadata: {},
         data: Buffer.from(data).toString('base64'),
       });
     };
-    const pageFor = (acquire: () => Promise<CDPSession>, resize = async () => {}) =>
-      ({
-        context: () => ({ newCDPSession: acquire }),
-        viewportSize: () => ({ width: 640, height: 480 }),
-        setViewportSize: resize,
-        isClosed: () => false,
-      }) as unknown as Page;
+    const pageFor = (acquire: () => Promise<CDPSession>, resize = jest.fn()): Page =>
+      createCdpPage(acquire, { setViewportSize: resize });
 
     it.each(['queued', 'protocol'] as const)(
       'cannot restart after stop during %s acquisition',
@@ -648,7 +647,7 @@ describe('CdpScreencastStrategy', () => {
           reporter()
         );
         jest.spyOn(page, 'viewportSize').mockReturnValue({ width: 900, height: 700 });
-        const resize = capture.updateViewport!(page).then(
+        const resize = required(capture.updateViewport, 'updateViewport')(page).then(
           () => 'success',
           () => 'cancelled'
         );
@@ -667,7 +666,7 @@ describe('CdpScreencastStrategy', () => {
       jest.useFakeTimers();
       const first = createCdpSession();
       const second = createCdpSession();
-      let current = pageFor(async () => first.session);
+      let current = pageFor(() => Promise.resolve(first.session));
       let ready = false;
       const socket = { readyState: 1, send: jest.fn() };
       const capture = await new CdpScreencastStrategy().start(
@@ -679,7 +678,7 @@ describe('CdpScreencastStrategy', () => {
       try {
         emit(first, 1, 'old-buffer');
         await jest.advanceTimersByTimeAsync(0);
-        current = pageFor(async () => second.session);
+        current = pageFor(() => Promise.resolve(second.session));
         await jest.advanceTimersByTimeAsync(25);
         ready = true;
         emit(second, 2, 'new');
@@ -698,7 +697,7 @@ describe('CdpScreencastStrategy', () => {
     it('delivers the buffered current frame when a stable page reconnects without another frame', async () => {
       jest.useFakeTimers();
       const protocol = createCdpSession();
-      const page = pageFor(async () => protocol.session);
+      const page = pageFor(() => Promise.resolve(protocol.session));
       let ready = false;
       const socket = { readyState: 1, send: jest.fn() };
       const capture = await new CdpScreencastStrategy().start(
@@ -723,7 +722,7 @@ describe('CdpScreencastStrategy', () => {
 
     it('acknowledges a frame even when transport send fails', async () => {
       const protocol = createCdpSession();
-      const page = pageFor(async () => protocol.session);
+      const page = pageFor(() => Promise.resolve(protocol.session));
       const capture = await new CdpScreencastStrategy().start(
         () => page,
         options,
@@ -731,7 +730,7 @@ describe('CdpScreencastStrategy', () => {
           isReady: () => true,
           getWebSocket: () => ({
             readyState: 1,
-            send: () => {
+            send: (): void => {
               throw new Error('socket closed');
             },
           }),
@@ -756,24 +755,25 @@ describe('effective CDP controls [REQ:BAS-RH-J23]', () => {
     jest.restoreAllMocks();
   });
 
+  type CaptureFixture = {
+    handle: Awaited<ReturnType<CdpScreencastStrategy['start']>>;
+    protocols: ReturnType<typeof createCdpSession>[];
+    socket: { readyState: number; send: jest.Mock };
+    emit: (data: string, number?: number) => void;
+    page: Page;
+  };
+
   async function capture(
     targetFps = 30,
     configure?: (protocol: ReturnType<typeof createCdpSession>, index: number) => void
-  ) {
+  ): Promise<CaptureFixture> {
     const protocols: ReturnType<typeof createCdpSession>[] = [];
-    const page = {
-      viewportSize: () => ({ width: 640, height: 480 }),
-      isClosed: () => false,
-      setViewportSize: jest.fn().mockResolvedValue(undefined),
-      context: () => ({
-        newCDPSession: async () => {
-          const protocol = createCdpSession();
-          configure?.(protocol, protocols.length);
-          protocols.push(protocol);
-          return protocol.session;
-        },
-      }),
-    } as unknown as Page;
+    const page = createCdpPage(() => {
+      const protocol = createCdpSession();
+      configure?.(protocol, protocols.length);
+      protocols.push(protocol);
+      return Promise.resolve(protocol.session);
+    });
     const socket = { readyState: 1, send: jest.fn() };
     const handle = await new CdpScreencastStrategy().start(
       () => page,
@@ -789,8 +789,8 @@ describe('effective CDP controls [REQ:BAS-RH-J23]', () => {
       { isReady: () => true, getWebSocket: () => socket },
       { onFrameSent: jest.fn(), onFrameSkipped: jest.fn() }
     );
-    const emit = (data: string, number = 1) =>
-      protocols.at(-1)!.session.emit('Page.screencastFrame', {
+    const emit = (data: string, number = 1): void =>
+      required(protocols.at(-1), 'latest CDP protocol').session.emit('Page.screencastFrame', {
         data: Buffer.from(data).toString('base64'),
         metadata: {},
         sessionId: number,
@@ -810,7 +810,10 @@ describe('effective CDP controls [REQ:BAS-RH-J23]', () => {
       expect(f.socket.send).toHaveBeenCalledTimes(1);
       await jest.advanceTimersByTimeAsync(1);
       expect(f.socket.send).toHaveBeenCalledTimes(2);
-      expect(imageBytes(f.socket.send.mock.calls[1][0] as Buffer).toString()).toBe('frame-9');
+      const sentCalls = f.socket.send.mock.calls as unknown as Array<[Buffer]>;
+      expect(imageBytes(required(sentCalls[1]?.[0], 'second frame packet')).toString()).toBe(
+        'frame-9'
+      );
       expect(
         f.protocols[0].send.mock.calls.filter(([method]) => method === 'Page.screencastFrameAck')
       ).toHaveLength(10);
@@ -845,7 +848,8 @@ describe('effective CDP controls [REQ:BAS-RH-J23]', () => {
       expect(f.socket.send).toHaveBeenCalledTimes(1);
       await jest.advanceTimersByTimeAsync(1);
       expect(f.socket.send).toHaveBeenCalledTimes(2);
-      const packet = f.socket.send.mock.calls[1][0] as Buffer;
+      const sentCalls = f.socket.send.mock.calls as unknown as Array<[Buffer]>;
+      const packet = required(sentCalls[1]?.[0], 'second frame packet');
       const length = packet.readUInt32BE(0);
       expect(JSON.parse(packet.subarray(4, 4 + length).toString())).toMatchObject({
         timing: { frame_bytes: 6 },
@@ -889,7 +893,7 @@ describe('effective CDP controls [REQ:BAS-RH-J23]', () => {
       void quality.catch(() => {});
       await jest.advanceTimersByTimeAsync(0);
       jest.spyOn(f.page, 'viewportSize').mockReturnValue({ width: 900, height: 700 });
-      const resize = f.handle.updateViewport!(f.page);
+      const resize = required(f.handle.updateViewport, 'updateViewport')(f.page);
       void resize.catch(() => {});
       await jest.advanceTimersByTimeAsync(0);
       release();
@@ -897,7 +901,7 @@ describe('effective CDP controls [REQ:BAS-RH-J23]', () => {
       expect(results[0].status).toBe('rejected');
       expect(results[1].status).toBe('fulfilled');
       expect(f.handle.isActive()).toBe(true);
-      expect(f.protocols.at(-1)!.send).toHaveBeenCalledWith(
+      expect(required(f.protocols.at(-1), 'latest CDP protocol').send).toHaveBeenCalledWith(
         'Page.startScreencast',
         expect.objectContaining({ maxWidth: 900 })
       );
@@ -915,18 +919,12 @@ describe('capture observes applied viewport [REQ:BAS-RH-J05]', () => {
       let viewport = { width: 640, height: 480 };
       const protocols: ReturnType<typeof createCdpSession>[] = [];
       const setViewportSize = jest.fn().mockResolvedValue(undefined);
-      const page = {
-        viewportSize: () => viewport,
-        setViewportSize,
-        isClosed: () => false,
-        context: () => ({
-          newCDPSession: async () => {
-            const p = createCdpSession();
-            protocols.push(p);
-            return p.session;
-          },
-        }),
-      } as unknown as Page;
+      const page = createCdpPage(() => {
+        const p = createCdpSession();
+        protocols.push(p);
+        return Promise.resolve(p.session);
+      }, { setViewportSize });
+      page.viewportSize = (): { width: number; height: number } => viewport;
       const handle = await new CdpScreencastStrategy().start(
         () => page,
         {
@@ -942,9 +940,9 @@ describe('capture observes applied viewport [REQ:BAS-RH-J05]', () => {
       );
       try {
         viewport = { width: 640 + delta, height: 480 + delta };
-        await handle.updateViewport!(page);
+        await required(handle.updateViewport, 'updateViewport')(page);
         expect(setViewportSize).not.toHaveBeenCalled();
-        expect(protocols.at(-1)!.send).toHaveBeenCalledWith(
+        expect(required(protocols.at(-1), 'latest CDP protocol').send).toHaveBeenCalledWith(
           'Page.startScreencast',
           expect.objectContaining({ maxWidth: viewport.width, maxHeight: viewport.height })
         );
@@ -956,12 +954,7 @@ describe('capture observes applied viewport [REQ:BAS-RH-J05]', () => {
   it('does not mutate a page after the active page has changed', async () => {
     const protocol = createCdpSession();
     const setViewportSize = jest.fn().mockResolvedValue(undefined);
-    const page = {
-      viewportSize: () => ({ width: 640, height: 480 }),
-      setViewportSize,
-      isClosed: () => false,
-      context: () => ({ newCDPSession: async () => protocol.session }),
-    } as unknown as Page;
+    const page = createCdpPage(protocol.session, { setViewportSize });
     let current = page;
     const handle = await new CdpScreencastStrategy().start(
       () => current,
@@ -978,7 +971,7 @@ describe('capture observes applied viewport [REQ:BAS-RH-J05]', () => {
     );
     try {
       current = { ...page } as Page;
-      await expect(handle.updateViewport!(page)).rejects.toThrow();
+      await expect(required(handle.updateViewport, 'updateViewport')(page)).rejects.toThrow();
       expect(setViewportSize).not.toHaveBeenCalled();
       expect(
         protocol.send.mock.calls.filter(([method]) => method === 'Page.startScreencast')
@@ -1004,7 +997,7 @@ describe('capture observes applied viewport [REQ:BAS-RH-J05]', () => {
         isClosed: () => false,
         setViewportSize: jest.fn().mockResolvedValue(undefined),
         context: () => ({
-          newCDPSession: async () => {
+          newCDPSession: async (): Promise<CDPSession> => {
             const protocol = createCdpSession();
             protocols.push(protocol);
             if (protocols.length === 2) {
@@ -1038,17 +1031,17 @@ describe('capture observes applied viewport [REQ:BAS-RH-J05]', () => {
       );
       try {
         viewport = { width: 900, height: 700 };
-        const first = handle.updateViewport!(page);
+        const first = required(handle.updateViewport, 'updateViewport')(page);
         void first.catch(() => {});
         await waiting;
         viewport = { width: 640, height: 480 };
-        const latest = handle.updateViewport!(page);
+        const latest = required(handle.updateViewport, 'updateViewport')(page);
         void latest.catch(() => {});
         release();
         const results = await Promise.allSettled([first, latest]);
         expect(results[0].status).toBe('rejected');
         expect(results[1].status).toBe('fulfilled');
-        expect(protocols.at(-1)!.send).toHaveBeenCalledWith(
+        expect(required(protocols.at(-1), 'latest CDP protocol').send).toHaveBeenCalledWith(
           'Page.startScreencast',
           expect.objectContaining({ maxWidth: 640, maxHeight: 480 })
         );

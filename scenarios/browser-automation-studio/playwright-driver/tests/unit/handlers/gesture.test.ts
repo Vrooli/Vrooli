@@ -146,6 +146,21 @@ describe('GestureHandler', () => {
     expect(result.extracted_data?.target?.position).toEqual({ x: 50, y: 20 });
   });
 
+  it('attempts pointer recovery when drag release reports an uncertain failure', async () => {
+    jest.mocked(mockPage.mouse.up).mockRejectedValueOnce(new Error('synthetic drag release failure'));
+    const instruction = {
+      index: 0,
+      nodeId: 'node-uncertain-release',
+      ...createDragDropInstruction({ sourceSelector: '#source', offsetX: 20, offsetY: -10 }),
+      params: {},
+    };
+
+    const result = await handler.execute(instruction, context);
+
+    expect(result.success).toBe(false);
+    expect(mockPage.mouse.up).toHaveBeenCalledTimes(2);
+  });
+
   it('uses HTML5 drag events for draggable source and target selectors', async () => {
     mockPage.evaluate.mockResolvedValue(true);
     const instruction = {

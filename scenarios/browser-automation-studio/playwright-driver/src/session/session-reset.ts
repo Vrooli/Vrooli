@@ -3,15 +3,37 @@ import type { SessionState } from '../types';
 import { cleanupSession } from '../infra';
 import { assertRecordingAcknowledged } from '../recording';
 import { stopFrameStreaming } from '../frame-streaming';
+import { resetPageInputState, settlePageInput } from '../routes/record-mode/recording-input';
+import { resetKeyboardState } from '../handlers/keyboard';
 
 /** Clear managed context state; SessionManager owns admission and phase changes. */
 export async function resetSessionState(session: SessionState): Promise<void> {
+  if (session.externalTarget) {
+    throw new Error('Cannot reset an externally controlled target');
+  }
+  // Background AI navigation owns the same page as reset. Stop and join that
+  // owner before any reset-side listener, input, or navigation effect starts.
+  const aiNavigationCleanup = session.aiNavigationCleanup;
+  if (aiNavigationCleanup) await aiNavigationCleanup();
   if (session.pipelineManager?.isRecording()) await session.pipelineManager.stopRecording();
+  // Session admission starts pipeline verification in the background. Reset
+  // must join that owner after any admitted recording flush and before
+  // navigating or clearing browser state.
+  await session.pipelineReadyPromise?.catch(() => undefined);
   assertRecordingAcknowledged(session.id);
   session.pageLifecycleCleanup?.();
   session.pageLifecycleCleanup = undefined;
   await stopFrameStreaming(session.id);
-  const page = session.pages[0] ?? session.page;
+  await Promise.all([...new Set([...session.pages, session.page])].map(async (page) => {
+    await settlePageInput(page);
+    await resetPageInputState(page);
+    await resetKeyboardState(page);
+  }));
+  // Preserve the session's active page when resetting. `pages[0]` is the
+  // original tab, not necessarily the tab owning the current workflow state;
+  // resetting that choice silently discards the user's active page and keeps
+  // a stale tab instead.
+  const page = session.page ?? session.pages[0];
   for (const other of session.context.pages()) {
     if (other !== page) await other.close();
   }

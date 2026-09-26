@@ -77,10 +77,18 @@ function makeFixture(port = 0) {
           const indexed = await new Promise((resolve, reject) => {
             const tx = db.transaction('identity', mode === 'seed' ? 'readwrite' : 'readonly');
             const store = tx.objectStore('identity');
+            let value = null;
             if (mode === 'seed') store.put(identity, 'current');
             const request = store.get('current');
-            request.onsuccess = () => resolve(request.result ?? null);
+            request.onsuccess = () => { value = request.result ?? null; };
             request.onerror = () => reject(request.error);
+            // The read result can be visible before a read/write transaction
+            // commits. Do not acknowledge the fixture until the browser has
+            // durably completed the transaction that the profile snapshot must
+            // capture.
+            tx.oncomplete = () => resolve(value);
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error || new Error('fixture IndexedDB transaction aborted'));
           });
           db.close();
           await fetch('/ready', { method: 'POST', body: JSON.stringify({
