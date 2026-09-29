@@ -2,8 +2,12 @@ package runtime
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -26,6 +30,7 @@ import (
 	"test-genie/internal/runmanager"
 	"test-genie/internal/scenarios"
 	"test-genie/internal/selfhealthsnapshots"
+	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
 	"test-genie/internal/validationbroker"
 
@@ -34,6 +39,7 @@ import (
 	"github.com/vrooli/maturity-go/assessment"
 	"github.com/vrooli/vrooli/packages/artifactpaths"
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 
 	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.
@@ -211,6 +217,8 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	receiptService := validationbroker.NewService(validationbroker.NewRepository(db), runProducer)
 	receiptService.SetProducer(runProducer)
 	receiptService.SetIdentityResolver(identityResolver)
+	receiptService.SetEvidenceDeclarationResolver(validationbroker.DescriptorEvidenceResolver{RepoRoot: repoRoot})
+	receiptService.SetRetainedEvidenceAdmission(runArtifactEvidenceAdmission{runs: runsService})
 	if recovered, err := receiptService.Recover(context.Background()); err != nil {
 		return nil, fmt.Errorf("recover validation receipts: %w", err)
 	} else if recovered > 0 {
@@ -332,4 +340,95 @@ func openHealthDatabase(dsn string) (dbexec.HealthProbe, error) {
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 	return db, nil
+}
+
+type runArtifactEvidenceAdmission struct{ runs *apprun.Service }
+
+func (a runArtifactEvidenceAdmission) Verify(ctx context.Context, set *scenariovalidationv1.RetainedEvidenceSet) error {
+	if a.runs == nil || set == nil {
+		return fmt.Errorf("run artifact service is unavailable")
+	}
+	listed, err := a.runs.ListRunArtifacts(ctx, connect.NewRequest(&runspb.ListRunArtifactsRequest{Target: set.GetTarget(), RunId: set.GetRunId()}))
+	if err != nil {
+		if invalidRetainedArtifactStatus(err) {
+			return &validationbroker.InvalidRetainedEvidenceError{Cause: err}
+		}
+		return err
+	}
+	if listed.Msg.GetLegacyDiscovered() {
+		return &validationbroker.InvalidRetainedEvidenceError{Cause: errors.New("legacy-discovered run artifacts cannot be admitted as retained evidence")}
+	}
+	if listed.Msg.GetDigest() != set.GetCatalogDigest() {
+		return &validationbroker.InvalidRetainedEvidenceError{Cause: errors.New("retained evidence catalog digest changed")}
+	}
+	byID := make(map[string]*runspb.ArtifactRef, len(listed.Msg.GetArtifacts()))
+	for _, artifact := range listed.Msg.GetArtifacts() {
+		byID[artifact.GetId()] = artifact
+	}
+	for _, ref := range set.GetArtifacts() {
+		artifact := byID[ref.GetArtifactId()]
+		if artifact == nil || artifact.GetProvenance() != runspb.ArtifactProvenance_ARTIFACT_PROVENANCE_CATALOG || artifact.GetKind() != ref.GetKind() || artifact.GetSizeBytes() != ref.GetSizeBytes() {
+			return &validationbroker.InvalidRetainedEvidenceError{Cause: fmt.Errorf("retained artifact %q is missing or differs from its catalog entry", ref.GetArtifactId())}
+		}
+		if ref.GetProducer() != set.GetTarget() {
+			return &validationbroker.InvalidRetainedEvidenceError{Cause: errors.New("retained artifact producer does not match its target")}
+		}
+		_, path, resolveErr := a.runs.ResolveArtifactByID(set.GetTarget(), set.GetRunId(), ref.GetArtifactId())
+		if resolveErr != nil {
+			if errors.Is(resolveErr, sharedartifacts.ErrArtifactNotFound) || errors.Is(resolveErr, sharedartifacts.ErrUnsafeArtifact) || errors.Is(resolveErr, sharedartifacts.ErrInvalidArtifactCatalog) || errors.Is(resolveErr, sharedartifacts.ErrUnsupportedArtifactCatalogVersion) || errors.Is(resolveErr, sharedruns.ErrRunNotFound) || errors.Is(resolveErr, os.ErrNotExist) {
+				return &validationbroker.InvalidRetainedEvidenceError{Cause: resolveErr}
+			}
+			return resolveErr
+		}
+		file, openErr := os.Open(path)
+		if openErr != nil {
+			if errors.Is(openErr, os.ErrNotExist) {
+				return &validationbroker.InvalidRetainedEvidenceError{Cause: openErr}
+			}
+			return openErr
+		}
+		data, readErr := io.ReadAll(io.LimitReader(file, (16<<20)+1))
+		closeErr := file.Close()
+		if readErr != nil {
+			return readErr
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+		if len(data) > 16<<20 {
+			return &validationbroker.InvalidRetainedEvidenceError{Cause: errors.New("retained artifact exceeds the admission read bound")}
+		}
+		digest := sha256.Sum256(data)
+		if hex.EncodeToString(digest[:]) != ref.GetChecksum() {
+			return &validationbroker.InvalidRetainedEvidenceError{Cause: fmt.Errorf("retained artifact %q checksum differs from its catalog bytes", ref.GetArtifactId())}
+		}
+	}
+	return nil
+}
+
+func (a runArtifactEvidenceAdmission) Pin(ctx context.Context, receiptID string, set *scenariovalidationv1.RetainedEvidenceSet) error {
+	if err := a.Verify(ctx, set); err != nil {
+		return err
+	}
+	_, err := a.runs.PinRun(ctx, connect.NewRequest(&runspb.PinRunRequest{Target: set.GetTarget(), RunId: set.GetRunId(), PinnedBy: "validation:" + receiptID, Reason: "retained evidence consumer " + receiptID}))
+	if invalidRetainedArtifactStatus(err) {
+		return &validationbroker.InvalidRetainedEvidenceError{Cause: err}
+	}
+	return err
+}
+
+func invalidRetainedArtifactStatus(err error) bool {
+	if err == nil {
+		return false
+	}
+	code := connect.CodeOf(err)
+	return code == connect.CodeInvalidArgument || code == connect.CodeNotFound || code == connect.CodeFailedPrecondition
+}
+
+func (a runArtifactEvidenceAdmission) Release(ctx context.Context, receiptID string, set *scenariovalidationv1.RetainedEvidenceSet) error {
+	if a.runs == nil || set == nil {
+		return fmt.Errorf("run artifact service is unavailable")
+	}
+	_, err := a.runs.UnpinRun(ctx, connect.NewRequest(&runspb.UnpinRunRequest{Target: set.GetTarget(), RunId: set.GetRunId(), PinnedBy: "validation:" + receiptID}))
+	return err
 }

@@ -40,6 +40,7 @@ package diff
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
@@ -69,6 +70,9 @@ type GenerateOptions struct {
 	// Example: if scope is "/project/src/app" and project root is "/project",
 	// PathPrefix should be "src/app" so "file.go" becomes "src/app/file.go".
 	PathPrefix string
+	// MaxPatchBytes bounds aggregate retained output. Zero preserves the normal
+	// unbounded diff interface; retained review capture supplies a hard limit.
+	MaxPatchBytes int64
 }
 
 // DefaultGeneratorConfig returns sensible defaults.
@@ -181,32 +185,38 @@ func (g *Generator) GenerateDiff(ctx context.Context, s *types.Sandbox, changes 
 	var totalBytes int64
 
 	for _, change := range sortedChanges {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		totalBytes += change.FileSize
+		var fileDiff string
+		var err error
 		switch change.ChangeType {
 		case types.ChangeTypeAdded:
 			added++
-			fileDiff, err := g.diffNewFile(ctx, s.UpperDir, change.FilePath, pathPrefix)
+			fileDiff, err = g.diffNewFile(ctx, s.UpperDir, change.FilePath, pathPrefix)
 			if err != nil {
 				return nil, fmt.Errorf("failed to diff new file %s: %w", change.FilePath, err)
 			}
-			diffBuilder.WriteString(fileDiff)
 
 		case types.ChangeTypeDeleted:
 			deleted++
-			fileDiff, err := g.diffDeletedFile(ctx, s.LowerDir, change.FilePath, pathPrefix)
+			fileDiff, err = g.diffDeletedFile(ctx, s.LowerDir, change.FilePath, pathPrefix)
 			if err != nil {
 				return nil, fmt.Errorf("failed to diff deleted file %s: %w", change.FilePath, err)
 			}
-			diffBuilder.WriteString(fileDiff)
 
 		case types.ChangeTypeModified:
 			modified++
-			fileDiff, err := g.diffModifiedFile(ctx, s.LowerDir, s.UpperDir, change.FilePath, pathPrefix)
+			fileDiff, err = g.diffModifiedFile(ctx, s.LowerDir, s.UpperDir, change.FilePath, pathPrefix)
 			if err != nil {
 				return nil, fmt.Errorf("failed to diff modified file %s: %w", change.FilePath, err)
 			}
-			diffBuilder.WriteString(fileDiff)
 		}
+		if opts != nil && opts.MaxPatchBytes > 0 && int64(diffBuilder.Len())+int64(len(fileDiff)) > opts.MaxPatchBytes {
+			return nil, fmt.Errorf("diff exceeds %d-byte limit", opts.MaxPatchBytes)
+		}
+		diffBuilder.WriteString(fileDiff)
 	}
 
 	unified := diffBuilder.String()
@@ -220,6 +230,7 @@ func (g *Generator) GenerateDiff(ctx context.Context, s *types.Sandbox, changes 
 		SandboxID:   s.ID,
 		Files:       sortedChanges,
 		UnifiedDiff: unified,
+		PatchSHA256: HashPatch(unified),
 		Stats: types.DiffStats{
 			FilesChanged:  added + modified + deleted,
 			FilesAdded:    added,
@@ -230,6 +241,12 @@ func (g *Generator) GenerateDiff(ctx context.Context, s *types.Sandbox, changes 
 			TotalBytes:    totalBytes,
 		},
 	}, nil
+}
+
+// HashPatch identifies exactly the bytes reviewed/applied, including an empty patch.
+// It does not identify unchanged source files or certify a frozen workspace.
+func HashPatch(patch string) string {
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(patch)))
 }
 
 // countUnifiedDiffLines counts added/removed content lines in a unified diff,
@@ -268,7 +285,7 @@ func (g *Generator) diffNewFile(ctx context.Context, upperDir, relPath, pathPref
 	}
 
 	// Check if it's a directory
-	info, err := os.Stat(filePath)
+	content, info, err := ReadFileBytes(upperDir, relPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", err
@@ -284,12 +301,6 @@ func (g *Generator) diffNewFile(ctx context.Context, upperDir, relPath, pathPref
 	if isSpecialFile(info) {
 		return fmt.Sprintf("diff --git a/%s b/%s\nnew file mode %06o\nBinary file %s\n",
 			diffPath, diffPath, gitFileMode(info), diffPath), nil
-	}
-
-	// Read file content
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", err
 	}
 
 	// Check if binary
@@ -346,7 +357,7 @@ func (g *Generator) diffDeletedFile(ctx context.Context, lowerDir, relPath, path
 		diffPath = filepath.ToSlash(filepath.Join(pathPrefix, relPath))
 	}
 
-	info, err := os.Stat(filePath)
+	content, info, err := ReadFileBytes(lowerDir, relPath)
 	if err != nil {
 		return "", err
 	}
@@ -359,11 +370,6 @@ func (g *Generator) diffDeletedFile(ctx context.Context, lowerDir, relPath, path
 	if isSpecialFile(info) {
 		return fmt.Sprintf("diff --git a/%s b/%s\ndeleted file mode %06o\nBinary file %s\n",
 			diffPath, diffPath, gitFileMode(info), diffPath), nil
-	}
-
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", err
 	}
 
 	if g.isBinary(content) {
@@ -411,6 +417,22 @@ func (g *Generator) diffDeletedFile(ctx context.Context, lowerDir, relPath, path
 func (g *Generator) diffModifiedFile(ctx context.Context, lowerDir, upperDir, relPath, pathPrefix string) (string, error) {
 	oldPath := filepath.Join(lowerDir, relPath)
 	newPath := filepath.Join(upperDir, relPath)
+	for _, path := range []string{oldPath, newPath} {
+		info, err := os.Lstat(path)
+		if err != nil {
+			return "", err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			// Git applies a delete/add pair for link replacement and file-type
+			// changes. Never dereference either link, including dangling ones.
+			removed, err := g.diffDeletedFile(ctx, lowerDir, relPath, pathPrefix)
+			if err != nil {
+				return "", err
+			}
+			added, err := g.diffNewFile(ctx, upperDir, relPath, pathPrefix)
+			return removed + added, err
+		}
+	}
 
 	// Compute the project-relative path for diff headers
 	diffPath := relPath
@@ -534,6 +556,15 @@ func IsBinaryContent(content []byte) bool {
 
 // IsBinaryFile checks if a file appears to be binary.
 func IsBinaryFile(path string) (bool, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return false, err
+	}
+	// Links contain their target path, not the target's bytes. Never open
+	// devices/FIFOs during acceptance classification either.
+	if !info.Mode().IsRegular() {
+		return false, nil
+	}
 	f, err := os.Open(path)
 	if err != nil {
 		return false, err
@@ -552,37 +583,80 @@ func IsBinaryFile(path string) (bool, error) {
 	return isBinaryDefault(buf[:n]), nil
 }
 
+// ReadFileBytes reads evidence without following a leaf symlink. Symlink bytes
+// are the link target, as in Git; directories and special files have no bytes.
+// Root-scoped resolution also refuses parent paths escaping the selected layer.
+func ReadFileBytes(rootPath, filePath string) ([]byte, os.FileInfo, error) {
+	return ReadFileBytesLimit(rootPath, filePath, 0)
+}
+
+// ReadFileBytesLimit has the same rooted, no-leaf-follow semantics. A positive
+// limit rejects oversized bodies, including files that grow after Lstat.
+func ReadFileBytesLimit(rootPath, filePath string, limit int64) ([]byte, os.FileInfo, error) {
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer root.Close()
+	info, err := root.Lstat(filePath)
+	if err != nil {
+		return nil, nil, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		target, err := root.Readlink(filePath)
+		if limit > 0 && int64(len(target)) > limit {
+			return nil, info, fmt.Errorf("file %q exceeds %d-byte limit", filePath, limit)
+		}
+		return []byte(target), info, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, info, nil
+	}
+	if limit > 0 && info.Size() > limit {
+		return nil, info, fmt.Errorf("file %q exceeds %d-byte limit", filePath, limit)
+	}
+	file, err := root.Open(filePath)
+	if err != nil {
+		return nil, info, err
+	}
+	defer file.Close()
+	opened, err := file.Stat()
+	if err != nil {
+		return nil, info, err
+	}
+	if !os.SameFile(info, opened) || !opened.Mode().IsRegular() {
+		return nil, info, fmt.Errorf("file %q changed during capture", filePath)
+	}
+	var reader io.Reader = file
+	if limit > 0 {
+		reader = io.LimitReader(file, limit+1)
+	}
+	content, err := io.ReadAll(reader)
+	if limit > 0 && int64(len(content)) > limit {
+		return nil, info, fmt.Errorf("file %q exceeds %d-byte limit", filePath, limit)
+	}
+	return content, info, err
+}
+
 // GetFileContent reads file content from the appropriate layer of the sandbox.
 // For added/modified files, reads from upperDir. For deleted files, reads from lowerDir.
 // Returns empty string for binary files or if file cannot be read.
 func GetFileContent(upperDir, lowerDir, filePath string, changeType types.ChangeType) (string, error) {
-	var targetPath string
+	var rootPath string
 	switch changeType {
 	case types.ChangeTypeDeleted:
 		// Deleted files - read from lower (original) directory
-		targetPath = filepath.Join(lowerDir, filePath)
+		rootPath = lowerDir
 	default:
 		// Added/Modified files - read from upper (changed) directory
-		targetPath = filepath.Join(upperDir, filePath)
+		rootPath = upperDir
 	}
 
-	// Check if file exists
-	info, err := os.Stat(targetPath)
+	content, _, err := ReadFileBytes(rootPath, filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", nil
 		}
-		return "", err
-	}
-
-	// Skip directories and special files
-	if info.IsDir() || isSpecialFile(info) {
-		return "", nil
-	}
-
-	// Read file content
-	content, err := os.ReadFile(targetPath)
-	if err != nil {
 		return "", err
 	}
 

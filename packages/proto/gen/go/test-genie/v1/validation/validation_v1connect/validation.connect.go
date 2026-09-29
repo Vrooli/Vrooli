@@ -33,6 +33,12 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// ValidationServiceResolveSourceIdentityProcedure is the fully-qualified name of the
+	// ValidationService's ResolveSourceIdentity RPC.
+	ValidationServiceResolveSourceIdentityProcedure = "/vrooli.test_genie.v1.validation.ValidationService/ResolveSourceIdentity"
+	// ValidationServiceCreateEvidenceProductionProcedure is the fully-qualified name of the
+	// ValidationService's CreateEvidenceProduction RPC.
+	ValidationServiceCreateEvidenceProductionProcedure = "/vrooli.test_genie.v1.validation.ValidationService/CreateEvidenceProduction"
 	// ValidationServiceCreateValidationProcedure is the fully-qualified name of the ValidationService's
 	// CreateValidation RPC.
 	ValidationServiceCreateValidationProcedure = "/vrooli.test_genie.v1.validation.ValidationService/CreateValidation"
@@ -62,6 +68,12 @@ const (
 // ValidationServiceClient is a client for the vrooli.test_genie.v1.validation.ValidationService
 // service.
 type ValidationServiceClient interface {
+	// ResolveSourceIdentity computes the current immutable source identity for
+	// the declared content roots without admitting validation work or creating
+	// a receipt. Owner workflows use it after a candidate has been promoted and
+	// before they bind evidence to that candidate.
+	ResolveSourceIdentity(context.Context, *connect.Request[validation.ResolveSourceIdentityRequest]) (*connect.Response[validation.ResolveSourceIdentityResponse], error)
+	CreateEvidenceProduction(context.Context, *connect.Request[validation.CreateEvidenceProductionRequest]) (*connect.Response[validation.CreateEvidenceProductionResponse], error)
 	CreateValidation(context.Context, *connect.Request[validation.CreateValidationRequest]) (*connect.Response[validation.CreateValidationResponse], error)
 	GetValidation(context.Context, *connect.Request[validation.GetValidationRequest]) (*connect.Response[validation.GetValidationResponse], error)
 	WaitValidation(context.Context, *connect.Request[validation.WaitValidationRequest]) (*connect.Response[validation.WaitValidationResponse], error)
@@ -86,6 +98,18 @@ func NewValidationServiceClient(httpClient connect.HTTPClient, baseURL string, o
 	baseURL = strings.TrimRight(baseURL, "/")
 	validationServiceMethods := validation.File_test_genie_v1_validation_validation_proto.Services().ByName("ValidationService").Methods()
 	return &validationServiceClient{
+		resolveSourceIdentity: connect.NewClient[validation.ResolveSourceIdentityRequest, validation.ResolveSourceIdentityResponse](
+			httpClient,
+			baseURL+ValidationServiceResolveSourceIdentityProcedure,
+			connect.WithSchema(validationServiceMethods.ByName("ResolveSourceIdentity")),
+			connect.WithClientOptions(opts...),
+		),
+		createEvidenceProduction: connect.NewClient[validation.CreateEvidenceProductionRequest, validation.CreateEvidenceProductionResponse](
+			httpClient,
+			baseURL+ValidationServiceCreateEvidenceProductionProcedure,
+			connect.WithSchema(validationServiceMethods.ByName("CreateEvidenceProduction")),
+			connect.WithClientOptions(opts...),
+		),
 		createValidation: connect.NewClient[validation.CreateValidationRequest, validation.CreateValidationResponse](
 			httpClient,
 			baseURL+ValidationServiceCreateValidationProcedure,
@@ -139,14 +163,28 @@ func NewValidationServiceClient(httpClient connect.HTTPClient, baseURL string, o
 
 // validationServiceClient implements ValidationServiceClient.
 type validationServiceClient struct {
-	createValidation      *connect.Client[validation.CreateValidationRequest, validation.CreateValidationResponse]
-	getValidation         *connect.Client[validation.GetValidationRequest, validation.GetValidationResponse]
-	waitValidation        *connect.Client[validation.WaitValidationRequest, validation.WaitValidationResponse]
-	listValidations       *connect.Client[validation.ListValidationsRequest, validation.ListValidationsResponse]
-	cancelValidationWait  *connect.Client[validation.CancelValidationWaitRequest, validation.CancelValidationWaitResponse]
-	abortValidationWork   *connect.Client[validation.AbortValidationWorkRequest, validation.AbortValidationWorkResponse]
-	explainValidation     *connect.Client[validation.ExplainValidationRequest, validation.ExplainValidationResponse]
-	listValidationShadows *connect.Client[validation.ListValidationShadowsRequest, validation.ListValidationShadowsResponse]
+	resolveSourceIdentity    *connect.Client[validation.ResolveSourceIdentityRequest, validation.ResolveSourceIdentityResponse]
+	createEvidenceProduction *connect.Client[validation.CreateEvidenceProductionRequest, validation.CreateEvidenceProductionResponse]
+	createValidation         *connect.Client[validation.CreateValidationRequest, validation.CreateValidationResponse]
+	getValidation            *connect.Client[validation.GetValidationRequest, validation.GetValidationResponse]
+	waitValidation           *connect.Client[validation.WaitValidationRequest, validation.WaitValidationResponse]
+	listValidations          *connect.Client[validation.ListValidationsRequest, validation.ListValidationsResponse]
+	cancelValidationWait     *connect.Client[validation.CancelValidationWaitRequest, validation.CancelValidationWaitResponse]
+	abortValidationWork      *connect.Client[validation.AbortValidationWorkRequest, validation.AbortValidationWorkResponse]
+	explainValidation        *connect.Client[validation.ExplainValidationRequest, validation.ExplainValidationResponse]
+	listValidationShadows    *connect.Client[validation.ListValidationShadowsRequest, validation.ListValidationShadowsResponse]
+}
+
+// ResolveSourceIdentity calls
+// vrooli.test_genie.v1.validation.ValidationService.ResolveSourceIdentity.
+func (c *validationServiceClient) ResolveSourceIdentity(ctx context.Context, req *connect.Request[validation.ResolveSourceIdentityRequest]) (*connect.Response[validation.ResolveSourceIdentityResponse], error) {
+	return c.resolveSourceIdentity.CallUnary(ctx, req)
+}
+
+// CreateEvidenceProduction calls
+// vrooli.test_genie.v1.validation.ValidationService.CreateEvidenceProduction.
+func (c *validationServiceClient) CreateEvidenceProduction(ctx context.Context, req *connect.Request[validation.CreateEvidenceProductionRequest]) (*connect.Response[validation.CreateEvidenceProductionResponse], error) {
+	return c.createEvidenceProduction.CallUnary(ctx, req)
 }
 
 // CreateValidation calls vrooli.test_genie.v1.validation.ValidationService.CreateValidation.
@@ -194,6 +232,12 @@ func (c *validationServiceClient) ListValidationShadows(ctx context.Context, req
 // ValidationServiceHandler is an implementation of the
 // vrooli.test_genie.v1.validation.ValidationService service.
 type ValidationServiceHandler interface {
+	// ResolveSourceIdentity computes the current immutable source identity for
+	// the declared content roots without admitting validation work or creating
+	// a receipt. Owner workflows use it after a candidate has been promoted and
+	// before they bind evidence to that candidate.
+	ResolveSourceIdentity(context.Context, *connect.Request[validation.ResolveSourceIdentityRequest]) (*connect.Response[validation.ResolveSourceIdentityResponse], error)
+	CreateEvidenceProduction(context.Context, *connect.Request[validation.CreateEvidenceProductionRequest]) (*connect.Response[validation.CreateEvidenceProductionResponse], error)
 	CreateValidation(context.Context, *connect.Request[validation.CreateValidationRequest]) (*connect.Response[validation.CreateValidationResponse], error)
 	GetValidation(context.Context, *connect.Request[validation.GetValidationRequest]) (*connect.Response[validation.GetValidationResponse], error)
 	WaitValidation(context.Context, *connect.Request[validation.WaitValidationRequest]) (*connect.Response[validation.WaitValidationResponse], error)
@@ -213,6 +257,18 @@ type ValidationServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewValidationServiceHandler(svc ValidationServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	validationServiceMethods := validation.File_test_genie_v1_validation_validation_proto.Services().ByName("ValidationService").Methods()
+	validationServiceResolveSourceIdentityHandler := connect.NewUnaryHandler(
+		ValidationServiceResolveSourceIdentityProcedure,
+		svc.ResolveSourceIdentity,
+		connect.WithSchema(validationServiceMethods.ByName("ResolveSourceIdentity")),
+		connect.WithHandlerOptions(opts...),
+	)
+	validationServiceCreateEvidenceProductionHandler := connect.NewUnaryHandler(
+		ValidationServiceCreateEvidenceProductionProcedure,
+		svc.CreateEvidenceProduction,
+		connect.WithSchema(validationServiceMethods.ByName("CreateEvidenceProduction")),
+		connect.WithHandlerOptions(opts...),
+	)
 	validationServiceCreateValidationHandler := connect.NewUnaryHandler(
 		ValidationServiceCreateValidationProcedure,
 		svc.CreateValidation,
@@ -263,6 +319,10 @@ func NewValidationServiceHandler(svc ValidationServiceHandler, opts ...connect.H
 	)
 	return "/vrooli.test_genie.v1.validation.ValidationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case ValidationServiceResolveSourceIdentityProcedure:
+			validationServiceResolveSourceIdentityHandler.ServeHTTP(w, r)
+		case ValidationServiceCreateEvidenceProductionProcedure:
+			validationServiceCreateEvidenceProductionHandler.ServeHTTP(w, r)
 		case ValidationServiceCreateValidationProcedure:
 			validationServiceCreateValidationHandler.ServeHTTP(w, r)
 		case ValidationServiceGetValidationProcedure:
@@ -287,6 +347,14 @@ func NewValidationServiceHandler(svc ValidationServiceHandler, opts ...connect.H
 
 // UnimplementedValidationServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedValidationServiceHandler struct{}
+
+func (UnimplementedValidationServiceHandler) ResolveSourceIdentity(context.Context, *connect.Request[validation.ResolveSourceIdentityRequest]) (*connect.Response[validation.ResolveSourceIdentityResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.validation.ValidationService.ResolveSourceIdentity is not implemented"))
+}
+
+func (UnimplementedValidationServiceHandler) CreateEvidenceProduction(context.Context, *connect.Request[validation.CreateEvidenceProductionRequest]) (*connect.Response[validation.CreateEvidenceProductionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.validation.ValidationService.CreateEvidenceProduction is not implemented"))
+}
 
 func (UnimplementedValidationServiceHandler) CreateValidation(context.Context, *connect.Request[validation.CreateValidationRequest]) (*connect.Response[validation.CreateValidationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.validation.ValidationService.CreateValidation is not implemented"))

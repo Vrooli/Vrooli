@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -1113,9 +1114,16 @@ func (r *Registry) IsInferenceBinding(id string) bool {
 // InferenceUsage extracts the canonical ai-gateway Usage projection from a
 // protojson result without coupling the bridge to a provider implementation.
 func InferenceUsage(result map[string]any) (input, output, cost int64, present bool) {
+	input, output, cost, present, _ = InferenceUsageDetails(result)
+	return
+}
+
+// InferenceUsageDetails preserves whether a marginal charge was actually
+// returned. Numeric zero is a measured price only when its field was present.
+func InferenceUsageDetails(result map[string]any) (input, output, cost int64, present, chargePresent bool) {
 	usage, ok := result["usage"].(map[string]any)
 	if !ok || usage == nil {
-		return 0, 0, 0, false
+		return 0, 0, 0, false, false
 	}
 	input = numberToInt(usage["input_tokens"])
 	if input == 0 {
@@ -1125,11 +1133,56 @@ func InferenceUsage(result map[string]any) (input, output, cost int64, present b
 	if output == 0 {
 		output = numberToInt(usage["outputTokens"])
 	}
-	cost = numberToInt(usage["cost_micros"])
-	if cost == 0 {
-		cost = numberToInt(usage["costMicros"])
+	value, snake := usage["cost_micros"]
+	if !snake {
+		value, _ = usage["costMicros"]
 	}
-	return input, output, cost, true
+	cost, chargePresent = measuredNonnegativeMicros(value)
+	return input, output, cost, true, chargePresent
+}
+
+func measuredNonnegativeMicros(value any) (int64, bool) {
+	var n int64
+	switch v := value.(type) {
+	case int:
+		n = int64(v)
+	case int64:
+		n = v
+	case int32:
+		n = int64(v)
+	case uint:
+		if uint64(v) > math.MaxInt64 {
+			return 0, false
+		}
+		n = int64(v)
+	case uint64:
+		if v > math.MaxInt64 {
+			return 0, false
+		}
+		n = int64(v)
+	case float64:
+		if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || math.Trunc(v) != v || v >= float64(math.MaxInt64) {
+			return 0, false
+		}
+		n = int64(v)
+	case json.Number:
+		parsed, err := v.Int64()
+		if err != nil {
+			f, floatErr := v.Float64()
+			if floatErr != nil || math.IsNaN(f) || math.IsInf(f, 0) || f < 0 || math.Trunc(f) != f || f >= float64(math.MaxInt64) {
+				return 0, false
+			}
+			parsed = int64(f)
+			err = nil
+		}
+		if err != nil {
+			return 0, false
+		}
+		n = parsed
+	default:
+		return 0, false
+	}
+	return n, n >= 0
 }
 
 // SetReachabilityResolver replaces the discovery seam used by Doctor. It is
@@ -1486,7 +1539,7 @@ func (r *Registry) Authorize(id string, grants []string, confirmed bool) error {
 		grantSet[strings.TrimSpace(grant)] = struct{}{}
 	}
 	if b.GetEffect() == "destructive" {
-		matched := false
+		_, matched := grantSet["binding:"+id]
 		for _, permission := range b.GetPermissions() {
 			if _, ok := grantSet[permission]; ok {
 				matched = true

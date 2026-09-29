@@ -54,6 +54,17 @@ message RunDeclaredProgramRequest {
   // WaitForProgram; disconnecting never reclaims a running session.
   bool async = 5;
   programs.Caller caller = 6;
+  // Optional durable request key, scoped to name. Requires expected_digest.
+  // Repeating identical intent returns the original program, including failed
+  // or interrupted executions; it never repeats effects. Changed intent refuses.
+  string idempotency_key = 7;
+  // Required with idempotency_key: fixed RFC3339 admission deadline, at most
+  // 24h in the future. Replays retain this value. After expiry a missing record
+  // is refused, not executed again; retained executions can still be observed.
+  string admission_deadline = 8;
+  // Explicit grants of the form binding:<id>, limited to destructive bindings
+  // declared by this pinned contract. They are part of immutable replay intent.
+  repeated string grants = 9;
 }
 message RunDeclaredProgramResponse {
   vrooli.program_runtime.v1.programs.Program program = 1;
@@ -62,9 +73,27 @@ message RunDeclaredProgramResponse {
 }
 
 service LibraryService {
+  // Atomically prevent an unused key from executing, or return its already
+  // admitted execution for draining. This never starts or retries a program.
+  rpc CloseDeclaredAdmission(RunDeclaredProgramRequest) returns (RunDeclaredProgramResponse);
+  // Read-only keyed observation also proves the deployed admission contract.
+  rpc GetDeclaredExecution(GetDeclaredExecutionRequest) returns (GetDeclaredExecutionResponse);
   rpc ListLibrary(ListLibraryRequest) returns (ListLibraryResponse);
   rpc GetLibrary(GetLibraryRequest) returns (GetLibraryResponse);
   rpc PromoteLibrary(PromoteLibraryRequest) returns (PromoteLibraryResponse);
   rpc SetCurrentLibrary(SetCurrentLibraryRequest) returns (SetCurrentLibraryResponse);
   rpc RunDeclaredProgram(RunDeclaredProgramRequest) returns (RunDeclaredProgramResponse);
+}
+
+message GetDeclaredExecutionRequest {
+  string name = 1;
+  string idempotency_key = 2;
+}
+
+message GetDeclaredExecutionResponse {
+  // 2 = pinned intent, fixed deadline, atomic reservation, expiry refusal and
+  // atomic closure of an unused admission. Existing executions are drained.
+  uint32 admission_contract_version = 1;
+  bool found = 2;
+  program_runtime.v1.programs.Program program = 3;
 }

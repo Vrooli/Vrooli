@@ -56,7 +56,8 @@ type sandboxTestServer struct {
 	// The default (false) reports the bwrap path-illusion layout
 	// (workspacePath="/workspace", pathIllusion=true) so existing
 	// translation tests keep their contract.
-	identityLayout bool
+	identityLayout       bool
+	policyFilesSupported bool
 
 	// Recorded request state for assertions.
 	startProcessBody  map[string]any
@@ -89,6 +90,42 @@ type sseChunk struct {
 
 func newSandboxTestServer(initialPID int) *sandboxTestServer {
 	return &sandboxTestServer{procPID: initialPID}
+}
+
+func TestSandboxLauncherPolicyFiles(t *testing.T) {
+	for _, supported := range []bool{false, true} {
+		t.Run(fmt.Sprintf("supported=%v", supported), func(t *testing.T) {
+			mock := newSandboxTestServer(707)
+			mock.hostMergedDir = "/sandbox/merged"
+			mock.policyFilesSupported = supported
+			server := mock.startServer(t)
+			defer server.Close()
+			launcher := NewSandboxLauncher(NewWorkspaceSandboxProvider(server.URL), uuid.New())
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			file := runner.PolicyFile{Source: "/owner/policy", Target: "/etc/consumer/policy", SHA256: strings.Repeat("a", 64)}
+			proc, err := launcher.Launch(ctx, runner.LaunchRequest{Command: "agent", WorkingDir: mock.hostMergedDir, PolicyFiles: []runner.PolicyFile{file}})
+			if !supported {
+				if err == nil || proc != nil || mock.startProcessSeen.Load() {
+					t.Fatalf("unsupported provider must refuse before process creation: %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			go io.Copy(io.Discard, proc.Stdout())
+			go io.Copy(io.Discard, proc.Stderr())
+			defer proc.Kill()
+			mock.mu.Lock()
+			data, err := json.Marshal(mock.startProcessBody["policyFiles"])
+			mock.mu.Unlock()
+			var actual []runner.PolicyFile
+			if err != nil || json.Unmarshal(data, &actual) != nil || len(actual) != 1 || actual[0] != file {
+				t.Fatalf("policy must reach the provider without rewriting its identity: %s, %v", data, err)
+			}
+		})
+	}
 }
 
 // startServer wires the routes and returns the running test server.
@@ -155,6 +192,9 @@ func (m *sandboxTestServer) handleGetSandbox(w http.ResponseWriter, r *http.Requ
 		"level":        "required",
 		"backend":      "bwrap",
 		"enforcements": []string{"filesystem-write-containment", "network-deny", "pid-namespace", "path-illusion"},
+	}
+	if m.policyFilesSupported {
+		containment["enforcements"] = append(containment["enforcements"].([]string), runner.EnforcementPolicyFiles)
 	}
 	if m.identityLayout {
 		workspacePath = m.hostMergedDir
@@ -439,6 +479,51 @@ func TestSandboxLauncher_StdinPostedNotStaged(t *testing.T) {
 	// Cleanup so Wait returns.
 	go func() {
 		time.Sleep(50 * time.Millisecond)
+		mock.markExited(remoteExitInfo{ExitCode: 0})
+	}()
+	go io.Copy(io.Discard, proc.Stdout())
+	go io.Copy(io.Discard, proc.Stderr())
+	_ = proc.Wait()
+}
+
+func TestLaunchNetworkOverrideHonorsExplicitDeny(t *testing.T) {
+	got := launchNetworkOverride(string(domain.NetworkAccessNone))
+	if got == nil || *got {
+		t.Fatalf("network none override = %v, want explicit false", got)
+	}
+	if got := launchNetworkOverride(string(domain.NetworkAccessLocalhost)); got == nil || !*got {
+		t.Fatalf("localhost override = %v, want explicit true", got)
+	}
+	if got := launchNetworkOverride(""); got != nil {
+		t.Fatalf("legacy empty mode override = %v, want nil", got)
+	}
+}
+
+func TestSandboxLauncher_PostsExplicitNetworkDeny(t *testing.T) {
+	mock := newSandboxTestServer(103)
+	server := mock.startServer(t)
+	defer server.Close()
+
+	provider := NewWorkspaceSandboxProvider(server.URL)
+	launcher := NewSandboxLauncher(provider, uuid.New())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	proc, err := launcher.Launch(ctx, runner.LaunchRequest{
+		Command:     "codex",
+		NetworkMode: string(domain.NetworkAccessNone),
+	})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	mock.mu.Lock()
+	body := mock.startProcessBody
+	mock.mu.Unlock()
+	allow, ok := body["allowNetwork"].(bool)
+	if !ok || allow {
+		t.Fatalf("allowNetwork = %#v, want explicit false", body["allowNetwork"])
+	}
+	go func() {
+		time.Sleep(20 * time.Millisecond)
 		mock.markExited(remoteExitInfo{ExitCode: 0})
 	}()
 	go io.Copy(io.Discard, proc.Stdout())

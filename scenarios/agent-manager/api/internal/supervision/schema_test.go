@@ -18,7 +18,7 @@ func TestSchemaCreatesDurableWatchTablesAndIndexes(t *testing.T) {
 	if err := coredb.EnsureSchemas(context.Background(), db, coredb.SchemaProviderFunc(Schema)); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"cohort_watches", "cohort_watch_subjects", "cohort_watch_decisions", "cohort_watch_actions", "idx_cohort_watches_due", "idx_cohort_watch_subjects_run"} {
+	for _, name := range []string{"cohort_watches", "cohort_watch_subjects", "cohort_watch_decisions", "cohort_watch_actions", "idx_cohort_watches_due", "idx_cohort_watch_subjects_run", "idx_supervision_outcomes_supersedes"} {
 		var count int
 		if err := db.Get(&count, `SELECT COUNT(*) FROM sqlite_master WHERE name = ?`, name); err != nil {
 			t.Fatal(err)

@@ -87,7 +87,7 @@ func TestResourceAppUsesStaleCheckerForDelegatingCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewResourceApp: %v", err)
 	}
-	if got := strings.Join(app.StaleChecker.FreshnessInputs, ","); got != "cli/**,resource.json,../../packages/cli-core" {
+	if got := strings.Join(app.StaleChecker.FreshnessInputs, ","); got != "cli/**,resource.json,../../packages/cli-core,../../packages/proto/gen/.vrooli-proto-artifact.json" {
 		t.Fatalf("freshness inputs = %q", got)
 	}
 	restarted := false

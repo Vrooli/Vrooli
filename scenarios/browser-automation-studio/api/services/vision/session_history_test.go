@@ -96,6 +96,23 @@ func TestNavigationSession_Snapshot_IsolatesSteps(t *testing.T) {
 	}
 }
 
+func TestNavigationSession_Snapshot_IsolatesExtractedData(t *testing.T) {
+	live := &NavigationSession{ExtractedData: map[string]interface{}{
+		"nested": map[string]interface{}{"value": "original"},
+		"items":  []interface{}{map[string]interface{}{"value": "original"}},
+	}}
+	snapshot := live.Snapshot()
+	snapshot.ExtractedData["nested"].(map[string]interface{})["value"] = "changed"
+	snapshot.ExtractedData["items"].([]interface{})[0].(map[string]interface{})["value"] = "changed"
+
+	if got := live.ExtractedData["nested"].(map[string]interface{})["value"]; got != "original" {
+		t.Errorf("nested extracted data leaked through snapshot: %v", got)
+	}
+	if got := live.ExtractedData["items"].([]interface{})[0].(map[string]interface{})["value"]; got != "original" {
+		t.Errorf("slice extracted data leaked through snapshot: %v", got)
+	}
+}
+
 // ---- Playwright navigator records history ---------------------------------
 
 func TestPlaywrightVisionNavigator_RecordsStepHistory(t *testing.T) {

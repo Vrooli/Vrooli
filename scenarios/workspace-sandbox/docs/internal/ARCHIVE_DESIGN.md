@@ -1,7 +1,7 @@
 # Diff Archive Design
 
 ## Last Updated
-2026-04-29
+2026-09-27
 
 ## Purpose
 
@@ -26,46 +26,91 @@ prose.
 Every snapshot runs **before** the sandbox transitions to its terminal
 status. The sequence is fixed:
 
-1. Compute the diff (via `Service.GetDiff`'s output — see §2).
-2. Write every per-file content blob to disk through
+1. Compute the diff with the shared generator (see §2).
+2. Write the unified patch and every per-file content blob to disk through
    `BlobStore.Put`. Atomic per blob via
    `storage.WriteFileAtomic` (temp file → fsync → rename).
-3. Open a single SQL transaction; inside it:
+3. For non-committing full whole-file approval, persist the original request,
+   before-file identities and retained archive in `sandbox_prepared_approvals`.
+   Then apply that retained patch. This path captures both source sides in
+   private staging before generating the patch and blobs.
+   Reject/Delete have no source-apply step. Partial approval, hunk approval and
+   turn checkpoints do not yet use this pre-apply capture.
+4. Open a single SQL transaction; inside it:
    - `INSERT INTO sandbox_diff_archives ...`
    - `UPDATE sandboxes SET status = ... WHERE id = ...`
+   - remove the prepared approval record, when present.
    - any other status-flip writes (e.g. `approved_at`, audit log entry).
-4. `COMMIT`. The archive row and the new terminal status become
+5. `COMMIT`. The archive row and the new terminal status become
    visible together.
 
-If any step fails — blob write, repository insert, status update — the
-transaction is rolled back, partial blobs are best-effort cleaned via
-`BlobStore.DeleteSandbox`, and the sandbox stays in its pre-terminal
-status (Active, Stopped, etc.). The operator retries; nothing observed
-the half-committed state.
+A full, whole-file approval MUST retain its patch and file bodies before source
+writes. A capture or blob-write failure leaves source and status unchanged. A
+later SQL failure rolls back the archive/status transaction, but does not undo
+source application. The response reports that distinction. Prepared approval
+blobs survive that failure; deleting them would erase the applied evidence.
+Terminal publication is create-once: an identical archive replay succeeds;
+different content, attribution, status or capture time for the same sandbox
+refuses publication and preserves the original row. A nonterminal sandbox with
+an existing archive refuses new application rather than replacing that evidence.
+Reject/Delete clean failed capture blobs only after confirming that neither a
+published archive nor a pending approval references the sandbox's blob tree.
+An unavailable ownership check preserves the bytes. Retention shares the native
+review lock with publication and must not delete pending approval evidence.
+
+Source application is not part of the SQL transaction. Non-committing full
+whole-file approval now has durable retry recovery. Resubmit the original request:
+
+| Canonical source on retry | Owner action |
+|---|---|
+| Every affected path matches the retained after identity | Publish the original archive/status without applying again; report `applied=0` |
+| Every affected path matches the retained before identity | Apply the retained patch, without reading new overlay contents |
+| Mixed, divergent, missing evidence or changed request attribution | Refuse source writes; retain the original pending identity |
+
+The before/after identities include bytes, absence, executable mode and symlink
+targets. Retry cannot change attribution or approval effects. An optional expected
+digest must match the retained patch. Empty and omitted selection arrays are
+equivalent. Operation-derived provenance IDs permit identical replay, reject
+conflicting content, and preserve later commit links.
+
+The existing blob-store owner uses the shared platform native lock for cancellable
+cross-instance approval exclusion. One lock file lives outside evictable blob
+trees; it releases on process exit. Pending approval blocks Delete, Reject, Start,
+Resume, Discard, Rebase and turn checkpointing. Stop can still release a mount;
+its version check prevents overwriting a concurrent terminal transition. External
+terminal teardown hooks run after release of the review lock.
+
+This is not an atomic source-tree freeze. It does not stop an existing worker
+from editing its overlay. Freeze/drain and preservation of later unapplied edits
+must be qualified before the unattended campaign. Partial/hunk/checkpoint and
+commit-producing approvals do not yet have this write-ahead recovery.
 
 There is **no `pending` archive state**. We never commit a row that
 promises content we have not yet written. The `archive_state` taxonomy
 in §3 has only two values precisely so that a row's existence implies a
 durable, queryable snapshot.
 
-## 2. Snapshot reuses `Service.GetDiff` output verbatim
+## 2. Snapshot reuses the live diff generator
 
-The snapshot path **does not** generate diffs independently. It calls
-the same internal diff path that serves live `GET /diff` requests — same
-status checks, same change detector, same generator,
-same filters, same sort. The returned `*types.DiffResult` is serialized
-byte-for-byte into:
+There is one diff generator. Reject/Delete use `Service.GetDiff`. Full whole-file
+approval uses the same change detector, filters, generator and sort over a private
+copy of the accepted file sides. It passes that exact in-memory patch to both the
+blob store and patcher. It MUST NOT regenerate the archive from a canonical lower
+layer that application has already changed. The resulting `*types.DiffResult`
+supplies:
 
 - `files_json`: the per-file index (path, change_type, size, blob hash)
 - `stats_json`: the aggregate stats (`filesAdded`, `filesModified`, `filesDeleted`, etc.)
 - `unified_diff_path`: the gzipped blob containing the unified diff text
-- per-file content blobs, one per non-empty `FileChange`
+- per-file content blobs, including empty files, binary bytes and symlink targets
 
 The reason is divergence containment. Two diff generators inevitably
 drift: one fixes a bug, the other doesn't; one normalizes line endings,
 the other doesn't; one adds a stat field, the other doesn't. With a
-single generator, archives capture exactly what the live endpoint would
-have served at the moment of transition. Future improvements to
+single generator, archives capture the generated patch without a parallel format.
+Full whole-file approval additionally binds its patch and bodies to the same
+captured sides. This is a sequential file capture, not an atomic source-tree
+freeze. Future improvements to
 `GetDiff` automatically apply to the live path; archives stay stable
 byte-for-byte because they are immutable artifacts on disk.
 
@@ -80,7 +125,7 @@ exactly two valid values:
 
 - **`complete`**: the snapshot ran, blobs are on disk, and the
   metadata row is consistent with them. The endpoint serves the diff
-  by reading the blobs through `BlobStore.Get`.
+by reading the blobs through `BlobStore.Get`.
 - **`not_captured`**: the snapshot was deliberately skipped (see
   below). The metadata row exists so the History UI can render an
   explicit "no diff captured" state for the sandbox; no blobs exist
@@ -105,7 +150,7 @@ construction.
 ### When snapshots are skipped entirely (no row)
 
 - **Partial Approve**: the call returns a partial-acceptance result
-  but the sandbox stays Active or in NeedsReview. No terminal
+  but the sandbox stays in its existing nonterminal state. No terminal
   transition, no snapshot.
 - **Discard**: mutates the upper dir but does not transition.
 - **Stop**: reversible (Stopped → Active is allowed). Not terminal.
@@ -113,10 +158,132 @@ construction.
   a state where any diff existed. The downstream `Error → Deleted`
   step writes the `not_captured` row.
 
+## Reviewed-patch approval
+
+Diff reads expose `patchSha256` (Connect: `patch_sha256`), the lowercase
+SHA-256 of the exact unified-diff bytes. A captured empty patch has the
+empty-content digest. Uncaptured or unavailable evidence does not receive
+a fabricated digest. This identifies a patch, not the unchanged source tree.
+
+After reviewing those bytes, pass `expectedPatchSha256` to REST approval or
+`expected_patch_sha256` to Connect promotion. Both CLI approval commands accept
+`--expected-patch-sha256 <digest>`. The service checks the same in-memory patch
+that the patcher receives. A mismatch refuses approval before source writes;
+`force` does not bypass it. Conditional approval requires `mode=all`, no file or
+hunk selection, and no silent acceptance-filter exclusion. Malformed approval
+JSON is an error, never a request for unconditional default approval.
+
+The response returns `appliedPatchSha256`. Full approval persists that identity
+in the existing sandbox metadata, transactionally with its terminal transition.
+A matching terminal retry returns the original identity without applying again,
+including after overlay deletion. A different requested digest, or an old
+approval with no persisted identity, cannot receive conditional success. Existing
+unconditional callers retain their behavior; delivery qualification must supply
+the reviewed identity, not rely on that optional default.
+
+This patch-only precondition is not candidate freezing or one-use qualification.
+Use the pre-review snapshot operation below to retain the reviewer's selected
+source input before review and bind approval to it. Write-ahead recovery covers non-committing
+full whole-file approval only; it is not independent acceptance or a one-use
+qualification lease. Do not qualify the delivery campaign from this precondition alone.
+
+## Pre-review source snapshots
+
+Managed process-drain obligation: process admission MUST share the review-owner
+lock with Stop/Start/capture. Admission releases that lock after registration,
+not after the entire command. Stop MUST drain registered processes before it
+unmounts or reports stopped. Synchronous exec MUST register at start and retain
+actual exit evidence. Provider maintenance MUST cover both exec entry points.
+These are currently registered WSS-managed process guarantees; AM native
+sessions, external writers, descendants of exited leaders and restart recovery
+still require their own authoritative drain evidence. The tracker is in-memory;
+an empty inventory after restart is not proof that old workers stopped.
+
+Drain investigation: H1, driver unmount already drains managed processes; H2,
+stop only runs best-effort teardown hooks and misses process termination. A real
+copy-driver HTTP regression confirmed H2: a tracked sleep remained live after a
+successful stop. Stop now shares the native review lock with process admission,
+drains before unmount/status publication, and rechecks the drain on stopped-state
+retries. Synchronous exec registers before waiting and obeys provider maintenance.
+Async exit publication waits for registration; failed launch setup kills its group.
+Cleanup no longer invents a SIGKILL receipt that suppresses a delayed actual exit.
+Real-process regressions reproduced the live-after-stop, stopped-retry and guessed
+exit defects before repair. Focused race tests and all six affected API packages
+pass, including portable build checks. These tests use temporary storage; they
+do not qualify AM native-session or cross-restart drain.
+
+Workspace Sandbox owns pre-review evidence separately from terminal archives and
+approval intent. A review snapshot does not approve, apply or delete a sandbox.
+The snapshot retains the exact patch plus baseline and candidate files for an
+explicit set of scope-relative files/directories. Every non-Git changed path must
+be inside that selection; there is no silent partial selection. Unchanged selected
+files are retained too. Binary bytes, empty files, executable modes and symlink
+targets are evidence; link targets are never followed. `.git` is excluded.
+
+The caller supplies a UUID request identity. Publication is immutable in the
+existing WSS database; bytes use the existing blob store under a derived review
+UUID, separate from the originating sandbox's terminal archive. Retrying the same
+request returns the original snapshot, even after source edits or sandbox teardown.
+Changing its selection is an error. The content digest binds origin, selection,
+baseline, candidate and patch; timestamps and request IDs do not change content
+identity. Manifest corruption and missing requested blobs are errors, not empty
+successful evidence. Terminal archive retention cannot remove review blobs.
+
+Capture requires a stopped sandbox and shares the review-owner lock. Capture
+rechecks the selected baseline and changed paths before publication and rejects
+observed drift. This is a stable retained input, not proof of an atomic filesystem
+snapshot or complete worker drain. AM's native-session/descendant/restart drain
+remains a separate integration obligation. Review consumers must not substitute current files for
+retained files. Promotion with `reviewRequestId` and `expectedReviewSha256`
+(Connect: `review_request_id` and `expected_review_sha256`) validates every
+retained body, the selected canonical baseline, and the exact candidate patch.
+These fields must be supplied together. Approval requires the sandbox still be
+stopped, and is full and non-committing;
+`force` cannot bypass the binding. A pending-intent retry validates the complete
+selected before/after tree, including unchanged context, before recovery. Terminal
+replay retains the original review request and digest. This verifies source binding,
+not independent reviewer authorization or a one-use qualification lease.
+
+The existing CLI exposes `change review-capture <sandbox-id> <request-id> --path
+<scope-relative-path>` (repeat `--path`), `change review-show <sandbox-id>
+<request-id>`, and `change review-file <sandbox-id> <request-id> --side
+before|after|patch [--path <file>]`. Use `--json` for manifests and binary-safe
+base64 file bytes. Both `change approve` and `change promote` accept
+`--review-request-id` plus `--expected-review-sha256`; promotion also requires its
+existing `--confirm`. These owner operations never run a reviewer or qualification.
+
+`change review-workspace <sandbox-id> <request-id> --expected-sha256 <digest>`
+uses the same owner operation as REST `POST /sandboxes/{id}/reviews/{requestId}/workspace`
+and Connect `MaterializeReviewSnapshot`. It publishes `review-tree/` inside the
+snapshot's existing archive namespace, with `before/`, `after/`, `changes.patch`
+and `snapshot.json`. It reads no live project files. Binary/empty files, executable
+bits and symlink targets are preserved. Consumers MUST mount this input read-only;
+file permissions alone are not containment.
+
+Replay verifies the complete derived tree and authoritative blobs. Missing, extra,
+changed or wrong-type content fails rather than substituting fresh source or
+overwriting input in use. Publication uses the existing review lock and one reserved
+`review-tree.pending` directory; a retry discards only that unpublished derived
+directory before reconstruction. Materialization expands at most 128 MiB of
+before/after/patch bodies plus a manifest capped at 16 MiB, because unchanged selected
+files appear on both sides. Capture's 32-snapshot cap also bounds published trees.
+No extra database or retention owner is introduced. Referenced snapshot release
+remains unqualified.
+
+Initial limits are explicit refusals, never truncation: 10,000 selected files,
+16 MiB per body, 64 MiB total baseline/changed-body/patch input, and 32 retained
+review snapshots per owner database. File staging and aggregate patch generation
+also enforce limits rather than accumulating an unbounded input before refusal.
+These bounds protect capture and publication;
+automatic release of referenced snapshots and crash-orphan reconciliation remain
+unqualified. A failed capture cleans only its unreferenced derived review tree.
+
 ## Endpoint resolution
 
-`GET /api/v1/sandboxes/{id}/diff` is the single front door for both
-live and archived diffs. Resolution is by sandbox status:
+`Service.GetDiff` owns live-versus-archive selection. The REST diff endpoint and
+Connect `GetSandboxDiff` both use this operation. Transports must not reimplement
+the status decision or regenerate a terminal sandbox's diff from overlay paths.
+Resolution is by sandbox status:
 
 - `Active` or `Stopped` → live overlay path (today's behavior).
 - `Approved`, `Rejected`, `Deleted` → archive path.
@@ -127,6 +294,12 @@ live response, with an additional `archive_state` field set to
 an empty `Files` array, an empty `UnifiedDiff`, and `archive_state`
 set to `not_captured`. Consumers render this as "no diff captured" —
 not a 404, not an error.
+
+A complete archive whose unified-diff blob or reader is unavailable returns an
+error. A missing blob is not an empty captured diff. A genuinely captured empty
+diff has a retained blob with the digest of empty content and remains valid.
+Per-file bodies are still loaded on demand; the list read does not verify every
+file body. A fresh review must retrieve the evidence it actually uses.
 
 For live responses (`Active`, `Stopped`, `Creating`, `Error`), the
 `archive_state` field is **omitted** (zero value). Consumers
@@ -168,47 +341,34 @@ dedup risks cascading invalidation when retention deletes a sandbox
 that held the only copy of a blob another archive references. v1 is
 intentionally simple: per-sandbox isolation, drop-in retention.
 
-## Atomicity boundary diagram
+## Atomicity boundary
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ snapshotDiff(ctx, tx, sandbox)                                  │
-│                                                                 │
-│ 1. result := computeDiff(ctx, sandbox)        // §2: reuse      │
-│                                                                 │
-│ 2. for each file in result.Files:                               │
-│       hash := blobstore.Put(sandboxID, content)                 │
-│       index[path] = hash                       // disk-durable  │
-│                                                                 │
-│ 3. unifiedHash := blobstore.Put(sandboxID, unifiedDiff)         │
-│                                                                 │
-│ 4. archiveRepo.Insert(tx, archive)             // SQL row       │
-│                                                                 │
-│ Caller continues inside the same tx:                            │
-│ 5. repo.UpdateStatus(tx, sandbox, terminalStatus)               │
-│ 6. tx.Commit()                                                  │
-│                                                                 │
-│ On failure at any step:                                         │
-│   - tx.Rollback() (steps 4–6)                                   │
-│   - blobstore.DeleteSandbox(sandboxID) (best-effort cleanup)    │
-│   - status stays pre-terminal                                   │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Full whole-file approval stage | Failure behavior |
+|---|---|
+| Capture sides, generate patch, persist blobs | No source application or terminal publication |
+| Persist write-ahead approval, then apply retained patch | Report failure; retain the original pending record; retry reconciles exact before/after state |
+| Publish archive/status and consume pending approval in SQL | Roll back all three writes on failure; source may already be applied; retry the original request |
+
+Private staging is removed when the operation returns. File bodies are processed
+one at a time, not retained as an additional all-files memory buffer. This does
+not bound patch size or provide crash cleanup for abandoned staging directories.
 
 ## What this design intentionally rules out
 
 - A row whose blobs are missing (we never commit before writing).
-- A blob whose row is missing for a `complete` archive (cleanup-on-rollback removes orphans).
-- A live diff that disagrees with its archive at the moment of transition (single generator).
+- Full whole-file approval archiving a post-apply regeneration instead of its applied patch.
 - A status flip that lands without a corresponding archive row (single transaction).
 - A sandbox in History with no row (we always write `not_captured` when we cannot produce content).
 
 ## What this design accepts
 
 - Cross-archive content duplication. Acceptable; bounded by retention.
-- A best-effort cleanup that fails to remove orphan blobs after rollback.
-  Next snapshot for the same sandbox ID overwrites them by hash; retention
-  sweeps them eventually. Not a correctness issue.
+- Pending approval records pin evidence until publication; they are not expired
+  by terminal-archive retention. Blobs written before intent persistence can still
+  become unindexed on interruption. Their bounded reconciliation, abandoned staging
+  cleanup and bounds on unresolved intents remain open. Never erase potentially
+  applied evidence merely to meet a disk limit. Content addressing deduplicates
+  equal bytes, not history.
 - Old blobs becoming unreadable if their archive row is evicted by
   retention while a UI request is in flight. The endpoint returns 404 in
   that race; the UI surfaces "archive expired."

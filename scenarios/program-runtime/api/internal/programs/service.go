@@ -70,6 +70,15 @@ type Result struct {
 	LearningJSON string
 }
 
+// UsageReceipt is captured by the runtime owner while the session still exists.
+// It is deliberately absent for reused sessions because their aggregate meters
+// cannot be attributed to one submission safely.
+type UsageReceipt struct {
+	Tokens, ChargeMicros               int64
+	AccountingComplete, ChargeMeasured bool
+	Basis                              string
+}
+
 // compactLearningJSON canonicalises the kernel's learning receipt. A missing,
 // null, or malformed receipt yields "" rather than a partial document.
 func compactLearningJSON(raw json.RawMessage) string {
@@ -93,6 +102,7 @@ type Options struct {
 	RecordMemory    func(string, int64)
 	ExecutionBudget func(string) (ExecutionLimits, error)
 	ChargeExecution func(string, time.Duration, time.Duration) error
+	UsageReceipt    func(context.Context, string) (UsageReceipt, error)
 	// LibraryVersion is captured at submission time so a running session never
 	// silently hot-swaps its program-library view.
 	LibraryVersion func(string) string
@@ -114,6 +124,7 @@ type Service struct {
 	recordMemory    func(string, int64)
 	executionBudget func(string) (ExecutionLimits, error)
 	chargeExecution func(string, time.Duration, time.Duration) error
+	usageReceipt    func(context.Context, string) (UsageReceipt, error)
 	libraryVersion  func(string) string
 	events          interface {
 		Append(*telemetryv1.ProgramEvent)
@@ -135,10 +146,13 @@ type Service struct {
 }
 
 // Identity names the exact declared contract that produced an execution.
-// Ad-hoc submissions intentionally leave both fields empty.
+// Ad-hoc submissions intentionally leave these fields empty.
 type Identity struct {
-	ProgramName   string
-	ProgramDigest string
+	ProgramName       string
+	ProgramDigest     string
+	IdempotencyKey    string
+	AdmissionDeadline string
+	Grants            []string
 }
 
 // Caller identifies the actor and harness that explicitly requested a run.
@@ -159,7 +173,7 @@ func NewService(options Options) *Service {
 	if options.Store != nil {
 		repo = NewRepository(options.Store)
 	}
-	return &Service{onTerminal: options.OnTerminal, clock: clock, runner: options.Runner, validateSession: options.ValidateSession, recordMemory: options.RecordMemory, executionBudget: options.ExecutionBudget, chargeExecution: options.ChargeExecution, libraryVersion: options.LibraryVersion, events: options.Events, preflight: options.Preflight, preflightSession: options.PreflightSession, recordUnresolved: options.RecordUnresolved, shapeSink: options.ShapeSink, contractIndex: options.ContractIndex, repo: repo}
+	return &Service{onTerminal: options.OnTerminal, clock: clock, runner: options.Runner, validateSession: options.ValidateSession, recordMemory: options.RecordMemory, executionBudget: options.ExecutionBudget, chargeExecution: options.ChargeExecution, usageReceipt: options.UsageReceipt, libraryVersion: options.LibraryVersion, events: options.Events, preflight: options.Preflight, preflightSession: options.PreflightSession, recordUnresolved: options.RecordUnresolved, shapeSink: options.ShapeSink, contractIndex: options.ContractIndex, repo: repo}
 }
 
 // RecoverInterrupted must run before registering handlers or accepting submissions.
@@ -176,6 +190,9 @@ func (s *Service) SubmitWithDiagnostics(ctx context.Context, sessionID, source s
 // identity. The identity is copied to lifecycle events before the session can
 // be reclaimed, so portfolio attribution does not depend on session state.
 func (s *Service) SubmitDeclared(ctx context.Context, sessionID, source string, provenance programsv1.Provenance, includeMaterialized bool, explain bool, identity Identity, caller Caller, async ...bool) (*programsv1.Program, []*programsv1.Diagnostic, error) {
+	if replay, err := s.ReplayDeclared(ctx, source, provenance, includeMaterialized, identity, caller); err != nil || replay != nil {
+		return replay, nil, err
+	}
 	if strings.TrimSpace(sessionID) == "" {
 		return nil, nil, errors.New("session_id is required")
 	}
@@ -196,7 +213,10 @@ func (s *Service) SubmitDeclared(ctx context.Context, sessionID, source string, 
 	}
 	if explain || hasDiagnosticErrors(diagnostics) {
 		now := s.clock().UTC().Format(time.RFC3339Nano)
-		p := &programsv1.Program{Id: "prog_" + uuid.NewString(), SessionId: sessionID, Source: source, Provenance: provenance, CreatedAt: now, CompletedAt: now, Status: programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, OutputLimitBytes: 4096, FailureShape: preflightCause(diagnostics), FailureCause: preflightFailureCause(diagnostics), ProgramName: identity.ProgramName, ProgramDigest: identity.ProgramDigest, CallerRunId: caller.RunID, CallerAgentProfile: caller.AgentProfile, CallerSkillId: caller.SkillID, CallerHarness: caller.Harness}
+		p := &programsv1.Program{Id: submissionID(identity), SessionId: sessionID, Source: source, Provenance: provenance, CreatedAt: now, CompletedAt: now, Status: programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, OutputLimitBytes: 4096, FailureShape: preflightCause(diagnostics), FailureCause: preflightFailureCause(diagnostics), ProgramName: identity.ProgramName, ProgramDigest: identity.ProgramDigest, CallerRunId: caller.RunID, CallerAgentProfile: caller.AgentProfile, CallerSkillId: caller.SkillID, CallerHarness: caller.Harness}
+		if includeMaterialized {
+			p.OutputLimitBytes = 65536
+		}
 		if explain && !hasDiagnosticErrors(diagnostics) {
 			p.Status = programsv1.ProgramStatus_PROGRAM_STATUS_ACCEPTED
 			p.CompletedAt = ""
@@ -215,8 +235,9 @@ func (s *Service) SubmitDeclared(ctx context.Context, sessionID, source string, 
 			}
 		}
 		if !explain {
-			if err := s.repo.Save(ctx, p); err != nil {
-				return nil, diagnostics, err
+			admitted, created, err := s.admitProgram(ctx, p, includeMaterialized, identity, caller)
+			if err != nil || !created {
+				return admitted, diagnostics, err
 			}
 			s.emitLifecycle(p, telemetryv1.EventKind_PROGRAM_SUBMITTED)
 			s.emitLifecycle(p, telemetryv1.EventKind_PROGRAM_FAILED)
@@ -248,15 +269,16 @@ func (s *Service) submit(ctx context.Context, sessionID, source string, provenan
 	}
 
 	now := s.clock().UTC().Format(time.RFC3339Nano)
-	p := &programsv1.Program{Id: "prog_" + uuid.NewString(), SessionId: sessionID, Source: source, Provenance: provenance, CreatedAt: now, Status: programsv1.ProgramStatus_PROGRAM_STATUS_ACCEPTED, OutputLimitBytes: 4096, ProgramName: identity.ProgramName, ProgramDigest: identity.ProgramDigest, CallerRunId: caller.RunID, CallerAgentProfile: caller.AgentProfile, CallerSkillId: caller.SkillID, CallerHarness: caller.Harness}
+	p := &programsv1.Program{Id: submissionID(identity), SessionId: sessionID, Source: source, Provenance: provenance, CreatedAt: now, Status: programsv1.ProgramStatus_PROGRAM_STATUS_ACCEPTED, OutputLimitBytes: 4096, ProgramName: identity.ProgramName, ProgramDigest: identity.ProgramDigest, CallerRunId: caller.RunID, CallerAgentProfile: caller.AgentProfile, CallerSkillId: caller.SkillID, CallerHarness: caller.Harness}
 	if s.libraryVersion != nil {
 		p.LibraryVersion = s.libraryVersion(sessionID)
 	}
 	if includeMaterialized {
 		p.OutputLimitBytes = 65536
 	}
-	if err := s.repo.Save(ctx, p); err != nil {
-		return nil, nil, err
+	admitted, created, err := s.admitProgram(ctx, p, includeMaterialized, identity, caller)
+	if err != nil || !created {
+		return admitted, nil, err
 	}
 	s.emitLifecycle(p, telemetryv1.EventKind_PROGRAM_SUBMITTED)
 	s.emitLifecycle(p, telemetryv1.EventKind_PROGRAM_ACCEPTED)
@@ -385,6 +407,16 @@ func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMat
 	p.Stdout = boundedText(p.Stdout, int(p.OutputLimitBytes))
 	p.LearningJson = result.LearningJSON
 	p.WallTimeMillis = time.Since(started).Milliseconds()
+	if s.usageReceipt != nil {
+		usage, usageErr := s.usageReceipt(context.Background(), p.SessionId)
+		if usageErr == nil {
+			p.UsageTokens = usage.Tokens
+			p.UsageChargeMicros = usage.ChargeMicros
+			p.UsageAccountingComplete = usage.AccountingComplete
+			p.UsageChargeMeasured = usage.ChargeMeasured
+			p.UsageBasis = usage.Basis
+		}
+	}
 	if sampler, ok := s.runner.(UsageSampler); ok {
 		if cpu, available := sampler.CPUTime(p.SessionId); available {
 			if cpu > cpuBefore {
@@ -408,7 +440,9 @@ func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMat
 	} else {
 		p.Status = programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED
 		p.CompletedAt = s.clock().UTC().Format(time.RFC3339Nano)
-		_ = s.repo.Save(context.Background(), p)
+		if err := s.repo.Save(context.Background(), p); err != nil {
+			clearUsageReceipt(p)
+		}
 		if s.shapeSink != nil {
 			_, _ = s.shapeSink.Observe(context.Background(), p.GetId(), p.GetSessionId(), p.GetProvenance(), s.clock())
 		}
@@ -436,9 +470,19 @@ func (s *Service) fail(p *programsv1.Program, runErr error) {
 	} else {
 		p.FailureShape, p.FailureCause = failureShape(runErr.Error())
 	}
-	_ = s.repo.Save(context.Background(), p)
+	if err := s.repo.Save(context.Background(), p); err != nil {
+		clearUsageReceipt(p)
+	}
 	s.emitLifecycle(p, telemetryv1.EventKind_PROGRAM_FAILED)
 	s.notifyTerminal(p.Id)
+}
+
+func clearUsageReceipt(p *programsv1.Program) {
+	p.UsageTokens = 0
+	p.UsageChargeMicros = 0
+	p.UsageAccountingComplete = false
+	p.UsageChargeMeasured = false
+	p.UsageBasis = ""
 }
 
 func (s *Service) emitLifecycle(p *programsv1.Program, kind telemetryv1.EventKind) {

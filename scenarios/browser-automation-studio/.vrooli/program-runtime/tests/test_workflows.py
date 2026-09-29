@@ -36,9 +36,10 @@ def declared_baseline(program, step_name):
 
 
 class Handle:
-    def __init__(self,rows):self.rows=rows
-    def head(self,n):return self.rows[:n]
+    def __init__(self,rows,metadata=None):self.rows=rows;self._metadata=metadata or {};self.head_requests=[]
+    def head(self,n):self.head_requests.append(n);return self.rows[:n]
     def count(self):return len(self.rows)
+    def meta(self):return self._metadata
 
 
 def lifecycle_scenario(build, freshness):
@@ -268,6 +269,171 @@ class Programs(unittest.TestCase):
         self.assertIn('lifecycle freshness unavailable', result['signals']['candidate_freshness']['reason'])
         self.assertEqual(17, result['signals']['unavailable'])
         self.assertEqual('partial', result['status'])
+
+    def _bound_rehabilitation(self, *, receipt_id='receipt-1', expected='tg-source-1',
+                              receipt_overrides=None, run_overrides=None, findings_overrides=None,
+                              findings_rows=None, receipt_meta=True, run_meta=True, findings_meta=True,
+                              capture_overrides=None, validation_error=None, newer_green=False):
+        build = 'sha256:' + 'a' * 64
+        calls = []
+        receipt = {
+            'receiptId': receipt_id, 'state': 'RECEIPT_STATE_SUCCEEDED',
+            'admittedIdentity': {'identity': expected}, 'observedIdentity': {'identity': expected},
+            'children': [{'kind': 'CHILD_OPERATION_KIND_TEST_RUN', 'state': 'CHILD_OPERATION_STATE_SUCCEEDED',
+                          'owner': 'test-genie', 'operationId': 'exact-run'}],
+        }
+        receipt.update(receipt_overrides or {})
+        run = {'runId': 'exact-run', 'target': 'browser-automation-studio', 'status': 'passed',
+               'completedAt': '2026-09-25T15:20:00Z',
+               'plannedPhases': ['rehabilitation-evidence'],
+               'phases': [{'name': 'rehabilitation-evidence', 'status': 'passed'}]}
+        run.update(run_overrides or {})
+        findings = findings_rows or [{'name': 'rehabilitation-evidence', 'status': run['status'],
+                     'phasePresentation': {'capabilities': [
+                         {'id': 'evidence-completeness', 'currentLevel': 'L1', 'clean': True},
+                     ]}}]
+        findings_meta_value = {'target': 'browser-automation-studio', 'runId': 'exact-run'}
+        findings_meta_value.update(findings_overrides or {})
+        findings_handle = Handle(findings, findings_meta_value if findings_meta else {})
+        def get_receipt(**kw):
+            calls.append(('receipt', kw))
+            if validation_error:
+                raise RuntimeError(validation_error)
+            return Handle([], {'receipt': receipt} if receipt_meta else {})
+        tg = NS(
+            validation=NS(get=get_receipt),
+            runs=NS(
+                show=lambda **kw: calls.append(('show', kw)) or Handle([], {'run': run} if run_meta else {}),
+                findings=lambda **kw: calls.append(('findings', kw)) or findings_handle,
+                list=lambda **kw: calls.append(('list', kw)) or Handle([{'runId': 'newer-green', 'status': 'passed'}]),
+            ),
+        )
+        capture = {'outcome': 'WORKLOAD_OUTCOME_MEASURED', 'sampleCount': 100, 'declaredWarmups': 1,
+                   'budgetMs': 2000, 'withinBudget': True, 'operationId': 'capture-op',
+                   'receiptSha256': 'b' * 64, 'buildIdentity': build,
+                   'capturedAt': '2026-09-25T15:19:00Z'}
+        capture.update(capture_overrides or {})
+        result = self.run_program(
+            'setpoint-read', {'profile': 'rehabilitation', 'validation_receipt_id': receipt_id,
+                              'expected_source_identity': expected},
+            performance_health=NS(sweep=NS(workload_get=lambda **kw: Handle([capture]))),
+            test_genie=tg, vrooli=lifecycle_scenario(build, {'success': True, 'checks': [{'target': 'api/api'}]}),
+        )
+        return result, calls, findings_handle
+
+    def test_bound_receipt_reads_exact_child_and_does_not_discover_newer_green_run(self):
+        result, calls, findings = self._bound_rehabilitation()
+        self.assertTrue(result['signals']['qualification_bound'])
+        self.assertEqual({'validation_receipt_id': 'receipt-1', 'test_genie_source_identity': 'tg-source-1', 'receipt_state': 'RECEIPT_STATE_SUCCEEDED'},
+                         result['signals']['qualification_candidate'])
+        self.assertEqual(['receipt', 'show', 'findings'], [call[0] for call in calls])
+        self.assertEqual('receipt-1', calls[0][1]['receipt_id'])
+        self.assertEqual({'scenario': 'browser-automation-studio', 'run_id': 'exact-run'}, calls[1][1])
+        self.assertEqual({'scenario': 'browser-automation-studio', 'run_id': 'exact-run'}, calls[2][1])
+        self.assertEqual([10], findings.head_requests)
+        self.assertTrue(next(r for r in result['signals']['rows'] if r['row'] == 'evidence-completeness')['in_band'])
+        self.assertEqual('2026-09-25T15:19:00Z', result['signals']['owner_evidence']['capture_captured_at'])
+        self.assertEqual('2026-09-25T15:20:00Z', result['signals']['owner_evidence']['completed_at'])
+
+    def test_bound_run_requires_applicable_current_build_capture_and_newer_completion(self):
+        cases = [
+            ({'capture_overrides': {'capturedAt': ''}}, [], 'capture'),
+            ({'capture_overrides': {'buildIdentity': 'sha256:other'}}, [], 'capture'),
+            ({'run_overrides': {'completedAt': '2026-09-25T15:18:00Z'}}, ['receipt', 'show'], 'run'),
+        ]
+        for kwargs, expected_calls, mismatch in cases:
+            with self.subTest(mismatch=mismatch):
+                result, calls, findings = self._bound_rehabilitation(**kwargs)
+                self.assertEqual(expected_calls, [call[0] for call in calls])
+                self.assertEqual([], findings.head_requests)
+                self.assertEqual(17, result['signals']['unavailable'])
+                self.assertFalse(result['signals']['product_qualified'])
+                self.assertIn(mismatch, result['signals']['bound_owner_error'])
+                self.assertNotIn('owner_evidence', result['signals'])
+
+    def test_bound_owner_error_is_stored_once_and_output_remains_within_default_cap(self):
+        result, _, _ = self._bound_rehabilitation(validation_error='owner failure ' + 'x' * 10000)
+        encoded = json.dumps(result, separators=(',', ':')).encode()
+        self.assertEqual(17, len(result['signals']['rows']))
+        self.assertTrue(all(row['unavailable'] for row in result['signals']['rows']))
+        self.assertTrue(all(row['reason'] == 'bound owner evidence unavailable; see signals.bound_owner_error'
+                            for row in result['signals']['rows']))
+        self.assertEqual(97, len(result['signals']['bound_owner_error']))
+        self.assertLess(len(encoded), 4096)
+
+    def test_bound_receipt_rejects_malformed_or_half_input_pairs(self):
+        for inputs in [
+            {'profile': 'rehabilitation', 'validation_receipt_id': 'receipt-only'},
+            {'profile': 'rehabilitation', 'expected_source_identity': 'identity-only'},
+            {'profile': 'rehabilitation', 'validation_receipt_id': '', 'expected_source_identity': 'id'},
+            {'profile': 'rehabilitation', 'validation_receipt_id': 'r', 'expected_source_identity': {'identity': 'id'}},
+        ]:
+            result = self.run_program('setpoint-read', inputs)
+            self.assertEqual('failed', result['status'])
+            self.assertEqual('invalid_input', result['errors'][0]['class'])
+
+    def test_bound_receipt_rejects_receipt_candidate_child_run_phase_and_findings_mismatches(self):
+        cases = [
+            {'receipt_overrides': {'receiptId': 'other-receipt'}},
+            {'receipt_overrides': {'admittedIdentity': {'identity': 'other-source'}}},
+            {'receipt_overrides': {'observedIdentity': {'identity': 'other-source'}}},
+            {'receipt_overrides': {'state': 'RECEIPT_STATE_RUNNING'}},
+            {'receipt_overrides': {'children': [{'kind': 'CHILD_OPERATION_KIND_TEST_RUN', 'state': 'CHILD_OPERATION_STATE_SUCCEEDED', 'owner': 'other-owner', 'operationId': 'exact-run'}]}},
+            {'receipt_overrides': {'children': [{'kind': 'CHILD_OPERATION_KIND_TEST_RUN', 'state': 'CHILD_OPERATION_STATE_RUNNING', 'owner': 'test-genie', 'operationId': 'exact-run'}]}},
+            {'run_overrides': {'runId': 'other-run'}},
+            {'run_overrides': {'plannedPhases': ['rehabilitation-evidence', 'api']}},
+            {'findings_overrides': {'runId': 'other-run'}},
+        ]
+        for case in cases:
+            with self.subTest(case=case):
+                result, calls, _ = self._bound_rehabilitation(**case)
+                self.assertFalse(result['signals']['product_qualified'])
+                self.assertEqual(17, len(result['signals']['rows']))
+                self.assertTrue(all(row['unavailable'] for row in result['signals']['rows']))
+
+    def test_bound_rejections_stop_dependent_reads_and_terminal_states_must_match(self):
+        cases = [
+            ({'receipt_overrides': {'admittedIdentity': {'identity': 'wrong'}}}, ['receipt']),
+            ({'receipt_overrides': {'children': []}}, ['receipt']),
+            ({'receipt_overrides': {'children': [{'kind': 'CHILD_OPERATION_KIND_TEST_RUN', 'state': 'CHILD_OPERATION_STATE_SUCCEEDED', 'owner': 'test-genie', 'operationId': 'exact-run'}, {'kind': 'CHILD_OPERATION_KIND_TEST_RUN', 'state': 'CHILD_OPERATION_STATE_SUCCEEDED', 'owner': 'test-genie', 'operationId': 'other'}]}}, ['receipt']),
+            ({'receipt_overrides': {'children': [{'kind': 'TEST_RUN', 'state': 'SUCCEEDED', 'owner': 'test-genie', 'operationId': 'exact-run'}]}}, ['receipt']),
+            ({'receipt_overrides': {'children': [{'kind': 'CHILD_OPERATION_KIND_TEST_RUN', 'state': 'CHILD_OPERATION_STATE_FAILED', 'owner': 'test-genie', 'operationId': 'exact-run'}]}}, ['receipt']),
+            ({'run_overrides': {'phases': [{'name': 'rehabilitation-evidence', 'status': 'failed'}]}}, ['receipt', 'show']),
+            ({'run_overrides': {'status': 'failed', 'phases': [{'name': 'rehabilitation-evidence', 'status': 'passed'}]}}, ['receipt', 'show']),
+            ({'receipt_overrides': {'children': [{'kind': 'CHILD_OPERATION_KIND_TEST_RUN', 'state': 'CHILD_OPERATION_STATE_FAILED', 'owner': 'test-genie', 'operationId': 'exact-run'}]}}, ['receipt']),
+            ({'findings_overrides': {'runId': 'other-run'}}, ['receipt', 'show', 'findings']),
+            ({'findings_rows': [{'name': 'api', 'status': 'passed'}]}, ['receipt', 'show', 'findings']),
+            ({'findings_rows': [{'name': 'rehabilitation-evidence', 'status': 'failed'}]}, ['receipt', 'show', 'findings']),
+        ]
+        for kwargs, expected_calls in cases:
+            with self.subTest(kwargs=kwargs):
+                result, calls, findings = self._bound_rehabilitation(**kwargs)
+                self.assertFalse(result['signals']['product_qualified'])
+                self.assertEqual(17, len(result['signals']['rows']))
+                self.assertEqual(17, result['signals']['unavailable'])
+                self.assertEqual(expected_calls, [call[0] for call in calls])
+                if 'findings' not in expected_calls:
+                    self.assertEqual([], findings.head_requests)
+
+    def test_bound_receipt_unavailable_receipt_run_bytes_or_findings_fail_closed(self):
+        for kwargs in [{'receipt_meta': False}, {'run_meta': False}, {'findings_meta': False}]:
+            with self.subTest(kwargs=kwargs):
+                result, _, _ = self._bound_rehabilitation(**kwargs)
+                self.assertFalse(result['signals']['product_qualified'])
+                self.assertEqual(17, result['signals']['unavailable'])
+
+    def test_bound_failed_receipt_and_failed_selected_run_are_reported_without_green_substitution(self):
+        result, calls, _ = self._bound_rehabilitation(
+            receipt_overrides={'state': 'RECEIPT_STATE_FAILED', 'children': [{'kind': 'CHILD_OPERATION_KIND_TEST_RUN', 'state': 'CHILD_OPERATION_STATE_FAILED', 'owner': 'test-genie', 'operationId': 'exact-run'}]},
+            run_overrides={'status': 'failed', 'phases': [{'name': 'rehabilitation-evidence', 'status': 'failed'}]},
+        )
+        self.assertEqual('partial', result['status'])
+        self.assertFalse(result['signals']['product_qualified'])
+        self.assertEqual('RECEIPT_STATE_FAILED', result['signals']['qualification_candidate']['receipt_state'])
+        evidence = result['signals'].get('owner_evidence', {})
+        self.assertEqual('exact-run', evidence.get('run_id'))
+        self.assertEqual('failed', evidence.get('phase_status'))
+        self.assertNotIn('list', [call[0] for call in calls])
 
     def author(self,status):
         calls=[]

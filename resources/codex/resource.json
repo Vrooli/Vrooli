@@ -195,6 +195,14 @@
     "macos": "build-verified",
     "windows": "build-verified"
   },
+  "hostSafeguards": [
+    {
+      "name": "bubblewrap_userns",
+      "required": true,
+      "when": ["setup", "develop"],
+      "reason": "Native Linux sandbox launches need working bubblewrap user and network namespaces; do not disable AppArmor globally."
+    }
+  ],
   "hostTools": [
     {
       "name": "yq",

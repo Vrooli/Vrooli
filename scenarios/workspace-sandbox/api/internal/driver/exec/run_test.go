@@ -2,6 +2,9 @@ package exec
 
 import (
 	"context"
+	"crypto/sha256"
+	"flag"
+	"fmt"
 	"os"
 	osexec "os/exec"
 	"path/filepath"
@@ -15,6 +18,141 @@ import (
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
 )
+
+var liveBwrapAliases = flag.Bool("live-bwrap-aliases", false, "Verify workspace aliases with the installed Linux bubblewrap")
+
+func TestLivePolicyFiles(t *testing.T) {
+	if !*liveBwrapAliases {
+		t.Skip("pass -live-bwrap-aliases for the no-model host check")
+	}
+	root := t.TempDir()
+	merged := filepath.Join(root, "merged")
+	if err := os.Mkdir(merged, 0700); err != nil {
+		t.Fatal(err)
+	}
+	source := filepath.Join(root, "owner-policy")
+	if err := os.WriteFile(source, []byte("owner-policy"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	sb := &types.Sandbox{ID: uuid.New(), MergedDir: merged, LowerDir: merged}
+	cfg := BwrapConfig{ReadOnlyBinds: map[string]string{}, PolicyFiles: []types.PolicyFile{{Source: source, Target: "/etc/fixture/requirements.toml", SHA256: fmt.Sprintf("%x", sha256.Sum256([]byte("owner-policy")))}}}
+	for _, dir := range []string{"/bin", "/usr", "/lib", "/lib64"} {
+		if _, err := os.Stat(dir); err == nil {
+			cfg.ReadOnlyBinds[dir] = dir
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	result, err := Exec(ctx, process.NewOSExecStarter(), sb, driver.ContainmentRequired, cfg, "/bin/sh", "-c", `set -eu
+for file in "$@"; do
+test "$(cat "$file")" = owner-policy
+if (printf bypass > "$file") 2>/dev/null; then exit 11; fi
+if rm "$file" 2>/dev/null; then exit 12; fi
+done`, "probe", source, cfg.PolicyFiles[0].Target)
+	if err != nil || result.ExitCode != 0 {
+		t.Fatalf("policy aliases must be readable and immutable: %+v, %v", result, err)
+	}
+}
+
+func TestLiveWorkspaceWritePolicy(t *testing.T) {
+	if !*liveBwrapAliases {
+		t.Skip("pass -live-bwrap-aliases for the no-model host check")
+	}
+	root := t.TempDir()
+	merged, home := filepath.Join(root, "merged"), filepath.Join(root, "home")
+	for _, dir := range []string{merged, home, filepath.Join(merged, "src"), filepath.Join(merged, "controls"), filepath.Join(merged, ".git")} {
+		if err := os.Mkdir(dir, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	control := filepath.Join(merged, "controls", "boundary.json")
+	if err := os.WriteFile(control, []byte("owner"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../controls/boundary.json", filepath.Join(merged, "src", "escape")); err != nil {
+		t.Fatal(err)
+	}
+	project := filepath.Join(root, "project")
+	sb := &types.Sandbox{ID: uuid.New(), MergedDir: merged, LowerDir: merged, HomeMergedDir: home, ProjectRoot: project,
+		Behavior: types.SandboxBehavior{WritePolicy: &types.WorkspaceWritePolicy{Paths: []string{"src"}}}}
+	cfg := BwrapConfig{HostHome: "/home/fixture", MirrorProjectRoot: true, ReadOnlyBinds: map[string]string{}}
+	for _, dir := range []string{"/bin", "/usr", "/lib", "/lib64"} {
+		if _, err := os.Stat(dir); err == nil {
+			cfg.ReadOnlyBinds[dir] = dir
+		}
+	}
+	for _, alias := range []string{"/workspace", project, merged} {
+		t.Run(alias, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			// Exercise shell redirection, new files, deletion, rename, symlink
+			// escape and git metadata, not just the argument builder.
+			script := `set -eu
+cd "$1"
+printf allowed > src/allowed
+test "$(cat controls/boundary.json)" = owner
+if (printf forbidden > controls/boundary.json) 2>/dev/null; then exit 11; fi
+if (printf forbidden > controls/new) 2>/dev/null; then exit 12; fi
+if rm controls/boundary.json 2>/dev/null; then exit 13; fi
+if mv controls controls-old 2>/dev/null; then exit 14; fi
+if (printf forbidden > src/escape) 2>/dev/null; then exit 15; fi
+if (printf forbidden > .git/index) 2>/dev/null; then exit 16; fi
+test "$(cat controls/boundary.json)" = owner
+`
+			result, err := Exec(ctx, process.NewOSExecStarter(), sb, driver.ContainmentRequired, cfg, "/bin/sh", "-c", script, "check", alias)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.ExitCode != 0 {
+				t.Fatalf("write policy failed: %+v", result)
+			}
+		})
+	}
+	// An explicit empty grant stays read-only even when ordinary project
+	// mirroring is disabled. It must not degrade into an omitted policy.
+	sb.Behavior.WritePolicy.Paths = nil
+	cfg.MirrorProjectRoot = false
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	result, err := Exec(ctx, process.NewOSExecStarter(), sb, driver.ContainmentRequired, cfg,
+		"/bin/sh", "-c", `if (printf forbidden > "$1/src/allowed") 2>/dev/null; then exit 1; fi; test "$(cat "$1/controls/boundary.json")" = owner`, "check", project)
+	if err != nil || result.ExitCode != 0 {
+		t.Fatalf("empty write policy: result=%+v error=%v", result, err)
+	}
+}
+
+func TestLiveWorkspaceAliasesUnderTemporaryDirectory(t *testing.T) {
+	if !*liveBwrapAliases {
+		t.Skip("pass -live-bwrap-aliases for the no-model host check")
+	}
+	root := t.TempDir()
+	merged, home := filepath.Join(root, "merged"), filepath.Join(root, "home")
+	for _, dir := range []string{merged, home} {
+		if err := os.Mkdir(dir, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(merged, "seed"), []byte("visible overlay"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	project := filepath.Join(root, "project")
+	sandbox := &types.Sandbox{ID: uuid.New(), MergedDir: merged, LowerDir: merged, HomeMergedDir: home, ProjectRoot: project}
+	cfg := BwrapConfig{HostHome: "/home/fixture", MirrorProjectRoot: true, WorkingDir: project, ReadOnlyBinds: map[string]string{}}
+	for _, dir := range []string{"/bin", "/usr", "/lib", "/lib64"} {
+		if _, err := os.Stat(dir); err == nil {
+			cfg.ReadOnlyBinds[dir] = dir
+		}
+	}
+	for _, alias := range []string{project, merged} {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		command, args := BuildExecCommand(sandbox, cfg, "/usr/bin/cmp", "/workspace/seed", filepath.Join(alias, "seed"))
+		output, err := osexec.CommandContext(ctx, command, args...).CombinedOutput()
+		cancel()
+		if err != nil {
+			t.Fatalf("alias %s is shadowed: %v: %s", alias, err, output)
+		}
+	}
+}
 
 func TestIsBwrapAvailable(t *testing.T) {
 	ctx := context.Background()

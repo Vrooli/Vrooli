@@ -112,6 +112,50 @@ func (x *GetScenarioStatusRequest) GetName() string {
 	return ""
 }
 
+type GetScenarioFreshnessRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetScenarioFreshnessRequest) Reset() {
+	*x = GetScenarioFreshnessRequest{}
+	mi := &file_cli_v1_scenario_control_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetScenarioFreshnessRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetScenarioFreshnessRequest) ProtoMessage() {}
+
+func (x *GetScenarioFreshnessRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cli_v1_scenario_control_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetScenarioFreshnessRequest.ProtoReflect.Descriptor instead.
+func (*GetScenarioFreshnessRequest) Descriptor() ([]byte, []int) {
+	return file_cli_v1_scenario_control_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *GetScenarioFreshnessRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
 type GetScenarioLogsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -126,7 +170,7 @@ type GetScenarioLogsRequest struct {
 
 func (x *GetScenarioLogsRequest) Reset() {
 	*x = GetScenarioLogsRequest{}
-	mi := &file_cli_v1_scenario_control_proto_msgTypes[2]
+	mi := &file_cli_v1_scenario_control_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -138,7 +182,7 @@ func (x *GetScenarioLogsRequest) String() string {
 func (*GetScenarioLogsRequest) ProtoMessage() {}
 
 func (x *GetScenarioLogsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_scenario_control_proto_msgTypes[2]
+	mi := &file_cli_v1_scenario_control_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -151,7 +195,7 @@ func (x *GetScenarioLogsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetScenarioLogsRequest.ProtoReflect.Descriptor instead.
 func (*GetScenarioLogsRequest) Descriptor() ([]byte, []int) {
-	return file_cli_v1_scenario_control_proto_rawDescGZIP(), []int{2}
+	return file_cli_v1_scenario_control_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetScenarioLogsRequest) GetName() string {
@@ -217,7 +261,7 @@ type StartScenarioRequest struct {
 
 func (x *StartScenarioRequest) Reset() {
 	*x = StartScenarioRequest{}
-	mi := &file_cli_v1_scenario_control_proto_msgTypes[3]
+	mi := &file_cli_v1_scenario_control_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -229,7 +273,7 @@ func (x *StartScenarioRequest) String() string {
 func (*StartScenarioRequest) ProtoMessage() {}
 
 func (x *StartScenarioRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_scenario_control_proto_msgTypes[3]
+	mi := &file_cli_v1_scenario_control_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -242,7 +286,7 @@ func (x *StartScenarioRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartScenarioRequest.ProtoReflect.Descriptor instead.
 func (*StartScenarioRequest) Descriptor() ([]byte, []int) {
-	return file_cli_v1_scenario_control_proto_rawDescGZIP(), []int{3}
+	return file_cli_v1_scenario_control_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *StartScenarioRequest) GetName() string {
@@ -317,7 +361,7 @@ type StopScenarioRequest struct {
 
 func (x *StopScenarioRequest) Reset() {
 	*x = StopScenarioRequest{}
-	mi := &file_cli_v1_scenario_control_proto_msgTypes[4]
+	mi := &file_cli_v1_scenario_control_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -329,7 +373,7 @@ func (x *StopScenarioRequest) String() string {
 func (*StopScenarioRequest) ProtoMessage() {}
 
 func (x *StopScenarioRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_scenario_control_proto_msgTypes[4]
+	mi := &file_cli_v1_scenario_control_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -342,7 +386,7 @@ func (x *StopScenarioRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopScenarioRequest.ProtoReflect.Descriptor instead.
 func (*StopScenarioRequest) Descriptor() ([]byte, []int) {
-	return file_cli_v1_scenario_control_proto_rawDescGZIP(), []int{4}
+	return file_cli_v1_scenario_control_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *StopScenarioRequest) GetName() string {
@@ -373,7 +417,7 @@ type RestartScenarioRequest struct {
 
 func (x *RestartScenarioRequest) Reset() {
 	*x = RestartScenarioRequest{}
-	mi := &file_cli_v1_scenario_control_proto_msgTypes[5]
+	mi := &file_cli_v1_scenario_control_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -385,7 +429,7 @@ func (x *RestartScenarioRequest) String() string {
 func (*RestartScenarioRequest) ProtoMessage() {}
 
 func (x *RestartScenarioRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_scenario_control_proto_msgTypes[5]
+	mi := &file_cli_v1_scenario_control_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -398,7 +442,7 @@ func (x *RestartScenarioRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RestartScenarioRequest.ProtoReflect.Descriptor instead.
 func (*RestartScenarioRequest) Descriptor() ([]byte, []int) {
-	return file_cli_v1_scenario_control_proto_rawDescGZIP(), []int{5}
+	return file_cli_v1_scenario_control_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *RestartScenarioRequest) GetName() string {
@@ -488,7 +532,7 @@ type SetupScenarioRequest struct {
 
 func (x *SetupScenarioRequest) Reset() {
 	*x = SetupScenarioRequest{}
-	mi := &file_cli_v1_scenario_control_proto_msgTypes[6]
+	mi := &file_cli_v1_scenario_control_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -500,7 +544,7 @@ func (x *SetupScenarioRequest) String() string {
 func (*SetupScenarioRequest) ProtoMessage() {}
 
 func (x *SetupScenarioRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_scenario_control_proto_msgTypes[6]
+	mi := &file_cli_v1_scenario_control_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -513,7 +557,7 @@ func (x *SetupScenarioRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetupScenarioRequest.ProtoReflect.Descriptor instead.
 func (*SetupScenarioRequest) Descriptor() ([]byte, []int) {
-	return file_cli_v1_scenario_control_proto_rawDescGZIP(), []int{6}
+	return file_cli_v1_scenario_control_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *SetupScenarioRequest) GetName() string {
@@ -534,10 +578,12 @@ var File_cli_v1_scenario_control_proto protoreflect.FileDescriptor
 
 const file_cli_v1_scenario_control_proto_rawDesc = "" +
 	"\n" +
-	"\x1dcli/v1/scenario_control.proto\x12\rvrooli.cli.v1\x1a\x1acli/v1/scenario_list.proto\x1a\x1ccli/v1/scenario_status.proto\";\n" +
+	"\x1dcli/v1/scenario_control.proto\x12\rvrooli.cli.v1\x1a\x1acli/v1/scenario_list.proto\x1a\x1ccli/v1/scenario_status.proto\x1a\x1fcli/v1/scenario_freshness.proto\";\n" +
 	"\x14ListScenariosRequest\x12#\n" +
 	"\rinclude_ports\x18\x01 \x01(\bR\fincludePorts\".\n" +
 	"\x18GetScenarioStatusRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"1\n" +
+	"\x1bGetScenarioFreshnessRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"\xb3\x01\n" +
 	"\x16GetScenarioLogsRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n" +
@@ -578,10 +624,11 @@ const file_cli_v1_scenario_control_proto_rawDesc = "" +
 	"\x14variant_dependencies\x18\v \x01(\tR\x13variantDependencies\">\n" +
 	"\x14SetupScenarioRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path2\xb8\x05\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path2\xa6\x06\n" +
 	"\x1bScenarioControlPlaneService\x12Y\n" +
 	"\rListScenarios\x12#.vrooli.cli.v1.ListScenariosRequest\x1a#.vrooli.cli.v1.ScenarioListResponse\x12a\n" +
-	"\x11GetScenarioStatus\x12'.vrooli.cli.v1.GetScenarioStatusRequest\x1a#.vrooli.cli.v1.ScenarioStatusSingle\x12]\n" +
+	"\x11GetScenarioStatus\x12'.vrooli.cli.v1.GetScenarioStatusRequest\x1a#.vrooli.cli.v1.ScenarioStatusSingle\x12l\n" +
+	"\x14GetScenarioFreshness\x12*.vrooli.cli.v1.GetScenarioFreshnessRequest\x1a(.vrooli.cli.v1.ScenarioFreshnessResponse\x12]\n" +
 	"\x0fGetScenarioLogs\x12%.vrooli.cli.v1.GetScenarioLogsRequest\x1a#.vrooli.cli.v1.ScenarioLogsResponse\x12^\n" +
 	"\rStartScenario\x12#.vrooli.cli.v1.StartScenarioRequest\x1a(.vrooli.cli.v1.ScenarioLifecycleResponse\x12\\\n" +
 	"\fStopScenario\x12\".vrooli.cli.v1.StopScenarioRequest\x1a(.vrooli.cli.v1.ScenarioLifecycleResponse\x12b\n" +
@@ -600,38 +647,42 @@ func file_cli_v1_scenario_control_proto_rawDescGZIP() []byte {
 	return file_cli_v1_scenario_control_proto_rawDescData
 }
 
-var file_cli_v1_scenario_control_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_cli_v1_scenario_control_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_cli_v1_scenario_control_proto_goTypes = []any{
-	(*ListScenariosRequest)(nil),      // 0: vrooli.cli.v1.ListScenariosRequest
-	(*GetScenarioStatusRequest)(nil),  // 1: vrooli.cli.v1.GetScenarioStatusRequest
-	(*GetScenarioLogsRequest)(nil),    // 2: vrooli.cli.v1.GetScenarioLogsRequest
-	(*StartScenarioRequest)(nil),      // 3: vrooli.cli.v1.StartScenarioRequest
-	(*StopScenarioRequest)(nil),       // 4: vrooli.cli.v1.StopScenarioRequest
-	(*RestartScenarioRequest)(nil),    // 5: vrooli.cli.v1.RestartScenarioRequest
-	(*SetupScenarioRequest)(nil),      // 6: vrooli.cli.v1.SetupScenarioRequest
-	(*ScenarioListResponse)(nil),      // 7: vrooli.cli.v1.ScenarioListResponse
-	(*ScenarioStatusSingle)(nil),      // 8: vrooli.cli.v1.ScenarioStatusSingle
-	(*ScenarioLogsResponse)(nil),      // 9: vrooli.cli.v1.ScenarioLogsResponse
-	(*ScenarioLifecycleResponse)(nil), // 10: vrooli.cli.v1.ScenarioLifecycleResponse
-	(*ScenarioSetupResponse)(nil),     // 11: vrooli.cli.v1.ScenarioSetupResponse
+	(*ListScenariosRequest)(nil),        // 0: vrooli.cli.v1.ListScenariosRequest
+	(*GetScenarioStatusRequest)(nil),    // 1: vrooli.cli.v1.GetScenarioStatusRequest
+	(*GetScenarioFreshnessRequest)(nil), // 2: vrooli.cli.v1.GetScenarioFreshnessRequest
+	(*GetScenarioLogsRequest)(nil),      // 3: vrooli.cli.v1.GetScenarioLogsRequest
+	(*StartScenarioRequest)(nil),        // 4: vrooli.cli.v1.StartScenarioRequest
+	(*StopScenarioRequest)(nil),         // 5: vrooli.cli.v1.StopScenarioRequest
+	(*RestartScenarioRequest)(nil),      // 6: vrooli.cli.v1.RestartScenarioRequest
+	(*SetupScenarioRequest)(nil),        // 7: vrooli.cli.v1.SetupScenarioRequest
+	(*ScenarioListResponse)(nil),        // 8: vrooli.cli.v1.ScenarioListResponse
+	(*ScenarioStatusSingle)(nil),        // 9: vrooli.cli.v1.ScenarioStatusSingle
+	(*ScenarioFreshnessResponse)(nil),   // 10: vrooli.cli.v1.ScenarioFreshnessResponse
+	(*ScenarioLogsResponse)(nil),        // 11: vrooli.cli.v1.ScenarioLogsResponse
+	(*ScenarioLifecycleResponse)(nil),   // 12: vrooli.cli.v1.ScenarioLifecycleResponse
+	(*ScenarioSetupResponse)(nil),       // 13: vrooli.cli.v1.ScenarioSetupResponse
 }
 var file_cli_v1_scenario_control_proto_depIdxs = []int32{
 	0,  // 0: vrooli.cli.v1.ScenarioControlPlaneService.ListScenarios:input_type -> vrooli.cli.v1.ListScenariosRequest
 	1,  // 1: vrooli.cli.v1.ScenarioControlPlaneService.GetScenarioStatus:input_type -> vrooli.cli.v1.GetScenarioStatusRequest
-	2,  // 2: vrooli.cli.v1.ScenarioControlPlaneService.GetScenarioLogs:input_type -> vrooli.cli.v1.GetScenarioLogsRequest
-	3,  // 3: vrooli.cli.v1.ScenarioControlPlaneService.StartScenario:input_type -> vrooli.cli.v1.StartScenarioRequest
-	4,  // 4: vrooli.cli.v1.ScenarioControlPlaneService.StopScenario:input_type -> vrooli.cli.v1.StopScenarioRequest
-	5,  // 5: vrooli.cli.v1.ScenarioControlPlaneService.RestartScenario:input_type -> vrooli.cli.v1.RestartScenarioRequest
-	6,  // 6: vrooli.cli.v1.ScenarioControlPlaneService.SetupScenario:input_type -> vrooli.cli.v1.SetupScenarioRequest
-	7,  // 7: vrooli.cli.v1.ScenarioControlPlaneService.ListScenarios:output_type -> vrooli.cli.v1.ScenarioListResponse
-	8,  // 8: vrooli.cli.v1.ScenarioControlPlaneService.GetScenarioStatus:output_type -> vrooli.cli.v1.ScenarioStatusSingle
-	9,  // 9: vrooli.cli.v1.ScenarioControlPlaneService.GetScenarioLogs:output_type -> vrooli.cli.v1.ScenarioLogsResponse
-	10, // 10: vrooli.cli.v1.ScenarioControlPlaneService.StartScenario:output_type -> vrooli.cli.v1.ScenarioLifecycleResponse
-	10, // 11: vrooli.cli.v1.ScenarioControlPlaneService.StopScenario:output_type -> vrooli.cli.v1.ScenarioLifecycleResponse
-	10, // 12: vrooli.cli.v1.ScenarioControlPlaneService.RestartScenario:output_type -> vrooli.cli.v1.ScenarioLifecycleResponse
-	11, // 13: vrooli.cli.v1.ScenarioControlPlaneService.SetupScenario:output_type -> vrooli.cli.v1.ScenarioSetupResponse
-	7,  // [7:14] is the sub-list for method output_type
-	0,  // [0:7] is the sub-list for method input_type
+	2,  // 2: vrooli.cli.v1.ScenarioControlPlaneService.GetScenarioFreshness:input_type -> vrooli.cli.v1.GetScenarioFreshnessRequest
+	3,  // 3: vrooli.cli.v1.ScenarioControlPlaneService.GetScenarioLogs:input_type -> vrooli.cli.v1.GetScenarioLogsRequest
+	4,  // 4: vrooli.cli.v1.ScenarioControlPlaneService.StartScenario:input_type -> vrooli.cli.v1.StartScenarioRequest
+	5,  // 5: vrooli.cli.v1.ScenarioControlPlaneService.StopScenario:input_type -> vrooli.cli.v1.StopScenarioRequest
+	6,  // 6: vrooli.cli.v1.ScenarioControlPlaneService.RestartScenario:input_type -> vrooli.cli.v1.RestartScenarioRequest
+	7,  // 7: vrooli.cli.v1.ScenarioControlPlaneService.SetupScenario:input_type -> vrooli.cli.v1.SetupScenarioRequest
+	8,  // 8: vrooli.cli.v1.ScenarioControlPlaneService.ListScenarios:output_type -> vrooli.cli.v1.ScenarioListResponse
+	9,  // 9: vrooli.cli.v1.ScenarioControlPlaneService.GetScenarioStatus:output_type -> vrooli.cli.v1.ScenarioStatusSingle
+	10, // 10: vrooli.cli.v1.ScenarioControlPlaneService.GetScenarioFreshness:output_type -> vrooli.cli.v1.ScenarioFreshnessResponse
+	11, // 11: vrooli.cli.v1.ScenarioControlPlaneService.GetScenarioLogs:output_type -> vrooli.cli.v1.ScenarioLogsResponse
+	12, // 12: vrooli.cli.v1.ScenarioControlPlaneService.StartScenario:output_type -> vrooli.cli.v1.ScenarioLifecycleResponse
+	12, // 13: vrooli.cli.v1.ScenarioControlPlaneService.StopScenario:output_type -> vrooli.cli.v1.ScenarioLifecycleResponse
+	12, // 14: vrooli.cli.v1.ScenarioControlPlaneService.RestartScenario:output_type -> vrooli.cli.v1.ScenarioLifecycleResponse
+	13, // 15: vrooli.cli.v1.ScenarioControlPlaneService.SetupScenario:output_type -> vrooli.cli.v1.ScenarioSetupResponse
+	8,  // [8:16] is the sub-list for method output_type
+	0,  // [0:8] is the sub-list for method input_type
 	0,  // [0:0] is the sub-list for extension type_name
 	0,  // [0:0] is the sub-list for extension extendee
 	0,  // [0:0] is the sub-list for field type_name
@@ -644,13 +695,14 @@ func file_cli_v1_scenario_control_proto_init() {
 	}
 	file_cli_v1_scenario_list_proto_init()
 	file_cli_v1_scenario_status_proto_init()
+	file_cli_v1_scenario_freshness_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cli_v1_scenario_control_proto_rawDesc), len(file_cli_v1_scenario_control_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

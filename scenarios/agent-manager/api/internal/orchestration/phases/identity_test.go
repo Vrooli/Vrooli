@@ -2,6 +2,8 @@ package phases
 
 import (
 	"context"
+	"encoding/json"
+	"slices"
 	"testing"
 	"time"
 
@@ -42,6 +44,46 @@ func TestGenerateIdentityTokenRequiresOwnerCeilingForDeclaredScopes(t *testing.T
 	claims, err := identity.VerifyToken(GenerateIdentityToken(context.Background(), in), in.Secret)
 	if err != nil || len(claims.Scopes) != 0 {
 		t.Fatal("profile or request declaration became a grant", err)
+	}
+}
+
+func TestProfileIdentityCeilingSurvivesOmissionAndSerialization(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		profile *domain.AgentProfile
+		want    []string
+	}{
+		{"omitted", &domain.AgentProfile{}, nil},
+		{"empty", &domain.AgentProfile{DeclaredScopes: []string{}}, nil},
+		{"read-only", &domain.AgentProfile{DeclaredScopes: []string{"agent-manager:read"}}, []string{"agent-manager:read"}},
+		{"no-profile", nil, []string{"agent-manager:read", "agent-manager:supervise"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, serialized := range []bool{false, true} {
+				profile := tc.profile
+				if serialized {
+					body, err := json.Marshal(profile)
+					if err != nil {
+						t.Fatal(err)
+					}
+					profile = nil
+					if err := json.Unmarshal(body, &profile); err != nil {
+						t.Fatal(err)
+					}
+				}
+				in := GenerateIdentityTokenInput{
+					Run:     &domain.Run{ID: uuid.New(), TaskID: uuid.New(), OwnerSubject: "owner", OwnerScopes: []string{"agent-manager:read", "agent-manager:supervise"}},
+					Profile: profile, Secret: []byte("profile-ceiling-fixture"),
+				}
+				claims, err := identity.VerifyToken(GenerateIdentityToken(t.Context(), in), in.Secret)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !slices.Equal(claims.Scopes, tc.want) {
+					t.Fatalf("serialized=%t scopes=%v, want %v", serialized, claims.Scopes, tc.want)
+				}
+			}
+		})
 	}
 }
 

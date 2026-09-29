@@ -56,6 +56,8 @@ type Repository struct {
 type ReceiptRepository interface {
 	Admit(context.Context, *validationv1.ValidationIntent) (Admission, error)
 	Get(context.Context, string) (*validationv1.ValidationReceipt, error)
+	GetIntent(context.Context, string) (*validationv1.ValidationIntent, error)
+	FindEvidenceProductionReplay(context.Context, *validationv1.CreateEvidenceProductionRequest) (*validationv1.ValidationReceipt, error)
 	List(context.Context, ListFilter) ([]*validationv1.ValidationReceipt, int, error)
 	Transition(context.Context, string, validationv1.ReceiptState, func(*validationv1.ValidationReceipt) error) (*validationv1.ValidationReceipt, error)
 	PropagateTerminal(context.Context, *validationv1.ValidationReceipt) ([]string, error)
@@ -175,6 +177,44 @@ func (r *Repository) Get(ctx context.Context, receiptID string) (*validationv1.V
 		return nil, err
 	}
 	return decodeReceipt(payload)
+}
+
+func (r *Repository) GetIntent(ctx context.Context, receiptID string) (*validationv1.ValidationIntent, error) {
+	var payload []byte
+	if err := r.db.QueryRowContext(ctx, `SELECT intent_proto FROM validation_receipts WHERE receipt_id = ?`, strings.TrimSpace(receiptID)).Scan(&payload); errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	intent := &validationv1.ValidationIntent{}
+	if err := proto.Unmarshal(payload, intent); err != nil {
+		return nil, err
+	}
+	return intent, nil
+}
+
+func (r *Repository) FindEvidenceProductionReplay(ctx context.Context, request *validationv1.CreateEvidenceProductionRequest) (*validationv1.ValidationReceipt, error) {
+	var receiptBytes, intentBytes []byte
+	err := r.db.QueryRowContext(ctx, `SELECT receipt_proto, intent_proto FROM validation_receipts WHERE caller_scenario = ? AND idempotency_key = ?`, request.GetCallerScenario(), request.GetIdempotencyKey()).Scan(&receiptBytes, &intentBytes)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	stored := &validationv1.ValidationIntent{}
+	if err := proto.Unmarshal(intentBytes, stored); err != nil {
+		return nil, err
+	}
+	targets := stored.GetTargets()
+	pin := stored.GetPinnedEvidenceProducer()
+	if stored.GetPurpose() != validationv1.ValidationPurpose_VALIDATION_PURPOSE_EVIDENCE_PRODUCTION || pin == nil || pin.GetProvider() != request.GetProvider() || pin.GetProducer() != request.GetProducer() || stored.GetCallerExecutionId() != request.GetCallerExecutionId() || stored.GetPlanId() != request.GetPlanId() || len(targets) != 1 || targets[0].GetId() != request.GetCandidateScenario() {
+		return nil, ErrIdempotencyKey
+	}
+	if !proto.Equal(request.GetExpectedCandidateIdentity(), stored.GetExpectedIdentity()) {
+		return nil, ErrIdempotencyKey
+	}
+	return decodeReceipt(receiptBytes)
 }
 
 type ListFilter struct {
@@ -495,6 +535,9 @@ func normalizeIntent(input *validationv1.ValidationIntent) (*validationv1.Valida
 		return nil, fmt.Errorf("%w: intent is required", ErrInvalidIntent)
 	}
 	intent := proto.Clone(input).(*validationv1.ValidationIntent)
+	if err := normalizeRetainedEvidence(intent); err != nil {
+		return nil, err
+	}
 	// Historical records used an attribution map for an execution-affecting input.
 	// Normalize them at this single intake seam; all current writers use the field.
 	legacyPrior := strings.TrimSpace(intent.GetCallerAttributes()["baseline_name"])
@@ -551,6 +594,17 @@ func normalizeIntent(input *validationv1.ValidationIntent) (*validationv1.Valida
 	if intent.GetPurpose() == validationv1.ValidationPurpose_VALIDATION_PURPOSE_UNSPECIFIED || intent.GetRequiredStrength() == validationv1.ValidationStrength_VALIDATION_STRENGTH_UNSPECIFIED {
 		return nil, fmt.Errorf("%w: purpose and required_strength are required", ErrInvalidIntent)
 	}
+	if intent.GetPurpose() == validationv1.ValidationPurpose_VALIDATION_PURPOSE_EVIDENCE_PRODUCTION {
+		pin := intent.GetPinnedEvidenceProducer()
+		if pin == nil || pin.GetProvider() == "" || pin.GetProducer() == "" || len(pin.GetArgv()) == 0 || pin.GetWorkingDirectory() == "" || pin.GetOutputRoot() == "" || pin.GetTimeoutMilliseconds() == 0 || pin.GetMaximumOutputBytes() == 0 || pin.GetDescriptorDigest() == "" || pin.GetSourceIdentity() == "" {
+			return nil, fmt.Errorf("%w: resolved evidence producer pin is incomplete", ErrInvalidIntent)
+		}
+		if len(intent.GetTargets()) != 1 || intent.GetTargets()[0].GetKind() != commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO || len(intent.GetPhases()) != 0 {
+			return nil, fmt.Errorf("%w: evidence production requires exactly one candidate scenario and no phase selection", ErrInvalidIntent)
+		}
+	} else if intent.GetPinnedEvidenceProducer() != nil {
+		return nil, fmt.Errorf("%w: resolved producer pin is only valid for evidence production", ErrInvalidIntent)
+	}
 	if intent.GetExpectedIdentity() == nil || intent.GetExpectedIdentity().GetSchemaVersion() == 0 || strings.TrimSpace(intent.GetExpectedIdentity().GetIdentity()) == "" {
 		return nil, fmt.Errorf("%w: expected content identity is required", ErrInvalidIntent)
 	}
@@ -606,6 +660,68 @@ func normalizeIntent(input *validationv1.ValidationIntent) (*validationv1.Valida
 		return intent.ContentInputs[i].GetName() < intent.ContentInputs[j].GetName()
 	})
 	return intent, nil
+}
+
+func normalizeRetainedEvidence(intent *validationv1.ValidationIntent) error {
+	sets := intent.GetRetainedEvidenceSets()
+	if len(sets) > 8 {
+		return fmt.Errorf("%w: at most eight retained evidence sets are allowed", ErrInvalidIntent)
+	}
+	artifactCount := 0
+	var retainedBytes int64
+	setKeys := map[string]bool{}
+	artifactIDs := map[string]bool{}
+	for _, set := range sets {
+		if set == nil || strings.TrimSpace(set.GetProducerReceiptId()) == "" || strings.TrimSpace(set.GetProducer()) == "" || strings.TrimSpace(set.GetTarget()) == "" || strings.TrimSpace(set.GetRunId()) == "" || strings.TrimSpace(set.GetCandidateIdentity()) == "" || strings.TrimSpace(set.GetCatalogDigest()) == "" {
+			return fmt.Errorf("%w: retained evidence identity fields are required", ErrInvalidIntent)
+		}
+		set.ProducerReceiptId = strings.TrimSpace(set.GetProducerReceiptId())
+		set.Producer = strings.TrimSpace(set.GetProducer())
+		set.Target = strings.TrimSpace(set.GetTarget())
+		set.RunId = strings.TrimSpace(set.GetRunId())
+		set.CandidateIdentity = strings.TrimSpace(set.GetCandidateIdentity())
+		set.CatalogDigest = strings.TrimSpace(set.GetCatalogDigest())
+		if len(set.GetArtifacts()) == 0 {
+			return fmt.Errorf("%w: retained evidence set must select at least one artifact", ErrInvalidIntent)
+		}
+		key := strings.Join([]string{set.GetProducerReceiptId(), set.GetProducer(), set.GetTarget(), set.GetRunId()}, "\x00")
+		if setKeys[key] {
+			return fmt.Errorf("%w: duplicate retained evidence set", ErrInvalidIntent)
+		}
+		setKeys[key] = true
+		if expected := intent.GetExpectedIdentity().GetIdentity(); expected != "" && expected != set.GetCandidateIdentity() {
+			return fmt.Errorf("%w: retained evidence candidate identity does not match validation identity", ErrInvalidIntent)
+		}
+		for _, ref := range set.Artifacts {
+			artifactCount++
+			if ref == nil || strings.TrimSpace(ref.GetProducer()) == "" || strings.TrimSpace(ref.GetArtifactId()) == "" || strings.TrimSpace(ref.GetKind()) == "" || strings.TrimSpace(ref.GetChecksum()) == "" || ref.GetSizeBytes() < 0 {
+				return fmt.Errorf("%w: retained evidence artifact identity and checksum are required", ErrInvalidIntent)
+			}
+			ref.Producer = strings.TrimSpace(ref.GetProducer())
+			ref.ArtifactId = strings.TrimSpace(ref.GetArtifactId())
+			ref.Kind = strings.TrimSpace(ref.GetKind())
+			ref.Checksum = strings.ToLower(strings.TrimSpace(ref.GetChecksum()))
+			retainedBytes += ref.GetSizeBytes()
+			if retainedBytes > 16<<20 {
+				return fmt.Errorf("%w: retained evidence exceeds the 16 MiB producer output bound", ErrInvalidIntent)
+			}
+			if _, err := hex.DecodeString(ref.GetChecksum()); err != nil || len(ref.GetChecksum()) != sha256.Size*2 {
+				return fmt.Errorf("%w: retained evidence checksum must be a SHA-256 hex digest", ErrInvalidIntent)
+			}
+			if artifactIDs[ref.GetArtifactId()] {
+				return fmt.Errorf("%w: duplicate retained artifact id %q", ErrInvalidIntent, ref.GetArtifactId())
+			}
+			artifactIDs[ref.GetArtifactId()] = true
+		}
+	}
+	if artifactCount > 32 {
+		return fmt.Errorf("%w: at most 32 retained artifacts are allowed", ErrInvalidIntent)
+	}
+	sort.Slice(sets, func(i, j int) bool { return sets[i].GetProducerReceiptId() < sets[j].GetProducerReceiptId() })
+	for _, set := range sets {
+		sort.Slice(set.Artifacts, func(i, j int) bool { return set.Artifacts[i].GetArtifactId() < set.Artifacts[j].GetArtifactId() })
+	}
+	return nil
 }
 
 func fingerprintIntent(intent *validationv1.ValidationIntent, execution bool) (string, error) {

@@ -36,19 +36,20 @@ const (
 )
 
 type Provider struct {
-	Phase            string
-	ProviderScenario string
-	FindingSource    architecturev1.FindingSource
-	Emoji            string
-	DetailCommand    string
-	Optional         bool
-	Timeout          time.Duration
-	IncludeExecution bool
-	CapabilitySubset []string
-	Exclude          []string
-	DeliveryMode     string
-	GateEnvVar       string
-	DefaultGateMode  GateMode
+	Phase                string
+	ProviderScenario     string
+	FindingSource        architecturev1.FindingSource
+	Emoji                string
+	DetailCommand        string
+	Optional             bool
+	Timeout              time.Duration
+	IncludeExecution     bool
+	CapabilitySubset     []string
+	RetainedEvidenceSets []*scenariovalidationv1.RetainedEvidenceSet
+	Exclude              []string
+	DeliveryMode         string
+	GateEnvVar           string
+	DefaultGateMode      GateMode
 	// OnStarted receives the provider-owned child reference immediately after a
 	// durable Start acknowledgement is accepted and before the parent waits.
 	// Test Genie uses this to persist/reconcile the parent-child link; providers
@@ -170,6 +171,10 @@ type Client interface {
 	ValidateScenario(context.Context, *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error)
 }
 
+type retainedEvidenceDescriber interface {
+	DescribeProvider(context.Context, *connect.Request[scenariovalidationv1.DescribeProviderRequest]) (*connect.Response[scenariovalidationv1.DescribeProviderResponse], error)
+}
+
 // TargetClient is the additive target-aware contract. Keeping it separate
 // from Client preserves the test seam and the permanent legacy alias for
 // providers that have not adopted ValidateTarget yet.
@@ -222,11 +227,16 @@ func Run(ctx context.Context, provider Provider, targetScenario, scenarioPath st
 		return unavailable(provider, targetScenario, fmt.Errorf("%s base URL is empty", provider.ProviderScenario))
 	}
 
-	resp, err := NewClient(provider.Timeout, baseURL).ValidateScenario(ctx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
-		Scenario:         targetScenario,
-		Path:             strings.TrimSpace(scenarioPath),
-		IncludeExecution: provider.IncludeExecution,
-		CapabilitySubset: append([]string(nil), provider.CapabilitySubset...),
+	client := NewClient(provider.Timeout, baseURL)
+	if err := requireRetainedEvidenceSupport(ctx, client, provider.RetainedEvidenceSets); err != nil {
+		return unavailable(provider, targetScenario, err)
+	}
+	resp, err := client.ValidateScenario(ctx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+		Scenario:             targetScenario,
+		Path:                 strings.TrimSpace(scenarioPath),
+		IncludeExecution:     provider.IncludeExecution,
+		CapabilitySubset:     append([]string(nil), provider.CapabilitySubset...),
+		RetainedEvidenceSets: cloneEvidenceSets(provider.RetainedEvidenceSets),
 	}))
 	if err != nil {
 		return unavailable(provider, targetScenario, fmt.Errorf("%s validation RPC failed: %w", provider.ProviderScenario, err))
@@ -259,12 +269,17 @@ func RunTarget(ctx context.Context, provider Provider, target *commonv1.Validati
 	if strings.TrimSpace(requestTarget.GetRoot()) == "" {
 		requestTarget.Root = strings.TrimSpace(targetPath)
 	}
-	resp, err := NewTargetClient(provider.Timeout, baseURL).ValidateTarget(ctx, connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
-		Target:           requestTarget,
-		IncludeExecution: provider.IncludeExecution,
-		Path:             strings.TrimSpace(targetPath),
-		CapabilitySubset: append([]string(nil), provider.CapabilitySubset...),
-		Exclude:          append([]string(nil), provider.Exclude...),
+	client := NewTargetClient(provider.Timeout, baseURL)
+	if err := requireRetainedEvidenceSupport(ctx, client, provider.RetainedEvidenceSets); err != nil {
+		return unavailable(provider, target.GetId(), err)
+	}
+	resp, err := client.ValidateTarget(ctx, connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
+		Target:               requestTarget,
+		IncludeExecution:     provider.IncludeExecution,
+		Path:                 strings.TrimSpace(targetPath),
+		CapabilitySubset:     append([]string(nil), provider.CapabilitySubset...),
+		Exclude:              append([]string(nil), provider.Exclude...),
+		RetainedEvidenceSets: cloneEvidenceSets(provider.RetainedEvidenceSets),
 	}))
 	if err != nil {
 		return unavailable(provider, target.GetId(), fmt.Errorf("%s target validation RPC failed: %w", provider.ProviderScenario, err))
@@ -281,6 +296,34 @@ func RunTarget(ctx context.Context, provider Provider, target *commonv1.Validati
 		FailureClassification: resp.Msg.GetFailureClassification(),
 	}
 	return translate(provider, target.GetId(), legacy)
+}
+
+func requireRetainedEvidenceSupport(ctx context.Context, client any, sets []*scenariovalidationv1.RetainedEvidenceSet) error {
+	if len(sets) == 0 {
+		return nil
+	}
+	describer, ok := client.(retainedEvidenceDescriber)
+	if !ok {
+		return errors.New("provider client cannot report retained-evidence support")
+	}
+	response, err := describer.DescribeProvider(ctx, connect.NewRequest(&scenariovalidationv1.DescribeProviderRequest{}))
+	if err != nil {
+		return fmt.Errorf("confirm retained-evidence provider capability: %w", err)
+	}
+	if response == nil || response.Msg == nil || !response.Msg.GetCapabilities().GetSupportsRetainedEvidence() {
+		return errors.New("provider does not explicitly support retained-evidence validation")
+	}
+	return nil
+}
+
+func cloneEvidenceSets(sets []*scenariovalidationv1.RetainedEvidenceSet) []*scenariovalidationv1.RetainedEvidenceSet {
+	cloned := make([]*scenariovalidationv1.RetainedEvidenceSet, 0, len(sets))
+	for _, set := range sets {
+		if set != nil {
+			cloned = append(cloned, proto.Clone(set).(*scenariovalidationv1.RetainedEvidenceSet))
+		}
+	}
+	return cloned
 }
 
 // RunDurable performs one Start and one server-owned Wait. The parent run and

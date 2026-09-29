@@ -27,8 +27,9 @@ type mockAgentClient struct {
 	createTaskResp *Task
 	createTaskErr  error
 
-	createRunResp *Run
-	createRunErr  error
+	createRunResp   *Run
+	createRunErr    error
+	echoRunIdentity bool
 
 	getRuns   map[string]*Run // keyed by runID
 	getRunErr error
@@ -79,6 +80,11 @@ func (m *mockAgentClient) WithCreateTaskError(err error) *mockAgentClient {
 
 func (m *mockAgentClient) WithCreateRunResponse(run *Run) *mockAgentClient {
 	m.createRunResp = run
+	return m
+}
+
+func (m *mockAgentClient) WithEchoRunIdentity() *mockAgentClient {
+	m.echoRunIdentity = true
 	return m
 }
 
@@ -222,7 +228,19 @@ func (m *mockAgentClient) CreateRun(_ context.Context, req *CreateRunRequest) (*
 		return nil, m.createRunErr
 	}
 	if m.createRunResp != nil {
-		return m.createRunResp, nil
+		run := *m.createRunResp
+		if m.echoRunIdentity {
+			// Some fixtures model an owner that echoes request identity. Keep
+			// this opt-in so malformed-response tests for other owners remain
+			// meaningful.
+			if run.TaskID == "" {
+				run.TaskID = req.TaskID
+			}
+			if run.Tag == "" && req.Tag != nil {
+				run.Tag = *req.Tag
+			}
+		}
+		return &run, nil
 	}
 	return &Run{
 		ID:     "run-123",

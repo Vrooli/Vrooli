@@ -176,7 +176,7 @@ message SandboxConfig {
   SandboxLifecycleConfig lifecycle = 1;
   SandboxAcceptanceConfig acceptance = 2;
 
-  // mode selects the sandbox execution mode (tracking is the default).
+  // mode selects the sandbox execution mode (protected is the default).
   SandboxMode mode = 3;
 
   // manual_review defers apply at run end until an operator approves via
@@ -201,6 +201,16 @@ message SandboxConfig {
   // no_lock disables mutual exclusion locking. Acceptance filtering
   // remains independent.
   bool no_lock = 8;
+
+  // Runtime write grant, not apply-time acceptance. Absent preserves the full
+  // workspace; a present empty message makes the workspace read-only.
+  WorkspaceWritePolicy write_policy = 9;
+}
+
+message WorkspaceWritePolicy {
+  // Existing literal paths relative to the sandbox merged root. Directories
+  // include descendants. The sandbox owner rejects ambiguous or unsafe paths.
+  repeated string paths = 1;
 }
 
 // =============================================================================

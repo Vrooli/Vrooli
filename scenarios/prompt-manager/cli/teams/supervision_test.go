@@ -12,13 +12,13 @@ func TestHeartbeatSupervisionReadinessReportsCachedOwnerCut(t *testing.T) {
 	ctx := &fakeContext{getResponse: HeartbeatConfig{
 		TeamID: "supervisors", AgentID: "leader", Enabled: true, EffectiveState: "scheduled",
 		Supervision:      &teamconfig.Supervision{},
-		SupervisionState: json.RawMessage(`{"status":"idle","coverage":"complete","wakeAttempts":3,"llmWakesAvoided":7,"efforts":{"a":{"eligible":true,"observationOnly":false,"readiness":"ready"},"b":{"eligible":true,"observationOnly":true,"readiness":"mandate-unqualified","disposition":"owner-wait"}}}`),
+		SupervisionState: json.RawMessage(`{"status":"idle","coverage":"complete","lastScanAt":"2026-09-27T20:00:00Z","lastSuccessAt":"2026-09-27T20:00:00Z","wakeAttempts":3,"llmWakesAvoided":7,"efforts":{"a":{"eligible":true,"observationOnly":false,"readiness":"ready"},"b":{"eligible":true,"observationOnly":true,"readiness":"mandate-unqualified","disposition":"owner-wait"}}}`),
 	}}
 	out, err := captureTeamStdout(t, func() error { return cmdHeartbeatSupervisionReadiness(ctx, []string{"supervisors", "leader"}) })
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "Supervisor readiness: ready") || !strings.Contains(out, "wakes: 3; avoided: 7") {
+	if !strings.Contains(out, "Supervisor readiness: ready") || !strings.Contains(out, "wakes: 3; avoided: 7") || !strings.Contains(out, "Owner cut last scanned: 2026-09-27T20:00:00Z") {
 		t.Fatalf("unexpected readiness output: %s", out)
 	}
 }
@@ -38,6 +38,24 @@ func TestHeartbeatEnableStandingSupervisionPortableConfiguration(t *testing.T) {
 	}
 	if req.ProfileKey != nil {
 		t.Fatal("standing configuration replaced qualified resource policy")
+	}
+	if req.Schedule != nil {
+		t.Fatal("omitting schedule should preserve the existing schedule")
+	}
+}
+
+func TestHeartbeatEnableCanReapplyDefaultScheduleOnExistingConfig(t *testing.T) {
+	ctx := &fakeContext{getResponse: HeartbeatConfig{TeamID: "arbitrary-team", AgentID: "leader", Schedule: "*/5 * * * *"}}
+	err := cmdHeartbeatEnable(ctx, []string{"arbitrary-team", "leader", "--schedule=0 */6 * * *"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var req UpdateHeartbeatRequest
+	if err := json.Unmarshal(ctx.gotPayload, &req); err != nil {
+		t.Fatal(err)
+	}
+	if req.Schedule == nil || *req.Schedule != "0 */6 * * *" {
+		t.Fatalf("explicit default schedule was not persisted: %+v", req.Schedule)
 	}
 }
 

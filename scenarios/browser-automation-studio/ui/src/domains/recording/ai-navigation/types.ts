@@ -38,27 +38,6 @@ export const VISION_MODELS: VisionModelSpec[] = [
 ];
 
 /**
- * Request to start AI navigation.
- */
-export interface AINavigateRequest {
-  sessionId: string;
-  prompt: string;
-  model: string;
-  maxSteps?: number;
-}
-
-/**
- * Response when AI navigation starts.
- */
-export interface AINavigateResponse {
-  navigationId: string;
-  status: string;
-  model: string;
-  maxSteps: number;
-  estimatedCost?: number;
-}
-
-/**
  * Token usage for credit tracking.
  */
 export interface TokenUsage {
@@ -71,9 +50,11 @@ export interface TokenUsage {
  * Browser action from vision model.
  */
 export interface BrowserAction {
-  type: 'click' | 'type' | 'scroll' | 'navigate' | 'hover' | 'select' | 'wait' | 'keypress' | 'done' | 'request_human';
+  type: 'click' | 'type' | 'scroll' | 'navigate' | 'hover' | 'select' | 'wait' | 'keypress' | 'done' | 'request_human' | 'find' | 'read' | 'evaluate' | 'tabs' | 'drag' | 'zoom';
   elementId?: number;
   coordinates?: { x: number; y: number };
+  selector?: string;
+  value?: string;
   text?: string;
   direction?: 'up' | 'down' | 'left' | 'right';
   url?: string;
@@ -158,18 +139,6 @@ export interface HumanInterventionState {
 }
 
 /**
- * Navigation status response.
- */
-export interface NavigationStatusResponse {
-  navigationId: string;
-  sessionId: string;
-  status: string;
-  stepCount: number;
-  totalTokens: number;
-  startedAt: string;
-}
-
-/**
  * State of an AI navigation session.
  */
 export interface AINavigationState {
@@ -178,8 +147,13 @@ export interface AINavigationState {
   prompt: string;
   model: string;
   steps: AINavigationStep[];
-  status: 'idle' | 'navigating' | 'aborting' | 'completed' | 'failed' | 'aborted' | 'max_steps_reached' | 'loop_detected' | 'awaiting_human';
+  status: 'idle' | 'navigating' | 'aborting' | 'observation_unavailable' | 'completed' | 'failed' | 'aborted' | 'max_steps_reached' | 'loop_detected' | 'awaiting_human';
   totalTokens: number;
+  totalDurationMs: number;
+  finalUrl: string;
+  verifiedSuccess: boolean;
+  extractedData: Record<string, unknown> | null;
+  verificationError: string | null;
   error: string | null;
   humanIntervention: HumanInterventionState | null;
 }

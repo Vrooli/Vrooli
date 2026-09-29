@@ -7,6 +7,32 @@ import (
 	"strings"
 )
 
+const (
+	sharedCLICoreFreshnessInput = "../../packages/cli-core"
+	// Lifecycle atomically replaces the generated compatibility view when the
+	// selected Proto artifact changes. Track its tiny stamp, not the large tree.
+	sharedProtoArtifactFreshnessInput = "../../packages/proto/gen/.vrooli-proto-artifact.json"
+)
+
+func withSharedCLICoreFreshnessInput(inputs []string) []string {
+	inputs = append([]string(nil), inputs...)
+	contains := func(want string) bool {
+		for _, input := range inputs {
+			if input == want {
+				return true
+			}
+		}
+		return false
+	}
+	if !contains(sharedCLICoreFreshnessInput) {
+		inputs = append(inputs, sharedCLICoreFreshnessInput)
+	}
+	if !contains(sharedProtoArtifactFreshnessInput) {
+		inputs = append(inputs, sharedProtoArtifactFreshnessInput)
+	}
+	return inputs
+}
+
 // FreshnessSpec defines the exact source contract used to compute a CLI
 // freshness fingerprint.
 type FreshnessSpec struct {
@@ -64,22 +90,25 @@ func GoModuleInstallerArgs(modulePath, manifestPath, binaryName, installDir stri
 
 // CanonicalScenarioGoModuleFreshnessSpec returns the freshness contract used by
 // cli-core's NewStandardScenarioApp (SourceContextPath="..", FreshnessInputs=
-// ["<moduleDir>/**", ".vrooli/service.json", "../../packages/cli-core"]).
+// ["<moduleDir>/**", ".vrooli/service.json", "../../packages/cli-core",
+// "../../packages/proto/gen/.vrooli-proto-artifact.json"]).
 // Both the installer and the runtime StaleChecker must use this same spec to
 // produce matching fingerprints, otherwise the installed binary is perpetually
 // considered stale.
 //
 // scenarioRoot is the absolute path to the scenario directory (one level above
 // the module). modulePath is the absolute path to the CLI's Go module. Custom
-// inputs override the default when non-empty.
+// inputs extend the default while preserving the shared cli-core input: a
+// custom manifest must not make a CLI blind to changes in the code that builds
+// and runs it.
 func CanonicalScenarioGoModuleFreshnessSpec(scenarioRoot, modulePath, binaryName string, customInputs []string) FreshnessSpec {
 	moduleDir := strings.TrimSpace(filepath.Base(modulePath))
 	if moduleDir == "" || moduleDir == "." || moduleDir == string(filepath.Separator) {
 		moduleDir = "cli"
 	}
-	inputs := []string{moduleDir + "/**", ".vrooli/service.json", "../../packages/cli-core"}
+	inputs := []string{moduleDir + "/**", ".vrooli/service.json", sharedCLICoreFreshnessInput, sharedProtoArtifactFreshnessInput}
 	if trimmed := trimNonEmpty(customInputs); len(trimmed) > 0 {
-		inputs = trimmed
+		inputs = withSharedCLICoreFreshnessInput(trimmed)
 	}
 	return FreshnessSpec{
 		SourceRoot:  modulePath,
@@ -91,16 +120,17 @@ func CanonicalScenarioGoModuleFreshnessSpec(scenarioRoot, modulePath, binaryName
 
 // CanonicalResourceGoModuleFreshnessSpec returns the freshness contract used
 // by cli-core's NewResourceApp (SourceContextPath="..", FreshnessInputs=
-// ["<moduleDir>/**", "resource.json", "../../packages/cli-core"]). See
+// ["<moduleDir>/**", "resource.json", "../../packages/cli-core",
+// "../../packages/proto/gen/.vrooli-proto-artifact.json"]). See
 // CanonicalScenarioGoModuleFreshnessSpec.
 func CanonicalResourceGoModuleFreshnessSpec(resourceRoot, modulePath, binaryName string, customInputs []string) FreshnessSpec {
 	moduleDir := strings.TrimSpace(filepath.Base(modulePath))
 	if moduleDir == "" || moduleDir == "." || moduleDir == string(filepath.Separator) {
 		moduleDir = "cli"
 	}
-	inputs := []string{moduleDir + "/**", "resource.json", "../../packages/cli-core"}
+	inputs := []string{moduleDir + "/**", "resource.json", sharedCLICoreFreshnessInput, sharedProtoArtifactFreshnessInput}
 	if trimmed := trimNonEmpty(customInputs); len(trimmed) > 0 {
-		inputs = trimmed
+		inputs = withSharedCLICoreFreshnessInput(trimmed)
 	}
 	return FreshnessSpec{
 		SourceRoot:  modulePath,

@@ -160,6 +160,11 @@ type SandboxBehavior struct {
 	Lifecycle  LifecycleConfig  `json:"lifecycle,omitempty"`
 	Acceptance AcceptanceConfig `json:"acceptance,omitempty"`
 
+	// WritePolicy restricts runtime writes within the merged workspace. Nil
+	// preserves an unrestricted workspace; an explicit empty policy is read-only.
+	// Unlike Acceptance, it applies before a process starts, not only on apply.
+	WritePolicy *WorkspaceWritePolicy `json:"writePolicy,omitempty"`
+
 	// ManualReview defers apply until an operator explicitly approves via
 	// one of the three viewing surfaces (GCT, agent-manager,
 	// workspace-sandbox). When true, the LifecycleReconciler enforces
@@ -172,6 +177,39 @@ type SandboxBehavior struct {
 	// protected-agent-sandboxing initiative, the agent-manager side sets
 	// these when SandboxConfig.Mode == protected.
 	Protected ProtectedConfig `json:"protected,omitempty"`
+}
+
+// WorkspaceWritePolicy grants existing literal paths relative to MergedDir.
+// Directory grants include descendants. Globs, root grants, symlinks and
+// missing paths are rejected, never interpreted as a broader grant.
+type WorkspaceWritePolicy struct {
+	Paths []string `json:"paths"`
+}
+
+// PolicyFile is owner-supplied, content-identified configuration mounted
+// read-only at both its source alias and the consumer's required location.
+// Process requests cannot turn it into a writable mount.
+type PolicyFile struct {
+	Source string `json:"source"`
+	Target string `json:"target"`
+	SHA256 string `json:"sha256"`
+}
+
+func (p *WorkspaceWritePolicy) Validate() error {
+	if p == nil {
+		return nil
+	}
+	for i, path := range p.Paths {
+		if path == "." || !filepath.IsLocal(path) || filepath.Clean(path) != path || strings.ContainsAny(path, "\\*?[]") {
+			return NewValidationError("writePolicy.paths", "grants must be clean literal workspace-relative paths, not root, globs or traversal")
+		}
+		for _, other := range p.Paths[:i] {
+			if path == other || strings.HasPrefix(path, other+"/") || strings.HasPrefix(other, path+"/") {
+				return NewValidationError("writePolicy.paths", "overlapping write grants are not allowed")
+			}
+		}
+	}
+	return nil
 }
 
 // ProtectedConfig configures runtime guardrails for protected-mode sandboxes.
@@ -505,8 +543,10 @@ type DiffResult struct {
 	SandboxID   uuid.UUID     `json:"sandboxId"`
 	Files       []*FileChange `json:"files"`
 	UnifiedDiff string        `json:"unifiedDiff"`
-	Generated   time.Time     `json:"generated"`
-	Stats       DiffStats     `json:"stats"`
+	// PatchSHA256 identifies the exact unified-diff bytes, not a source-tree snapshot.
+	PatchSHA256 string    `json:"patchSha256,omitempty"`
+	Generated   time.Time `json:"generated"`
+	Stats       DiffStats `json:"stats"`
 
 	// View mode support for full_diff and source modes
 	Mode         ViewMode                `json:"mode,omitempty"`         // Requested view mode
@@ -563,8 +603,8 @@ func (s ArchiveState) IsValid() bool {
 	}
 }
 
-// DiffArchive is a durable record of a sandbox's diff at the moment it
-// transitioned to a terminal status (Approved, Rejected, or Deleted).
+// DiffArchive is retained diff evidence published at a sandbox's terminal
+// transition (Approved, Rejected, or Deleted).
 // One row per sandbox; written transactionally with the status flip.
 //
 // Storage shape: metadata in SQLite (sandbox_diff_archives), content
@@ -574,7 +614,7 @@ type DiffArchive struct {
 	// SandboxID is the primary key — one archive per sandbox.
 	SandboxID uuid.UUID `json:"sandboxId"`
 
-	// SnapshotAt is the wall-clock time the snapshot was committed.
+	// SnapshotAt is the wall-clock time the source evidence was captured.
 	SnapshotAt time.Time `json:"snapshotAt"`
 
 	// ArchiveState distinguishes captured-with-content from deliberately
@@ -614,6 +654,55 @@ type DiffArchive struct {
 	// AgentManagerRunID is denormalized for fast lookup of "find the
 	// archive for this run" without joining applied_changes.
 	AgentManagerRunID string `json:"agentManagerRunId,omitempty"`
+}
+
+// PreparedApproval is the write-ahead record for a non-committing whole-file
+// approval. It owns the original request and retained archive until publication.
+// It is internal owner state, never caller-supplied Sandbox.Metadata.
+type PreparedApproval struct {
+	Archive   DiffArchive       `json:"archive"`
+	Request   ApprovalRequest   `json:"request"`
+	Before    []FileFingerprint `json:"before"`
+	ScopePath string            `json:"scopePath"`
+}
+
+// FileFingerprint records the Git-representable identity of one source path.
+// Mode is 0 for absence, 100644/100755 for a regular file, or 120000 for a link.
+type FileFingerprint struct {
+	Path   string `json:"path"`
+	SHA256 string `json:"sha256,omitempty"`
+	Mode   int    `json:"mode"`
+}
+
+// ReviewSnapshot retains the source input for an independent review. This is
+// evidence, not an approval or a claim that every worker process was drained.
+type ReviewSnapshot struct {
+	ID          uuid.UUID           `json:"id"`
+	RequestID   uuid.UUID           `json:"requestId"`
+	SandboxID   uuid.UUID           `json:"sandboxId"`
+	SHA256      string              `json:"sha256"`
+	CreatedAt   time.Time           `json:"createdAt"`
+	ProjectRoot string              `json:"projectRoot"`
+	ScopePath   string              `json:"scopePath"`
+	Owner       string              `json:"owner"`
+	Paths       []string            `json:"paths"`
+	Before      []ReviewFile        `json:"before"`
+	After       []ReviewFile        `json:"after"`
+	PatchSHA256 string              `json:"patchSha256"`
+	Changes     []ArchivedFileEntry `json:"changes"`
+	Stats       DiffStats           `json:"stats"`
+	InputBytes  int64               `json:"inputBytes"`
+}
+
+type ReviewFile struct {
+	FileFingerprint
+	Size int64 `json:"size"`
+}
+
+type ReviewSnapshotRequest struct {
+	SandboxID uuid.UUID `json:"-"`
+	RequestID uuid.UUID `json:"requestId"`
+	Paths     []string  `json:"paths"`
 }
 
 // ArchivedFileEntry describes one file in a DiffArchive index. The
@@ -772,6 +861,11 @@ type ApprovalRequest struct {
 	HunkRanges []HunkRange `json:"hunkRanges,omitempty"`
 	Actor      string      `json:"actor,omitempty"`
 	CommitMsg  string      `json:"commitMessage,omitempty"`
+	// ExpectedPatchSHA256 conditionally approves the complete reviewed patch.
+	// When set, partial selection/filtering is refused; Force cannot bypass it.
+	ExpectedPatchSHA256  string    `json:"expectedPatchSha256,omitempty"`
+	ReviewRequestID      uuid.UUID `json:"reviewRequestId,omitempty"`
+	ExpectedReviewSHA256 string    `json:"expectedReviewSha256,omitempty"`
 
 	// Source identifies the originating approval surface for audit. See
 	// ApprovalSource. Zero-value is permitted on legacy callers during the
@@ -896,14 +990,16 @@ type HunkRange struct {
 
 // ApprovalResult contains the outcome of an approval operation.
 type ApprovalResult struct {
-	Success    bool      `json:"success"`
-	Applied    int       `json:"applied"`
-	Failed     int       `json:"failed"`
-	Remaining  int       `json:"remaining"` // [OT-P1-002] Number of unapproved changes still in sandbox
-	IsPartial  bool      `json:"isPartial"` // [OT-P1-002] True if sandbox preserved for follow-up approvals
-	CommitHash string    `json:"commitHash,omitempty"`
-	ErrorMsg   string    `json:"error,omitempty"`
-	AppliedAt  time.Time `json:"appliedAt"`
+	// AppliedPatchSHA256 identifies the patch actually applied, including on replay.
+	AppliedPatchSHA256 string    `json:"appliedPatchSha256,omitempty"`
+	Success            bool      `json:"success"`
+	Applied            int       `json:"applied"`
+	Failed             int       `json:"failed"`
+	Remaining          int       `json:"remaining"` // [OT-P1-002] Number of unapproved changes still in sandbox
+	IsPartial          bool      `json:"isPartial"` // [OT-P1-002] True if sandbox preserved for follow-up approvals
+	CommitHash         string    `json:"commitHash,omitempty"`
+	ErrorMsg           string    `json:"error,omitempty"`
+	AppliedAt          time.Time `json:"appliedAt"`
 	// AppliedSizeBytes is the authoritative total size of the files applied.
 	AppliedSizeBytes int64 `json:"appliedSizeBytes,omitempty"`
 	// DiffPath names the durable diff endpoint for this sandbox's archive.

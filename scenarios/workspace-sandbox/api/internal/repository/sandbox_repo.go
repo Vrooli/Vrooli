@@ -1079,12 +1079,30 @@ func recordAppliedChanges(ctx context.Context, exec dbExec, clk schedule.Clock, 
 	if len(changes) == 0 {
 		return nil
 	}
+	// Stable operation-derived IDs can replay an identical provenance record.
+	// A conflicting identity must fail, and replay must preserve later commit links.
 	const query = `
 		INSERT INTO applied_changes (
 			id, sandbox_id, sandbox_owner, sandbox_owner_type,
 			file_path, project_root, change_type, file_size, content_digest, evidence_revision, applied_at, agent_manager_run_id,
 			run_outcome, provenance_state, conversation_id, cost_usd
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET id = excluded.id WHERE
+			applied_changes.sandbox_id IS excluded.sandbox_id AND
+			applied_changes.sandbox_owner IS excluded.sandbox_owner AND
+			applied_changes.sandbox_owner_type IS excluded.sandbox_owner_type AND
+			applied_changes.file_path IS excluded.file_path AND
+			applied_changes.project_root IS excluded.project_root AND
+			applied_changes.change_type IS excluded.change_type AND
+			applied_changes.file_size IS excluded.file_size AND
+			applied_changes.content_digest IS excluded.content_digest AND
+			applied_changes.evidence_revision IS excluded.evidence_revision AND
+			applied_changes.applied_at IS excluded.applied_at AND
+			applied_changes.agent_manager_run_id IS excluded.agent_manager_run_id AND
+			applied_changes.run_outcome IS excluded.run_outcome AND
+			applied_changes.provenance_state IS excluded.provenance_state AND
+			applied_changes.conversation_id IS excluded.conversation_id AND
+			applied_changes.cost_usd IS excluded.cost_usd`
 
 	for _, c := range changes {
 		if c.ID == uuid.Nil {
@@ -1097,7 +1115,7 @@ func recordAppliedChanges(ctx context.Context, exec dbExec, clk schedule.Clock, 
 		if c.CostUSD != 0 {
 			costArg = c.CostUSD
 		}
-		_, err := exec.ExecContext(ctx, query,
+		result, err := exec.ExecContext(ctx, query,
 			uuidText(c.ID),
 			uuidText(c.SandboxID),
 			nullableString(c.SandboxOwner),
@@ -1117,6 +1135,9 @@ func recordAppliedChanges(ctx context.Context, exec dbExec, clk schedule.Clock, 
 		)
 		if err != nil {
 			return fmt.Errorf("record applied change for %s: %w", c.FilePath, err)
+		}
+		if count, err := result.RowsAffected(); err != nil || count != 1 {
+			return fmt.Errorf("applied change %s conflicts with its retained identity", c.ID)
 		}
 	}
 	return nil

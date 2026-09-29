@@ -269,6 +269,32 @@ func TestFinalize_StopsSandboxWhenLifecycleSaysStop(t *testing.T) {
 	}
 }
 
+func TestApplySandboxLifecycle_ManualReviewStopsTurnsWithoutDeletingEvidence(t *testing.T) {
+	for _, event := range []domain.SandboxLifecycleEvent{
+		domain.SandboxLifecycleRunFailed,
+		domain.SandboxLifecycleTurnCompleted,
+		domain.SandboxLifecycleTurnFailed,
+		domain.SandboxLifecycleTurnCancelled,
+	} {
+		t.Run(string(event), func(t *testing.T) {
+			cfg := domain.DefaultSandboxConfig()
+			cfg.ManualReview = true
+			off := false
+			cfg.AutoApply, cfg.ApplyOnFailure = &off, &off
+			cfg.Lifecycle.StopOn = []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTerminal, domain.SandboxLifecycleTurnCompleted, domain.SandboxLifecycleTurnFailed, domain.SandboxLifecycleTurnCancelled}
+			stub := mocks.NewFakeSandboxProvider()
+			fx := newFinalizeFixture(t, cfg, stub)
+			fx.run.Status = domain.RunStatusNeedsReview
+			action := ApplySandboxLifecycle(context.Background(), ApplySandboxLifecycleInput{
+				Deps: fx.deps, Run: fx.run, SandboxID: &fx.sandboxID, Sandbox: stub, Event: event, Reason: "retained delivery turn ended",
+			})
+			if action != "stop" || stub.StopCallCount() != 1 || stub.DeleteCallCount() != 0 {
+				t.Fatalf("retained turn cleanup: action=%s stop=%d delete=%d", action, stub.StopCallCount(), stub.DeleteCallCount())
+			}
+		})
+	}
+}
+
 func TestLifecycleEventForStatus_MapsAllTerminalStatuses(t *testing.T) {
 	cases := []struct {
 		status domain.RunStatus

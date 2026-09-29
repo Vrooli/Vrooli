@@ -325,9 +325,17 @@ type Program struct {
 	// outcome, delivery, last_error, advice, steps, attempts. Empty when the
 	// program used no learn.* verb. The persisted receipt never carries the
 	// resume_token; the task store keeps only its hash.
-	LearningJson  string `protobuf:"bytes,24,opt,name=learning_json,json=learningJson,proto3" json:"learning_json,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	LearningJson string `protobuf:"bytes,24,opt,name=learning_json,json=learningJson,proto3" json:"learning_json,omitempty"`
+	// Runtime-owned intent fingerprint for keyed admission. Not authorization.
+	RequestDigest string `protobuf:"bytes,25,opt,name=request_digest,json=requestDigest,proto3" json:"request_digest,omitempty"`
+	// Runtime-owned settlement captured before the execution session is reclaimed.
+	UsageTokens             int64  `protobuf:"varint,26,opt,name=usage_tokens,json=usageTokens,proto3" json:"usage_tokens,omitempty"`
+	UsageChargeMicros       int64  `protobuf:"varint,27,opt,name=usage_charge_micros,json=usageChargeMicros,proto3" json:"usage_charge_micros,omitempty"`
+	UsageAccountingComplete bool   `protobuf:"varint,28,opt,name=usage_accounting_complete,json=usageAccountingComplete,proto3" json:"usage_accounting_complete,omitempty"`
+	UsageChargeMeasured     bool   `protobuf:"varint,29,opt,name=usage_charge_measured,json=usageChargeMeasured,proto3" json:"usage_charge_measured,omitempty"`
+	UsageBasis              string `protobuf:"bytes,30,opt,name=usage_basis,json=usageBasis,proto3" json:"usage_basis,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *Program) Reset() {
@@ -524,6 +532,48 @@ func (x *Program) GetCallerHarness() string {
 func (x *Program) GetLearningJson() string {
 	if x != nil {
 		return x.LearningJson
+	}
+	return ""
+}
+
+func (x *Program) GetRequestDigest() string {
+	if x != nil {
+		return x.RequestDigest
+	}
+	return ""
+}
+
+func (x *Program) GetUsageTokens() int64 {
+	if x != nil {
+		return x.UsageTokens
+	}
+	return 0
+}
+
+func (x *Program) GetUsageChargeMicros() int64 {
+	if x != nil {
+		return x.UsageChargeMicros
+	}
+	return 0
+}
+
+func (x *Program) GetUsageAccountingComplete() bool {
+	if x != nil {
+		return x.UsageAccountingComplete
+	}
+	return false
+}
+
+func (x *Program) GetUsageChargeMeasured() bool {
+	if x != nil {
+		return x.UsageChargeMeasured
+	}
+	return false
+}
+
+func (x *Program) GetUsageBasis() string {
+	if x != nil {
+		return x.UsageBasis
 	}
 	return ""
 }
@@ -3068,7 +3118,7 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12#\n" +
 	"\ragent_profile\x18\x02 \x01(\tR\fagentProfile\x12\x19\n" +
 	"\bskill_id\x18\x03 \x01(\tR\askillId\x12\x18\n" +
-	"\aharness\x18\x04 \x01(\tR\aharness\"\xeb\a\n" +
+	"\aharness\x18\x04 \x01(\tR\aharness\"\xf6\t\n" +
 	"\aProgram\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -3099,7 +3149,14 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\x14caller_agent_profile\x18\x15 \x01(\tR\x12callerAgentProfile\x12&\n" +
 	"\x0fcaller_skill_id\x18\x16 \x01(\tR\rcallerSkillId\x12%\n" +
 	"\x0ecaller_harness\x18\x17 \x01(\tR\rcallerHarness\x12#\n" +
-	"\rlearning_json\x18\x18 \x01(\tR\flearningJson\"\x8f\x01\n" +
+	"\rlearning_json\x18\x18 \x01(\tR\flearningJson\x12%\n" +
+	"\x0erequest_digest\x18\x19 \x01(\tR\rrequestDigest\x12!\n" +
+	"\fusage_tokens\x18\x1a \x01(\x03R\vusageTokens\x12.\n" +
+	"\x13usage_charge_micros\x18\x1b \x01(\x03R\x11usageChargeMicros\x12:\n" +
+	"\x19usage_accounting_complete\x18\x1c \x01(\bR\x17usageAccountingComplete\x122\n" +
+	"\x15usage_charge_measured\x18\x1d \x01(\bR\x13usageChargeMeasured\x12\x1f\n" +
+	"\vusage_basis\x18\x1e \x01(\tR\n" +
+	"usageBasis\"\x8f\x01\n" +
 	"\n" +
 	"Diagnostic\x12\x1a\n" +
 	"\bseverity\x18\x01 \x01(\tR\bseverity\x12\x12\n" +

@@ -167,7 +167,7 @@ func (o *Orchestrator) resumeFromFailedRun(ctx context.Context, req ResumeFromFa
 		if cfg.Model != "" {
 			createReq.Model = &cfg.Model
 		}
-		createReq.MaxTurns, createReq.Timeout, createReq.Effort = &cfg.MaxTurns, &cfg.Timeout, &cfg.Effort
+		createReq.MaxTurns, createReq.MaxToolCalls, createReq.Timeout, createReq.Effort = &cfg.MaxTurns, &cfg.MaxToolCalls, &cfg.Timeout, &cfg.Effort
 		createReq.AllowedTools, createReq.DeniedTools = append([]string{}, cfg.AllowedTools...), append([]string{}, cfg.DeniedTools...)
 		createReq.AllowedPaths, createReq.DeniedPaths = append([]string{}, cfg.AllowedPaths...), append([]string{}, cfg.DeniedPaths...)
 		createReq.AllowedEffects, createReq.RequireEffectContainment = cfg.AllowedEffects, cfg.RequireEffectContainment

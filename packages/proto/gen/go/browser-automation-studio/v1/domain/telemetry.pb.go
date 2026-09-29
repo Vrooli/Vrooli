@@ -221,6 +221,11 @@ type ActionTelemetry struct {
 	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
 	// Frame ID if action occurred in iframe.
 	FrameId *string `protobuf:"bytes,2,opt,name=frame_id,json=frameId,proto3,oneof" json:"frame_id,omitempty"`
+	// CSS selectors from the main document to the action's frame, one per ancestor frame.
+	// Empty for the main frame. A path is replayable only while each selector remains unique.
+	FramePath []string `protobuf:"bytes,3,rep,name=frame_path,json=framePath,proto3" json:"frame_path,omitempty"`
+	// Stable driver page identity for separating tab targets within a recording session.
+	DriverPageId *string `protobuf:"bytes,4,opt,name=driver_page_id,json=driverPageId,proto3,oneof" json:"driver_page_id,omitempty"`
 	// Visual captures.
 	Screenshot *TimelineScreenshot `protobuf:"bytes,10,opt,name=screenshot,proto3,oneof" json:"screenshot,omitempty"`
 	// DOM snapshot reference (file-backed artifact).
@@ -281,6 +286,20 @@ func (x *ActionTelemetry) GetUrl() string {
 func (x *ActionTelemetry) GetFrameId() string {
 	if x != nil && x.FrameId != nil {
 		return *x.FrameId
+	}
+	return ""
+}
+
+func (x *ActionTelemetry) GetFramePath() []string {
+	if x != nil {
+		return x.FramePath
+	}
+	return nil
+}
+
+func (x *ActionTelemetry) GetDriverPageId() string {
+	if x != nil && x.DriverPageId != nil {
+		return *x.DriverPageId
 	}
 	return ""
 }
@@ -582,26 +601,31 @@ const file_browser_automation_studio_v1_domain_telemetry_proto_rawDesc = "" +
 	"\a_statusB\x05\n" +
 	"\x03_okB\n" +
 	"\n" +
-	"\b_failure\"\xad\t\n" +
+	"\b_failure\"\x8a\n" +
+	"\n" +
 	"\x0fActionTelemetry\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x1e\n" +
-	"\bframe_id\x18\x02 \x01(\tH\x00R\aframeId\x88\x01\x01\x12U\n" +
+	"\bframe_id\x18\x02 \x01(\tH\x00R\aframeId\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"frame_path\x18\x03 \x03(\tR\tframePath\x12)\n" +
+	"\x0edriver_page_id\x18\x04 \x01(\tH\x01R\fdriverPageId\x88\x01\x01\x12U\n" +
 	"\n" +
 	"screenshot\x18\n" +
-	" \x01(\v20.browser_automation_studio.v1.TimelineScreenshotH\x01R\n" +
+	" \x01(\v20.browser_automation_studio.v1.TimelineScreenshotH\x02R\n" +
 	"screenshot\x88\x01\x01\x12W\n" +
-	"\fdom_snapshot\x18\r \x01(\v2/.browser_automation_studio.v1.TelemetryArtifactH\x02R\vdomSnapshot\x88\x01\x01\x12`\n" +
-	"\x14element_bounding_box\x18\x14 \x01(\v2).browser_automation_studio.v1.BoundingBoxH\x03R\x12elementBoundingBox\x88\x01\x01\x12O\n" +
-	"\x0eclick_position\x18\x15 \x01(\v2#.browser_automation_studio.v1.PointH\x04R\rclickPosition\x88\x01\x01\x12Q\n" +
-	"\x0fcursor_position\x18\x16 \x01(\v2#.browser_automation_studio.v1.PointH\x05R\x0ecursorPosition\x88\x01\x01\x12F\n" +
+	"\fdom_snapshot\x18\r \x01(\v2/.browser_automation_studio.v1.TelemetryArtifactH\x03R\vdomSnapshot\x88\x01\x01\x12`\n" +
+	"\x14element_bounding_box\x18\x14 \x01(\v2).browser_automation_studio.v1.BoundingBoxH\x04R\x12elementBoundingBox\x88\x01\x01\x12O\n" +
+	"\x0eclick_position\x18\x15 \x01(\v2#.browser_automation_studio.v1.PointH\x05R\rclickPosition\x88\x01\x01\x12Q\n" +
+	"\x0fcursor_position\x18\x16 \x01(\v2#.browser_automation_studio.v1.PointH\x06R\x0ecursorPosition\x88\x01\x01\x12F\n" +
 	"\fcursor_trail\x18\x17 \x03(\v2#.browser_automation_studio.v1.PointR\vcursorTrail\x12Z\n" +
 	"\x11highlight_regions\x18\x18 \x03(\v2-.browser_automation_studio.v1.HighlightRegionR\x10highlightRegions\x12K\n" +
 	"\fmask_regions\x18\x19 \x03(\v2(.browser_automation_studio.v1.MaskRegionR\vmaskRegions\x12$\n" +
-	"\vzoom_factor\x18\x1a \x01(\x01H\x06R\n" +
+	"\vzoom_factor\x18\x1a \x01(\x01H\aR\n" +
 	"zoomFactor\x88\x01\x01\x12f\n" +
-	"\x14console_log_artifact\x18  \x01(\v2/.browser_automation_studio.v1.TelemetryArtifactH\aR\x12consoleLogArtifact\x88\x01\x01\x12j\n" +
-	"\x16network_event_artifact\x18! \x01(\v2/.browser_automation_studio.v1.TelemetryArtifactH\bR\x14networkEventArtifact\x88\x01\x01B\v\n" +
-	"\t_frame_idB\r\n" +
+	"\x14console_log_artifact\x18  \x01(\v2/.browser_automation_studio.v1.TelemetryArtifactH\bR\x12consoleLogArtifact\x88\x01\x01\x12j\n" +
+	"\x16network_event_artifact\x18! \x01(\v2/.browser_automation_studio.v1.TelemetryArtifactH\tR\x14networkEventArtifact\x88\x01\x01B\v\n" +
+	"\t_frame_idB\x11\n" +
+	"\x0f_driver_page_idB\r\n" +
 	"\v_screenshotB\x0f\n" +
 	"\r_dom_snapshotB\x17\n" +
 	"\x15_element_bounding_boxB\x11\n" +

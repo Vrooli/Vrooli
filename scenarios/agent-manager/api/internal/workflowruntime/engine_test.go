@@ -3,6 +3,7 @@ package workflowruntime
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/workflowcatalog"
 
@@ -17,6 +19,82 @@ import (
 )
 
 type fixedPromptResolver struct{ resolution PromptResolution }
+
+func TestTypedReviewCannotCompleteWithoutValidVerdict(t *testing.T) {
+	for _, parallel := range []bool{false, true} {
+		for _, kind := range []string{"missing", "untyped", "invalid", "false-success", "goal-complete"} {
+			t.Run(fmt.Sprintf("parallel=%t/%s", parallel, kind), func(t *testing.T) {
+				definition := baseDefinition()
+				zero := 0
+				spec := &domain.ResultSpec{Kind: domain.ResultSpecKindJSONSchema, SchemaRepairAttempts: &zero, Schema: json.RawMessage(`{"type":"object","required":["accepted"],"properties":{"accepted":{"type":"boolean"}}}`)}
+				definition.EntryNode = "review"
+				definition.Nodes = []domain.WorkflowNode{{ID: "review", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "review", ResultSpec: spec}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
+				definition.Edges = []domain.WorkflowEdge{{From: "review", To: "done"}}
+				if parallel {
+					definition.EntryNode = "fork"
+					definition.Nodes = append(definition.Nodes, domain.WorkflowNode{ID: "fork", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{Parallel: true}}, domain.WorkflowNode{ID: "other", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "other"}}, domain.WorkflowNode{ID: "join", Kind: domain.WorkflowNodeJoin, Join: &domain.WorkflowJoinNode{Strategy: "all"}})
+					definition.Edges = []domain.WorkflowEdge{{From: "fork", To: "review"}, {From: "fork", To: "other"}, {From: "review", To: "join"}, {From: "other", To: "join"}, {From: "join", To: "done"}}
+				}
+				engine, store, children := testEngine(t, definition)
+				x, err := engine.Start(t.Context(), revision(definition), json.RawMessage(`{}`), "typed-review")
+				if err != nil {
+					t.Fatal(err)
+				}
+				for step := 0; step < 10 && !x.Status.Terminal(); step++ {
+					x = mustAdvance(t, engine, x.ID)
+					for id, state := range children.states {
+						state.Terminal = true
+						switch kind {
+						case "untyped":
+							state.Result = &domain.RunResult{FinalOutput: "accepted"}
+						case "invalid":
+							state.Result = &domain.RunResult{Structured: &domain.StructuredResult{Status: domain.StructuredResultInvalid}}
+						case "false-success":
+							state.Result = &domain.RunResult{Structured: &domain.StructuredResult{Status: domain.StructuredResultSuccess, Value: json.RawMessage(`{"wrong":true}`)}}
+						case "goal-complete":
+							state.GoalStatus = runner.GoalStatusComplete
+						}
+						children.states[id] = state
+					}
+				}
+				if x.Status != domain.WorkflowExecutionFailed {
+					t.Fatalf("missing/invalid review passed: %+v", x)
+				}
+				attempts, _ := store.ListAttempts(t.Context(), x.ID)
+				for _, attempt := range attempts {
+					if attempt.NodeID == "review" && (attempt.ErrorCode != "structured_result_invalid" || attempt.ValidationError == "") {
+						t.Fatalf("missing retained refusal: %+v", attempt)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestReviewAttemptPinsSourceAcrossLaterWorkAndRecovery(t *testing.T) {
+	engine, _, _ := testEngine(t, baseDefinition())
+	node := &domain.WorkflowNode{ID: "review", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{ProfileKey: "delivery-review", PromptTemplate: "Review", ReviewInput: &domain.WorkflowReviewInput{FromNode: "worker", Paths: []string{"src"}}}}
+	runID := uuid.New()
+	source := &domain.WorkflowNodeAttempt{ID: uuid.New(), NodeID: "worker", RunID: &runID, Status: domain.WorkflowAttemptCompleted}
+	_, prompt, _, _, strategy, selected, _, err := engine.resolveAgentInput(t.Context(), node, []*domain.WorkflowNodeAttempt{source}, nil, json.RawMessage(`{}`), uuid.NewString(), PromptAssignmentIdentity{})
+	if err != nil || selected == nil || *selected != source.ID || strategy != domain.WorkflowAttemptFreshRun {
+		t.Fatalf("review source not pinned: %v %v", selected, err)
+	}
+	attempt := &domain.WorkflowNodeAttempt{ID: uuid.New(), Strategy: strategy, SourceAttemptID: selected, InputSnapshot: json.RawMessage(`{}`), PromptSnapshot: prompt}
+	laterRunID := uuid.New()
+	later := &domain.WorkflowNodeAttempt{ID: uuid.New(), NodeID: "worker", RunID: &laterRunID, Status: domain.WorkflowAttemptCompleted}
+	execution := &domain.WorkflowExecution{ID: uuid.New(), ExecutionPreferences: &domain.ExecutionPreferences{Model: "worker-luna", Effort: "medium"}}
+	request, err := engine.childRequest(node, execution, attempt, []*domain.WorkflowNodeAttempt{source, later}, nil)
+	if err != nil || request.ReviewSourceRunID == nil || *request.ReviewSourceRunID != runID || strings.Join(request.ReviewPaths, ",") != "src" {
+		t.Fatalf("review rebound to later work: %+v %v", request, err)
+	}
+	if request.Model != "" || request.Effort != "" || request.ProfileKey != "delivery-review" {
+		t.Fatal("worker model preference overrode independent reviewer profile", request)
+	}
+	if _, err := engine.childRequest(node, execution, attempt, []*domain.WorkflowNodeAttempt{later}, nil); err == nil {
+		t.Fatal("missing pinned source silently selected later work")
+	}
+}
 
 func (f fixedPromptResolver) Resolve(_ context.Context, _ *domain.WorkflowPromptRef, _ PromptAssignmentIdentity) (PromptResolution, error) {
 	return f.resolution, nil
@@ -197,6 +275,48 @@ func TestEngineRendersRunScopePathFromDeclaredBinding(t *testing.T) {
 	mustAdvance(t, engine, execution.ID)
 	if len(children.requests) != 1 || children.requests[0].scopePath != "scenarios/demo" {
 		t.Fatalf("scope path = %+v, want scenarios/demo", children.requests)
+	}
+}
+
+func TestRecoveryRetainsRevisionSandboxAuthority(t *testing.T) {
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{
+		{ID: "work", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{
+			RoleRef: "code.default", PromptTemplate: "work",
+			SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected,
+				NetworkMode: domain.NetworkAccessNone, ManualReview: true,
+				WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}}},
+		}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	definition.EntryNode = "work"
+	definition.Edges = []domain.WorkflowEdge{{From: "work", To: "done"}}
+	engine, store, children := testEngine(t, definition)
+	x, err := engine.Start(t.Context(), revision(definition), json.RawMessage(`{}`), "pinned-authority")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustAdvance(t, engine, x.ID) // Persist intent before losing the engine instance.
+	// Reload the revision as durable JSON; do not rely on an in-memory pointer.
+	encoded, err := json.Marshal(revision(definition))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var retained domain.WorkflowRevision
+	if err := json.Unmarshal(encoded, &retained); err != nil {
+		t.Fatal(err)
+	}
+	expressions, _ := NewExpressionEvaluator()
+	restarted := &Engine{Store: store, Catalog: fakeCatalog{&retained}, Children: children, Expressions: expressions}
+	mustAdvance(t, restarted, x.ID)
+	mustAdvance(t, restarted, x.ID)
+	if len(children.requests) != 1 {
+		t.Fatalf("recovery dispatched %d children, want one", len(children.requests))
+	}
+	policy := children.requests[0].sandboxConfig
+	if policy == nil || policy.Mode != domain.SandboxModeProtected || policy.NetworkMode != domain.NetworkAccessNone ||
+		!policy.ManualReview || policy.WritePolicy == nil || len(policy.WritePolicy.Paths) != 1 || policy.WritePolicy.Paths[0] != "src" {
+		t.Fatalf("pinned authority lost across recovery: %+v", policy)
 	}
 }
 

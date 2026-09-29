@@ -16,7 +16,35 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 	db "github.com/vrooli/api-core/databasetest"
+	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 )
+
+func TestRetentionCannotReopenDeclaredAdmission(t *testing.T) {
+	db := newRetentionDB(t)
+	now := time.Now().UTC()
+	s := internalprograms.NewService(internalprograms.Options{Store: db, Clock: func() time.Time { return now }})
+	identity := internalprograms.Identity{ProgramName: "fixture.once", ProgramDigest: "digest", IdempotencyKey: "retention", AdmissionDeadline: now.Add(time.Hour).Format(time.RFC3339Nano)}
+	p, _, err := s.SubmitDeclared(t.Context(), "session", "effect()", programsv1.Provenance_PROVENANCE_TEST, false, false, identity, internalprograms.Caller{})
+	require.NoError(t, err)
+	w := New(Options{DB: db, Clock: func() time.Time { return now }, ProgramWindow: 0})
+	now = now.Add(time.Minute)
+	result, err := w.RunOnce(t.Context())
+	require.NoError(t, err)
+	require.Zero(t, result.ProgramsDeleted, "configured short evidence retention cannot drop an admissible key")
+	now = now.Add(2 * time.Hour)
+	replayed, _, err := s.SubmitDeclared(t.Context(), "", "effect()", programsv1.Provenance_PROVENANCE_TEST, false, false, identity, internalprograms.Caller{})
+	require.NoError(t, err, "expired admission can still observe a retained execution")
+	require.Equal(t, p.Id, replayed.Id)
+	now = now.Add(internalprograms.DeclaredAdmissionWindow)
+	result, err = w.RunOnce(t.Context())
+	require.NoError(t, err)
+	require.EqualValues(t, 1, result.ProgramsDeleted, "keyed evidence is not kept indefinitely")
+	_, _, err = s.SubmitDeclared(t.Context(), "new-session", "effect()", programsv1.Provenance_PROVENANCE_TEST, false, false, identity, internalprograms.Caller{})
+	require.ErrorIs(t, err, internalprograms.ErrRequestExpired, "removed evidence must not enable the original request to execute again")
+	var count int
+	require.NoError(t, db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM programs").Scan(&count))
+	require.Zero(t, count)
+}
 
 func newRetentionDB(t *testing.T) *sql.DB {
 	t.Helper()

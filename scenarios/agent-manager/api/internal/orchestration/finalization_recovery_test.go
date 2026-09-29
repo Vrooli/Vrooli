@@ -32,6 +32,12 @@ func TestRecoverRun_RetriesFinalizationWithoutRepeatingExecution(t *testing.T) {
 		t.Fatal(err)
 	}
 	provider := mocks.NewFakeSandboxProvider()
+	provider.GetFunc = func(_ context.Context, id uuid.UUID) (*sandbox.Sandbox, error) {
+		if provider.DeleteCallCount() > 0 {
+			return nil, domain.NewNotFoundError("Sandbox", id)
+		}
+		return &sandbox.Sandbox{ID: id, Status: sandbox.SandboxStatusActive}, nil
+	}
 	calls := 0
 	provider.TurnCheckpointFunc = func(_ context.Context, req sandbox.TurnCheckpointRequest) (*sandbox.TurnCheckpointResult, error) {
 		calls++
@@ -67,5 +73,203 @@ func TestRecoverRun_RetriesFinalizationWithoutRepeatingExecution(t *testing.T) {
 	again, err := o.RecoverRun(ctx, run.ID)
 	if err != nil || !again.Idempotent || calls != 2 || provider.DeleteCallCount() != 1 {
 		t.Fatalf("successful recovery repeated effects: calls=%d result=%+v err=%v", calls, again, err)
+	}
+}
+
+func TestRecoverRun_ReconcilesTerminalAutoApplyFalseSandboxLifecycle(t *testing.T) {
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "terminal sandbox cleanup", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	sandboxID := uuid.New()
+	cfg := fixtures.NewSandboxConfig(nil,
+		fixtures.WithSandboxAutoApply(false),
+		fixtures.WithSandboxManualReview(false),
+		fixtures.WithSandboxDeleteOn(domain.SandboxLifecycleTerminal),
+	)
+	run := &domain.Run{
+		ID:                 uuid.New(),
+		TaskID:             task.ID,
+		SandboxID:          &sandboxID,
+		RunMode:            domain.RunModeSandboxed,
+		Status:             domain.RunStatusCancelled,
+		Phase:              domain.RunPhaseCompleted,
+		EndedAt:            ptrTime(time.Now().UTC()),
+		SandboxConfig:      cfg,
+		FinalizationStatus: domain.RunFinalizationStatusNone,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	provider := mocks.NewFakeSandboxProvider()
+	provider.GetFunc = func(_ context.Context, id uuid.UUID) (*sandbox.Sandbox, error) {
+		return &sandbox.Sandbox{ID: id, Status: sandbox.SandboxStatusActive}, nil
+	}
+	o := New(repos.Profiles, repos.Tasks, repos.Runs, WithSandbox(provider))
+
+	result, err := o.RecoverRun(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("RecoverRun: %v", err)
+	}
+	if result == nil || !result.Recovered {
+		t.Fatalf("recovery result = %+v, want recovered terminal cleanup", result)
+	}
+	if provider.DeleteCallCount() != 1 {
+		t.Fatalf("delete calls = %d, want 1", provider.DeleteCallCount())
+	}
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Phase != domain.RunPhaseCompleted {
+		t.Fatalf("phase = %s, want completed", got.Phase)
+	}
+}
+
+func TestRecoverRun_ReconcilesTerminalAutoApplyTrueSandboxWhenDiffEmpty(t *testing.T) {
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "empty historical sandbox", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	sandboxID := uuid.New()
+	cfg := fixtures.NewSandboxConfig(nil, fixtures.WithSandboxDeleteOn(domain.SandboxLifecycleTerminal))
+	run := &domain.Run{
+		ID:                 uuid.New(),
+		TaskID:             task.ID,
+		SandboxID:          &sandboxID,
+		RunMode:            domain.RunModeSandboxed,
+		Status:             domain.RunStatusComplete,
+		Phase:              domain.RunPhaseCompleted,
+		EndedAt:            ptrTime(time.Now().UTC()),
+		SandboxConfig:      cfg,
+		FinalizationStatus: domain.RunFinalizationStatusNone,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	provider := mocks.NewFakeSandboxProvider()
+	provider.GetDiffFunc = func(_ context.Context, id uuid.UUID) (*sandbox.DiffResult, error) {
+		if id != sandboxID {
+			t.Fatalf("diff inspected the wrong sandbox: %s", id)
+		}
+		return &sandbox.DiffResult{SandboxID: id}, nil
+	}
+	o := New(repos.Profiles, repos.Tasks, repos.Runs, WithSandbox(provider))
+
+	result, err := o.RecoverRun(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("RecoverRun: %v", err)
+	}
+	if result == nil || !result.Recovered {
+		t.Fatalf("recovery result = %+v, want recovered empty-diff cleanup", result)
+	}
+	if provider.DeleteCallCount() != 1 {
+		t.Fatalf("delete calls = %d, want 1", provider.DeleteCallCount())
+	}
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.FinalizationStatus != domain.RunFinalizationStatusSucceeded {
+		t.Fatalf("finalization = %s/%q, want successful empty-diff no-op", got.FinalizationStatus, got.FinalizationError)
+	}
+}
+
+func TestRecoverRun_PreservesTerminalSandboxWhenDiffPresent(t *testing.T) {
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "changed historical sandbox", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	sandboxID := uuid.New()
+	cfg := fixtures.NewSandboxConfig(nil, fixtures.WithSandboxDeleteOn(domain.SandboxLifecycleTerminal))
+	run := &domain.Run{
+		ID:                 uuid.New(),
+		TaskID:             task.ID,
+		SandboxID:          &sandboxID,
+		RunMode:            domain.RunModeSandboxed,
+		Status:             domain.RunStatusFailed,
+		Phase:              domain.RunPhaseCompleted,
+		EndedAt:            ptrTime(time.Now().UTC()),
+		SandboxConfig:      cfg,
+		FinalizationStatus: domain.RunFinalizationStatusNone,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	provider := mocks.NewFakeSandboxProvider()
+	provider.GetDiffFunc = func(_ context.Context, id uuid.UUID) (*sandbox.DiffResult, error) {
+		return &sandbox.DiffResult{SandboxID: id, Files: []sandbox.FileChange{{FilePath: "changed.txt"}}, UnifiedDiff: "+changed\n", Stats: sandbox.DiffStats{FilesChanged: 1, TotalBytes: 8}}, nil
+	}
+	o := New(repos.Profiles, repos.Tasks, repos.Runs, WithSandbox(provider))
+
+	result, err := o.RecoverRun(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("RecoverRun: %v", err)
+	}
+	if result == nil || !result.Idempotent || result.Recovered {
+		t.Fatalf("recovery result = %+v, want owner-review preservation", result)
+	}
+	if provider.DeleteCallCount() != 0 {
+		t.Fatalf("delete calls = %d, want 0", provider.DeleteCallCount())
+	}
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.FinalizationStatus != domain.RunFinalizationStatusNone {
+		t.Fatalf("finalization = %s, want unresolved", got.FinalizationStatus)
+	}
+}
+
+func TestRecoverRun_ReconcilesLifecycleAfterSuccessfulFinalization(t *testing.T) {
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "successful finalization lifecycle gap", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	sandboxID := uuid.New()
+	cfg := fixtures.NewSandboxConfig(nil, fixtures.WithSandboxDeleteOn(domain.SandboxLifecycleTerminal))
+	now := time.Now().UTC()
+	run := &domain.Run{
+		ID:                 uuid.New(),
+		TaskID:             task.ID,
+		SandboxID:          &sandboxID,
+		RunMode:            domain.RunModeSandboxed,
+		Status:             domain.RunStatusComplete,
+		Phase:              domain.RunPhaseCompleted,
+		EndedAt:            &now,
+		SandboxConfig:      cfg,
+		FinalizationStatus: domain.RunFinalizationStatusSucceeded,
+		FinalizedAt:        &now,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	provider := mocks.NewFakeSandboxProvider()
+	provider.GetFunc = func(_ context.Context, id uuid.UUID) (*sandbox.Sandbox, error) {
+		return &sandbox.Sandbox{ID: id, Status: sandbox.SandboxStatusActive}, nil
+	}
+	o := New(repos.Profiles, repos.Tasks, repos.Runs, WithSandbox(provider))
+
+	result, err := o.RecoverRun(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("RecoverRun: %v", err)
+	}
+	if result == nil || !result.Recovered {
+		t.Fatalf("recovery result = %+v, want lifecycle reconciliation", result)
+	}
+	if provider.DeleteCallCount() != 1 {
+		t.Fatalf("delete calls = %d, want 1", provider.DeleteCallCount())
 	}
 }

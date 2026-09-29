@@ -1525,7 +1525,7 @@ type SandboxConfig struct {
 	state      protoimpl.MessageState   `protogen:"open.v1"`
 	Lifecycle  *SandboxLifecycleConfig  `protobuf:"bytes,1,opt,name=lifecycle,proto3" json:"lifecycle,omitempty"`
 	Acceptance *SandboxAcceptanceConfig `protobuf:"bytes,2,opt,name=acceptance,proto3" json:"acceptance,omitempty"`
-	// mode selects the sandbox execution mode (tracking is the default).
+	// mode selects the sandbox execution mode (protected is the default).
 	Mode SandboxMode `protobuf:"varint,3,opt,name=mode,proto3,enum=agent_manager.v1.SandboxMode" json:"mode,omitempty"`
 	// manual_review defers apply at run end until an operator approves via
 	// one of the three viewing surfaces (git-control-tower, agent-manager,
@@ -1544,7 +1544,10 @@ type SandboxConfig struct {
 	NetworkMode NetworkAccess `protobuf:"varint,7,opt,name=network_mode,json=networkMode,proto3,enum=agent_manager.v1.NetworkAccess" json:"network_mode,omitempty"`
 	// no_lock disables mutual exclusion locking. Acceptance filtering
 	// remains independent.
-	NoLock        bool `protobuf:"varint,8,opt,name=no_lock,json=noLock,proto3" json:"no_lock,omitempty"`
+	NoLock bool `protobuf:"varint,8,opt,name=no_lock,json=noLock,proto3" json:"no_lock,omitempty"`
+	// Runtime write grant, not apply-time acceptance. Absent preserves the full
+	// workspace; a present empty message makes the workspace read-only.
+	WritePolicy   *WorkspaceWritePolicy `protobuf:"bytes,9,opt,name=write_policy,json=writePolicy,proto3" json:"write_policy,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1635,6 +1638,59 @@ func (x *SandboxConfig) GetNoLock() bool {
 	return false
 }
 
+func (x *SandboxConfig) GetWritePolicy() *WorkspaceWritePolicy {
+	if x != nil {
+		return x.WritePolicy
+	}
+	return nil
+}
+
+type WorkspaceWritePolicy struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Existing literal paths relative to the sandbox merged root. Directories
+	// include descendants. The sandbox owner rejects ambiguous or unsafe paths.
+	Paths         []string `protobuf:"bytes,1,rep,name=paths,proto3" json:"paths,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkspaceWritePolicy) Reset() {
+	*x = WorkspaceWritePolicy{}
+	mi := &file_agent_manager_v1_domain_types_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkspaceWritePolicy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkspaceWritePolicy) ProtoMessage() {}
+
+func (x *WorkspaceWritePolicy) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_types_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkspaceWritePolicy.ProtoReflect.Descriptor instead.
+func (*WorkspaceWritePolicy) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *WorkspaceWritePolicy) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
 // FeatureFlags contains well-known typed feature flags.
 //
 // Add new feature flags here as new fields (not a repeated enum)
@@ -1653,7 +1709,7 @@ type FeatureFlags struct {
 
 func (x *FeatureFlags) Reset() {
 	*x = FeatureFlags{}
-	mi := &file_agent_manager_v1_domain_types_proto_msgTypes[4]
+	mi := &file_agent_manager_v1_domain_types_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1665,7 +1721,7 @@ func (x *FeatureFlags) String() string {
 func (*FeatureFlags) ProtoMessage() {}
 
 func (x *FeatureFlags) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_types_proto_msgTypes[4]
+	mi := &file_agent_manager_v1_domain_types_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1678,7 +1734,7 @@ func (x *FeatureFlags) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FeatureFlags.ProtoReflect.Descriptor instead.
 func (*FeatureFlags) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{4}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *FeatureFlags) GetEnableBrowser() bool {
@@ -1700,7 +1756,7 @@ type ExtraFlagList struct {
 
 func (x *ExtraFlagList) Reset() {
 	*x = ExtraFlagList{}
-	mi := &file_agent_manager_v1_domain_types_proto_msgTypes[5]
+	mi := &file_agent_manager_v1_domain_types_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1712,7 +1768,7 @@ func (x *ExtraFlagList) String() string {
 func (*ExtraFlagList) ProtoMessage() {}
 
 func (x *ExtraFlagList) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_types_proto_msgTypes[5]
+	mi := &file_agent_manager_v1_domain_types_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1725,7 +1781,7 @@ func (x *ExtraFlagList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExtraFlagList.ProtoReflect.Descriptor instead.
 func (*ExtraFlagList) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{5}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ExtraFlagList) GetFlags() []string {
@@ -1756,7 +1812,7 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\tdelete_on\x18\x02 \x03(\x0e2'.agent_manager.v1.SandboxLifecycleEventR\bdeleteOn\x12+\n" +
 	"\x03ttl\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x03ttl\x12<\n" +
 	"\fidle_timeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\vidleTimeout\x12L\n" +
-	"\rcheckpoint_on\x18\x05 \x03(\x0e2'.agent_manager.v1.SandboxLifecycleEventR\fcheckpointOn\"\xce\x03\n" +
+	"\rcheckpoint_on\x18\x05 \x03(\x0e2'.agent_manager.v1.SandboxLifecycleEventR\fcheckpointOn\"\x99\x04\n" +
 	"\rSandboxConfig\x12F\n" +
 	"\tlifecycle\x18\x01 \x01(\v2(.agent_manager.v1.SandboxLifecycleConfigR\tlifecycle\x12I\n" +
 	"\n" +
@@ -1768,9 +1824,12 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"auto_apply\x18\x05 \x01(\bH\x00R\tautoApply\x88\x01\x01\x12-\n" +
 	"\x10apply_on_failure\x18\x06 \x01(\bH\x01R\x0eapplyOnFailure\x88\x01\x01\x12B\n" +
 	"\fnetwork_mode\x18\a \x01(\x0e2\x1f.agent_manager.v1.NetworkAccessR\vnetworkMode\x12\x17\n" +
-	"\ano_lock\x18\b \x01(\bR\x06noLockB\r\n" +
+	"\ano_lock\x18\b \x01(\bR\x06noLock\x12I\n" +
+	"\fwrite_policy\x18\t \x01(\v2&.agent_manager.v1.WorkspaceWritePolicyR\vwritePolicyB\r\n" +
 	"\v_auto_applyB\x13\n" +
-	"\x11_apply_on_failure\"5\n" +
+	"\x11_apply_on_failure\",\n" +
+	"\x14WorkspaceWritePolicy\x12\x14\n" +
+	"\x05paths\x18\x01 \x03(\tR\x05paths\"5\n" +
 	"\fFeatureFlags\x12%\n" +
 	"\x0eenable_browser\x18\x01 \x01(\bR\renableBrowser\"%\n" +
 	"\rExtraFlagList\x12\x14\n" +
@@ -1928,7 +1987,7 @@ func file_agent_manager_v1_domain_types_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_manager_v1_domain_types_proto_enumTypes = make([]protoimpl.EnumInfo, 18)
-var file_agent_manager_v1_domain_types_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_agent_manager_v1_domain_types_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_agent_manager_v1_domain_types_proto_goTypes = []any{
 	(RunnerType)(0),                 // 0: agent_manager.v1.RunnerType
 	(ModelSelectionType)(0),         // 1: agent_manager.v1.ModelSelectionType
@@ -1952,9 +2011,10 @@ var file_agent_manager_v1_domain_types_proto_goTypes = []any{
 	(*SandboxAcceptanceConfig)(nil), // 19: agent_manager.v1.SandboxAcceptanceConfig
 	(*SandboxLifecycleConfig)(nil),  // 20: agent_manager.v1.SandboxLifecycleConfig
 	(*SandboxConfig)(nil),           // 21: agent_manager.v1.SandboxConfig
-	(*FeatureFlags)(nil),            // 22: agent_manager.v1.FeatureFlags
-	(*ExtraFlagList)(nil),           // 23: agent_manager.v1.ExtraFlagList
-	(*durationpb.Duration)(nil),     // 24: google.protobuf.Duration
+	(*WorkspaceWritePolicy)(nil),    // 22: agent_manager.v1.WorkspaceWritePolicy
+	(*FeatureFlags)(nil),            // 23: agent_manager.v1.FeatureFlags
+	(*ExtraFlagList)(nil),           // 24: agent_manager.v1.ExtraFlagList
+	(*durationpb.Duration)(nil),     // 25: google.protobuf.Duration
 }
 var file_agent_manager_v1_domain_types_proto_depIdxs = []int32{
 	4,  // 0: agent_manager.v1.SandboxAcceptanceConfig.mode:type_name -> agent_manager.v1.SandboxAcceptanceMode
@@ -1962,18 +2022,19 @@ var file_agent_manager_v1_domain_types_proto_depIdxs = []int32{
 	18, // 2: agent_manager.v1.SandboxAcceptanceConfig.deny:type_name -> agent_manager.v1.SandboxFileCriteria
 	3,  // 3: agent_manager.v1.SandboxLifecycleConfig.stop_on:type_name -> agent_manager.v1.SandboxLifecycleEvent
 	3,  // 4: agent_manager.v1.SandboxLifecycleConfig.delete_on:type_name -> agent_manager.v1.SandboxLifecycleEvent
-	24, // 5: agent_manager.v1.SandboxLifecycleConfig.ttl:type_name -> google.protobuf.Duration
-	24, // 6: agent_manager.v1.SandboxLifecycleConfig.idle_timeout:type_name -> google.protobuf.Duration
+	25, // 5: agent_manager.v1.SandboxLifecycleConfig.ttl:type_name -> google.protobuf.Duration
+	25, // 6: agent_manager.v1.SandboxLifecycleConfig.idle_timeout:type_name -> google.protobuf.Duration
 	3,  // 7: agent_manager.v1.SandboxLifecycleConfig.checkpoint_on:type_name -> agent_manager.v1.SandboxLifecycleEvent
 	20, // 8: agent_manager.v1.SandboxConfig.lifecycle:type_name -> agent_manager.v1.SandboxLifecycleConfig
 	19, // 9: agent_manager.v1.SandboxConfig.acceptance:type_name -> agent_manager.v1.SandboxAcceptanceConfig
 	5,  // 10: agent_manager.v1.SandboxConfig.mode:type_name -> agent_manager.v1.SandboxMode
 	2,  // 11: agent_manager.v1.SandboxConfig.network_mode:type_name -> agent_manager.v1.NetworkAccess
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	22, // 12: agent_manager.v1.SandboxConfig.write_policy:type_name -> agent_manager.v1.WorkspaceWritePolicy
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_types_proto_init() }
@@ -1988,7 +2049,7 @@ func file_agent_manager_v1_domain_types_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_types_proto_rawDesc), len(file_agent_manager_v1_domain_types_proto_rawDesc)),
 			NumEnums:      18,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

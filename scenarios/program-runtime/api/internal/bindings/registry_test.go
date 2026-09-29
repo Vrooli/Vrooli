@@ -122,6 +122,31 @@ func TestExecuteHoldsDemandThroughStartupAndInvocation(t *testing.T) {
 	}
 }
 
+func TestInferenceUsageDetailsPreserveMarginalChargePresence(t *testing.T) {
+	for _, tc := range []struct {
+		name                   string
+		value                  map[string]any
+		present, chargePresent bool
+		wantCost               int64
+	}{
+		{name: "fully measured", value: map[string]any{"usage": map[string]any{"input_tokens": float64(3), "output_tokens": float64(5), "cost_micros": float64(7)}}, present: true, chargePresent: true, wantCost: 7},
+		{name: "explicit zero", value: map[string]any{"usage": map[string]any{"cost_micros": float64(0)}}, present: true, chargePresent: true},
+		{name: "null cost", value: map[string]any{"usage": map[string]any{"cost_micros": nil}}, present: true},
+		{name: "malformed cost", value: map[string]any{"usage": map[string]any{"cost_micros": "not-a-number"}}, present: true},
+		{name: "negative cost", value: map[string]any{"usage": map[string]any{"cost_micros": float64(-1)}}, present: true},
+		{name: "fractional cost", value: map[string]any{"usage": map[string]any{"cost_micros": float64(1.5)}}, present: true},
+		{name: "unpriced", value: map[string]any{"usage": map[string]any{"input_tokens": float64(3), "output_tokens": float64(5)}}, present: true},
+		{name: "missing usage", value: map[string]any{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, cost, present, chargePresent := InferenceUsageDetails(tc.value)
+			require.Equal(t, tc.present, present)
+			require.Equal(t, tc.chargePresent, chargePresent)
+			require.Equal(t, tc.wantCost, cost)
+		})
+	}
+}
+
 func TestResponseProjectionUsesDescriptorAndDeclaredPrimary(t *testing.T) {
 	file := &descriptorpb.FileDescriptorProto{
 		Name: protoString("fixture.proto"), Package: protoString("fixture"), Syntax: protoString("proto3"),
@@ -198,13 +223,17 @@ func TestProjectManifestBindsControlPlaneMethods(t *testing.T) {
 	r, err := Load(repoRoot(t))
 	require.NoError(t, err)
 	bindings := r.List("vrooli", "scenario")
-	require.Len(t, bindings, 7)
+	require.Len(t, bindings, 8)
 	want := map[string]struct{}{
 		"ListScenarios":     {},
-		"GetScenarioStatus": {}, "GetScenarioLogs": {},
+		"GetScenarioStatus": {}, "GetScenarioFreshness": {}, "GetScenarioLogs": {},
 		"StartScenario": {}, "StopScenario": {}, "RestartScenario": {}, "SetupScenario": {},
 	}
 	for _, binding := range bindings {
+		if binding.GetMethod() == "GetScenarioFreshness" {
+			require.Equal(t, "checks", binding.GetRowsField())
+			require.Empty(t, binding.GetRowFieldCandidates())
+		}
 		delete(want, binding.GetMethod())
 	}
 	if len(want) != 0 {
@@ -216,7 +245,7 @@ func TestProjectControlPlaneBindingsAreOwnedBySharedCLIContracts(t *testing.T) {
 	r, err := Load(repoRoot(t))
 	require.NoError(t, err)
 	doctor := r.Doctor("vrooli")
-	require.Equal(t, int32(7), doctor.GetBindings())
+	require.Equal(t, int32(8), doctor.GetBindings())
 	require.Zero(t, doctor.GetMisroutes())
 	require.Zero(t, doctor.GetFieldCollisions())
 	require.Zero(t, doctor.GetControlFlagsBound())

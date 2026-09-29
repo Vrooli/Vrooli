@@ -144,6 +144,7 @@ type CreateRunRequest struct {
 	// Inline config (optional - used if no profile, or overrides profile)
 	RoleRef              *string                 `json:"roleRef,omitempty"`
 	MaxTurns             *int                    `json:"maxTurns,omitempty"`
+	MaxToolCalls         *int                    `json:"maxToolCalls,omitempty"`
 	Timeout              *time.Duration          `json:"timeout,omitempty"`
 	Model                *string                 `json:"model,omitempty"`
 	PreferredRunner      string                  `json:"preferredRunner,omitempty"`
@@ -494,6 +495,7 @@ type ContinueRunRequest struct {
 	AttachmentIDs  []string           `json:"attachmentIds,omitempty"`
 	IdempotencyKey string             `json:"idempotencyKey,omitempty"`
 	MaxTurns       *int               `json:"maxTurns,omitempty"`
+	MaxToolCalls   *int               `json:"maxToolCalls,omitempty"`
 	Timeout        *time.Duration     `json:"timeout,omitempty"`
 	ResultSpec     *domain.ResultSpec `json:"resultSpec,omitempty"`
 	// ReinstallGoal re-sends the harness-native goal before the follow-up
@@ -1333,7 +1335,9 @@ func New(
 	}
 	if o.workflowExecutions != nil && o.workflows != nil {
 		expressions, _ := workflowruntime.NewExpressionEvaluator()
-		o.workflowEngine = &workflowruntime.Engine{Store: o.workflowExecutions, Catalog: o.workflows, Children: workflowChildLauncher{o: o}, Subworkflows: workflowSubworkflowLauncher{o: o}, Expressions: expressions, Now: o.now}
+		o.workflowEngine = &workflowruntime.Engine{Store: o.workflowExecutions, Catalog: o.workflows, Children: workflowChildLauncher{o: o}, Subworkflows: workflowSubworkflowLauncher{o: o}, Qualifications: workflowQualificationOwner{o: o}, Expressions: expressions, Now: o.now}
+		// The owner still requires a retained accepted candidate, qualification
+		// attempt and compatible PRT admission contract before starting effects.
 		if source, ok := o.promptClient.(promptmanager.AssignmentClient); ok && source != nil {
 			o.workflowEngine.PromptResolver = workflowPromptResolver{source: source}
 		}

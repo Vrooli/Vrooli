@@ -4177,8 +4177,12 @@ type IssueSupervisorDispatchRequest struct {
 	MaximumRuns            uint32                 `protobuf:"varint,7,opt,name=maximum_runs,json=maximumRuns,proto3" json:"maximum_runs,omitempty"`
 	IdempotencyKey         string                 `protobuf:"bytes,8,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
 	MinimumIntervalSeconds uint32                 `protobuf:"varint,9,opt,name=minimum_interval_seconds,json=minimumIntervalSeconds,proto3" json:"minimum_interval_seconds,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// Finite owner-issued supervision allowance. Zero is invalid for dispatch
+	// issuance; unknown provider usage never counts as zero.
+	MaxTokens         int64 `protobuf:"varint,10,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
+	MaxChargeMicroUsd int64 `protobuf:"varint,11,opt,name=max_charge_micro_usd,json=maxChargeMicroUsd,proto3" json:"max_charge_micro_usd,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *IssueSupervisorDispatchRequest) Reset() {
@@ -4270,6 +4274,20 @@ func (x *IssueSupervisorDispatchRequest) GetIdempotencyKey() string {
 func (x *IssueSupervisorDispatchRequest) GetMinimumIntervalSeconds() uint32 {
 	if x != nil {
 		return x.MinimumIntervalSeconds
+	}
+	return 0
+}
+
+func (x *IssueSupervisorDispatchRequest) GetMaxTokens() int64 {
+	if x != nil {
+		return x.MaxTokens
+	}
+	return 0
+}
+
+func (x *IssueSupervisorDispatchRequest) GetMaxChargeMicroUsd() int64 {
+	if x != nil {
+		return x.MaxChargeMicroUsd
 	}
 	return 0
 }
@@ -12067,7 +12085,7 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\vprofile_key\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\n" +
 	"profileKey\x12:\n" +
 	"\bdefaults\x18\x02 \x01(\v2\x1e.agent_manager.v1.AgentProfileR\bdefaults\x12'\n" +
-	"\x0fupdate_existing\x18\x03 \x01(\bR\x0eupdateExisting\"\x84\x03\n" +
+	"\x0fupdate_existing\x18\x03 \x01(\bR\x0eupdateExisting\"\xd4\x03\n" +
 	"\x1eIssueSupervisorDispatchRequest\x12\x1d\n" +
 	"\n" +
 	"effort_ref\x18\x01 \x01(\tR\teffortRef\x12+\n" +
@@ -12080,7 +12098,11 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12!\n" +
 	"\fmaximum_runs\x18\a \x01(\rR\vmaximumRuns\x12'\n" +
 	"\x0fidempotency_key\x18\b \x01(\tR\x0eidempotencyKey\x128\n" +
-	"\x18minimum_interval_seconds\x18\t \x01(\rR\x16minimumIntervalSeconds\"\xd9\x01\n" +
+	"\x18minimum_interval_seconds\x18\t \x01(\rR\x16minimumIntervalSeconds\x12\x1d\n" +
+	"\n" +
+	"max_tokens\x18\n" +
+	" \x01(\x03R\tmaxTokens\x12/\n" +
+	"\x14max_charge_micro_usd\x18\v \x01(\x03R\x11maxChargeMicroUsd\"\xd9\x01\n" +
 	"\x1fRevokeSupervisorDispatchRequest\x12\x1d\n" +
 	"\n" +
 	"effort_ref\x18\x01 \x01(\tR\teffortRef\x12)\n" +

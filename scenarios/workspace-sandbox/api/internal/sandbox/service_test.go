@@ -803,8 +803,8 @@ func TestService_GetDiff_NoChanges(t *testing.T) {
 	}
 }
 
-// [REQ:P0-006] Test diff generation fails for terminal states.
-func TestService_GetDiff_TerminalState(t *testing.T) {
+// [REQ:P0-006] Missing retained evidence is explicit, never a live regeneration.
+func TestService_GetDiff_TerminalWithoutArchive(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	drv := mocks.NewFakeDriver()
 	svc := newTestService(repo, drv)
@@ -814,9 +814,9 @@ func TestService_GetDiff_TerminalState(t *testing.T) {
 	existing := createTestSandbox(id, types.StatusDeleted)
 	repo.Sandboxes[id] = existing
 
-	_, err := svc.GetDiff(ctx, id)
-	if err == nil {
-		t.Error("GetDiff() on deleted sandbox expected error")
+	got, err := svc.GetDiff(ctx, id)
+	if err != nil || got == nil || got.ArchiveState != types.ArchiveStateNotCaptured {
+		t.Fatalf("missing terminal archive must report not_captured: %+v, %v", got, err)
 	}
 }
 

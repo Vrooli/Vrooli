@@ -2,7 +2,7 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { buildIdentity, sha256File } from "../qualification-support.mjs";
@@ -51,8 +51,10 @@ const suites = [
   },
 ];
 
-const evidenceRoot = join(scenarioRoot, ".vrooli/runtime/rehabilitation-evidence");
-await mkdir(evidenceRoot, { recursive: true });
+const outputArg = process.argv.at(-1);
+if (!outputArg || !outputArg.startsWith("/dev/shm/tg-output")) throw new Error("Test Genie retained output directory argument is required");
+const outputDir = resolve(outputArg);
+await mkdir(outputDir, { recursive: true });
 
 const buildBefore = await buildIdentity(api);
 const artifacts = [];
@@ -60,7 +62,7 @@ const ownerTests = [];
 for (const suite of suites) {
   const selector = `^(${suite.tests.join("|")})$`;
   const args = ["test", "-json", "-run", selector, "-count=1", suite.package];
-  const outputPath = join(evidenceRoot, `evidence-completeness-owner-${randomUUID()}.jsonl`);
+  const outputPath = join(outputDir, `evidence-completeness-owner-${randomUUID()}.jsonl`);
   let result;
   try {
     result = await execFileAsync("go", args, {
@@ -89,7 +91,7 @@ for (const suite of suites) {
     ownerTests.push({ name, passed: true });
   }
   artifacts.push({
-    path: `.vrooli/runtime/rehabilitation-evidence/${basename(outputPath)}`,
+    path: basename(outputPath),
     sha256: await sha256File(outputPath),
     tests: suite.tests,
   });
@@ -108,13 +110,6 @@ const receipt = {
   sourceSha256: sourceSHA256,
   artifacts,
 };
-const outputPath = resolve(
-  process.env.BAS_EVIDENCE_COMPLETENESS_RECEIPT ||
-    join(evidenceRoot, `evidence-completeness-${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID().slice(0, 8)}.json`),
-);
-const outputRelative = relative(evidenceRoot, outputPath);
-if (isAbsolute(outputRelative) || outputRelative === ".." || outputRelative.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
-  throw new Error("receipt path must stay under the ignored rehabilitation evidence directory");
-}
+const outputPath = join(outputDir, `evidence-completeness-${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID().slice(0, 8)}.json`);
 await writeFile(outputPath, `${JSON.stringify(receipt, null, 2)}\n`, { flag: "wx", mode: 0o600 });
 console.log(JSON.stringify({ receipt: outputPath, buildIdentity: buildBefore, ownerTests: ownerTests.length, rawArtifacts: artifacts.length }, null, 2));

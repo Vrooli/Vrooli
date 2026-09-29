@@ -35,28 +35,32 @@ type (
 		GetByDigest(context.Context, string) (*domain.WorkflowRevision, error)
 	}
 	ChildRequest struct {
-		ExecutionID     uuid.UUID
-		AttemptID       uuid.UUID
-		NodeID          string
-		IdempotencyKey  string
-		ProfileKey      string
-		RoleRef         string
-		ScopePath       string
-		Tag             string
-		Force           bool
-		Prompt          string
-		Until           string
-		ResultSpec      *domain.ResultSpec
-		SourceRunID     *uuid.UUID
-		MaxTurns        int
-		Timeout         time.Duration
-		ExperimentID    string
-		VariantID       string
-		PromptHash      string
-		AllowedEffects  []string
-		PreferredRunner string
-		Model           string
-		Effort          string
+		ExecutionID       uuid.UUID
+		AttemptID         uuid.UUID
+		NodeID            string
+		IdempotencyKey    string
+		ProfileKey        string
+		RoleRef           string
+		ScopePath         string
+		SandboxConfig     *domain.SandboxConfig
+		Tag               string
+		Force             bool
+		Prompt            string
+		Until             string
+		ResultSpec        *domain.ResultSpec
+		SourceRunID       *uuid.UUID
+		ReviewSourceRunID *uuid.UUID
+		ReviewPaths       []string
+		MaxTurns          int
+		MaxToolCalls      int
+		Timeout           time.Duration
+		ExperimentID      string
+		VariantID         string
+		PromptHash        string
+		AllowedEffects    []string
+		PreferredRunner   string
+		Model             string
+		Effort            string
 	}
 	ChildState struct {
 		RunID          uuid.UUID
@@ -82,6 +86,12 @@ type (
 		// TerminalObservedAt is the owner-reported end boundary used to
 		// measure the latency after a durable stop intent.
 		TerminalObservedAt time.Time
+		// AccountingRecoveryUnavailable means the child is terminal but the
+		// owner has no durable receipt/source from which missing usage or
+		// charge facts can be recovered. It is deliberately distinct from
+		// TokensKnown/ChargeMeasured: unknown accounting must not be turned
+		// into zero, but it also must not leave an execution waiting forever.
+		AccountingRecoveryUnavailable bool
 	}
 	MeterCadence struct {
 		Samples             int
@@ -177,9 +187,15 @@ type Engine struct {
 	Catalog        Catalog
 	Children       ChildLauncher
 	Subworkflows   SubworkflowLauncher
+	Qualifications QualificationOwner
 	Expressions    *ExpressionEvaluator
 	PromptResolver PromptResolver
 	Now            Clock
+	// TerminalAccountingGracePeriod bounds how long recovery keeps retrying a
+	// terminal execution whose owner cannot produce a receipt. Zero uses the
+	// default retention-aligned grace period; unknown accounting remains
+	// explicitly incomplete after finalization.
+	TerminalAccountingGracePeriod time.Duration
 }
 
 func (e *Engine) Start(ctx context.Context, revision *domain.WorkflowRevision, input json.RawMessage, idempotencyKey string) (*domain.WorkflowExecution, error) {
@@ -318,6 +334,8 @@ func (e *Engine) Advance(ctx context.Context, id uuid.UUID) (*domain.WorkflowExe
 		return e.advanceAgent(ctx, execution, revision, node)
 	case domain.WorkflowNodeChild:
 		return e.advanceChild(ctx, execution, revision, node)
+	case domain.WorkflowNodeQualification:
+		return e.advanceQualification(ctx, execution, revision, node)
 	case domain.WorkflowNodeBranch:
 		if node.Branch.Parallel {
 			return e.advanceParallelBranch(ctx, execution, revision, node)
@@ -747,7 +765,13 @@ func (e *Engine) recordCleanupDisposition(ctx context.Context, id uuid.UUID, sto
 	if err != nil {
 		return nil, err
 	}
-	if len(failures) > 0 {
+	// Recovery may finalize only an old terminal execution. A recent cleanup
+	// failure remains strict so a late receipt or transient owner outage can be
+	// repaired. The accounting pass below still has to inspect every bound
+	// child; an active/inspectable child therefore cannot be hidden by this
+	// age-based escape hatch.
+	finalizeUnknown := allowUnknown && x.Status != domain.WorkflowExecutionCancelling && e.terminalAccountingUnknownEligible(x)
+	if len(failures) > 0 && !finalizeUnknown {
 		return e.recordIncompleteCleanup(ctx, x, fmt.Errorf("child cleanup incomplete: %s", strings.Join(failures, "; ")))
 	}
 	priorCleanup := false
@@ -769,7 +793,7 @@ func (e *Engine) recordCleanupDisposition(ctx context.Context, id uuid.UUID, sto
 	// sweep: a missing receipt must never be fabricated as zero. Only abnormal
 	// terminal recovery (failed/budget-exhausted) settles a retained terminal as
 	// unknown and proceeds.
-	allowUnknown = allowUnknown && x.Status != domain.WorkflowExecutionCancelling
+	allowUnknown = finalizeUnknown
 	settledAttempts, settlements, err := e.reconcileMeteredCleanup(ctx, x, journal, allowUnknown)
 	if err != nil {
 		x.BudgetUsage = priorUsage
@@ -778,8 +802,11 @@ func (e *Engine) recordCleanupDisposition(ctx context.Context, id uuid.UUID, sto
 	if priorCleanup && len(settledAttempts) == 0 && x.BudgetUsage == priorUsage {
 		return x, nil
 	}
+	if finalizeUnknown && !x.BudgetUsage.AccountingComplete {
+		x.BudgetUsage.AccountingFinalizedUnknown = true
+	}
 	now := e.now()
-	payload, _ := json.Marshal(map[string]any{"retry": x.BudgetUsage.Retries, "stoppedRuns": stoppedRuns, "stoppedWorkflows": stoppedWorkflows, "failures": failures, "settlements": settlements})
+	payload, _ := json.Marshal(map[string]any{"retry": x.BudgetUsage.Retries, "stoppedRuns": stoppedRuns, "stoppedWorkflows": stoppedWorkflows, "failures": failures, "settlements": settlements, "accountingFinalizedUnknown": x.BudgetUsage.AccountingFinalizedUnknown})
 	entry := nextJournal(x.ID, journal, domain.WorkflowJournalCleanup, x.CurrentNodeID, nil, payload, now)
 	if x.Status == domain.WorkflowExecutionCancelling {
 		x.Status = domain.WorkflowExecutionCancelled
@@ -937,7 +964,22 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		active.ErrorCode, active.ValidationError = "", ""
 	}
 	if r.Definition.Budgets.Enforcement == domain.WorkflowBudgetMeteredCancellation && !state.TokensKnown {
-		return x, errors.New("terminal child usage is unknown; retain attempt for accounting reconciliation")
+		if state.AccountingRecoveryUnavailable {
+			// Do not fabricate zero usage or charge. The child is terminal and
+			// its owner has exhausted the bounded recovery sources, so retain
+			// the unresolved accounting state explicitly and finish the
+			// execution with an honest terminal reason instead of retrying the
+			// same impossible reconciliation forever.
+			active.Status = domain.WorkflowAttemptFailed
+			active.ErrorCode = "accounting_unknown"
+			active.ValidationError = "terminal child usage is unavailable and no durable recovery source exists"
+			active.Version++
+			active.UpdatedAt = e.now()
+			active.CompletedAt = &active.UpdatedAt
+			x.BudgetUsage.AccountingComplete = false
+			return e.commitFailure(ctx, x, active, nil, "accounting_unknown", active.ValidationError)
+		}
+		return x, errors.New("terminal child usage or charge is unknown; retain attempt for accounting reconciliation")
 	}
 	stopBudget := strings.TrimPrefix(active.ErrorCode, meteredStopPrefix)
 	budgetStopped := strings.HasPrefix(active.ErrorCode, meteredStopPrefix)
@@ -988,7 +1030,7 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 	if state.Failed {
 		return e.commitFailure(ctx, x, active, entries, "child_failed", "child Run failed")
 	}
-	if state.GoalStatus != "" && (state.Result == nil || state.Result.Structured == nil) {
+	if state.GoalStatus != "" && (nodeResultSpec(node) == nil || nodeResultSpec(node).Kind == domain.ResultSpecKindNone) && (state.Result == nil || state.Result.Structured == nil) {
 		mapped, mapErr := MapGoalStatus(state.GoalStatus)
 		if mapErr != nil {
 			return e.commitFailure(ctx, x, active, entries, "goal_status_invalid", mapErr.Error())
@@ -1090,10 +1132,17 @@ func structuredResultInstruction(spec *domain.ResultSpec) string {
 }
 
 func structuredValidationError(node *domain.WorkflowNode, result *domain.RunResult) string {
-	if result == nil || result.Structured == nil || (node.Run == nil || node.Run.ResultSpec == nil) && (node.Continue == nil || node.Continue.ResultSpec == nil) {
+	spec := nodeResultSpec(node)
+	if spec == nil || spec.Kind == domain.ResultSpecKindNone {
 		return ""
 	}
+	if result == nil || result.Structured == nil {
+		return "required structured result is missing"
+	}
 	if result.Structured.Status == domain.StructuredResultSuccess {
+		if err := structuredresult.ValidateValue(spec.Schema, result.Structured.Value); err != nil {
+			return "structured result does not satisfy the node contract: " + err.Error()
+		}
 		return ""
 	}
 	parts := make([]string, 0, len(result.Structured.Diagnostics)+1)
@@ -1269,6 +1318,18 @@ func (e *Engine) resolveAgentInput(ctx context.Context, node *domain.WorkflowNod
 		bindings = node.Run.Bindings
 		tmpl = node.Run.PromptTemplate
 		spec = node.Run.ResultSpec
+		if node.Run.ReviewInput != nil {
+			for i := len(attempts) - 1; i >= 0; i-- {
+				if attempts[i].NodeID == node.Run.ReviewInput.FromNode && attempts[i].Status == domain.WorkflowAttemptCompleted && attempts[i].RunID != nil {
+					id := attempts[i].ID
+					source = &id
+					break
+				}
+			}
+			if source == nil {
+				return nil, "", PromptResolution{}, nil, "", nil, nil, fmt.Errorf("review source has no completed run attempt")
+			}
+		}
 	} else {
 		strategy = domain.WorkflowAttemptContinue
 		bindings = node.Continue.Bindings
@@ -1343,7 +1404,7 @@ func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecu
 		spec = node.Continue.ResultSpec
 	}
 	request := ChildRequest{ExecutionID: x.ID, AttemptID: a.ID, NodeID: node.ID, IdempotencyKey: a.IdempotencyKey, Prompt: prompt, ResultSpec: spec, ExperimentID: a.ExperimentID, VariantID: a.VariantID, PromptHash: a.PromptHash}
-	if x.ExecutionPreferences != nil {
+	if x.ExecutionPreferences != nil && (node.Run == nil || node.Run.ReviewInput == nil) {
 		request.PreferredRunner = x.ExecutionPreferences.PreferredRunner
 		request.Model = x.ExecutionPreferences.Model
 		request.Effort = x.ExecutionPreferences.Effort
@@ -1354,6 +1415,21 @@ func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecu
 	if node.Run != nil {
 		request.ProfileKey = node.Run.ProfileKey
 		request.RoleRef = node.Run.RoleRef
+		request.SandboxConfig = node.Run.SandboxConfig
+		if node.Run.ReviewInput != nil && a.Strategy == domain.WorkflowAttemptFreshRun {
+			if a.SourceAttemptID != nil {
+				for _, prior := range attempts {
+					if prior.ID == *a.SourceAttemptID && prior.NodeID == node.Run.ReviewInput.FromNode && prior.Status == domain.WorkflowAttemptCompleted {
+						request.ReviewSourceRunID = prior.RunID
+						break
+					}
+				}
+			}
+			if request.ReviewSourceRunID == nil {
+				return ChildRequest{}, fmt.Errorf("pinned review source run is unavailable")
+			}
+			request.ReviewPaths = append([]string(nil), node.Run.ReviewInput.Paths...)
+		}
 		if node.Run.ScopePathTemplate != "" {
 			values := map[string]any{}
 			if err := json.Unmarshal(a.InputSnapshot, &values); err != nil {
@@ -1368,6 +1444,7 @@ func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecu
 		request.Tag = node.Run.Tag
 		request.Force = node.Run.Force
 		request.MaxTurns = node.Run.MaxTurns
+		request.MaxToolCalls = node.Run.MaxToolCalls
 		request.Timeout = time.Duration(node.Run.TimeoutSeconds) * time.Second
 		// Until is an authored template. Render it with the same binding values
 		// already persisted on the attempt so the child run receives real plan
@@ -1387,6 +1464,7 @@ func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecu
 		}
 	} else {
 		request.MaxTurns = node.Continue.MaxTurns
+		request.MaxToolCalls = node.Continue.MaxToolCalls
 		request.Timeout = time.Duration(node.Continue.TimeoutSeconds) * time.Second
 		for _, candidate := range attempts {
 			if candidate.ID == *a.SourceAttemptID {

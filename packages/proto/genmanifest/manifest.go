@@ -100,10 +100,10 @@ func hasProtoFiles(root string) bool {
 }
 
 // ChangedScenarios derives generation scope from the committed per-scenario
-// locks. It compares each schema set's input closure digest and toolchain
-// fingerprint; generated output bytes and descriptor publication remain the
-// generator's responsibility. A missing or unreadable lock is conservatively
-// selected for regeneration.
+// locks. It compares each schema set's input closure digest, toolchain
+// fingerprint, and recorded owner output digests; descriptor publication
+// remains the generator's responsibility. A missing or unreadable lock is
+// conservatively selected for regeneration.
 func ChangedScenarios(opts Options) ([]string, error) {
 	names, err := ScenarioNames(cleanProtoRoot(opts))
 	if err != nil {
@@ -130,6 +130,16 @@ func ChangedScenarios(opts Options) ([]string, error) {
 			return nil, digestErr
 		}
 		if digest != recorded.InputDigest || !sameToolchain(recorded.Toolchain, toolchain) {
+			changedSets[name] = struct{}{}
+			continue
+		}
+		// A lockfile is also an output integrity record.  Input and toolchain
+		// freshness alone cannot repair a generated file that was edited,
+		// deleted, or copied from an older checkout while its source stayed
+		// unchanged.  Treat an output mismatch as a changed owner so the normal
+		// dependency-aware scope repairs it instead of silently reporting no work.
+		outputInSync, outputErr := generatedOutputsMatch(opts, name, recorded.Outputs)
+		if outputErr != nil || !outputInSync {
 			changedSets[name] = struct{}{}
 		}
 	}
@@ -164,6 +174,22 @@ func ChangedScenarios(opts Options) ([]string, error) {
 	}
 	sort.Strings(result)
 	return result, nil
+}
+
+func generatedOutputsMatch(opts Options, scenario string, recorded map[string]string) (bool, error) {
+	current, err := OutputDigests(opts, scenario)
+	if err != nil {
+		return false, err
+	}
+	if len(current) != len(recorded) {
+		return false, nil
+	}
+	for path, digest := range recorded {
+		if current[path] != digest {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func sameToolchain(a, b Toolchain) bool {

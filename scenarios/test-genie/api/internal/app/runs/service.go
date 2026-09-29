@@ -303,51 +303,51 @@ func declaredArtifactComparisonProvider(repoRoot string) string {
 // .vrooli/repo-contract.json; the two must stay in step.
 const scenarioManifest = ".vrooli/service.json"
 
-// scenarioDir resolves a run-query target to the directory owning its run
-// artifacts. A kind:id expression goes through the target model; a bare slug is
+// targetDirs resolves physical source and routed artifact storage separately.
+// A kind:id expression goes through the target model; a bare slug is
 // a scenario, and must carry a scenario manifest to be one.
 //
 // The manifest check is the point. Without it any well-formed word resolved to
 // scenarios/<word>, so querying run history for a resource, a package or a
 // top-level directory name — minio, maturity-go, docs, internal — produced a
 // path that the read itself then created on disk.
-func (s *Service) scenarioDir(scenario string) (string, error) {
+func (s *Service) targetDirs(scenario string) (source string, artifacts string, err error) {
 	scenario = strings.TrimSpace(scenario)
 	if scenario == "" {
-		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
+		return "", "", connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
 	}
 	if strings.Contains(scenario, ":") {
 		target, err := targetmodel.Resolve(filepath.Dir(s.scenariosRoot), scenario)
 		if err != nil {
-			return "", connect.NewError(connect.CodeInvalidArgument, err)
+			return "", "", connect.NewError(connect.CodeInvalidArgument, err)
 		}
 		artifactRoot, err := targetmodel.ArtifactRoot(filepath.Dir(s.scenariosRoot), target)
 		if err != nil {
-			return "", connect.NewError(connect.CodeFailedPrecondition, err)
+			return "", "", connect.NewError(connect.CodeFailedPrecondition, err)
 		}
-		return artifactRoot, nil
+		return target.Path, artifactRoot, nil
 	}
 	if scenario == "." || scenario == ".." || strings.ContainsAny(scenario, `/\`) || filepath.Clean(scenario) != scenario {
-		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("scenario must be a scenario slug or kind:id target"))
+		return "", "", connect.NewError(connect.CodeInvalidArgument, errors.New("scenario must be a scenario slug or kind:id target"))
 	}
 	sourceDir := filepath.Join(s.scenariosRoot, scenario)
 	if _, err := os.Stat(filepath.Join(sourceDir, filepath.FromSlash(scenarioManifest))); err != nil {
 		// A well-formed name with no manifest is a missing scenario, not a
 		// malformed request. NotFound keeps callers from reading it as a
 		// scenario that merely has no runs yet.
-		return "", connect.NewError(connect.CodeNotFound,
+		return "", "", connect.NewError(connect.CodeNotFound,
 			fmt.Errorf("no scenario %q under %s (expected %s)", scenario, s.scenariosRoot, scenarioManifest))
 	}
 	artifactRoot, err := s.artifactRoot(scenario)
 	if err != nil {
-		return "", connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("resolve artifact root for %s: %w", scenario, err))
+		return "", "", connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("resolve artifact root for %s: %w", scenario, err))
 	}
-	return artifactRoot, nil
+	return sourceDir, artifactRoot, nil
 }
 
 // ListRuns enumerates runs for a scenario, newest-first.
 func (s *Service) ListRuns(ctx context.Context, req *connect.Request[runspb.ListRunsRequest]) (*connect.Response[runspb.ListRunsResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetTarget())
+	_, dir, err := s.targetDirs(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -378,7 +378,7 @@ func (s *Service) ListRuns(ctx context.Context, req *connect.Request[runspb.List
 
 // GetRun returns a single run record.
 func (s *Service) GetRun(ctx context.Context, req *connect.Request[runspb.GetRunRequest]) (*connect.Response[runspb.GetRunResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetTarget())
+	_, dir, err := s.targetDirs(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -395,7 +395,7 @@ func (s *Service) GetRun(ctx context.Context, req *connect.Request[runspb.GetRun
 
 // DeleteRun removes a run's artifacts and index entry.
 func (s *Service) DeleteRun(ctx context.Context, req *connect.Request[runspb.DeleteRunRequest]) (*connect.Response[runspb.DeleteRunResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetTarget())
+	_, dir, err := s.targetDirs(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -410,7 +410,7 @@ func (s *Service) DeleteRun(ctx context.Context, req *connect.Request[runspb.Del
 // TTL field, so this compatibility surface grants the documented default
 // rather than recreating the old indefinite index pin.
 func (s *Service) PinRun(ctx context.Context, req *connect.Request[runspb.PinRunRequest]) (*connect.Response[runspb.PinRunResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetTarget())
+	_, dir, err := s.targetDirs(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -436,7 +436,7 @@ func (s *Service) PinRun(ctx context.Context, req *connect.Request[runspb.PinRun
 
 // UnpinRun revokes a consumer's protection lease.
 func (s *Service) UnpinRun(ctx context.Context, req *connect.Request[runspb.UnpinRunRequest]) (*connect.Response[runspb.UnpinRunResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetTarget())
+	_, dir, err := s.targetDirs(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -458,7 +458,7 @@ func (s *Service) UnpinRun(ctx context.Context, req *connect.Request[runspb.Unpi
 
 // CompareRuns classifies per-phase differences between two runs.
 func (s *Service) CompareRuns(ctx context.Context, req *connect.Request[runspb.CompareRunsRequest]) (*connect.Response[runspb.CompareRunsResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetTarget())
+	_, dir, err := s.targetDirs(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -487,7 +487,7 @@ func (s *Service) CompareRuns(ctx context.Context, req *connect.Request[runspb.C
 // comprehensive+baseline run at this sha?" Matching is exact on every non-empty
 // filter; status defaults to "passed"; require_clean excludes dirty-tree runs.
 func (s *Service) FindRun(ctx context.Context, req *connect.Request[runspb.FindRunRequest]) (*connect.Response[runspb.FindRunResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetTarget())
+	sourceDir, dir, err := s.targetDirs(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -513,14 +513,6 @@ func (s *Service) FindRun(ctx context.Context, req *connect.Request[runspb.FindR
 	matchCurrentSource := req.Msg.GetMatchCurrentSource()
 	currentConfiguration := ""
 	if matchCurrentSource {
-		sourceDir := dir
-		if targetExpression := strings.TrimSpace(req.Msg.GetTarget()); strings.Contains(targetExpression, ":") {
-			target, resolveErr := targetmodel.Resolve(filepath.Dir(s.scenariosRoot), targetExpression)
-			if resolveErr != nil {
-				return nil, connect.NewError(connect.CodeInvalidArgument, resolveErr)
-			}
-			sourceDir = target.Path
-		}
 		if treeDigest, err = treedigest.Compute(sourceDir); err != nil {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("compute current source fingerprint: %w", err))
 		}
@@ -582,7 +574,7 @@ func (s *Service) FindRun(ctx context.Context, req *connect.Request[runspb.FindR
 
 // GetPhaseArtifact returns the raw phase-results JSON for a run+phase.
 func (s *Service) GetPhaseArtifact(ctx context.Context, req *connect.Request[runspb.GetPhaseArtifactRequest]) (*connect.Response[runspb.GetPhaseArtifactResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetTarget())
+	_, dir, err := s.targetDirs(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -615,7 +607,7 @@ func (s *Service) GetPhaseArtifact(ctx context.Context, req *connect.Request[run
 // exposing its private storage locators. Runs predating catalogs use a
 // read-only discovery projection with explicit legacy provenance.
 func (s *Service) ListRunArtifacts(ctx context.Context, req *connect.Request[runspb.ListRunArtifactsRequest]) (*connect.Response[runspb.ListRunArtifactsResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetTarget())
+	_, dir, err := s.targetDirs(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -668,7 +660,7 @@ func (s *Service) ListRunArtifacts(ctx context.Context, req *connect.Request[run
 // GetRunArtifact returns safe metadata for one artifact and verifies that its
 // bytes still resolve to a regular file inside this run's allowed roots.
 func (s *Service) GetRunArtifact(ctx context.Context, req *connect.Request[runspb.GetRunArtifactRequest]) (*connect.Response[runspb.GetRunArtifactResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetTarget())
+	_, dir, err := s.targetDirs(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -756,7 +748,7 @@ func cloneStringMap(input map[string]string) map[string]string {
 // manifest. It intentionally does not open findings.json: that artifact owns
 // detailed findings and is accessed only through an explicit artifact route.
 func (s *Service) GetRunFindings(ctx context.Context, req *connect.Request[runspb.GetRunFindingsRequest]) (*connect.Response[runspb.GetRunFindingsResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetTarget())
+	_, dir, err := s.targetDirs(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -822,7 +814,7 @@ func latestRunID(scenarioDir string) (string, error) {
 // content is served by the REST artifact route; this returns the relative-path
 // handles that route consumes.
 func (s *Service) ListRunVideos(ctx context.Context, req *connect.Request[runspb.ListRunVideosRequest]) (*connect.Response[runspb.ListRunVideosResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetTarget())
+	_, dir, err := s.targetDirs(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -850,7 +842,7 @@ func (s *Service) ListRunVideos(ctx context.Context, req *connect.Request[runspb
 // content is served by the REST artifact route; this returns the structured
 // page set + rel-path handles git-control-tower diffs at the metadata level.
 func (s *Service) ListRunVisuals(ctx context.Context, req *connect.Request[runspb.ListRunVisualsRequest]) (*connect.Response[runspb.ListRunVisualsResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetTarget())
+	_, dir, err := s.targetDirs(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -879,7 +871,7 @@ func (s *Service) ListRunVisuals(ctx context.Context, req *connect.Request[runsp
 // only enumerates run artifacts and supplies inline screenshot bytes; ui-health
 // owns the pixel math and verdict taxonomy.
 func (s *Service) CompareRunVisuals(ctx context.Context, req *connect.Request[runspb.CompareRunVisualsRequest]) (*connect.Response[runspb.CompareRunVisualsResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetTarget())
+	_, dir, err := s.targetDirs(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -989,7 +981,7 @@ func readRunArtifact(dir, runID, relPath string) ([]byte, error) {
 // ResolveArtifactByID resolves the verified catalog entry used by the opaque
 // REST byte route. The returned metadata is safe to use for content headers.
 func (s *Service) ResolveArtifactByID(scenario, runID, artifactID string) (sharedartifacts.ArtifactRef, string, error) {
-	dir, err := s.scenarioDir(scenario)
+	_, dir, err := s.targetDirs(scenario)
 	if err != nil {
 		return sharedartifacts.ArtifactRef{}, "", err
 	}

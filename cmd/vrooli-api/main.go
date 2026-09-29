@@ -50,8 +50,9 @@ func main() {
 		CommandFn:  vrooliapi.DefaultCommandOutput,
 	})
 	if err := apiserver.Run(apiserver.Config{
-		Handler: app.Router(),
-		Port:    port,
+		Handler:      app.Router(),
+		Port:         port,
+		WriteTimeout: vrooliapi.ProjectAPIWriteTimeout,
 		Logger: func(format string, args ...interface{}) {
 			logger.Info(fmt.Sprintf(format, args...))
 		},

@@ -419,7 +419,7 @@ class NavigationStep(_message.Message):
     def __init__(self, index: _Optional[int] = ..., action_type: _Optional[str] = ..., selector: _Optional[str] = ..., value: _Optional[str] = ..., url: _Optional[str] = ..., description: _Optional[str] = ..., success: _Optional[bool] = ..., error: _Optional[str] = ..., at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class GetNavigationStatusResponse(_message.Message):
-    __slots__ = ("navigation_id", "session_id", "status", "step_count", "total_tokens", "started_at", "navigator_type", "terminal", "steps", "verified_success", "extracted_data", "verification_error")
+    __slots__ = ("navigation_id", "session_id", "status", "step_count", "total_tokens", "started_at", "navigator_type", "terminal", "steps", "verified_success", "extracted_data", "verification_error", "final_url", "error", "summary", "total_duration_ms")
     NAVIGATION_ID_FIELD_NUMBER: _ClassVar[int]
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -432,6 +432,10 @@ class GetNavigationStatusResponse(_message.Message):
     VERIFIED_SUCCESS_FIELD_NUMBER: _ClassVar[int]
     EXTRACTED_DATA_FIELD_NUMBER: _ClassVar[int]
     VERIFICATION_ERROR_FIELD_NUMBER: _ClassVar[int]
+    FINAL_URL_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
     navigation_id: str
     session_id: str
     status: str
@@ -444,7 +448,11 @@ class GetNavigationStatusResponse(_message.Message):
     verified_success: bool
     extracted_data: _struct_pb2.Struct
     verification_error: str
-    def __init__(self, navigation_id: _Optional[str] = ..., session_id: _Optional[str] = ..., status: _Optional[str] = ..., step_count: _Optional[int] = ..., total_tokens: _Optional[int] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., navigator_type: _Optional[str] = ..., terminal: _Optional[bool] = ..., steps: _Optional[_Iterable[_Union[NavigationStep, _Mapping]]] = ..., verified_success: _Optional[bool] = ..., extracted_data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., verification_error: _Optional[str] = ...) -> None: ...
+    final_url: str
+    error: str
+    summary: str
+    total_duration_ms: int
+    def __init__(self, navigation_id: _Optional[str] = ..., session_id: _Optional[str] = ..., status: _Optional[str] = ..., step_count: _Optional[int] = ..., total_tokens: _Optional[int] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., navigator_type: _Optional[str] = ..., terminal: _Optional[bool] = ..., steps: _Optional[_Iterable[_Union[NavigationStep, _Mapping]]] = ..., verified_success: _Optional[bool] = ..., extracted_data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., verification_error: _Optional[str] = ..., final_url: _Optional[str] = ..., error: _Optional[str] = ..., summary: _Optional[str] = ..., total_duration_ms: _Optional[int] = ...) -> None: ...
 
 class AbortNavigationRequest(_message.Message):
     __slots__ = ("navigation_id",)

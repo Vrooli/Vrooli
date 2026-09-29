@@ -124,6 +124,10 @@ type NavigationSession struct {
 	VerifiedSuccess      bool
 	ExtractedData        map[string]interface{}
 	VerificationError    string
+	FinalURL             string
+	Error                string
+	Summary              string
+	TotalDurationMs      int64
 	NavigationID         string
 	SessionID            string
 	UserID               string
@@ -187,6 +191,7 @@ func (s *NavigationSession) RecordStep(rec NavigationStepRecord) {
 func (s *NavigationSession) Snapshot() *NavigationSession {
 	s.Changed() // ensure the channel exists so the copy can be waited on
 	cp := *s
+	cp.ExtractedData = cloneExtractedData(s.ExtractedData)
 	if s.Steps != nil {
 		cp.Steps = make([]NavigationStepRecord, len(s.Steps))
 		copy(cp.Steps, s.Steps)
@@ -196,6 +201,32 @@ func (s *NavigationSession) Snapshot() *NavigationSession {
 		cp.HumanIntervention = &hi
 	}
 	return &cp
+}
+
+func cloneExtractedData(data map[string]interface{}) map[string]interface{} {
+	if data == nil {
+		return nil
+	}
+	clone := make(map[string]interface{}, len(data))
+	for key, value := range data {
+		clone[key] = cloneExtractedValue(value)
+	}
+	return clone
+}
+
+func cloneExtractedValue(value interface{}) interface{} {
+	switch value := value.(type) {
+	case map[string]interface{}:
+		return cloneExtractedData(value)
+	case []interface{}:
+		clone := make([]interface{}, len(value))
+		for index, item := range value {
+			clone[index] = cloneExtractedValue(item)
+		}
+		return clone
+	default:
+		return value
+	}
 }
 
 // SessionTracker is the seam navigators expose for session-state lookups.

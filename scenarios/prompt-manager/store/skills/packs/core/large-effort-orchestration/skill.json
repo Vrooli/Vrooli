@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-09-10T00:00:00Z",
-  "description": "Preserve a large cross-scenario request, then coordinate a bounded planner tree with economical workers, durable handoffs, quota recovery and evidence review. Use for finite multi-plan efforts that must survive interruptions; use the ordinary plan skills for one bounded change.",
+  "description": "Preserve a large cross-scenario request, then coordinate owner-admitted boundaries with economical workers, durable handoffs, quota recovery and evidence review. Use for finite multi-shape efforts that must survive interruptions; use the ordinary plan skills for one bounded change.",
   "entry": "SKILL.md",
   "icon": "network",
   "id": "large-effort-orchestration",
@@ -27,7 +27,7 @@
       "program-runtime"
     ]
   },
-  "revision": 6,
+  "revision": 14,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -38,5 +38,5 @@
     "recovery",
     "planning"
   ],
-  "updatedAt": "2026-09-12T00:00:00Z"
+  "updatedAt": "2026-09-28T12:00:00Z"
 }

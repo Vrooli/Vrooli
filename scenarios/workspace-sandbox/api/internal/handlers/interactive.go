@@ -47,7 +47,7 @@ type InteractiveStartRequest struct {
 	Args           []string          `json:"args,omitempty"`
 	IsolationLevel string            `json:"isolationLevel,omitempty"`
 	ExecutionMode  string            `json:"executionMode,omitempty"`
-	AllowNetwork   bool              `json:"allowNetwork,omitempty"`
+	AllowNetwork   *bool             `json:"allowNetwork,omitempty"` // nil inherits the profile; false explicitly denies network
 	Env            map[string]string `json:"env,omitempty"`
 	WorkingDir     string            `json:"workingDir,omitempty"`
 	MemoryLimitMB  int               `json:"memoryLimitMB,omitempty"`
@@ -141,13 +141,9 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 		cfg.Env[k] = v
 	}
 
-	if err := h.applyIsolationProfile(sb, &cfg, startReq.IsolationLevel); err != nil {
+	if err := h.applyIsolationProfile(sb, &cfg, startReq.IsolationLevel, startReq.AllowNetwork); err != nil {
 		sendErrorMessage(conn, err.Error())
 		return
-	}
-
-	if startReq.AllowNetwork {
-		cfg.AllowNetwork = true
 	}
 
 	// Set resource limits

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "kind": "compressed_active_checkpoint",
+  "source": "docs/internal/REFRACTOR_PROGRESS.md",
+  "selection": "Complete active view before compaction; superseded narrative retained for audit.",
+  "source_bytes": 21679,
+  "source_sha256": "77d64f4036dd592fee83c87f07a0b751c1d1a81bcfad36bf16fe466d149620c4",
+  "archive": "refactor-progress-active-2026-09-28-r2.md.gz",
+  "archive_bytes": 8475,
+  "archive_sha256": "80daa06e1052a44c006fb5c49bb34ce09dd74e0c9505844c40a24b895e12d4a0",
+  "retrieval": "gzip -cd <archive-path>"
+}

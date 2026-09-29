@@ -381,6 +381,12 @@ message RunBreakdownRow {
   int64 total_charge_micro_usd = 9;
   double consumption_per_successful_completion = 10;
   double completion_rate = 11;
+  // Token components make grouped efficiency evidence explain total_tokens;
+  // cache reads are usage, but must not be confused with generated output.
+  int64 input_tokens = 12;
+  int64 output_tokens = 13;
+  int64 cache_read_tokens = 14;
+  int64 cache_creation_tokens = 15;
 }
 message RunnerBreakdownRequest {
   vrooli.measures.v1.TimeWindow window = 1;

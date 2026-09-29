@@ -36,8 +36,31 @@
     "schemaVersion": 1,
     "governance": {},
     "documents": {
-      "planOfRecord": ["/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-commercial-release-2026-09-17/requirements.json"],
-      "sharedState": ["/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-commercial-release-2026-09-17/README.md"]
+      "planOfRecord": [
+        {
+          "id": "aquila-commercial-release-requirements",
+          "paths": [
+            {
+              "base": "external",
+              "path": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-commercial-release-2026-09-17/requirements.json"
+            }
+          ],
+          "writePolicy": "Plan Manager owner-authorized; team members read and propose only.",
+          "consumers": ["aquila-launch-coordinator"],
+          "rationale": "Canonical requirements for the finite Aquila commercial release effort."
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "aquila-commercial-release-plan-readme",
+          "path": {
+            "base": "external",
+            "path": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-commercial-release-2026-09-17/README.md"
+          },
+          "kind": "rolling-snapshot",
+          "required": true
+        }
+      ]
     },
     "knowledgeTopics": {
       "effort-wake/*": {

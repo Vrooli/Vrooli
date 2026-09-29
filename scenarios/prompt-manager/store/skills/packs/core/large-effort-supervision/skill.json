@@ -25,7 +25,7 @@
       "program-runtime"
     ]
   },
-  "revision": 8,
+  "revision": 12,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -35,5 +35,5 @@
     "orchestration",
     "evidence"
   ],
-  "updatedAt": "2026-09-14T00:00:00Z"
+  "updatedAt": "2026-09-28T12:30:00Z"
 }

@@ -332,26 +332,34 @@ try {
     liveResourcesBeforeClose: resourcesBeforeClose,
     liveResourcesAfterClose: effectState.live,
     inputStoppedMs: releaseAfterRestart - effectState.acceptedAt,
+    restartRequestAfterEffectMs: restartStartedAt - effectState.acceptedAt,
+    restartPreparationMs: stopStartedAt - restartStartedAt,
+    inputStopAfterStopMs: releaseAfterRestart - stopStartedAt,
     cleanupMs: releaseAfterRestart - stopStartedAt,
     recoveryMs: outcome.observedAt - stopStartedAt,
     uncertainEffect: true,
     retryAdmitted: effectState.count !== 1,
   };
-  if (
-    observation.cleanupMs < 0 ||
-    observation.cleanupMs > 5000 ||
-    observation.recoveryMs > 10000
-  ) {
-    throw new Error(
-      `J07 restart bands exceeded: ${JSON.stringify(observation)}`,
-    );
-  }
-  observation.passed = true;
+  const failures = [];
+  if (observation.inputStoppedMs < 0 || observation.inputStoppedMs > 1000)
+    failures.push("input-stop-over-band");
+  if (observation.cleanupMs < 0 || observation.cleanupMs > 5000)
+    failures.push("cleanup-over-band");
+  if (observation.recoveryMs > 10000) failures.push("recovery-over-band");
+  observation.failureReasons = failures;
+  observation.passed = failures.length === 0;
+  // Preserve one bounded owner observation even when a band fails. Failed
+  // measurements are diagnostic evidence, not qualification receipts.
   await appendFile(
     observationsPath,
     `${JSON.stringify({ case: "apiRestart", observation })}\n`,
     { mode: 0o600 },
   );
+  if (!observation.passed) {
+    throw new Error(
+      `J07 restart bands exceeded: ${JSON.stringify(observation)}`,
+    );
+  }
   console.log(
     JSON.stringify(
       {

@@ -1,5 +1,34 @@
 # Protected-Mode Runners — Capability Matrix
 
+## Dependent child authority
+
+A parent/model qualification receipt does not authorize a child to change its
+execution restrictions. Dependent children may retain or reduce network access,
+tool/path allowlists, effect grants, features and approval bypass. They must
+preserve denied entries and may strengthen sandbox mode, manual review and
+apply restrictions. List narrowing uses declared entries, not inferred glob
+containment. Changes to extra flags, sandbox acceptance or lifecycle policies
+need independent owner admission. Session limits and task prompts are not
+permission grants. This source-level backstop
+does not establish runtime containment, immutable task scope or child budgets.
+
+Dependent children must also preserve or narrow `sandboxConfig.writePolicy`
+using exact declared entries. An omitted child policy cannot widen a restricted
+parent. Explicit empty paths remain read-only through JSON/protobuf persistence.
+
+Child credential exchange also intersects the parent's concrete scopes with
+the child's admitted owner scopes, profile ceiling and request narrowing.
+It caps expiry at both authorities, uses the child's profile and workflow identity,
+checks its supervision binding and refuses a different owner, an inactive child
+or a revoked credential. Replacement gets a new credential generation. The
+exchange cannot resume a stopped child or replace explicit empty authority
+with the parent's capabilities. The API accepts parent credentials only in the
+identity header, never request JSON.
+
+Regression evidence: `internal/orchestration/dependent_delegation_internal_test.go`
+and `internal/orchestration/delegation_test.go`. These tests do not qualify a
+live runner or direct-service/network isolation.
+
 ## Tool restriction enforcement
 
 `allowedTools` and `deniedTools` are canonical profile controls, not runner CLI
@@ -13,6 +42,71 @@ enforced policy. The live codec registry is authoritative: inspect it with
 `agent-manager runner tools`.
 
 ## Run-control fidelity and isolation
+
+Protected codec-pipe launches fail closed when sandbox wiring, a nonzero sandbox
+identity, or a current required-containment report is missing. The report must
+identify a backend and the baseline filesystem/network-denial capabilities.
+Missing sandbox configuration or an unknown mode refuses launch; neither implies
+permission for host execution, including for effect-bearing runs.
+Execution and continuation share this selector. Explicit tracking mode retains
+its warning-based fallback; it is not protected containment. Capability names
+are not proof that a particular process received a restrictive network profile.
+
+`sandboxConfig.writePolicy` supplies runtime workspace grants, not apply-time
+acceptance. Protected execution and continuation require both the backend's
+`workspace-write-policy` capability and a matching persisted sandbox policy.
+Reusing an older unrestricted sandbox is refused. Read the
+[Workspace Sandbox policy contract](../../workspace-sandbox/docs/AUDITABILITY_CONTRACT.md#runtime-workspace-write-policy)
+for literal path semantics, physical checks and platform limits. No global
+worker grant is implied; the owner must choose each assignment's paths.
+
+Codex no-network launches explicitly disable workspace network access, clear
+inherited additional writable roots and forbid approval escalation on execute,
+continue and interactive paths. The no-model host check under
+`internal/safeguards/bubblewrap-userns` qualifies native shell filesystem and
+loopback restrictions; it does not qualify remote tool access, tool hooks or
+the complete protected Agent Manager workflow. Apply-time acceptance paths
+remain distinct from per-command filesystem enforcement.
+
+Codex's [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference)
+separates command network restrictions from web search, apps and MCP servers.
+Network-denied Codex launches now compile an owner policy on each fresh process,
+including continuation. It preserves inherited `/etc/codex/requirements.toml`
+restrictions, denies MCP/plugins/web search, and pins remote-tool, hook and native
+child features off. Conflicting administrator feature pins or managed hooks
+refuse launch. Preserve Code Mode and its local execution host: Luna/Sol dispatch
+ordinary shell and patch tools through that runtime. Disabling the dispatcher
+does not qualify isolation; it prevents useful work. Restrict its underlying
+remote tools and sandboxed commands instead. Content-addressed policy files live outside writable runtime
+state. Both their source and `/etc/codex/requirements.toml` paths are mounted
+read-only. A changed persisted file, unsupported provider or host launch refuses
+execution; omission of the mount is not an advisory fallback.
+
+When an explicit owner write policy is present, WSS owns filesystem enforcement
+and Codex's named `vrooli-network-only` profile denies command networking. Do not
+also select native `workspace-write`: its implicit cwd write grant tries to
+create metadata masks beneath WSS's read-only workspace root. Mirroring individual
+file grants into native profiles also fails on Codex 0.156.1. The network-only
+profile is valid only behind the required outer launcher with an exact persisted
+write-policy match; host/tracking fallback remains forbidden. Its `:root` special
+path preserves native device handling; a literal `/` write bind breaks `/dev/null`.
+Conflicting administrator read-only requirements refuse launch. The no-model
+`TestLiveCodexOwnerWritePolicy` (`-args -live-codex-write-policy`, codecs package)
+checks directory/file/empty grants, standard device access, control denial,
+host-network denial and that administrator ceiling. Admission records native
+controls only after attaching the final sandbox policy. Neither layer is qualified
+by CLI flags alone.
+
+`TestLiveCodexWorkerPolicy` (`-args -live-codex-worker-policy`, orchestration
+package) exercises the installed CLI without a model. It proves a fixture MCP
+server is disabled and command-line feature enables cannot override the policy.
+It also checks that the local execution host remains enabled.
+This does not prove a real agent's complete tool inventory or attempted service
+calls. The outer `vrooli-aware` launcher still has network access for the model
+transport. See the integration checkpoint in
+[`effort-supervision-validation.md`](../../../docs/agent-system/effort-supervision-validation.md)
+for runtime adoption and the remaining direct-service/pilot obligations. Do not
+infer qualification of arbitrary runner versions from configuration alone.
 
 `effort` is a canonical run control with the values `low`, `medium`, `high`,
 `xhigh`, and `max`. Claude Code and Grok publish all five through `--effort`.
@@ -128,16 +222,14 @@ into workspace-sandbox bwrap isolation. The **interactive** execution mode
 [interactive-runner-design.md](interactive-runner-design.md)) launches the real
 agent CLI inside a web-console tmux session on the host. There is no
 agent-manager-owned process tree to place inside a protected sandbox, so the
-protected guarantees below cannot hold for it. Whether an interactive run may
-use a given sandbox mode is a **runner capability and profile policy** decision,
-not a domain-level prohibition: each codec declares the sandbox modes its
-interactive spawn capability supports (today `tracking` and `off` for Claude
-Code and Codex; no codec declares `protected`), and the spawn resolver selects
-among declared capabilities as described under "Native objective capability"
-below. `ValidateInteractiveRunMode` in
-`internal/domain/validation.go` validates only the execution-mode vocabulary and
-returns no error for any sandbox mode; `internal/domain/interactive_gate_test.go`
-pins that behavior. A tracking-mode interactive run is host execution with
+protected guarantees below cannot hold for it. Codec capabilities and profile
+preferences select supported modes (today `tracking` and `off` for Claude Code
+and Codex). Creation and actual launch also reject protected, effect-contained
+or write-restricted interactive execution. Direct requests and retained rows
+cannot bypass this check by omitting a spawn preference policy. It runs before
+workspace/session creation; recovery of an already running session is unchanged.
+`TestExecuteInteractiveRun_ProtectedBackstop` exercises the launch gate with a
+configured provider. A tracking-mode interactive run is host execution with
 provenance capture, never protected containment.
 
 ## Native objective capability
@@ -200,12 +292,12 @@ corresponding run record.
 
 Protected mode's OS-level guardrails are carried out by a per-OS *containment
 backend* selected inside workspace-sandbox behind a platform-neutral seam. The
-sandbox reports the guarantees its backend actually enforces
+sandbox reports the guarantees its backend supports
 (`GET /api/v1/driver/containment`, mirrored into `runner.Containment`), and the
-launcher selector warns when the enforced set is missing anything protected mode
-depends on — `filesystem-write-containment` and `network-deny`
-(`Containment.MissingProtectedEnforcements`). Protected mode is never silently
-downgraded: the run proceeds, but the gap is surfaced loudly.
+launcher selector refuses protected launch when the set lacks
+`filesystem-write-containment` or `network-deny`, the level is not `required`,
+or the backend/report is absent. The selected process profile must separately
+establish actual network restrictions; the localhost limitation above remains.
 
 | Enforcement | Linux (`bwrap`) | macOS (`seatbelt`) | Other (`none`) |
 |-------------|:---------------:|:------------------:|:--------------:|
@@ -213,7 +305,7 @@ downgraded: the run proceeds, but the gap is surfaced loudly.
 | `network-deny` | ✅ | ✅ | ❌ |
 | `pid-namespace` | ✅ | ❌ | ❌ |
 | `path-illusion` | ✅ | ❌ | ❌ |
-| **Protected mode honored (no gap warn)** | ✅ | ✅ | ❌ (both required enforcements missing) |
+| **Protected backend admission** | ✅ | ✅ | ❌ (launch refused) |
 
 macOS Seatbelt (via `sandbox-exec`) is **partial by design**: it enforces both
 protected-mode-required guarantees, so protected mode runs on macOS without a

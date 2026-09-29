@@ -18,6 +18,11 @@ func (s *Service) TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointR
 	if err := validateTurnCheckpointRequest(req); err != nil {
 		return nil, err
 	}
+	release, err := s.lockUnprepared(ctx, req.SandboxID)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 
 	sandbox, err := s.Get(ctx, req.SandboxID)
 	if err != nil {
@@ -38,6 +43,9 @@ func (s *Service) TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointR
 	if err := s.repo.Update(ctx, sandbox); err != nil {
 		return nil, fmt.Errorf("failed to mark sandbox checkpointing: %w", err)
 	}
+	// Checkpointing is now durable and excludes new approvals. Do not hold an
+	// approval lock across external teardown hooks later in the turn.
+	release()
 
 	restoreActive := func(stage string, cause error) error {
 		sandbox.Status = types.StatusActive
@@ -64,7 +72,7 @@ func (s *Service) TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointR
 		RunOutcome:        req.RunOutcome,
 	}
 
-	applyResult, err := s.applyAcceptedChanges(ctx, sandbox, approvalReq)
+	applyResult, err := s.applyAcceptedChanges(ctx, sandbox, approvalReq, false)
 	if err != nil {
 		return nil, restoreActive("failed to apply accepted turn changes", err)
 	}
@@ -173,6 +181,11 @@ func (s *Service) TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointR
 }
 
 func (s *Service) Resume(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+	release, err := s.lockUnprepared(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	sandbox, err := s.Get(ctx, id)
 	if err != nil {
 		return nil, err

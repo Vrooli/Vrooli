@@ -61,6 +61,14 @@ func (s *Service) CheckConflicts(ctx context.Context, id uuid.UUID) (*types.Conf
 // Does NOT merge canonical-repo changes into the sandbox; only updates
 // the baseline reference for conflict detection.
 func (s *Service) Rebase(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error) {
+	if req == nil {
+		return nil, types.NewValidationError("request", "request body is required")
+	}
+	release, err := s.lockUnprepared(ctx, req.SandboxID)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	sandbox, err := s.Get(ctx, req.SandboxID)
 	if err != nil {
 		return nil, err

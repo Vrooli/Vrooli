@@ -2,6 +2,7 @@ package validationbroker
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"strings"
@@ -13,7 +14,9 @@ import (
 	sharedruns "test-genie/internal/shared/runs"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -21,6 +24,11 @@ type suiteRunManager interface {
 	Start(runmanager.StartOptions) (runmanager.StartResult, error)
 	Wait(context.Context, string, string) (runmanager.LiveStatus, error)
 	Abort(string, string) (runmanager.LiveStatus, error)
+	AbortEvidenceProducer(runmanager.StartOptions) (runmanager.LiveStatus, error)
+}
+
+type retainedEvidenceSetOwner interface {
+	RetainedEvidenceSet(scenario, runID, receiptID, producer, candidateIdentity string) (*scenariovalidationv1.RetainedEvidenceSet, error)
 }
 
 // RunProducer translates scenario validation intent into the existing durable
@@ -33,6 +41,16 @@ type RunProducer struct {
 	planner  execution.ExecutionPlanner
 }
 
+const evidenceProducerCleanupReserve = 60 * time.Second
+
+func evidenceProductionDeadline(admittedAt time.Time, timeout time.Duration, cleanupReserve time.Duration) (time.Time, error) {
+	maxDuration := time.Duration(int64(^uint64(0) >> 1))
+	if admittedAt.IsZero() || timeout <= 0 || cleanupReserve < 0 || timeout > maxDuration-cleanupReserve {
+		return time.Time{}, errors.New("pinned evidence producer deadline is invalid")
+	}
+	return admittedAt.Add(timeout + cleanupReserve), nil
+}
+
 func (p *RunProducer) WithExecutionPlanner(planner execution.ExecutionPlanner) *RunProducer {
 	p.planner = planner
 	return p
@@ -42,6 +60,7 @@ var errQueueBudget = errors.New("validation queue budget exhausted")
 
 // A failed observer attachment says nothing about the durable child's verdict.
 var errEvidencePending = errors.New("durable evidence requires reattachment")
+var errSuiteStartUncertain = errors.New("suite start outcome is uncertain")
 
 func NewRunProducer(runs suiteRunManager, identity ...IdentityResolver) *RunProducer {
 	producer := &RunProducer{runs: runs}
@@ -93,6 +112,28 @@ func (p *RunProducer) ExecuteValidation(ctx context.Context, current *validation
 		return err
 	}
 	current = updatedCurrent
+	if intent.GetPurpose() == validationv1.ValidationPurpose_VALIDATION_PURPOSE_EVIDENCE_PRODUCTION {
+		pin := intent.GetPinnedEvidenceProducer()
+		if pin == nil || pin.GetSourceIdentity() == "" {
+			return p.terminalizeFailure(ctx, receiptID, transition, validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_IDENTITY_CHANGED, "pinned producer source identity is unavailable")
+		}
+		// A durable child is the authority after admission. Re-resolving mutable
+		// provider source here would make restart/reattachment depend on current
+		// checkout state and could strand the original child.
+		if childByID(current, evidenceProducerChildID(pin)) == nil {
+			if p.identity == nil {
+				return p.terminalizeFailure(ctx, receiptID, transition, validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_IDENTITY_CHANGED, "pinned producer source identity is unavailable")
+			}
+			observedSource, sourceErr := p.identity.Resolve(ctx, producerSourceIntent(pin))
+			if sourceErr != nil {
+				return p.terminalizeResolutionFailure(ctx, receiptID, transition, sourceErr)
+			}
+			if observedSource.GetIdentity() != pin.GetSourceIdentity() {
+				return p.terminalizeFailure(ctx, receiptID, transition, validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_IDENTITY_CHANGED, "provider source changed after evidence producer admission")
+			}
+		}
+		return p.executeEvidenceProduction(ctx, current, intent, transition)
+	}
 	var evidenceErr error
 	current, evidenceErr = p.executeGCTEvidence(ctx, current, intent, transition)
 	if evidenceErr != nil || terminal(current.GetState()) {
@@ -135,7 +176,7 @@ func (p *RunProducer) ExecuteValidation(ctx context.Context, current *validation
 		attempt := priorAttempts
 		if attempt == 0 {
 			attempt = 1
-		} else if child.GetState() != validationv1.ChildOperationState_CHILD_OPERATION_STATE_RUNNING {
+		} else if child.GetState() != validationv1.ChildOperationState_CHILD_OPERATION_STATE_RUNNING && child.GetState() != validationv1.ChildOperationState_CHILD_OPERATION_STATE_PENDING {
 			attempt++
 			child = nil
 		}
@@ -145,22 +186,34 @@ func (p *RunProducer) ExecuteValidation(ctx context.Context, current *validation
 			if child != nil {
 				runID = child.GetOperationId()
 			} else {
-				result, err := p.startAfterCapacity(ctx, receiptID, scenario, intent)
+				runID = validationSuiteRunID(receiptID, scenario, attempt)
+				childID := fmt.Sprintf("%s:attempt:%d", prefix, attempt)
+				updated, err := transition(ctx, receiptID, validationv1.ReceiptState_RECEIPT_STATE_RUNNING, func(receipt *validationv1.ValidationReceipt) error {
+					receipt.Children = append(receipt.Children, &validationv1.ChildOperation{ChildId: childID, Kind: validationv1.ChildOperationKind_CHILD_OPERATION_KIND_TEST_RUN, State: validationv1.ChildOperationState_CHILD_OPERATION_STATE_PENDING, Owner: "test-genie", OperationId: runID})
+					return nil
+				})
 				if err != nil {
+					return err
+				}
+				current = updated
+			}
+			if child == nil || child.GetState() == validationv1.ChildOperationState_CHILD_OPERATION_STATE_PENDING {
+				if _, err := p.startAfterCapacity(ctx, receiptID, scenario, intent, runID); err != nil {
+					if errors.Is(err, errSuiteStartUncertain) {
+						return fmt.Errorf("%w: %v", errEvidencePending, err)
+					}
 					reason := validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_PROVIDER_UNAVAILABLE
 					if errors.Is(err, errQueueBudget) {
 						reason = validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_CAPACITY_UNAVAILABLE
 					}
 					return p.terminalizeFailure(ctx, receiptID, transition, reason, fmt.Sprintf("start validation child for %s: %v", scenario, err))
 				}
-				runID = result.RunID
-				childID := fmt.Sprintf("%s:attempt:%d", prefix, attempt)
 				updated, err := transition(ctx, receiptID, validationv1.ReceiptState_RECEIPT_STATE_RUNNING, func(receipt *validationv1.ValidationReceipt) error {
-					receipt.Children = append(receipt.Children, &validationv1.ChildOperation{ChildId: childID, Kind: validationv1.ChildOperationKind_CHILD_OPERATION_KIND_TEST_RUN, State: validationv1.ChildOperationState_CHILD_OPERATION_STATE_RUNNING, Owner: "test-genie", OperationId: runID})
+					setChildState(receipt, runID, validationv1.ChildOperationState_CHILD_OPERATION_STATE_RUNNING, "")
 					return nil
 				})
 				if err != nil {
-					return err
+					return fmt.Errorf("%w: persist started suite %s: %v", errEvidencePending, runID, err)
 				}
 				current = updated
 			}
@@ -244,6 +297,250 @@ func (p *RunProducer) ExecuteValidation(ctx context.Context, current *validation
 		return nil
 	})
 	return err
+}
+
+func (p *RunProducer) executeEvidenceProduction(ctx context.Context, current *validationv1.ValidationReceipt, intent *validationv1.ValidationIntent, transition TransitionFunc) error {
+	pin := intent.GetPinnedEvidenceProducer()
+	target := intent.GetTargets()[0].GetId()
+	childID := evidenceProducerChildID(pin)
+	runID := validationSuiteRunID(current.GetReceiptId(), target, 1)
+	if current.GetCreatedAt() == nil || !current.GetCreatedAt().IsValid() || pin.GetTimeoutMilliseconds() > uint64(int64(^uint64(0)>>1)/int64(time.Millisecond)) {
+		return p.terminalizeFailure(ctx, current.GetReceiptId(), transition, validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_INVALID_INTENT, "pinned evidence producer deadline is invalid")
+	}
+	deadline, deadlineErr := evidenceProductionDeadline(current.GetCreatedAt().AsTime(), time.Duration(pin.GetTimeoutMilliseconds())*time.Millisecond, evidenceProducerCleanupReserve)
+	if deadlineErr != nil {
+		return p.terminalizeFailure(ctx, current.GetReceiptId(), transition, validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_INVALID_INTENT, deadlineErr.Error())
+	}
+	child := childByID(current, childID)
+	if !time.Now().Before(deadline) {
+		return p.expireEvidenceProduction(ctx, current, intent, transition, deadline)
+	}
+	if child != nil && child.GetState() == validationv1.ChildOperationState_CHILD_OPERATION_STATE_SUCCEEDED {
+		observed, changed, identityErr := p.verifyEvidenceProductionIdentity(ctx, intent, pin, current.GetAdmittedIdentity())
+		if identityErr != nil {
+			if changed {
+				return p.terminalizeIdentityChange(ctx, current.GetReceiptId(), observed, transition, identityErr.Error())
+			}
+			return p.terminalizeResolutionFailure(ctx, current.GetReceiptId(), transition, identityErr)
+		}
+		set, setErr := p.producedEvidenceSet(target, child.GetOperationId(), current, pin, observed)
+		if setErr != nil {
+			return p.terminalizeFailure(ctx, current.GetReceiptId(), transition, validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_PROVIDER_UNAVAILABLE, "producer output could not be published as retained evidence: "+setErr.Error())
+		}
+		if !time.Now().Before(deadline) {
+			return p.expireEvidenceProduction(ctx, current, intent, transition, deadline)
+		}
+		_, err := transition(ctx, current.GetReceiptId(), validationv1.ReceiptState_RECEIPT_STATE_SUCCEEDED, func(r *validationv1.ValidationReceipt) error {
+			r.ObservedIdentity = cloneIdentity(observed)
+			r.ProducedEvidenceSet = set
+			r.Detail = "declared evidence producer command completed"
+			return nil
+		})
+		return err
+	}
+	if child == nil {
+		updated, err := transition(ctx, current.GetReceiptId(), validationv1.ReceiptState_RECEIPT_STATE_RUNNING, func(r *validationv1.ValidationReceipt) error {
+			r.Children = append(r.Children, &validationv1.ChildOperation{ChildId: childID, Kind: validationv1.ChildOperationKind_CHILD_OPERATION_KIND_TEST_RUN, State: validationv1.ChildOperationState_CHILD_OPERATION_STATE_PENDING, Owner: "test-genie", OperationId: runID})
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		current = updated
+	} else {
+		runID = child.GetOperationId()
+	}
+	if !time.Now().Before(deadline) {
+		return p.expireEvidenceProduction(ctx, current, intent, transition, deadline)
+	}
+	options, err := evidenceProducerStartOptions(current, intent)
+	if err != nil {
+		return p.terminalizeFailure(ctx, current.GetReceiptId(), transition, validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_INVALID_INTENT, err.Error())
+	}
+	if _, err := p.runs.Start(options); err != nil {
+		var refused *runmanager.AdmissionRefusedError
+		if !errors.As(err, &refused) {
+			return fmt.Errorf("%w: reconcile producer run start: %v", errEvidencePending, err)
+		}
+		return p.terminalizeFailure(ctx, current.GetReceiptId(), transition, validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_PROVIDER_UNAVAILABLE, "producer run admission refused: "+err.Error())
+	}
+	updated, err := transition(ctx, current.GetReceiptId(), validationv1.ReceiptState_RECEIPT_STATE_RUNNING, func(r *validationv1.ValidationReceipt) error {
+		setChildState(r, runID, validationv1.ChildOperationState_CHILD_OPERATION_STATE_RUNNING, "")
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("%w: persist producer run start: %v", errEvidencePending, err)
+	}
+	if !time.Now().Before(deadline) {
+		return p.expireEvidenceProduction(ctx, updated, intent, transition, deadline)
+	}
+	waitCtx, cancel := context.WithDeadline(ctx, deadline)
+	defer cancel()
+	status, err := p.runs.Wait(waitCtx, pin.GetProvider(), runID)
+	if err != nil {
+		if !time.Now().Before(deadline) {
+			return p.expireEvidenceProduction(ctx, updated, intent, transition, deadline)
+		}
+		return fmt.Errorf("%w: observe producer run: %v", errEvidencePending, err)
+	}
+	if !time.Now().Before(deadline) {
+		return p.expireEvidenceProduction(ctx, updated, intent, transition, deadline)
+	}
+	if waitCtx.Err() != nil {
+		return fmt.Errorf("%w: producer wait returned after its observation context was cancelled: %v", errEvidencePending, waitCtx.Err())
+	}
+	if status.Status != sharedruns.StatusPassed {
+		state := validationv1.ReceiptState_RECEIPT_STATE_FAILED
+		childState := validationv1.ChildOperationState_CHILD_OPERATION_STATE_FAILED
+		reason := validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_PROVIDER_UNAVAILABLE
+		if status.Status == sharedruns.StatusAborted {
+			state = validationv1.ReceiptState_RECEIPT_STATE_CANCELLED
+			childState = validationv1.ChildOperationState_CHILD_OPERATION_STATE_CANCELLED
+			reason = validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_ABORTED
+		}
+		_, err := transition(ctx, updated.GetReceiptId(), state, func(r *validationv1.ValidationReceipt) error {
+			setChildState(r, runID, childState, status.Error)
+			r.ReasonCode = reason
+			r.Detail = "declared evidence producer command ended " + status.Status
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("%w: persist producer outcome: %w", errEvidencePending, err)
+		}
+		return nil
+	}
+	updated, err = transition(ctx, updated.GetReceiptId(), validationv1.ReceiptState_RECEIPT_STATE_RUNNING, func(r *validationv1.ValidationReceipt) error {
+		setChildState(r, runID, validationv1.ChildOperationState_CHILD_OPERATION_STATE_SUCCEEDED, "command completed")
+		if !hasEvidence(r, runID, "test-genie-run") {
+			r.Evidence = append(r.Evidence, &validationv1.EvidenceReference{EvidenceId: runID, Kind: "test-genie-run", Owner: "test-genie", SubjectId: pin.GetProvider(), Uri: fmt.Sprintf("test-genie://runs/%s/%s", pin.GetProvider(), runID)})
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if !time.Now().Before(deadline) {
+		return p.expireEvidenceProduction(ctx, updated, intent, transition, deadline)
+	}
+	observedCandidate, changed, identityErr := p.verifyEvidenceProductionIdentity(ctx, intent, pin, updated.GetAdmittedIdentity())
+	if identityErr != nil {
+		if changed {
+			return p.terminalizeIdentityChange(ctx, updated.GetReceiptId(), observedCandidate, transition, identityErr.Error())
+		}
+		return p.terminalizeResolutionFailure(ctx, updated.GetReceiptId(), transition, identityErr)
+	}
+	set, setErr := p.producedEvidenceSet(target, runID, updated, pin, observedCandidate)
+	if setErr != nil {
+		return p.terminalizeFailure(ctx, updated.GetReceiptId(), transition, validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_PROVIDER_UNAVAILABLE, "producer output could not be published as retained evidence: "+setErr.Error())
+	}
+	if !time.Now().Before(deadline) {
+		return p.expireEvidenceProduction(ctx, updated, intent, transition, deadline)
+	}
+	_, err = transition(ctx, updated.GetReceiptId(), validationv1.ReceiptState_RECEIPT_STATE_SUCCEEDED, func(r *validationv1.ValidationReceipt) error {
+		r.ObservedIdentity = cloneIdentity(observedCandidate)
+		r.ProducedEvidenceSet = set
+		r.ReasonCode = validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_NONE
+		r.Detail = "declared evidence producer command completed; provider validation remains separate"
+		r.Retry = &validationv1.RetryDisposition{Kind: validationv1.RetryKind_RETRY_KIND_NOT_NEEDED, MaximumAttempts: 1}
+		return nil
+	})
+	return err
+}
+
+func (p *RunProducer) expireEvidenceProduction(ctx context.Context, current *validationv1.ValidationReceipt, intent *validationv1.ValidationIntent, transition TransitionFunc, deadline time.Time) error {
+	childID := evidenceProducerChildID(intent.GetPinnedEvidenceProducer())
+	child := childByID(current, childID)
+	if child == nil {
+		return p.terminalizeFailure(ctx, current.GetReceiptId(), transition, validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_DEADLINE_EXCEEDED, "evidence producer admission expired before a child was launched")
+	}
+	if err := p.AbortEvidenceValidation(ctx, current, intent, "producer observation deadline expired", "test-genie"); err != nil {
+		return fmt.Errorf("%w: expired producer child %s could not be confirmed drained by %s: %v", errEvidencePending, child.GetOperationId(), deadline.UTC().Format(time.RFC3339Nano), err)
+	}
+	drained := childByID(current, childID)
+	_, err := transition(ctx, current.GetReceiptId(), validationv1.ReceiptState_RECEIPT_STATE_FAILED, func(receipt *validationv1.ValidationReceipt) error {
+		if drained != nil {
+			setChildState(receipt, drained.GetOperationId(), drained.GetState(), drained.GetDetail())
+			for _, stored := range receipt.GetChildren() {
+				if stored.GetChildId() == childID {
+					stored.ReasonCode = drained.GetReasonCode()
+					break
+				}
+			}
+		}
+		receipt.ReasonCode = validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_DEADLINE_EXCEEDED
+		receipt.Detail = "evidence producer observation deadline expired; child was drained without admitting late output"
+		receipt.ProducedEvidenceSet = nil
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("%w: persist expired producer outcome: %w", errEvidencePending, err)
+	}
+	return nil
+}
+
+func (p *RunProducer) producedEvidenceSet(target, runID string, receipt *validationv1.ValidationReceipt, pin *validationv1.PinnedEvidenceProducer, identity *validationv1.SourceIdentity) (*scenariovalidationv1.RetainedEvidenceSet, error) {
+	owner, ok := p.runs.(retainedEvidenceSetOwner)
+	if !ok {
+		return nil, errors.New("run manager does not expose owner-published catalog evidence")
+	}
+	if identity == nil || strings.TrimSpace(identity.GetIdentity()) == "" {
+		return nil, errors.New("candidate identity is unavailable")
+	}
+	set, err := owner.RetainedEvidenceSet(target, runID, receipt.GetReceiptId(), pin.GetProducer(), identity.GetIdentity())
+	if err != nil {
+		return nil, err
+	}
+	if set.GetProducerReceiptId() != receipt.GetReceiptId() || set.GetProducer() != pin.GetProducer() || set.GetTarget() != target || set.GetRunId() != runID || set.GetCandidateIdentity() != identity.GetIdentity() {
+		return nil, errors.New("run manager returned mismatched retained evidence identity")
+	}
+	return set, nil
+}
+
+func evidenceProducerStartOptions(current *validationv1.ValidationReceipt, intent *validationv1.ValidationIntent) (runmanager.StartOptions, error) {
+	pin := intent.GetPinnedEvidenceProducer()
+	if pin == nil || len(intent.GetTargets()) != 1 {
+		return runmanager.StartOptions{}, errors.New("pinned evidence producer input is incomplete")
+	}
+	target := intent.GetTargets()[0].GetId()
+	runID := validationSuiteRunID(current.GetReceiptId(), target, 1)
+	if child := childByID(current, evidenceProducerChildID(pin)); child != nil {
+		runID = child.GetOperationId()
+	}
+	argv := append([]string(nil), pin.GetArgv()...)
+	for index, arg := range argv {
+		argv[index] = strings.ReplaceAll(strings.ReplaceAll(arg, "{run_id}", runID), "{output_dir}", "/dev/shm/tg-output")
+		if strings.Contains(argv[index], "{") || strings.Contains(argv[index], "}") {
+			return runmanager.StartOptions{}, errors.New("pinned producer has unresolved argument placeholder")
+		}
+	}
+	request := orchestrator.SuiteExecutionRequest{ScenarioName: pin.GetProvider(), RunID: runID, ValidationRun: true, RetainForEvidence: true, RetentionReason: "declared evidence producer receipt " + current.GetReceiptId()}
+	input := execution.SuiteExecutionInput{Request: request, EvidenceProducer: &execution.EvidenceProducerCommand{Provider: pin.GetProvider(), Name: pin.GetProducer(), Argv: argv, WorkingDirectory: pin.GetWorkingDirectory(), OutputRoot: pin.GetOutputRoot(), Timeout: time.Duration(pin.GetTimeoutMilliseconds()) * time.Millisecond, MaximumOutputBytes: int64(pin.GetMaximumOutputBytes()), MutatesLifecycle: pin.GetMutatesLifecycle(), DescriptorDigest: pin.GetDescriptorDigest(), SourceIdentity: pin.GetSourceIdentity()}}
+	return runmanager.StartOptions{Input: input}, nil
+}
+
+func evidenceProducerChildID(pin *validationv1.PinnedEvidenceProducer) string {
+	return "scenario:" + pin.GetProvider() + ":evidence:" + pin.GetProducer()
+}
+
+func (p *RunProducer) verifyEvidenceProductionIdentity(ctx context.Context, intent *validationv1.ValidationIntent, pin *validationv1.PinnedEvidenceProducer, admitted *validationv1.SourceIdentity) (*validationv1.SourceIdentity, bool, error) {
+	if p.identity == nil {
+		return nil, false, errors.New("evidence producer identity resolver is unavailable at completion")
+	}
+	observedCandidate, err := p.identity.Resolve(ctx, intent)
+	if err != nil {
+		return nil, false, err
+	}
+	if observedCandidate.GetIdentity() != admitted.GetIdentity() {
+		return observedCandidate, true, fmt.Errorf("candidate identity changed during evidence production: admitted %s, observed %s", admitted.GetIdentity(), observedCandidate.GetIdentity())
+	}
+	observedProvider, err := p.identity.Resolve(ctx, producerSourceIntent(pin))
+	if err != nil {
+		return observedCandidate, false, err
+	}
+	if observedProvider.GetIdentity() != pin.GetSourceIdentity() {
+		return observedCandidate, true, fmt.Errorf("provider source identity changed during evidence production: pinned %s, observed %s", pin.GetSourceIdentity(), observedProvider.GetIdentity())
+	}
+	return observedCandidate, false, nil
 }
 
 func (p *RunProducer) executeGCTEvidence(ctx context.Context, current *validationv1.ValidationReceipt, intent *validationv1.ValidationIntent, transition TransitionFunc) (*validationv1.ValidationReceipt, error) {
@@ -360,7 +657,7 @@ func childByID(receipt *validationv1.ValidationReceipt, childID string) *validat
 
 func hasRunningChild(receipt *validationv1.ValidationReceipt) bool {
 	for _, child := range receipt.GetChildren() {
-		if child.GetState() == validationv1.ChildOperationState_CHILD_OPERATION_STATE_RUNNING {
+		if child.GetState() == validationv1.ChildOperationState_CHILD_OPERATION_STATE_RUNNING || child.GetState() == validationv1.ChildOperationState_CHILD_OPERATION_STATE_PENDING {
 			return true
 		}
 	}
@@ -396,7 +693,22 @@ func contentInputPaths(intent *validationv1.ValidationIntent) []string {
 	return paths
 }
 
-func (p *RunProducer) startAfterCapacity(ctx context.Context, receiptID, scenario string, intent *validationv1.ValidationIntent) (runmanager.StartResult, error) {
+func validationSuiteRunID(receiptID, scenario string, attempt int) string {
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s\x00%s\x00%d", receiptID, scenario, attempt)))
+	return fmt.Sprintf("validation-%x", digest[:16])
+}
+
+func cloneIntentEvidenceSets(sets []*scenariovalidationv1.RetainedEvidenceSet) []*scenariovalidationv1.RetainedEvidenceSet {
+	cloned := make([]*scenariovalidationv1.RetainedEvidenceSet, 0, len(sets))
+	for _, set := range sets {
+		if set != nil {
+			cloned = append(cloned, proto.Clone(set).(*scenariovalidationv1.RetainedEvidenceSet))
+		}
+	}
+	return cloned
+}
+
+func (p *RunProducer) startAfterCapacity(ctx context.Context, receiptID, scenario string, intent *validationv1.ValidationIntent, runID string) (runmanager.StartResult, error) {
 	queueCtx, cancel := queueDeadline(ctx, intent)
 	defer cancel()
 	for {
@@ -406,16 +718,32 @@ func (p *RunProducer) startAfterCapacity(ctx context.Context, receiptID, scenari
 		}
 		request.RetainForEvidence = true
 		request.RetentionReason = "validation receipt " + receiptID
+		request.RunID = runID
+		request.RetainedEvidenceSets = cloneIntentEvidenceSets(intent.GetRetainedEvidenceSets())
 		result, err := p.runs.Start(runmanager.StartOptions{
 			Input:  execution.SuiteExecutionInput{Request: request},
 			Caller: intent.GetCallerScenario(),
 		})
 		if err == nil {
+			if result.RunID != runID {
+				return runmanager.StartResult{}, fmt.Errorf("%w: explicit suite run returned %q, expected %q", errSuiteStartUncertain, result.RunID, runID)
+			}
 			return result, nil
 		}
 		var busy *runmanager.BusyError
 		if !errors.As(err, &busy) {
-			return runmanager.StartResult{}, err
+			var refused *runmanager.AdmissionRefusedError
+			if errors.As(err, &refused) {
+				// Refusal is permanent for this request, but an earlier lost
+				// response may belong to live work. Settle only after observing it.
+				observeCtx, cancel := validationDeadline(ctx, intent)
+				prior, observeErr := p.runs.Wait(observeCtx, scenario, runID)
+				cancel()
+				if errors.Is(observeErr, sharedruns.ErrRunNotFound) || (observeErr == nil && suiteTerminal(prior.Status)) {
+					return runmanager.StartResult{}, err
+				}
+			}
+			return runmanager.StartResult{}, fmt.Errorf("%w: %v", errSuiteStartUncertain, err)
 		}
 		if _, waitErr := p.runs.Wait(queueCtx, busy.Scenario, busy.RunID); waitErr != nil {
 			return runmanager.StartResult{}, fmt.Errorf("%w behind %s/%s: %v", errQueueBudget, busy.Scenario, busy.RunID, waitErr)
@@ -505,23 +833,111 @@ func (p *RunProducer) terminalizeFailure(ctx context.Context, receiptID string, 
 
 // AbortValidation stops every still-active suite child. The receipt service
 // owns the subsequent durable CANCELLED transition.
-func (p *RunProducer) AbortValidation(_ context.Context, receipt *validationv1.ValidationReceipt, _, _ string) error {
+func (p *RunProducer) AbortValidation(ctx context.Context, receipt *validationv1.ValidationReceipt, _, _ string) error {
+	return p.abortValidation(ctx, receipt, nil)
+}
+
+func (p *RunProducer) AbortEvidenceValidation(ctx context.Context, receipt *validationv1.ValidationReceipt, intent *validationv1.ValidationIntent, _, _ string) error {
+	if intent == nil || intent.GetPurpose() != validationv1.ValidationPurpose_VALIDATION_PURPOSE_EVIDENCE_PRODUCTION || intent.GetPinnedEvidenceProducer() == nil {
+		return errors.New("pinned evidence producer intent is unavailable during abort")
+	}
 	if p == nil || p.runs == nil {
-		return fmt.Errorf("suite run manager is unavailable")
+		return errors.New("suite run manager is unavailable")
+	}
+	options, err := evidenceProducerStartOptions(receipt, intent)
+	if err != nil {
+		return err
+	}
+	status, err := p.runs.AbortEvidenceProducer(options)
+	if err != nil {
+		return fmt.Errorf("abort pinned evidence producer %s: %w", options.Input.Request.RunID, err)
+	}
+	if !suiteTerminal(status.Status) {
+		return fmt.Errorf("evidence producer %s has not settled after abort: %s", options.Input.Request.RunID, status.Status)
+	}
+	producerChildID := evidenceProducerChildID(intent.GetPinnedEvidenceProducer())
+	for _, child := range receipt.GetChildren() {
+		if child.GetChildId() == producerChildID && (child.GetState() == validationv1.ChildOperationState_CHILD_OPERATION_STATE_RUNNING || child.GetState() == validationv1.ChildOperationState_CHILD_OPERATION_STATE_PENDING) {
+			child.State, child.Detail, child.ReasonCode = suiteChildTerminalState(status.Status), status.Error, childReasonCode(status.Status)
+		}
 	}
 	for _, child := range receipt.GetChildren() {
-		if child.GetKind() != validationv1.ChildOperationKind_CHILD_OPERATION_KIND_TEST_RUN || child.GetState() != validationv1.ChildOperationState_CHILD_OPERATION_STATE_RUNNING {
+		if child.GetChildId() == producerChildID || child.GetKind() != validationv1.ChildOperationKind_CHILD_OPERATION_KIND_TEST_RUN || (child.GetState() != validationv1.ChildOperationState_CHILD_OPERATION_STATE_RUNNING && child.GetState() != validationv1.ChildOperationState_CHILD_OPERATION_STATE_PENDING) {
 			continue
 		}
 		parts := strings.Split(child.GetChildId(), ":")
 		if len(parts) < 3 || parts[0] != "scenario" {
 			return fmt.Errorf("validation child %q has no scenario identity", child.GetChildId())
 		}
-		if _, err := p.runs.Abort(parts[1], child.GetOperationId()); err != nil {
-			return fmt.Errorf("abort validation child %s: %w", child.GetOperationId(), err)
+		settled, abortErr := p.runs.Abort(parts[1], child.GetOperationId())
+		if abortErr != nil {
+			return fmt.Errorf("abort validation child %s: %w", child.GetOperationId(), abortErr)
 		}
+		if !suiteTerminal(settled.Status) {
+			return fmt.Errorf("validation child %s has not settled after abort: %s", child.GetOperationId(), settled.Status)
+		}
+		child.State, child.Detail, child.ReasonCode = suiteChildTerminalState(settled.Status), settled.Error, childReasonCode(settled.Status)
 	}
 	return nil
+}
+
+func (p *RunProducer) abortValidation(ctx context.Context, receipt *validationv1.ValidationReceipt, intent *validationv1.ValidationIntent) error {
+	if p == nil || p.runs == nil {
+		return fmt.Errorf("suite run manager is unavailable")
+	}
+	for _, child := range receipt.GetChildren() {
+		if child.GetKind() != validationv1.ChildOperationKind_CHILD_OPERATION_KIND_TEST_RUN || (child.GetState() != validationv1.ChildOperationState_CHILD_OPERATION_STATE_RUNNING && child.GetState() != validationv1.ChildOperationState_CHILD_OPERATION_STATE_PENDING) {
+			continue
+		}
+		parts := strings.Split(child.GetChildId(), ":")
+		if len(parts) < 3 || parts[0] != "scenario" {
+			return fmt.Errorf("validation child %q has no scenario identity", child.GetChildId())
+		}
+		var status runmanager.LiveStatus
+		var err error
+		if intent != nil && child.GetChildId() == evidenceProducerChildID(intent.GetPinnedEvidenceProducer()) {
+			options, optionsErr := evidenceProducerStartOptions(receipt, intent)
+			if optionsErr != nil {
+				return optionsErr
+			}
+			status, err = p.runs.AbortEvidenceProducer(options)
+		} else {
+			status, err = p.runs.Abort(parts[1], child.GetOperationId())
+		}
+		if err != nil {
+			return fmt.Errorf("abort validation child %s: %w", child.GetOperationId(), err)
+		}
+		if !suiteTerminal(status.Status) {
+			return fmt.Errorf("validation child %s has not settled after abort: %s", child.GetOperationId(), status.Status)
+		}
+		child.State, child.Detail, child.ReasonCode = suiteChildTerminalState(status.Status), status.Error, childReasonCode(status.Status)
+	}
+	return nil
+}
+
+func suiteChildTerminalState(status string) validationv1.ChildOperationState {
+	switch status {
+	case sharedruns.StatusPassed:
+		return validationv1.ChildOperationState_CHILD_OPERATION_STATE_SUCCEEDED
+	case sharedruns.StatusAborted:
+		return validationv1.ChildOperationState_CHILD_OPERATION_STATE_CANCELLED
+	default:
+		return validationv1.ChildOperationState_CHILD_OPERATION_STATE_FAILED
+	}
+}
+
+func childReasonCode(status string) validationv1.ValidationReasonCode {
+	if status == sharedruns.StatusAborted {
+		return validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_ABORTED
+	}
+	if status == sharedruns.StatusPassed {
+		return validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_NONE
+	}
+	return validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_PROVIDER_UNAVAILABLE
+}
+
+func suiteTerminal(status string) bool {
+	return status == sharedruns.StatusPassed || status == sharedruns.StatusFailed || status == sharedruns.StatusAborted
 }
 
 func presetForStrength(strength validationv1.ValidationStrength) string {

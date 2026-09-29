@@ -218,3 +218,21 @@ CREATE INDEX IF NOT EXISTS idx_archives_project_root     ON sandbox_diff_archive
 CREATE INDEX IF NOT EXISTS idx_archives_run_id           ON sandbox_diff_archives(agent_manager_run_id) WHERE agent_manager_run_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_archives_status           ON sandbox_diff_archives(sandbox_status);
 CREATE INDEX IF NOT EXISTS idx_archives_owner            ON sandbox_diff_archives(owner) WHERE owner IS NOT NULL;
+
+-- One immutable write-ahead approval per sandbox. It is removed in the same
+-- transaction that publishes its terminal archive. Never prune a pending row
+-- or its referenced blobs: canonical source may already contain its effects.
+CREATE TABLE IF NOT EXISTS sandbox_prepared_approvals (
+    sandbox_id TEXT PRIMARY KEY REFERENCES sandboxes(id) ON DELETE RESTRICT,
+    intent_json TEXT NOT NULL
+);
+
+-- Immutable pre-review evidence, not a terminal state or an apply intent.
+-- Bodies live under the derived review UUID in the existing blob store.
+CREATE TABLE IF NOT EXISTS sandbox_review_snapshots (
+    id TEXT PRIMARY KEY,
+    sandbox_id TEXT NOT NULL REFERENCES sandboxes(id) ON DELETE RESTRICT,
+    request_id TEXT NOT NULL,
+    snapshot_json TEXT NOT NULL,
+    UNIQUE(sandbox_id, request_id)
+);

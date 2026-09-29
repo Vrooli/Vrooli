@@ -81,6 +81,27 @@ func TestNormalizePathRejectsTraversal(t *testing.T) {
 	}
 }
 
+func TestNormalizePathAllowsReadOnlyExternalDocument(t *testing.T) {
+	path := "/tmp/vrooli-plan/requirements.json"
+	got, err := NormalizePath(PathRef{Base: BaseExternal, Path: path}, ValidationInput{}, "")
+	if err != nil {
+		t.Fatalf("NormalizePath external: %v", err)
+	}
+	if got != path {
+		t.Fatalf("NormalizePath external = %q, want %q", got, path)
+	}
+}
+
+func TestValidateRejectsExternalWriteSurface(t *testing.T) {
+	contract := Minimal("", "agent-1")
+	member := contract.Members["agent-1"]
+	member.AllowedWrites = []WriteRef{{Base: BaseExternal, Path: "/tmp/vrooli-plan/requirements.json"}}
+	contract.Members["agent-1"] = member
+	if err := Validate(contract, ValidationInput{TeamID: "team-1", MemberIDs: []string{"agent-1"}}); err == nil || !strings.Contains(err.Error(), "cannot write external path") {
+		t.Fatalf("expected external write rejection, got %v", err)
+	}
+}
+
 func TestRenderMemberPolicyIncludesMemberPolicy(t *testing.T) {
 	contract := Minimal("", "agent-1")
 	rendered, err := RenderMemberPolicy(contract, RenderInput{
@@ -372,6 +393,72 @@ func TestBundledMetaOptimizationContractValidatesAndRendersRepoRootPaths(t *test
 
 func boolPtr(v bool) *bool {
 	return &v
+}
+
+func TestBundledBASDeliveryContractKeepsScenarioDocumentsCanonical(t *testing.T) {
+	const teamID = "browser-automation-studio-delivery"
+	const memberID = "browser-automation-studio-coordinator"
+	const scenarioDocs = "scenarios/browser-automation-studio/docs/"
+	storeDir := filepath.Clean("../../../store")
+	repoRoot := filepath.Clean("../../../../..")
+	data, err := os.ReadFile(filepath.Join(storeDir, "teams", teamID, "team.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var team struct {
+		Enabled           bool               `json:"enabled"`
+		Purpose           string             `json:"purpose"`
+		Lifetime          string             `json:"lifetime"`
+		EffortRefs        []string           `json:"effortRefs"`
+		OperatingContract *OperatingContract `json:"operatingContract"`
+	}
+	if err := json.Unmarshal(data, &team); err != nil {
+		t.Fatal(err)
+	}
+	// Authoring a team must not restart the stopped campaign. Activation is
+	// a separately qualified owner operation, not a side effect of discovery.
+	if team.Enabled || team.Purpose != "delivery" || team.Lifetime != "finite" {
+		t.Fatalf("want disabled finite delivery registration, got %+v", team)
+	}
+	if len(team.EffortRefs) != 1 || team.EffortRefs[0] != "effort:browser-automation-studio-rehabilitation" {
+		t.Fatalf("BAS delivery team must point at its canonical Agent Manager effort, got %v", team.EffortRefs)
+	}
+	input := ValidationInput{TeamID: teamID, MemberIDs: []string{memberID}, StoreDir: storeDir, RepoRoot: repoRoot}
+	if err := Validate(team.OperatingContract, input); err != nil {
+		t.Fatal(err)
+	}
+	rendered, err := RenderTeamStorage(team.OperatingContract, RenderInput{
+		TeamID: teamID, MemberID: memberID, StoreDir: storeDir, RepoRoot: repoRoot,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantPaths := map[string]bool{
+		scenarioDocs + "internal/REFRACTOR_PROGRESS.md": false,
+		scenarioDocs + "internal/OPERATOR_FEEDBACK.md":  false,
+		scenarioDocs + "PROBLEMS.md":                    false,
+		scenarioDocs + "internal/DECISIONS.md":          false,
+	}
+	for _, doc := range team.OperatingContract.Documents.SharedState {
+		if doc.Path.Base != BaseRepoRoot || !strings.HasPrefix(doc.Path.Path, scenarioDocs) {
+			t.Fatalf("scenario state must not be relocated or copied to PM: %+v", doc)
+		}
+		if _, wanted := wantPaths[doc.Path.Path]; wanted {
+			wantPaths[doc.Path.Path] = true
+		}
+	}
+	for path, found := range wantPaths {
+		if !found || !strings.Contains(rendered, path) {
+			t.Errorf("missing canonical scenario path %s from contract/render", path)
+		}
+	}
+	// The cheap coordinator returns owner handoffs; declarations must not
+	// grant it write access to the controls used to accept its own work.
+	for _, write := range team.OperatingContract.Members[memberID].AllowedWrites {
+		if write.Base != "" || (write.Kind != "knowledge" && write.Kind != "handoff") {
+			t.Fatalf("coordinator declaration widens control writes: %+v", write)
+		}
+	}
 }
 
 func TestBundledTeamContractsValidate(t *testing.T) {

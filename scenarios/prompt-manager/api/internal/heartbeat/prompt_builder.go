@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"html"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -591,6 +589,7 @@ func (b *PromptBuilder) buildOperatingPolicyMemberSection(team *store.Team, agen
 		TeamName: team.DisplayName,
 		MemberID: agentID,
 		StoreDir: b.teamStore.StoreDir(),
+		RepoRoot: b.teamStore.RepoRoot(),
 	})
 	if err != nil {
 		return "", err
@@ -783,6 +782,7 @@ func (b *PromptBuilder) buildStorageMapSection(team *store.Team, agentID string)
 		TeamName:       team.DisplayName,
 		MemberID:       agentID,
 		StoreDir:       b.teamStore.StoreDir(),
+		RepoRoot:       b.teamStore.RepoRoot(),
 		RequireHandoff: teamconfig.RequiresHandoff(team.Contract()),
 	})
 	if err != nil {
@@ -948,41 +948,12 @@ func (b *PromptBuilder) buildInboxFlowSection(teamID, agentID string) string {
 		return ""
 	}
 	configDir := b.teamStore.StoreDir()
-	repoRoot := deriveRepoRoot(configDir)
+	repoRoot := b.teamStore.RepoRoot()
 	in, ok, err := LoadInboxFlowInputs(configDir, repoRoot, teamID, agentID)
 	if err != nil || !ok {
 		return ""
 	}
 	return RenderInboxFlow(in)
-}
-
-// deriveRepoRoot resolves the repository root for taxonomy lookup. Prefers
-// VROOLI_ROOT (set by the lifecycle), then walks up from an absolute
-// configDir (.../scenarios/prompt-manager/store -> repo root). Returns
-// empty when neither path produces a usable directory; in that case
-// taxonomy resolution is skipped and the Inbox Flow section renders
-// without dispatch tables (operators see _NOT FOUND_ markers).
-func deriveRepoRoot(configDir string) string {
-	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
-		return root
-	}
-	if strings.TrimSpace(configDir) == "" {
-		return ""
-	}
-	abs, err := filepath.Abs(configDir)
-	if err != nil {
-		return ""
-	}
-	// store -> prompt-manager -> scenarios -> repo
-	cur := abs
-	for i := 0; i < 3; i++ {
-		next := filepath.Dir(cur)
-		if next == cur {
-			return ""
-		}
-		cur = next
-	}
-	return cur
 }
 
 func (b *PromptBuilder) buildInboxSection(ctx context.Context, teamID, agentID string) string {

@@ -59,6 +59,12 @@ func TestRepositoryCatalogIsStrictAndModelFree(t *testing.T) {
 	if len(catalog.Roles) == 0 {
 		t.Fatal("catalog has no roles")
 	}
+	for name, resourceRole := range map[string]string{"code.economy.delivery": "code.delivery", "code.supervision": "judgment.supervision"} {
+		role := catalog.Roles[name]
+		if len(role.Candidates) != 1 || string(role.Candidates[0].Runner) != "codex" || role.Candidates[0].ResourceRole != resourceRole {
+			t.Fatalf("%s must use only its dedicated subscription role: %+v", name, role.Candidates)
+		}
+	}
 	// Agent Manager owns coding-orchestration roles only. Typed inference
 	// roles (e.g. extract.structured, write.default) belong to AI Gateway, and
 	// TestAgentManagerAndAIGatewayRoleCatalogsAreDisjoint enforces the split.

@@ -9,12 +9,8 @@
 // the copy-driver layout (workspacePath == mergedDir, pathIllusion=false,
 // containment backend "none"):
 //
-//  1. LauncherSelector.PickFor drives the provider's own ContainmentFor over
-//     HTTP, sees backend "none" with no enforcements, and emits the
-//     degradation warn naming both missing protected enforcements — while
-//     still selecting the sandbox launcher (tracking value survives).
-//  2. The launcher the selector handed back launches with the host merged
-//     path as workdir and performs no path translation.
+// Protected selection must refuse this uncontained provider before a process
+// starts. Explicit tracking mode retains provenance and identity-layout launch.
 package sandbox
 
 import (
@@ -63,12 +59,7 @@ func (s *integrationSink) warnContains(needle string) bool {
 	return false
 }
 
-// TestCopyDriverSandboxShape_ProtectedLaunchIntegration exercises the copy-
-// driver sandbox shape end-to-end through the agent-manager protected-launch
-// stack: the real provider reports backend "none", PickFor emits the gap
-// warn and still selects the sandbox launcher, and launching keeps the host
-// merged path (identity layout — no translation).
-func TestCopyDriverSandboxShape_ProtectedLaunchIntegration(t *testing.T) {
+func TestCopyDriverSandboxShape_ProtectedRefusesAndTrackingLaunches(t *testing.T) {
 	const host = "/var/lib/workspace-sandbox/sb-copy-e2e/merged"
 
 	mock := newSandboxTestServer(4242)
@@ -88,12 +79,23 @@ func TestCopyDriverSandboxShape_ProtectedLaunchIntegration(t *testing.T) {
 		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
 	}
 	runID := uuid.New()
+	protected := selector.PickFor(context.Background(), runID, cfg, &sandboxID, sink)
+	if _, err := protected.Launch(context.Background(), runner.LaunchRequest{Command: "agent"}); err == nil {
+		t.Fatal("protected launch must refuse an uncontained provider")
+	}
+	mock.mu.Lock()
+	started := mock.startProcessBody != nil
+	mock.mu.Unlock()
+	if started {
+		t.Fatal("refused launch started a process")
+	}
+	cfg.SandboxConfig.Mode = domain.SandboxModeTracking
 
 	// --- (1) Selection: real ContainmentFor drives the degradation warn. ---
 	picked := selector.PickFor(context.Background(), runID, cfg, &sandboxID, sink)
 	sbLauncher, ok := picked.(*SandboxLauncher)
 	if !ok {
-		t.Fatalf("PickFor returned %T; want *SandboxLauncher (protected selection must proceed)", picked)
+		t.Fatalf("PickFor returned %T; want *SandboxLauncher for explicit tracking", picked)
 	}
 
 	// The provider must independently report the uncontained shape.

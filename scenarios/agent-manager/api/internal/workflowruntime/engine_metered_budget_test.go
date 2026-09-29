@@ -108,6 +108,39 @@ func TestMeteredWallDeadlineWaitsForKnownFinalUsage(t *testing.T) {
 	}
 }
 
+func TestMeteredAccountingUnavailableTerminalizesHonestly(t *testing.T) {
+	d := budgetAdmissionDefinition()
+	d.Budgets.Enforcement = domain.WorkflowBudgetMeteredCancellation
+	e, _, fake := testEngine(t, d)
+	e.Children = &meteredChildren{fakeChildren: fake}
+	ctx := context.Background()
+	x, err := e.Start(ctx, revision(d), json.RawMessage(`{}`), "accounting-unavailable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustAdvance(t, e, x.ID)
+	mustAdvance(t, e, x.ID)
+	id := fake.requests[0].runID
+	state := fake.states[id]
+	state.Terminal = true
+	state.AccountingRecoveryUnavailable = true
+	fake.states[id] = state
+	settled, err := e.Advance(ctx, x.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settled.Status != domain.WorkflowExecutionFailed || settled.TerminalReason == nil || settled.TerminalReason.Code != "accounting_unknown" {
+		t.Fatalf("expected explicit accounting_unknown terminal state, got %+v", settled)
+	}
+	if settled.BudgetUsage.AccountingComplete {
+		t.Fatal("unresolved accounting was marked complete")
+	}
+	attempts, err := e.Store.ListAttempts(ctx, x.ID)
+	if err != nil || len(attempts) != 1 || attempts[0].ErrorCode != "accounting_unknown" {
+		t.Fatalf("attempt did not retain accounting_unknown: %+v %v", attempts, err)
+	}
+}
+
 func TestMeteredAdmissionRejectsUnqualifiedPaths(t *testing.T) {
 	for _, mode := range []string{"hard-ceiling", "invented", domain.WorkflowBudgetMeteredCancellation} {
 		d := budgetAdmissionDefinition()
@@ -125,6 +158,25 @@ func TestMeteredAdmissionRejectsUnqualifiedPaths(t *testing.T) {
 		if err := domain.ValidateWorkflowBudgetPolicy(d); err == nil {
 			t.Fatalf("unqualified %s admitted", kind)
 		}
+	}
+}
+
+func TestMeteredAdmissionAllowsDeterministicQualification(t *testing.T) {
+	d := budgetAdmissionDefinition()
+	d.Budgets.Enforcement = domain.WorkflowBudgetMeteredCancellation
+	d.Nodes[1] = domain.WorkflowNode{
+		ID:   "qualify",
+		Kind: domain.WorkflowNodeQualification,
+		Qualification: &domain.WorkflowQualificationNode{
+			ReviewFromNode: "run",
+			ProgramName:    "example.qualify",
+			ProgramDigest:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		},
+	}
+	d.Nodes = append(d.Nodes, domain.WorkflowNode{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}})
+	d.Edges = []domain.WorkflowEdge{{From: "run", To: "qualify"}, {From: "qualify", To: "done"}}
+	if err := domain.ValidateWorkflowBudgetPolicy(d); err != nil {
+		t.Fatalf("deterministic qualification should be compatible with metered cancellation: %v", err)
 	}
 }
 

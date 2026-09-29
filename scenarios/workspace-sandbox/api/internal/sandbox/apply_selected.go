@@ -14,17 +14,21 @@ import (
 )
 
 type selectedApplyResult struct {
-	Success      bool
-	Empty        bool
-	Changes      []*types.FileChange
-	Rejected     []*types.FileChange
-	TotalChanges int
-	Failed       int
-	Remaining    int
-	CommitHash   string
-	CommitMsg    string
-	ErrorMsg     string
-	AppliedAt    time.Time
+	Success          bool
+	Empty            bool
+	Changes          []*types.FileChange
+	Rejected         []*types.FileChange
+	TotalChanges     int
+	Failed           int
+	Remaining        int
+	CommitHash       string
+	PatchSHA256      string
+	CommitMsg        string
+	ErrorMsg         string
+	AppliedAt        time.Time
+	PreparedArchive  *types.DiffArchive
+	PreparedApproval *types.PreparedApproval
+	Recovered        bool
 }
 
 func (r selectedApplyResult) ApprovalResult() *types.ApprovalResult {
@@ -39,7 +43,7 @@ func (r selectedApplyResult) ApprovalResult() *types.ApprovalResult {
 	}
 }
 
-func (s *Service) applyAcceptedChanges(ctx context.Context, sandbox *types.Sandbox, req *types.ApprovalRequest) (*selectedApplyResult, error) {
+func (s *Service) applyAcceptedChanges(ctx context.Context, sandbox *types.Sandbox, req *types.ApprovalRequest, terminal bool) (*selectedApplyResult, error) {
 	allChanges, err := s.driver.GetChangedFiles(ctx, sandbox)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get changes: %w", err)
@@ -71,7 +75,7 @@ func (s *Service) applyAcceptedChanges(ctx context.Context, sandbox *types.Sandb
 	}
 
 	accepted, rejected := filterChangesByAcceptance(sandbox, changes, req.OverrideAcceptance)
-	if !req.OverrideAcceptance && req.Mode != "all" && len(rejected) > 0 {
+	if !req.OverrideAcceptance && (req.Mode != "all" || req.ExpectedPatchSHA256 != "") && len(rejected) > 0 {
 		rejectedDetails := make([]string, 0, len(rejected))
 		for _, r := range rejected {
 			reason := "unknown"
@@ -94,6 +98,9 @@ func (s *Service) applyAcceptedChanges(ctx context.Context, sandbox *types.Sandb
 	changes = accepted
 
 	if len(changes) == 0 {
+		if err := checkReviewedPatch(req.ExpectedPatchSHA256, diff.HashPatch("")); err != nil {
+			return nil, err
+		}
 		return &selectedApplyResult{
 			Success:      true,
 			Empty:        true,
@@ -110,14 +117,22 @@ func (s *Service) applyAcceptedChanges(ctx context.Context, sandbox *types.Sandb
 		}
 	}
 
-	gen := diff.NewGenerator(s.starter)
-	diffOpts := &diff.GenerateOptions{
-		PathPrefix: scopePathPrefix(sandbox),
+	prepareArchive := terminal && req.Mode != "hunks" && len(changes) == totalChanges && s.archiveRepo != nil && s.blobs != nil
+	var diffResult *types.DiffResult
+	var captured *capturedApprovalDiff
+	if prepareArchive {
+		captured, err = s.captureApprovalDiff(ctx, sandbox, changes, 0, 0)
+		if err == nil {
+			defer captured.close()
+			diffResult = captured.result
+		}
+	} else {
+		diffResult, err = diff.NewGenerator(s.starter).GenerateDiff(ctx, sandbox, changes, &diff.GenerateOptions{PathPrefix: scopePathPrefix(sandbox)})
 	}
-	diffResult, err := gen.GenerateDiff(ctx, sandbox, changes, diffOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate diff: %w", err)
 	}
+	changes = diffResult.Files
 
 	if req.Mode == "hunks" && len(req.HunkRanges) > 0 {
 		diffResult.UnifiedDiff = diff.FilterHunks(diffResult.UnifiedDiff, req.HunkRanges, changes)
@@ -132,6 +147,37 @@ func (s *Service) applyAcceptedChanges(ctx context.Context, sandbox *types.Sandb
 		}
 	}
 
+	// Check the same in-memory bytes passed to ApplyDiff, not a separate read
+	// of the mutable overlay. Conflict force does not weaken this precondition.
+	patchSHA256 := diff.HashPatch(diffResult.UnifiedDiff)
+	if err := checkReviewedPatch(req.ExpectedPatchSHA256, patchSHA256); err != nil {
+		return nil, err
+	}
+	var prepared *types.DiffArchive
+	var intent *types.PreparedApproval
+	if prepareArchive {
+		prepared = newDiffArchive(sandbox, types.StatusApproved)
+		// Blob failures must occur before source effects. These content-addressed
+		// bytes are retained on later apply/SQL failure, never re-read from an
+		// overlay that the apply or a continuing process could have changed.
+		if _, err := s.captureBlobs(ctx, &captured.sandbox, prepared, diffResult); err != nil {
+			return nil, fmt.Errorf("prepare approval archive: %w", err)
+		}
+		if !req.CreateCommit {
+			intent, err = s.prepareApproval(ctx, sandbox, req, captured, prepared)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	result, err := s.applyGeneratedChanges(ctx, sandbox, req, diffResult.UnifiedDiff, changes, rejected, totalChanges, prepared)
+	if result != nil {
+		result.PreparedApproval = intent
+	}
+	return result, err
+}
+
+func (s *Service) applyGeneratedChanges(ctx context.Context, sandbox *types.Sandbox, req *types.ApprovalRequest, patch string, changes, rejected []*types.FileChange, totalChanges int, prepared *types.DiffArchive) (*selectedApplyResult, error) {
 	commitMsg := req.CommitMsg
 	author := req.Actor
 	if s.attributionPolicy != nil {
@@ -152,7 +198,7 @@ func (s *Service) applyAcceptedChanges(ctx context.Context, sandbox *types.Sandb
 	}
 
 	patcher := diff.NewPatcher(s.starter)
-	patchResult, err := patcher.ApplyDiff(ctx, sandbox.ProjectRoot, diffResult.UnifiedDiff, diff.ApplyOptions{
+	patchResult, err := patcher.ApplyDiff(ctx, sandbox.ProjectRoot, patch, diff.ApplyOptions{
 		CommitMsg:    commitMsg,
 		Author:       author,
 		CreateCommit: req.CreateCommit,
@@ -176,13 +222,15 @@ func (s *Service) applyAcceptedChanges(ctx context.Context, sandbox *types.Sandb
 	}
 
 	return &selectedApplyResult{
-		Success:      true,
-		Changes:      changes,
-		Rejected:     rejected,
-		TotalChanges: totalChanges,
-		Remaining:    totalChanges - len(changes),
-		CommitHash:   patchResult.CommitHash,
-		CommitMsg:    commitMsg,
-		AppliedAt:    s.clock.Now(),
+		Success:         true,
+		Changes:         changes,
+		Rejected:        rejected,
+		TotalChanges:    totalChanges,
+		Remaining:       totalChanges - len(changes),
+		CommitHash:      patchResult.CommitHash,
+		PatchSHA256:     diff.HashPatch(patch),
+		CommitMsg:       commitMsg,
+		AppliedAt:       s.clock.Now(),
+		PreparedArchive: prepared,
 	}, nil
 }

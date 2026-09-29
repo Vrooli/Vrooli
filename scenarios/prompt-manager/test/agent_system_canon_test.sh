@@ -335,6 +335,33 @@ sensor_map_in_sync() {
 check "Framework-health sensor map matches the audit collectors" sensor_map_in_sync
 
 # ---------------------------------------------------------------------------
+# 7. Supervision scope stays separated from generic heartbeats
+# ---------------------------------------------------------------------------
+#
+# The generic Luna heartbeat is an economical judgment loop.  It must not
+# carry the restricted supervision scope; only the explicitly bounded,
+# infrequent delivery-review profile may declare it.  Keep this check against
+# the canonical profile sources so a future reconcile cannot silently widen
+# ordinary heartbeat authority again.
+
+supervision_scope_separated() {
+    local heartbeat="scenarios/prompt-manager/.vrooli/agent-manager/heartbeat.json"
+    local review="scenarios/prompt-manager/.vrooli/agent-manager/delivery-review.json"
+    command -v jq >/dev/null 2>&1 || {
+        red "    jq is required to inspect agent-manager profile sources"
+        return 1
+    }
+    [[ -f "$heartbeat" && -f "$review" ]] || return 1
+    if jq -e 'has("declaredScopes") and ((.declaredScopes // []) | index("agent-manager:supervise") != null)' "$heartbeat" >/dev/null; then
+        red "    generic heartbeat declares restricted supervision scope"
+        return 1
+    fi
+    jq -e '((.declaredScopes // []) | index("agent-manager:supervise") != null)' "$review" >/dev/null
+}
+
+check "Generic heartbeat cannot declare supervision scope" supervision_scope_separated
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 

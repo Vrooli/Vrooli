@@ -4,7 +4,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"testing"
 
@@ -22,20 +21,15 @@ var (
 func BuildFakeAgent(t testing.TB) string {
 	t.Helper()
 	fakeAgentOnce.Do(func() {
-		_, file, _, ok := runtime.Caller(0)
-		if !ok {
-			fakeAgentErr = os.ErrNotExist
-			return
-		}
-		apiRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
 		dir, err := os.MkdirTemp("", "agent-manager-fake-agent-")
 		if err != nil {
 			fakeAgentErr = err
 			return
 		}
 		fakeAgentPath = filepath.Join(dir, "fake-agent")
-		cmd := exec.Command("go", "build", "-o", fakeAgentPath, "./cmd/fake-agent")
-		cmd.Dir = apiRoot
+		// Resolve the module package from Go's test working directory, not
+		// runtime.Caller source names, which are rewritten by -trimpath.
+		cmd := exec.Command("go", "build", "-o", fakeAgentPath, "agent-manager/cmd/fake-agent")
 		cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
 		fakeAgentErr = cmd.Run()
 	})

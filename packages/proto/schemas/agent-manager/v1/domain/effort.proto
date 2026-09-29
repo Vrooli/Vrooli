@@ -79,6 +79,11 @@ message SupervisorDispatchAuthorization {
   uint32 dispatched_runs = 14;
   uint32 minimum_interval_seconds = 15;
   google.protobuf.Timestamp last_dispatched_at = 16;
+  // Finite owner-issued aggregate allowance for this dispatch lease.
+  int64 max_tokens = 17;
+  int64 max_charge_micro_usd = 18;
+  // Server-owned run identities whose terminal accounting settles this lease.
+  repeated string dispatched_run_ids = 19;
 }
 
 // Freshness of evidence, independently of runtime or outcome state.

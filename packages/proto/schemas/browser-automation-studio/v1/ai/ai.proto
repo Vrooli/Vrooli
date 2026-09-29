@@ -496,6 +496,11 @@ message GetNavigationStatusResponse {
   // Bounded named arrays extracted from the final page without replay.
   google.protobuf.Struct extracted_data = 11;
   string verification_error = 12;
+  // Terminal completion details retained for reconnecting status readers.
+  string final_url = 13;
+  string error = 14;
+  string summary = 15;
+  int64 total_duration_ms = 16;
 }
 
 // =============================================================================

@@ -79,7 +79,10 @@ the reservation. Lost dispatch responses reconcile the original identity; they
 cannot authorize a replacement. Only exact terminal owner evidence releases it.
 Disable pauses new work while retaining the reservation. Deleting a standing
 heartbeat with unresolved wake state is refused; recreating it in ordinary mode
-must not bypass the original run's overlap fence.
+must not bypass the original run's overlap fence. An owner may explicitly
+reconcile an unresolved wake through the typed recovery operation only after an
+exact task/run lookup; queued orphan tasks are cancelled, matching runs keep the
+fence, and the bounded receipt is retained in `reconciledWakes`.
 Terminal status (including success) is not an assessment receipt. PM reads AM's
 `last_assessment` for each selected effort and requires the exact wake idempotency
 key, supervisor run and target revision before marking evidence assessed. Only a
@@ -198,6 +201,13 @@ agent-manager effort board
 
 The team/member selectors above identify the installed standing service, not
 an allowlist of supervised efforts. New subjects come from Agent Manager discovery.
+
+When the standing team is intentionally disabled, refresh its cached owner cut
+with `POST /teams/{teamId}/heartbeats/{agentId}/observe`. This operation may
+reconcile a terminal retained wake, then performs one bounded owner observation
+without queueing a prompt or invoking a model. A running or otherwise unresolved
+wake remains fenced and returns a conflict; use `TriggerHeartbeat` only when a
+dispatch is explicitly authorized.
 
 | Observation | Meaning and next read |
 |---|---|
@@ -528,7 +538,7 @@ run's own final response, confirm declared-topic writes.
 
 Every team must define `operatingContract` in `team.json`. The prompt builder fails rather than inferring missing contract policy from `TEAM.md`, `RESPONSIBILITIES.md`, `HEARTBEAT.md`, or agent files. Contract-owned policy includes work types, numeric caps, read-only behavior, supersession rules, knowledge topics, source documents, and write surfaces.
 
-The generated Operating Policy embeds the lean `shared/TEAM.md` charter before the generated runtime and contract policy. It also includes top-level runtime, coordination, and execution fields from `team.json`. The rendered policy uses repo-root-relative paths only. For example, a stored `team-shared` path such as `RUN_LESSONS.md` renders as `scenarios/prompt-manager/store/teams/meta-optimization/shared/RUN_LESSONS.md`.
+The generated Operating Policy embeds the lean `shared/TEAM.md` charter before the generated runtime and contract policy. It also includes top-level runtime, coordination, and execution fields from `team.json`. Repository-owned paths render relative to the repository root; read-only `external` document references retain their absolute authority path and cannot be declared as writes. For example, a stored `team-shared` path such as `RUN_LESSONS.md` renders as `scenarios/prompt-manager/store/teams/meta-optimization/shared/RUN_LESSONS.md`.
 
 Source ownership:
 - `team.runtime`, `team.coordination`, and `team.execution`: runtime mechanics.

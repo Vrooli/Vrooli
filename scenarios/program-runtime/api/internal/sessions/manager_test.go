@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -18,6 +19,163 @@ func (c *fakeClock) Now() time.Time { return c.now }
 
 type fakeWorkspaceResolver struct {
 	paths map[string]string
+}
+
+func TestDelegationChargeSettlesExactlyOnceUnderConcurrentCollects(t *testing.T) {
+	db := newSessionTestDB(t)
+	manager := NewManager(Options{Store: db})
+	session, err := manager.Create(testContext, "declared-program:concurrent", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.SaveDelegation(testContext, &Delegation{SessionID: session.ID, ExecutionID: "child-once", Owner: "owner", WorkflowKey: "owner/workflow", CreatedAt: time.Now().UTC(), LastStatus: "running"}); err != nil {
+		t.Fatal(err)
+	}
+	const collectors = 16
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	settled := 0
+	errCh := make(chan error, collectors)
+	for range collectors {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			applied, err := manager.SettleDelegationUsage(testContext, session.ID, "child-once", "succeeded", 5, true, "priced child")
+			if err != nil {
+				errCh <- err
+				return
+			}
+			if applied {
+				mu.Lock()
+				settled++
+				mu.Unlock()
+			}
+		}()
+	}
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		t.Fatal(err)
+	}
+	if settled != 1 {
+		t.Fatalf("settled=%d, want exactly one", settled)
+	}
+	got, err := manager.Get(testContext, session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.DelegationCostMicros != 5 || !got.DelegationSpendMeasured || !got.DelegationUsageObserved {
+		t.Fatalf("delegation usage=%+v", got)
+	}
+	restarted := NewManager(Options{Store: db})
+	durable, err := restarted.GetDelegation(testContext, session.ID, "child-once")
+	if err != nil || !durable.UsageSettled || durable.LastStatus != "succeeded" {
+		t.Fatalf("durable child receipt=%+v err=%v", durable, err)
+	}
+	durableSession, err := restarted.Get(testContext, session.ID)
+	if err != nil || durableSession.DelegationCostMicros != 5 {
+		t.Fatalf("durable meter=%+v err=%v", durableSession, err)
+	}
+}
+
+func TestTerminalAtStartSettlesUsageBeforeReceiptIsComplete(t *testing.T) {
+	db := newSessionTestDB(t)
+	manager := NewManager(Options{Store: db})
+	session, err := manager.Create(testContext, "declared-program:fast", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.SaveDelegation(testContext, &Delegation{SessionID: session.ID, ExecutionID: "fast-child", CreatedAt: time.Now().UTC(), LastStatus: "succeeded"}); err != nil {
+		t.Fatal(err)
+	}
+	child, err := manager.GetDelegation(testContext, session.ID, "fast-child")
+	if err != nil || child.UsageSettled {
+		t.Fatalf("terminal status was mistaken for settlement: %+v %v", child, err)
+	}
+	applied, err := manager.SettleDelegationUsage(testContext, session.ID, "fast-child", "succeeded", 9, true, "priced fast child")
+	if err != nil || !applied {
+		t.Fatalf("settle applied=%v err=%v", applied, err)
+	}
+	applied, err = manager.SettleDelegationUsage(testContext, session.ID, "fast-child", "succeeded", 9, true, "duplicate")
+	if err != nil || applied {
+		t.Fatalf("duplicate settle applied=%v err=%v", applied, err)
+	}
+	restarted := NewManager(Options{Store: db})
+	child, err = restarted.GetDelegation(testContext, session.ID, "fast-child")
+	if err != nil || !child.UsageSettled {
+		t.Fatalf("restart child receipt=%+v %v", child, err)
+	}
+	got, err := restarted.Get(testContext, session.ID)
+	if err != nil || got.DelegationCostMicros != 9 || !got.DelegationSpendMeasured {
+		t.Fatalf("restart meter=%+v %v", got, err)
+	}
+}
+
+func TestInterleavedTerminalAndNonterminalCollectsSettleExactlyOnce(t *testing.T) {
+	db := newSessionTestDB(t)
+	manager := NewManager(Options{Store: db})
+	session, err := manager.Create(testContext, "declared-program:interleave", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.SaveDelegation(testContext, &Delegation{SessionID: session.ID, ExecutionID: "child-race", CreatedAt: time.Now().UTC(), LastStatus: "running"}); err != nil {
+		t.Fatal(err)
+	}
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	errCh := make(chan error, 2)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		<-start
+		_, err := manager.SettleDelegationUsage(testContext, session.ID, "child-race", "succeeded", 13, true, "terminal")
+		errCh <- err
+	}()
+	go func() {
+		defer wg.Done()
+		<-start
+		errCh <- manager.SaveDelegation(testContext, &Delegation{SessionID: session.ID, ExecutionID: "child-race", CreatedAt: time.Now().UTC(), LastStatus: "running"})
+	}()
+	close(start)
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	restarted := NewManager(Options{Store: db})
+	child, err := restarted.GetDelegation(testContext, session.ID, "child-race")
+	if err != nil || child.LastStatus != "succeeded" || !child.UsageSettled {
+		t.Fatalf("child receipt=%+v err=%v", child, err)
+	}
+	got, err := restarted.Get(testContext, session.ID)
+	if err != nil || got.DelegationCostMicros != 13 {
+		t.Fatalf("meter=%+v err=%v", got, err)
+	}
+}
+
+func TestInferenceAccountingWriteFailurePersistsUnknownCharge(t *testing.T) {
+	db := newSessionTestDB(t)
+	manager := NewManager(Options{Store: db})
+	session, err := manager.Create(testContext, "declared-program:write-failure", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(testContext, `CREATE TRIGGER reject_inference_meter BEFORE UPDATE OF inference_cost_micros ON sessions BEGIN SELECT RAISE(FAIL, 'meter unavailable'); END`); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.RecordInferenceUsage(testContext, session.ID, 4, 2); err == nil {
+		t.Fatal("expected meter write failure")
+	}
+	restarted := NewManager(Options{Store: db})
+	got, err := restarted.Get(testContext, session.ID)
+	if err != nil || !got.InferenceChargeUnknown {
+		t.Fatalf("failed write lost uncertainty: %+v err=%v", got, err)
+	}
+	if got.InferenceCostMicros != 0 || got.InferenceTokens != 0 {
+		t.Fatalf("failed write partially changed meter: %+v", got)
+	}
 }
 
 func (r fakeWorkspaceResolver) Resolve(_ context.Context, id string) (string, error) {
@@ -187,17 +345,23 @@ func TestDelegationSpendReceiptAccumulatesAndCeilingRejects(t *testing.T) { // [
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := m.RecordDelegationUsage(testContext, s.ID, 1, true, "metered child charge"); err != nil {
+	if err := m.SaveDelegation(testContext, &Delegation{SessionID: s.ID, ExecutionID: "child-first", CreatedAt: time.Now().UTC(), LastStatus: "running"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := m.RecordDelegationUsage(testContext, s.ID, 1, true, "second child charge"); err == nil || !strings.Contains(err.Error(), "delegated_run_spend_exceeded") {
+	if _, err := m.SettleDelegationUsage(testContext, s.ID, "child-first", "succeeded", 1, true, "metered child charge"); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.SaveDelegation(testContext, &Delegation{SessionID: s.ID, ExecutionID: "child-second", CreatedAt: time.Now().UTC(), LastStatus: "running"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.SettleDelegationUsage(testContext, s.ID, "child-second", "succeeded", 1, true, "second child charge"); err == nil || !strings.Contains(err.Error(), "delegated_run_spend_exceeded") {
 		t.Fatalf("second delegated charge error=%v", err)
 	}
 	got, err := m.Get(testContext, s.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.DelegationCostMicros != 1 || !got.DelegationSpendMeasured || got.DelegationSpendNote != "metered child charge" {
+	if got.DelegationCostMicros != 1 || got.DelegationSpendMeasured || !got.InferenceChargeUnknown || got.DelegationSpendNote != "metered child charge" {
 		t.Fatalf("delegation spend=%+v", got)
 	}
 }
@@ -233,7 +397,7 @@ func TestSQLiteSessionSpendSurvivesManagerRestart(t *testing.T) { // [REQ:PRT-P1
 	if err := first.RecordInferenceUsage(testContext, s.ID, 125, 17); err != nil {
 		t.Fatal(err)
 	}
-	if err := first.RecordDelegationUsage(testContext, s.ID, 0, false, "agent-manager charge unavailable"); err != nil {
+	if err := first.MarkAccountingUnknown(testContext, s.ID); err != nil {
 		t.Fatal(err)
 	}
 	second := NewManager(Options{Store: db})
@@ -241,7 +405,7 @@ func TestSQLiteSessionSpendSurvivesManagerRestart(t *testing.T) { // [REQ:PRT-P1
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.InferenceCostMicros != 125 || got.InferenceTokens != 17 || got.InferenceCeilingMicros != 500 || got.DelegationCeilingMicros != 700 || got.DelegationSpendMeasured || got.DelegationSpendNote == "" {
+	if got.InferenceCostMicros != 125 || got.InferenceTokens != 17 || got.InferenceCeilingMicros != 500 || got.DelegationCeilingMicros != 700 || got.DelegationSpendMeasured || !got.DelegationUsageObserved || !got.InferenceChargeUnknown {
 		t.Fatalf("durable spend=%+v", got)
 	}
 }

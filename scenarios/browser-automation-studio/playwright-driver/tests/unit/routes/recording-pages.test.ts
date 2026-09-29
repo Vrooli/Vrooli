@@ -7,7 +7,7 @@ import {
 } from '../../helpers';
 import { SessionManager } from '../../../src/session';
 
-jest.mock('../../../src/routes/record-mode/recording-frames', () => ({
+jest.mock('../../../src/session/frame-cache', () => ({
   clearFrameCache: jest.fn(),
 }));
 

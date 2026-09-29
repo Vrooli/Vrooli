@@ -4,6 +4,7 @@ package process
 
 import (
 	"errors"
+	"os"
 	"syscall"
 )
 
@@ -24,3 +25,15 @@ func sysGetpgid(pid int) (int, error) {
 func sysKill(pid int, sig syscall.Signal) error {
 	return syscall.Kill(pid, sig)
 }
+
+func sysOwnedProcessGroup(pid, pgid int) bool {
+	runnerPGID, err := syscall.Getpgid(0)
+	return err == nil && pid > 1 && pgid == pid && pgid != runnerPGID
+}
+
+func sysProcessGroupExists(pgid int) bool {
+	err := syscall.Kill(-pgid, 0)
+	return err == nil || errors.Is(err, syscall.EPERM)
+}
+
+func sysCanSignalProcess(pid int) bool { return pid > 1 && pid != os.Getpid() }

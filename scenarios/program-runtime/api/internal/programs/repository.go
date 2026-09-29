@@ -24,6 +24,7 @@ type SQLExecutor = sessions.SQLExecutor
 
 type Repository interface {
 	InterruptUnfinished(context.Context, string) (int64, error)
+	Create(context.Context, *programsv1.Program) (bool, error)
 	Save(context.Context, *programsv1.Program) error
 	Get(context.Context, string) (*programsv1.Program, error)
 	List(context.Context, string, bool) ([]*programsv1.Program, error)
@@ -111,28 +112,42 @@ func NewRepository(db SQLExecutor) Repository {
 }
 
 func (r *sqliteRepository) Save(ctx context.Context, p *programsv1.Program) error {
+	_, err := r.store(ctx, p, false)
+	return err
+}
+
+// Create reserves execution identity without changing an existing receipt.
+func (r *sqliteRepository) Create(ctx context.Context, p *programsv1.Program) (bool, error) {
+	return r.store(ctx, p, true)
+}
+
+func (r *sqliteRepository) store(ctx context.Context, p *programsv1.Program, createOnly bool) (bool, error) {
 	p = clone(p)
 	p.LearningJson = persistedLearningJSON(p.GetLearningJson())
 	for _, field := range []*string{&p.Source, &p.Stdout, &p.FailureDetail} {
 		sealed, err := r.receipts.seal(*field)
 		if err != nil {
-			return fmt.Errorf("seal runtime resume receipt: %w", err)
+			return false, fmt.Errorf("seal runtime resume receipt: %w", err)
 		}
 		*field = sealed
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT INTO programs
-	 (id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, failure_location, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json)
-	 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	 ON CONFLICT(id) DO UPDATE SET status=excluded.status, completed_at=excluded.completed_at, stdout=excluded.stdout, context_bytes=excluded.context_bytes, agent_bytes=excluded.agent_bytes, output_limit_bytes=excluded.output_limit_bytes, failure_detail=excluded.failure_detail, failure_shape=excluded.failure_shape, failure_location=excluded.failure_location, wall_time_millis=excluded.wall_time_millis, cpu_time_millis=excluded.cpu_time_millis, library_version=excluded.library_version, failure_cause=excluded.failure_cause, program_name=excluded.program_name, program_digest=excluded.program_digest, caller_run_id=excluded.caller_run_id, caller_agent_profile=excluded.caller_agent_profile, caller_skill_id=excluded.caller_skill_id, caller_harness=excluded.caller_harness, learning_json=excluded.learning_json`,
-		p.GetId(), p.GetSessionId(), p.GetSource(), strconv.Itoa(int(p.GetProvenance())), statusName(p.GetStatus()), p.GetCreatedAt(), p.GetCompletedAt(), p.GetStdout(), p.GetContextBytes(), p.GetAgentBytes(), p.GetOutputLimitBytes(), p.GetFailureDetail(), p.GetFailureShape(), failureLocation(p.GetFailureDetail()), p.GetWallTimeMillis(), p.GetCpuTimeMillis(), p.GetLibraryVersion(), p.GetFailureCause().String(), p.GetProgramName(), p.GetProgramDigest(), p.GetCallerRunId(), p.GetCallerAgentProfile(), p.GetCallerSkillId(), p.GetCallerHarness(), p.GetLearningJson())
-	if err != nil {
-		return fmt.Errorf("save program %q: %w", p.GetId(), err)
+	conflict := ` ON CONFLICT(id) DO UPDATE SET status=excluded.status, completed_at=excluded.completed_at, stdout=excluded.stdout, context_bytes=excluded.context_bytes, agent_bytes=excluded.agent_bytes, output_limit_bytes=excluded.output_limit_bytes, failure_detail=excluded.failure_detail, failure_shape=excluded.failure_shape, failure_location=excluded.failure_location, wall_time_millis=excluded.wall_time_millis, cpu_time_millis=excluded.cpu_time_millis, library_version=excluded.library_version, failure_cause=excluded.failure_cause, program_name=excluded.program_name, program_digest=excluded.program_digest, caller_run_id=excluded.caller_run_id, caller_agent_profile=excluded.caller_agent_profile, caller_skill_id=excluded.caller_skill_id, caller_harness=excluded.caller_harness, learning_json=excluded.learning_json, usage_tokens=excluded.usage_tokens, usage_charge_micros=excluded.usage_charge_micros, usage_accounting_complete=excluded.usage_accounting_complete, usage_charge_measured=excluded.usage_charge_measured, usage_basis=excluded.usage_basis`
+	if createOnly {
+		conflict = ` ON CONFLICT(id) DO NOTHING`
 	}
-	return nil
+	result, err := r.db.ExecContext(ctx, `INSERT INTO programs
+	 (id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, failure_location, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json, request_digest, usage_tokens, usage_charge_micros, usage_accounting_complete, usage_charge_measured, usage_basis)
+	 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`+conflict,
+		p.GetId(), p.GetSessionId(), p.GetSource(), strconv.Itoa(int(p.GetProvenance())), statusName(p.GetStatus()), p.GetCreatedAt(), p.GetCompletedAt(), p.GetStdout(), p.GetContextBytes(), p.GetAgentBytes(), p.GetOutputLimitBytes(), p.GetFailureDetail(), p.GetFailureShape(), failureLocation(p.GetFailureDetail()), p.GetWallTimeMillis(), p.GetCpuTimeMillis(), p.GetLibraryVersion(), p.GetFailureCause().String(), p.GetProgramName(), p.GetProgramDigest(), p.GetCallerRunId(), p.GetCallerAgentProfile(), p.GetCallerSkillId(), p.GetCallerHarness(), p.GetLearningJson(), p.GetRequestDigest(), p.GetUsageTokens(), p.GetUsageChargeMicros(), boolToInt(p.GetUsageAccountingComplete()), boolToInt(p.GetUsageChargeMeasured()), p.GetUsageBasis())
+	if err != nil {
+		return false, fmt.Errorf("save program %q: %w", p.GetId(), err)
+	}
+	rows, err := result.RowsAffected()
+	return rows == 1, err
 }
 
 func (r *sqliteRepository) Get(ctx context.Context, id string) (*programsv1.Program, error) {
-	p, err := r.scan(r.db.QueryRowContext(ctx, `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json FROM programs WHERE id = ?`, id))
+	p, err := r.scan(r.db.QueryRowContext(ctx, `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json, request_digest, usage_tokens, usage_charge_micros, usage_accounting_complete, usage_charge_measured, usage_basis FROM programs WHERE id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrProgramNotFound
 	}
@@ -147,7 +162,7 @@ func (r *sqliteRepository) List(ctx context.Context, sessionID string, includeOp
 }
 
 func (r *sqliteRepository) ListFiltered(ctx context.Context, filter ListFilter) ([]*programsv1.Program, error) {
-	query := `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json FROM programs WHERE 1=1`
+	query := `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json, request_digest, usage_tokens, usage_charge_micros, usage_accounting_complete, usage_charge_measured, usage_basis FROM programs WHERE 1=1`
 	args := make([]any, 0, 8)
 	if filter.SessionID != "" {
 		query += ` AND session_id = ?`
@@ -449,9 +464,12 @@ func (r *sqliteRepository) scan(row rowScanner) (*programsv1.Program, error) {
 	var provenance string
 	var status, completedAt string
 	var failureCause string
-	if err := row.Scan(&p.Id, &p.SessionId, &p.Source, &provenance, &status, &p.CreatedAt, &completedAt, &p.Stdout, &p.ContextBytes, &p.AgentBytes, &p.OutputLimitBytes, &p.FailureDetail, &p.FailureShape, &p.WallTimeMillis, &p.CpuTimeMillis, &p.LibraryVersion, &failureCause, &p.ProgramName, &p.ProgramDigest, &p.CallerRunId, &p.CallerAgentProfile, &p.CallerSkillId, &p.CallerHarness, &p.LearningJson); err != nil {
+	var accountingComplete, chargeMeasured int
+	if err := row.Scan(&p.Id, &p.SessionId, &p.Source, &provenance, &status, &p.CreatedAt, &completedAt, &p.Stdout, &p.ContextBytes, &p.AgentBytes, &p.OutputLimitBytes, &p.FailureDetail, &p.FailureShape, &p.WallTimeMillis, &p.CpuTimeMillis, &p.LibraryVersion, &failureCause, &p.ProgramName, &p.ProgramDigest, &p.CallerRunId, &p.CallerAgentProfile, &p.CallerSkillId, &p.CallerHarness, &p.LearningJson, &p.RequestDigest, &p.UsageTokens, &p.UsageChargeMicros, &accountingComplete, &chargeMeasured, &p.UsageBasis); err != nil {
 		return nil, err
 	}
+	p.UsageAccountingComplete = accountingComplete != 0
+	p.UsageChargeMeasured = chargeMeasured != 0
 	p.Status = parseStatus(status)
 	p.CompletedAt = completedAt
 	p.FailureCause = parseFailureCause(failureCause)
@@ -464,6 +482,13 @@ func (r *sqliteRepository) scan(row rowScanner) (*programsv1.Program, error) {
 	p.Stdout = r.receipts.open(p.Stdout)
 	p.FailureDetail = r.receipts.open(p.FailureDetail)
 	return &p, nil
+}
+
+func boolToInt(v bool) int {
+	if v {
+		return 1
+	}
+	return 0
 }
 
 // persistedLearningJSON strips the resume_token from a learning receipt before
@@ -568,6 +593,18 @@ type memoryRepository struct {
 
 func newMemoryRepository() *memoryRepository {
 	return &memoryRepository{programs: make(map[string]*programsv1.Program)}
+}
+
+func (r *memoryRepository) Create(_ context.Context, p *programsv1.Program) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, exists := r.programs[p.GetId()]; exists {
+		return false, nil
+	}
+	stored := clone(p)
+	stored.LearningJson = persistedLearningJSON(stored.GetLearningJson())
+	r.programs[p.GetId()] = stored
+	return true, nil
 }
 
 func (r *memoryRepository) Save(_ context.Context, p *programsv1.Program) error {

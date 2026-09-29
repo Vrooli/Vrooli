@@ -187,6 +187,27 @@ func TestCompareTreesClassifiesCorruptedOutputWithRepositoryPath(t *testing.T) {
 	}
 }
 
+func TestCompareTreesIgnoresRuntimeCompatibilityStamp(t *testing.T) {
+	dir := t.TempDir()
+	staged := filepath.Join(dir, "staged")
+	committed := filepath.Join(dir, "committed")
+	for _, root := range []string{staged, committed} {
+		if err := os.MkdirAll(root, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(committed, compatibilityStampName), []byte("runtime selection\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	findings, err := compareTrees(staged, committed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 0 {
+		t.Fatalf("runtime compatibility stamp produced generated drift: %v", findings)
+	}
+}
+
 func TestResolveScopeIncludesDependents(t *testing.T) {
 	root := t.TempDir()
 	protoRoot := filepath.Join(root, "packages", "proto")
@@ -219,6 +240,41 @@ func TestResolveScopeIncludesDependents(t *testing.T) {
 	want := []string{"common", "dependent"}
 	if strings.Join(scope, ",") != strings.Join(want, ",") {
 		t.Fatalf("scope = %v, want %v", scope, want)
+	}
+}
+
+func TestResolveScopeIncludesRequestedImportClosure(t *testing.T) {
+	root := t.TempDir()
+	protoRoot := filepath.Join(root, "packages", "proto")
+	common := filepath.Join(protoRoot, "schemas", "common", "v1")
+	consumer := filepath.Join(protoRoot, "schemas", "consumer", "v1")
+	independent := filepath.Join(protoRoot, "schemas", "independent", "v1")
+	for _, dir := range []string{common, consumer, independent} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeProto := func(path, body string) {
+		t.Helper()
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeProto(filepath.Join(common, "types.proto"), "syntax = \"proto3\";\npackage common.v1;\nmessage Shared {}\n")
+	writeProto(filepath.Join(consumer, "service.proto"), "syntax = \"proto3\";\npackage consumer.v1;\nimport \"common/v1/types.proto\";\nmessage Service { common.v1.Shared shared = 1; }\n")
+	writeProto(filepath.Join(independent, "service.proto"), "syntax = \"proto3\";\npackage independent.v1;\nmessage Service {}\n")
+
+	generator, err := New(Config{RepoRoot: root, ProtoRoot: protoRoot, Scenarios: []string{"consumer"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	scope, err := generator.resolveScope([]string{"common", "consumer", "independent"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"common", "consumer"}
+	if strings.Join(scope, ",") != strings.Join(want, ",") {
+		t.Fatalf("scope = %v, want requested owner plus its import closure %v", scope, want)
 	}
 }
 

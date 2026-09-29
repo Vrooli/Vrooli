@@ -52,10 +52,10 @@ func TestExecutionOptionMergesRolePolicyAndLocalProbe(t *testing.T) {
 		SupportedModels: []string{"ollama/gemma4:12b"},
 		EffortMappings:  map[string]string{"high": "high"},
 	})
-	resolved := &rolepolicy.ResolvedCandidate{Runner: domain.RunnerTypeCodex, Model: "gpt-5.6-sol", CanonicalModel: "gpt-5.6-sol", Fallbacks: []string{"gpt-5.6-luna"}}
+	resolved := &rolepolicy.ResolvedCandidate{Runner: domain.RunnerTypeCodex, Model: "gpt-6-sol", CanonicalModel: "codex/gpt-6-sol", Fallbacks: []string{"gpt-6-luna"}}
 	option := executionOptionForRunner(context.Background(), mock, resolved)
-	if option.DefaultModel != "gpt-5.6-sol" || option.DefaultModelSource != executionModelSourceRolePolicy {
-		t.Fatalf("default = %q/%q, want role-policy gpt-5.6-sol", option.DefaultModel, option.DefaultModelSource)
+	if option.DefaultModel != "gpt-6-sol" || option.DefaultModelSource != executionModelSourceRolePolicy {
+		t.Fatalf("default = %q/%q, want role-policy gpt-6-sol", option.DefaultModel, option.DefaultModelSource)
 	}
 	// The role model and its fallback come first, then the locally probed model.
 	if len(option.Models) != 3 {

@@ -62,13 +62,72 @@ func TestLauncherSelectorPick_TrackingWithFactoryAndIDPicksSandbox(t *testing.T)
 	}
 }
 
-func TestLauncherSelectorPick_UnspecifiedModeUsesHost(t *testing.T) {
+func TestLauncherSelectorPick_ExplicitOffModeUsesHost(t *testing.T) {
 	host := mocks.NewFakeLauncher("host")
 	selector := adapterrunner.NewLauncherSelector(host, mocks.NewFakeSandboxLauncherFactory(mocks.NewFakeLauncher("sandbox")))
-	cfg := &domain.RunConfig{SandboxConfig: &domain.SandboxConfig{}} // mode=""
+	cfg := &domain.RunConfig{SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}}
 	picked := selector.Pick(context.Background(), adapterrunner.ExecuteRequest{ResolvedConfig: cfg})
 	if picked != host {
-		t.Errorf("unspecified mode picked %v; want host launcher", picked)
+		t.Errorf("explicit off mode picked %v; want host launcher", picked)
+	}
+}
+
+func TestLauncherSelector_IncompletePolicyCannotSelectHost(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		cfg  *domain.RunConfig
+	}{
+		{"missing-run-config", nil},
+		{"missing-sandbox-config", &domain.RunConfig{}},
+		{"unknown-mode", &domain.RunConfig{SandboxConfig: &domain.SandboxConfig{Mode: "unknown"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			host := mocks.NewFakeLauncher("host")
+			selector := adapterrunner.NewLauncherSelector(host, nil)
+			picked := selector.PickFor(context.Background(), uuid.New(), tc.cfg, nil, nil)
+			if _, err := picked.Launch(context.Background(), adapterrunner.LaunchRequest{Command: "agent"}); err == nil {
+				t.Fatal("an incomplete or unknown policy must refuse launch, not imply permission for host execution")
+			}
+			if len(host.LaunchCalls()) != 0 {
+				t.Fatal("an incomplete policy launched a host process")
+			}
+		})
+	}
+}
+
+func TestLauncherSelector_WritePolicyRequiresAdvertisedEnforcement(t *testing.T) {
+	host := mocks.NewFakeLauncher("host")
+	sandbox := mocks.NewFakeLauncher("sandbox")
+	factory := mocks.NewFakeSandboxLauncherFactory(sandbox)
+	factory.Containment = protectedContainment()
+	selector := adapterrunner.NewLauncherSelector(host, factory)
+	cfg := domain.DefaultRunConfig()
+	cfg.SandboxConfig.WritePolicy = &domain.WorkspaceWritePolicy{}
+	id := uuid.New()
+	request := adapterrunner.ExecuteRequest{ResolvedConfig: cfg, SandboxID: &id}
+	if _, err := selector.Pick(context.Background(), request).Launch(context.Background(), adapterrunner.LaunchRequest{Command: "agent"}); err == nil {
+		t.Fatal("an old provider may discard the policy; refuse it before launch")
+	}
+	factory.Containment.Enforcements = append(factory.Containment.Enforcements, adapterrunner.EnforcementWorkspaceWritePolicy)
+	if _, err := selector.Pick(context.Background(), request).Launch(context.Background(), adapterrunner.LaunchRequest{Command: "agent"}); err == nil {
+		t.Fatal("backend capability is not proof the sandbox persisted this run's policy")
+	}
+	factory.Containment.WritePolicy = &domain.WorkspaceWritePolicy{Paths: []string{"src"}}
+	if _, err := selector.Pick(context.Background(), request).Launch(context.Background(), adapterrunner.LaunchRequest{Command: "agent"}); err == nil {
+		t.Fatal("a wider retained sandbox policy must not satisfy an empty read-only grant")
+	}
+	factory.Containment.WritePolicy = &domain.WorkspaceWritePolicy{}
+	if got := selector.Pick(context.Background(), request); got != sandbox {
+		t.Fatalf("capable protected provider refused: %T", got)
+	}
+	for _, mode := range []domain.SandboxMode{domain.SandboxModeTracking, domain.SandboxModeOff} {
+		cfg.SandboxConfig.Mode = mode
+		if _, err := selector.Pick(context.Background(), request).Launch(context.Background(), adapterrunner.LaunchRequest{Command: "agent"}); err == nil {
+			t.Fatal("write policy allowed an unprotected mode")
+		}
+	}
+	if len(host.LaunchCalls())+len(sandbox.LaunchCalls()) != 0 {
+		t.Fatal("refusal started a process")
 	}
 }
 
@@ -79,6 +138,7 @@ func TestLauncherSelectorPick_ProtectedWithFactoryAndIDPicksSandbox(t *testing.T
 	host := mocks.NewFakeLauncher("host")
 	sandboxLauncher := mocks.NewFakeLauncher("sandbox")
 	factory := mocks.NewFakeSandboxLauncherFactory(sandboxLauncher)
+	factory.Containment = protectedContainment()
 	selector := adapterrunner.NewLauncherSelector(host, factory)
 
 	sandboxID := uuid.New()
@@ -117,12 +177,62 @@ func TestLauncherSelectorPick_EffectGrantRefusesUnverifiableContainment(t *testi
 	}
 }
 
-func TestLauncherSelectorPick_ProtectedNoFactoryFallsBackWithWarning(t *testing.T) {
+func TestLauncherSelector_ProtectedAndEffectRunsNeverDowngrade(t *testing.T) {
+	for _, mode := range []domain.SandboxMode{domain.SandboxModeProtected, domain.SandboxModeOff} {
+		for _, defect := range []string{"missing-config", "missing-factory", "missing-id", "zero-id", "missing-launcher", "missing-report", "missing-enforcement", "uncontained-report"} {
+			t.Run(string(mode)+"/"+defect, func(t *testing.T) {
+				host := mocks.NewFakeLauncher("host")
+				sandbox := mocks.NewFakeLauncher("sandbox")
+				factory := mocks.NewFakeSandboxLauncherFactory(sandbox)
+				factory.Containment = &adapterrunner.Containment{Level: "required", Backend: "bwrap", Enforcements: []string{
+					adapterrunner.EnforcementFilesystemWriteContainment, adapterrunner.EnforcementNetworkDeny,
+				}}
+				cfg := &domain.RunConfig{SandboxConfig: &domain.SandboxConfig{Mode: mode}, RequireEffectContainment: mode == domain.SandboxModeOff}
+				id := uuid.New()
+				sandboxID := &id
+				switch defect {
+				case "missing-config":
+					cfg.SandboxConfig = nil
+					cfg.RequireEffectContainment = true
+				case "missing-factory":
+					factory = nil
+				case "missing-id":
+					sandboxID = nil
+				case "zero-id":
+					id = uuid.Nil
+				case "missing-launcher":
+					factory = mocks.NewFakeSandboxLauncherFactory(nil)
+				case "missing-report":
+					factory.Containment = nil
+				case "missing-enforcement":
+					factory.Containment.Enforcements = []string{adapterrunner.EnforcementNetworkDeny}
+				case "uncontained-report":
+					factory.Containment.Backend = "none"
+					factory.Containment.Level = "none"
+				}
+				var selectedFactory adapterrunner.SandboxLauncherFactory
+				if factory != nil {
+					selectedFactory = factory
+				}
+				selector := adapterrunner.NewLauncherSelector(host, selectedFactory)
+				picked := selector.PickFor(context.Background(), uuid.New(), cfg, sandboxID, nil)
+				if _, err := picked.Launch(context.Background(), adapterrunner.LaunchRequest{Command: "agent"}); err == nil {
+					t.Fatal("required containment must refuse launch")
+				}
+				if len(host.LaunchCalls()) != 0 || len(sandbox.LaunchCalls()) != 0 {
+					t.Fatal("refusal must not launch on host or unqualified sandbox")
+				}
+			})
+		}
+	}
+}
+
+func TestLauncherSelectorPick_TrackingNoFactoryFallsBackWithWarning(t *testing.T) {
 	host := mocks.NewFakeLauncher("host")
 	selector := adapterrunner.NewLauncherSelector(host, nil) // no factory
 	sink := &recordingSink{}
 	cfg := &domain.RunConfig{
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeTracking},
 	}
 	id := uuid.New()
 	picked := selector.Pick(context.Background(), adapterrunner.ExecuteRequest{
@@ -139,13 +249,13 @@ func TestLauncherSelectorPick_ProtectedNoFactoryFallsBackWithWarning(t *testing.
 	}
 }
 
-func TestLauncherSelectorPick_ProtectedNoSandboxIDFallsBackWithWarning(t *testing.T) {
+func TestLauncherSelectorPick_TrackingNoSandboxIDFallsBackWithWarning(t *testing.T) {
 	host := mocks.NewFakeLauncher("host")
 	factory := mocks.NewFakeSandboxLauncherFactory(mocks.NewFakeLauncher("sandbox"))
 	selector := adapterrunner.NewLauncherSelector(host, factory)
 	sink := &recordingSink{}
 	cfg := &domain.RunConfig{
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeTracking},
 	}
 	picked := selector.Pick(context.Background(), adapterrunner.ExecuteRequest{
 		RunID:          uuid.New(),
@@ -164,13 +274,13 @@ func TestLauncherSelectorPick_ProtectedNoSandboxIDFallsBackWithWarning(t *testin
 	}
 }
 
-func TestLauncherSelectorPick_FactoryReturnsNilFallsBackWithWarning(t *testing.T) {
+func TestLauncherSelectorPick_TrackingFactoryReturnsNilFallsBackWithWarning(t *testing.T) {
 	host := mocks.NewFakeLauncher("host")
 	factory := mocks.NewFakeSandboxLauncherFactory(nil)
 	selector := adapterrunner.NewLauncherSelector(host, factory)
 	sink := &recordingSink{}
 	cfg := &domain.RunConfig{
-		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeTracking},
 	}
 	id := uuid.New()
 	picked := selector.Pick(context.Background(), adapterrunner.ExecuteRequest{
@@ -187,13 +297,8 @@ func TestLauncherSelectorPick_FactoryReturnsNilFallsBackWithWarning(t *testing.T
 	}
 }
 
-// TestLauncherSelectorPick_ProtectedContainmentGapWarns pins the capability
-// honesty contract: when a protected run selects a sandbox whose reported
-// containment is missing a protected-mode enforcement, the selector still
-// returns the sandbox launcher (tracking value survives) but emits a warn
-// run-event naming exactly the absent enforcements plus the effective
-// containment.
-func TestLauncherSelectorPick_ProtectedContainmentGapWarns(t *testing.T) {
+// Tracking explicitly permits reduced containment, with a visible warning.
+func TestLauncherSelectorPick_TrackingContainmentGapWarns(t *testing.T) {
 	host := mocks.NewFakeLauncher("host")
 	sandbox := mocks.NewFakeLauncher("sandbox")
 	factory := mocks.NewFakeSandboxLauncherFactory(sandbox)
@@ -203,7 +308,7 @@ func TestLauncherSelectorPick_ProtectedContainmentGapWarns(t *testing.T) {
 	}
 	selector := adapterrunner.NewLauncherSelector(host, factory)
 	sink := &recordingSink{}
-	cfg := &domain.RunConfig{SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected}}
+	cfg := &domain.RunConfig{SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeTracking}}
 	id := uuid.New()
 
 	picked := selector.Pick(context.Background(), adapterrunner.ExecuteRequest{
@@ -301,12 +406,44 @@ func TestLauncherSelectorPick_LoopbackGapWarnsEvenWithFullBaseline(t *testing.T)
 	}
 }
 
-func TestLauncherSelectorPick_NoConfigUsesHost(t *testing.T) {
+func TestLauncherSelectorPick_ExplicitNetworkDenyDoesNotClaimLoopbackGap(t *testing.T) {
+	host := mocks.NewFakeLauncher("host")
+	sandbox := mocks.NewFakeLauncher("sandbox")
+	factory := mocks.NewFakeSandboxLauncherFactory(sandbox)
+	factory.Containment = &adapterrunner.Containment{
+		Level:   "required",
+		Backend: "bwrap",
+		Enforcements: []string{
+			adapterrunner.EnforcementFilesystemWriteContainment,
+			adapterrunner.EnforcementNetworkDeny,
+			adapterrunner.EnforcementPIDNamespace,
+			adapterrunner.EnforcementPathIllusion,
+		},
+	}
+	selector := adapterrunner.NewLauncherSelector(host, factory)
+	sink := &recordingSink{}
+	cfg := &domain.RunConfig{SandboxConfig: &domain.SandboxConfig{
+		Mode:        domain.SandboxModeProtected,
+		NetworkMode: domain.NetworkAccessNone,
+	}}
+	id := uuid.New()
+
+	if picked := selector.Pick(context.Background(), adapterrunner.ExecuteRequest{
+		RunID: uuid.New(), ResolvedConfig: cfg, SandboxID: &id, EventSink: sink,
+	}); picked != sandbox {
+		t.Fatalf("picked %v, want sandbox", picked)
+	}
+	if sink.hasWarning("unrestricted network access") || sink.hasWarning(adapterrunner.EnforcementNetworkLoopbackOnly) {
+		t.Errorf("network-denied run emitted localhost warning: events=%v", sink.events)
+	}
+}
+
+func TestLauncherSelectorPick_DefaultConfigRequiresSandbox(t *testing.T) {
 	host := mocks.NewFakeLauncher("host")
 	selector := adapterrunner.NewLauncherSelector(host, mocks.NewFakeSandboxLauncherFactory(mocks.NewFakeLauncher("sandbox")))
 	picked := selector.Pick(context.Background(), adapterrunner.ExecuteRequest{}) // no config
-	if picked != host {
-		t.Errorf("no-config request picked %v; want host launcher", picked)
+	if _, err := picked.Launch(context.Background(), adapterrunner.LaunchRequest{}); err == nil {
+		t.Fatal("default protected config must refuse without a sandbox")
 	}
 }
 
@@ -317,7 +454,9 @@ func TestLauncherSelectorPick_NoConfigUsesHost(t *testing.T) {
 func TestLauncherSelectorPickFor_ContinueRequestProtectedRoutesToSandbox(t *testing.T) {
 	host := mocks.NewFakeLauncher("host")
 	sandbox := mocks.NewFakeLauncher("sandbox")
-	selector := adapterrunner.NewLauncherSelector(host, mocks.NewFakeSandboxLauncherFactory(sandbox))
+	factory := mocks.NewFakeSandboxLauncherFactory(sandbox)
+	factory.Containment = protectedContainment()
+	selector := adapterrunner.NewLauncherSelector(host, factory)
 
 	id := uuid.New()
 	cont := adapterrunner.ContinueRequest{
@@ -333,10 +472,8 @@ func TestLauncherSelectorPickFor_ContinueRequestProtectedRoutesToSandbox(t *test
 	}
 }
 
-// TestLauncherSelectorPickFor_ContinueRequestNoSandboxIDFallsBack asserts
-// that a Continue routed for protected mode without a SandboxID falls
-// back to host with a warn event — same contract as the Execute path.
-func TestLauncherSelectorPickFor_ContinueRequestNoSandboxIDFallsBack(t *testing.T) {
+// Continuation must refuse missing sandbox identity just like execution.
+func TestLauncherSelectorPickFor_ContinueRequestNoSandboxIDRefuses(t *testing.T) {
 	host := mocks.NewFakeLauncher("host")
 	factory := mocks.NewFakeSandboxLauncherFactory(mocks.NewFakeLauncher("sandbox"))
 	selector := adapterrunner.NewLauncherSelector(host, factory)
@@ -350,28 +487,22 @@ func TestLauncherSelectorPickFor_ContinueRequestNoSandboxIDFallsBack(t *testing.
 		},
 	}
 	picked := selector.PickFor(context.Background(), cont.RunID, cont.GetConfig(), cont.SandboxID, cont.EventSink)
-	if picked != host {
-		t.Errorf("nil-SandboxID Continue picked %v; want host launcher", picked)
-	}
-	if !sink.hasWarning("SandboxID is nil") {
-		t.Errorf("no warning emitted; events=%v", sink.events)
+	if _, err := picked.Launch(context.Background(), adapterrunner.LaunchRequest{}); err == nil || !strings.Contains(err.Error(), "SandboxID") {
+		t.Fatalf("nil-SandboxID Continue launch error = %v; want refusal", err)
 	}
 	if len(factory.CalledIDs()) != 0 {
 		t.Error("factory should not have been consulted when SandboxID is nil")
 	}
 }
 
-// TestLauncherSelectorPickFor_NilContinueConfigUsesHost asserts that a
-// ContinueRequest with no ResolvedConfig (the runtime default) routes to
-// host. Mirrors the Execute path's "no SandboxConfig → host" rule.
-func TestLauncherSelectorPickFor_NilContinueConfigUsesHost(t *testing.T) {
+func TestLauncherSelectorPickFor_DefaultContinueConfigRequiresSandbox(t *testing.T) {
 	host := mocks.NewFakeLauncher("host")
 	selector := adapterrunner.NewLauncherSelector(host, mocks.NewFakeSandboxLauncherFactory(mocks.NewFakeLauncher("sandbox")))
 
 	cont := adapterrunner.ContinueRequest{RunID: uuid.New()}
 	picked := selector.PickFor(context.Background(), cont.RunID, cont.GetConfig(), cont.SandboxID, cont.EventSink)
-	if picked != host {
-		t.Errorf("default-config Continue picked %v; want host launcher", picked)
+	if _, err := picked.Launch(context.Background(), adapterrunner.LaunchRequest{}); err == nil {
+		t.Fatal("default protected continuation must refuse without a sandbox")
 	}
 }
 
@@ -389,17 +520,25 @@ func TestLauncherSelectorSetSandboxLauncherFactory_SwapsFactoryAtRuntime(t *test
 	id := uuid.New()
 	req := adapterrunner.ExecuteRequest{ResolvedConfig: cfg, SandboxID: &id, RunID: uuid.New()}
 
-	// First call with no factory → host fallback.
-	if got := selector.Pick(context.Background(), req); got != host {
-		t.Fatalf("pre-set factory; want host, got %v", got)
+	// Missing wiring must refuse without caching the failed selection.
+	if _, err := selector.Pick(context.Background(), req).Launch(context.Background(), adapterrunner.LaunchRequest{}); err == nil {
+		t.Fatal("missing factory must refuse launch")
 	}
 
 	// Wire a factory at runtime.
 	sandboxLauncher := mocks.NewFakeLauncher("sandbox")
-	selector.SetSandboxLauncherFactory(mocks.NewFakeSandboxLauncherFactory(sandboxLauncher))
+	factory := mocks.NewFakeSandboxLauncherFactory(sandboxLauncher)
+	factory.Containment = protectedContainment()
+	selector.SetSandboxLauncherFactory(factory)
 
 	// Subsequent call uses the new factory.
 	if got := selector.Pick(context.Background(), req); got != sandboxLauncher {
 		t.Fatalf("post-set factory; want sandbox launcher, got %v", got)
 	}
+}
+
+func protectedContainment() *adapterrunner.Containment {
+	return &adapterrunner.Containment{Level: "required", Backend: "bwrap", Enforcements: []string{
+		adapterrunner.EnforcementFilesystemWriteContainment, adapterrunner.EnforcementNetworkDeny,
+	}}
 }

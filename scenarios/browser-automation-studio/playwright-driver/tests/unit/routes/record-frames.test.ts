@@ -1,9 +1,8 @@
 import {
   handleRecordFrame,
   handleRecordScreenshot,
-  clearFrameCache,
-  clearAllFrameCaches,
 } from '../../../src/routes/record-mode/recording-frames';
+import { clearFrameCache, clearAllFrameCaches } from '../../../src/session/frame-cache';
 import { createMockHttpRequest, createMockHttpResponse, createMockPage, createTestConfig } from '../../helpers';
 import type { SessionManager } from '../../../src/session';
 import { RECORDING_FRAME_CACHE_TTL_MS } from '../../../src/constants';

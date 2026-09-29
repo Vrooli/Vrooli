@@ -82,6 +82,7 @@ func NewFileStore(roots paths.Roots, routedRoots ...*filerouting.RoutedRoots) (*
 	})
 	experimentStore := NewSQLiteExperimentStore(experimentDB)
 	teamStore := NewFileTeamStore(roots.Config, roots.RuntimeData, relationStore, routedRoots...)
+	teamStore.repoRoot = roots.RepoRoot
 	agentStore := NewFileAgentStore(roots.Config)
 	topicStore := NewFileTopicStore(roots.Config)
 	if len(routedRoots) > 0 && routedRoots[0] != nil {

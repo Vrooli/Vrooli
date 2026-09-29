@@ -120,7 +120,7 @@ class EffortEnrollment(_message.Message):
     def __init__(self, effort_ref: _Optional[str] = ..., display_name: _Optional[str] = ..., destination_ref: _Optional[str] = ..., target_revision: _Optional[str] = ..., source_revision: _Optional[str] = ..., authority_ref: _Optional[str] = ..., supervisor_run_id: _Optional[str] = ..., subjects: _Optional[_Iterable[_Union[EffortSubject, _Mapping]]] = ..., permitted_actions: _Optional[_Iterable[_Union[_watch_pb2.WatchActionKind, str]]] = ..., revision: _Optional[int] = ..., withdrawn: _Optional[bool] = ..., workspace: _Optional[str] = ..., work_shape: _Optional[str] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., authorized_by: _Optional[str] = ..., authority_expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., maximum_directives: _Optional[int] = ..., cooldown_seconds: _Optional[int] = ..., withdrawal_reason: _Optional[str] = ..., supervisor_owner_subject: _Optional[str] = ..., supervisor_scope: _Optional[str] = ..., dispatch_authorization: _Optional[_Union[SupervisorDispatchAuthorization, _Mapping]] = ..., autonomous_supervision: _Optional[bool] = ..., supervision_priority: _Optional[int] = ...) -> None: ...
 
 class SupervisorDispatchAuthorization(_message.Message):
-    __slots__ = ("authorization_id", "owner_subject", "team_id", "member_id", "profile_key", "scopes", "issued_at", "expires_at", "revoked_at", "credential_hash", "target_revision", "issuance_key", "maximum_runs", "dispatched_runs", "minimum_interval_seconds", "last_dispatched_at")
+    __slots__ = ("authorization_id", "owner_subject", "team_id", "member_id", "profile_key", "scopes", "issued_at", "expires_at", "revoked_at", "credential_hash", "target_revision", "issuance_key", "maximum_runs", "dispatched_runs", "minimum_interval_seconds", "last_dispatched_at", "max_tokens", "max_charge_micro_usd", "dispatched_run_ids")
     AUTHORIZATION_ID_FIELD_NUMBER: _ClassVar[int]
     OWNER_SUBJECT_FIELD_NUMBER: _ClassVar[int]
     TEAM_ID_FIELD_NUMBER: _ClassVar[int]
@@ -137,6 +137,9 @@ class SupervisorDispatchAuthorization(_message.Message):
     DISPATCHED_RUNS_FIELD_NUMBER: _ClassVar[int]
     MINIMUM_INTERVAL_SECONDS_FIELD_NUMBER: _ClassVar[int]
     LAST_DISPATCHED_AT_FIELD_NUMBER: _ClassVar[int]
+    MAX_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    MAX_CHARGE_MICRO_USD_FIELD_NUMBER: _ClassVar[int]
+    DISPATCHED_RUN_IDS_FIELD_NUMBER: _ClassVar[int]
     authorization_id: str
     owner_subject: str
     team_id: str
@@ -153,7 +156,10 @@ class SupervisorDispatchAuthorization(_message.Message):
     dispatched_runs: int
     minimum_interval_seconds: int
     last_dispatched_at: _timestamp_pb2.Timestamp
-    def __init__(self, authorization_id: _Optional[str] = ..., owner_subject: _Optional[str] = ..., team_id: _Optional[str] = ..., member_id: _Optional[str] = ..., profile_key: _Optional[str] = ..., scopes: _Optional[_Iterable[str]] = ..., issued_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., revoked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., credential_hash: _Optional[str] = ..., target_revision: _Optional[str] = ..., issuance_key: _Optional[str] = ..., maximum_runs: _Optional[int] = ..., dispatched_runs: _Optional[int] = ..., minimum_interval_seconds: _Optional[int] = ..., last_dispatched_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    max_tokens: int
+    max_charge_micro_usd: int
+    dispatched_run_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, authorization_id: _Optional[str] = ..., owner_subject: _Optional[str] = ..., team_id: _Optional[str] = ..., member_id: _Optional[str] = ..., profile_key: _Optional[str] = ..., scopes: _Optional[_Iterable[str]] = ..., issued_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., revoked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., credential_hash: _Optional[str] = ..., target_revision: _Optional[str] = ..., issuance_key: _Optional[str] = ..., maximum_runs: _Optional[int] = ..., dispatched_runs: _Optional[int] = ..., minimum_interval_seconds: _Optional[int] = ..., last_dispatched_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., max_tokens: _Optional[int] = ..., max_charge_micro_usd: _Optional[int] = ..., dispatched_run_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class EffortDiscoveryFinding(_message.Message):
     __slots__ = ("source", "code", "reason")

@@ -16,6 +16,14 @@ import (
 // review. Lives here (not in service_review.go) because it does not
 // drive a state transition — it's an in-place file mutation.
 func (s *Service) Discard(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error) {
+	if req == nil {
+		return nil, types.NewValidationError("request", "request body is required")
+	}
+	release, err := s.lockUnprepared(ctx, req.SandboxID)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	sandbox, err := s.Get(ctx, req.SandboxID)
 	if err != nil {
 		return nil, err
@@ -128,27 +136,49 @@ func (s *Service) List(ctx context.Context, filter *types.ListFilter) (*types.Li
 	return s.repo.List(ctx, filter)
 }
 
-// Stop unmounts a sandbox but preserves its data.
+// Stop drains managed processes and unmounts a sandbox, preserving its data.
 //
 // Idempotent: calling Stop on an already-stopped sandbox returns
-// success with the current sandbox state.
+// success after checking the drain again, without repeating unmount.
 func (s *Service) Stop(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 	sandbox, err := s.Get(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
+	if sandbox.Status != types.StatusStopped {
+		if err := types.CanStop(sandbox.Status); err != nil {
+			return nil, types.NewStateError(err.(*types.InvalidTransitionError))
+		}
+		// External systems evacuate while the merged directory is accessible.
+		s.runPreTeardownHooks(ctx, sandbox, "stop")
+	}
+
+	// Hooks may call other owners; do not run them under the publication lock.
+	// Re-read after admission is fenced so a racing start/capture cannot observe
+	// an unmounted workspace or launch after the managed-process drain.
+	release, err := s.lockReview(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	sandbox, err = s.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if sandbox.Status != types.StatusStopped {
+		if err := types.CanStop(sandbox.Status); err != nil {
+			return nil, types.NewStateError(err.(*types.InvalidTransitionError))
+		}
+	}
+	if s.processDrainer != nil {
+		if err := s.processDrainer.Drain(ctx, id); err != nil {
+			return nil, fmt.Errorf("drain sandbox processes: %w", err)
+		}
+	}
 	if sandbox.Status == types.StatusStopped {
 		return sandbox, nil
 	}
-
-	if err := types.CanStop(sandbox.Status); err != nil {
-		return nil, types.NewStateError(err.(*types.InvalidTransitionError))
-	}
-
-	// Run pre-teardown hooks before unmounting, so external systems can
-	// evacuate processes from the merged directory while it's still accessible.
-	s.runPreTeardownHooks(ctx, sandbox, "stop")
 
 	if err := s.driver.Unmount(ctx, sandbox); err != nil {
 		return nil, fmt.Errorf("failed to unmount sandbox: %w", err)
@@ -158,7 +188,7 @@ func (s *Service) Stop(ctx context.Context, id uuid.UUID) (*types.Sandbox, error
 	sandbox.Status = types.StatusStopped
 	sandbox.StoppedAt = &now
 
-	if err := s.repo.Update(ctx, sandbox); err != nil {
+	if err := s.repo.UpdateWithVersionCheck(ctx, sandbox, sandbox.Version); err != nil {
 		return nil, fmt.Errorf("failed to update sandbox: %w", err)
 	}
 
@@ -167,11 +197,38 @@ func (s *Service) Stop(ctx context.Context, id uuid.UUID) (*types.Sandbox, error
 	return sandbox, nil
 }
 
+func (s *Service) BeginProcess(ctx context.Context, id uuid.UUID) (*types.Sandbox, func(), error) {
+	if s.processDrainer == nil {
+		return nil, nil, fmt.Errorf("managed process drain is unavailable")
+	}
+	release, err := s.lockReview(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	sb, err := s.Get(ctx, id)
+	if err == nil && !types.CanRunProcess(sb.Status) {
+		err = types.NewStateError(&types.InvalidTransitionError{Current: sb.Status, Reason: "sandbox must be active to start processes"})
+	}
+	if err == nil {
+		err = s.requireNoPreparedApproval(ctx, id)
+	}
+	if err != nil {
+		release()
+		return nil, nil, err
+	}
+	return sb, release, nil
+}
+
 // Start remounts a stopped sandbox to resume work.
 //
 // Idempotent: calling Start on an already-active sandbox returns
 // success with the current sandbox state.
 func (s *Service) Start(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+	release, err := s.lockUnprepared(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	sandbox, err := s.Get(ctx, id)
 	if err != nil {
 		return nil, err
@@ -230,6 +287,11 @@ func (s *Service) Start(ctx context.Context, id uuid.UUID) (*types.Sandbox, erro
 // flips the sandbox status to Deleted (the archive remains keyed at the
 // terminal status it captured).
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
+	release, err := s.lockUnprepared(ctx, id)
+	if err != nil {
+		return err
+	}
+	defer release()
 	sandbox, err := s.Get(ctx, id)
 	if err != nil {
 		if _, ok := err.(*types.NotFoundError); ok {
@@ -268,7 +330,7 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 			sandbox.Status != types.StatusError
 		if err := s.snapshotAndTransition(ctx, sandbox, types.StatusDeleted, captured, func(sb *types.Sandbox) {
 			sb.DeletedAt = &deletedAt
-		}); err != nil {
+		}, nil); err != nil {
 			s.logAuditEvent(ctx, sandbox, "snapshot_failed", "", "system", map[string]interface{}{
 				"phase": "delete",
 				"error": err.Error(),
@@ -289,6 +351,7 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 
 	// Run pre-teardown hooks before cleanup, so external systems can
 	// evacuate processes from the merged directory before it's removed.
+	release()
 	s.runPreTeardownHooks(ctx, sandbox, "delete")
 
 	if err := s.driver.Cleanup(ctx, sandbox); err != nil {
@@ -389,6 +452,9 @@ func normalizeBehavior(b types.SandboxBehavior) types.SandboxBehavior {
 
 // validateBehavior rejects malformed sandbox behaviors at create time.
 func validateBehavior(b types.SandboxBehavior) error {
+	if err := b.WritePolicy.Validate(); err != nil {
+		return err
+	}
 	if b.Acceptance.Mode != "" && b.Acceptance.Mode != "allowlist" {
 		return types.NewValidationError("acceptance.mode", "unsupported acceptance mode")
 	}

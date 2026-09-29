@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createRouterTransport } from '@connectrpc/connect';
 import { createClient } from '@connectrpc/connect';
-import { VisionNavigationService } from '@vrooli/proto-types/browser-automation-studio/v1/ai/ai_pb';
+import { fromJson } from '@bufbuild/protobuf';
+import {
+  GetNavigationStatusResponseSchema,
+  VisionNavigationService,
+} from '@vrooli/proto-types/browser-automation-studio/v1/ai/ai_pb';
 
 // We test the proto-Connect wiring in isolation: build a router-transport,
 // register a fake handler, and assert that calls hit the expected method
@@ -111,5 +115,31 @@ describe('visionNavigationClient (Connect-RPC)', () => {
     expect(resp.default).toBe('playwright');
     expect(resp.navigators).toHaveLength(1);
     expect(resp.navigators[0].creditPolicy?.creditsPerStep).toBe(2);
+  });
+
+  it('decodes durable terminal status metadata for reconnect recovery', async () => {
+    const resp = fromJson(GetNavigationStatusResponseSchema, {
+      navigationId: 'nav-1',
+      sessionId: 's-1',
+      status: 'completed',
+      terminal: true,
+      totalTokens: 42,
+      totalDurationMs: '1234',
+      finalUrl: 'https://example.com/done',
+      error: '',
+      summary: 'done',
+      verifiedSuccess: true,
+      extractedData: { orderId: 'A-42' },
+      verificationError: '',
+      steps: [{ index: 1, actionType: 'navigate', url: 'https://example.com/done', description: 'Finished', success: true }],
+    });
+
+    expect(resp.terminal).toBe(true);
+    expect(resp.totalDurationMs).toBe(1234n);
+    expect(resp.finalUrl).toBe('https://example.com/done');
+    expect(resp.summary).toBe('done');
+    expect(resp.verifiedSuccess).toBe(true);
+    expect(resp.extractedData).toEqual({ orderId: 'A-42' });
+    expect(resp.steps).toHaveLength(1);
   });
 });

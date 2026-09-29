@@ -2,6 +2,7 @@ package agentharness
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -36,6 +37,31 @@ func TestCodingPolicyCommandsResolveAndReportPosture(t *testing.T) {
 	}
 }
 
+func TestCodingPolicyValidateDoesNotTreatFallbackCatalogAsLive(t *testing.T) {
+	path := writeCodingCatalog(t, "codex")
+	var stdout, stderr bytes.Buffer
+	group := CodingPolicyCommands(CodingPolicyConfig{
+		Runner:      "codex",
+		CatalogPath: path,
+		Stdout:      &stdout,
+		Stderr:      &stderr,
+		Discovery: func(context.Context) (LiveModelCatalog, error) {
+			return LiveModelCatalog{Models: []string{"test-default"}, Source: "~/.codex/models_cache.json"}, nil
+		},
+	})
+	err := command(group, "validate").Run([]string{"--against-live", "--json"})
+	if err == nil || !errors.Is(err, ErrModelCatalogNonAuthoritative) {
+		t.Fatalf("err=%v; fallback catalog must be reported as unmeasured", err)
+	}
+	var payload map[string]any
+	if decodeErr := json.Unmarshal(stdout.Bytes(), &payload); decodeErr != nil {
+		t.Fatalf("decode response: %v; stdout=%s", decodeErr, stdout.String())
+	}
+	if payload["discovery_status"] != "not_measured" {
+		t.Fatalf("payload=%v; fallback must not be reported measured", payload)
+	}
+}
+
 func TestCodingPolicyResolveExpandsConfiguredExclusionsAcrossResourceAliases(t *testing.T) {
 	catalog := CodingRoleCatalog{
 		ExcludedModels: []string{"provider/blocked"},
@@ -44,10 +70,78 @@ func TestCodingPolicyResolveExpandsConfiguredExclusionsAcrossResourceAliases(t *
 			"provider/blocked": {CanonicalModel: "provider/blocked"},
 		},
 	}
-	got := resolvedExcludedModels(catalog)
+	got := resolvedExcludedModels(catalog, "code.default")
 	want := []string{"provider/blocked", "blocked"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("resolved exclusions = %#v, want %#v", got, want)
+	}
+}
+
+func TestCodingPolicyResolveRestrictsPremiumModelToDeclaredRole(t *testing.T) {
+	path := writeCodingCatalog(t, "codex")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var catalog map[string]any
+	if err := json.Unmarshal(data, &catalog); err != nil {
+		t.Fatal(err)
+	}
+	catalog["restricted_models"] = map[string]any{"premium": []string{"judgment.supervision"}}
+	catalog["excluded_models"] = []string{"never"}
+	catalog["model_aliases"].(map[string]any)["premium"] = map[string]any{"canonical_model": "vendor/premium"}
+	catalog["roles"].(map[string]any)["judgment.supervision"] = map[string]any{
+		"model": "premium", "description": "bounded review", "capabilities": []string{"code"},
+	}
+	catalog["roles"].(map[string]any)["inspection.new"] = map[string]any{
+		"model": "test-default", "description": "new ordinary role", "capabilities": []string{"code"},
+	}
+	data, err = json.Marshal(catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		role string
+		want []string
+	}{
+		{"code.default", []string{"never", "premium", "vendor/premium"}},
+		{"code.cheap", []string{"never", "premium", "vendor/premium"}},
+		{"inspection.new", []string{"never", "premium", "vendor/premium"}},
+		{"judgment.supervision", []string{"never"}},
+	} {
+		t.Run(tc.role, func(t *testing.T) {
+			var stdout bytes.Buffer
+			group := CodingPolicyCommands(CodingPolicyConfig{Runner: "codex", CatalogPath: path, Stdout: &stdout})
+			if err := command(group, "resolve").Run([]string{"--role", tc.role, "--json"}); err != nil {
+				t.Fatal(err)
+			}
+			var got codingRoleResponse
+			if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(got.ExcludedModels, tc.want) {
+				t.Fatalf("exclusions = %v, want %v", got.ExcludedModels, tc.want)
+			}
+			if tc.role == "judgment.supervision" && got.Model != "premium" {
+				t.Fatalf("supervisor model = %q, want premium", got.Model)
+			}
+		})
+	}
+}
+
+func TestRestrictedModelRoleCannotOverrideGlobalExclusion(t *testing.T) {
+	catalog := CodingRoleCatalog{
+		ExcludedModels:   []string{"premium"},
+		RestrictedModels: map[string][]string{"premium": {"judgment.supervision"}},
+		ModelAliases: map[string]agentcatalog.ModelAlias{
+			"premium": {CanonicalModel: "vendor/premium"},
+		},
+	}
+	if got := resolvedExcludedModels(catalog, "judgment.supervision"); !reflect.DeepEqual(got, []string{"premium", "vendor/premium"}) {
+		t.Fatalf("global model exclusion lost: %v", got)
 	}
 }
 
@@ -171,7 +265,7 @@ func TestCatalogStalenessBudgetAndLivePrimaryFailure(t *testing.T) {
 	if _, err := parseObservedAt("not-a-date"); err == nil {
 		t.Fatal("invalid observed_at accepted")
 	}
-	findings := liveCatalogFindings(CodingRoleCatalog{Roles: map[string]CodingRole{"code.default": {Model: "missing"}}}, LiveModelCatalog{Models: []string{"present"}})
+	findings := liveCatalogFindings(CodingRoleCatalog{Roles: map[string]CodingRole{"code.default": {Model: "missing"}}}, LiveModelCatalog{Models: []string{"present"}, Exhaustive: true})
 	if len(findings) != 2 || findings[0].Type != "missing_primary_model" {
 		t.Fatalf("live findings = %#v", findings)
 	}

@@ -15,6 +15,37 @@ import (
 	"workspace-sandbox/internal/types"
 )
 
+func TestTemporaryFilesystemDoesNotShadowWorkspaceAliases(t *testing.T) {
+	sandbox := &types.Sandbox{MergedDir: "/tmp/sandbox/merged", LowerDir: "/tmp/source", ProjectRoot: "/tmp/project", HomeMergedDir: "/tmp/home"}
+	args := BuildBwrapArgs(sandbox, BwrapConfig{HostHome: "/home/user", MirrorProjectRoot: true})
+	tmpIndex := -1
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == "--tmpfs" && args[i+1] == "/tmp" {
+			tmpIndex = i
+		}
+	}
+	if tmpIndex < 0 {
+		t.Fatal("private /tmp is required")
+	}
+	for i := 0; i+2 < len(args); i++ {
+		if args[i] == "--bind" && strings.HasPrefix(args[i+2], "/tmp/") && i < tmpIndex {
+			t.Errorf("private /tmp would hide workspace alias %s", args[i+2])
+		}
+	}
+}
+
+func TestMasksPreserveAllWorkspaceAliases(t *testing.T) {
+	sandbox := &types.Sandbox{MergedDir: "/sb/merged", LowerDir: "/sb/lower", ProjectRoot: "/project/repo"}
+	for _, mask := range []string{"/", "/project", "/project/repo", "/project/repo/subdir"} {
+		args := BuildBwrapArgs(sandbox, BwrapConfig{MirrorProjectRoot: true, MaskPaths: []string{mask}})
+		for i := 0; i+1 < len(args); i++ {
+			if args[i] == "--tmpfs" && args[i+1] == mask {
+				t.Errorf("mask %s hides a workspace alias", mask)
+			}
+		}
+	}
+}
+
 func TestBuildBwrapArgs(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		repocontracttest.SkipPlatform(t, "bwrap tests require Linux")
@@ -348,11 +379,11 @@ func TestBuildBwrapArgs_Golden(t *testing.T) {
 				"--unshare-net",
 				"--die-with-parent",
 				"--hostname", "sandbox",
+				"--tmpfs", "/tmp",
 				"--bind", "/sb/merged", "/workspace",
 				"--ro-bind", "/sb/lower", "/workspace-readonly",
 				"--proc", "/proc",
 				"--dev", "/dev",
-				"--tmpfs", "/tmp",
 				"--chdir", "/workspace",
 				"--",
 			},
@@ -366,11 +397,11 @@ func TestBuildBwrapArgs_Golden(t *testing.T) {
 				// no --unshare-pid (SharePID=true), no --unshare-net (AllowNetwork=true)
 				"--die-with-parent",
 				"--hostname", "sandbox",
+				"--tmpfs", "/tmp",
 				"--bind", "/sb/merged", "/workspace",
 				"--ro-bind", "/sb/lower", "/workspace-readonly",
 				"--proc", "/proc",
 				"--dev", "/dev",
-				"--tmpfs", "/tmp",
 				"--chdir", "/workspace",
 				"--",
 			},
@@ -390,6 +421,7 @@ func TestBuildBwrapArgs_Golden(t *testing.T) {
 				"--unshare-net",
 				"--die-with-parent",
 				"--hostname", "sandbox",
+				"--tmpfs", "/tmp",
 				"--bind", "/sb/merged", "/workspace",
 				"--dir", "/h",
 				"--dir", "/h/u",
@@ -403,7 +435,6 @@ func TestBuildBwrapArgs_Golden(t *testing.T) {
 				"--ro-bind", "/sb/lower", "/workspace-readonly",
 				"--proc", "/proc",
 				"--dev", "/dev",
-				"--tmpfs", "/tmp",
 				"--chdir", "/workspace",
 				"--",
 			},
@@ -437,6 +468,7 @@ func TestBuildBwrapArgs_Golden(t *testing.T) {
 				"--unshare-net",
 				"--die-with-parent",
 				"--hostname", "sandbox",
+				"--tmpfs", "/tmp",
 				"--bind", "/sb/merged", "/workspace",
 				"--dir", "/h",
 				"--dir", "/h/u",
@@ -449,7 +481,6 @@ func TestBuildBwrapArgs_Golden(t *testing.T) {
 				"--tmpfs", "/h/u/other-checkouts",
 				"--proc", "/proc",
 				"--dev", "/dev",
-				"--tmpfs", "/tmp",
 				"--chdir", "/workspace",
 				"--",
 			},
@@ -469,6 +500,7 @@ func TestBuildBwrapArgs_Golden(t *testing.T) {
 				"--unshare-net",
 				"--die-with-parent",
 				"--hostname", "sandbox",
+				"--tmpfs", "/tmp",
 				"--bind", "/sb/merged", "/workspace",
 				"--dir", "/proj",
 				"--dir", "/proj/repo",
@@ -476,7 +508,6 @@ func TestBuildBwrapArgs_Golden(t *testing.T) {
 				"--ro-bind", "/sb/lower", "/workspace-readonly",
 				"--proc", "/proc",
 				"--dev", "/dev",
-				"--tmpfs", "/tmp",
 				"--chdir", "/workspace",
 				"--",
 			},
@@ -500,6 +531,7 @@ func TestBuildBwrapArgs_Golden(t *testing.T) {
 				"--unshare-net",
 				"--die-with-parent",
 				"--hostname", "sandbox",
+				"--tmpfs", "/tmp",
 				"--bind", "/sb/merged", "/workspace",
 				"--ro-bind", "/sb/lower", "/workspace-readonly",
 				// sorted-by-source: /bin before /usr
@@ -508,7 +540,6 @@ func TestBuildBwrapArgs_Golden(t *testing.T) {
 				"--bind", "/data", "/data",
 				"--proc", "/proc",
 				"--dev", "/dev",
-				"--tmpfs", "/tmp",
 				"--chdir", "/workspace",
 				"--",
 			},

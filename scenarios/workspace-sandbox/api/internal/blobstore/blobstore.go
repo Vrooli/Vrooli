@@ -27,7 +27,10 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"workspace-sandbox/internal/types"
+
 	"github.com/vrooli/api-core/storage"
+	platform "github.com/vrooli/platform-go"
 )
 
 // ScenarioID is the storage scope for workspace-sandbox blobs.
@@ -82,6 +85,12 @@ type PutResult struct {
 // in-memory or fault-injecting implementation without touching the
 // real storage tree.
 type BlobStore interface {
+	// MaterializeReview derives a bounded review tree solely from retained blobs.
+	// The caller holds LockReview. Consumers must mount the result read-only.
+	MaterializeReview(context.Context, *types.ReviewSnapshot) (string, error)
+	// LockReview serializes source publication, recovery and teardown. The native
+	// lock releases on process death; the single lock file is outside blob trees.
+	LockReview(ctx context.Context) (func(), error)
 	// Put writes content for sandboxID and returns its content-address.
 	// Put is idempotent: writing the same content twice yields the same
 	// hash and overwrites the on-disk blob with byte-identical contents.
@@ -118,6 +127,17 @@ func New(resolver *storage.Resolver) (*Store, error) {
 		return nil, errors.New("blobstore: resolver is nil")
 	}
 	return &Store{resolver: resolver}, nil
+}
+
+func (s *Store) LockReview(ctx context.Context) (func(), error) {
+	path, err := s.resolver.Path(storage.Options{ScenarioID: ScenarioID}, storage.ClassData, "archive-review.lock")
+	if err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return nil, err
+	}
+	return platform.AcquireFileLockContext(ctx, path)
 }
 
 // Put writes content as a gzipped blob, content-addressed by the
@@ -159,7 +179,14 @@ func (s *Store) Put(_ context.Context, sandboxID string, content []byte) (PutRes
 // Get reads the gzipped blob at sandboxID/sha256Hex and returns its
 // decompressed content. Returns ErrNotFound when the blob does not
 // exist; any other error is an IO or corruption failure.
-func (s *Store) Get(_ context.Context, sandboxID, sha256Hex string) ([]byte, error) {
+func (s *Store) Get(ctx context.Context, sandboxID, sha256Hex string) ([]byte, error) {
+	return s.get(ctx, sandboxID, sha256Hex, 0)
+}
+
+func (s *Store) get(ctx context.Context, sandboxID, sha256Hex string, limit int64) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if !sandboxIDPattern.MatchString(sandboxID) {
 		return nil, fmt.Errorf("%w: %q", ErrInvalidSandboxID, sandboxID)
 	}
@@ -187,9 +214,16 @@ func (s *Store) Get(_ context.Context, sandboxID, sha256Hex string) ([]byte, err
 	}
 	defer gr.Close()
 
-	out, err := io.ReadAll(gr)
+	var reader io.Reader = gr
+	if limit > 0 {
+		reader = io.LimitReader(gr, limit+1)
+	}
+	out, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, fmt.Errorf("blobstore: gzip read (%s): %w", path, err)
+	}
+	if limit > 0 && int64(len(out)) > limit {
+		return nil, errors.New("blobstore: retained body exceeds read limit")
 	}
 
 	// Verify content-address: a corrupted blob whose hash no longer

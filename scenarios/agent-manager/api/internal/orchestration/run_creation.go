@@ -4,6 +4,7 @@ package orchestration
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -319,10 +320,13 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		}
 	}
 
-	// Validate the resolved execution/sandbox pair at the creation boundary.
-	// Spawn-policy resolution is data-driven; this check only validates the
-	// resulting domain values and does not encode runner-specific combinations.
-	if err := domain.ValidateInteractiveRunMode(req.ExecutionMode, sandboxConfig.Mode); err != nil {
+	// Revalidate after spawn preferences: selecting another mode must not
+	// discard a runtime write policy inherited from the owner profile.
+	if err := validateSandboxConfig(sandboxConfig); err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, err
+	}
+	if err := validateExecutionContainment(req.ExecutionMode, sandboxConfig.Mode, resolvedConfig); err != nil {
 		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 		return nil, err
 	}
@@ -453,6 +457,9 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 	// Bind the caller's requested settings to the owner-resolved effective
 	// settings before persistence so a fresh reader can tell requested from
 	// effective without consulting mutable policy or a transcript.
+	// Native controls depend on the final sandbox policy, including retained
+	// recovery grants. Attach it before recording admission, not afterward.
+	resolvedConfig.SandboxConfig = sandboxConfig
 	resolvedConfig.Admission = buildRunAdmission(req, resolvedConfig)
 	// Record the runner-native control arguments the selected codec emits for
 	// the resolved configuration, so the "passed" layer is durable alongside
@@ -461,8 +468,8 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 	// Dependent-delegation prerequisite gate: a run created as a child of an
 	// admitted parent is delegated work. It may proceed only when the parent
 	// carries a live qualification receipt whose effective identity matches this
-	// run's resolved identity exactly. The qualification probe itself has no
-	// parent and is never blocked by this gate.
+	// run's resolved identity exactly, and retains its execution restrictions.
+	// The qualification probe has no parent and is not subject to this gate.
 	if err := o.admitDependentDelegation(ctx, req, resolvedConfig); err != nil {
 		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 		return nil, err
@@ -526,9 +533,6 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		run.PromptPreview = task.Description[:120]
 	} else {
 		run.PromptPreview = task.Description
-	}
-	if run.ResolvedConfig != nil {
-		run.ResolvedConfig.SandboxConfig = sandboxConfig
 	}
 	if req.ExistingSandboxID != nil {
 		run.SandboxID = req.ExistingSandboxID
@@ -963,9 +967,8 @@ func buildRunAdmission(req CreateRunRequest, cfg *domain.RunConfig) *domain.RunA
 // admitDependentDelegation enforces the Agent Manager-owned qualification gate
 // at the dependent-delegation admission point. A run without a parent is not
 // dependent delegation and is admitted unchanged. A child run is admitted only
-// when its parent persisted a live qualification receipt and the child's
-// resolved runner/model/effort match that receipt exactly; any missing receipt
-// or identity mismatch leaves dependent delegation closed.
+// when its parent's observed runner/model/effort match and execution
+// restrictions are retained. A model receipt never authorizes policy changes.
 func (o *Orchestrator) admitDependentDelegation(ctx context.Context, req CreateRunRequest, cfg *domain.RunConfig) error {
 	if req.ParentRunID == nil {
 		return nil
@@ -983,15 +986,17 @@ func (o *Orchestrator) admitDependentDelegation(ctx context.Context, req CreateR
 }
 
 // dependentDelegationAdmissionError is the pure gate decision: it reads the
-// parent's persisted qualification receipt and compares it against the child's
-// resolved identity. Keeping it pure lets the admission wiring and focused
-// tests share one decision without a repository.
+// parent's persisted execution policy and qualification against the child's
+// resolved configuration. Admission and focused tests use the same decision.
 func dependentDelegationAdmissionError(parent *domain.Run, cfg *domain.RunConfig) error {
 	if parent == nil || parent.ResolvedConfig == nil || parent.ResolvedConfig.Admission == nil {
 		return domain.NewValidationError("qualification", "dependent delegation is closed: parent run has no admission record")
 	}
 	if cfg == nil {
 		return domain.NewValidationError("qualification", "dependent delegation is closed: resolved configuration is missing")
+	}
+	if err := dependentExecutionPermissionsError(parent.ResolvedConfig, cfg); err != nil {
+		return err
 	}
 	req := domain.DependentDelegationRequest{
 		Runner: string(cfg.RunnerType),
@@ -1246,6 +1251,12 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	cfg.PreferredRunner = strings.TrimSpace(req.PreferredRunner)
 	if req.MaxTurns != nil {
 		cfg.MaxTurns = *req.MaxTurns
+	}
+	if req.MaxToolCalls != nil {
+		if *req.MaxToolCalls < 0 {
+			return nil, nil, domain.NewValidationError("maxToolCalls", "must be zero or positive")
+		}
+		cfg.MaxToolCalls = *req.MaxToolCalls
 	}
 	if req.Timeout != nil {
 		cfg.Timeout = *req.Timeout
@@ -1738,6 +1749,9 @@ func mergeSandboxConfig(base, override *domain.SandboxConfig) *domain.SandboxCon
 	if !sandboxAcceptanceIsZero(override.Acceptance) {
 		merged.Acceptance = cloneSandboxConfig(override).Acceptance
 	}
+	if override.WritePolicy != nil {
+		merged.WritePolicy = cloneSandboxConfig(override).WritePolicy
+	}
 	return merged
 }
 
@@ -1793,6 +1807,9 @@ func cloneSandboxConfig(cfg *domain.SandboxConfig) *domain.SandboxConfig {
 	clone.Lifecycle.DeleteOn = append([]domain.SandboxLifecycleEvent(nil), cfg.Lifecycle.DeleteOn...)
 	clone.Acceptance.Allow = cloneSandboxCriteria(cfg.Acceptance.Allow)
 	clone.Acceptance.Deny = cloneSandboxCriteria(cfg.Acceptance.Deny)
+	if cfg.WritePolicy != nil {
+		clone.WritePolicy = &domain.WorkspaceWritePolicy{Paths: append([]string(nil), cfg.WritePolicy.Paths...)}
+	}
 	if cfg.AutoApply != nil {
 		v := *cfg.AutoApply
 		clone.AutoApply = &v
@@ -1886,6 +1903,9 @@ func normalizeSandboxCriteria(criteria domain.SandboxFileCriteria) domain.Sandbo
 func validateSandboxConfig(cfg *domain.SandboxConfig) error {
 	if cfg == nil {
 		return nil
+	}
+	if cfg.WritePolicy != nil && cfg.Mode.Effective() != domain.SandboxModeProtected {
+		return domain.NewValidationError("sandboxConfig.writePolicy", "runtime write policy requires protected mode")
 	}
 	if cfg.Acceptance.Mode != "" && cfg.Acceptance.Mode != "allowlist" {
 		return domain.NewValidationError("sandboxConfig.acceptance.mode", "unsupported acceptance mode")
@@ -2202,6 +2222,9 @@ func (o *Orchestrator) RecoverRun(ctx context.Context, id uuid.UUID) (*RecoverRe
 	if run.Status.IsTerminal() && run.FinalizationStatus == domain.RunFinalizationStatusFailed {
 		return o.recoverFinalization(ctx, run)
 	}
+	if recovered, err := o.recoverTerminalSandboxLifecycle(ctx, run); recovered != nil || err != nil {
+		return recovered, err
+	}
 	if run.Status.IsTerminal() && run.FinalizationStatus == domain.RunFinalizationStatusSucceeded {
 		return &RecoverResult{Run: run, Idempotent: true, Message: "run execution and sandbox finalization are already complete"}, nil
 	}
@@ -2209,6 +2232,120 @@ func (o *Orchestrator) RecoverRun(ctx context.Context, id uuid.UUID) (*RecoverRe
 		return nil, domain.NewConfigMissingError("reconciler", "reconciler not configured", nil)
 	}
 	return o.reconciler.RecoverRun(ctx, id)
+}
+
+// recoverTerminalSandboxLifecycle repairs the historical gap where a terminal
+// sandboxed run with autoApply=false never reached the shared finalization seam.
+// It only acts when the persisted policy explicitly requests terminal stop or
+// delete and cannot apply changes, reopen a manual-review workspace, or resume
+// execution. A nil result means the run needs the ordinary recovery path.
+func (o *Orchestrator) recoverTerminalSandboxLifecycle(ctx context.Context, run *domain.Run) (*RecoverResult, error) {
+	if run == nil || !run.Status.IsTerminal() || run.RunMode != domain.RunModeSandboxed || run.SandboxID == nil || o.sandbox == nil {
+		return nil, nil
+	}
+	if run.Status != domain.RunStatusComplete && run.Status != domain.RunStatusFailed && run.Status != domain.RunStatusCancelled {
+		return nil, nil
+	}
+	if run.FinalizationStatus != "" && run.FinalizationStatus != domain.RunFinalizationStatusNone && run.FinalizationStatus != domain.RunFinalizationStatusSucceeded {
+		return nil, nil
+	}
+	cfg := phases.EffectiveSandboxConfig(run)
+	if cfg == nil || cfg.ManualReview {
+		return nil, nil
+	}
+	terminalEvents := []domain.SandboxLifecycleEvent{
+		domain.SandboxLifecycleRunCompleted,
+		domain.SandboxLifecycleRunFailed,
+		domain.SandboxLifecycleRunCancelled,
+		domain.SandboxLifecycleTerminal,
+	}
+	if !phases.HasLifecycleEvent(cfg.Lifecycle.DeleteOn, terminalEvents) && !phases.HasLifecycleEvent(cfg.Lifecycle.StopOn, terminalEvents) {
+		return nil, nil
+	}
+	if run.FinalizationStatus == domain.RunFinalizationStatusSucceeded {
+		sandboxState, err := o.sandbox.Get(ctx, *run.SandboxID)
+		if err != nil {
+			var notFound *domain.NotFoundError
+			if errors.As(err, &notFound) {
+				return &RecoverResult{Run: run, Idempotent: true, Message: "run execution and sandbox finalization are already complete"}, nil
+			}
+			return nil, fmt.Errorf("inspect finalized sandbox lifecycle: %w", err)
+		}
+		if sandboxState == nil {
+			return nil, fmt.Errorf("inspect finalized sandbox lifecycle: provider returned no sandbox")
+		}
+		// Finalization was already successful, but an older process may have
+		// crashed between provenance persistence and lifecycle teardown. Re-run
+		// only the idempotent lifecycle seam; never re-apply or execute.
+		phases.Finalize(phases.FinalizeInput{
+			Deps:      phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers(), WorkspaceSandbox: o.workspaceSandbox},
+			Run:       run,
+			SandboxID: run.SandboxID,
+			Sandbox:   o.sandbox,
+		})
+		return &RecoverResult{Run: run, Recovered: true, Message: "reconciled terminal sandbox lifecycle after successful finalization"}, nil
+	}
+	// Older runs may omit AutoApply from their persisted config even though the
+	// contract default is true. Never delete such a sandbox merely because its
+	// executor is gone: first prove that the live overlay contains no changes.
+	// A non-empty or unavailable diff remains an owner-review case.
+	if cfg.GetAutoApply() {
+		diff, err := o.sandbox.GetDiff(ctx, *run.SandboxID)
+		if err != nil {
+			return nil, fmt.Errorf("inspect terminal sandbox diff before recovery: %w", err)
+		}
+		if !sandboxDiffEmpty(diff) {
+			return &RecoverResult{
+				Run:        run,
+				Idempotent: true,
+				Message:    "terminal sandbox retains changes; owner review is required before lifecycle cleanup",
+			}, nil
+		}
+		// An empty diff proves the required apply effect is a successful no-op.
+		// Mark it succeeded so the lifecycle dispatcher is allowed to delete;
+		// `Skipped` intentionally preserves auto-apply runs for owner recovery.
+		domain.MarkFinalizationSucceeded(run, o.now())
+		if o.runs != nil {
+			if err := o.runs.Update(ctx, run); err != nil {
+				return nil, fmt.Errorf("persist empty-sandbox recovery: %w", err)
+			}
+		}
+		phases.Finalize(phases.FinalizeInput{
+			Deps:      phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers(), WorkspaceSandbox: o.workspaceSandbox},
+			Run:       run,
+			SandboxID: run.SandboxID,
+			Sandbox:   o.sandbox,
+		})
+		return &RecoverResult{
+			Run:       run,
+			Recovered: true,
+			Message:   "reconciled terminal sandbox with an empty diff without repeating execution",
+		}, nil
+	}
+	o.finalizeSandboxForTerminalRun(ctx, run)
+	return &RecoverResult{
+		Run:       run,
+		Recovered: true,
+		Message:   "reconciled terminal sandbox lifecycle without repeating execution",
+	}, nil
+}
+
+// sandboxDiffEmpty is deliberately conservative. A nil diff is unknown and
+// therefore retained; every populated field must agree that no change exists.
+func sandboxDiffEmpty(diff *sandbox.DiffResult) bool {
+	if diff == nil {
+		return false
+	}
+	return len(diff.Files) == 0 &&
+		diff.Stats.FilesChanged == 0 &&
+		diff.Stats.FilesAdded == 0 &&
+		diff.Stats.FilesModified == 0 &&
+		diff.Stats.FilesDeleted == 0 &&
+		diff.Stats.TotalLines == 0 &&
+		diff.Stats.LinesAdded == 0 &&
+		diff.Stats.LinesRemoved == 0 &&
+		diff.Stats.TotalBytes == 0 &&
+		strings.TrimSpace(diff.UnifiedDiff) == ""
 }
 
 // ContinueRun continues an existing run's conversation with a follow-up message.

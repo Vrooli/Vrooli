@@ -83,6 +83,18 @@ func TestSQLiteRepositoryPersistsSessionAndGrants(t *testing.T) { // [REQ:PRT-P2
 	require.True(t, has)
 }
 
+func TestInferenceChargePresenceSurvivesRepositoryRestart(t *testing.T) {
+	ctx := context.Background()
+	db := newSessionTestDB(t)
+	repo := NewRepository(db)
+	now := time.Now().UTC()
+	require.NoError(t, repo.Create(ctx, &Session{ID: "sess_unknown_charge", State: "running", CreatedAt: now, LastActivityAt: now, Grants: map[string]struct{}{}}))
+	require.NoError(t, repo.MarkAccountingUnknown(ctx, "sess_unknown_charge"))
+	got, err := NewRepository(db).Get(ctx, "sess_unknown_charge")
+	require.NoError(t, err)
+	require.True(t, got.InferenceChargeUnknown)
+}
+
 func TestSQLiteRepositoryRecordsReclamationReason(t *testing.T) { // [REQ:PRT-P1-005]
 	ctx := context.Background()
 	d := newSessionTestDB(t)

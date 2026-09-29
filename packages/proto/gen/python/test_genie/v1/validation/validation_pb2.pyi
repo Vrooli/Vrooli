@@ -1,6 +1,7 @@
 import datetime
 
 from common.v1 import validation_target_pb2 as _validation_target_pb2
+from scenario_validation.v1 import validation_pb2 as _validation_pb2
 from google.protobuf import duration_pb2 as _duration_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
@@ -20,6 +21,7 @@ class ValidationPurpose(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VALIDATION_PURPOSE_REGRESSION_CURRENT: _ClassVar[ValidationPurpose]
     VALIDATION_PURPOSE_CERTIFICATION: _ClassVar[ValidationPurpose]
     VALIDATION_PURPOSE_INVESTIGATION: _ClassVar[ValidationPurpose]
+    VALIDATION_PURPOSE_EVIDENCE_PRODUCTION: _ClassVar[ValidationPurpose]
 
 class ValidationStrength(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -118,6 +120,7 @@ VALIDATION_PURPOSE_REGRESSION_BEFORE: ValidationPurpose
 VALIDATION_PURPOSE_REGRESSION_CURRENT: ValidationPurpose
 VALIDATION_PURPOSE_CERTIFICATION: ValidationPurpose
 VALIDATION_PURPOSE_INVESTIGATION: ValidationPurpose
+VALIDATION_PURPOSE_EVIDENCE_PRODUCTION: ValidationPurpose
 VALIDATION_STRENGTH_UNSPECIFIED: ValidationStrength
 VALIDATION_STRENGTH_SMOKE: ValidationStrength
 VALIDATION_STRENGTH_TARGETED: ValidationStrength
@@ -183,6 +186,20 @@ CHILD_OPERATION_STATE_RUNNING: ChildOperationState
 CHILD_OPERATION_STATE_SUCCEEDED: ChildOperationState
 CHILD_OPERATION_STATE_FAILED: ChildOperationState
 CHILD_OPERATION_STATE_CANCELLED: ChildOperationState
+
+class ResolveSourceIdentityRequest(_message.Message):
+    __slots__ = ("targets", "content_inputs")
+    TARGETS_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_INPUTS_FIELD_NUMBER: _ClassVar[int]
+    targets: _containers.RepeatedCompositeFieldContainer[_validation_target_pb2.ValidationTarget]
+    content_inputs: _containers.RepeatedCompositeFieldContainer[ContentInputRoot]
+    def __init__(self, targets: _Optional[_Iterable[_Union[_validation_target_pb2.ValidationTarget, _Mapping]]] = ..., content_inputs: _Optional[_Iterable[_Union[ContentInputRoot, _Mapping]]] = ...) -> None: ...
+
+class ResolveSourceIdentityResponse(_message.Message):
+    __slots__ = ("identity",)
+    IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    identity: SourceIdentity
+    def __init__(self, identity: _Optional[_Union[SourceIdentity, _Mapping]] = ...) -> None: ...
 
 class ReusePolicy(_message.Message):
     __slots__ = ("mode", "maximum_age")
@@ -297,7 +314,7 @@ class ContentInputRoot(_message.Message):
     def __init__(self, name: _Optional[str] = ..., root: _Optional[str] = ..., selections: _Optional[_Iterable[_Union[InputSelection, _Mapping]]] = ..., dependency: _Optional[bool] = ...) -> None: ...
 
 class ValidationIntent(_message.Message):
-    __slots__ = ("schema_version", "intent_id", "idempotency_key", "caller_scenario", "caller_execution_id", "plan_id", "phase_id", "targets", "purpose", "required_strength", "reuse_policy", "concurrency_policy", "expected_identity", "evidence_policy", "deadline_policy", "caller_attributes", "content_inputs", "behavioral_prior", "phases")
+    __slots__ = ("schema_version", "intent_id", "idempotency_key", "caller_scenario", "caller_execution_id", "plan_id", "phase_id", "targets", "purpose", "required_strength", "reuse_policy", "concurrency_policy", "expected_identity", "evidence_policy", "deadline_policy", "caller_attributes", "content_inputs", "behavioral_prior", "phases", "pinned_evidence_producer", "retained_evidence_sets")
     class CallerAttributesEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -324,6 +341,8 @@ class ValidationIntent(_message.Message):
     CONTENT_INPUTS_FIELD_NUMBER: _ClassVar[int]
     BEHAVIORAL_PRIOR_FIELD_NUMBER: _ClassVar[int]
     PHASES_FIELD_NUMBER: _ClassVar[int]
+    PINNED_EVIDENCE_PRODUCER_FIELD_NUMBER: _ClassVar[int]
+    RETAINED_EVIDENCE_SETS_FIELD_NUMBER: _ClassVar[int]
     schema_version: int
     intent_id: str
     idempotency_key: str
@@ -343,7 +362,59 @@ class ValidationIntent(_message.Message):
     content_inputs: _containers.RepeatedCompositeFieldContainer[ContentInputRoot]
     behavioral_prior: str
     phases: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, schema_version: _Optional[int] = ..., intent_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., caller_scenario: _Optional[str] = ..., caller_execution_id: _Optional[str] = ..., plan_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., targets: _Optional[_Iterable[_Union[_validation_target_pb2.ValidationTarget, _Mapping]]] = ..., purpose: _Optional[_Union[ValidationPurpose, str]] = ..., required_strength: _Optional[_Union[ValidationStrength, str]] = ..., reuse_policy: _Optional[_Union[ReusePolicy, _Mapping]] = ..., concurrency_policy: _Optional[_Union[ConcurrencyPolicy, _Mapping]] = ..., expected_identity: _Optional[_Union[SourceIdentity, _Mapping]] = ..., evidence_policy: _Optional[_Union[EvidencePolicy, _Mapping]] = ..., deadline_policy: _Optional[_Union[DeadlinePolicy, _Mapping]] = ..., caller_attributes: _Optional[_Mapping[str, str]] = ..., content_inputs: _Optional[_Iterable[_Union[ContentInputRoot, _Mapping]]] = ..., behavioral_prior: _Optional[str] = ..., phases: _Optional[_Iterable[str]] = ...) -> None: ...
+    pinned_evidence_producer: PinnedEvidenceProducer
+    retained_evidence_sets: _containers.RepeatedCompositeFieldContainer[_validation_pb2.RetainedEvidenceSet]
+    def __init__(self, schema_version: _Optional[int] = ..., intent_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., caller_scenario: _Optional[str] = ..., caller_execution_id: _Optional[str] = ..., plan_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., targets: _Optional[_Iterable[_Union[_validation_target_pb2.ValidationTarget, _Mapping]]] = ..., purpose: _Optional[_Union[ValidationPurpose, str]] = ..., required_strength: _Optional[_Union[ValidationStrength, str]] = ..., reuse_policy: _Optional[_Union[ReusePolicy, _Mapping]] = ..., concurrency_policy: _Optional[_Union[ConcurrencyPolicy, _Mapping]] = ..., expected_identity: _Optional[_Union[SourceIdentity, _Mapping]] = ..., evidence_policy: _Optional[_Union[EvidencePolicy, _Mapping]] = ..., deadline_policy: _Optional[_Union[DeadlinePolicy, _Mapping]] = ..., caller_attributes: _Optional[_Mapping[str, str]] = ..., content_inputs: _Optional[_Iterable[_Union[ContentInputRoot, _Mapping]]] = ..., behavioral_prior: _Optional[str] = ..., phases: _Optional[_Iterable[str]] = ..., pinned_evidence_producer: _Optional[_Union[PinnedEvidenceProducer, _Mapping]] = ..., retained_evidence_sets: _Optional[_Iterable[_Union[_validation_pb2.RetainedEvidenceSet, _Mapping]]] = ...) -> None: ...
+
+class PinnedEvidenceProducer(_message.Message):
+    __slots__ = ("provider", "producer", "argv", "working_directory", "output_root", "timeout_milliseconds", "maximum_output_bytes", "mutates_lifecycle", "descriptor_digest", "source_identity")
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    PRODUCER_FIELD_NUMBER: _ClassVar[int]
+    ARGV_FIELD_NUMBER: _ClassVar[int]
+    WORKING_DIRECTORY_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_ROOT_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_MILLISECONDS_FIELD_NUMBER: _ClassVar[int]
+    MAXIMUM_OUTPUT_BYTES_FIELD_NUMBER: _ClassVar[int]
+    MUTATES_LIFECYCLE_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTOR_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    provider: str
+    producer: str
+    argv: _containers.RepeatedScalarFieldContainer[str]
+    working_directory: str
+    output_root: str
+    timeout_milliseconds: int
+    maximum_output_bytes: int
+    mutates_lifecycle: bool
+    descriptor_digest: str
+    source_identity: str
+    def __init__(self, provider: _Optional[str] = ..., producer: _Optional[str] = ..., argv: _Optional[_Iterable[str]] = ..., working_directory: _Optional[str] = ..., output_root: _Optional[str] = ..., timeout_milliseconds: _Optional[int] = ..., maximum_output_bytes: _Optional[int] = ..., mutates_lifecycle: _Optional[bool] = ..., descriptor_digest: _Optional[str] = ..., source_identity: _Optional[str] = ...) -> None: ...
+
+class CreateEvidenceProductionRequest(_message.Message):
+    __slots__ = ("idempotency_key", "provider", "producer", "candidate_scenario", "expected_candidate_identity", "caller_scenario", "caller_execution_id", "plan_id")
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    PRODUCER_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_CANDIDATE_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    CALLER_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    CALLER_EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    idempotency_key: str
+    provider: str
+    producer: str
+    candidate_scenario: str
+    expected_candidate_identity: SourceIdentity
+    caller_scenario: str
+    caller_execution_id: str
+    plan_id: str
+    def __init__(self, idempotency_key: _Optional[str] = ..., provider: _Optional[str] = ..., producer: _Optional[str] = ..., candidate_scenario: _Optional[str] = ..., expected_candidate_identity: _Optional[_Union[SourceIdentity, _Mapping]] = ..., caller_scenario: _Optional[str] = ..., caller_execution_id: _Optional[str] = ..., plan_id: _Optional[str] = ...) -> None: ...
+
+class CreateEvidenceProductionResponse(_message.Message):
+    __slots__ = ("receipt",)
+    RECEIPT_FIELD_NUMBER: _ClassVar[int]
+    receipt: ValidationReceipt
+    def __init__(self, receipt: _Optional[_Union[ValidationReceipt, _Mapping]] = ...) -> None: ...
 
 class EvidenceReference(_message.Message):
     __slots__ = ("evidence_id", "kind", "owner", "subject_id", "uri", "digest")
@@ -422,7 +493,7 @@ class Degradation(_message.Message):
     def __init__(self, authorized: _Optional[bool] = ..., authorized_by: _Optional[str] = ..., authorization_reason: _Optional[str] = ..., missing_evidence_kinds: _Optional[_Iterable[str]] = ..., reason_code: _Optional[_Union[ValidationReasonCode, str]] = ...) -> None: ...
 
 class ValidationReceipt(_message.Message):
-    __slots__ = ("schema_version", "receipt_id", "lineage_id", "intent_id", "state", "achieved_strength", "admitted_identity", "observed_identity", "evidence", "children", "compatibility", "retry", "degradation", "reason_code", "detail", "created_at", "updated_at", "terminal_at", "revision")
+    __slots__ = ("schema_version", "receipt_id", "lineage_id", "intent_id", "state", "achieved_strength", "admitted_identity", "observed_identity", "evidence", "children", "compatibility", "retry", "degradation", "reason_code", "detail", "created_at", "updated_at", "terminal_at", "revision", "produced_evidence_set")
     SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
     RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
     LINEAGE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -442,6 +513,7 @@ class ValidationReceipt(_message.Message):
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     TERMINAL_AT_FIELD_NUMBER: _ClassVar[int]
     REVISION_FIELD_NUMBER: _ClassVar[int]
+    PRODUCED_EVIDENCE_SET_FIELD_NUMBER: _ClassVar[int]
     schema_version: int
     receipt_id: str
     lineage_id: str
@@ -461,7 +533,8 @@ class ValidationReceipt(_message.Message):
     updated_at: _timestamp_pb2.Timestamp
     terminal_at: _timestamp_pb2.Timestamp
     revision: int
-    def __init__(self, schema_version: _Optional[int] = ..., receipt_id: _Optional[str] = ..., lineage_id: _Optional[str] = ..., intent_id: _Optional[str] = ..., state: _Optional[_Union[ReceiptState, str]] = ..., achieved_strength: _Optional[_Union[ValidationStrength, str]] = ..., admitted_identity: _Optional[_Union[SourceIdentity, _Mapping]] = ..., observed_identity: _Optional[_Union[SourceIdentity, _Mapping]] = ..., evidence: _Optional[_Iterable[_Union[EvidenceReference, _Mapping]]] = ..., children: _Optional[_Iterable[_Union[ChildOperation, _Mapping]]] = ..., compatibility: _Optional[_Union[CompatibilityDecision, _Mapping]] = ..., retry: _Optional[_Union[RetryDisposition, _Mapping]] = ..., degradation: _Optional[_Union[Degradation, _Mapping]] = ..., reason_code: _Optional[_Union[ValidationReasonCode, str]] = ..., detail: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., terminal_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., revision: _Optional[int] = ...) -> None: ...
+    produced_evidence_set: _validation_pb2.RetainedEvidenceSet
+    def __init__(self, schema_version: _Optional[int] = ..., receipt_id: _Optional[str] = ..., lineage_id: _Optional[str] = ..., intent_id: _Optional[str] = ..., state: _Optional[_Union[ReceiptState, str]] = ..., achieved_strength: _Optional[_Union[ValidationStrength, str]] = ..., admitted_identity: _Optional[_Union[SourceIdentity, _Mapping]] = ..., observed_identity: _Optional[_Union[SourceIdentity, _Mapping]] = ..., evidence: _Optional[_Iterable[_Union[EvidenceReference, _Mapping]]] = ..., children: _Optional[_Iterable[_Union[ChildOperation, _Mapping]]] = ..., compatibility: _Optional[_Union[CompatibilityDecision, _Mapping]] = ..., retry: _Optional[_Union[RetryDisposition, _Mapping]] = ..., degradation: _Optional[_Union[Degradation, _Mapping]] = ..., reason_code: _Optional[_Union[ValidationReasonCode, str]] = ..., detail: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., terminal_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., revision: _Optional[int] = ..., produced_evidence_set: _Optional[_Union[_validation_pb2.RetainedEvidenceSet, _Mapping]] = ...) -> None: ...
 
 class CreateValidationRequest(_message.Message):
     __slots__ = ("intent",)

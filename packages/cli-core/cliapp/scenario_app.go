@@ -263,7 +263,7 @@ func NewStandardScenarioApp(opts StandardScenarioOptions) (*ScenarioApp, error) 
 		// fingerprint never moved, no rebuild fired, and the installed CLI
 		// silently served stale behavior. A scenario with no api/ directory is
 		// unaffected — a glob that matches nothing is skipped.
-		FreshnessInputs:    resolveFreshnessInputs(opts.FreshnessInputs, []string{"api/**", "cli/**", ".vrooli/service.json", "../../packages/cli-core"}),
+		FreshnessInputs:    resolveFreshnessInputs(opts.FreshnessInputs, []string{"api/**", "cli/**", ".vrooli/service.json", "../../packages/cli-core", "../../packages/proto/gen/.vrooli-proto-artifact.json"}),
 		HTTPClientOptions:  opts.HTTPClientOptions,
 		HTTPTimeoutEnvVars: env.HTTPTimeoutEnvVars,
 		DefaultHTTPTimeout: opts.DefaultHTTPTimeout,

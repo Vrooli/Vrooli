@@ -1238,6 +1238,10 @@ message IssueSupervisorDispatchRequest {
   uint32 maximum_runs = 7;
   string idempotency_key = 8;
   uint32 minimum_interval_seconds = 9;
+  // Finite owner-issued supervision allowance. Zero is invalid for dispatch
+  // issuance; unknown provider usage never counts as zero.
+  int64 max_tokens = 10;
+  int64 max_charge_micro_usd = 11;
 }
 message RevokeSupervisorDispatchRequest {
   string effort_ref = 1;

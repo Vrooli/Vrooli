@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -69,12 +70,15 @@ func codingPolicyValidate(cfg CodingPolicyConfig, args []string) error {
 			}
 		}
 		result, discoverErr := discover(context.Background())
+		if discoverErr == nil && !result.IsAuthoritative() {
+			discoverErr = fmt.Errorf("%w: source %q", ErrModelCatalogNonAuthoritative, result.Source)
+		}
 		if discoverErr != nil {
 			payload := map[string]any{"schema_version": CodingRolePolicySchemaVersion, "runner": catalog.Runner, "policy_path": cfg.CatalogPath, "policy_digest": digest(data), "valid": false, "discovery_status": "not_measured", "findings": findings, "error": discoverErr.Error()}
 			if *jsonOut {
 				_ = writeJSON(cfg.Stdout, payload)
 			}
-			return &PolicyValidationError{Code: "discovery_unavailable", Err: fmt.Errorf("%w: %v", ErrModelDiscoveryUnavailable, discoverErr)}
+			return &PolicyValidationError{Code: "discovery_unavailable", Err: fmt.Errorf("%w: %w", ErrModelDiscoveryUnavailable, discoverErr)}
 		}
 		live = &result
 		findings = append(findings, agentcatalog.LiveCatalogFindings(catalog, result)...)
@@ -200,15 +204,24 @@ func responseFor(cfg CodingPolicyConfig, catalog CodingRoleCatalog, role string,
 		copy := *r.Challenger
 		challenger = &copy
 	}
-	return codingRoleResponse{SchemaVersion: CodingRolePolicySchemaVersion, Runner: catalog.Runner, Role: role, Model: r.Model, CanonicalModel: r.CanonicalModel, Fallbacks: append([]string(nil), r.Fallbacks...), Description: r.Description, Capabilities: append([]string(nil), r.Capabilities...), ExcludedModels: resolvedExcludedModels(catalog), Provenance: catalog.Provenance, Enforcement: cfg.Posture, PolicyPath: cfg.CatalogPath, PolicyDigest: digest(data), Billing: billing, Challenger: challenger}
+	return codingRoleResponse{SchemaVersion: CodingRolePolicySchemaVersion, Runner: catalog.Runner, Role: role, Model: r.Model, CanonicalModel: r.CanonicalModel, Fallbacks: append([]string(nil), r.Fallbacks...), Description: r.Description, Capabilities: append([]string(nil), r.Capabilities...), ExcludedModels: resolvedExcludedModels(catalog, role), Provenance: catalog.Provenance, Enforcement: cfg.Posture, PolicyPath: cfg.CatalogPath, PolicyDigest: digest(data), Billing: billing, Challenger: challenger}
 }
 
 // resolvedExcludedModels includes both configured spellings and the resource's
 // canonical aliases. Agent Manager can therefore fence an explicit provider
 // model spelling without owning or guessing the resource vocabulary.
-func resolvedExcludedModels(catalog CodingRoleCatalog) []string {
-	seen := make(map[string]struct{}, len(catalog.ExcludedModels))
-	result := make([]string, 0, len(catalog.ExcludedModels)*2)
+func resolvedExcludedModels(catalog CodingRoleCatalog, role string) []string {
+	exclusions := append([]string(nil), catalog.ExcludedModels...)
+	restricted := make([]string, 0, len(catalog.RestrictedModels))
+	for model, roles := range catalog.RestrictedModels {
+		if !slices.Contains(roles, role) {
+			restricted = append(restricted, model)
+		}
+	}
+	sort.Strings(restricted)
+	exclusions = append(exclusions, restricted...)
+	seen := make(map[string]struct{}, len(exclusions))
+	result := make([]string, 0, len(exclusions)*2)
 	add := func(value string) {
 		value = strings.TrimSpace(value)
 		if value == "" {
@@ -221,7 +234,7 @@ func resolvedExcludedModels(catalog CodingRoleCatalog) []string {
 		seen[key] = struct{}{}
 		result = append(result, value)
 	}
-	for _, excluded := range catalog.ExcludedModels {
+	for _, excluded := range exclusions {
 		add(excluded)
 	}
 	aliasKeys := make([]string, 0, len(catalog.ModelAliases))
@@ -229,7 +242,7 @@ func resolvedExcludedModels(catalog CodingRoleCatalog) []string {
 		aliasKeys = append(aliasKeys, alias)
 	}
 	sort.Strings(aliasKeys)
-	for _, excluded := range catalog.ExcludedModels {
+	for _, excluded := range exclusions {
 		for _, alias := range aliasKeys {
 			entry := catalog.ModelAliases[alias]
 			if strings.EqualFold(strings.TrimSpace(alias), strings.TrimSpace(excluded)) {

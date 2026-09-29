@@ -13,6 +13,8 @@ import { parseJsonBody, sendJson, sendError } from '../../middleware';
 import { RECORDING_FRAME_CACHE_TTL_MS } from '../../constants';
 import { captureFrameSource, sameFrameSource } from '../../frame-streaming/frame';
 import type { ScreenshotRequest, ScreenshotResponse, FrameResponse } from './types';
+import { getFrameCacheSlot, ownsFrameCacheSlot } from '../../session/frame-cache';
+import type { CapturedFrame, FrameCacheSlot } from '../../session/frame-cache';
 
 // =============================================================================
 // Frame Cache Infrastructure
@@ -26,41 +28,6 @@ import type { ScreenshotRequest, ScreenshotResponse, FrameResponse } from './typ
  * WebP is NOT supported despite better compression. Do not attempt to use
  * type: 'webp' - it will fail at runtime with "expected one of (png|jpeg)".
  */
-interface CapturedFrame {
-  key: string;
-  /** MD5 hash of the buffer for content comparison */
-  hash: string;
-  /** Base64-encoded JPEG data URI */
-  base64DataUri: string;
-  /** Viewport dimensions at capture time */
-  width: number;
-  height: number;
-  /** Timestamp when this frame was captured */
-  capturedAt: number;
-}
-
-interface FrameCacheSlot {
-  frame?: CapturedFrame;
-  pending?: { key: string; result: Promise<CapturedFrame | null> };
-}
-
-/** One cache lifetime per session; deletion also retires pending captures. */
-const frameCache = new Map<string, FrameCacheSlot>();
-
-/**
- * Clear frame cache for a session (call on session close/navigation).
- */
-export function clearFrameCache(sessionId: string): void {
-  frameCache.delete(sessionId);
-}
-
-/**
- * Clear all frame caches (call on shutdown).
- */
-export function clearAllFrameCaches(): void {
-  frameCache.clear();
-}
-
 // =============================================================================
 // Frame/Screenshot Handlers
 // =============================================================================
@@ -122,18 +89,17 @@ export async function handleRecordFrame(
     const source = captureFrameSource(session, page);
     const url = new URL(req.url || '', 'http://localhost');
     const requestedPage = url.searchParams.get('page_id');
-    const rejectChanged = () => sendJson(res, 409, {error:'FRAME_SOURCE_CHANGED', message:'The preview page or session lease changed'});
+    const rejectChanged = (): void => sendJson(res, 409, {error:'FRAME_SOURCE_CHANGED', message:'The preview page or session lease changed'});
     if (!source || (requestedPage && requestedPage !== source.page_id)) { rejectChanged(); return; }
     const quality = Number(url.searchParams.get('quality')) || 60;
     const fullPage = url.searchParams.get('full_page') === 'true';
     const scale = session.spec.frame_scale ?? 'css';
     const viewport = page.viewportSize();
     const pageUrl = page.url();
-    const slot: FrameCacheSlot = frameCache.get(sessionId) ?? {};
-    frameCache.set(sessionId, slot);
-    const owns = () => {
+    const slot: FrameCacheSlot = getFrameCacheSlot(sessionId);
+    const owns = (): boolean => {
       const currentViewport = page.viewportSize();
-      return frameCache.get(sessionId) === slot && page.url() === pageUrl
+      return ownsFrameCacheSlot(sessionId, slot) && page.url() === pageUrl
         && currentViewport?.width === viewport?.width && currentViewport?.height === viewport?.height
         && sameFrameSource(captureFrameSource(sessionManager.getSession(sessionId), page), source);
     };

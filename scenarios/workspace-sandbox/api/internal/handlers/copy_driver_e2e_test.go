@@ -20,6 +20,7 @@ package handlers_test
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -28,7 +29,9 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/storage"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 
 	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/blobstore"
@@ -121,6 +124,7 @@ func TestCopyDriverSelectionForcesCopy(t *testing.T) {
 // CopyDriver, a real sqlite-backed Service, a real process tracker/logger,
 // and the production handler routes behind the production middleware.
 type copyE2E struct {
+	handlers    *handlers.Handlers
 	live        *httpx.LiveServer
 	tracker     *process.Tracker
 	repo        *repository.SandboxRepository
@@ -183,6 +187,10 @@ func newCopyE2E(t *testing.T) *copyE2E {
 		t.Fatalf("blobstore.New: %v", err)
 	}
 
+	tracker := process.NewTrackerWithConfig(process.TrackerConfig{
+		GracePeriod: 10 * time.Millisecond,
+		KillWait:    10 * time.Millisecond,
+	}, clk)
 	svc := sandbox.NewService(
 		repo, drv,
 		sandbox.ServiceConfig{DefaultProjectRoot: projectRoot, MaxSandboxes: 100},
@@ -191,12 +199,8 @@ func newCopyE2E(t *testing.T) *copyE2E {
 		starter,
 		sandbox.WithGitOps(mocks.NewFakeGitOps()),
 		sandbox.WithArchive(archiveRepo, blobs),
+		sandbox.WithProcessDrainer(tracker),
 	)
-
-	tracker := process.NewTrackerWithConfig(process.TrackerConfig{
-		GracePeriod: 2 * time.Second,
-		KillWait:    2 * time.Second,
-	}, clk)
 	logger := process.NewLogger(process.DefaultLogConfig(baseDir), clk)
 
 	snapshot := map[string]config.IsolationProfile{}
@@ -224,11 +228,150 @@ func newCopyE2E(t *testing.T) *copyE2E {
 	}
 
 	return &copyE2E{
+		handlers:    h,
 		live:        httpx.NewLiveServer(t, h),
 		tracker:     tracker,
 		repo:        repo,
 		projectRoot: projectRoot,
 		scopePath:   projectRoot,
+	}
+}
+
+type observingStarter struct {
+	process.Starter
+	started chan int
+}
+
+func (s observingStarter) Start(ctx context.Context, opts process.StartOpts) (process.Handle, error) {
+	handle, err := s.Starter.Start(ctx, opts)
+	if err == nil && filepath.Base(opts.Path) == "sleep" {
+		s.started <- handle.PID()
+	}
+	return handle, err
+}
+
+func TestStopDrainsSynchronousExecWhileRequestWaits(t *testing.T) {
+	e := newCopyE2E(t)
+	started := make(chan int, 1)
+	e.handlers.Starter = observingStarter{Starter: e.handlers.Starter, started: started}
+	resp, body := e.live.DoJSON(t, "POST", "/api/v1/sandboxes", `{"scopePath":"`+e.scopePath+`","projectRoot":"`+e.projectRoot+`","owner":"exec-drain-test","noLock":true}`)
+	var sb types.Sandbox
+	if err := json.Unmarshal(body, &sb); err != nil || resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create: %d %s, %v", resp.StatusCode, body, err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "POST", e.live.URL+sandboxesPath(sb.ID, "/exec"), strings.NewReader(`{"command":"sleep","args":["30"]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	finished := make(chan error, 1)
+	go func() {
+		resp, err := e.live.Client.Do(req)
+		if err == nil {
+			_, err = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+		}
+		finished <- err
+	}()
+	var pid int
+	select {
+	case pid = <-started:
+	case <-ctx.Done():
+		t.Fatal("exec did not launch")
+	}
+	t.Cleanup(func() { _ = process.KillProcessGroupByPID(pid) })
+	resp, body = e.live.DoJSON(t, "POST", sandboxesPath(sb.ID, "/stop"), "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("stop: %d %s", resp.StatusCode, body)
+	}
+	select {
+	case err := <-finished:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-ctx.Done():
+		t.Fatal("stopped synchronous exec is still waiting")
+	}
+	if process.IsProcessRunning(pid) || e.tracker.GetActiveCount(sb.ID) != 0 {
+		t.Fatal("synchronous exec survived stop")
+	}
+	if e.tracker.GetExitInfo(sb.ID, pid) == nil {
+		t.Fatal("synchronous exec lost terminal evidence")
+	}
+}
+
+func TestProviderMaintenanceRefusesBothProcessEntrypoints(t *testing.T) {
+	e := newCopyE2E(t)
+	e.handlers.ConfigureLifecycle("workspace-sandbox", "workspace-sandbox", "test")
+	resp, body := e.live.DoJSON(t, "POST", "/api/v1/sandboxes", `{"scopePath":"`+e.scopePath+`","projectRoot":"`+e.projectRoot+`","owner":"maintenance-test","noLock":true}`)
+	var sb types.Sandbox
+	if err := json.Unmarshal(body, &sb); err != nil || resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create: %d %s, %v", resp.StatusCode, body, err)
+	}
+	if _, err := e.handlers.LifecycleService().Prepare(t.Context(), connect.NewRequest(&commonv1.LifecyclePrepareRequest{OperationId: "maintenance-test", Reason: "test process admission"})); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/exec", "/processes"} {
+		resp, body := e.live.DoJSON(t, "POST", sandboxesPath(sb.ID, path), `{"command":"sh","args":["-c","printf leaked > forbidden"]}`)
+		if resp.StatusCode != http.StatusConflict {
+			t.Errorf("%s admitted during provider maintenance: %d %s", path, resp.StatusCode, body)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(sb.MergedDir, "forbidden")); !os.IsNotExist(err) {
+		t.Fatalf("maintenance admitted a writer: %v", err)
+	}
+}
+
+func TestStopDrainsBackgroundProcessBeforeStopped(t *testing.T) {
+	for _, alreadyStopped := range []bool{false, true} {
+		name := "active"
+		if alreadyStopped {
+			name = "previously_stopped_with_live_process"
+		}
+		t.Run(name, func(t *testing.T) {
+			testStopDrainsBackgroundProcess(t, alreadyStopped)
+		})
+	}
+}
+
+func testStopDrainsBackgroundProcess(t *testing.T, alreadyStopped bool) {
+	t.Helper()
+	e := newCopyE2E(t)
+	resp, body := e.live.DoJSON(t, "POST", "/api/v1/sandboxes", `{"scopePath":"`+e.scopePath+`","projectRoot":"`+e.projectRoot+`","owner":"drain-test","noLock":true}`)
+	var sb types.Sandbox
+	if err := json.Unmarshal(body, &sb); err != nil || resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create: HTTP %d %s, %v", resp.StatusCode, body, err)
+	}
+	resp, body = e.live.DoJSON(t, "POST", sandboxesPath(sb.ID, "/processes"), `{"command":"sleep","args":["30"]}`)
+	var launched struct {
+		PID int `json:"pid"`
+	}
+	if err := json.Unmarshal(body, &launched); err != nil || launched.PID <= 0 {
+		t.Fatalf("launch: HTTP %d %s, %v", resp.StatusCode, body, err)
+	}
+	t.Cleanup(func() { _ = process.KillProcessGroupByPID(launched.PID) })
+	if e.tracker.GetActiveCount(sb.ID) != 1 {
+		t.Fatal("fixture process must be tracked and live")
+	}
+	if alreadyStopped {
+		// Older Stop implementations persisted this state without draining.
+		sb.Status = types.StatusStopped
+		if err := e.repo.Update(t.Context(), &sb); err != nil {
+			t.Fatal(err)
+		}
+	}
+	resp, body = e.live.DoJSON(t, "POST", sandboxesPath(sb.ID, "/stop"), "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("stop: HTTP %d %s", resp.StatusCode, body)
+	}
+	if process.IsProcessRunning(launched.PID) || e.tracker.GetActiveCount(sb.ID) != 0 {
+		t.Fatal("stop returned success while a managed process could still write")
+	}
+	resp, _ = e.live.DoJSON(t, "POST", sandboxesPath(sb.ID, "/processes"), `{"command":"sleep","args":["30"]}`)
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("stopped sandbox admitted a new process: %d", resp.StatusCode)
 	}
 }
 

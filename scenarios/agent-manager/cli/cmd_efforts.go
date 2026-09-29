@@ -157,7 +157,7 @@ func (a *App) cmdEffort(args []string) error {
 	case *pb.EffortEnrollment:
 		fmt.Printf("%s revision=%d withdrawn=%t\n", out.EffortRef, out.Revision, out.Withdrawn)
 		if grant := out.GetDispatchAuthorization(); grant != nil {
-			fmt.Printf("Dispatcher %s team=%s member=%s profile=%s expires=%s runs=%d/%d minimum-interval=%ds revoked=%t\n", grant.AuthorizationId, grant.TeamId, grant.MemberId, grant.ProfileKey, grant.ExpiresAt.AsTime().Format(time.RFC3339), grant.DispatchedRuns, grant.MaximumRuns, grant.MinimumIntervalSeconds, grant.RevokedAt != nil)
+			fmt.Printf("Dispatcher %s team=%s member=%s profile=%s expires=%s runs=%d/%d minimum-interval=%ds budget=%dt/$%.2f revoked=%t\n", grant.AuthorizationId, grant.TeamId, grant.MemberId, grant.ProfileKey, grant.ExpiresAt.AsTime().Format(time.RFC3339), grant.DispatchedRuns, grant.MaximumRuns, grant.MinimumIntervalSeconds, grant.MaxTokens, float64(grant.MaxChargeMicroUsd)/1_000_000, grant.RevokedAt != nil)
 		}
 	case *pb.EffortDiscovery:
 		fmt.Printf("Discovery generation=%d scanned=%d limit=%d partial=%t cursor=%s\n", out.Generation, out.ScannedCount, out.ScanLimit, out.Partial, out.ScanCursor)

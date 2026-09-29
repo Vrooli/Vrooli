@@ -51,6 +51,8 @@ import {
 } from './session-inspection';
 import { resetSessionState } from './session-reset';
 import { teardownSessionResources } from './session-teardown';
+import { resetPageInputState } from './live-input';
+import { clearFrameCache } from './frame-cache';
 import {
   selectAppTargetPage,
   validateAppTargetCapabilities,
@@ -344,6 +346,14 @@ export class SessionManager {
 
         if (spec.reuse_mode === 'clean') {
           await this.resetSession(existingSession.id);
+        } else {
+          // A released lease may preserve browser storage, but its transient
+          // interaction state belongs to the old owner. Join admitted input
+          // before changing the lease, then retire receipts and cached frames
+          // so the new owner cannot inherit an old operation identity.
+          await resetPageInputState(existingSession.page);
+          clearFrameCache(existingSession.id);
+          existingSession.frameStack = [];
         }
 
         // The previous owner explicitly released this lease. A new execution

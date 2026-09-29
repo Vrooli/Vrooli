@@ -15,8 +15,61 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAINavigation, AINavigationError } from '../ai-navigation/useAINavigation';
 import { useEntitlementStore } from '@stores/entitlementStore';
 import { useAICapabilityStore } from '@stores/aiCapabilityStore';
-import type { AIMessage, AISettings } from './types';
+import type { AINavigationState } from '../ai-navigation/types';
+import type { AIMessage, AISettings, EntitlementErrorCode } from './types';
 import { createUserMessage, createAssistantMessage, createSystemMessage, createEntitlementErrorMessage } from './types';
+
+const entitlementErrorCodes = new Set<EntitlementErrorCode>([
+  'AI_NOT_AVAILABLE',
+  'INSUFFICIENT_CREDITS',
+]);
+
+const isEntitlementNavigationError = (
+  error: unknown,
+): error is AINavigationError & { code: EntitlementErrorCode } => (
+  error instanceof AINavigationError
+  && entitlementErrorCodes.has(error.code as EntitlementErrorCode)
+);
+
+const createNavigationStartErrorMessage = (error: unknown): AIMessage => {
+  if (isEntitlementNavigationError(error)) {
+    const entitlementStatus = useEntitlementStore.getState().status;
+    const aiCapability = useAICapabilityStore.getState().capability;
+    return createEntitlementErrorMessage(error.code, {
+      remaining: parseInt(error.details?.remaining ?? '0', 10),
+      creditsUsed: entitlementStatus?.ai_credits_used,
+      creditsLimit: entitlementStatus?.ai_credits_limit,
+      resetDate: aiCapability.resetDate ?? entitlementStatus?.ai_reset_date,
+      tier: entitlementStatus?.tier,
+    });
+  }
+
+  const errorMessage = error instanceof Error ? error.message : 'Failed to start navigation';
+  return createSystemMessage(`Error: ${errorMessage}`);
+};
+
+type NavigationMessageState = Pick<AINavigationState, 'humanIntervention' | 'status' | 'error'>;
+
+const getNavigationMessagePatch = (
+  navigationState: NavigationMessageState,
+): Partial<AIMessage> | null => {
+  const intervention = navigationState.humanIntervention
+    ? { humanIntervention: navigationState.humanIntervention }
+    : {};
+  if (navigationState.error) {
+    if (navigationState.status === 'awaiting_human') {
+      return { ...intervention, status: 'awaiting_human', error: navigationState.error };
+    }
+    if (navigationState.status === 'observation_unavailable') {
+      return { ...intervention, status: 'observation_unavailable', error: navigationState.error, canAbort: true };
+    }
+    return { ...intervention, status: 'failed', error: navigationState.error, canAbort: false };
+  }
+  if (navigationState.status === 'aborting') return { status: 'aborting', canAbort: false };
+  return navigationState.humanIntervention
+    ? { ...intervention, status: 'awaiting_human' }
+    : null;
+};
 
 // ============================================================================
 // Types
@@ -39,7 +92,7 @@ export interface UseAIConversationReturn {
   /** Abort the current navigation */
   abortNavigation: () => Promise<void>;
   /** Resume navigation after human intervention */
-  resumeNavigation: () => Promise<void>;
+  resumeNavigation: () => Promise<boolean>;
   /** Clear all messages */
   clearConversation: () => void;
   /** Whether navigation is currently in progress */
@@ -69,6 +122,12 @@ export function useAIConversation({
 }: UseAIConversationOptions): UseAIConversationReturn {
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const currentAssistantIdRef = useRef<string | null>(null);
+  const currentNavigationIdRef = useRef<string | null>(null);
+  const conversationGenerationRef = useRef(0);
+  const pendingStartGenerationRef = useRef<number | null>(null);
+  const admittedNavigationIdsRef = useRef(new Set<string>());
+  const sendInFlightRef = useRef(false);
+  const latestStartedAttemptRef = useRef(0);
 
   // Use the underlying navigation hook
   const {
@@ -82,12 +141,28 @@ export function useAIConversation({
     availableModels,
   } = useAINavigation({
     sessionId,
-    onStep: (step) => {
+    onStarted: (navigationId, startAttempt) => {
+      if (
+        pendingStartGenerationRef.current !== conversationGenerationRef.current
+        || (startAttempt !== undefined && startAttempt < latestStartedAttemptRef.current)
+        || admittedNavigationIdsRef.current.has(navigationId)
+      ) {
+        return;
+      }
+      if (startAttempt !== undefined) latestStartedAttemptRef.current = startAttempt;
+      admittedNavigationIdsRef.current.add(navigationId);
+      const assistantMessage = createAssistantMessage(navigationId);
+      currentAssistantIdRef.current = assistantMessage.id;
+      currentNavigationIdRef.current = navigationId;
+      setMessages((prev) => [...prev, assistantMessage]);
+    },
+    onStep: (step, navigationId) => {
       // Update the current assistant message with new step
-      if (currentAssistantIdRef.current) {
+      const assistantId = currentAssistantIdRef.current;
+      if (assistantId && navigationId && currentNavigationIdRef.current === navigationId) {
         setMessages((prev) =>
           prev.map((msg) => {
-            if (msg.id !== currentAssistantIdRef.current) return msg;
+            if (msg.id !== assistantId) return msg;
             // Preserve 'aborting' status - don't overwrite with 'running'
             const newStatus = msg.status === 'aborting' ? 'aborting' : 'running';
             return {
@@ -101,19 +176,14 @@ export function useAIConversation({
         onTimelineAction?.();
       }
     },
-    onComplete: (status, summary) => {
-      console.log('[useAIConversation] onComplete called:', {
-        status,
-        summary,
-        currentAssistantId: currentAssistantIdRef.current,
-      });
+    onComplete: (status, summary, navigationId) => {
+      const assistantId = currentAssistantIdRef.current;
 
       // Update the current assistant message with final status
-      if (currentAssistantIdRef.current) {
+      if (assistantId && navigationId && currentNavigationIdRef.current === navigationId) {
         setMessages((prev) => {
-          console.log('[useAIConversation] Messages in state:', prev.map(m => ({ id: m.id, role: m.role, status: m.status })));
           return prev.map((msg) => {
-            if (msg.id !== currentAssistantIdRef.current) return msg;
+            if (msg.id !== assistantId) return msg;
 
             const finalStatus =
               status === 'completed'
@@ -121,8 +191,6 @@ export function useAIConversation({
                 : status === 'aborted'
                   ? 'aborted'
                   : 'failed';
-
-            console.log('[useAIConversation] Setting message status to:', finalStatus);
 
             return {
               ...msg,
@@ -133,69 +201,68 @@ export function useAIConversation({
           });
         });
         currentAssistantIdRef.current = null;
+        currentNavigationIdRef.current = null;
       }
     },
   });
 
-  // Sync human intervention state to current message
-  useEffect(() => {
-    if (navState.humanIntervention && currentAssistantIdRef.current) {
-      setMessages((prev) =>
-        prev.map((msg) => {
-          if (msg.id !== currentAssistantIdRef.current) return msg;
-          return {
-            ...msg,
-            status: 'awaiting_human' as const,
-            humanIntervention: navState.humanIntervention ?? undefined,
-          };
-        })
-      );
-    }
-  }, [navState.humanIntervention]);
+  const resetConversationState = useCallback((resetNavigation: boolean) => {
+    conversationGenerationRef.current += 1;
+    pendingStartGenerationRef.current = null;
+    admittedNavigationIdsRef.current.clear();
+    sendInFlightRef.current = false;
+    if (resetNavigation) navReset();
+    setMessages([]);
+    currentAssistantIdRef.current = null;
+    currentNavigationIdRef.current = null;
+  }, [navReset]);
 
-  // Sync aborting state to current message
-  useEffect(() => {
-    if (navState.status === 'aborting' && currentAssistantIdRef.current) {
-      setMessages((prev) =>
-        prev.map((msg) => {
-          if (msg.id !== currentAssistantIdRef.current) return msg;
-          return {
-            ...msg,
-            status: 'aborting' as const,
-            canAbort: false, // Can't abort twice
-          };
-        })
-      );
-    }
-  }, [navState.status]);
+  const updateCurrentAssistantMessage = useCallback((
+    navigationId: string | null,
+    update: (message: AIMessage) => AIMessage,
+    expectedAssistantId: string | null = currentAssistantIdRef.current,
+  ) => {
+    if (
+      !expectedAssistantId
+      || expectedAssistantId !== currentAssistantIdRef.current
+      || navigationId !== currentNavigationIdRef.current
+    ) return;
+    setMessages((prev) => prev.map((msg) => (msg.id === expectedAssistantId ? update(msg) : msg)));
+  }, []);
 
-  // Sync error state to current message
+  // Project navigation lifecycle state once per update. Keeping the precedence
+  // here avoids three effects racing separate message projections.
+  const {
+    error: navigationError,
+    humanIntervention,
+    navigationId,
+    status: navigationStatus,
+  } = navState;
   useEffect(() => {
-    if (navState.error && currentAssistantIdRef.current) {
-      setMessages((prev) =>
-        prev.map((msg) => {
-          if (msg.id !== currentAssistantIdRef.current) return msg;
-          return {
-            ...msg,
-            status: 'failed',
-            error: navState.error ?? undefined,
-            canAbort: false,
-          };
-        })
-      );
-    }
-  }, [navState.error]);
+    if (!humanIntervention && navigationStatus !== 'aborting' && !navigationError) return;
+    const messagePatch = getNavigationMessagePatch({
+      error: navigationError,
+      humanIntervention,
+      status: navigationStatus,
+    });
+    if (!messagePatch) return;
+    updateCurrentAssistantMessage(navigationId, (msg) => ({ ...msg, ...messagePatch }));
+  }, [humanIntervention, navigationError, navigationId, navigationStatus, updateCurrentAssistantMessage]);
 
   // Reset conversation when session changes
   useEffect(() => {
-    setMessages([]);
-    currentAssistantIdRef.current = null;
-  }, [sessionId]);
+    resetConversationState(false);
+  }, [resetConversationState, sessionId]);
 
   const sendMessage = useCallback(
     async (prompt: string) => {
       if (!prompt.trim()) return;
-      if (isNavigating) return;
+      if (isNavigating || sendInFlightRef.current) return;
+      sendInFlightRef.current = true;
+
+      const conversationGeneration = conversationGenerationRef.current + 1;
+      conversationGenerationRef.current = conversationGeneration;
+      pendingStartGenerationRef.current = conversationGeneration;
 
       // Create user message
       const userMessage = createUserMessage(prompt);
@@ -205,42 +272,18 @@ export function useAIConversation({
       try {
         const navigationId = await startNavigation(prompt, settings.model, settings.maxSteps);
 
-        if (!navigationId) {
+        if (!navigationId || conversationGenerationRef.current !== conversationGeneration) {
           // startNavigation failed but didn't throw - error already set in state
           return;
         }
 
-        // Create assistant message with the actual navigation ID
-        const assistantMessage = createAssistantMessage(navigationId);
-        currentAssistantIdRef.current = assistantMessage.id;
-        setMessages((prev) => [...prev, assistantMessage]);
       } catch (err) {
-        // Check if this is an entitlement-related error
-        if (err instanceof AINavigationError) {
-          const errorCode = err.code;
-
-          if (errorCode === 'AI_NOT_AVAILABLE' || errorCode === 'INSUFFICIENT_CREDITS') {
-            // Get current entitlement info for richer error display
-            const entitlementStatus = useEntitlementStore.getState().status;
-            const aiCapability = useAICapabilityStore.getState().capability;
-
-            const errorMessage = createEntitlementErrorMessage(errorCode, {
-              remaining: err.details?.remaining ? parseInt(err.details.remaining, 10) : 0,
-              creditsUsed: entitlementStatus?.ai_credits_used,
-              creditsLimit: entitlementStatus?.ai_credits_limit,
-              resetDate: aiCapability.resetDate || entitlementStatus?.ai_reset_date,
-              tier: entitlementStatus?.tier,
-            });
-            setMessages((prev) => [...prev, errorMessage]);
-            return;
-          }
+        if (conversationGenerationRef.current !== conversationGeneration) return;
+        setMessages((prev) => [...prev, createNavigationStartErrorMessage(err)]);
+      } finally {
+        if (conversationGenerationRef.current === conversationGeneration) {
+          sendInFlightRef.current = false;
         }
-
-        // Add generic error as system message
-        const errorMessage =
-          err instanceof Error ? err.message : 'Failed to start navigation';
-        const systemMessage = createSystemMessage(`Error: ${errorMessage}`);
-        setMessages((prev) => [...prev, systemMessage]);
       }
     },
     [isNavigating, settings.model, settings.maxSteps, startNavigation]
@@ -251,27 +294,22 @@ export function useAIConversation({
   }, [navAbort]);
 
   const resumeNavigation = useCallback(async () => {
-    await navResume();
+    const assistantId = currentAssistantIdRef.current;
+    const navigationId = currentNavigationIdRef.current;
+    const resumed = await navResume();
+    if (!resumed) return false;
     // Update message status back to running
-    if (currentAssistantIdRef.current) {
-      setMessages((prev) =>
-        prev.map((msg) => {
-          if (msg.id !== currentAssistantIdRef.current) return msg;
-          return {
-            ...msg,
-            status: 'running',
-            humanIntervention: undefined,
-          };
-        })
-      );
-    }
-  }, [navResume]);
+    updateCurrentAssistantMessage(navigationId, (msg) => ({
+      ...msg,
+      status: 'running',
+      humanIntervention: undefined,
+    }), assistantId);
+    return true;
+  }, [navResume, updateCurrentAssistantMessage]);
 
   const clearConversation = useCallback(() => {
-    navReset();
-    setMessages([]);
-    currentAssistantIdRef.current = null;
-  }, [navReset]);
+    resetConversationState(true);
+  }, [resetConversationState]);
 
   const addSystemMessage = useCallback((content: string) => {
     const message = createSystemMessage(content);

@@ -45,7 +45,7 @@ func TestCapabilitiesConformance(t *testing.T) {
 				ToolRestrictionMappings: map[string]string{}, SupportsEffort: true,
 				EffortMappings:        map[string]string{"low": "model_reasoning_effort=low", "medium": "model_reasoning_effort=medium", "high": "model_reasoning_effort=high", "xhigh": "model_reasoning_effort=xhigh"},
 				SupportsRunnerDefault: true, DynamicModelPrefixes: []string{ollamaModelPrefix},
-				SupportedFeatures: []string{}, AllowedExtraFlags: []string{"--verbose", "-c"},
+				SupportedFeatures: []string{}, AllowedExtraFlags: []string{"--verbose"},
 			},
 		},
 		{

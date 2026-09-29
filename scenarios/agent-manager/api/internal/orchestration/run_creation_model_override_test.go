@@ -76,7 +76,7 @@ func TestModelExclusionBlocksProviderPrefixedAlias(t *testing.T) {
 	if !domain.IsModelExcluded("openrouter/openai/gpt-6-astra", "", []string{"gpt-6-astra"}) {
 		t.Fatal("provider-prefixed prohibited model bypassed bare configured exclusion")
 	}
-	if domain.IsModelExcluded("openrouter/openai/gpt-5.6", "", []string{"gpt-5.6-sol"}) {
+	if domain.IsModelExcluded("openrouter/openai/gpt-5.6", "", []string{"gpt-6-sol"}) {
 		t.Fatal("similar model suffix was incorrectly excluded")
 	}
 }

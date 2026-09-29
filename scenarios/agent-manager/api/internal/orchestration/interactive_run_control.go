@@ -12,6 +12,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/interactive"
 	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/runstate"
 
 	"github.com/google/uuid"
@@ -161,7 +162,35 @@ func (o *Orchestrator) stopInteractiveRun(ctx context.Context, run *domain.Run) 
 		Reason:    "Interactive run stopped by request",
 		EndedAt:   &endedAt,
 	})
+	if err == nil {
+		o.finalizeSandboxForTerminalRun(ctx, current)
+	}
 	return err
+}
+
+// finalizeSandboxForTerminalRun applies terminal provenance and then dispatches
+// the sandbox lifecycle policy. Natural completion, operator stop and terminal
+// recovery all pass through this seam so delete-on-terminal sandboxes cannot
+// remain active after their owner has ended.
+func (o *Orchestrator) finalizeSandboxForTerminalRun(ctx context.Context, run *domain.Run) {
+	if run == nil || !run.Status.IsTerminal() || run.RunMode != domain.RunModeSandboxed || run.SandboxID == nil || o.sandbox == nil {
+		return
+	}
+	outcome := domain.ContractRunOutcomeSuccess
+	switch run.Status {
+	case domain.RunStatusFailed:
+		outcome = domain.ContractRunOutcomeFailure
+	case domain.RunStatusCancelled:
+		outcome = domain.ContractRunOutcomeCancelled
+	}
+	deps := phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers(), WorkspaceSandbox: o.workspaceSandbox}
+	phases.ApplyAtRunEnd(ctx, phases.ApplyAtRunEndInput{Deps: deps, Run: run, SandboxID: run.SandboxID, Sandbox: o.sandbox, Outcome: outcome})
+	if o.runs != nil {
+		if err := o.runs.Update(ctx, run); err != nil {
+			obs.Component("interactive").Warn("interactive terminal provenance persistence failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+		}
+	}
+	phases.Finalize(phases.FinalizeInput{Deps: deps, Run: run, SandboxID: run.SandboxID, Sandbox: o.sandbox})
 }
 
 // continueInteractiveRun continues an ExecutionMode=interactive run by typing the

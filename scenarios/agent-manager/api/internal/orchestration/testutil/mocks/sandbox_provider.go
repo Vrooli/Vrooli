@@ -22,6 +22,7 @@ type FakeSandboxProvider struct {
 	DeleteFunc         func(context.Context, uuid.UUID) error
 	GetWorkspacePathFn func(context.Context, uuid.UUID) (string, error)
 	GetDiffFunc        func(context.Context, uuid.UUID) (*sandbox.DiffResult, error)
+	ListFunc           func(context.Context, string) ([]*sandbox.Sandbox, error)
 	ApproveFunc        func(context.Context, sandbox.ApproveRequest) (*sandbox.ApproveResult, error)
 	RejectFunc         func(context.Context, uuid.UUID, string) error
 	PartialApproveFunc func(context.Context, sandbox.PartialApproveRequest) (*sandbox.ApproveResult, error)
@@ -113,6 +114,13 @@ func (p *FakeSandboxProvider) GetDiff(ctx context.Context, id uuid.UUID) (*sandb
 		return p.GetDiffFunc(ctx, id)
 	}
 	return &sandbox.DiffResult{}, nil
+}
+
+func (p *FakeSandboxProvider) List(ctx context.Context, status string) ([]*sandbox.Sandbox, error) {
+	if p.ListFunc != nil {
+		return p.ListFunc(ctx, status)
+	}
+	return nil, nil
 }
 
 func (p *FakeSandboxProvider) Approve(ctx context.Context, req sandbox.ApproveRequest) (*sandbox.ApproveResult, error) {

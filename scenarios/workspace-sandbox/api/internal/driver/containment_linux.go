@@ -20,6 +20,8 @@ func GetContainmentInfo(ctx context.Context, starter process.Starter) (*Containm
 		Backend: "bwrap",
 		Enforcements: []string{
 			EnforcementFilesystemWriteContainment,
+			EnforcementWorkspaceWritePolicy,
+			EnforcementPolicyFiles,
 			EnforcementNetworkDeny,
 			EnforcementPIDNamespace,
 			EnforcementPathIllusion,

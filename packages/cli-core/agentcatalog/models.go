@@ -19,7 +19,10 @@ import (
 
 const ModelDiscoverySchemaVersion = "v1"
 
-var ErrModelDiscoveryUnavailable = errors.New("model discovery unavailable")
+var (
+	ErrModelDiscoveryUnavailable    = errors.New("model discovery unavailable")
+	ErrModelCatalogNonAuthoritative = errors.New("model catalog is non-authoritative")
+)
 
 type LiveModelCatalog struct {
 	SchemaVersion string   `json:"schema_version"`
@@ -28,6 +31,30 @@ type LiveModelCatalog struct {
 	Source        string   `json:"source"`
 	FetchedAt     string   `json:"fetched_at,omitempty"`
 	Aliases       bool     `json:"aliases,omitempty"`
+	// BinaryPath and RunnerVersion identify the executable that produced a
+	// live catalog. Hosts can have a Vrooli shim and a separately installed
+	// runner; without this identity a partial older shim can be mistaken for
+	// the authoritative runner that Agent Manager will actually launch.
+	BinaryPath    string `json:"binary_path,omitempty"`
+	RunnerVersion string `json:"runner_version,omitempty"`
+	// Authoritative distinguishes a live runner surface from a compatibility
+	// cache. Consumers that make availability or policy claims must not treat a
+	// non-authoritative cache as proof that a model is absent.
+	Authoritative bool `json:"authoritative"`
+	// Exhaustive is true only when the runner contract guarantees that every
+	// selectable model is present in Models. Most runner discovery commands are
+	// visibility or alias surfaces: they can prove a model is offered when it
+	// appears, but omission is not proof that the model is unavailable. Always
+	// emit this field so a partial listing cannot be mistaken for an inventory.
+	Exhaustive bool `json:"exhaustive"`
+}
+
+// IsAuthoritative reports whether this catalog came from a runner surface.
+// Catalogs constructed by older callers without Source/Authoritative metadata
+// remain compatible when they contain models; named fallback sources must opt
+// in explicitly and cannot be mistaken for live evidence.
+func (c LiveModelCatalog) IsAuthoritative() bool {
+	return c.Authoritative || (strings.TrimSpace(c.Source) == "" && len(c.Models) > 0)
 }
 
 // ModelResolution is the resource-owned answer for one runner model. The
@@ -60,11 +87,26 @@ func DiscoverModels(ctx context.Context, runner string) (LiveModelCatalog, error
 
 	switch runner {
 	case "codex":
+		// The Codex cache is a compatibility fallback, not the authoritative
+		// model surface. Older app-server versions can leave it populated with
+		// a partial catalog even though the installed CLI accepts newer model
+		// slugs (for example gpt-6-luna and gpt-6-sol). Ask the installed runner
+		// first so policy validation can record what this machine visibly offers.
+		// The runner may expose only a partial visibility surface; absence is not
+		// an availability claim unless the result explicitly says exhaustive.
+		if catalog, err := discoverCodexModels(ctx); err == nil {
+			return catalog, nil
+		}
 		path, err := os.UserHomeDir()
 		if err != nil {
 			return LiveModelCatalog{}, fmt.Errorf("%w: resolve home directory: %v", ErrModelDiscoveryUnavailable, err)
 		}
-		return readModelCatalogFile(runner, filepath.Join(path, ".codex", "models_cache.json"))
+		catalog, cacheErr := readModelCatalogFile(runner, filepath.Join(path, ".codex", "models_cache.json"))
+		if cacheErr != nil {
+			return LiveModelCatalog{}, cacheErr
+		}
+		catalog.Authoritative = false
+		return catalog, nil
 	case "claude-code":
 		return discoverClaudeAliases(ctx)
 	case "opencode":
@@ -74,6 +116,74 @@ func DiscoverModels(ctx context.Context, runner string) (LiveModelCatalog, error
 	default:
 		return LiveModelCatalog{}, fmt.Errorf("%w: no discovery adapter for runner %q", ErrModelDiscoveryUnavailable, runner)
 	}
+}
+
+func discoverCodexModels(ctx context.Context) (LiveModelCatalog, error) {
+	binary, err := resolveRunnerBinary("codex")
+	if err != nil {
+		return LiveModelCatalog{}, fmt.Errorf("%w: codex: %v", ErrModelDiscoveryUnavailable, err)
+	}
+	cmd := exec.CommandContext(ctx, binary, "debug", "models")
+	stdout, err := cmd.Output()
+	if err != nil {
+		if exitErr := new(exec.ExitError); errors.As(err, &exitErr) {
+			stderr := strings.TrimSpace(string(exitErr.Stderr))
+			if stderr != "" {
+				return LiveModelCatalog{}, fmt.Errorf("%w: codex debug models: %s", ErrModelDiscoveryUnavailable, stderr)
+			}
+		}
+		return LiveModelCatalog{}, fmt.Errorf("%w: codex debug models: %v", ErrModelDiscoveryUnavailable, err)
+	}
+	catalog, err := parseModelCatalog("codex", stdout, "codex debug models")
+	if err != nil {
+		return LiveModelCatalog{}, err
+	}
+	catalog.BinaryPath = binary
+	catalog.RunnerVersion = runnerVersion(ctx, binary)
+	return catalog, nil
+}
+
+// resolveRunnerBinary follows the same managed-runner rule used by Agent
+// Manager: a Vrooli shim is a control-plane wrapper, not the executable whose
+// model surface should be measured. Prefer the installed system binary when
+// PATH resolves through .vrooli/shims so discovery and launch observe the
+// same runner.
+func resolveRunnerBinary(command string) (string, error) {
+	path, err := exec.LookPath(command)
+	if err != nil {
+		return "", err
+	}
+	if command != "codex" {
+		return path, nil
+	}
+	parts := strings.Split(filepath.ToSlash(filepath.Clean(path)), "/")
+	for i, part := range parts {
+		if part != ".vrooli" || i+1 >= len(parts) || parts[i+1] != "shims" {
+			continue
+		}
+		for _, candidate := range []string{filepath.Join("/usr/bin", command), filepath.Join("/bin", command)} {
+			if info, statErr := os.Stat(candidate); statErr == nil && info.Mode().IsRegular() && info.Mode()&0o111 != 0 {
+				return candidate, nil
+			}
+		}
+		break
+	}
+	return path, nil
+}
+
+func runnerVersion(ctx context.Context, binary string) string {
+	command := exec.CommandContext(ctx, binary, "--version")
+	output, err := command.Output()
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(output), "\n") {
+		version := strings.TrimSpace(line)
+		if version != "" && strings.Contains(strings.ToLower(version), "codex") && strings.ContainsAny(version, "0123456789") {
+			return version
+		}
+	}
+	return ""
 }
 
 func discoveryOverrideEnv(runner string) string {
@@ -94,9 +204,10 @@ func readModelCatalogFile(runner, path string) (LiveModelCatalog, error) {
 
 func parseModelCatalog(runner string, data []byte, source string) (LiveModelCatalog, error) {
 	var payload struct {
-		FetchedAt string            `json:"fetched_at"`
-		Models    []json.RawMessage `json:"models"`
-		Source    string            `json:"source"`
+		FetchedAt  string            `json:"fetched_at"`
+		Models     []json.RawMessage `json:"models"`
+		Source     string            `json:"source"`
+		Exhaustive bool              `json:"exhaustive"`
 	}
 	if err := json.Unmarshal(data, &payload); err != nil {
 		// Inline overrides and command fixtures may be newline-separated model ids.
@@ -139,7 +250,9 @@ func parseModelCatalog(runner string, data []byte, source string) (LiveModelCata
 	if payload.Source != "" {
 		source = payload.Source + " (" + source + ")"
 	}
-	return normalizeLiveCatalog(runner, models, source, payload.FetchedAt, false), nil
+	catalog := normalizeLiveCatalog(runner, models, source, payload.FetchedAt, false)
+	catalog.Exhaustive = payload.Exhaustive
+	return catalog, nil
 }
 
 func discoverClaudeAliases(ctx context.Context) (LiveModelCatalog, error) {
@@ -231,7 +344,7 @@ func normalizeLiveCatalog(runner string, models []string, source, fetchedAt stri
 		clean = append(clean, model)
 	}
 	sort.Strings(clean)
-	return LiveModelCatalog{SchemaVersion: ModelDiscoverySchemaVersion, Runner: runner, Models: clean, Source: source, FetchedAt: fetchedAt, Aliases: aliases}
+	return LiveModelCatalog{SchemaVersion: ModelDiscoverySchemaVersion, Runner: runner, Models: clean, Source: source, FetchedAt: fetchedAt, Aliases: aliases, Authoritative: true}
 }
 
 func (c LiveModelCatalog) Contains(model string) bool {

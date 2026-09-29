@@ -2,26 +2,31 @@ package programs
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) { return f(request) }
+
 func TestSpawnsAgentManagerRunAndCollectsEvidence(t *testing.T) { // [REQ:PRT-P1-003]
 	const executionID = "8d7d9f34-77b5-46d9-9e2d-9a827fe5b4e0"
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+	transport := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		body := ""
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/workflow-executions":
 			var request map[string]any
 			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 				t.Fatalf("decode start request: %v", err)
 			}
-			if request["workflowKey"] != "fixture/delegated" || request["owner"] != "fixture" {
+			if request["workflowKey"] != "fixture/delegated" || request["owner"] != "fixture" || request["idempotencyKey"] != "fixture-idempotency" {
 				t.Fatalf("start request=%v", request)
 			}
-			_, _ = w.Write([]byte(`{"execution":{"id":"` + executionID + `","status":"running"}}`))
+			body = `{"execution":{"id":"` + executionID + `","status":"running"}}`
 		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/wait"):
 			var request map[string]any
 			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -30,26 +35,30 @@ func TestSpawnsAgentManagerRunAndCollectsEvidence(t *testing.T) { // [REQ:PRT-P1
 			if request["executionId"] != executionID {
 				t.Fatalf("wait request=%v", request)
 			}
-			_, _ = w.Write([]byte(`{"execution":{"id":"` + executionID + `","status":"succeeded"}}`))
+			body = `{"execution":{"id":"` + executionID + `","status":"succeeded"}}`
 		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/result"):
-			_, _ = w.Write([]byte(`{"execution":{"id":"` + executionID + `","status":"succeeded","output":{"summary":"delegated evidence"},"observations":[{"kind":"run","status":"succeeded"}],"charge_receipt":{"amount_micro_usd":42,"currency":"USD","metering_basis":"agent-manager.run.billing.metered_charge_micro_usd","measured":true,"note":"metered child charge"}}}`))
+			body = `{"execution":{"id":"` + executionID + `","status":"succeeded","output":{"summary":"delegated evidence"},"observations":[{"kind":"run","status":"succeeded"}],"charge_receipt":{"amount_micro_usd":42,"currency":"USD","metering_basis":"agent-manager.run.billing.metered_charge_micro_usd","measured":true,"note":"metered child charge"}}}`
 		default:
-			http.NotFound(w, r)
+			return nil, errors.New("unexpected request " + r.Method + " " + r.URL.Path)
 		}
-	}))
-	defer server.Close()
-
-	result, err := NewHTTPDelegator(server.URL).Delegate(t.Context(), DelegationRequest{
-		SessionID:   "session-1",
-		Owner:       "fixture",
-		WorkflowKey: "fixture/delegated",
-		Input:       map[string]any{"task": "inspect"},
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(body)), Request: r}, nil
+	})
+	delegator := &HTTPDelegator{baseURL: "http://agent-manager.invalid", client: &http.Client{Transport: transport}}
+	result, err := delegator.Delegate(t.Context(), DelegationRequest{
+		SessionID:      "session-1",
+		Owner:          "fixture",
+		WorkflowKey:    "fixture/delegated",
+		IdempotencyKey: "fixture-idempotency",
+		Input:          map[string]any{"task": "inspect"},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if result["execution_id"] != executionID || result["status"] != "succeeded" {
 		t.Fatalf("result=%v", result)
+	}
+	if result["idempotency_key"] != "fixture-idempotency" || result["owner"] != "fixture" || result["workflow_key"] != "fixture/delegated" {
+		t.Fatalf("synchronous delegation dropped start identity: %v", result)
 	}
 	if cost, measured, note := DelegationCharge(result); cost != 42 || !measured || note != "metered child charge" {
 		t.Fatalf("receipt cost=%d measured=%t note=%q result=%v", cost, measured, note, result)
@@ -86,6 +95,28 @@ func TestDelegationChargeHonorsExplicitUnmeasuredReceipt(t *testing.T) {
 	})
 	if cost != 0 || measured || note != "billing basis unavailable" {
 		t.Fatalf("charge=%d measured=%t note=%q", cost, measured, note)
+	}
+}
+
+func TestDelegationChargeRejectsInvalidCostsAndMeasuresExplicitZero(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		value  any
+		want   int64
+		priced bool
+	}{
+		{name: "explicit zero", value: float64(0), want: 0, priced: true},
+		{name: "negative", value: float64(-1)},
+		{name: "fractional", value: float64(1.5)},
+		{name: "null", value: nil},
+		{name: "malformed", value: "five"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cost, measured, _ := DelegationCharge(map[string]any{"execution_id": "run-1", "status": "succeeded", "cost_micros": tc.value})
+			if cost != tc.want || measured != tc.priced {
+				t.Fatalf("cost=%d measured=%t, want %d/%t", cost, measured, tc.want, tc.priced)
+			}
+		})
 	}
 }
 

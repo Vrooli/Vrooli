@@ -95,7 +95,7 @@ func TestSupervisorDispatchRPCToMintedChildAndLiveRevocation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	issue := connect.NewRequest(&api.IssueSupervisorDispatchRequest{EffortRef: "service:standing", ExpectedRevision: enrolled.Msg.Revision, TeamId: "supervisors", MemberId: "leader", ProfileKey: profile.ProfileKey, MaximumRuns: 1, MinimumIntervalSeconds: 60, ExpiresAt: timestamppb.New(time.Now().Add(3 * time.Hour)), IdempotencyKey: "issue"})
+	issue := connect.NewRequest(&api.IssueSupervisorDispatchRequest{EffortRef: "service:standing", ExpectedRevision: enrolled.Msg.Revision, TeamId: "supervisors", MemberId: "leader", ProfileKey: profile.ProfileKey, MaximumRuns: 1, MinimumIntervalSeconds: 60, MaxTokens: 100000, MaxChargeMicroUsd: 1000000, ExpiresAt: timestamppb.New(time.Now().Add(3 * time.Hour)), IdempotencyKey: "issue"})
 	issue.Header().Set("Authorization", "Bearer human-owner-fixture")
 	issued, err := client.IssueSupervisorDispatch(ctx, issue)
 	if err != nil {
@@ -117,12 +117,14 @@ func TestSupervisorDispatchRPCToMintedChildAndLiveRevocation(t *testing.T) {
 	wake.Header().Del("X-Agent-Identity-Token")
 	// Admission can fail before any effect. Restoring the granted profile must
 	// permit the identical admission to create its one original run.
-	profile.DeclaredScopes = []string{}
-	if err := repos.Profiles.Update(ctx, profile); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := client.CreateSupervisorRun(ctx, wake); err == nil || executions.Load() != 0 {
-		t.Fatal("pre-effect refusal executed work")
+	for _, scopes := range [][]string{nil, {}} {
+		profile.DeclaredScopes = scopes
+		if err := repos.Profiles.Update(ctx, profile); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := client.CreateSupervisorRun(ctx, wake); err == nil || executions.Load() != 0 {
+			t.Fatal("profile without explicit scopes admitted work", err)
+		}
 	}
 	profile.DeclaredScopes = []string{"agent-manager:supervise"}
 	if err := repos.Profiles.Update(ctx, profile); err != nil {
@@ -153,6 +155,9 @@ func TestSupervisorDispatchRPCToMintedChildAndLiveRevocation(t *testing.T) {
 	persisted, err := repos.Runs.Get(ctx, claims.RunID)
 	if err != nil || persisted.DispatchBinding == nil || persisted.DispatchBinding.AuthorizationID != claims.DispatchAuthorizationID {
 		t.Fatal("binding missing from durable run")
+	}
+	if persisted.Workload.Kind != domain.WorkloadKindScheduled || persisted.Workload.Key != "service:standing" || persisted.Workload.Instance != wake.Msg.IdempotencyKey {
+		t.Fatalf("supervisor workload identity missing: %+v", persisted.Workload)
 	}
 	finish()
 	deadline := time.Now().Add(5 * time.Second)

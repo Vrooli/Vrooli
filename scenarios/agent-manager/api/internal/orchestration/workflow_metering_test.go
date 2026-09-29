@@ -29,6 +29,27 @@ func TestWorkflowTerminalReceiptReconcilesEarlierUnknownCharge(t *testing.T) {
 	}
 }
 
+func TestWorkflowMeterSettlesProvenPreEffectFailure(t *testing.T) {
+	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusFailed, Billing: domain.BillingSnapshot{Basis: domain.ChargeBasisMetered}}
+	events := []*domain.RunEvent{{Data: &domain.ErrorEventData{
+		Code:    string(domain.ErrCodeRunnerExecution),
+		Message: "runner launch failed",
+		Details: map[string]interface{}{"execution_started_known": true, "execution_started": false},
+	}}}
+	state, err := meteredWorkflowChildState(run, events, time.Now())
+	if err != nil || !state.Terminal || !state.TokensKnown || !state.ChargeMeasured || state.Tokens != 0 || state.ChargeMicroUSD != 0 {
+		t.Fatalf("pre-effect failure did not settle zero usage: %+v %v", state, err)
+	}
+}
+
+func TestWorkflowMeterKeepsLegacyPostLaunchFailureUnknown(t *testing.T) {
+	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusFailed, Billing: domain.BillingSnapshot{Basis: domain.ChargeBasisMetered}, ErrorMsg: "runner codex error during execute: provider rejected request"}
+	state, err := meteredWorkflowChildState(run, nil, time.Now())
+	if err != nil || state.TokensKnown || state.ChargeMeasured {
+		t.Fatalf("post-launch-shaped failure fabricated zero usage: %+v %v", state, err)
+	}
+}
+
 func TestWorkflowTerminalReceiptPreservesLaterEvidence(t *testing.T) {
 	zero, positive, negative := int64(0), int64(7), int64(-1)
 	for _, tc := range []struct {

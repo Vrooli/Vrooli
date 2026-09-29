@@ -27,6 +27,11 @@
       "type": "array",
       "default": []
     },
+    "expected_identity": {
+      "type": "object",
+      "default": {},
+      "description": "Retained source preconditions: optional aggregate identity and/or complete named-root file manifests. Test Genie checks them before admission; an empty object requests ordinary owner resolution."
+    },
     "plan_only": {
       "type": "boolean",
       "default": false
@@ -39,6 +44,8 @@
   "invariants": [
     "Never silently drop requested checks",
     "Never infer pass from admission",
+    "Forward retained source preconditions unchanged; do not replace them with a fresh live identity",
+    "Omit the expected manifest from output and identify that omission; owner receipts retain resolved source detail",
     "One create call; no wait or retry loop",
     "Certification uses its separately declared policy"
   ],
@@ -53,6 +60,7 @@
       "enum": [
         "ok",
         "unavailable",
+        "refused",
         "failed"
       ]
     },
@@ -65,7 +73,9 @@
     },
     "signals": {
       "outcome": "Unknown until producer terminal evidence",
-      "intent": "Exact scoped request",
+      "intent": "Scoped request preview; consult intent_omitted_fields before treating it as a complete request",
+      "intent_omitted_fields": "Expected identity is omitted when supplied; the original input is forwarded unchanged",
+      "expected_manifest": "Counts only; never echo raw retained file inventories into the resume packet",
       "selection": "Required phases or owner budget strategy",
       "receipt": "Durable producer receipt",
       "wait_command": "One server-owned wait"
@@ -73,9 +83,17 @@
     "errors": {
       "classes": [
         "invalid_input",
-        "admission_unavailable",
         "remote_error",
-        "no_governed_binding"
+        "no_governed_binding",
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
       ]
     },
     "evidence": "Validation receipt ID"

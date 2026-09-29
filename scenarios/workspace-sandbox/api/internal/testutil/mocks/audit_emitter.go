@@ -14,8 +14,7 @@ import (
 
 // FakeEmitter is the canonical audit.Emitter fake. Tests that wire a
 // Service or reconciler with a fake emitter (instead of a fake repo)
-// can assert on the structured audit-event sequence directly via
-// assertx.AssertAuditEvents.
+// can inspect the structured audit-event sequence through Events().
 //
 // FakeEmitter performs the same normalization the production
 // RepoEmitter performs (UUID stamping, EventTime stamping via the

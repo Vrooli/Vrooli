@@ -2,6 +2,8 @@ package runmanager
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -176,6 +178,261 @@ func TestStartRejectsEmptyScenario(t *testing.T) {
 	m := New(newFakeExecutor(""), "")
 	if _, err := m.Start(StartOptions{Input: startInput("")}); err == nil {
 		t.Fatal("expected error for empty scenarioName")
+	}
+}
+
+func TestEvidenceProducerUsesDurableRunAdmissionWithoutSuitePlanning(t *testing.T) {
+	root := t.TempDir()
+	exec := newFakeExecutor(root)
+	exec.result = &orchestrator.SuiteExecutionResult{ScenarioName: "provider", Success: true, Verdict: "PRODUCER_COMPLETED"}
+	m := New(exec, root)
+	defer m.Shutdown()
+	m.SetCapacityBroker(&shadowTestBroker{lease: &shadowTestLease{}, verdict: sharedcapacity.Verdict{Kind: "grant"}})
+	m.WithSuiteEnvelopeProvider(func(context.Context) ([]execution.SuiteEnvelopeEstimate, error) {
+		t.Fatal("producer entered suite planning")
+		return nil, nil
+	})
+	input := execution.SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "provider", RunID: "evidence-run", ValidationRun: true, RetainForEvidence: true}, EvidenceProducer: &execution.EvidenceProducerCommand{Provider: "provider", Name: "refresh", Argv: []string{"/bin/true"}, WorkingDirectory: "/tmp", OutputRoot: "/tmp/evidence", Timeout: time.Second, MaximumOutputBytes: 128, DescriptorDigest: "sha256:descriptor", SourceIdentity: "candidate-identity"}}
+	started, err := m.Start(StartOptions{Input: input})
+	if err != nil {
+		t.Fatal(err)
+	}
+	close(exec.release)
+	status, err := m.Wait(context.Background(), "provider", started.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.Status != sharedruns.StatusPassed {
+		t.Fatalf("producer durable run status=%s", status.Status)
+	}
+	if got := exec.driveCount(); got != 1 {
+		t.Fatalf("executor calls=%d, want one durable command branch", got)
+	}
+	record, err := sharedruns.NewIndex(m.scenarioDir("provider")).Find(started.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(record.AdmissionIntentDigest, "sha256:") {
+		t.Fatalf("pinned intent digest=%q", record.AdmissionIntentDigest)
+	}
+}
+
+func TestEvidenceProducerAbortFencePreventsLateStartAndRestartReplay(t *testing.T) {
+	root := t.TempDir()
+	input := execution.SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "provider", RunID: "fenced-before-start", ValidationRun: true, RetainForEvidence: true}, EvidenceProducer: &execution.EvidenceProducerCommand{Provider: "provider", Name: "refresh", Argv: []string{"/bin/true"}, WorkingDirectory: "/tmp", OutputRoot: "/tmp/output", Timeout: time.Second, MaximumOutputBytes: 64, DescriptorDigest: "sha256:descriptor", SourceIdentity: "source"}}
+	firstExecutor := newFakeExecutor(root)
+	first := New(firstExecutor, root)
+	status, err := first.AbortEvidenceProducer(StartOptions{Input: input})
+	if err != nil || status.Status != sharedruns.StatusAborted {
+		t.Fatalf("prelaunch abort=%+v err=%v", status, err)
+	}
+	record, err := sharedruns.NewIndex(first.scenarioDir("provider")).Find(input.Request.RunID)
+	if err != nil || record.Status != sharedruns.StatusAborted || record.AdmissionIntentDigest == "" {
+		t.Fatalf("abort fence=%+v err=%v", record, err)
+	}
+	late, err := first.Start(StartOptions{Input: input})
+	if err != nil {
+		t.Fatalf("late same-input Start: %v", err)
+	}
+	if !late.Coalesced {
+		t.Fatal("late Start did not reconcile against the abort fence")
+	}
+	if got := firstExecutor.driveCount(); got != 0 {
+		t.Fatalf("late Start executed %d times", got)
+	}
+	first.Shutdown()
+
+	restartedExecutor := newFakeExecutor(root)
+	restarted := New(restartedExecutor, root)
+	defer restarted.Shutdown()
+	replay, err := restarted.Start(StartOptions{Input: input})
+	if err != nil {
+		t.Fatalf("restart replay Start: %v", err)
+	}
+	if !replay.Coalesced {
+		t.Fatal("restart replay did not reconcile against the persisted abort fence")
+	}
+	if got := restartedExecutor.driveCount(); got != 0 {
+		t.Fatalf("restart replay executed %d times", got)
+	}
+	changed := input
+	changed.EvidenceProducer = &execution.EvidenceProducerCommand{Provider: "provider", Name: "refresh", Argv: []string{"/bin/false"}, WorkingDirectory: "/tmp", OutputRoot: "/tmp/output", Timeout: time.Second, MaximumOutputBytes: 64, DescriptorDigest: "sha256:descriptor", SourceIdentity: "source"}
+	if _, err := restarted.Start(StartOptions{Input: changed}); err == nil {
+		t.Fatal("abort fence accepted changed pinned input")
+	}
+}
+
+func TestEvidenceProducerAbortAfterIndexedStartCancelsExecutor(t *testing.T) {
+	root := t.TempDir()
+	executor := newFakeExecutor(root)
+	executor.blockOnCtx = true
+	manager := New(executor, root)
+	defer manager.Shutdown()
+	input := execution.SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "provider", RunID: "started-before-abort", ValidationRun: true, RetainForEvidence: true}, EvidenceProducer: &execution.EvidenceProducerCommand{Provider: "provider", Name: "refresh", Argv: []string{"/bin/true"}, WorkingDirectory: "/tmp", OutputRoot: "/tmp/output", Timeout: time.Second, MaximumOutputBytes: 64, DescriptorDigest: "sha256:descriptor", SourceIdentity: "source"}}
+	if _, err := manager.Start(StartOptions{Input: input}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-executor.started:
+	case <-time.After(time.Second):
+		t.Fatal("executor did not reach start barrier")
+	}
+	status, err := manager.AbortEvidenceProducer(StartOptions{Input: input})
+	if err != nil || status.Status != sharedruns.StatusAborted {
+		t.Fatalf("post-index abort=%+v err=%v", status, err)
+	}
+	final, err := manager.Wait(context.Background(), "provider", input.Request.RunID)
+	if err != nil || final.Status != sharedruns.StatusAborted {
+		t.Fatalf("executor terminal=%+v err=%v", final, err)
+	}
+	if got := executor.driveCount(); got != 1 {
+		t.Fatalf("executor drives=%d, want only the original start", got)
+	}
+}
+
+type evidenceExecutionRecorder struct {
+	record *execution.SuiteExecutionRecord
+}
+
+func (r *evidenceExecutionRecorder) Create(_ context.Context, record *execution.SuiteExecutionRecord) error {
+	r.record = record
+	return nil
+}
+
+func TestEvidenceProducerContainedExecutionPublishesBoundedRunArtifacts(t *testing.T) {
+	if err := execution.CheckEvidenceProducerContainment(context.Background()); err != nil {
+		t.Fatalf("required Linux containment unavailable: %v", err)
+	}
+	providerRoot, artifactRoot := t.TempDir(), t.TempDir()
+	runID := "contained-evidence-run"
+	outputRoot := filepath.Join(providerRoot, ".vrooli", "evidence")
+	recorder := &evidenceExecutionRecorder{}
+	execService := execution.NewSuiteExecutionService(nil, recorder)
+	m := New(execService, providerRoot).WithArtifactRootResolver(func(string) (string, error) { return artifactRoot, nil })
+	defer m.Shutdown()
+	command := &execution.EvidenceProducerCommand{Provider: "provider", Name: "refresh", Argv: []string{"/bin/sh", "-c", "printf producer-output; printf retained-file > /dev/shm/tg-output/receipt.json"}, WorkingDirectory: providerRoot, OutputRoot: outputRoot, Timeout: 2 * time.Second, MaximumOutputBytes: 32, DescriptorDigest: "sha256:descriptor", SourceIdentity: "candidate-id"}
+	started, err := m.Start(StartOptions{Input: execution.SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "provider", RunID: runID, RetainForEvidence: true}, EvidenceProducer: command}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	status, err := m.Wait(ctx, "provider", started.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.Status != sharedruns.StatusPassed || status.Verdict != "PRODUCER_COMPLETED" {
+		t.Fatalf("producer status=%+v", status)
+	}
+	if recorder.record == nil || len(recorder.record.PlannedPhases) != 0 || len(recorder.record.Phases) != 0 {
+		t.Fatalf("producer manufactured validation phases: %+v", recorder.record)
+	}
+	runDir := sharedartifacts.RunDir(artifactRoot, runID)
+	logData, err := os.ReadFile(filepath.Join(runDir, "evidence-producer", "output.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(logData) != "producer-output" {
+		t.Fatalf("run artifact output=%q", logData)
+	}
+	catalog, err := sharedartifacts.ReadArtifactCatalog(artifactRoot, runID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(catalog.Artifacts) == 0 {
+		t.Fatal("producer logs were not published in the run artifact catalog")
+	}
+	if catalog.LegacyDiscovered {
+		t.Fatal("producer artifacts must be published, not legacy-discovered")
+	}
+	var outputID string
+	for _, artifact := range catalog.Artifacts {
+		if artifact.StoragePath == "evidence-producer/output/receipt.json" {
+			outputID = artifact.ID
+		}
+	}
+	if outputID == "" {
+		t.Fatal("producer file output is missing from its run-owned catalog")
+	}
+	_, retainedPath, err := sharedartifacts.ResolveCatalogArtifact(artifactRoot, runID, outputID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	retained, err := os.ReadFile(retainedPath)
+	if err != nil || string(retained) != "retained-file" {
+		t.Fatalf("opaque artifact lookup did not retain exact producer bytes: %q, %v", retained, err)
+	}
+	if _, err := os.Stat(outputRoot); !os.IsNotExist(err) {
+		t.Fatalf("producer created a second evidence tree: %v", err)
+	}
+	meta, err := os.ReadFile(filepath.Join(runDir, "evidence-producer", "metadata.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(meta), "sha256:") || !strings.Contains(string(meta), "candidate-id") {
+		t.Fatalf("pinned output metadata missing: %s", meta)
+	}
+}
+
+func TestRetainedEvidenceSetUsesPublishedCatalogAndOwnerByteChecksums(t *testing.T) {
+	root := t.TempDir()
+	manager := New(newFakeExecutor(""), root).WithArtifactRootResolver(func(string) (string, error) { return root, nil })
+	defer manager.Shutdown()
+	const runID = "owner-evidence-set"
+	outputDir := filepath.Join(sharedartifacts.RunDir(root, runID), "evidence-producer", "output")
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outputs := map[string][]byte{
+		"receipt.json":       []byte(`{"schemaVersion":1,"contractRow":"evidence-completeness"}`),
+		"owner-test-1.jsonl": []byte(`{"Action":"pass","Test":"owner-one"}` + "\n"),
+		"owner-test-2.jsonl": []byte(`{"Action":"pass","Test":"owner-two"}` + "\n"),
+	}
+	for name, body := range outputs {
+		if err := os.WriteFile(filepath.Join(outputDir, name), body, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	catalog, err := sharedartifacts.RefreshArtifactCatalog(root, runID, nil, time.Now().UTC())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sharedartifacts.WriteArtifactCatalog(root, catalog); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err = sharedartifacts.ReadArtifactCatalog(root, runID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if catalog.LegacyDiscovered || len(catalog.Artifacts) != 3 {
+		t.Fatalf("catalog is not the authoritative complete three-file output: %+v", catalog)
+	}
+	set, err := manager.RetainedEvidenceSet("owner", runID, "producer-receipt", "evidence-completeness", "ci:v1:candidate")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if set.GetProducerReceiptId() != "producer-receipt" || set.GetCatalogDigest() != catalog.Digest || set.GetCandidateIdentity() != "ci:v1:candidate" || len(set.GetArtifacts()) != 3 {
+		t.Fatalf("owner retained evidence identity=%+v", set)
+	}
+	wantKinds := map[string]string{"receipt.json": sharedartifacts.ArtifactKindGenericFile, "owner-test-1.jsonl": sharedartifacts.ArtifactKindCommandOutput, "owner-test-2.jsonl": sharedartifacts.ArtifactKindCommandOutput}
+	nameByDigest := make(map[string]string, len(outputs))
+	for name, body := range outputs {
+		digest := sha256.Sum256(body)
+		nameByDigest[hex.EncodeToString(digest[:])] = name
+	}
+	for _, ref := range set.GetArtifacts() {
+		name := nameByDigest[ref.GetChecksum()]
+		body, ok := outputs[name]
+		if !ok {
+			t.Fatalf("owner exposed unexpected retained artifact: %+v", ref)
+		}
+		digest := sha256.Sum256(body)
+		if ref.GetKind() != wantKinds[name] || ref.GetChecksum() != hex.EncodeToString(digest[:]) || ref.GetSizeBytes() != int64(len(body)) {
+			t.Fatalf("owner retained artifact %s=%+v want kind=%s owner checksum and exact size", name, ref, wantKinds[name])
+		}
+	}
+	if _, err := manager.RetainedEvidenceSet("owner", "missing", "producer-receipt", "evidence-completeness", "ci:v1:candidate"); err == nil {
+		t.Fatal("missing catalog was accepted")
 	}
 }
 
@@ -634,6 +891,141 @@ func TestStartCoalescesIdenticalInFlight(t *testing.T) {
 	}
 	if n := exec.driveCount(); n != 1 {
 		t.Fatalf("drive count = %d, want 1 (no second suite)", n)
+	}
+}
+
+func TestExplicitRunIDReplaysDurableTerminalIntentAndRejectsChanges(t *testing.T) {
+	root := t.TempDir()
+	exec := newFakeExecutor(filepath.Join(root, "demo"))
+	exec.result = &orchestrator.SuiteExecutionResult{ScenarioName: "demo", Success: true, Verdict: "PASS", CompletedAt: time.Now().UTC()}
+	m := New(exec, root)
+	input := inputWith("demo", "comprehensive")
+	input.Request.RunID = "validation-explicit-replay"
+	first, err := m.Start(StartOptions{Input: input})
+	if err != nil {
+		t.Fatal(err)
+	}
+	close(exec.release)
+	if _, err := m.Wait(context.Background(), "demo", first.RunID); err != nil {
+		t.Fatal(err)
+	}
+	m.Shutdown()
+
+	// A fresh manager models broker/process restart; terminal work is still the
+	// original operation and does not reach the executor again.
+	secondExec := newFakeExecutor(filepath.Join(root, "demo"))
+	second := New(secondExec, root)
+	defer second.Shutdown()
+	replay, err := second.Start(StartOptions{Input: input})
+	if err != nil || !replay.Coalesced || replay.RunID != first.RunID {
+		t.Fatalf("terminal replay = %+v, %v; want original %q", replay, err, first.RunID)
+	}
+	if secondExec.driveCount() != 0 {
+		t.Fatalf("replay dispatched %d suites", secondExec.driveCount())
+	}
+
+	changed := input
+	changed.Request.Preset = "quick"
+	if _, err := second.Start(StartOptions{Input: changed}); err == nil {
+		t.Fatal("changed explicit run intent was accepted")
+	}
+}
+
+func TestExplicitRunIDWithUnknownPriorIntentFailsClosed(t *testing.T) {
+	root := t.TempDir()
+	if err := sharedruns.NewIndex(filepath.Join(root, "demo")).Append(sharedruns.RunRecord{
+		RunID: "legacy-explicit", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	exec := newFakeExecutor(filepath.Join(root, "demo"))
+	m := New(exec, root)
+	defer m.Shutdown()
+	input := inputWith("demo", "comprehensive")
+	input.Request.RunID = "legacy-explicit"
+	if _, err := m.Start(StartOptions{Input: input}); err == nil {
+		t.Fatal("explicit ID with unknown historical intent was accepted")
+	}
+	if exec.driveCount() != 0 {
+		t.Fatalf("unknown intent dispatched %d suites", exec.driveCount())
+	}
+}
+
+func TestExplicitRunIDDoesNotCoalesceWithDifferentID(t *testing.T) {
+	m, exec, release := blockingManager(t)
+	defer release()
+	firstInput := inputWith("demo", "comprehensive")
+	firstInput.Request.RunID = "explicit-one"
+	if _, err := m.Start(StartOptions{Input: firstInput}); err != nil {
+		t.Fatal(err)
+	}
+	<-exec.started
+	secondInput := inputWith("demo", "comprehensive")
+	secondInput.Request.RunID = "explicit-two"
+	res, err := m.Start(StartOptions{Input: secondInput})
+	var busy *BusyError
+	if !errors.As(err, &busy) || res.RunID == "explicit-one" {
+		t.Fatalf("different explicit ID fuzzy-coalesced: %+v, %v", res, err)
+	}
+}
+
+func TestConcurrentExplicitDuplicateReturnsOneOriginalRun(t *testing.T) {
+	m, exec, release := blockingManager(t)
+	defer release()
+	const n = 12
+	var wg sync.WaitGroup
+	results := make([]StartResult, n)
+	errs := make([]error, n)
+	input := inputWith("demo", "comprehensive")
+	input.Request.RunID = "same-explicit-operation"
+	for i := range results {
+		wg.Add(1)
+		go func(i int) { defer wg.Done(); results[i], errs[i] = m.Start(StartOptions{Input: input}) }(i)
+	}
+	wg.Wait()
+	<-exec.started
+	for i := range results {
+		if errs[i] != nil || results[i].RunID != input.Request.RunID {
+			t.Fatalf("duplicate %d = %+v, %v", i, results[i], errs[i])
+		}
+	}
+	if exec.driveCount() != 1 {
+		t.Fatalf("explicit duplicate drove %d suites", exec.driveCount())
+	}
+}
+
+func TestConcurrentExplicitIDChangedIntentDoesNotCoalesce(t *testing.T) {
+	m, exec, release := blockingManager(t)
+	defer release()
+	base := inputWith("demo", "comprehensive")
+	base.Request.RunID = "same-explicit-changed-intent"
+	changed := base
+	changed.Request.DiagnosticsPreset = "full" // deliberately omitted by admissionKey
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	results := make([]StartResult, 2)
+	errs := make([]error, 2)
+	for i, input := range []execution.SuiteExecutionInput{base, changed} {
+		wg.Add(1)
+		go func(i int, input execution.SuiteExecutionInput) {
+			defer wg.Done()
+			<-start
+			results[i], errs[i] = m.Start(StartOptions{Input: input})
+		}(i, input)
+	}
+	close(start)
+	wg.Wait()
+	<-exec.started
+	accepted, rejected := 0, 0
+	for i := range errs {
+		if errs[i] == nil {
+			accepted++
+		} else {
+			rejected++
+		}
+	}
+	if accepted != 1 || rejected != 1 || exec.driveCount() != 1 {
+		t.Fatalf("concurrent changed-intent outcomes accepted=%d rejected=%d runs=%d results=%+v errors=%v", accepted, rejected, exec.driveCount(), results, errs)
 	}
 }
 

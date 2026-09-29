@@ -22,11 +22,9 @@ CASES = {
     "recording-api": "refactor_probes.go",
     "profile": "refactor_profile_probes.go",
     "input": "refactor_input_probes.cjs",
-    "session-frame": "refactor_session_frame_probes.cjs",
     "retention": "refactor_retention_probes.go",
     "execution-api": "refactor_execution_probes.go",
     "execution-driver": "refactor_execution_probes.cjs",
-    "reuse": "refactor_reuse_probes.cjs",
     "stream": "refactor_stream_probes.cjs",
 }
 

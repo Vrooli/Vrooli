@@ -346,6 +346,7 @@ type MockProcess struct {
 	WaitErr       error
 	StartCalled   atomic.Int64
 	StopCalled    atomic.Int64
+	LastGraceMS   atomic.Int64
 	SimulateCrash chan struct{} // Close to simulate a crash
 
 	mu       sync.Mutex
@@ -402,6 +403,7 @@ func (m *MockProcess) Start() error {
 
 // Stop implements Process.
 func (m *MockProcess) Stop(gracePeriod time.Duration) error {
+	m.LastGraceMS.Store(gracePeriod.Milliseconds())
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

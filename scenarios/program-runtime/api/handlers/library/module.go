@@ -3,7 +3,9 @@ package library
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -214,9 +216,19 @@ func (h *handler) SetCurrentLibrary(ctx context.Context, req *connect.Request[li
 	return connect.NewResponse(&libraryv1.SetCurrentLibraryResponse{Program: program}), nil
 }
 
-func (h *handler) RunDeclaredProgram(ctx context.Context, req *connect.Request[libraryv1.RunDeclaredProgramRequest]) (*connect.Response[libraryv1.RunDeclaredProgramResponse], error) {
-	if h.contracts == nil || h.sessions == nil || h.programs == nil {
+type preparedDeclared struct {
+	contract contracts.Contract
+	source   string
+	identity internalprograms.Identity
+	caller   internalprograms.Caller
+}
+
+func (h *handler) prepareDeclared(ctx context.Context, req *connect.Request[libraryv1.RunDeclaredProgramRequest]) (*preparedDeclared, error) {
+	if h.contracts == nil || h.programs == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("declared program runner is unavailable"))
+	}
+	if key := req.Msg.GetIdempotencyKey(); key != "" && (len(key) > 128 || strings.TrimSpace(key) != key || req.Msg.GetExpectedDigest() == "") {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("idempotency_key requires expected_digest and 1..128 non-padded characters"))
 	}
 	if h.repoRoot != "" {
 		if _, err := h.contracts.Refresh(h.repoRoot); err != nil {
@@ -270,22 +282,83 @@ func (h *handler) RunDeclaredProgram(ctx context.Context, req *connect.Request[l
 	} else if len(contract.Learning.Verbs) > 0 && !containsLearningVerb(contract.Learning.Verbs, "task") {
 		source = "learn.task(operation=" + strconv.Quote(contract.ID) + ")\n" + source
 	}
-	session, err := h.sessions.CreateWithExecutionBudgets(ctx, "declared-program:"+contract.ID, "", nil, 0, 0, contract.WallMS, 0)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeResourceExhausted, fmt.Errorf("create declared program session: %w", err))
-	}
 	caller := internalprograms.Caller{}
 	if value := req.Msg.GetCaller(); value != nil {
 		caller = internalprograms.Caller{RunID: value.GetRunId(), AgentProfile: value.GetAgentProfile(), SkillID: value.GetSkillId(), Harness: value.GetHarness()}
 	}
-	program, _, err := h.programs.SubmitDeclared(ctx, session.ID, source, req.Msg.GetProvenance(), contract.OutputBytes == 65536, false, internalprograms.Identity{ProgramName: contract.ID, ProgramDigest: contract.Digest}, caller, true)
+	identity := internalprograms.Identity{ProgramName: contract.ID, ProgramDigest: contract.Digest, IdempotencyKey: req.Msg.GetIdempotencyKey(), AdmissionDeadline: req.Msg.GetAdmissionDeadline()}
+	grants, err := declaredGrants(contract, req.Msg.GetGrants())
 	if err != nil {
-		_, _ = h.sessions.Delete(context.Background(), session.ID, "declared program submission failed")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("submit declared program: %w", err))
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	identity.Grants = grants
+	return &preparedDeclared{contract: contract, source: source, identity: identity, caller: caller}, nil
+}
+
+func declaredGrants(contract contracts.Contract, grants []string) ([]string, error) {
+	if len(grants) > 16 {
+		return nil, fmt.Errorf("at most 16 exact declared-binding grants")
+	}
+	allowed := map[string]bool{}
+	for _, binding := range contract.Bindings {
+		if binding.Effect == "destructive" {
+			allowed["binding:"+binding.ID] = true
+		}
+	}
+	for _, grant := range grants {
+		if !allowed[grant] {
+			return nil, fmt.Errorf("grant %q must name an exact destructive binding declared by the pinned contract", grant)
+		}
+	}
+	result := slices.Clone(grants)
+	slices.Sort(result)
+	return slices.Compact(result), nil
+}
+
+func (h *handler) CloseDeclaredAdmission(ctx context.Context, req *connect.Request[libraryv1.RunDeclaredProgramRequest]) (*connect.Response[libraryv1.RunDeclaredProgramResponse], error) {
+	prepared, err := h.prepareDeclared(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	p, err := h.programs.CloseDeclaredAdmission(ctx, prepared.source, req.Msg.GetProvenance(), prepared.contract.OutputBytes == 65536, prepared.identity, prepared.caller)
+	if err != nil {
+		return nil, declaredAdmissionError(err)
+	}
+	return declaredProgramResponse(p, internalprograms.IsTerminal(p.GetStatus()), 0), nil
+}
+
+func (h *handler) RunDeclaredProgram(ctx context.Context, req *connect.Request[libraryv1.RunDeclaredProgramRequest]) (*connect.Response[libraryv1.RunDeclaredProgramResponse], error) {
+	if h.sessions == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("declared program sessions are unavailable"))
+	}
+	prepared, err := h.prepareDeclared(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	contract, source, identity, caller := prepared.contract, prepared.source, prepared.identity, prepared.caller
 	wait := time.Duration(contract.WallMS) * time.Millisecond
 	if wait <= 0 {
 		wait = 60 * time.Second
+	}
+	if replay, err := h.programs.ReplayDeclared(ctx, source, req.Msg.GetProvenance(), contract.OutputBytes == 65536, identity, caller); err != nil {
+		return nil, declaredAdmissionError(err)
+	} else if replay != nil {
+		return h.awaitDeclared(ctx, replay, req.Msg.GetAsync(), wait)
+	}
+	session, err := h.sessions.CreateWithExecutionBudgets(ctx, "declared-program:"+contract.ID, "", identity.Grants, 0, 0, contract.WallMS, 0)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeResourceExhausted, fmt.Errorf("create declared program session: %w", err))
+	}
+	program, _, err := h.programs.SubmitDeclared(ctx, session.ID, source, req.Msg.GetProvenance(), contract.OutputBytes == 65536, false, identity, caller, true)
+	if err != nil {
+		_, _ = h.sessions.Delete(context.Background(), session.ID, "declared program submission failed")
+		return nil, declaredAdmissionError(err)
+	}
+	if program.GetSessionId() != session.ID {
+		// Another submission won the durable identity. Only this unused session
+		// belongs to this call; never reclaim the winner's running kernel.
+		_, _ = h.sessions.Delete(context.Background(), session.ID, "declared program admission replay")
+		return h.awaitDeclared(ctx, program, req.Msg.GetAsync(), wait)
 	}
 	// Cleanup belongs to execution, never the observer's HTTP connection. A
 	// disconnected wait must not kill a kernel that may be performing effects.
@@ -299,18 +372,47 @@ func (h *handler) RunDeclaredProgram(ctx context.Context, req *connect.Request[l
 			}
 		}(program.GetId())
 	}
-	if req.Msg.GetAsync() {
+	return h.awaitDeclared(ctx, program, req.Msg.GetAsync(), wait)
+}
+
+func (h *handler) GetDeclaredExecution(ctx context.Context, req *connect.Request[libraryv1.GetDeclaredExecutionRequest]) (*connect.Response[libraryv1.GetDeclaredExecutionResponse], error) {
+	if h.programs == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("declared program runner is unavailable"))
+	}
+	p, err := h.programs.GetDeclaredExecution(ctx, req.Msg.GetName(), req.Msg.GetIdempotencyKey())
+	if errors.Is(err, internalprograms.ErrProgramNotFound) {
+		return connect.NewResponse(&libraryv1.GetDeclaredExecutionResponse{AdmissionContractVersion: 2}), nil
+	}
+	if err != nil {
+		return nil, declaredAdmissionError(err)
+	}
+	p.Source = ""
+	return connect.NewResponse(&libraryv1.GetDeclaredExecutionResponse{AdmissionContractVersion: 2, Found: true, Program: p}), nil
+}
+
+func declaredAdmissionError(err error) error {
+	if errors.Is(err, internalprograms.ErrRequestConflict) || errors.Is(err, internalprograms.ErrRequestExpired) {
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	if errors.Is(err, internalprograms.ErrInvalidRequestKey) {
+		return connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewError(connect.CodeInternal, fmt.Errorf("submit declared program: %w", err))
+}
+
+func (h *handler) awaitDeclared(ctx context.Context, program *programsv1.Program, async bool, wait time.Duration) (*connect.Response[libraryv1.RunDeclaredProgramResponse], error) {
+	if async {
 		return declaredProgramResponse(program, internalprograms.IsTerminal(program.GetStatus()), 0), nil
 	}
 	waitStarted := time.Now()
 	acceptedID := program.GetId()
 	if !internalprograms.IsTerminal(program.GetStatus()) {
-		program, ok, err = h.programs.Wait(ctx, program.GetId(), wait)
+		program, ok, err := h.programs.Wait(ctx, program.GetId(), wait)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("wait interrupted; inspect program %s with programs get before retrying: %w", acceptedID, err))
 		}
 		if ok {
-			_, _ = h.sessions.Delete(context.Background(), session.ID, "declared program complete")
+			_, _ = h.sessions.Delete(context.Background(), program.GetSessionId(), "declared program complete")
 		}
 		return declaredProgramResponse(program, ok, time.Since(waitStarted)), nil
 	}

@@ -394,6 +394,13 @@ workspace-sandbox attach abc123 --vrooli-aware -- htop
 
 ## API Reference
 
+For command, background-process and interactive launches, omitted or `null`
+`allowNetwork` inherits the
+isolation profile. Explicit `false` disables network access even when the profile
+allows it; a tracking-only backend refuses that request before launching.
+Explicit `true` enables network access. The response's containment enforcements
+describe the effective launch, not merely the selected profile.
+
 ### Execute Command
 
 ```http

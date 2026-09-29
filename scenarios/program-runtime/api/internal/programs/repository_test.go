@@ -62,7 +62,7 @@ func TestStartupReconcilesOnlyInterruptedPrograms(t *testing.T) { // [REQ:PRT-P1
 func TestSQLiteRepositoryRoundTripAfterRepositoryRestart(t *testing.T) { // [REQ:PRT-P1-006]
 	ctx := context.Background()
 	d := newProgramsTestDB(t)
-	want := &programsv1.Program{Id: "prog_persisted", SessionId: "sess_1", Source: "raise ValueError()", Provenance: programsv1.Provenance_PROVENANCE_AGENT, Status: programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, Stdout: "partial", FailureDetail: "field title: invalid", FailureShape: "field title", ContextBytes: 128, CreatedAt: time.Date(2026, 8, 11, 14, 0, 0, 0, time.UTC).Format(time.RFC3339Nano), OutputLimitBytes: 4096, ProgramName: "example.program", ProgramDigest: "digest-1", CallerRunId: "run-1", CallerAgentProfile: "profile", CallerSkillId: "skill", CallerHarness: "cli"}
+	want := &programsv1.Program{Id: "prog_persisted", SessionId: "sess_1", Source: "raise ValueError()", Provenance: programsv1.Provenance_PROVENANCE_AGENT, Status: programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, Stdout: "partial", FailureDetail: "field title: invalid", FailureShape: "field title", ContextBytes: 128, CreatedAt: time.Date(2026, 8, 11, 14, 0, 0, 0, time.UTC).Format(time.RFC3339Nano), OutputLimitBytes: 4096, ProgramName: "example.program", ProgramDigest: "digest-1", CallerRunId: "run-1", CallerAgentProfile: "profile", CallerSkillId: "skill", CallerHarness: "cli", UsageTokens: 19, UsageChargeMicros: 23, UsageAccountingComplete: true, UsageChargeMeasured: true, UsageBasis: "dedicated_declared_session"}
 	require.NoError(t, NewRepository(d).Save(ctx, want))
 
 	got, err := NewRepository(d).Get(ctx, want.Id)
@@ -78,6 +78,11 @@ func TestSQLiteRepositoryRoundTripAfterRepositoryRestart(t *testing.T) { // [REQ
 	require.Equal(t, want.CallerAgentProfile, got.CallerAgentProfile)
 	require.Equal(t, want.CallerSkillId, got.CallerSkillId)
 	require.Equal(t, want.CallerHarness, got.CallerHarness)
+	require.Equal(t, want.UsageTokens, got.UsageTokens)
+	require.Equal(t, want.UsageChargeMicros, got.UsageChargeMicros)
+	require.Equal(t, want.UsageAccountingComplete, got.UsageAccountingComplete)
+	require.Equal(t, want.UsageChargeMeasured, got.UsageChargeMeasured)
+	require.Equal(t, want.UsageBasis, got.UsageBasis)
 }
 
 func TestSQLiteRepositoryLeavesAbsentCallerEmpty(t *testing.T) { // [REQ:PRT-P1-008]

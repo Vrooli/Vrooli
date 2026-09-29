@@ -9,6 +9,7 @@ import (
 	"context"
 	"database/sql"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -137,6 +138,25 @@ func TestCreate_AndGet_RoundTrip(t *testing.T) {
 	}
 	if got.CreatedAt.IsZero() || got.LastUsedAt.IsZero() || got.UpdatedAt.IsZero() {
 		t.Error("expected non-zero timestamps")
+	}
+}
+
+func TestWritePolicySurvivesRepositoryRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	repo := newTestRepo(t)
+	for _, policy := range []*types.WorkspaceWritePolicy{nil, {}, {Paths: []string{"src", "tests"}}} {
+		sb := newTestSandbox()
+		sb.Behavior.WritePolicy = policy
+		if err := repo.Create(ctx, sb); err != nil {
+			t.Fatal(err)
+		}
+		got, err := repo.Get(ctx, sb.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(got.Behavior.WritePolicy, policy) {
+			t.Fatalf("persisted policy = %#v; want %#v", got.Behavior.WritePolicy, policy)
+		}
 	}
 }
 
@@ -513,6 +533,14 @@ func TestRecordAppliedChanges_AndGetPendingChanges(t *testing.T) {
 	}
 	if err := repo.RecordAppliedChanges(ctx, []*types.AppliedChange{c}); err != nil {
 		t.Fatalf("RecordAppliedChanges: %v", err)
+	}
+	if err := repo.RecordAppliedChanges(ctx, []*types.AppliedChange{c}); err != nil {
+		t.Fatalf("identical provenance replay must retain one row: %v", err)
+	}
+	changed := *c
+	changed.ContentDigest = "sha256:different"
+	if err := repo.RecordAppliedChanges(ctx, []*types.AppliedChange{&changed}); err == nil {
+		t.Fatal("same provenance identity accepted different content")
 	}
 
 	files, err := repo.GetPendingChangeFiles(ctx, "/proj", nil)

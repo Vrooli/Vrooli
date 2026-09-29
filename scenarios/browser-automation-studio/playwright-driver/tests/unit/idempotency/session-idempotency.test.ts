@@ -9,6 +9,9 @@ import type { SessionSpec } from '../../../src/types';
 import { playwrightProvider } from '../../../src/playwright';
 import { SessionManager } from '../../../src/session/manager';
 import { createMockBrowser, createMockContext, createMockPage, createTestConfig } from '../../helpers';
+import { enqueueIdempotentInput } from '../../../src/session/live-input';
+import { getFrameCacheSlot } from '../../../src/session/frame-cache';
+import * as verification from '../../../src/recording/validation/verification';
 
 describe('Session Idempotency', () => {
   let manager: InstanceType<typeof SessionManager>;
@@ -17,6 +20,7 @@ describe('Session Idempotency', () => {
   let mockContext: ReturnType<typeof createMockContext>;
   let mockPage: ReturnType<typeof createMockPage>;
   let launchSpy: jest.SpiedFunction<typeof playwrightProvider.chromium.launch>;
+  let readinessSpy: jest.SpiedFunction<typeof verification.waitForScriptReady>;
 
   const baseSpec: SessionSpec = {
     execution_id: 'exec-idempotency-test',
@@ -35,14 +39,19 @@ describe('Session Idempotency', () => {
     mockBrowser.newContext.mockResolvedValue(mockContext);
     mockContext.newPage.mockResolvedValue(mockPage);
     launchSpy = jest.spyOn(playwrightProvider.chromium, 'launch').mockResolvedValue(mockBrowser);
+    readinessSpy = jest.spyOn(verification, 'waitForScriptReady').mockResolvedValue({
+      loaded: true, ready: true, inMainContext: true, handlersCount: 1,
+      loadTime: 1, version: 'fixture',
+    });
 
     config = createTestConfig();
     manager = new SessionManager(config);
   });
 
   afterEach(async () => {
-    launchSpy.mockRestore();
     await manager.shutdown();
+    launchSpy.mockRestore();
+    readinessSpy.mockRestore();
     jest.clearAllMocks();
   });
 
@@ -113,6 +122,31 @@ describe('Session Idempotency', () => {
       expect(result2.reused).toBe(true);
       // A repeated start must preserve the current owner state.
       expect(mockContext.clearCookies.mock.calls.length).toBe(0);
+    });
+
+    it('retires transient owner state before transferring a released session', async () => {
+      const first = await manager.startSession({ ...baseSpec, labels: { handoff: 'transient-state' } });
+      const oldEffect = jest.fn().mockResolvedValue(undefined);
+      await enqueueIdempotentInput(mockPage, 'old-input', JSON.stringify({ x: 1 }), oldEffect);
+      const oldSlot = getFrameCacheSlot(first.sessionId);
+      oldSlot.frame = {
+        key: 'old-frame', hash: 'old', base64DataUri: 'data:image/jpeg;base64,old',
+        width: 1, height: 1, capturedAt: Date.now(),
+      };
+      expect(manager.releaseExecutionLease(first.sessionId, baseSpec.execution_id, first.leaseId)).toBe(true);
+
+      const next = await manager.startSession({
+        ...baseSpec, execution_id: 'handoff-owner', labels: { handoff: 'transient-state' }, reuse_mode: 'reuse',
+      });
+      expect(next.sessionId).toBe(first.sessionId);
+
+      const newEffect = jest.fn().mockResolvedValue(undefined);
+      await expect(enqueueIdempotentInput(mockPage, 'old-input', JSON.stringify({ x: 2 }), newEffect)).resolves.toMatchObject({
+        input_id: 'old-input',
+      });
+      expect(oldEffect).toHaveBeenCalledTimes(1);
+      expect(newEffect).toHaveBeenCalledTimes(1);
+      expect(getFrameCacheSlot(first.sessionId)).not.toBe(oldSlot);
     });
 
     it('should return existing session regardless of reuse_mode for same execution_id', async () => {

@@ -361,13 +361,13 @@ func Bridge(registry *bindings.Registry, manager *sessions.Manager, refusalRecor
 				return
 			}
 		}
-		result, err := registry.Execute(r.Context(), request.BindingID, request.Args, grants, request.Confirmed, bindings.InvocationMetadata{SessionID: request.SessionID, ProgramID: request.ProgramID, Provenance: request.Provenance}, &http.Client{Timeout: budgets.BridgeCall})
+		result, err := registry.Execute(r.Context(), request.BindingID, request.Args, grants, request.Confirmed, bindings.InvocationMetadata{SessionID: request.SessionID, ProgramID: request.ProgramID, Provenance: request.Provenance}, &http.Client{Timeout: budgets.BridgeForBinding(request.BindingID)})
 		if err != nil {
 			writeBridgeFailure(w, http.StatusBadRequest, request.BindingID, err)
 			return
 		}
 		if registry.IsInferenceBinding(request.BindingID) {
-			input, output, cost, present := bindings.InferenceUsage(result)
+			input, output, cost, present, chargePresent := bindings.InferenceUsageDetails(result)
 			if present {
 				if err := manager.RecordInferenceUsage(r.Context(), request.SessionID, cost, input+output); err != nil {
 					var exceeded *sessions.SpendExceededError
@@ -375,6 +375,12 @@ func Bridge(registry *bindings.Registry, manager *sessions.Manager, refusalRecor
 						writeBridgeFailure(w, http.StatusTooManyRequests, request.BindingID, err)
 						return
 					}
+					writeBridgeError(w, http.StatusInternalServerError, err.Error())
+					return
+				}
+			}
+			if !present || !chargePresent {
+				if err := manager.MarkAccountingUnknown(r.Context(), request.SessionID); err != nil {
 					writeBridgeError(w, http.StatusInternalServerError, err.Error())
 					return
 				}
@@ -683,11 +689,10 @@ func AgentBridge(manager *sessions.Manager, delegator programs.Delegator) http.H
 		}
 		result, err := delegator.Delegate(r.Context(), request)
 		if err != nil {
-			writeBridgeError(w, http.StatusBadGateway, err.Error())
+			writeBridgeError(w, http.StatusBadGateway, markDelegationUncertain(manager, r.Context(), request.SessionID, err).Error())
 			return
 		}
-		cost, measured, note := programs.DelegationCharge(result)
-		if err := manager.RecordDelegationUsage(r.Context(), request.SessionID, cost, measured, note); err != nil {
+		if err := retainDelegationResult(manager, r.Context(), request, result); err != nil {
 			var exceeded *sessions.SpendExceededError
 			if errors.As(err, &exceeded) {
 				writeBridgeError(w, http.StatusTooManyRequests, err.Error())
@@ -725,11 +730,10 @@ func AgentStartBridge(manager *sessions.Manager, delegator programs.Delegator) h
 		}
 		result, err := asyncDelegator.Start(r.Context(), request)
 		if err != nil {
-			writeBridgeError(w, http.StatusBadGateway, err.Error())
+			writeBridgeError(w, http.StatusBadGateway, markDelegationUncertain(manager, r.Context(), request.SessionID, err).Error())
 			return
 		}
-		executionID, _ := result["execution_id"].(string)
-		if err := manager.SaveDelegation(r.Context(), &sessions.Delegation{SessionID: request.SessionID, ExecutionID: executionID, Owner: request.Owner, WorkflowKey: request.WorkflowKey, IdempotencyKey: request.IdempotencyKey, CreatedAt: time.Now().UTC(), LastStatus: fmt.Sprint(result["status"])}); err != nil {
+		if err := retainDelegationResult(manager, r.Context(), request, result); err != nil {
 			writeBridgeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -758,9 +762,13 @@ func AgentCollectBridge(manager *sessions.Manager, delegator programs.Delegator)
 			writeBridgeError(w, http.StatusBadRequest, fmt.Sprintf("decode collect request: %v", err))
 			return
 		}
-		if _, err := manager.GetDelegation(r.Context(), request.SessionID, request.ExecutionID); err != nil {
+		delegation, err := manager.GetDelegation(r.Context(), request.SessionID, request.ExecutionID)
+		if err != nil {
 			if errors.Is(err, sessions.ErrDelegationNotOwned) && request.Owner != "" && request.WorkflowKey != "" && request.IdempotencyKey != "" {
 				err = manager.AdoptDelegation(r.Context(), request.SessionID, request.ExecutionID, request.Owner, request.WorkflowKey, request.IdempotencyKey)
+				if err == nil {
+					delegation, err = manager.GetDelegation(r.Context(), request.SessionID, request.ExecutionID)
+				}
 			}
 			if err == nil {
 				// The exact stable idempotency identity authorized a crash/restart
@@ -784,19 +792,77 @@ func AgentCollectBridge(manager *sessions.Manager, delegator programs.Delegator)
 			writeBridgeError(w, http.StatusBadGateway, err.Error())
 			return
 		}
-		cost, measured, note := programs.DelegationCharge(result)
-		if err := manager.RecordDelegationUsage(r.Context(), request.SessionID, cost, measured, note); err != nil {
-			var exceeded *sessions.SpendExceededError
-			if errors.As(err, &exceeded) {
-				writeBridgeError(w, http.StatusTooManyRequests, err.Error())
+		status := fmt.Sprint(result["status"])
+		if terminalDelegationStatus(status) {
+			cost, measured, note := programs.DelegationCharge(result)
+			if _, err := manager.SettleDelegationUsage(r.Context(), request.SessionID, request.ExecutionID, status, cost, measured, note); err != nil {
+				var exceeded *sessions.SpendExceededError
+				if errors.As(err, &exceeded) {
+					writeBridgeError(w, http.StatusTooManyRequests, err.Error())
+					return
+				}
+				writeBridgeError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
-			writeBridgeError(w, http.StatusInternalServerError, err.Error())
-			return
+		} else {
+			delegation.LastStatus = status
+			if err := manager.SaveDelegation(r.Context(), delegation); err != nil {
+				writeBridgeError(w, http.StatusInternalServerError, markDelegationUncertain(manager, r.Context(), request.SessionID, err).Error())
+				return
+			}
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(result)
 	})
+}
+
+// retainDelegationResult routes both synchronous results and async starts
+// through the same execution-keyed settlement record.
+func retainDelegationResult(manager *sessions.Manager, ctx context.Context, request programs.DelegationRequest, result map[string]any) error {
+	executionID, _ := result["execution_id"].(string)
+	if strings.TrimSpace(executionID) == "" {
+		return markDelegationUncertain(manager, ctx, request.SessionID, errors.New("delegation result omitted execution_id"))
+	}
+	status := fmt.Sprint(result["status"])
+	owner, _ := result["owner"].(string)
+	if owner == "" {
+		owner = request.Owner
+	}
+	workflowKey, _ := result["workflow_key"].(string)
+	if workflowKey == "" {
+		workflowKey = request.WorkflowKey
+	}
+	idempotencyKey, _ := result["idempotency_key"].(string)
+	if idempotencyKey == "" {
+		idempotencyKey = request.IdempotencyKey
+	}
+	child := &sessions.Delegation{SessionID: request.SessionID, ExecutionID: executionID, Owner: owner, WorkflowKey: workflowKey, IdempotencyKey: idempotencyKey, CreatedAt: time.Now().UTC(), LastStatus: status}
+	if err := manager.SaveDelegation(ctx, child); err != nil {
+		return markDelegationUncertain(manager, ctx, request.SessionID, err)
+	}
+	if terminalDelegationStatus(status) {
+		cost, measured, note := programs.DelegationCharge(result)
+		if _, err := manager.SettleDelegationUsage(ctx, request.SessionID, executionID, status, cost, measured, note); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func markDelegationUncertain(manager *sessions.Manager, ctx context.Context, sessionID string, cause error) error {
+	if err := manager.MarkAccountingUnknown(ctx, sessionID); err != nil {
+		return fmt.Errorf("%v; preserve accounting uncertainty: %w", cause, err)
+	}
+	return cause
+}
+
+func terminalDelegationStatus(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "succeeded", "failed", "cancelled":
+		return true
+	default:
+		return false
+	}
 }
 
 func mapKeys(values map[string]struct{}) []string {

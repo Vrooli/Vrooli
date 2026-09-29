@@ -24,6 +24,141 @@ type service struct {
 	deps Deps
 }
 
+type normalizedStartNavigationRequest struct {
+	sessionID string
+	prompt    string
+	model     string
+	maxSteps  int
+}
+
+func normalizeStartNavigationRequest(msg *aiv1.StartNavigationRequest) (normalizedStartNavigationRequest, error) {
+	sessionID := strings.TrimSpace(msg.GetSessionId())
+	if sessionID == "" {
+		return normalizedStartNavigationRequest{}, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id is required"))
+	}
+	prompt := strings.TrimSpace(msg.GetPrompt())
+	if prompt == "" {
+		return normalizedStartNavigationRequest{}, connect.NewError(connect.CodeInvalidArgument, errors.New("prompt is required"))
+	}
+	model := strings.TrimSpace(msg.GetModel())
+	if model == "" {
+		return normalizedStartNavigationRequest{}, connect.NewError(connect.CodeInvalidArgument, errors.New("model is required"))
+	}
+
+	maxSteps := int(msg.GetMaxSteps())
+	if maxSteps <= 0 {
+		maxSteps = 20
+	}
+	if maxSteps > 100 {
+		maxSteps = 100
+	}
+	return normalizedStartNavigationRequest{sessionID: sessionID, prompt: prompt, model: model, maxSteps: maxSteps}, nil
+}
+
+func validateNavigationTaskContract(msg *aiv1.StartNavigationRequest, navigatorType vision.NavigatorType) error {
+	if msg.EffectPolicy != "" && msg.EffectPolicy != "explicit" && msg.EffectPolicy != "read_only" {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported effect_policy"))
+	}
+	if len(msg.Postconditions) > 16 || len(msg.Extraction) > 16 {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("at most 16 postconditions and extractions"))
+	}
+	if navigatorType != vision.NavigatorPlaywright && (msg.EffectPolicy == "read_only" || len(msg.Postconditions) > 0 || len(msg.Extraction) > 0) {
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("selected navigator does not support enforced task contracts"))
+	}
+	return nil
+}
+
+func buildNavigationPostconditions(items []*aiv1.NavigationPostcondition) ([]vision.NavigationPostcondition, error) {
+	conditions := make([]vision.NavigationPostcondition, 0, len(items))
+	for _, condition := range items {
+		if condition.Selector == "" || len(condition.Selector) > 1024 || len(condition.Expected) > 4096 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid postcondition"))
+		}
+		switch condition.Mode {
+		case "exists", "text_equals", "text_contains", "count_equals", "ASSERTION_MODE_EXISTS":
+		default:
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported postcondition mode"))
+		}
+		conditions = append(conditions, vision.NavigationPostcondition{Selector: condition.Selector, Mode: condition.Mode, Expected: condition.Expected})
+	}
+	return conditions, nil
+}
+
+func buildNavigationExtractions(items []*aiv1.NavigationExtraction) ([]vision.NavigationExtraction, error) {
+	extraction := make([]vision.NavigationExtraction, 0, len(items))
+	names := map[string]bool{}
+	for _, item := range items {
+		if item.Name == "" || names[item.Name] || len(item.Name) > 128 || item.Selector == "" || len(item.Selector) > 1024 || len(item.Attribute) > 128 || item.Limit < 0 || item.Limit > 100 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid extraction"))
+		}
+		names[item.Name] = true
+		extraction = append(extraction, vision.NavigationExtraction{Name: item.Name, Selector: item.Selector, Attribute: item.Attribute, Limit: int(item.Limit)})
+	}
+	return extraction, nil
+}
+
+func buildNavigationTaskContract(
+	msg *aiv1.StartNavigationRequest,
+	navigatorType vision.NavigatorType,
+) (string, []vision.NavigationPostcondition, []vision.NavigationExtraction, error) {
+	if err := validateNavigationTaskContract(msg, navigatorType); err != nil {
+		return "", nil, nil, err
+	}
+	conditions, err := buildNavigationPostconditions(msg.Postconditions)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	extraction, err := buildNavigationExtractions(msg.Extraction)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	return msg.EffectPolicy, conditions, extraction, nil
+}
+
+func (s *service) navigationCredentialProvenance() vision.CredentialProvenance {
+	if s.deps.CredentialAuthority == nil {
+		return vision.CredentialProvenanceNone
+	}
+	identity, err := credentialauthority.ParseIdentity("vrooli/openrouter")
+	if err == nil && s.deps.CredentialAuthority.Status(identity, "api-key").Configured {
+		return vision.CredentialProvenanceAuthority
+	}
+	return vision.CredentialProvenanceNone
+}
+
+func navigationUserID(ctx context.Context) string {
+	userID := entitlement.UserIdentityFromContext(ctx)
+	if userID == "" {
+		return "anonymous"
+	}
+	return userID
+}
+
+func (s *service) authorizeNavigationCredits(
+	ctx context.Context,
+	navigator vision.VisionNavigator,
+	provenance vision.CredentialProvenance,
+) error {
+	policy := navigator.CreditPolicy()
+	if s.deps.Credits == nil || !policy.ShouldChargeCredits(provenance, false, false) {
+		return nil
+	}
+	userID := navigationUserID(ctx)
+	canProceed, errCode, errMsg, remaining, err := s.deps.Credits.CanPerformAIOperation(ctx, userID, policy.OperationType, provenance == vision.CredentialProvenanceAuthority)
+	if err != nil {
+		s.logger().WithError(err).Warn("vision_navigation: credit check failed; continuing")
+		return nil
+	}
+	if canProceed {
+		return nil
+	}
+	code := connect.CodeFailedPrecondition
+	if errCode == "INSUFFICIENT_CREDITS" {
+		code = connect.CodeResourceExhausted
+	}
+	return connect.NewError(code, fmt.Errorf("%s: %s (remaining=%d)", errCode, errMsg, remaining))
+}
+
 // =============================================================================
 // ListNavigators
 // =============================================================================
@@ -54,26 +189,9 @@ func (s *service) StartNavigation(
 	req *connect.Request[aiv1.StartNavigationRequest],
 ) (*connect.Response[aiv1.StartNavigationResponse], error) {
 	msg := req.Msg
-
-	sessionID := strings.TrimSpace(msg.GetSessionId())
-	if sessionID == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id is required"))
-	}
-	prompt := strings.TrimSpace(msg.GetPrompt())
-	if prompt == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("prompt is required"))
-	}
-	model := strings.TrimSpace(msg.GetModel())
-	if model == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("model is required"))
-	}
-
-	maxSteps := int(msg.GetMaxSteps())
-	if maxSteps <= 0 {
-		maxSteps = 20
-	}
-	if maxSteps > 100 {
-		maxSteps = 100
+	input, err := normalizeStartNavigationRequest(msg)
+	if err != nil {
+		return nil, err
 	}
 
 	source := vision.ClientSourceFromHeader(s.resolveClientSource(req, msg.GetClientSource()))
@@ -84,75 +202,22 @@ func (s *service) StartNavigation(
 		return nil, s.mapSelectError(err, preferredType, source)
 	}
 
-	provenance := vision.CredentialProvenanceNone
-	if s.deps.CredentialAuthority != nil {
-		identity, parseErr := credentialauthority.ParseIdentity("vrooli/openrouter")
-		if parseErr == nil && s.deps.CredentialAuthority.Status(identity, "api-key").Configured {
-			provenance = vision.CredentialProvenanceAuthority
-		}
-	}
-	policy := navigator.CreditPolicy()
-	if s.deps.Credits != nil && policy.ShouldChargeCredits(provenance, false, false) {
-		userID := entitlement.UserIdentityFromContext(ctx)
-		if userID == "" {
-			userID = "anonymous"
-		}
-		canProceed, errCode, errMsg, remaining, cerr := s.deps.Credits.CanPerformAIOperation(ctx, userID, policy.OperationType, provenance == vision.CredentialProvenanceAuthority)
-		if cerr != nil {
-			s.logger().WithError(cerr).Warn("vision_navigation: credit check failed; continuing")
-		} else if !canProceed {
-			code := connect.CodeFailedPrecondition
-			if errCode == "INSUFFICIENT_CREDITS" {
-				code = connect.CodeResourceExhausted
-			}
-			cErr := connect.NewError(code, fmt.Errorf("%s: %s (remaining=%d)", errCode, errMsg, remaining))
-			return nil, cErr
-		}
+	if err := s.authorizeNavigationCredits(ctx, navigator, s.navigationCredentialProvenance()); err != nil {
+		return nil, err
 	}
 
-	userID := entitlement.UserIdentityFromContext(ctx)
-	if userID == "" {
-		userID = "anonymous"
-	}
-
-	if req.Msg.EffectPolicy != "" && req.Msg.EffectPolicy != "explicit" && req.Msg.EffectPolicy != "read_only" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported effect_policy"))
-	}
-	if len(req.Msg.Postconditions) > 16 || len(req.Msg.Extraction) > 16 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("at most 16 postconditions and extractions"))
-	}
-	if navigator.Type() != vision.NavigatorPlaywright && (req.Msg.EffectPolicy == "read_only" || len(req.Msg.Postconditions) > 0 || len(req.Msg.Extraction) > 0) {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("selected navigator does not support enforced task contracts"))
-	}
-	conditions := make([]vision.NavigationPostcondition, 0, len(req.Msg.Postconditions))
-	for _, c := range req.Msg.Postconditions {
-		if c.Selector == "" || len(c.Selector) > 1024 || len(c.Expected) > 4096 {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid postcondition"))
-		}
-		switch c.Mode {
-		case "exists", "text_equals", "text_contains", "count_equals", "ASSERTION_MODE_EXISTS":
-		default:
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported postcondition mode"))
-		}
-		conditions = append(conditions, vision.NavigationPostcondition{Selector: c.Selector, Mode: c.Mode, Expected: c.Expected})
-	}
-	extraction := make([]vision.NavigationExtraction, 0, len(req.Msg.Extraction))
-	names := map[string]bool{}
-	for _, e := range req.Msg.Extraction {
-		if e.Name == "" || names[e.Name] || len(e.Name) > 128 || e.Selector == "" || len(e.Selector) > 1024 || len(e.Attribute) > 128 || e.Limit < 0 || e.Limit > 100 {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid extraction"))
-		}
-		names[e.Name] = true
-		extraction = append(extraction, vision.NavigationExtraction{Name: e.Name, Selector: e.Selector, Attribute: e.Attribute, Limit: int(e.Limit)})
+	effectPolicy, conditions, extraction, err := buildNavigationTaskContract(msg, navigator.Type())
+	if err != nil {
+		return nil, err
 	}
 	navReq := vision.NavigationRequest{
-		EffectPolicy: req.Msg.EffectPolicy, Postconditions: conditions, Extraction: extraction,
-		SessionID:     sessionID,
-		Prompt:        prompt,
-		Model:         model,
-		MaxSteps:      maxSteps,
+		EffectPolicy: effectPolicy, Postconditions: conditions, Extraction: extraction,
+		SessionID:     input.sessionID,
+		Prompt:        input.prompt,
+		Model:         input.model,
+		MaxSteps:      input.maxSteps,
 		NavigatorType: navigator.Type(),
-		UserID:        userID,
+		UserID:        navigationUserID(ctx),
 		CallbackURL:   s.resolveCallbackURL(req),
 	}
 
@@ -164,17 +229,17 @@ func (s *service) StartNavigation(
 
 	s.logger().WithFields(logrus.Fields{
 		"navigation_id": handle.ID(),
-		"session_id":    sessionID,
-		"model":         model,
-		"max_steps":     maxSteps,
+		"session_id":    input.sessionID,
+		"model":         input.model,
+		"max_steps":     input.maxSteps,
 		"navigator":     string(navigator.Type()),
 	}).Info("vision_navigation: started")
 
 	return connect.NewResponse(&aiv1.StartNavigationResponse{
 		NavigationId:  handle.ID(),
 		Status:        "started",
-		Model:         model,
-		MaxSteps:      int32(maxSteps),
+		Model:         input.model,
+		MaxSteps:      int32(input.maxSteps),
 		NavigatorType: string(navigator.Type()),
 	}), nil
 }
@@ -187,6 +252,39 @@ func (s *service) StartNavigation(
 // may block for. Callers needing longer simply call again; the wait is a
 // server primitive so no client ever has to poll.
 const maxStatusWait = 300 * time.Second
+
+func waitForNavigationStatus(
+	ctx context.Context,
+	tracker vision.SessionTracker,
+	navigationID string,
+	session *vision.NavigationSession,
+	wait time.Duration,
+) (*vision.NavigationSession, error) {
+	if wait <= 0 || session.Status.Terminal() {
+		return session, nil
+	}
+
+	deadline := time.NewTimer(wait)
+	defer deadline.Stop()
+	for !session.Status.Terminal() {
+		select {
+		case <-ctx.Done():
+			return nil, connect.NewError(connect.CodeCanceled, ctx.Err())
+		case <-deadline.C:
+			if fresh, still := tracker.GetSession(navigationID); still {
+				session = fresh
+			}
+			return session, nil
+		case <-session.Changed():
+		}
+		next, ok := tracker.GetSession(navigationID)
+		if !ok {
+			return nil, connect.NewError(connect.CodeNotFound, errors.New("navigation session not found"))
+		}
+		session = next
+	}
+	return session, nil
+}
 
 func (s *service) GetNavigationStatus(
 	ctx context.Context,
@@ -204,31 +302,14 @@ func (s *service) GetNavigationStatus(
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("navigation session not found"))
 	}
 
-	if wait := clampStatusWait(req.Msg.GetWaitMillis()); wait > 0 && !session.Status.Terminal() {
-		deadline := time.NewTimer(wait)
-		defer deadline.Stop()
-		// Each GetSession snapshot carries the Changed() channel that was
-		// current when it was taken, so a transition between the snapshot
-		// and the select still wakes us: the channel is already closed.
-		for !session.Status.Terminal() {
-			select {
-			case <-ctx.Done():
-				return nil, connect.NewError(connect.CodeCanceled, ctx.Err())
-			case <-deadline.C:
-				if fresh, still := s.deps.Tracker.GetSession(navigationID); still {
-					session = fresh
-				}
-				return connect.NewResponse(navigationStatusToProto(session)), nil
-			case <-session.Changed():
-			}
-			session, ok = s.deps.Tracker.GetSession(navigationID)
-			if !ok {
-				// Session was reaped while we waited; it can only be reaped
-				// after completion, so report it as gone rather than hang.
-				return nil, connect.NewError(connect.CodeNotFound, errors.New("navigation session not found"))
-			}
-		}
+	// Each GetSession snapshot carries the Changed() channel that was current
+	// when it was taken, so a transition between the snapshot and the select
+	// still wakes the shared wait helper: the channel is already closed.
+	waitedSession, waitErr := waitForNavigationStatus(ctx, s.deps.Tracker, navigationID, session, clampStatusWait(req.Msg.GetWaitMillis()))
+	if waitErr != nil {
+		return nil, waitErr
 	}
+	session = waitedSession
 	return connect.NewResponse(navigationStatusToProto(session)), nil
 }
 
@@ -262,15 +343,17 @@ func navigationStatusToProto(session *vision.NavigationSession) *aiv1.GetNavigat
 	data, _ := structpb.NewStruct(session.ExtractedData)
 	return &aiv1.GetNavigationStatusResponse{
 		VerifiedSuccess: session.VerifiedSuccess, ExtractedData: data, VerificationError: session.VerificationError,
-		NavigationId:  session.NavigationID,
-		SessionId:     session.SessionID,
-		Status:        string(session.Status),
-		StepCount:     int32(session.StepCount),
-		TotalTokens:   int32(session.TotalTokens),
-		StartedAt:     timestamppb.New(session.StartedAt),
-		NavigatorType: string(session.NavigatorType),
-		Terminal:      session.Status.Terminal(),
-		Steps:         steps,
+		FinalUrl: session.FinalURL, Error: session.Error, Summary: session.Summary,
+		TotalDurationMs: session.TotalDurationMs,
+		NavigationId:    session.NavigationID,
+		SessionId:       session.SessionID,
+		Status:          string(session.Status),
+		StepCount:       int32(session.StepCount),
+		TotalTokens:     int32(session.TotalTokens),
+		StartedAt:       timestamppb.New(session.StartedAt),
+		NavigatorType:   string(session.NavigatorType),
+		Terminal:        session.Status.Terminal(),
+		Steps:           steps,
 	}
 }
 

@@ -811,18 +811,6 @@
           "completion": "optional"
         },
         {
-          "path": "internal/refactor_session_frame_probes.cjs",
-          "title": "Session and frame lifecycle probes",
-          "description": "Actual session manager, reset/teardown and frame hook over synthetic browser and asynchronous dependency seams",
-          "internal": true,
-          "docType": "bas-refactor-session-frame-probes",
-          "maturity": "active",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "optional"
-        },
-        {
           "path": "internal/refactor_retention_probes.go",
           "title": "Evidence retention selection probes",
           "description": "Actual retention service with in-memory oldest-first bounded index and filesystem",
@@ -876,18 +864,6 @@
           "description": "Released-session compatibility, capture ownership and external target admission observations",
           "internal": true,
           "docType": "bas-refactor-reuse-evidence",
-          "maturity": "active",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "optional"
-        },
-        {
-          "path": "internal/refactor_reuse_probes.cjs",
-          "title": "Released-session compatibility and evidence probes",
-          "description": "Actual route/manager/reuse/reset/teardown and target validators with synthetic contexts and capture handles",
-          "internal": true,
-          "docType": "bas-refactor-reuse-probes",
           "maturity": "active",
           "requiredBy": [
             "implemented"

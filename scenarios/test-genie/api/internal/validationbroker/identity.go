@@ -23,6 +23,60 @@ type IdentityResolver interface {
 	Resolve(context.Context, *validationv1.ValidationIntent) (*validationv1.SourceIdentity, error)
 }
 
+// matchExpectedIdentity checks retained preconditions before admission replaces
+// them with the full resolved identity. A named root asserts its digest and/or
+// complete file set; it is not a subset of files. Unasserted roots may be added by
+// the execution/build owners and are retained in the admitted identity.
+func matchExpectedIdentity(expected, resolved *validationv1.SourceIdentity) error {
+	if resolved == nil || resolved.GetIdentity() == "" {
+		return fmt.Errorf("resolved content identity is unavailable")
+	}
+	if expected == nil {
+		return nil
+	}
+	if expected.GetIdentity() != "" && expected.GetIdentity() != resolved.GetIdentity() {
+		return fmt.Errorf("expected content identity %s but resolved %s", expected.GetIdentity(), resolved.GetIdentity())
+	}
+	if expected.GetSchemaVersion() != 0 && expected.GetSchemaVersion() != resolved.GetSchemaVersion() {
+		return fmt.Errorf("expected content identity schema differs from resolved schema")
+	}
+	roots := map[string]*validationv1.ContentRootIdentity{}
+	for _, root := range resolved.GetRoots() {
+		if root.GetName() == "" || roots[root.GetName()] != nil {
+			return fmt.Errorf("resolved content roots are ambiguous")
+		}
+		roots[root.GetName()] = root
+	}
+	for _, want := range expected.GetRoots() {
+		got := roots[want.GetName()]
+		if got == nil {
+			return fmt.Errorf("expected content root %q is missing or repeated", want.GetName())
+		}
+		delete(roots, want.GetName())
+		if want.GetIdentity() != "" && want.GetIdentity() != got.GetIdentity() {
+			return fmt.Errorf("expected content root %q identity differs", want.GetName())
+		}
+		if want.GetIdentity() != "" && len(want.GetFiles()) == 0 {
+			continue // A digest-only assertion does not also assert an empty tree.
+		}
+		if len(want.GetFiles()) != len(got.GetFiles()) {
+			return fmt.Errorf("expected content root %q file set differs", want.GetName())
+		}
+		files := map[string]*validationv1.ContentFileIdentity{}
+		for _, file := range got.GetFiles() {
+			files[file.GetPath()] = file
+		}
+		for _, file := range want.GetFiles() {
+			actual := files[file.GetPath()]
+			if actual == nil || file.GetDigest() != actual.GetDigest() || file.GetSize() != actual.GetSize() {
+				return fmt.Errorf("expected content root %q file %q differs or is repeated", want.GetName(), file.GetPath())
+			}
+			delete(files, file.GetPath())
+		}
+	}
+	return nil
+}
+
 type ContentIdentityResolver struct {
 	repoRoot    string
 	builder     *treedigest.ManifestBuilder
@@ -97,7 +151,7 @@ func (r *ContentIdentityResolver) Resolve(ctx context.Context, intent *validatio
 	}
 	expected := intent.GetExpectedIdentity()
 	request.Configuration = cloneStringMap(expected.GetConfiguration())
-	if r.planner != nil {
+	if r.planner != nil && intent.GetPurpose() != validationv1.ValidationPurpose_VALIDATION_PURPOSE_EVIDENCE_PRODUCTION {
 		if request.Configuration == nil {
 			request.Configuration = map[string]string{}
 		}

@@ -18,6 +18,10 @@ const (
 	BaseTeamShared = "team-shared"
 	BaseTeamMember = "team-member"
 	BaseAgentRoot  = "agent-root"
+	// BaseExternal is read-only authority outside the repository, such as a
+	// Plan Manager artifact. It is valid for document references only; write
+	// declarations reject it explicitly.
+	BaseExternal = "external"
 
 	TeamWorkingStateKindCharter            = "charter"
 	TeamWorkingStateKindTaskBoard          = "task-board"
@@ -358,8 +362,18 @@ func NormalizePath(ref PathRef, input ValidationInput, activeMemberID string) (s
 	if path == "" {
 		return "", fmt.Errorf("path is required")
 	}
-	if filepath.IsAbs(path) {
+	if filepath.IsAbs(path) && base != BaseExternal {
 		return "", fmt.Errorf("path %q must be relative", path)
+	}
+	if base == BaseExternal {
+		if !filepath.IsAbs(path) {
+			return "", fmt.Errorf("external path %q must be absolute", path)
+		}
+		clean := filepath.ToSlash(filepath.Clean(path))
+		if clean == "." || clean == "" || clean == "/" {
+			return "", fmt.Errorf("external path %q must name a document", path)
+		}
+		return clean, nil
 	}
 	clean := filepath.ToSlash(filepath.Clean(path))
 	if clean == "." || clean == "" || clean == ".." || strings.HasPrefix(clean, "../") || strings.Contains(clean, "/../") {
@@ -390,6 +404,10 @@ func NormalizePath(ref PathRef, input ValidationInput, activeMemberID string) (s
 			return "", fmt.Errorf("agent-root path %q requires agentId or active member context", path)
 		}
 		return filepath.ToSlash(filepath.Join("scenarios/prompt-manager/store/agents", agentID, clean)), nil
+	case BaseExternal:
+		// Handled before relative-path normalization. Keep the case here as a
+		// guard if normalization is refactored later.
+		return filepath.ToSlash(filepath.Clean(path)), nil
 	default:
 		return "", fmt.Errorf("unsupported path base %q", base)
 	}
@@ -472,6 +490,11 @@ func requiredSharedStatePath(ref PathRef, input ValidationInput) (string, error)
 			return "", fmt.Errorf("repo-root requires RepoRoot")
 		}
 		return filepath.Join(input.RepoRoot, path), nil
+	case BaseExternal:
+		if !filepath.IsAbs(ref.Path) {
+			return "", fmt.Errorf("external path %q must be absolute", ref.Path)
+		}
+		return filepath.Clean(ref.Path), nil
 	default:
 		return "", fmt.Errorf("unsupported required shared-state base %q", ref.Base)
 	}
@@ -535,7 +558,7 @@ func validatePathRefs(paths []PathRef, required bool, optionalReason string, inp
 			return fmt.Errorf("operatingContract.documents.%s: %w", field, err)
 		}
 		if required {
-			if err := validateExists(normalized, input); err != nil {
+			if err := validateDocumentExists(normalized, ref.Base, input); err != nil {
 				return fmt.Errorf("operatingContract.documents.%s: %w", field, err)
 			}
 		}
@@ -543,8 +566,24 @@ func validatePathRefs(paths []PathRef, required bool, optionalReason string, inp
 	return nil
 }
 
+func validateDocumentExists(normalized, base string, input ValidationInput) error {
+	if base == BaseExternal {
+		if _, err := os.Stat(filepath.FromSlash(normalized)); err != nil {
+			if os.IsNotExist(err) {
+				return fmt.Errorf("required path %q does not exist", normalized)
+			}
+			return fmt.Errorf("stat required path %q: %w", normalized, err)
+		}
+		return nil
+	}
+	return validateExists(normalized, input)
+}
+
 func validateWriteRefs(refs []WriteRef, input ValidationInput, activeMemberID, field string) error {
 	for _, ref := range refs {
+		if ref.Base == BaseExternal {
+			return fmt.Errorf("operatingContract.members.%s cannot write external path %q", field, ref.Path)
+		}
 		if ref.Kind != "" {
 			switch ref.Kind {
 			case "handoff", "knowledge", "task", "inbox-message", "backlog":

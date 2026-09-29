@@ -107,6 +107,20 @@ func (f *fakeExecutor) ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID
 	return &database.ExecutionIndex{ID: uuid.New(), WorkflowID: workflowID, Status: database.ExecutionStatusCompleted, StartedAt: time.Now(), CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
 }
 
+type cancellationAwareExecutor struct {
+	started   chan struct{}
+	canceled  chan struct{}
+	startOnce sync.Once
+	stopOnce  sync.Once
+}
+
+func (f *cancellationAwareExecutor) ExecuteWorkflow(ctx context.Context, _ uuid.UUID, _ map[string]any) (*database.ExecutionIndex, error) {
+	f.startOnce.Do(func() { close(f.started) })
+	<-ctx.Done()
+	f.stopOnce.Do(func() { close(f.canceled) })
+	return nil, ctx.Err()
+}
+
 type fakeNotifier struct {
 	mu     sync.Mutex
 	events []ScheduleEvent
@@ -180,6 +194,48 @@ func TestSchedulerStartWithNoSchedules(t *testing.T) {
 
 	if got := s.RegisteredCount(); got != 0 {
 		t.Fatalf("expected 0 registered schedules, got %d", got)
+	}
+}
+
+func TestSchedulerStopContextCancelsScheduledWorkBeforeCronDrain(t *testing.T) {
+	executor := &cancellationAwareExecutor{started: make(chan struct{}), canceled: make(chan struct{})}
+	s := newTestScheduler(newMockScheduleRepo(), executor, nil)
+	if err := s.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	go s.createJob(newSchedule(uuid.New(), uuid.New(), "*/5 * * * * *", true))()
+	select {
+	case <-executor.started:
+	case <-time.After(time.Second):
+		t.Fatal("scheduled workflow did not start")
+	}
+
+	stopCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := s.StopContext(stopCtx); err != nil {
+		t.Fatalf("StopContext returned error: %v", err)
+	}
+	select {
+	case <-executor.canceled:
+	case <-time.After(time.Second):
+		t.Fatal("scheduler context did not cancel the running workflow")
+	}
+}
+
+func TestSchedulerCanRestartAfterContextBoundedStop(t *testing.T) {
+	s := newTestScheduler(newMockScheduleRepo(), &fakeExecutor{}, nil)
+	if err := s.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.StopContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Start(); err != nil {
+		t.Fatalf("scheduler could not restart after stop: %v", err)
+	}
+	if err := s.Stop(); err != nil {
+		t.Fatal(err)
 	}
 }
 

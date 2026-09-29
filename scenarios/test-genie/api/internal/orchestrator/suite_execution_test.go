@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"test-genie/internal/orchestrator/applicability"
 	"test-genie/internal/orchestrator/phasecache"
 	"test-genie/internal/orchestrator/phasecacheidentity"
 	phasespkg "test-genie/internal/orchestrator/phases"
@@ -796,6 +797,32 @@ func TestSuiteOrchestratorPhasePlanRequiresDescriptorMetadata(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "phase_applicability_descriptor_missing") {
 		t.Fatalf("error = %q, want phase_applicability_descriptor_missing", err.Error())
+	}
+}
+
+func TestCheckedInBASRetainedEvidencePhasePlansWithoutMutableEvidenceFiles(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve test source path")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../../"))
+	orchestrator, err := NewSuiteOrchestrator(filepath.Join(repoRoot, "scenarios"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	scenarioDir := t.TempDir()
+	plan, err := orchestrator.buildPhasePlan(workspacepkg.Environment{
+		ScenarioName: "browser-automation-studio", TargetKind: "scenario", TargetID: "browser-automation-studio",
+		TargetRoot: scenarioDir, ScenarioDir: scenarioDir,
+	}, &workspacepkg.Config{}, SuiteExecutionRequest{Phases: []string{"rehabilitation-evidence"}})
+	if err != nil {
+		t.Fatalf("BAS evidence phase was skipped without source-tree evidence: %v", err)
+	}
+	if got := plan.Applicability["rehabilitation-evidence"].Result.Status; got != applicability.StatusApplies {
+		t.Fatalf("BAS retained-evidence phase status=%s", got)
+	}
+	if len(plan.Selected) != 1 || plan.Selected[0].Name.Key() != "rehabilitation-evidence" {
+		t.Fatalf("selected phases=%v", definitionNames(plan.Selected))
 	}
 }
 

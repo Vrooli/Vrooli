@@ -126,6 +126,7 @@ type RunExecutor struct {
 	// Caller-provided env vars
 	customEnv   map[string]string
 	sessionEnv  map[string]string
+	policyFiles []runner.PolicyFile
 	skillSource promptmanager.SourceClient
 
 	// Identity token state
@@ -390,6 +391,11 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 		})
 	}
 	if e.run.ResolvedConfig != nil {
+		e.policyFiles, err = prepareRunnerPolicy(e.runStateRoot, e.run.ID, e.run.ResolvedConfig)
+		if err != nil {
+			e.failWithError(execCtx, err)
+			return
+		}
 		runtimeEnv, err := PrepareRunnerRuntimeRoot(e.runStateRoot, e.run.ID)
 		if err != nil {
 			e.failWithError(execCtx, err)
@@ -497,6 +503,7 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 			SystemPrompt:  e.systemPrompt,
 			Attachments:   e.attachments,
 			EnvVars:       e.MergedEnvVars(),
+			PolicyFiles:   e.policyFiles,
 			EventSink:     eventSink,
 			RunState:      e.runState,
 			Mu:            &e.mu,

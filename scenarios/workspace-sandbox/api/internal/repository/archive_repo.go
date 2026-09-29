@@ -25,11 +25,18 @@ import (
 // (see Service.snapshotDiff in Phase 2) so the archive insert and the
 // sandbox status flip become atomic.
 //
-// Insert is the only method that takes a *sql.Tx. All read/list/delete
-// methods auto-commit on the shared *sql.DB — they are not part of any
-// status-flip transaction and would only deadlock against one.
+// Insert and prepared-intent consumption can share the terminal transaction.
+// Reads use the shared *sql.DB; do not issue them inside that transaction.
 type ArchiveRepository interface {
+	PutReviewSnapshot(ctx context.Context, snapshot *types.ReviewSnapshot) error
+	GetReviewSnapshot(ctx context.Context, sandboxID, requestID uuid.UUID) (*types.ReviewSnapshot, error)
+	CheckReviewCapacity(ctx context.Context) error
+	PutPreparedApproval(ctx context.Context, approval *types.PreparedApproval) error
+	GetPreparedApproval(ctx context.Context, sandboxID uuid.UUID) (*types.PreparedApproval, error)
+	DeletePreparedApproval(ctx context.Context, tx *sql.Tx, sandboxID uuid.UUID) error
+
 	// Insert writes archive into the sandbox_diff_archives table.
+	// An identical replay succeeds; a different retained identity is refused.
 	// Must be called inside a *sql.Tx so the row is committed
 	// atomically with the sandbox status update. Pass tx=nil to
 	// auto-commit (used only by tests; production always rides a tx).
@@ -94,6 +101,55 @@ func NewArchiveRepository(db *sql.DB, clk schedule.Clock) *SandboxArchiveReposit
 	return &SandboxArchiveRepository{db: db, clock: clk}
 }
 
+func (r *SandboxArchiveRepository) PutPreparedApproval(ctx context.Context, approval *types.PreparedApproval) error {
+	if approval == nil || approval.Archive.SandboxID == uuid.Nil || approval.Request.SandboxID != approval.Archive.SandboxID || approval.Archive.ArchiveState != types.ArchiveStateComplete || approval.Request.CreateCommit {
+		return errors.New("invalid prepared approval")
+	}
+	raw, err := json.Marshal(approval)
+	if err != nil {
+		return err
+	}
+	id := uuidText(approval.Archive.SandboxID)
+	if _, err := r.db.ExecContext(ctx, `INSERT INTO sandbox_prepared_approvals(sandbox_id, intent_json) VALUES (?, ?) ON CONFLICT(sandbox_id) DO NOTHING`, id, string(raw)); err != nil {
+		return err
+	}
+	var stored string
+	if err := r.db.QueryRowContext(ctx, `SELECT intent_json FROM sandbox_prepared_approvals WHERE sandbox_id = ?`, id).Scan(&stored); err != nil {
+		return err
+	}
+	if stored != string(raw) {
+		return errors.New("sandbox already has a different prepared approval; recover it before changing intent")
+	}
+	return nil
+}
+
+func (r *SandboxArchiveRepository) GetPreparedApproval(ctx context.Context, id uuid.UUID) (*types.PreparedApproval, error) {
+	var raw string
+	err := r.db.QueryRowContext(ctx, `SELECT intent_json FROM sandbox_prepared_approvals WHERE sandbox_id = ?`, uuidText(id)).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var approval types.PreparedApproval
+	if err := json.Unmarshal([]byte(raw), &approval); err != nil {
+		return nil, fmt.Errorf("decode prepared approval: %w", err)
+	}
+	if approval.Archive.SandboxID != id || approval.Request.SandboxID != id {
+		return nil, errors.New("prepared approval identity does not match its owner")
+	}
+	return &approval, nil
+}
+
+func (r *SandboxArchiveRepository) DeletePreparedApproval(ctx context.Context, tx *sql.Tx, id uuid.UUID) error {
+	if tx == nil {
+		return errors.New("prepared approval publication requires a transaction")
+	}
+	_, err := tx.ExecContext(ctx, `DELETE FROM sandbox_prepared_approvals WHERE sandbox_id = ?`, uuidText(id))
+	return err
+}
+
 // archiveColumns is the canonical column projection for SELECTs. Kept
 // in one place so scanArchive and List build the same shape.
 const archiveColumns = `
@@ -104,12 +160,9 @@ const archiveColumns = `
 	COALESCE(agent_manager_run_id, ''),
 	sandbox_status`
 
-// Insert writes a row, validating shape and serializing JSON fields.
-// Idempotent on (sandbox_id) by design — a re-insert for the same
-// sandbox replaces the prior row. In practice the snapshot service
-// only ever calls this once per sandbox (terminal transition is
-// one-way per the state machine), but the upsert shape keeps tests
-// honest and tolerates retries against transient SQL failures.
+// Insert publishes immutable evidence. One conditional statement admits either
+// a new identity or an exact replay, including when called inside a transaction.
+// A different retry must not replace the evidence another reader already used.
 func (r *SandboxArchiveRepository) Insert(ctx context.Context, tx *sql.Tx, archive *types.DiffArchive) error {
 	if archive == nil {
 		return errors.New("archive_repo: nil archive")
@@ -163,13 +216,22 @@ func (r *SandboxArchiveRepository) Insert(ctx context.Context, tx *sql.Tx, archi
 		return fmt.Errorf("archive_repo: marshal stats: %w", err)
 	}
 
-	// INSERT OR REPLACE makes the call idempotent on sandbox_id.
 	const query = `
-		INSERT OR REPLACE INTO sandbox_diff_archives (
+		INSERT INTO sandbox_diff_archives (
 			sandbox_id, snapshot_at, archive_state, files_json, stats_json,
 			unified_diff_path, total_blob_bytes, project_root, owner,
 			agent_manager_run_id, sandbox_status
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(sandbox_id) DO UPDATE SET sandbox_id = excluded.sandbox_id
+		WHERE snapshot_at = excluded.snapshot_at
+		  AND archive_state = excluded.archive_state
+		  AND files_json = excluded.files_json AND stats_json = excluded.stats_json
+		  AND unified_diff_path IS excluded.unified_diff_path
+		  AND total_blob_bytes = excluded.total_blob_bytes
+		  AND project_root = excluded.project_root
+		  AND owner IS excluded.owner
+		  AND agent_manager_run_id IS excluded.agent_manager_run_id
+		  AND sandbox_status = excluded.sandbox_status`
 
 	args := []any{
 		uuidText(archive.SandboxID),
@@ -185,13 +247,21 @@ func (r *SandboxArchiveRepository) Insert(ctx context.Context, tx *sql.Tx, archi
 		string(archive.SandboxStatus),
 	}
 
+	var result sql.Result
 	if tx != nil {
-		_, err = tx.ExecContext(ctx, query, args...)
+		result, err = tx.ExecContext(ctx, query, args...)
 	} else {
-		_, err = r.db.ExecContext(ctx, query, args...)
+		result, err = r.db.ExecContext(ctx, query, args...)
 	}
 	if err != nil {
 		return fmt.Errorf("archive_repo: insert: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("archive_repo: publication outcome: %w", err)
+	}
+	if rows != 1 {
+		return errors.New("archive_repo: different evidence already published for sandbox")
 	}
 	return nil
 }

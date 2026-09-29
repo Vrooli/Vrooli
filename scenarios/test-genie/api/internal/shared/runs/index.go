@@ -237,6 +237,12 @@ func (i *Index) Append(rec RunRecord) error {
 		}
 		for idx, r := range records {
 			if r.RunID == rec.RunID {
+				if rec.AdmissionIntentDigest != "" && rec.AdmissionIntentDigest != r.AdmissionIntentDigest {
+					return fmt.Errorf("run %s admission identity is immutable", rec.RunID)
+				}
+				if rec.AdmissionIntentDigest == "" {
+					rec.AdmissionIntentDigest = r.AdmissionIntentDigest
+				}
 				records[idx] = rec
 				return i.writeUnlocked(records)
 			}
@@ -244,6 +250,75 @@ func (i *Index) Append(rec RunRecord) error {
 		records = append(records, rec)
 		return i.writeUnlocked(records)
 	})
+}
+
+// AdmitExplicit atomically claims an explicit run ID. Existing IDs are returned
+// untouched so callers can compare the immutable admission intent before replay.
+func (i *Index) AdmitExplicit(rec RunRecord) (RunRecord, bool, error) {
+	rec.NormalizeTargetIdentity()
+	var existing RunRecord
+	created := false
+	err := i.withLock(func() error {
+		records, err := i.readUnlocked()
+		if err != nil {
+			return err
+		}
+		for _, current := range records {
+			if current.RunID == rec.RunID {
+				existing = current
+				return nil
+			}
+		}
+		records = append(records, rec)
+		if err := i.writeUnlocked(records); err != nil {
+			return err
+		}
+		created = true
+		return nil
+	})
+	return existing, created, err
+}
+
+// FenceExplicitAbort atomically records that an explicitly identified run
+// admission was cancelled. The immutable admission digest prevents a later
+// Start from reusing the run ID with different input. Existing terminal
+// outcomes are returned unchanged.
+func (i *Index) FenceExplicitAbort(rec RunRecord) (RunRecord, error) {
+	rec.NormalizeTargetIdentity()
+	var result RunRecord
+	err := i.withLock(func() error {
+		records, err := i.readUnlocked()
+		if err != nil {
+			return err
+		}
+		for idx, current := range records {
+			if current.RunID != rec.RunID {
+				continue
+			}
+			if current.AdmissionIntentDigest == "" || current.AdmissionIntentDigest != rec.AdmissionIntentDigest {
+				return fmt.Errorf("explicit run %s has unknown or conflicting admission intent", rec.RunID)
+			}
+			if current.Status == StatusPassed || current.Status == StatusFailed || current.Status == StatusAborted {
+				result = current
+				return nil
+			}
+			current.Status = StatusAborted
+			current.CompletedAt = rec.CompletedAt
+			records[idx] = current
+			if err := i.writeUnlocked(records); err != nil {
+				return err
+			}
+			result = current
+			return nil
+		}
+		records = append(records, rec)
+		if err := i.writeUnlocked(records); err != nil {
+			return err
+		}
+		result = rec
+		return nil
+	})
+	return result, err
 }
 
 // Update mutates an existing record under lock. Returns ErrRunNotFound if the
@@ -256,8 +331,12 @@ func (i *Index) Update(runID string, mutate func(*RunRecord) error) error {
 		}
 		for idx := range records {
 			if records[idx].RunID == runID {
+				admission := records[idx].AdmissionIntentDigest
 				if err := mutate(&records[idx]); err != nil {
 					return err
+				}
+				if records[idx].AdmissionIntentDigest != admission {
+					return fmt.Errorf("run %s admission identity is immutable", runID)
 				}
 				return i.writeUnlocked(records)
 			}
@@ -280,8 +359,12 @@ func (i *Index) Finalize(runID string, result any, mutate func(*RunRecord) error
 			if records[idx].RunID != runID {
 				continue
 			}
+			admission := records[idx].AdmissionIntentDigest
 			if err := mutate(&records[idx]); err != nil {
 				return err
+			}
+			if records[idx].AdmissionIntentDigest != admission {
+				return fmt.Errorf("run %s admission identity is immutable", runID)
 			}
 			if !isTerminalRecord(records[idx].Status) {
 				return fmt.Errorf("%w: status %q is not terminal", ErrInvalidTerminalSnapshot, records[idx].Status)

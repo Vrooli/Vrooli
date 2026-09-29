@@ -66,6 +66,7 @@ class _Budgets:
     telemetry = 2.0
     describe = 20.0
     invoke = 100.0
+    binding_invokes = {}
 
     @classmethod
     def load(cls, raw: str) -> None:
@@ -79,6 +80,12 @@ class _Budgets:
             value = declared.get(key)
             if isinstance(value, (int, float)) and value > 0:
                 setattr(cls, attribute, float(value))
+        profiles = declared.get("binding_invoke_seconds", {})
+        if isinstance(profiles, dict):
+            cls.binding_invokes = {
+                key: float(value) for key, value in profiles.items()
+                if isinstance(key, str) and isinstance(value, (int, float)) and value > 0
+            }
 
 try:
     from safebuiltins import SAFE_BUILTIN_NAMES as _SAFE_BUILTIN_NAMES, SAFE_BUILTINS as _SAFE_BUILTINS
@@ -1191,6 +1198,7 @@ class BridgeBinding:
         self.row_field_candidates = list(row_field_candidates or [])
         self.reachability_url = reachability_url
         self.demand_start = demand_start
+        self.invoke_timeout = _Budgets.binding_invokes.get(binding_id, _Budgets.invoke)
         self._records_invocation = True
 
     def __call__(self, *args: Any, **kwargs: Any) -> Handle:
@@ -1235,7 +1243,7 @@ class BridgeBinding:
         request = json.dumps({"session_id": self.session_id, "program_id": context.get("program_id", ""), "provenance": context.get("provenance", ""), "binding_id": self.binding_id, "args": kwargs, "confirmed": confirmed, "rows": rows_override or ""}).encode()
         http_request = urllib.request.Request(self.bridge_url, data=request, headers={"Content-Type": "application/json"}, method="POST")
         try:
-            with urllib.request.urlopen(http_request, timeout=_Budgets.invoke) as response:
+            with urllib.request.urlopen(http_request, timeout=self.invoke_timeout) as response:
                 payload = json.loads(response.read().decode())
         except urllib.error.HTTPError as exc:
             # The bridge writes a structured body: error, class, status,

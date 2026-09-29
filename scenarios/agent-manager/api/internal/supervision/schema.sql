@@ -211,6 +211,11 @@ CREATE INDEX IF NOT EXISTS idx_supervision_outcomes_decision
     ON supervision_outcomes(decision_id);
 CREATE INDEX IF NOT EXISTS idx_supervision_outcomes_expiry
     ON supervision_outcomes(expires_at, outcome_id);
+-- Evidence coverage excludes superseded outcomes with a correlated anti-join.
+-- Keep that read bounded as the append-only history grows; without this index
+-- each retained row scans the entire outcomes table.
+CREATE INDEX IF NOT EXISTS idx_supervision_outcomes_supersedes
+    ON supervision_outcomes(supersedes_outcome_id);
 
 CREATE TABLE IF NOT EXISTS supervision_policy_control (
     singleton INTEGER PRIMARY KEY CHECK (singleton = 1),

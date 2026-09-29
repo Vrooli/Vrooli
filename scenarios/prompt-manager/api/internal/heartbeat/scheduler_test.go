@@ -19,9 +19,11 @@ func (s *stubConfigStore) GetHeartbeatConfig(ctx context.Context, teamID, agentI
 }
 
 type autoSupervisorStore struct {
-	team    *store.Team
-	configs []store.HeartbeatConfig
-	updates int
+	team          *store.Team
+	configs       []store.HeartbeatConfig
+	updates       int
+	configUpdates int
+	events        []string
 }
 
 func (s *autoSupervisorStore) GetHeartbeatConfig(context.Context, string, string) (*store.HeartbeatConfig, error) {
@@ -39,12 +41,25 @@ func (s *autoSupervisorStore) Update(_ context.Context, id string, updates *stor
 	if updates.EnabledSet {
 		s.team.Enabled = updates.Enabled
 		s.updates++
+		s.events = append(s.events, "team-update")
 	}
 	return nil
 }
 
 func (s *autoSupervisorStore) ListHeartbeatConfigs(context.Context, string) ([]store.HeartbeatConfig, error) {
 	return append([]store.HeartbeatConfig(nil), s.configs...), nil
+}
+
+func (s *autoSupervisorStore) SetHeartbeatConfig(_ context.Context, teamID, agentID string, config *store.HeartbeatConfig) error {
+	for i := range s.configs {
+		if s.configs[i].TeamID == teamID && s.configs[i].AgentID == agentID {
+			s.configs[i] = *config
+			s.configUpdates++
+			s.events = append(s.events, "profile-update")
+			return nil
+		}
+	}
+	return nil
 }
 
 func TestEnsureStandingSupervisorStartedIsIdempotent(t *testing.T) {
@@ -65,6 +80,12 @@ func TestEnsureStandingSupervisorStartedIsIdempotent(t *testing.T) {
 	if store.updates != 1 {
 		t.Fatalf("supervisor was enabled %d times, want exactly once", store.updates)
 	}
+	if store.configUpdates != 1 || store.configs[0].ProfileKey != standingSupervisorProfileKey {
+		t.Fatalf("supervisor profile was not corrected once: updates=%d profile=%q", store.configUpdates, store.configs[0].ProfileKey)
+	}
+	if len(store.events) < 2 || store.events[0] != "profile-update" || store.events[1] != "team-update" {
+		t.Fatalf("team was enabled before its Sol profile was persisted: events=%v", store.events)
+	}
 	if got := len(scheduler.ListScheduled()); got != 1 {
 		t.Fatalf("scheduled %d supervisor heartbeats, want exactly one", got)
 	}
@@ -72,6 +93,7 @@ func TestEnsureStandingSupervisorStartedIsIdempotent(t *testing.T) {
 }
 
 type captureExecutor struct {
+	mu    sync.Mutex
 	calls []executionCall
 }
 
@@ -82,16 +104,30 @@ type executionCall struct {
 }
 
 func (c *captureExecutor) Execute(ctx context.Context, teamID, agentID, profileKey string) (*ExecutionResult, error) {
+	c.mu.Lock()
 	c.calls = append(c.calls, executionCall{
 		teamID:     teamID,
 		agentID:    agentID,
 		profileKey: profileKey,
 	})
+	c.mu.Unlock()
 	return &ExecutionResult{
 		TeamID:  teamID,
 		AgentID: agentID,
 		Status:  store.HeartbeatStatusRunning,
 	}, nil
+}
+
+func (c *captureExecutor) callCount() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.calls)
+}
+
+func (c *captureExecutor) callAt(index int) executionCall {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.calls[index]
 }
 
 func TestSchedulerUsesConfigProfileKey(t *testing.T) {
@@ -109,11 +145,11 @@ func TestSchedulerUsesConfigProfileKey(t *testing.T) {
 
 	scheduler.executeHeartbeat(context.Background(), "team-1", "agent-1")
 
-	if len(exec.calls) != 1 {
-		t.Fatalf("expected executor to be called once, got %d", len(exec.calls))
+	if exec.callCount() != 1 {
+		t.Fatalf("expected executor to be called once, got %d", exec.callCount())
 	}
-	if exec.calls[0].profileKey != "custom-profile" {
-		t.Fatalf("expected profileKey to be custom-profile, got %s", exec.calls[0].profileKey)
+	if exec.callAt(0).profileKey != "custom-profile" {
+		t.Fatalf("expected profileKey to be custom-profile, got %s", exec.callAt(0).profileKey)
 	}
 }
 
@@ -131,13 +167,13 @@ func TestSchedulerUsesDefaultProfileWhenEmpty(t *testing.T) {
 
 	scheduler.executeHeartbeat(context.Background(), "team-1", "agent-1")
 
-	if len(exec.calls) != 1 {
-		t.Fatalf("expected executor to be called once, got %d", len(exec.calls))
+	if exec.callCount() != 1 {
+		t.Fatalf("expected executor to be called once, got %d", exec.callCount())
 	}
 	// When config.ProfileKey is empty, the scheduler passes an empty string
 	// so that Execute() can resolve the default based on the team's runtime mode.
-	if exec.calls[0].profileKey != "" {
-		t.Fatalf("expected empty profileKey (for Execute to resolve), got %q", exec.calls[0].profileKey)
+	if exec.callAt(0).profileKey != "" {
+		t.Fatalf("expected empty profileKey (for Execute to resolve), got %q", exec.callAt(0).profileKey)
 	}
 }
 
@@ -148,8 +184,8 @@ func TestSchedulerSkipsWhenConfigMissing(t *testing.T) {
 
 	scheduler.executeHeartbeat(context.Background(), "team-1", "agent-1")
 
-	if len(exec.calls) != 0 {
-		t.Fatalf("expected executor not to be called, got %d calls", len(exec.calls))
+	if exec.callCount() != 0 {
+		t.Fatalf("expected executor not to be called, got %d calls", exec.callCount())
 	}
 }
 
@@ -235,8 +271,8 @@ func TestSchedulerSkipsWhenConfigDisabled(t *testing.T) {
 
 	scheduler.executeHeartbeat(context.Background(), "team-1", "agent-1")
 
-	if len(exec.calls) != 0 {
-		t.Fatalf("expected executor not to be called, got %d calls", len(exec.calls))
+	if exec.callCount() != 0 {
+		t.Fatalf("expected executor not to be called, got %d calls", exec.callCount())
 	}
 }
 
@@ -327,11 +363,11 @@ func TestSchedulerSkipsTickWhenRecoveredObligationIsUncertain(t *testing.T) {
 	}
 	scheduler := NewScheduler(exec, nil, configStore, teamExecStore)
 
-	before := len(exec.calls)
+	before := exec.callCount()
 	scheduler.executeHeartbeat(context.Background(), "team-1", "agent-1")
 
-	if len(exec.calls) != before {
-		t.Fatalf("expected uncertain obligation to refuse the tick, executor called %d time(s)", len(exec.calls)-before)
+	if exec.callCount() != before {
+		t.Fatalf("expected uncertain obligation to refuse the tick, executor called %d time(s)", exec.callCount()-before)
 	}
 	if got := teamExecStore.Status("team-1"); len(got.RunningAgentIDs) != 1 {
 		t.Fatalf("expected obligation retained after refused tick, got %+v", got)
@@ -373,11 +409,11 @@ func TestSchedulerSkipsTickWhenRecoveredObligationIsPaused(t *testing.T) {
 	}
 	scheduler := NewScheduler(exec, nil, configStore, teamExecStore)
 
-	before := len(exec.calls)
+	before := exec.callCount()
 	scheduler.executeHeartbeat(context.Background(), "team-1", "agent-1")
 
-	if len(exec.calls) != before {
-		t.Fatalf("expected paused obligation to refuse the tick, executor called %d time(s)", len(exec.calls)-before)
+	if exec.callCount() != before {
+		t.Fatalf("expected paused obligation to refuse the tick, executor called %d time(s)", exec.callCount()-before)
 	}
 	if got := teamExecStore.Status("team-1"); len(got.PausedAgentIDs) != 1 || len(got.RunningAgentIDs) != 1 {
 		t.Fatalf("expected paused obligation retained after refused tick, got %+v", got)

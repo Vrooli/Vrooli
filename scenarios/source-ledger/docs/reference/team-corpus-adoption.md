@@ -169,6 +169,13 @@ bounded wake result, is not represented in every individual wake. Fleet-level
 facet coverage is therefore measured as the union of the team wakes; no dummy
 entries are written to make an empty facet appear in a wake.
 
+Wake excerpts the prose payload of a JSON object with a non-empty string
+`content` field before applying its line and character ceilings. Transport
+metadata must not consume the excerpt before that content. This is a read-only
+rendering rule, like frontmatter handling: journal and full recall preserve the
+original bytes. Other JSON shapes and malformed input retain their original
+text; no consumer-specific decoder or rewritten journal is required.
+
 ## Recall
 
 Every recall request carries the team scope explicitly. The service filters by

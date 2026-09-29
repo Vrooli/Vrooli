@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -12,7 +13,9 @@ import (
 	"test-genie/internal/testsqlite"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -33,6 +36,36 @@ func validIntent(caller, idempotency string) *validationv1.ValidationIntent {
 		ContentInputs:     []*validationv1.ContentInputRoot{{Name: "scenario", Root: "scenarios/demo", Selections: []*validationv1.InputSelection{{Glob: "**", Required: true}}}},
 		EvidencePolicy:    &validationv1.EvidencePolicy{RequiredEvidenceKinds: []string{"test-genie-run"}},
 		DeadlinePolicy:    &validationv1.DeadlinePolicy{QueueBudget: durationpb.New(time.Minute), ExecutionBudget: durationpb.New(time.Hour), MaximumAttempts: 2},
+	}
+}
+
+func TestRetainedEvidenceIntentBoundsIdentityAndDuplicates(t *testing.T) {
+	intent := validIntent("caller", "retained")
+	set := &scenariovalidationv1.RetainedEvidenceSet{ProducerReceiptId: "producer-receipt", Producer: "evidence-completeness", Target: "demo", RunId: "run-1", CandidateIdentity: "ci:v1:abc", CatalogDigest: "sha256:catalog", Artifacts: []*commonv1.EvidenceRef{{Producer: "demo", ArtifactId: "artifact_1", Kind: "owner-log", Checksum: strings.Repeat("a", 64), SizeBytes: 12}}}
+	intent.RetainedEvidenceSets = []*scenariovalidationv1.RetainedEvidenceSet{set}
+	if _, err := normalizeIntent(intent); err != nil {
+		t.Fatalf("valid retained set rejected: %v", err)
+	}
+	dup := proto.Clone(intent).(*validationv1.ValidationIntent)
+	dup.RetainedEvidenceSets[0].Artifacts = append(dup.RetainedEvidenceSets[0].Artifacts, proto.Clone(set.Artifacts[0]).(*commonv1.EvidenceRef))
+	if _, err := normalizeIntent(dup); !errors.Is(err, ErrInvalidIntent) {
+		t.Fatalf("duplicate artifact accepted: %v", err)
+	}
+	tooMany := proto.Clone(intent).(*validationv1.ValidationIntent)
+	tooMany.RetainedEvidenceSets = nil
+	for i := 0; i < 9; i++ {
+		copy := proto.Clone(set).(*scenariovalidationv1.RetainedEvidenceSet)
+		copy.ProducerReceiptId = fmt.Sprintf("receipt-%d", i)
+		copy.Artifacts[0].ArtifactId = fmt.Sprintf("artifact-%d", i)
+		tooMany.RetainedEvidenceSets = append(tooMany.RetainedEvidenceSets, copy)
+	}
+	if _, err := normalizeIntent(tooMany); !errors.Is(err, ErrInvalidIntent) {
+		t.Fatalf("too many evidence sets accepted: %v", err)
+	}
+	missing := proto.Clone(intent).(*validationv1.ValidationIntent)
+	missing.RetainedEvidenceSets[0].Artifacts[0].Checksum = ""
+	if _, err := normalizeIntent(missing); !errors.Is(err, ErrInvalidIntent) {
+		t.Fatalf("missing checksum accepted: %v", err)
 	}
 }
 

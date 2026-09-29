@@ -932,10 +932,12 @@ const file_prompt_manager_v1_heartbeat_heartbeat_proto_rawDesc = "" +
 	"\x13JsonMutationRequest\x12*\n" +
 	"\x04body\x18\x01 \x01(\v2\x16.google.protobuf.ValueR\x04body\":\n" +
 	"\fJsonResponse\x12*\n" +
-	"\x04data\x18\x01 \x01(\v2\x16.google.protobuf.ValueR\x04data2\xf12\n" +
+	"\x04data\x18\x01 \x01(\v2\x16.google.protobuf.ValueR\x04data2\xf24\n" +
 	"\x10HeartbeatService\x12s\n" +
 	"\x0eListHeartbeats\x12/.vrooli.prompt_manager.v1.heartbeat.TeamRequest\x1a0.vrooli.prompt_manager.v1.heartbeat.JsonResponse\x12s\n" +
-	"\fGetHeartbeat\x121.vrooli.prompt_manager.v1.heartbeat.MemberRequest\x1a0.vrooli.prompt_manager.v1.heartbeat.JsonResponse\x12~\n" +
+	"\fGetHeartbeat\x121.vrooli.prompt_manager.v1.heartbeat.MemberRequest\x1a0.vrooli.prompt_manager.v1.heartbeat.JsonResponse\x12y\n" +
+	"\x12RefreshSupervision\x121.vrooli.prompt_manager.v1.heartbeat.MemberRequest\x1a0.vrooli.prompt_manager.v1.heartbeat.JsonResponse\x12\x83\x01\n" +
+	"\x14ReconcileSupervision\x129.vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest\x1a0.vrooli.prompt_manager.v1.heartbeat.JsonResponse\x12~\n" +
 	"\x0fCreateHeartbeat\x129.vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest\x1a0.vrooli.prompt_manager.v1.heartbeat.JsonResponse\x12~\n" +
 	"\x0fUpdateHeartbeat\x129.vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest\x1a0.vrooli.prompt_manager.v1.heartbeat.JsonResponse\x12v\n" +
 	"\x0fDeleteHeartbeat\x121.vrooli.prompt_manager.v1.heartbeat.MemberRequest\x1a0.vrooli.prompt_manager.v1.heartbeat.JsonResponse\x12\x7f\n" +
@@ -1045,110 +1047,114 @@ var file_prompt_manager_v1_heartbeat_heartbeat_proto_depIdxs = []int32{
 	22, // 12: vrooli.prompt_manager.v1.heartbeat.JsonResponse.data:type_name -> google.protobuf.Value
 	2,  // 13: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListHeartbeats:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamRequest
 	5,  // 14: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetHeartbeat:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberRequest
-	7,  // 15: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateHeartbeat:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest
-	7,  // 16: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.UpdateHeartbeat:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest
-	5,  // 17: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.DeleteHeartbeat:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberRequest
-	7,  // 18: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.TriggerHeartbeat:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest
-	4,  // 19: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.TriggerTeam:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamMutationRequest
-	2,  // 20: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetTeamExecutionStatus:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamRequest
-	7,  // 21: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ClearTeamQueueRunning:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest
-	3,  // 22: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListTeamLogs:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamQueryRequest
-	6,  // 23: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListLogs:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberQueryRequest
-	10, // 24: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetLog:input_type -> vrooli.prompt_manager.v1.heartbeat.LogRequest
-	5,  // 25: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetResponsibilities:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberRequest
-	7,  // 26: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.SetResponsibilities:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest
-	5,  // 27: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetHeartbeatInstructions:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberRequest
-	7,  // 28: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.SetHeartbeatInstructions:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest
-	5,  // 29: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetMemberContext:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberRequest
-	5,  // 30: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetLastHandoff:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberRequest
-	7,  // 31: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ClearLastHandoff:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest
-	3,  // 32: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetHandoffHistory:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamQueryRequest
-	4,  // 33: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ClearHandoffHistory:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamMutationRequest
-	3,  // 34: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetTaskBoard:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamQueryRequest
-	4,  // 35: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.AddTask:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamMutationRequest
-	8,  // 36: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.UpdateTask:input_type -> vrooli.prompt_manager.v1.heartbeat.TaskMutationRequest
-	8,  // 37: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.DeleteTask:input_type -> vrooli.prompt_manager.v1.heartbeat.TaskMutationRequest
-	4,  // 38: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CaptureBug:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamMutationRequest
-	9,  // 39: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.RepairBug:input_type -> vrooli.prompt_manager.v1.heartbeat.BugMutationRequest
-	2,  // 40: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetRetention:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamRequest
-	4,  // 41: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PruneSharedState:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamMutationRequest
-	14, // 42: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateTask:input_type -> vrooli.prompt_manager.v1.heartbeat.JsonMutationRequest
-	14, // 43: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateRun:input_type -> vrooli.prompt_manager.v1.heartbeat.JsonMutationRequest
-	1,  // 44: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListRuns:input_type -> vrooli.prompt_manager.v1.heartbeat.QueryRequest
-	1,  // 45: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListHeartbeatAttempts:input_type -> vrooli.prompt_manager.v1.heartbeat.QueryRequest
-	14, // 46: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateInvestigationRun:input_type -> vrooli.prompt_manager.v1.heartbeat.JsonMutationRequest
-	14, // 47: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateInvestigationApplyRun:input_type -> vrooli.prompt_manager.v1.heartbeat.JsonMutationRequest
-	11, // 48: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetRun:input_type -> vrooli.prompt_manager.v1.heartbeat.RunRequest
-	13, // 49: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.RetryRun:input_type -> vrooli.prompt_manager.v1.heartbeat.RunMutationRequest
-	12, // 50: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetRunEvents:input_type -> vrooli.prompt_manager.v1.heartbeat.RunQueryRequest
-	13, // 51: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ContinueRun:input_type -> vrooli.prompt_manager.v1.heartbeat.RunMutationRequest
-	0,  // 52: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetHeartbeatControl:input_type -> vrooli.prompt_manager.v1.heartbeat.EmptyRequest
-	14, // 53: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.UpdateHeartbeatControlPolicy:input_type -> vrooli.prompt_manager.v1.heartbeat.JsonMutationRequest
-	14, // 54: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PauseHeartbeatControl:input_type -> vrooli.prompt_manager.v1.heartbeat.JsonMutationRequest
-	14, // 55: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ResumeHeartbeatControl:input_type -> vrooli.prompt_manager.v1.heartbeat.JsonMutationRequest
-	2,  // 56: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetTeamHeartbeatControl:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamRequest
-	4,  // 57: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.UpdateTeamHeartbeatControlPolicy:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamMutationRequest
-	4,  // 58: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PauseTeamHeartbeatControl:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamMutationRequest
-	4,  // 59: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ResumeTeamHeartbeatControl:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamMutationRequest
-	0,  // 60: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListRunning:input_type -> vrooli.prompt_manager.v1.heartbeat.EmptyRequest
-	7,  // 61: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.StopRunning:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest
-	14, // 62: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PreviewPrompt:input_type -> vrooli.prompt_manager.v1.heartbeat.JsonMutationRequest
-	14, // 63: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PreviewPromptStructured:input_type -> vrooli.prompt_manager.v1.heartbeat.JsonMutationRequest
-	3,  // 64: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PreviewPromptMatrix:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamQueryRequest
-	15, // 65: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListHeartbeats:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 66: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetHeartbeat:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 67: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateHeartbeat:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 68: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.UpdateHeartbeat:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 69: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.DeleteHeartbeat:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 70: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.TriggerHeartbeat:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 71: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.TriggerTeam:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 72: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetTeamExecutionStatus:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 73: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ClearTeamQueueRunning:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 74: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListTeamLogs:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 75: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListLogs:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 76: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetLog:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 77: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetResponsibilities:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 78: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.SetResponsibilities:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 79: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetHeartbeatInstructions:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 80: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.SetHeartbeatInstructions:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 81: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetMemberContext:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 82: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetLastHandoff:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 83: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ClearLastHandoff:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 84: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetHandoffHistory:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 85: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ClearHandoffHistory:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 86: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetTaskBoard:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 87: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.AddTask:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 88: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.UpdateTask:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 89: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.DeleteTask:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 90: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CaptureBug:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 91: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.RepairBug:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 92: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetRetention:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 93: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PruneSharedState:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 94: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateTask:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 95: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateRun:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 96: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListRuns:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 97: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListHeartbeatAttempts:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 98: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateInvestigationRun:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 99: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateInvestigationApplyRun:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 100: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetRun:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 101: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.RetryRun:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 102: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetRunEvents:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 103: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ContinueRun:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 104: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetHeartbeatControl:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 105: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.UpdateHeartbeatControlPolicy:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 106: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PauseHeartbeatControl:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 107: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ResumeHeartbeatControl:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 108: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetTeamHeartbeatControl:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 109: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.UpdateTeamHeartbeatControlPolicy:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 110: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PauseTeamHeartbeatControl:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 111: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ResumeTeamHeartbeatControl:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 112: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListRunning:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 113: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.StopRunning:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 114: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PreviewPrompt:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 115: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PreviewPromptStructured:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	15, // 116: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PreviewPromptMatrix:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
-	65, // [65:117] is the sub-list for method output_type
-	13, // [13:65] is the sub-list for method input_type
+	5,  // 15: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.RefreshSupervision:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberRequest
+	7,  // 16: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ReconcileSupervision:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest
+	7,  // 17: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateHeartbeat:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest
+	7,  // 18: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.UpdateHeartbeat:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest
+	5,  // 19: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.DeleteHeartbeat:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberRequest
+	7,  // 20: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.TriggerHeartbeat:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest
+	4,  // 21: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.TriggerTeam:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamMutationRequest
+	2,  // 22: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetTeamExecutionStatus:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamRequest
+	7,  // 23: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ClearTeamQueueRunning:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest
+	3,  // 24: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListTeamLogs:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamQueryRequest
+	6,  // 25: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListLogs:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberQueryRequest
+	10, // 26: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetLog:input_type -> vrooli.prompt_manager.v1.heartbeat.LogRequest
+	5,  // 27: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetResponsibilities:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberRequest
+	7,  // 28: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.SetResponsibilities:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest
+	5,  // 29: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetHeartbeatInstructions:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberRequest
+	7,  // 30: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.SetHeartbeatInstructions:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest
+	5,  // 31: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetMemberContext:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberRequest
+	5,  // 32: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetLastHandoff:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberRequest
+	7,  // 33: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ClearLastHandoff:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest
+	3,  // 34: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetHandoffHistory:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamQueryRequest
+	4,  // 35: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ClearHandoffHistory:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamMutationRequest
+	3,  // 36: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetTaskBoard:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamQueryRequest
+	4,  // 37: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.AddTask:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamMutationRequest
+	8,  // 38: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.UpdateTask:input_type -> vrooli.prompt_manager.v1.heartbeat.TaskMutationRequest
+	8,  // 39: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.DeleteTask:input_type -> vrooli.prompt_manager.v1.heartbeat.TaskMutationRequest
+	4,  // 40: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CaptureBug:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamMutationRequest
+	9,  // 41: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.RepairBug:input_type -> vrooli.prompt_manager.v1.heartbeat.BugMutationRequest
+	2,  // 42: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetRetention:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamRequest
+	4,  // 43: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PruneSharedState:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamMutationRequest
+	14, // 44: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateTask:input_type -> vrooli.prompt_manager.v1.heartbeat.JsonMutationRequest
+	14, // 45: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateRun:input_type -> vrooli.prompt_manager.v1.heartbeat.JsonMutationRequest
+	1,  // 46: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListRuns:input_type -> vrooli.prompt_manager.v1.heartbeat.QueryRequest
+	1,  // 47: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListHeartbeatAttempts:input_type -> vrooli.prompt_manager.v1.heartbeat.QueryRequest
+	14, // 48: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateInvestigationRun:input_type -> vrooli.prompt_manager.v1.heartbeat.JsonMutationRequest
+	14, // 49: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateInvestigationApplyRun:input_type -> vrooli.prompt_manager.v1.heartbeat.JsonMutationRequest
+	11, // 50: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetRun:input_type -> vrooli.prompt_manager.v1.heartbeat.RunRequest
+	13, // 51: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.RetryRun:input_type -> vrooli.prompt_manager.v1.heartbeat.RunMutationRequest
+	12, // 52: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetRunEvents:input_type -> vrooli.prompt_manager.v1.heartbeat.RunQueryRequest
+	13, // 53: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ContinueRun:input_type -> vrooli.prompt_manager.v1.heartbeat.RunMutationRequest
+	0,  // 54: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetHeartbeatControl:input_type -> vrooli.prompt_manager.v1.heartbeat.EmptyRequest
+	14, // 55: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.UpdateHeartbeatControlPolicy:input_type -> vrooli.prompt_manager.v1.heartbeat.JsonMutationRequest
+	14, // 56: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PauseHeartbeatControl:input_type -> vrooli.prompt_manager.v1.heartbeat.JsonMutationRequest
+	14, // 57: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ResumeHeartbeatControl:input_type -> vrooli.prompt_manager.v1.heartbeat.JsonMutationRequest
+	2,  // 58: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetTeamHeartbeatControl:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamRequest
+	4,  // 59: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.UpdateTeamHeartbeatControlPolicy:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamMutationRequest
+	4,  // 60: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PauseTeamHeartbeatControl:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamMutationRequest
+	4,  // 61: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ResumeTeamHeartbeatControl:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamMutationRequest
+	0,  // 62: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListRunning:input_type -> vrooli.prompt_manager.v1.heartbeat.EmptyRequest
+	7,  // 63: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.StopRunning:input_type -> vrooli.prompt_manager.v1.heartbeat.MemberMutationRequest
+	14, // 64: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PreviewPrompt:input_type -> vrooli.prompt_manager.v1.heartbeat.JsonMutationRequest
+	14, // 65: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PreviewPromptStructured:input_type -> vrooli.prompt_manager.v1.heartbeat.JsonMutationRequest
+	3,  // 66: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PreviewPromptMatrix:input_type -> vrooli.prompt_manager.v1.heartbeat.TeamQueryRequest
+	15, // 67: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListHeartbeats:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 68: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetHeartbeat:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 69: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.RefreshSupervision:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 70: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ReconcileSupervision:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 71: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateHeartbeat:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 72: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.UpdateHeartbeat:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 73: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.DeleteHeartbeat:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 74: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.TriggerHeartbeat:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 75: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.TriggerTeam:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 76: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetTeamExecutionStatus:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 77: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ClearTeamQueueRunning:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 78: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListTeamLogs:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 79: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListLogs:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 80: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetLog:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 81: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetResponsibilities:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 82: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.SetResponsibilities:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 83: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetHeartbeatInstructions:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 84: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.SetHeartbeatInstructions:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 85: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetMemberContext:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 86: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetLastHandoff:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 87: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ClearLastHandoff:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 88: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetHandoffHistory:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 89: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ClearHandoffHistory:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 90: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetTaskBoard:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 91: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.AddTask:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 92: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.UpdateTask:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 93: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.DeleteTask:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 94: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CaptureBug:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 95: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.RepairBug:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 96: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetRetention:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 97: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PruneSharedState:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 98: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateTask:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 99: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateRun:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 100: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListRuns:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 101: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListHeartbeatAttempts:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 102: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateInvestigationRun:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 103: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateInvestigationApplyRun:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 104: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetRun:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 105: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.RetryRun:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 106: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetRunEvents:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 107: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ContinueRun:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 108: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetHeartbeatControl:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 109: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.UpdateHeartbeatControlPolicy:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 110: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PauseHeartbeatControl:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 111: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ResumeHeartbeatControl:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 112: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetTeamHeartbeatControl:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 113: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.UpdateTeamHeartbeatControlPolicy:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 114: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PauseTeamHeartbeatControl:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 115: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ResumeTeamHeartbeatControl:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 116: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ListRunning:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 117: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.StopRunning:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 118: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PreviewPrompt:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 119: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PreviewPromptStructured:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	15, // 120: vrooli.prompt_manager.v1.heartbeat.HeartbeatService.PreviewPromptMatrix:output_type -> vrooli.prompt_manager.v1.heartbeat.JsonResponse
+	67, // [67:121] is the sub-list for method output_type
+	13, // [13:67] is the sub-list for method input_type
 	13, // [13:13] is the sub-list for extension type_name
 	13, // [13:13] is the sub-list for extension extendee
 	0,  // [0:13] is the sub-list for field type_name

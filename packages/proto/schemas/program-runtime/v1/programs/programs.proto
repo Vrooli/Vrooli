@@ -82,6 +82,14 @@ message Program {
   // program used no learn.* verb. The persisted receipt never carries the
   // resume_token; the task store keeps only its hash.
   string learning_json = 24;
+  // Runtime-owned intent fingerprint for keyed admission. Not authorization.
+  string request_digest = 25;
+  // Runtime-owned settlement captured before the execution session is reclaimed.
+  int64 usage_tokens = 26;
+  int64 usage_charge_micros = 27;
+  bool usage_accounting_complete = 28;
+  bool usage_charge_measured = 29;
+  string usage_basis = 30;
 }
 
 message Diagnostic {

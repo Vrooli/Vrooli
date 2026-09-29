@@ -729,7 +729,7 @@ class ProfileRef(_message.Message):
     def __init__(self, profile_key: _Optional[str] = ..., defaults: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ..., update_existing: _Optional[bool] = ...) -> None: ...
 
 class IssueSupervisorDispatchRequest(_message.Message):
-    __slots__ = ("effort_ref", "expected_revision", "team_id", "member_id", "profile_key", "expires_at", "maximum_runs", "idempotency_key", "minimum_interval_seconds")
+    __slots__ = ("effort_ref", "expected_revision", "team_id", "member_id", "profile_key", "expires_at", "maximum_runs", "idempotency_key", "minimum_interval_seconds", "max_tokens", "max_charge_micro_usd")
     EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_REVISION_FIELD_NUMBER: _ClassVar[int]
     TEAM_ID_FIELD_NUMBER: _ClassVar[int]
@@ -739,6 +739,8 @@ class IssueSupervisorDispatchRequest(_message.Message):
     MAXIMUM_RUNS_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
     MINIMUM_INTERVAL_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    MAX_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    MAX_CHARGE_MICRO_USD_FIELD_NUMBER: _ClassVar[int]
     effort_ref: str
     expected_revision: int
     team_id: str
@@ -748,7 +750,9 @@ class IssueSupervisorDispatchRequest(_message.Message):
     maximum_runs: int
     idempotency_key: str
     minimum_interval_seconds: int
-    def __init__(self, effort_ref: _Optional[str] = ..., expected_revision: _Optional[int] = ..., team_id: _Optional[str] = ..., member_id: _Optional[str] = ..., profile_key: _Optional[str] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., maximum_runs: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., minimum_interval_seconds: _Optional[int] = ...) -> None: ...
+    max_tokens: int
+    max_charge_micro_usd: int
+    def __init__(self, effort_ref: _Optional[str] = ..., expected_revision: _Optional[int] = ..., team_id: _Optional[str] = ..., member_id: _Optional[str] = ..., profile_key: _Optional[str] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., maximum_runs: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., minimum_interval_seconds: _Optional[int] = ..., max_tokens: _Optional[int] = ..., max_charge_micro_usd: _Optional[int] = ...) -> None: ...
 
 class RevokeSupervisorDispatchRequest(_message.Message):
     __slots__ = ("effort_ref", "authorization_id", "expected_revision", "reason", "idempotency_key")

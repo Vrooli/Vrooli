@@ -2,6 +2,7 @@ import datetime
 
 from common.v1 import maturity_pb2 as _maturity_pb2
 from common.v1 import metrics_pb2 as _metrics_pb2
+from common.v1 import evidence_pb2 as _evidence_pb2
 from common.v1 import validation_target_pb2 as _validation_target_pb2
 from google.protobuf import any_pb2 as _any_pb2
 from google.protobuf import duration_pb2 as _duration_pb2
@@ -99,42 +100,66 @@ class ProviderBuild(_message.Message):
     def __init__(self, revision: _Optional[str] = ..., built_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., binary_modified_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., freshness_digest: _Optional[str] = ...) -> None: ...
 
 class ProviderCapabilities(_message.Message):
-    __slots__ = ("supports_execution", "delivery_mode", "supports_fixes", "target_kinds")
+    __slots__ = ("supports_execution", "delivery_mode", "supports_fixes", "target_kinds", "supports_retained_evidence")
     SUPPORTS_EXECUTION_FIELD_NUMBER: _ClassVar[int]
     DELIVERY_MODE_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_FIXES_FIELD_NUMBER: _ClassVar[int]
     TARGET_KINDS_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTS_RETAINED_EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     supports_execution: bool
     delivery_mode: str
     supports_fixes: bool
     target_kinds: _containers.RepeatedScalarFieldContainer[_validation_target_pb2.ValidationTargetKind]
-    def __init__(self, supports_execution: _Optional[bool] = ..., delivery_mode: _Optional[str] = ..., supports_fixes: _Optional[bool] = ..., target_kinds: _Optional[_Iterable[_Union[_validation_target_pb2.ValidationTargetKind, str]]] = ...) -> None: ...
+    supports_retained_evidence: bool
+    def __init__(self, supports_execution: _Optional[bool] = ..., delivery_mode: _Optional[str] = ..., supports_fixes: _Optional[bool] = ..., target_kinds: _Optional[_Iterable[_Union[_validation_target_pb2.ValidationTargetKind, str]]] = ..., supports_retained_evidence: _Optional[bool] = ...) -> None: ...
+
+class RetainedEvidenceSet(_message.Message):
+    __slots__ = ("producer_receipt_id", "producer", "target", "run_id", "candidate_identity", "catalog_digest", "artifacts")
+    PRODUCER_RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
+    PRODUCER_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
+    producer_receipt_id: str
+    producer: str
+    target: str
+    run_id: str
+    candidate_identity: str
+    catalog_digest: str
+    artifacts: _containers.RepeatedCompositeFieldContainer[_evidence_pb2.EvidenceRef]
+    def __init__(self, producer_receipt_id: _Optional[str] = ..., producer: _Optional[str] = ..., target: _Optional[str] = ..., run_id: _Optional[str] = ..., candidate_identity: _Optional[str] = ..., catalog_digest: _Optional[str] = ..., artifacts: _Optional[_Iterable[_Union[_evidence_pb2.EvidenceRef, _Mapping]]] = ...) -> None: ...
 
 class ValidateScenarioRequest(_message.Message):
-    __slots__ = ("scenario", "path", "include_execution", "capability_subset")
+    __slots__ = ("scenario", "path", "include_execution", "capability_subset", "retained_evidence_sets")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_EXECUTION_FIELD_NUMBER: _ClassVar[int]
     CAPABILITY_SUBSET_FIELD_NUMBER: _ClassVar[int]
+    RETAINED_EVIDENCE_SETS_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     path: str
     include_execution: bool
     capability_subset: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., include_execution: _Optional[bool] = ..., capability_subset: _Optional[_Iterable[str]] = ...) -> None: ...
+    retained_evidence_sets: _containers.RepeatedCompositeFieldContainer[RetainedEvidenceSet]
+    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., include_execution: _Optional[bool] = ..., capability_subset: _Optional[_Iterable[str]] = ..., retained_evidence_sets: _Optional[_Iterable[_Union[RetainedEvidenceSet, _Mapping]]] = ...) -> None: ...
 
 class ValidateTargetRequest(_message.Message):
-    __slots__ = ("target", "include_execution", "path", "capability_subset", "exclude")
+    __slots__ = ("target", "include_execution", "path", "capability_subset", "exclude", "retained_evidence_sets")
     TARGET_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_EXECUTION_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     CAPABILITY_SUBSET_FIELD_NUMBER: _ClassVar[int]
     EXCLUDE_FIELD_NUMBER: _ClassVar[int]
+    RETAINED_EVIDENCE_SETS_FIELD_NUMBER: _ClassVar[int]
     target: _validation_target_pb2.ValidationTarget
     include_execution: bool
     path: str
     capability_subset: _containers.RepeatedScalarFieldContainer[str]
     exclude: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, target: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ..., include_execution: _Optional[bool] = ..., path: _Optional[str] = ..., capability_subset: _Optional[_Iterable[str]] = ..., exclude: _Optional[_Iterable[str]] = ...) -> None: ...
+    retained_evidence_sets: _containers.RepeatedCompositeFieldContainer[RetainedEvidenceSet]
+    def __init__(self, target: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ..., include_execution: _Optional[bool] = ..., path: _Optional[str] = ..., capability_subset: _Optional[_Iterable[str]] = ..., exclude: _Optional[_Iterable[str]] = ..., retained_evidence_sets: _Optional[_Iterable[_Union[RetainedEvidenceSet, _Mapping]]] = ...) -> None: ...
 
 class ValidateTargetResponse(_message.Message):
     __slots__ = ("target", "status", "assessment", "native_detail", "metrics", "failure_classification")

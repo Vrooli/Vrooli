@@ -610,6 +610,22 @@
       "description": "Create, observe, explain, and control durable validation receipts",
       "commands": [
         {
+          "name": "resolve-identity",
+          "description": "Resolve the current source identity for declared content roots without admitting validation work",
+          "flags": [{"name":"request-file","required":true,"description":"Typed ResolveSourceIdentityRequest protobuf-JSON document","bind":{"field":"request","kind":"json_file"},"bind_waiver":"The validation CLI decodes the typed identity request and cannot supply command fields."}],
+          "binding": {"kind":"connect-rpc","service":"ValidationService","method":"ResolveSourceIdentity"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:read"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
+          "name": "produce-evidence",
+          "description": "Run one descriptor-declared evidence producer for an expected candidate identity",
+          "flags": [{"name":"request-file","required":true,"description":"Typed CreateEvidenceProductionRequest protobuf-JSON document","bind":{"field":"request","kind":"json_file"},"bind_waiver":"The validation CLI decodes the typed producer request and cannot supply command fields."},{"name":"yes","bool":true,"description":"Confirm effectful evidence production","local_only":true}],
+          "binding": {"kind":"connect-rpc","service":"ValidationService","method":"CreateEvidenceProduction"},
+          "governance": {"effect":"destructive","run_eligible":true,"requires_confirmation":true,"permissions":["network:internal","filesystem:read"]},
+          "architecture": {"primitive":"proto_mutation"}
+        },
+        {
           "name": "create",
           "description": "Create or attach to validation work from a protobuf-JSON intent file",
           "flags": [{"name":"intent-file","required":true,"description":"Path to a ValidationIntent protobuf-JSON document","bind":{"field":"intent","kind":"json_file"},"bind_waiver":"The validation CLI reads the file and decodes its protobuf JSON into ValidationIntent."}],

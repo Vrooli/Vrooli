@@ -40,6 +40,41 @@ func TestBaseCodecAvailabilityAndProbeReflectFilesystemState(t *testing.T) {
 	}
 }
 
+func TestBaseCodecDiscoversInstallationAfterConstruction(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("PATH", dir)
+	codec := resolveBinary(baseCodec{binaryDesc: "fixture CLI", installHint: "install fixture"}, "fixture-cli")
+	ctx := context.Background()
+	if available, _ := codec.Available(ctx); available {
+		t.Fatal("missing runner reported available")
+	}
+	path := filepath.Join(dir, "fixture-cli")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\necho 'fixture 1.0'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if available, reason := codec.Available(ctx); !available {
+		t.Fatalf("installed runner still unavailable without service restart: %s", reason)
+	}
+	if got := codec.BinaryPath(); got != path {
+		t.Fatalf("execution path %q does not match available runner %q", got, path)
+	}
+	if version, err := codec.RuntimeVersion(ctx); err != nil || version != "fixture 1.0" {
+		t.Fatalf("installed runner version = %q, %v", version, err)
+	}
+	if err := os.Chmod(path, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if available, _ := codec.Available(ctx); available {
+		t.Fatal("non-executable runner reported available")
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if available, _ := codec.Available(ctx); available {
+		t.Fatal("removed runner reported available")
+	}
+}
+
 func TestManagedRunnerBinaryBypassesOperatorShim(t *testing.T) {
 	if got := managedRunnerBinary("/home/operator/.vrooli/shims/codex", "codex"); got != "/usr/bin/codex" && got != "/bin/codex" {
 		t.Fatalf("managed runner path = %q, want an installed system codex binary", got)

@@ -14,6 +14,7 @@ import (
 
 	"workspace-sandbox/internal/driver"
 	driverexec "workspace-sandbox/internal/driver/exec"
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/runtime"
 	"workspace-sandbox/internal/types"
 )
@@ -48,13 +49,21 @@ func (h *Handlers) profileResolver() *runtime.ProfileResolver {
 	}
 }
 
-// applyIsolationProfile is a thin shim onto runtime.ProfileResolver so
-// existing call sites stay readable. Returns the same typed errors as
-// before (IsolationProfileNotFoundError / HomeOverlayRequiredError).
+// applyIsolationProfile resolves the profile and an optional per-launch network
+// override for every launch route. Explicit denial cannot degrade to tracking.
 //
 // DOC: home-overlay seam — handler-side enforcement.
-func (h *Handlers) applyIsolationProfile(sb *types.Sandbox, cfg *driverexec.BwrapConfig, requestedID string) error {
-	return h.profileResolver().ResolveAndApply(sb, cfg, requestedID)
+func (h *Handlers) applyIsolationProfile(sb *types.Sandbox, cfg *driverexec.BwrapConfig, requestedID string, allowNetwork *bool) error {
+	if err := h.profileResolver().ResolveAndApply(sb, cfg, requestedID); err != nil {
+		return err
+	}
+	if allowNetwork != nil {
+		if !*allowNetwork && (h.Driver() == nil || h.Driver().RequiredContainment() == driver.ContainmentNone) {
+			return &types.ExecutionModeUnavailableError{Mode: "protected", Reason: "explicit network denial requires process containment"}
+		}
+		cfg.AllowNetwork = *allowNetwork
+	}
+	return nil
 }
 
 // validateExecutionMode makes the protected/tracking boundary explicit. Auto
@@ -93,13 +102,14 @@ func (h *Handlers) validateExecutionMode(ctx context.Context, requested string) 
 
 // ExecRequest represents a request to execute a command in a sandbox.
 type ExecRequest struct {
-	Command        string            `json:"command"`
-	Args           []string          `json:"args,omitempty"`
-	AllowNetwork   bool              `json:"allowNetwork,omitempty"`
-	Env            map[string]string `json:"env,omitempty"`
-	WorkingDir     string            `json:"workingDir,omitempty"`
-	SessionID      string            `json:"sessionId,omitempty"`
-	WritableMounts []WritableMount   `json:"writableMounts,omitempty"`
+	Command        string             `json:"command"`
+	Args           []string           `json:"args,omitempty"`
+	AllowNetwork   *bool              `json:"allowNetwork,omitempty"` // nil inherits the profile; false explicitly denies network
+	Env            map[string]string  `json:"env,omitempty"`
+	WorkingDir     string             `json:"workingDir,omitempty"`
+	SessionID      string             `json:"sessionId,omitempty"`
+	WritableMounts []WritableMount    `json:"writableMounts,omitempty"`
+	PolicyFiles    []types.PolicyFile `json:"policyFiles,omitempty"`
 
 	// IsolationLevel controls filesystem access.
 	// "full" (default): maximum isolation, only /workspace accessible.
@@ -159,10 +169,20 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sb, err := h.Service.Get(r.Context(), id)
+	providerRelease := func() {}
+	if h.lifecycle != nil {
+		providerRelease, err = h.lifecycle.beginProcess()
+		if err != nil {
+			h.JSONError(w, err.Error(), http.StatusConflict)
+			return
+		}
+		defer providerRelease()
+	}
+	sb, release, err := h.Service.BeginProcess(r.Context(), id)
 	if h.HandleDomainError(w, err) {
 		return
 	}
+	defer release()
 
 	if sb.Status != types.StatusActive {
 		h.JSONError(w, "sandbox must be active to execute commands", http.StatusConflict)
@@ -201,7 +221,7 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 		cfg.Env[k] = v
 	}
 
-	if err := h.applyIsolationProfile(sb, &cfg, req.IsolationLevel); err != nil {
+	if err := h.applyIsolationProfile(sb, &cfg, req.IsolationLevel, req.AllowNetwork); err != nil {
 		h.HandleDomainError(w, err)
 		return
 	}
@@ -209,9 +229,9 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 		h.JSONError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	if req.AllowNetwork {
-		cfg.AllowNetwork = true
+	if err := addPolicyFiles(&cfg, sb, req.PolicyFiles); err != nil {
+		h.JSONError(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	requestedLimits := driverexec.ResourceLimits{
@@ -225,6 +245,25 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 
 	d := h.Driver()
 	level := d.RequiredContainment()
+	var pid int
+	cfg.OnStart = func(startedPID int) error {
+		pid = startedPID
+		if h.ProcessTracker != nil {
+			if _, err := h.ProcessTracker.Track(id, pid, req.Command, req.SessionID); err != nil {
+				return err
+			}
+		}
+		// Registration precedes release. Stop and provider maintenance can now
+		// observe and drain this command while its HTTP request still waits.
+		release()
+		providerRelease()
+		return nil
+	}
+	cfg.OnExit = func(exitCode, signal int, oomKilled bool) {
+		if h.ProcessTracker != nil {
+			h.ProcessTracker.RecordExit(id, pid, process.ExitInfo{ExitCode: exitCode, Signal: signal, OOMKilled: oomKilled})
+		}
+	}
 	result, err := driverexec.Exec(r.Context(), h.Starter, sb, level, cfg, req.Command, req.Args...)
 	if err != nil {
 		h.JSONError(w, err.Error(), http.StatusInternalServerError)
@@ -238,14 +277,7 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 		driver.EffectiveContainment(level, result.Backend, containmentInfo), cfg.AllowNetwork)
 
 	if h.ProcessTracker != nil && result.PID > 0 {
-		proc, err := h.ProcessTracker.Track(id, result.PID, req.Command, req.SessionID)
-		if err != nil {
-			h.JSONError(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if proc != nil {
-			_ = h.ProcessTracker.SetContainment(id, result.PID, effective)
-		}
+		_ = h.ProcessTracker.SetContainment(id, result.PID, effective)
 	}
 
 	timedOut := result.ExitCode == 124 && result.Error != nil
@@ -280,10 +312,24 @@ func validateWritableMount(sb *types.Sandbox, mount WritableMount) error {
 	if mount.Purpose == "" {
 		return fmt.Errorf("writable mount purpose is required")
 	}
-	if !filepath.IsAbs(mount.Path) {
+	return validateMountSource(sb, mount.Path, true)
+}
+
+func addPolicyFiles(cfg *driverexec.BwrapConfig, sb *types.Sandbox, files []types.PolicyFile) error {
+	for _, file := range files {
+		if err := validateMountSource(sb, file.Source, false); err != nil {
+			return fmt.Errorf("policy file: %w", err)
+		}
+	}
+	cfg.PolicyFiles = append([]types.PolicyFile(nil), files...)
+	return nil
+}
+
+func validateMountSource(sb *types.Sandbox, path string, directory bool) error {
+	if !filepath.IsAbs(path) {
 		return fmt.Errorf("path must be absolute")
 	}
-	resolved, err := filepath.EvalSymlinks(mount.Path)
+	resolved, err := filepath.EvalSymlinks(path)
 	if err != nil {
 		return fmt.Errorf("writable mount is unavailable: %w", err)
 	}
@@ -291,8 +337,11 @@ func validateWritableMount(sb *types.Sandbox, mount WritableMount) error {
 	if err != nil {
 		return fmt.Errorf("writable mount is unavailable: %w", err)
 	}
-	if !info.IsDir() {
-		return fmt.Errorf("writable mount is not a directory")
+	if directory && !info.IsDir() {
+		return fmt.Errorf("mount is not a directory")
+	}
+	if !directory && !info.Mode().IsRegular() {
+		return fmt.Errorf("policy mount is not a regular file")
 	}
 	roots := append([]string{sb.ProjectRoot}, sb.AuxiliaryRoots...)
 	for _, root := range roots {

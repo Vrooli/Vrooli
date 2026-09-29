@@ -124,10 +124,10 @@ func Resolve(configDir string) (Roots, error) {
 }
 
 // RootsForRepoStoreTest returns Roots whose Config points at the supplied
-// real repo store path (e.g. "../../store") while RuntimeData, RuntimeCache,
-// RepoRoot and ScenariosDir are stubbed under t.TempDir(). Used by tests that
-// must read real authored configuration but must not write runtime artifacts
-// into the repo tree.
+// real repo store path (e.g. "../../store"). RepoRoot points to its repository
+// so required document references are checked. RuntimeData, RuntimeCache and
+// the scenario-discovery directory remain isolated under t.TempDir(); reading
+// real authored documents must not write runtime artifacts into the repo tree.
 func RootsForRepoStoreTest(t *testing.T, configDir string) Roots {
 	t.Helper()
 	base := t.TempDir()
@@ -135,7 +135,7 @@ func RootsForRepoStoreTest(t *testing.T, configDir string) Roots {
 		Config:        configDir,
 		RuntimeData:   filepath.Join(base, "data"),
 		RuntimeCache:  filepath.Join(base, "cache"),
-		RepoRoot:      filepath.Join(base, "repo"),
+		RepoRoot:      filepath.Clean(filepath.Join(configDir, "../../..")),
 		ScenariosDir:  filepath.Join(base, "repo", "scenarios"),
 		PlanArtifacts: filepath.Join(base, "plan-artifacts"),
 	}

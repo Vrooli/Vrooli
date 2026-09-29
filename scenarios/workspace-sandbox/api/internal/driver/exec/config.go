@@ -12,6 +12,8 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+
+	"workspace-sandbox/internal/types"
 )
 
 // ErrIsolationProfileRequired is returned when ApplyIsolationProfile is
@@ -58,6 +60,9 @@ func (r ResourceLimits) HasLimits() bool {
 //
 // After that, BuildBwrapArgs is a pure function of (sandbox, cfg).
 type BwrapConfig struct {
+	// OnStart publishes a launched process before synchronous waiting. It must
+	// return an error if the owner cannot track it.
+	OnStart      func(int) error
 	AllowNetwork bool
 	AllowDevices bool
 	SharePID     bool
@@ -72,6 +77,7 @@ type BwrapConfig struct {
 	// Both are populated by ApplyIsolationProfile from the active profile.
 	ReadOnlyBinds  map[string]string
 	ReadWriteBinds map[string]string
+	PolicyFiles    []types.PolicyFile
 
 	// MaskPaths lists absolute in-namespace paths hidden from the workload
 	// by mounting an empty tmpfs over them, emitted after every other bind

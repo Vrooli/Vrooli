@@ -13,7 +13,6 @@ package phases
 
 import (
 	"context"
-	"slices"
 	"strings"
 
 	"agent-manager/internal/domain"
@@ -93,7 +92,7 @@ func GenerateIdentityToken(ctx context.Context, in GenerateIdentityTokenInput) s
 		TaskID:      in.Run.TaskID,
 		Subject:     subject,
 		WorkspaceID: strings.TrimSpace(in.Meta["workspace_id"]),
-		Scopes:      identity.IntersectScopes(accountScopes, profileScopes(in.Profile), in.RequestedScopes),
+		Scopes:      identity.IntersectScopes(accountScopes, in.Profile.IdentityScopeCeiling(), in.RequestedScopes),
 		ProfileKey:  profileKey,
 		ScopePath:   scopePath,
 		IssuedAt:    now.Unix(),
@@ -132,13 +131,6 @@ func GenerateIdentityToken(ctx context.Context, in GenerateIdentityTokenInput) s
 	}
 
 	return token
-}
-
-func profileScopes(profile *domain.AgentProfile) []string {
-	if profile == nil {
-		return nil
-	}
-	return slices.Clone(profile.DeclaredScopes)
 }
 
 func cloneMeta(meta map[string]string) map[string]string {

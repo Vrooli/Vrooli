@@ -3,7 +3,6 @@ package handlers
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -32,13 +31,30 @@ func TestAddWritableMounts_UsesRegisteredRoots(t *testing.T) {
 	}
 }
 
-func TestProcessHandlersDoNotDerivePeerScenarioPaths(t *testing.T) {
-	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source path")
+func TestAddPolicyFilesRequiresRegisteredSource(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "policy")
+	if err := os.WriteFile(source, []byte("policy"), 0600); err != nil {
+		t.Fatal(err)
 	}
+	sb := &types.Sandbox{ProjectRoot: t.TempDir(), AuxiliaryRoots: []string{root}}
+	cfg := driverexec.DefaultBwrapConfig()
+	files := []types.PolicyFile{{Source: source, Target: "/etc/fixture/requirements.toml", SHA256: "checked by backend"}}
+	if err := addPolicyFiles(&cfg, sb, files); err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.PolicyFiles) != 1 || cfg.PolicyFiles[0].Source != source {
+		t.Fatal("policy file was dropped")
+	}
+	sb.AuxiliaryRoots = nil
+	if err := addPolicyFiles(&cfg, sb, files); err == nil {
+		t.Fatal("unregistered source was admitted")
+	}
+}
+
+func TestProcessHandlersDoNotDerivePeerScenarioPaths(t *testing.T) {
 	for _, name := range []string{"process.go", "process_start.go"} {
-		content, err := os.ReadFile(filepath.Join(filepath.Dir(thisFile), name))
+		content, err := os.ReadFile(name)
 		if err != nil {
 			t.Fatal(err)
 		}

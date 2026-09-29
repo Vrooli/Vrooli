@@ -35,6 +35,74 @@ func TestLoadValidDescriptor(t *testing.T) {
 	}
 }
 
+func TestEvidenceProducerDeclarationAndSafeResolution(t *testing.T) {
+	body := strings.Replace(validDescriptor("search-hub", "search"),
+		`"validation":{"contract":"scenario-validation/v1","includeExecution":true}`,
+		`"validation":{"contract":"scenario-validation/v1","includeExecution":true},"evidenceProducers":{"refresh":{"argv":["./produce","{run_id}","{output_dir}"],"workingDirectory":"tools","outputRoot":".vrooli/evidence","timeout":"2m","maximumOutputBytes":1024}}`, 1)
+	path := writeDescriptor(t, "search-hub", body)
+	result := Load(LoadOptions{Paths: []string{path}})
+	if err := result.Err(); err != nil {
+		t.Fatalf("valid producer declaration rejected: %v", err)
+	}
+	root := filepath.Join(filepath.Dir(filepath.Dir(path)))
+	if err := os.MkdirAll(filepath.Join(root, "tools"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := result.Descriptors[0].ResolveEvidenceProducer(root, "refresh", "run-123")
+	if err != nil {
+		t.Fatalf("resolve producer: %v", err)
+	}
+	if got := strings.Join(resolved.Argv, " "); got != "./produce run-123 /dev/shm/tg-output" {
+		t.Fatalf("resolved argv = %q", got)
+	}
+	second, err := result.Descriptors[0].ResolveEvidenceProducer(root, "refresh", "run-456")
+	if err != nil {
+		t.Fatalf("resolve second run: %v", err)
+	}
+	if got := strings.Join(second.Argv, " "); got != "./produce run-456 /dev/shm/tg-output" {
+		t.Fatalf("second resolved argv = %q", got)
+	}
+	if got := result.Descriptors[0].EvidenceProducers["refresh"].Argv[1]; got != "{run_id}" {
+		t.Fatalf("descriptor argv mutated across resolutions: %q", got)
+	}
+
+	bad := strings.Replace(body, `"{run_id}"`, `"{caller_argv}"`, 1)
+	badResult := Load(LoadOptions{Paths: []string{writeDescriptor(t, "search-hub", bad)}})
+	if !hasDiagnostic(badResult.Diagnostics, "invalid_evidence_producer_placeholder") {
+		t.Fatalf("unknown placeholder was accepted: %+v", badResult.Diagnostics)
+	}
+}
+
+func TestEvidenceProducerAllowsScenarioRootWorkingDirectory(t *testing.T) {
+	body := strings.Replace(validDescriptor("search-hub", "search"),
+		`"validation":{"contract":"scenario-validation/v1","includeExecution":true}`,
+		`"validation":{"contract":"scenario-validation/v1","includeExecution":true},"evidenceProducers":{"refresh":{"argv":["true","{output_dir}"],"workingDirectory":".","timeout":"2m","maximumOutputBytes":1024}}`, 1)
+	result := Load(LoadOptions{Paths: []string{writeDescriptor(t, "search-hub", body)}})
+	if err := result.Err(); err != nil {
+		t.Fatalf("root working directory rejected: %v", err)
+	}
+}
+
+func TestEvidenceProducerResolutionPinsPrivateOutputMountAndRejectsWorkingSymlink(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(root, "out")); err != nil {
+		t.Fatal(err)
+	}
+	d := Descriptor{EvidenceProducers: map[string]EvidenceProducer{"p": {Argv: []string{"true", "{output_dir}"}, WorkingDirectory: ".", Timeout: "1m", MaximumOutputBytes: 1024}}}
+	resolved, err := d.ResolveEvidenceProducer(root, "p", "run-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved.OutputRoot != "/dev/shm/tg-output" || resolved.Argv[1] != "/dev/shm/tg-output" {
+		t.Fatalf("producer output was not private: %+v", resolved)
+	}
+	d.EvidenceProducers["p"] = EvidenceProducer{Argv: []string{"true"}, WorkingDirectory: "out", Timeout: "1m", MaximumOutputBytes: 1024}
+	if _, err := d.ResolveEvidenceProducer(root, "p", "run-1"); err == nil {
+		t.Fatal("escaping working directory symlink was accepted")
+	}
+}
+
 func TestLoadAcceptsAssetTargetKind(t *testing.T) {
 	body := strings.Replace(validDescriptor("search-hub", "search"), `"kinds":["scenario"]`, `"kinds":["asset"]`, 1)
 	result := Load(LoadOptions{Paths: []string{writeDescriptor(t, "search-hub", body)}})

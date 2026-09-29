@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useAIConversation } from './useAIConversation';
 import type { AINavigationStep } from '../ai-navigation/types';
+import { AINavigationError } from '../ai-navigation/useAINavigation';
 
 // Mock useAINavigation
 const mockStartNavigation = vi.fn();
@@ -13,8 +14,10 @@ const mockAbortNavigation = vi.fn();
 const mockResumeNavigation = vi.fn();
 const mockReset = vi.fn();
 
-let mockOnStep: ((step: AINavigationStep) => void) | undefined;
-let mockOnComplete: ((status: string, summary?: string) => void) | undefined;
+let mockOnStep: ((step: AINavigationStep, navigationId?: string) => void) | undefined;
+let mockOnStarted: ((navigationId: string, startAttempt?: number) => void) | undefined;
+let mockStartAttempt = 0;
+let mockOnComplete: ((status: string, summary?: string, navigationId?: string) => void) | undefined;
 
 const mockNavState = {
   isNavigating: false,
@@ -22,7 +25,7 @@ const mockNavState = {
   prompt: '',
   model: 'local_first',
   steps: [] as AINavigationStep[],
-  status: 'idle' as const,
+  status: 'idle' as 'idle' | 'awaiting_human',
   totalTokens: 0,
   error: null as string | null,
   humanIntervention: null as {
@@ -35,15 +38,30 @@ const mockNavState = {
 };
 
 vi.mock('../ai-navigation/useAINavigation', () => ({
-  AINavigationError: class AINavigationError extends Error {},
-  useAINavigation: vi.fn(({ onStep, onComplete }) => {
+  AINavigationError: class AINavigationError extends Error {
+    code: string;
+    details?: Record<string, string>;
+
+    constructor(code: string, message: string, details?: Record<string, string>) {
+      super(message);
+      this.name = 'AINavigationError';
+      this.code = code;
+      this.details = details;
+    }
+  },
+  useAINavigation: vi.fn(({ onStarted, onStep, onComplete }) => {
     // Capture callbacks for testing
+    mockOnStarted = onStarted;
     mockOnStep = onStep;
     mockOnComplete = onComplete;
 
     return {
       state: mockNavState,
-      startNavigation: mockStartNavigation,
+      startNavigation: async (...args: [string, string, number?]) => {
+        const navigationId = await mockStartNavigation(...args) as string | null;
+        if (navigationId) onStarted?.(navigationId, ++mockStartAttempt);
+        return navigationId;
+      },
       abortNavigation: mockAbortNavigation,
       resumeNavigation: mockResumeNavigation,
       reset: mockReset,
@@ -66,6 +84,8 @@ describe('useAIConversation', () => {
     mockNavState.error = null;
     mockNavState.humanIntervention = null;
     mockNavState.steps = [];
+    mockStartAttempt = 0;
+    mockResumeNavigation.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -89,6 +109,28 @@ describe('useAIConversation', () => {
   });
 
   describe('sendMessage', () => {
+    it('renders entitlement errors through the dedicated message policy', async () => {
+      mockStartNavigation.mockRejectedValueOnce(new AINavigationError(
+        'AI_NOT_AVAILABLE',
+        'plan does not include AI navigation',
+      ));
+
+      const { result } = renderHook(() => useAIConversation({
+        sessionId: 'test-session',
+        settings: defaultSettings,
+      }));
+
+      await act(async () => {
+        await result.current.sendMessage('Navigate to login');
+      });
+
+      expect(result.current.messages).toHaveLength(2);
+      expect(result.current.messages[1]).toMatchObject({
+        role: 'system',
+        errorCode: 'AI_NOT_AVAILABLE',
+      });
+    });
+
     it('should create user message when sending', async () => {
       mockStartNavigation.mockResolvedValue('nav-123');
 
@@ -146,6 +188,135 @@ describe('useAIConversation', () => {
       expect(result.current.messages[0].role).toBe('user');
       expect(result.current.messages[1].role).toBe('assistant');
       expect(result.current.messages[1].status).toBe('pending');
+    });
+
+    it('should admit a navigation only once when start notification is repeated', async () => {
+      mockStartNavigation.mockResolvedValue('nav-duplicate');
+
+      const { result } = renderHook(() =>
+        useAIConversation({
+          sessionId: 'test-session',
+          settings: defaultSettings,
+        })
+      );
+
+      await act(async () => {
+        await result.current.sendMessage('Navigate once');
+      });
+
+      act(() => {
+        mockOnStarted?.('nav-duplicate');
+      });
+
+      expect(result.current.messages).toHaveLength(2);
+      expect(result.current.messages[1].navigationId).toBe('nav-duplicate');
+    });
+
+    it('should ignore a late duplicate start notification after completion', async () => {
+      mockStartNavigation.mockResolvedValue('nav-late-duplicate');
+
+      const { result } = renderHook(() =>
+        useAIConversation({
+          sessionId: 'test-session',
+          settings: defaultSettings,
+        })
+      );
+
+      await act(async () => {
+        await result.current.sendMessage('Complete once');
+      });
+      act(() => {
+        mockOnComplete?.('completed', 'Done', 'nav-late-duplicate');
+        mockOnStarted?.('nav-late-duplicate');
+      });
+
+      expect(result.current.messages).toHaveLength(2);
+      expect(result.current.messages[1].status).toBe('completed');
+    });
+
+    it('should ignore a stale start notification after conversation reset', async () => {
+      mockStartNavigation.mockResolvedValue('nav-reset-stale');
+
+      const { result } = renderHook(() =>
+        useAIConversation({
+          sessionId: 'test-session',
+          settings: defaultSettings,
+        })
+      );
+
+      await act(async () => {
+        await result.current.sendMessage('Reset before admission');
+      });
+      act(() => {
+        result.current.clearConversation();
+        mockOnStarted?.('nav-reset-stale');
+      });
+
+      expect(result.current.messages).toEqual([]);
+    });
+
+    it('should not append a stale start error after the conversation is reset', async () => {
+      let rejectStart: ((reason?: unknown) => void) | undefined;
+      mockStartNavigation.mockImplementationOnce(() => new Promise((_, reject) => {
+        rejectStart = reject;
+      }));
+
+      const { result } = renderHook(() =>
+        useAIConversation({
+          sessionId: 'test-session',
+          settings: defaultSettings,
+        })
+      );
+
+      let pendingSend: Promise<void> | undefined;
+      act(() => {
+        pendingSend = result.current.sendMessage('Stale start');
+      });
+
+      act(() => {
+        result.current.clearConversation();
+      });
+
+      await act(async () => {
+        rejectStart?.(new Error('stale start failure'));
+        await pendingSend;
+      });
+
+      expect(result.current.messages).toEqual([]);
+    });
+
+    it('should admit only one synchronous send while the first start is pending', async () => {
+      let resolveStart: ((navigationId: string) => void) | undefined;
+      mockStartNavigation.mockImplementationOnce(() => new Promise<string>((resolve) => {
+        resolveStart = resolve;
+      }));
+
+      const { result } = renderHook(() =>
+        useAIConversation({
+          sessionId: 'test-session',
+          settings: defaultSettings,
+        })
+      );
+
+      let firstSend: Promise<void> | undefined;
+      let secondSend: Promise<void> | undefined;
+      act(() => {
+        firstSend = result.current.sendMessage('First concurrent send');
+        secondSend = result.current.sendMessage('Second concurrent send');
+      });
+
+      expect(mockStartNavigation).toHaveBeenCalledTimes(1);
+      expect(result.current.messages).toHaveLength(1);
+      expect(result.current.messages[0].content).toBe('First concurrent send');
+
+      await act(async () => {
+        resolveStart?.('nav-concurrent');
+        await firstSend;
+        await secondSend;
+      });
+
+      expect(result.current.messages).toHaveLength(2);
+      expect(result.current.messages[1].navigationId).toBe('nav-concurrent');
     });
 
     it('should not send empty messages', async () => {
@@ -215,7 +386,7 @@ describe('useAIConversation', () => {
       };
 
       act(() => {
-        mockOnStep?.(step);
+        mockOnStep?.(step, 'nav-123');
       });
 
       const assistantMessage = result.current.messages[1];
@@ -253,10 +424,10 @@ describe('useAIConversation', () => {
       });
 
       act(() => {
-        mockOnStep?.(createStep(1, 100));
+        mockOnStep?.(createStep(1, 100), 'nav-123');
       });
       act(() => {
-        mockOnStep?.(createStep(2, 100));
+        mockOnStep?.(createStep(2, 100), 'nav-123');
       });
 
       const assistantMessage = result.current.messages[1];
@@ -294,7 +465,7 @@ describe('useAIConversation', () => {
       };
 
       act(() => {
-        mockOnStep?.(step);
+        mockOnStep?.(step, 'nav-123');
       });
 
       expect(onTimelineAction).toHaveBeenCalled();
@@ -321,7 +492,7 @@ describe('useAIConversation', () => {
       rerender();
 
       act(() => {
-        mockOnComplete?.('completed', 'Successfully navigated to login page');
+        mockOnComplete?.('completed', 'Successfully navigated to login page', 'nav-123');
       });
 
       const assistantMessage = result.current.messages[1];
@@ -349,7 +520,7 @@ describe('useAIConversation', () => {
       rerender();
 
       act(() => {
-        mockOnComplete?.('failed');
+        mockOnComplete?.('failed', undefined, 'nav-123');
       });
 
       const assistantMessage = result.current.messages[1];
@@ -375,11 +546,148 @@ describe('useAIConversation', () => {
       rerender();
 
       act(() => {
-        mockOnComplete?.('aborted');
+        mockOnComplete?.('aborted', undefined, 'nav-123');
       });
 
       const assistantMessage = result.current.messages[1];
       expect(assistantMessage.status).toBe('aborted');
+    });
+
+    it('keeps one recoverable assistant message across observation loss and terminal recovery', async () => {
+      mockNavState.navigationId = 'nav-observation-loss';
+      mockStartNavigation.mockResolvedValue('nav-observation-loss');
+
+      const { result, rerender } = renderHook(() =>
+        useAIConversation({
+          sessionId: 'test-session',
+          settings: defaultSettings,
+        })
+      );
+
+      await act(async () => {
+        await result.current.sendMessage('Recover this navigation');
+      });
+
+      mockNavState.status = 'observation_unavailable' as typeof mockNavState.status;
+      mockNavState.error = 'status transport lost';
+      rerender();
+
+      await waitFor(() => {
+        expect(result.current.messages).toHaveLength(2);
+        expect(result.current.messages[1]).toMatchObject({
+          status: 'observation_unavailable',
+          error: 'status transport lost',
+          canAbort: true,
+        });
+      });
+
+      // A recovered terminal event must settle the existing assistant message,
+      // not append a duplicate or leave the user message orphaned.
+      mockNavState.status = 'aborted' as typeof mockNavState.status;
+      mockNavState.error = null;
+      rerender();
+      act(() => {
+        mockOnComplete?.('aborted', undefined, 'nav-observation-loss');
+      });
+
+      expect(result.current.messages).toHaveLength(2);
+      expect(result.current.messages[1]).toMatchObject({
+        status: 'aborted',
+        canAbort: false,
+      });
+    });
+
+    it('should not let a stale navigation completion finalize a successor message', async () => {
+      mockNavState.navigationId = 'nav-first';
+      mockStartNavigation.mockResolvedValueOnce('nav-first').mockResolvedValueOnce('nav-second');
+
+      const { result, rerender } = renderHook(() =>
+        useAIConversation({
+          sessionId: 'test-session',
+          settings: defaultSettings,
+        })
+      );
+
+      await act(async () => {
+        await result.current.sendMessage('First navigation');
+      });
+
+      mockNavState.navigationId = 'nav-second';
+      rerender();
+      await act(async () => {
+        await result.current.sendMessage('Successor navigation');
+      });
+
+      act(() => {
+        mockOnComplete?.('failed', 'stale completion', 'nav-first');
+      });
+
+      expect(result.current.messages[1].status).toBe('pending');
+      expect(result.current.messages[3].status).toBe('pending');
+    });
+
+    it('should ignore an older start callback after a successor starts', async () => {
+      mockNavState.navigationId = 'nav-first';
+      mockStartNavigation.mockResolvedValueOnce('nav-first').mockResolvedValueOnce('nav-second');
+
+      const { result, rerender } = renderHook(() =>
+        useAIConversation({
+          sessionId: 'test-session',
+          settings: defaultSettings,
+        })
+      );
+
+      await act(async () => {
+        await result.current.sendMessage('First navigation');
+      });
+
+      mockNavState.navigationId = 'nav-second';
+      rerender();
+      await act(async () => {
+        await result.current.sendMessage('Successor navigation');
+      });
+
+      act(() => {
+        mockOnStarted?.('nav-first', 1);
+      });
+
+      expect(result.current.messages[1].navigationId).toBe('nav-first');
+      expect(result.current.messages[3].navigationId).toBe('nav-second');
+      expect(result.current.messages).toHaveLength(4);
+    });
+
+    it('should ignore a step callback without the current navigation identity', async () => {
+      mockNavState.navigationId = 'nav-123';
+      mockStartNavigation.mockResolvedValue('nav-123');
+
+      const { result } = renderHook(() =>
+        useAIConversation({
+          sessionId: 'test-session',
+          settings: defaultSettings,
+        })
+      );
+
+      await act(async () => {
+        await result.current.sendMessage('Navigate');
+      });
+
+      const step: AINavigationStep = {
+        id: 'stale-step',
+        stepNumber: 1,
+        action: { type: 'click' },
+        reasoning: 'Stale step',
+        currentUrl: 'https://example.com',
+        goalAchieved: false,
+        tokensUsed: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+        durationMs: 1,
+        timestamp: new Date(),
+      };
+
+      act(() => {
+        mockOnStep?.(step);
+      });
+
+      expect(result.current.messages[1].steps).toEqual([]);
     });
   });
 
@@ -432,6 +740,46 @@ describe('useAIConversation', () => {
         const assistantMessage = result.current.messages[1];
         expect(assistantMessage.status).toBe('awaiting_human');
         expect(assistantMessage.humanIntervention?.reason).toBe('CAPTCHA detected');
+      });
+    });
+
+    it('should keep handoff retryable when a resume command fails', async () => {
+      mockNavState.navigationId = 'nav-123';
+      mockStartNavigation.mockResolvedValue('nav-123');
+
+      const { result, rerender } = renderHook(() =>
+        useAIConversation({
+          sessionId: 'test-session',
+          settings: defaultSettings,
+        })
+      );
+
+      await act(async () => {
+        await result.current.sendMessage('Navigate');
+      });
+
+      mockNavState.status = 'awaiting_human';
+      mockNavState.humanIntervention = {
+        reason: 'Verification required',
+        interventionType: 'verification',
+        trigger: 'ai_requested',
+        startedAt: new Date(),
+      };
+      rerender();
+
+      mockNavState.error = 'resume unavailable';
+      rerender();
+
+      mockResumeNavigation.mockResolvedValueOnce(false);
+      await act(async () => {
+        await result.current.resumeNavigation();
+      });
+
+      await waitFor(() => {
+        const assistantMessage = result.current.messages[1];
+        expect(assistantMessage.status).toBe('awaiting_human');
+        expect(assistantMessage.error).toBe('resume unavailable');
+        expect(assistantMessage.humanIntervention?.reason).toBe('Verification required');
       });
     });
 

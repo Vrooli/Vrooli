@@ -195,7 +195,14 @@ async function main(): Promise<void> {
       });
     }
 
-    // Wait for in-flight requests to complete (with timeout)
+    // Close browser sessions before draining request handlers. A request may
+    // be blocked on a browser effect (for example, a held navigation); waiting
+    // for that request first leaves the external effect live during shutdown.
+    // Closing the owned browser makes the effect uncertain immediately, and
+    // the request then observes the normal aborted-session path.
+    await sessionManager.shutdown();
+
+    // Wait for in-flight requests to settle (with timeout)
     // Timeouts from constants.ts
     const drainStart = Date.now();
 
@@ -215,9 +222,6 @@ async function main(): Promise<void> {
     } else {
       logger.info('server: all requests drained');
     }
-
-    // Shutdown session manager (close all browser sessions)
-    await sessionManager.shutdown();
 
     logger.info('server: shutdown complete', { exitCode });
     process.exit(exitCode);

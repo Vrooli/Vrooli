@@ -103,10 +103,16 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("build freshness spec: %w", err)
 	}
-	fingerprint, err := cliutil.ComputeFreshnessFingerprint(spec)
+	// Compute the digest and its stat-cache manifest together.  The previous
+	// path hashed the full source set here and the Vrooli CLI-install manager
+	// hashed it again on every `vrooli scenario ...` invocation.  Persisting
+	// this manifest makes steady-state checks stat-based and re-hashes only
+	// changed inputs while preserving the same digest/stale-check contract.
+	freshnessManifest, err := cliutil.ComputeFreshnessManifest(spec, "cli", nil, time.Now().UnixNano())
 	if err != nil {
-		return fmt.Errorf("compute fingerprint: %w", err)
+		return fmt.Errorf("compute freshness manifest: %w", err)
 	}
+	fingerprint := freshnessManifest.Digest
 
 	timestamp := time.Now().UTC().Format(time.RFC3339)
 	sourceRoot := filepath.ToSlash(sourceModulePath)
@@ -169,6 +175,9 @@ func run() error {
 		InstalledAt: timestamp,
 	}); err != nil {
 		return fmt.Errorf("write install metadata: %w", err)
+	}
+	if err := cliutil.WriteFreshnessManifest(cliutil.FreshnessManifestPath(dst), freshnessManifest); err != nil {
+		return fmt.Errorf("write freshness manifest: %w", err)
 	}
 
 	// Install/replace notices are diagnostics, not program output — route them to

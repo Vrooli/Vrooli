@@ -14,6 +14,10 @@ This package hosts Protocol Buffers schemas for inter-scenario contracts and the
 - Keep `gen/` in sync with `schemas/` before committing.
 - Preview deterministic orphan cleanup: `cd packages/proto && make cleanup`
 - Apply deterministic cleanup explicitly: `cd packages/proto && go run -mod=mod ./cmd/protogen cleanup --apply`
+- Do not use `buf generate` directly for routine edits: it bypasses import-closure
+  scope, output-digest repair, manifests, and the atomic artifact boundary. The
+  Darwin Bridge bootstrap's documented Go-only fallback is the sole intentional
+  exception.
 - JSON serialization: Vrooli HTTP JSON endpoints use proto field names (`snake_case`) on the wire. Go writers use `protojson.MarshalOptions{UseProtoNames: true}`; TypeScript writers use `toJsonString(..., { useProtoFieldName: true })`. TypeScript `fromJson` accepts both proto field names and JSON/lowerCamel names, so UI readers should parse through generated descriptors instead of manually reshaping payloads.
 
 ## Type-safety guidance
@@ -115,7 +119,11 @@ directly inside `packages/proto`, but a routine schema edit should use
 `vrooli package generate --scenario <scenario>` or the equivalent
 `make generate SCENARIO=<scenario>`. Generation is staged and advisory-locked;
 unchanged outputs are not rewritten. Scoped runs include reverse dependents and
-shared imports. See [docs/package-governance.md](/home/matthalloran8/Vrooli/docs/package-governance.md:1)
+the requested owner's complete import closure automatically, so callers do not
+need to enumerate imported schema owners by hand. The `--changed` path also
+compares each lockfile's recorded output digests, so edited or missing generated
+files are repaired even when the source closure is unchanged. See
+[docs/package-governance.md](/home/matthalloran8/Vrooli/docs/package-governance.md:1)
 for the canonical policy.
 
 `protogen cleanup` is the fleet-wide reconciliation command. It defaults to a

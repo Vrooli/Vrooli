@@ -31,6 +31,14 @@ func (h *connectHandler) GetHeartbeat(c context.Context, r *connect.Request[hear
 	return h.member(c, r.Header(), h.legacy.GetHeartbeat, http.MethodGet, r.Msg.GetTeamId(), r.Msg.GetAgentId(), "", nil, nil)
 }
 
+func (h *connectHandler) RefreshSupervision(c context.Context, r *connect.Request[heartbeatv1.MemberRequest]) (*connect.Response[heartbeatv1.JsonResponse], error) {
+	return h.member(c, r.Header(), h.legacy.RefreshSupervision, http.MethodPost, r.Msg.GetTeamId(), r.Msg.GetAgentId(), "/observe", nil, nil)
+}
+
+func (h *connectHandler) ReconcileSupervision(c context.Context, r *connect.Request[heartbeatv1.MemberMutationRequest]) (*connect.Response[heartbeatv1.JsonResponse], error) {
+	return h.member(c, r.Header(), h.legacy.ReconcileSupervision, http.MethodPost, r.Msg.GetTeamId(), r.Msg.GetAgentId(), "/reconcile", r.Msg.GetBody(), r.Msg.GetQuery())
+}
+
 func (h *connectHandler) CreateHeartbeat(c context.Context, r *connect.Request[heartbeatv1.MemberMutationRequest]) (*connect.Response[heartbeatv1.JsonResponse], error) {
 	return h.member(c, r.Header(), h.legacy.CreateHeartbeat, http.MethodPost, r.Msg.GetTeamId(), r.Msg.GetAgentId(), "", r.Msg.GetBody(), r.Msg.GetQuery())
 }

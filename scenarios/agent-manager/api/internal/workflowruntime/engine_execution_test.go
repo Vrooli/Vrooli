@@ -165,14 +165,15 @@ func (f fakeCatalog) GetByDigest(context.Context, string) (*domain.WorkflowRevis
 
 type (
 	childCall struct {
-		runID     uuid.UUID
-		source    *uuid.UUID
-		prompt    string
-		profile   string
-		scopePath string
-		maxTurns  int
-		timeout   time.Duration
-		effects   []string
+		runID         uuid.UUID
+		source        *uuid.UUID
+		prompt        string
+		profile       string
+		scopePath     string
+		sandboxConfig *domain.SandboxConfig
+		maxTurns      int
+		timeout       time.Duration
+		effects       []string
 	}
 	fakeChildren struct {
 		requests []childCall
@@ -216,7 +217,7 @@ func (f *fakeChildren) launch(req ChildRequest) (ChildState, error) {
 	if !ok {
 		id = uuid.New()
 		f.byKey[req.IdempotencyKey] = id
-		f.requests = append(f.requests, childCall{runID: id, source: req.SourceRunID, prompt: req.Prompt, profile: req.ProfileKey, scopePath: req.ScopePath, maxTurns: req.MaxTurns, timeout: req.Timeout, effects: append([]string(nil), req.AllowedEffects...)})
+		f.requests = append(f.requests, childCall{runID: id, source: req.SourceRunID, prompt: req.Prompt, profile: req.ProfileKey, scopePath: req.ScopePath, sandboxConfig: req.SandboxConfig, maxTurns: req.MaxTurns, timeout: req.Timeout, effects: append([]string(nil), req.AllowedEffects...)})
 	}
 	state := f.states[id]
 	state.RunID = id

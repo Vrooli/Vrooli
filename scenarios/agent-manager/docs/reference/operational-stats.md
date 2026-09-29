@@ -89,7 +89,7 @@ Source of truth: `internal/health.Store.Snapshot`.
   "models": [
     {
       "runner": "codex",
-      "model": "gpt-5.2-codex",
+      "model": "<observed-model>",
       "status": "ok" | "unknown" | "failed",
       "last_checked": "2026-05-07T17:32:00Z",
       "reason": "rate_limit",
@@ -134,7 +134,8 @@ canonical workflow:
 | Question | Command |
 |---|---|
 | Are any models currently failing? | `agent-manager health models` |
-| Show last 7 days of failures for a model | `agent-manager health audit --runner=codex --model=gpt-5.2-codex --since=7d` |
+| Which models does Codex currently offer? | `resource-codex models list --json` (the runner catalog; use the resource policy command for role selection) |
+| Show last 7 days of failures for a model | `agent-manager health audit --runner=codex --model=<observed-model> --since=7d` (substitute a model returned by `health models`) |
 | How often does CHEAP fall through? | `agent-manager ops fallback` |
 | Show every fallback event for a run | `agent-manager events list --run=<id>` |
 | Tail the typed event log for a specific type | `agent-manager events list --type=runner.fallback.attempted --since=1h` |
@@ -142,6 +143,14 @@ canonical workflow:
 The CLI never bypasses the API — every command exercises the same HTTP
 surface above, so anything the CLI can answer is something a downstream
 script or skill can also fetch from the API.
+
+`agent-manager health models` is a persisted execution-observation snapshot. It
+answers whether a model has recently succeeded or failed in managed runs; it is
+not a runner inventory and must not be used to infer that a model is absent.
+For Codex, runner availability comes from the resource-owned catalog
+(`resource-codex models list --json`), which queries the installed Codex runner
+first and uses the local compatibility cache only when that probe is
+unavailable.
 
 ## Honesty contract
 

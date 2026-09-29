@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -67,14 +68,7 @@ func findBool(value map[string]any, keys ...string) (bool, bool) {
 func findNumberShallow(value map[string]any, keys ...string) (int64, bool) {
 	for _, key := range keys {
 		if candidate, ok := value[key]; ok {
-			switch number := candidate.(type) {
-			case float64:
-				return int64(number), true
-			case int64:
-				return number, true
-			case int:
-				return int64(number), true
-			}
+			return nonnegativeMicros(candidate)
 		}
 	}
 	return 0, false
@@ -84,14 +78,7 @@ func findNumber(value any, keys ...string) (int64, bool) {
 	if object, ok := value.(map[string]any); ok {
 		for _, key := range keys {
 			if candidate, exists := object[key]; exists {
-				switch number := candidate.(type) {
-				case float64:
-					return int64(number), true
-				case int64:
-					return number, true
-				case int:
-					return int64(number), true
-				}
+				return nonnegativeMicros(candidate)
 			}
 		}
 		for _, child := range object {
@@ -108,6 +95,54 @@ func findNumber(value any, keys ...string) (int64, bool) {
 		}
 	}
 	return 0, false
+}
+
+func nonnegativeMicros(value any) (int64, bool) {
+	var n int64
+	switch v := value.(type) {
+	case int:
+		n = int64(v)
+	case int32:
+		n = int64(v)
+	case int64:
+		n = v
+	case uint:
+		if uint64(v) > math.MaxInt64 {
+			return 0, false
+		}
+		n = int64(v)
+	case uint32:
+		n = int64(v)
+	case uint64:
+		if v > math.MaxInt64 {
+			return 0, false
+		}
+		n = int64(v)
+	case float32:
+		f := float64(v)
+		if math.IsNaN(f) || math.IsInf(f, 0) || f < 0 || math.Trunc(f) != f || f >= float64(math.MaxInt64) {
+			return 0, false
+		}
+		n = int64(f)
+	case float64:
+		if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || math.Trunc(v) != v || v >= float64(math.MaxInt64) {
+			return 0, false
+		}
+		n = int64(v)
+	case json.Number:
+		parsed, err := v.Int64()
+		if err != nil {
+			f, floatErr := v.Float64()
+			if floatErr != nil || math.IsNaN(f) || math.IsInf(f, 0) || f < 0 || math.Trunc(f) != f || f >= float64(math.MaxInt64) {
+				return 0, false
+			}
+			parsed = int64(f)
+		}
+		n = parsed
+	default:
+		return 0, false
+	}
+	return n, n >= 0
 }
 
 // HTTPDelegator is the only program-runtime client for delegated agent work.
@@ -141,7 +176,16 @@ func (d *HTTPDelegator) Delegate(ctx context.Context, request DelegationRequest)
 		return nil, err
 	}
 	executionID, _ := started["execution_id"].(string)
-	return d.Collect(ctx, request.SessionID, executionID, 30)
+	result, err := d.Collect(ctx, request.SessionID, executionID, 30)
+	if err != nil {
+		return nil, err
+	}
+	for _, key := range []string{"owner", "workflow_key", "idempotency_key"} {
+		if value, ok := started[key]; ok {
+			result[key] = value
+		}
+	}
+	return result, nil
 }
 
 // Start launches a workflow and returns before it reaches a terminal state.

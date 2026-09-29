@@ -273,7 +273,7 @@ func (s *Service) admissionScenarioDir(req *orchestrator.SuiteExecutionRequest) 
 		}
 		return target.Path, nil
 	}
-	// scenarioDir resolves the artifact root used for run history. Admission
+	// Run history lives in routed artifact storage. Admission
 	// identity must instead hash the physical source tree that the executor
 	// will validate; hashing ~/.vrooli/test-runs/<scenario> makes every normal
 	// run fail before execution when that artifact directory does not exist.

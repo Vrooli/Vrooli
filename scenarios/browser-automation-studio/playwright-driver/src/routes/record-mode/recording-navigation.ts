@@ -20,12 +20,15 @@ import { parseJsonBody, sendJson, sendError } from '../../middleware';
 import { logger, SessionNotFoundError } from '../../utils';
 import { recordingOwner } from './recording-ownership';
 import { verifyScriptInjection } from '../../recording';
-import { clearFrameCache } from './recording-frames';
+import { clearFrameCache } from '../../session/frame-cache';
+import { enqueuePageMutation } from '../../session/live-input';
 import { captureThumbnail, emitHistoryCallback, readFaviconUrl } from './recording-pages';
 import type { NavigateRequest, NavigationResponse, NavigationStateResponse } from './types';
 
+type NavigationHistory = { currentIndex: number; entries: Array<{ id: number; url: string; title: string }> };
+
 // Every history observation owns a short-lived attachment to the original page.
-async function readBrowserHistory(page: Page, assertCurrent: () => void) {
+async function readBrowserHistory(page: Page, assertCurrent: () => void): Promise<NavigationHistory> {
   const cdp = await createCDPSession(page);
   let history;
   try {
@@ -38,7 +41,7 @@ async function readBrowserHistory(page: Page, assertCurrent: () => void) {
   return history;
 }
 
-function navigationAbility(history: Awaited<ReturnType<typeof readBrowserHistory>>) {
+function navigationAbility(history: Awaited<ReturnType<typeof readBrowserHistory>>): { can_go_back: boolean; can_go_forward: boolean } {
   return {
     can_go_back: history.currentIndex > 0,
     can_go_forward: history.currentIndex < history.entries.length - 1,
@@ -48,7 +51,13 @@ function navigationAbility(history: Awaited<ReturnType<typeof readBrowserHistory
 type NavigationOperation = 'navigate' | 'reload' | 'go-back' | 'go-forward';
 
 // All recording navigation uses the same lease/page admission and completion.
-function navigationHandler(operation: NavigationOperation) {
+function navigationHandler(operation: NavigationOperation): (
+  req: IncomingMessage,
+  res: ServerResponse,
+  sessionId: string,
+  sessionManager: SessionManager,
+  config: Config,
+) => Promise<void> {
   return async (
     req: IncomingMessage,
     res: ServerResponse,
@@ -68,7 +77,7 @@ function navigationHandler(operation: NavigationOperation) {
         sendJson(res, 409, { error: 'PAGE_CHANGED', message: 'The selected recording tab changed before navigation started' });
         return;
       }
-      const ownedPage = () => {
+      const ownedPage = (): void => {
         if (ownedSession().page !== page || session.pageToIdMap.get(page) !== pageId) throw new SessionNotFoundError(sessionId);
       };
       sessionManager.updateActivity(sessionId);
@@ -76,7 +85,7 @@ function navigationHandler(operation: NavigationOperation) {
       const direction = operation === 'go-back' ? -1 : operation === 'go-forward' ? 1 : 0;
       const before = direction ? await readBrowserHistory(page, ownedPage) : undefined;
       ownedPage();
-      const noHistory = () => sendJson(res, 400, {
+      const noHistory = (): void => sendJson(res, 400, {
         error: direction < 0 ? 'CANNOT_GO_BACK' : 'CANNOT_GO_FORWARD',
         message: direction < 0 ? 'No history to go back to' : 'No forward history to navigate to',
       });
@@ -88,14 +97,26 @@ function navigationHandler(operation: NavigationOperation) {
         }
         normalizedUrl = normalizedUrl.trim();
         if (normalizedUrl && !normalizedUrl.match(/^[a-zA-Z][a-zA-Z0-9+.-]*:/)) normalizedUrl = `https://${normalizedUrl}`;
-        await page.goto(normalizedUrl, options);
       } else if (operation === 'reload') {
-        await page.reload(options);
+        // Reload has no preflight browser mutation.
       } else {
         if (!before || before.currentIndex + direction < 0 || before.currentIndex + direction >= before.entries.length) return noHistory();
         // Same-document navigation can succeed with a null Playwright response.
-        await (direction < 0 ? page.goBack(options) : page.goForward(options));
       }
+      await enqueuePageMutation(page, async () => {
+        ownedPage();
+        // Retire the prior frame epoch before the browser mutation. A reload
+        // can keep URL and viewport stable, so completion-time invalidation is late.
+        clearFrameCache(sessionId);
+        if (operation === 'navigate') {
+          await page.goto(normalizedUrl, options);
+        } else if (operation === 'reload') {
+          await page.reload(options);
+        } else {
+          await (direction < 0 ? page.goBack(options) : page.goForward(options));
+        }
+        ownedPage();
+      });
       ownedPage();
       if (operation === 'navigate') {
         // Verify recording script loaded after navigation
@@ -208,7 +229,7 @@ function navigationReadHandler(stack: boolean) {
         sendJson(res, 409, {error: 'PAGE_CHANGED', message: 'The selected recording tab changed before history was read'});
         return;
       }
-      const assertCurrent = () => {
+      const assertCurrent = (): void => {
         if (ownedSession().page !== page || session.pageToIdMap.get(page) !== pageId) {
           throw new SessionNotFoundError(sessionId);
         }

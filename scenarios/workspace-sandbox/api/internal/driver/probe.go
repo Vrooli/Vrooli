@@ -147,6 +147,8 @@ func IsBwrapAvailable(ctx context.Context, starter process.Starter) (bool, strin
 // knowing the OS mechanism (bwrap on Linux, Seatbelt on macOS, …).
 const (
 	EnforcementFilesystemWriteContainment = "filesystem-write-containment"
+	EnforcementWorkspaceWritePolicy       = "workspace-write-policy"
+	EnforcementPolicyFiles                = "read-only-policy-files"
 	EnforcementNetworkDeny                = "network-deny"
 	EnforcementPIDNamespace               = "pid-namespace"
 	EnforcementPathIllusion               = "path-illusion"

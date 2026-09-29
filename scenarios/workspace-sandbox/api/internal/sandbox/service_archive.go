@@ -6,12 +6,13 @@ package sandbox
 // call it BEFORE running their downstream side effects (audit, lifecycle,
 // agent-manager notification). The function:
 //
-//   1. Generates the diff via Service.GetDiff (or skips when captured=false).
-//   2. Writes per-file content blobs and the unified-diff blob to disk.
+//   1. Uses pre-apply evidence for whole-file approval, otherwise generates
+//      the diff via Service.GetDiff (or skips when captured=false).
+//   2. Writes any not-yet-prepared file and unified-diff blobs to disk.
 //   3. Opens a SQL transaction, inserts the archive row, updates the
 //      sandbox status, commits.
-//   4. On any error: rolls back the transaction and best-effort removes
-//      the per-sandbox blob directory so disk debris cannot accumulate.
+//   4. On error: rolls back the transaction. Prepared approval blobs survive
+//      because source may already have changed; other new blobs are cleaned up.
 //
 // The transition is atomic by construction: the sandbox row's terminal
 // status and the archive row's existence flip together. A terminal-
@@ -32,6 +33,7 @@ import (
 	"github.com/vrooli/api-core/schedule"
 
 	"workspace-sandbox/internal/blobstore"
+	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/types"
 )
 
@@ -48,6 +50,9 @@ import (
 // are written, and Files/UnifiedDiffSHA256/TotalBlobBytes are zeroed.
 // Pass captured=false for paths that cannot generate a diff (Error
 // sandboxes, missing overlay).
+// prepared, when non-nil, supplies the complete archive captured before apply.
+// It must belong to this sandbox and terminal status. This transaction publishes
+// that evidence without re-reading source or overlay paths.
 //
 // mutator is called inside the transaction with the sandbox struct
 // (status already set to terminalStatus); use it for status-specific
@@ -68,6 +73,7 @@ func (s *Service) snapshotAndTransition(
 	terminalStatus types.Status,
 	captured bool,
 	mutator func(*types.Sandbox),
+	prepared *types.DiffArchive,
 ) error {
 	if sandbox == nil {
 		return errors.New("sandbox.snapshotAndTransition: sandbox is nil")
@@ -91,28 +97,34 @@ func (s *Service) snapshotAndTransition(
 		}
 		return nil
 	}
+	if err := s.requireUnpublishedArchive(ctx, sandbox.ID); err != nil {
+		return err
+	}
 
-	archive := &types.DiffArchive{
-		SandboxID:         sandbox.ID,
-		ArchiveState:      types.ArchiveStateNotCaptured,
-		SandboxStatus:     terminalStatus,
-		ProjectRoot:       sandbox.ProjectRoot,
-		Owner:             sandbox.Owner,
-		AgentManagerRunID: metadataString(sandbox.Metadata, metadataAgentManagerRunID),
+	archive := prepared
+	if archive == nil {
+		archive = newDiffArchive(sandbox, terminalStatus)
+	} else if archive.SandboxID != sandbox.ID || archive.SandboxStatus != terminalStatus || archive.ArchiveState != types.ArchiveStateComplete {
+		return errors.New("prepared archive does not match terminal transition")
 	}
 
 	// Track whether blobs were written so we can clean up on rollback.
-	// Cleanup is best-effort: a leaked blob directory is annoying but
-	// not a correctness failure (retention will eventually evict it).
+	// Prepared approval evidence must survive a failed transaction because
+	// source may already have changed. Unindexed-blob reconciliation remains
+	// a separate recovery gap; indexed archive retention does not cover it.
 	blobsWritten := false
 
-	if captured {
-		written, err := s.captureBlobs(ctx, sandbox, archive)
+	if captured && prepared == nil {
+		diffResult, err := s.GetDiff(ctx, sandbox.ID)
+		if err != nil {
+			return fmt.Errorf("get diff: %w", err)
+		}
+		written, err := s.captureBlobs(ctx, sandbox, archive, diffResult)
 		if err != nil {
 			// Defensive cleanup: captureBlobs may have written some
 			// blobs before failing.
 			if written {
-				_ = s.blobs.DeleteSandbox(ctx, uuidText(sandbox.ID))
+				s.cleanupUnpublishedBlobs(ctx, sandbox.ID)
 			}
 			return fmt.Errorf("capture blobs: %w", err)
 		}
@@ -122,7 +134,7 @@ func (s *Service) snapshotAndTransition(
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
 		if blobsWritten {
-			_ = s.blobs.DeleteSandbox(ctx, uuidText(sandbox.ID))
+			s.cleanupUnpublishedBlobs(ctx, sandbox.ID)
 		}
 		return fmt.Errorf("begin tx: %w", err)
 	}
@@ -131,7 +143,7 @@ func (s *Service) snapshotAndTransition(
 		if !committed {
 			_ = tx.Rollback()
 			if blobsWritten {
-				_ = s.blobs.DeleteSandbox(ctx, uuidText(sandbox.ID))
+				s.cleanupUnpublishedBlobs(ctx, sandbox.ID)
 			}
 		}
 	}()
@@ -147,6 +159,11 @@ func (s *Service) snapshotAndTransition(
 	if err := tx.Update(ctx, sandbox); err != nil {
 		return fmt.Errorf("update sandbox to %s: %w", terminalStatus, err)
 	}
+	if prepared != nil {
+		if err := s.archiveRepo.DeletePreparedApproval(ctx, tx.Tx(), sandbox.ID); err != nil {
+			return fmt.Errorf("publish prepared approval: %w", err)
+		}
+	}
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit tx: %w", err)
@@ -155,19 +172,166 @@ func (s *Service) snapshotAndTransition(
 	return nil
 }
 
+// Call while holding the review lock, before source or blob writes. A live
+// sandbox with published evidence is inconsistent, not permission to replace it.
+func (s *Service) requireUnpublishedArchive(ctx context.Context, id uuid.UUID) error {
+	if s.archiveRepo == nil {
+		return nil
+	}
+	archive, err := s.archiveRepo.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if archive != nil {
+		return types.NewValidationError("archive", "sandbox already has published evidence; refusing replacement")
+	}
+	return nil
+}
+
+// The caller still holds the owner lock and has rolled back any transaction.
+// Never erase a tree if ownership cannot be verified or durable evidence pins it.
+func (s *Service) cleanupUnpublishedBlobs(ctx context.Context, id uuid.UUID) {
+	if err := s.requireUnpublishedArchive(ctx, id); err != nil {
+		return
+	}
+	if err := s.requireNoPreparedApproval(ctx, id); err != nil {
+		return
+	}
+	_ = s.blobs.DeleteSandbox(ctx, uuidText(id))
+}
+
+func newDiffArchive(sandbox *types.Sandbox, status types.Status) *types.DiffArchive {
+	return &types.DiffArchive{
+		SandboxID: sandbox.ID, ArchiveState: types.ArchiveStateNotCaptured,
+		SandboxStatus: status, ProjectRoot: sandbox.ProjectRoot, Owner: sandbox.Owner,
+		AgentManagerRunID: metadataString(sandbox.Metadata, metadataAgentManagerRunID),
+	}
+}
+
+type capturedApprovalDiff struct {
+	result  *types.DiffResult
+	sandbox types.Sandbox
+	staging string
+}
+
+func (c *capturedApprovalDiff) close() {
+	_ = os.RemoveAll(c.staging)
+}
+
+// captureApprovalDiff reads each source side once into private staging. The
+// existing generator and archive writer then consume the same captured bytes.
+// In particular, changing the canonical lower layer during apply cannot change
+// the patch or deleted-file evidence retained for this approval. The caller must
+// close the snapshot after use; file bodies are not retained together in memory.
+func (s *Service) captureApprovalDiff(ctx context.Context, sandbox *types.Sandbox, changes []*types.FileChange, maxFileBytes, maxInputBytes int64) (*capturedApprovalDiff, error) {
+	staging, err := os.MkdirTemp("", "workspace-sandbox-approval-")
+	if err != nil {
+		return nil, err
+	}
+	complete := false
+	defer func() {
+		if !complete {
+			_ = os.RemoveAll(staging)
+		}
+	}()
+	snapshot := *sandbox
+	snapshot.UpperDir = filepath.Join(staging, "upper")
+	snapshot.LowerDir = filepath.Join(staging, "lower")
+	for _, dir := range []string{snapshot.UpperDir, snapshot.LowerDir} {
+		if err := os.Mkdir(dir, 0700); err != nil {
+			return nil, err
+		}
+	}
+	seen := make(map[string]bool, len(changes))
+	captured := make([]*types.FileChange, 0, len(changes))
+	var stagedBytes int64
+	copySide := func(source, target, path string) ([]byte, os.FileMode, error) {
+		if err := ctx.Err(); err != nil {
+			return nil, 0, err
+		}
+		limit := maxFileBytes
+		if maxInputBytes > 0 && (limit == 0 || limit > maxInputBytes-stagedBytes) {
+			limit = max(1, maxInputBytes-stagedBytes)
+		}
+		body, mode, err := copyApprovalFile(source, target, path, limit)
+		stagedBytes += int64(len(body))
+		if err == nil && maxInputBytes > 0 && stagedBytes > maxInputBytes {
+			err = errors.New("review staging byte limit exceeded")
+		}
+		return body, mode, err
+	}
+	for _, change := range changes {
+		switch change.ChangeType {
+		case types.ChangeTypeAdded, types.ChangeTypeModified, types.ChangeTypeDeleted:
+		default:
+			return nil, fmt.Errorf("unsupported approval change type %q", change.ChangeType)
+		}
+		path := filepath.Clean(change.FilePath)
+		if !filepath.IsLocal(path) || path == "." {
+			return nil, fmt.Errorf("invalid approval snapshot path %q", change.FilePath)
+		}
+		if seen[path] {
+			return nil, fmt.Errorf("duplicate approval snapshot path %q", path)
+		}
+		var content []byte
+		var mode os.FileMode
+		if change.ChangeType != types.ChangeTypeAdded {
+			content, mode, err = copySide(sandbox.LowerDir, snapshot.LowerDir, path)
+			if err != nil {
+				return nil, fmt.Errorf("capture original %s: %w", path, err)
+			}
+		}
+		if change.ChangeType != types.ChangeTypeDeleted {
+			content, mode, err = copySide(sandbox.UpperDir, snapshot.UpperDir, path)
+			if err != nil {
+				return nil, fmt.Errorf("capture changed %s: %w", path, err)
+			}
+		}
+		entry := *change
+		entry.FilePath, entry.FileSize, entry.FileMode = path, int64(len(content)), int(mode)
+		captured = append(captured, &entry)
+		seen[path] = true
+	}
+	result, err := diff.NewGenerator(s.starter).GenerateDiff(ctx, &snapshot, captured, &diff.GenerateOptions{PathPrefix: scopePathPrefix(sandbox), MaxPatchBytes: maxInputBytes})
+	if err != nil {
+		return nil, err
+	}
+	complete = true
+	return &capturedApprovalDiff{result: result, sandbox: snapshot, staging: staging}, nil
+}
+
+func copyApprovalFile(source, target, path string, limit int64) ([]byte, os.FileMode, error) {
+	content, info, err := diff.ReadFileBytesLimit(source, path, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	if !info.Mode().IsRegular() && info.Mode()&os.ModeSymlink == 0 {
+		return nil, 0, fmt.Errorf("unsupported file type %s", info.Mode())
+	}
+	root, err := os.OpenRoot(target)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer root.Close()
+	if err := root.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return nil, 0, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		err = root.Symlink(string(content), path)
+	} else {
+		err = root.WriteFile(path, content, info.Mode().Perm())
+	}
+	return content, info.Mode(), err
+}
+
 // captureBlobs reads each file's content from the upper/lower dir,
 // writes content blobs to the blobstore, and populates archive.Files
 // + archive.UnifiedDiffSHA256 + archive.TotalBlobBytes + archive.Stats.
 //
 // Returns blobsWritten=true if any Put succeeded (so the caller can
-// schedule cleanup on rollback). Returns blobsWritten=false only when
-// no Put was attempted — i.e. zero changes.
-func (s *Service) captureBlobs(ctx context.Context, sandbox *types.Sandbox, archive *types.DiffArchive) (blobsWritten bool, _ error) {
-	diffResult, err := s.GetDiff(ctx, sandbox.ID)
-	if err != nil {
-		return false, fmt.Errorf("get diff: %w", err)
-	}
-
+// schedule cleanup on rollback). A failed first Put returns false; even a
+// captured empty diff writes a blob and returns true.
+func (s *Service) captureBlobs(ctx context.Context, sandbox *types.Sandbox, archive *types.DiffArchive, diffResult *types.DiffResult) (blobsWritten bool, _ error) {
 	archive.ArchiveState = types.ArchiveStateComplete
 	archive.Stats = diffResult.Stats
 
@@ -235,34 +399,19 @@ func (s *Service) captureBlobs(ctx context.Context, sandbox *types.Sandbox, arch
 // display layer is free to skip rendering binary content; the storage
 // layer should not silently drop it.
 func readFileForArchive(sandbox *types.Sandbox, change *types.FileChange) ([]byte, error) {
-	var targetPath string
+	var rootPath string
 	switch change.ChangeType {
 	case types.ChangeTypeDeleted:
-		targetPath = filepath.Join(sandbox.LowerDir, change.FilePath)
+		rootPath = sandbox.LowerDir
 	default:
-		targetPath = filepath.Join(sandbox.UpperDir, change.FilePath)
+		rootPath = sandbox.UpperDir
 	}
 
-	info, err := os.Stat(targetPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	if info.IsDir() {
+	content, _, err := diff.ReadFileBytes(rootPath, change.FilePath)
+	if os.IsNotExist(err) {
 		return nil, nil
 	}
-	if !info.Mode().IsRegular() {
-		// Sockets, devices, FIFOs — no content to capture.
-		return nil, nil
-	}
-
-	content, err := os.ReadFile(targetPath) // #nosec G304 -- joined under sandbox-owned roots
-	if err != nil {
-		return nil, err
-	}
-	return content, nil
+	return content, err
 }
 
 // GetArchive returns the durable diff archive for sandboxID, or
@@ -302,20 +451,25 @@ func (s *Service) GetArchive(ctx context.Context, sandboxID uuid.UUID) (*types.D
 	}
 
 	unified := ""
-	if archive.ArchiveState == types.ArchiveStateComplete && archive.UnifiedDiffSHA256 != "" && s.blobs != nil {
+	if !archive.ArchiveState.IsValid() {
+		return nil, fmt.Errorf("archive %s has invalid capture state %q", sandboxID, archive.ArchiveState)
+	}
+	if archive.ArchiveState == types.ArchiveStateComplete {
+		if archive.UnifiedDiffSHA256 == "" || s.blobs == nil {
+			return nil, fmt.Errorf("complete archive %s lacks its unified diff reference or blob reader", sandboxID)
+		}
 		raw, getErr := s.blobs.Get(ctx, uuidText(sandboxID), archive.UnifiedDiffSHA256)
-		if getErr != nil && !errors.Is(getErr, blobstore.ErrNotFound) {
+		if getErr != nil {
 			return nil, fmt.Errorf("read unified diff blob: %w", getErr)
 		}
-		if raw != nil {
-			unified = string(raw)
-		}
+		unified = string(raw)
 	}
 
 	return &types.DiffResult{
 		SandboxID:    sandboxID,
 		Files:        files,
 		UnifiedDiff:  unified,
+		PatchSHA256:  archive.UnifiedDiffSHA256,
 		Generated:    archive.SnapshotAt,
 		Stats:        archive.Stats,
 		ArchiveState: archive.ArchiveState,
@@ -448,6 +602,13 @@ func (s *Service) ReconcileArchiveRetention(ctx context.Context, policy Retentio
 		report.Duration = schedule.Since(start)
 		return report
 	}
+	release, err := s.lockReview(ctx)
+	if err != nil {
+		report.LastError = fmt.Sprintf("lock archive retention: %v", err)
+		report.Duration = schedule.Since(start)
+		return report
+	}
+	defer release()
 
 	all, err := s.archiveRepo.AllOrdered(ctx)
 	if err != nil {
@@ -545,6 +706,10 @@ func (s *Service) ReconcileArchiveRetention(ctx context.Context, policy Retentio
 // report is annotated and the caller treats the archive as not-evicted.
 func (s *Service) evictArchive(ctx context.Context, a *types.DiffArchive, report *ArchiveRetentionReport) bool {
 	if a == nil {
+		return false
+	}
+	if err := s.requireNoPreparedApproval(ctx, a.SandboxID); err != nil {
+		report.LastError = fmt.Sprintf("preserve pending evidence %s: %v", a.SandboxID, err)
 		return false
 	}
 	// Blobs first: a row deletion before blob removal would leak

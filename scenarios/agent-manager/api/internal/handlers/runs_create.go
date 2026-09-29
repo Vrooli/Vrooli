@@ -213,6 +213,7 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 		req.Environment = protoReq.Environment
 		req.WorkloadKey = protoReq.Environment["VROOLI_WORKLOAD_KEY"]
 		req.WorkloadKind = domain.WorkloadKind(protoReq.Environment["VROOLI_WORKLOAD_KIND"])
+		req.WorkloadInstance = protoReq.Environment["VROOLI_WORKLOAD_INSTANCE"]
 	}
 	if protoReq.ConversationId != nil {
 		req.ConversationID = protoReq.GetConversationId()

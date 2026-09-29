@@ -41,6 +41,14 @@ func (c supervisionRunController) GetRun(ctx context.Context, id uuid.UUID) (*do
 	return c.orchestrator.GetRun(ctx, id)
 }
 
+func (c supervisionRunController) RunAccounting(ctx context.Context, id uuid.UUID) (supervision.DispatchRunAccounting, error) {
+	usage, err := c.orchestrator.RunAccounting(ctx, id)
+	if err != nil {
+		return supervision.DispatchRunAccounting{}, err
+	}
+	return supervision.DispatchRunAccounting{Terminal: usage.Terminal, Tokens: usage.Tokens, TokensKnown: usage.TokensKnown, ChargeMicroUSD: usage.ChargeMicroUSD, ChargeMeasured: usage.ChargeMeasured}, nil
+}
+
 func (c supervisionRunController) ContinueRun(ctx context.Context, id uuid.UUID, message, idempotencyKey string) error {
 	_, err := c.orchestrator.ContinueRun(ctx, orchestration.ContinueRunRequest{RunID: id, Message: message, IdempotencyKey: idempotencyKey})
 	return err

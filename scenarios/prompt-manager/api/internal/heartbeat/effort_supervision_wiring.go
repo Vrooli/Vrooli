@@ -19,13 +19,15 @@ func WireStandingSupervisor(owner EffortSupervisionOwner, executor *Executor, qu
 		Record:             executor.recordSupervisionExecution,
 		DispatchCredential: resolveSupervisorDispatchCredential,
 	}
-	s.Config = func(ctx context.Context, teamID, agentID string) (*store.HeartbeatConfig, error) {
+	loadConfig := func(ctx context.Context, teamID, agentID string, requireEnabled, requireControl bool) (*store.HeartbeatConfig, error) {
 		team, err := executor.teamStore.Get(ctx, teamID)
 		if err != nil {
 			return nil, err
 		}
-		if err := validateTeamEnabled(team); err != nil {
-			return nil, err
+		if requireEnabled {
+			if err := validateTeamEnabled(team); err != nil {
+				return nil, err
+			}
 		}
 		if team.Coordination.Pattern != teamconfig.CoordinationPatternLeaderLed || team.Coordination.LeadAgentID != agentID ||
 			team.Execution.QueuePolicy != teamconfig.QueuePolicySerialized || team.Execution.MaxConcurrentRuns != 1 {
@@ -47,7 +49,7 @@ func WireStandingSupervisor(owner EffortSupervisionOwner, executor *Executor, qu
 		if _, ok := team.OperatingContract.Members[agentID]; !ok {
 			return nil, fmt.Errorf("standing supervision leader is missing its member contract")
 		}
-		if control != nil {
+		if requireControl && control != nil {
 			if _, err := control.AllowStart(ctx, teamID); err != nil {
 				return nil, err
 			}
@@ -60,6 +62,13 @@ func WireStandingSupervisor(owner EffortSupervisionOwner, executor *Executor, qu
 			cfg.ProfileKey, err = DefaultProfileKeyForRuntimeMode(team.Runtime.Mode)
 		}
 		return cfg, err
+	}
+	s.Config = func(ctx context.Context, teamID, agentID string) (*store.HeartbeatConfig, error) {
+		cfg, err := loadConfig(ctx, teamID, agentID, true, true)
+		return cfg, err
+	}
+	s.ObservationConfig = func(ctx context.Context, teamID, agentID string) (*store.HeartbeatConfig, error) {
+		return loadConfig(ctx, teamID, agentID, false, false)
 	}
 	executor.EffortSupervisor = s
 	scheduler.SetEffortSupervisor(s)

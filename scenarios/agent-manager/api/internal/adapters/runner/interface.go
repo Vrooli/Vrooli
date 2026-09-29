@@ -276,6 +276,9 @@ type ExecuteRequest struct {
 	// Environment contains additional environment variables.
 	Environment map[string]string
 
+	// PolicyFiles are owner-created launch policy, not user-supplied config.
+	PolicyFiles []PolicyFile
+
 	// Attachments contains image/file attachments for this request.
 	Attachments []Attachment
 
@@ -340,6 +343,9 @@ type ContinueRequest struct {
 
 	// Environment contains additional environment variables.
 	Environment map[string]string
+
+	// PolicyFiles must be revalidated and enforced on every continuation.
+	PolicyFiles []PolicyFile
 
 	// Attachments contains image/file attachments for this request.
 	Attachments []Attachment

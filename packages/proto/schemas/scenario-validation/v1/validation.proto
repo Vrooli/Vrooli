@@ -4,6 +4,7 @@ package vrooli.scenario_validation.v1;
 
 import "common/v1/maturity.proto";
 import "common/v1/metrics.proto";
+import "common/v1/evidence.proto";
 import "common/v1/validation_target.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
@@ -128,6 +129,21 @@ message ProviderCapabilities {
   // Target kinds this provider declares and implements. An absent field is
   // interpreted as [SCENARIO] by older providers.
   repeated common.v1.ValidationTargetKind target_kinds = 4;
+  // Explicit support for admission-bound retained evidence. Unknown fields
+  // from older peers are not evidence that this capability is implemented.
+  bool supports_retained_evidence = 5;
+}
+
+// RetainedEvidenceSet identifies one successful producer run and the exact
+// catalog artifacts a provider may judge. It carries references, never paths.
+message RetainedEvidenceSet {
+  string producer_receipt_id = 1;
+  string producer = 2;
+  string target = 3;
+  string run_id = 4;
+  string candidate_identity = 5;
+  string catalog_digest = 6;
+  repeated common.v1.EvidenceRef artifacts = 7;
 }
 
 message ValidateScenarioRequest {
@@ -146,6 +162,7 @@ message ValidateScenarioRequest {
   // provider must evaluate its normal full capability set. Providers that
   // honor this field must skip work for capabilities not named here.
   repeated string capability_subset = 4;
+  repeated RetainedEvidenceSet retained_evidence_sets = 5;
 }
 
 message ValidateTargetRequest {
@@ -157,6 +174,7 @@ message ValidateTargetRequest {
   repeated string capability_subset = 4;
   // Repository-contract exclusions expressed as repo-relative globs.
   repeated string exclude = 5;
+  repeated RetainedEvidenceSet retained_evidence_sets = 6;
 }
 
 message ValidateTargetResponse {

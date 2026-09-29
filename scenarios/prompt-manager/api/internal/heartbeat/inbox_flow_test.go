@@ -171,26 +171,3 @@ func TestPrefixForList(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 }
-
-func TestDeriveRepoRoot(t *testing.T) {
-	t.Setenv("VROOLI_ROOT", "")
-	cases := []struct {
-		store, want string
-	}{
-		{"/x/scenarios/prompt-manager/store", "/x"},
-		{"/foo/bar/baz/qux/store", "/foo/bar"},
-		{"", ""},
-	}
-	for _, c := range cases {
-		if got := deriveRepoRoot(c.store); got != c.want {
-			t.Errorf("deriveRepoRoot(%q) = %q, want %q", c.store, got, c.want)
-		}
-	}
-}
-
-func TestDeriveRepoRoot_HonorsVrooliRoot(t *testing.T) {
-	t.Setenv("VROOLI_ROOT", "/explicit/root")
-	if got := deriveRepoRoot("/anything/else"); got != "/explicit/root" {
-		t.Errorf("VROOLI_ROOT not honored; got %q", got)
-	}
-}

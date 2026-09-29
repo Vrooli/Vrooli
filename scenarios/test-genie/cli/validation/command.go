@@ -36,6 +36,16 @@ var newClient = func(apiClient *cliutil.APIClient) (validationconnect.Validation
 
 func register(manifest []byte, client clientFactory) (cliapp.SubcommandGroup, error) {
 	return cliapp.LoadFromManifestPrimitives(manifest, "validation", map[string]cliapp.PrimitiveHandler{
+		"ValidationService.ResolveSourceIdentity": cliapp.ProtoOperational(resolveSourceIdentityCall(client), func(_ cliapp.OperationContext, response *validationv1.ResolveSourceIdentityResponse) cliapp.OperationalReport {
+			identity := response.GetIdentity()
+			if identity == nil {
+				return cliapp.OperationalReport{Status: []string{"source identity unavailable"}}
+			}
+			return cliapp.OperationalReport{Status: []string{"source identity resolved", "identity=" + identity.GetIdentity()}}
+		}),
+		"ValidationService.CreateEvidenceProduction": cliapp.ProtoMutation(createEvidenceProductionCall(client), func(_ cliapp.OperationContext, response *validationv1.CreateEvidenceProductionResponse) cliapp.MutationReport {
+			return receiptMutationReport("created evidence production", response.GetReceipt())
+		}),
 		"ValidationService.CreateValidation": cliapp.ProtoMutation(createCall(client), func(_ cliapp.OperationContext, response *validationv1.CreateValidationResponse) cliapp.MutationReport {
 			return receiptMutationReport("created", response.GetReceipt())
 		}),
@@ -48,9 +58,56 @@ func register(manifest []byte, client clientFactory) (cliapp.SubcommandGroup, er
 		"ValidationService.AbortValidationWork": cliapp.ProtoMutation(abortCall(client), func(_ cliapp.OperationContext, response *validationv1.AbortValidationWorkResponse) cliapp.MutationReport {
 			return receiptMutationReport("abort requested for", response.GetReceipt())
 		}),
-		"ValidationService.ExplainValidation": cliapp.ProtoOperational(explainCall(client), explainReport),
+		"ValidationService.ExplainValidation":     cliapp.ProtoOperational(explainCall(client), explainReport),
 		"ValidationService.ListValidationShadows": cliapp.ProtoList(listShadowsCall(client), shadowListReport),
 	})
+}
+
+func resolveSourceIdentityCall(factory clientFactory) func(cliapp.OperationContext) (*validationv1.ResolveSourceIdentityResponse, error) {
+	return func(operation cliapp.OperationContext) (*validationv1.ResolveSourceIdentityResponse, error) {
+		payload, err := os.ReadFile(operation.Flag("request-file"))
+		if err != nil {
+			return nil, fmt.Errorf("read source identity request: %w", err)
+		}
+		var request validationv1.ResolveSourceIdentityRequest
+		if err := protojson.Unmarshal(payload, &request); err != nil {
+			return nil, fmt.Errorf("decode source identity request: %w", err)
+		}
+		client, err := factory()
+		if err != nil {
+			return nil, err
+		}
+		response, err := client.ResolveSourceIdentity(context.Background(), connect.NewRequest(&request))
+		if err != nil {
+			return nil, err
+		}
+		return response.Msg, nil
+	}
+}
+
+func createEvidenceProductionCall(factory clientFactory) func(cliapp.OperationContext) (*validationv1.CreateEvidenceProductionResponse, error) {
+	return func(operation cliapp.OperationContext) (*validationv1.CreateEvidenceProductionResponse, error) {
+		if !operation.BoolFlag("yes") {
+			return nil, fmt.Errorf("evidence production requires --yes confirmation")
+		}
+		payload, err := os.ReadFile(operation.Flag("request-file"))
+		if err != nil {
+			return nil, fmt.Errorf("read evidence production request: %w", err)
+		}
+		var request validationv1.CreateEvidenceProductionRequest
+		if err := protojson.Unmarshal(payload, &request); err != nil {
+			return nil, fmt.Errorf("decode evidence production request: %w", err)
+		}
+		client, err := factory()
+		if err != nil {
+			return nil, err
+		}
+		response, err := client.CreateEvidenceProduction(context.Background(), connect.NewRequest(&request))
+		if err != nil {
+			return nil, err
+		}
+		return response.Msg, nil
+	}
 }
 
 type clientFactory func() (validationconnect.ValidationServiceClient, error)

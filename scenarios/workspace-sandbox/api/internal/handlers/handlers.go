@@ -298,6 +298,10 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	// resolution); GetDiffFile streams individual archived blobs.
 	api.HandleFunc("/sandboxes/{id}/diff", h.GetDiff).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}/diff/file", h.GetDiffFile).Methods("GET")
+	api.HandleFunc("/sandboxes/{id}/reviews", h.CaptureReviewSnapshot).Methods("POST")
+	api.HandleFunc("/sandboxes/{id}/reviews/{requestId}", h.GetReviewSnapshot).Methods("GET")
+	api.HandleFunc("/sandboxes/{id}/reviews/{requestId}/workspace", h.MaterializeReviewSnapshot).Methods("POST")
+	api.HandleFunc("/sandboxes/{id}/reviews/{requestId}/file", h.GetReviewFile).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}/approve", h.Approve).Methods("POST")
 	api.HandleFunc("/sandboxes/{id}/apply-at-run-end", h.ApplyAtRunEnd).Methods("POST")
 	api.HandleFunc("/sandboxes/{id}/turn-checkpoint", h.TurnCheckpoint).Methods("POST")

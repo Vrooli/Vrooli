@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -34,6 +35,7 @@ const (
 	MaxEdgeTraversals  = 10_000
 	MaxWallTimeSeconds = 97_200
 	MaxTurns           = 1_000
+	MaxToolCalls       = 100_000
 	MaxTokens          = 20_000_000
 	MaxChargeMicroUSD  = int64(10_000_000_000) // $10,000 in micro-USD
 	// MinimumChargeMicroUSD prevents the historical maxCostUsd-to-micro-USD
@@ -432,7 +434,7 @@ func normalizeSchema(raw json.RawMessage, path string, add func(string, string, 
 
 func validateNode(n *domain.WorkflowNode, path string, lookup Lookup, add, warn func(string, string, string)) {
 	payloads := 0
-	for _, present := range []bool{n.Run != nil, n.Continue != nil, n.Child != nil, n.Wait != nil, n.Branch != nil, n.Join != nil, n.End != nil} {
+	for _, present := range []bool{n.Run != nil, n.Continue != nil, n.Child != nil, n.Wait != nil, n.Branch != nil, n.Join != nil, n.End != nil, n.Qualification != nil} {
 		if present {
 			payloads++
 		}
@@ -443,6 +445,32 @@ func validateNode(n *domain.WorkflowNode, path string, lookup Lookup, add, warn 
 	}
 	bindings := []domain.WorkflowInputBinding(nil)
 	switch n.Kind {
+	case domain.WorkflowNodeQualification:
+		q := n.Qualification
+		if q == nil {
+			add("node_kind", path, "qualification payload is required")
+			return
+		}
+		if q.ReviewFromNode == "" || q.ReviewFromNode == n.ID {
+			add("qualification_review", path+".qualification.reviewFromNode", "a distinct retained-review predecessor is required")
+		}
+		if !regexp.MustCompile(`^[a-z][a-z0-9-]*\.[a-z][a-z0-9-]*$`).MatchString(q.ProgramName) || !regexp.MustCompile(`^[a-f0-9]{64}$`).MatchString(q.ProgramDigest) {
+			add("qualification_program", path+".qualification", "a literal declared program name and lowercase SHA256 digest are required")
+		}
+		for _, b := range q.Bindings {
+			if b.Name == "candidate" {
+				add("qualification_input", path+".qualification.bindings", "candidate is reserved for retained owner evidence")
+			}
+		}
+		if len(q.Grants) > 16 {
+			add("qualification_grant", path+".qualification.grants", "at most 16 exact binding grants")
+		}
+		for _, grant := range q.Grants {
+			if !regexp.MustCompile(`^binding:[a-z][a-z0-9-]*/[a-z][a-z0-9/-]*$`).MatchString(grant) {
+				add("qualification_grant", path+".qualification.grants", "only exact binding:<id> grants are allowed; broad permissions and wildcards are forbidden")
+			}
+		}
+		bindings = q.Bindings
 	case domain.WorkflowNodeRun:
 		if n.Run == nil {
 			add("node_kind", path, "run payload is required")
@@ -462,8 +490,28 @@ func validateNode(n *domain.WorkflowNode, path string, lookup Lookup, add, warn 
 			add("until_length", path+".run.until", "until completion test must be at most 2048 characters")
 		}
 		validateScopePathTemplate(n.Run.ScopePathTemplate, n.Run.Bindings, path+".run.scopePathTemplate", add)
+		if err := domain.ValidateSandboxConfig(n.Run.SandboxConfig); err != nil {
+			add("sandbox_config", path+".run.sandboxConfig", err.Error())
+		}
+		if review := n.Run.ReviewInput; review != nil {
+			if _, err := structuredresult.NormalizeReviewSpec(n.Run.ResultSpec); err != nil {
+				add("review_result", path+".run.resultSpec", err.Error())
+			}
+			cfg := n.Run.SandboxConfig
+			if cfg == nil || cfg.Mode != domain.SandboxModeProtected || cfg.WritePolicy == nil || len(cfg.WritePolicy.Paths) != 0 || cfg.GetAutoApply() || (cfg.NetworkMode != domain.NetworkAccessNone && cfg.NetworkMode != domain.NetworkAccessLocalhost) {
+				add("review_authority", path+".run.sandboxConfig", "review input requires explicit protected, read-only, non-applying authority with none or localhost outer network")
+			}
+			if n.Run.ScopePathTemplate != "" || review.FromNode == "" || review.FromNode == n.ID || len(review.Paths) == 0 || len(review.Paths) > 1000 {
+				add("review_input", path+".run.reviewInput", "name a different prior node and 1..1000 literal paths; review input owns task scope")
+			}
+			for _, selected := range review.Paths {
+				if !filepath.IsLocal(selected) || filepath.Clean(selected) != selected || strings.ContainsAny(selected, "*?[]{}") {
+					add("review_path", path+".run.reviewInput.paths", "paths must be clean literal scope-relative selections")
+				}
+			}
+		}
 		validateResultSpec(&n.Run.ResultSpec, path+".run.resultSpec", add)
-		validateAgentNodeLimits(n.Run.MaxTurns, n.Run.TimeoutSeconds, path+".run", add)
+		validateAgentNodeLimits(n.Run.MaxTurns, n.Run.MaxToolCalls, n.Run.TimeoutSeconds, path+".run", add)
 		bindings = n.Run.Bindings
 	case domain.WorkflowNodeContinue:
 		if n.Continue == nil {
@@ -475,7 +523,7 @@ func validateNode(n *domain.WorkflowNode, path string, lookup Lookup, add, warn 
 		}
 		validatePromptSource(n.Continue.PromptTemplate, n.Continue.PromptRef, n.Continue.PromptProvenance, n.Continue.Bindings, path+".continue", add, warn)
 		validateResultSpec(&n.Continue.ResultSpec, path+".continue.resultSpec", add)
-		validateAgentNodeLimits(n.Continue.MaxTurns, n.Continue.TimeoutSeconds, path+".continue", add)
+		validateAgentNodeLimits(n.Continue.MaxTurns, n.Continue.MaxToolCalls, n.Continue.TimeoutSeconds, path+".continue", add)
 		bindings = n.Continue.Bindings
 	case domain.WorkflowNodeChild:
 		if n.Child == nil {
@@ -547,9 +595,12 @@ func validateScopePathTemplate(source string, bindings []domain.WorkflowInputBin
 	}
 }
 
-func validateAgentNodeLimits(maxTurns, timeoutSeconds int, path string, add func(string, string, string)) {
+func validateAgentNodeLimits(maxTurns, maxToolCalls, timeoutSeconds int, path string, add func(string, string, string)) {
 	if maxTurns < 0 || maxTurns > MaxTurns {
 		add("node_limit", path+".maxTurns", "must be zero or within the workflow safety ceiling")
+	}
+	if maxToolCalls < 0 || maxToolCalls > MaxToolCalls {
+		add("node_limit", path+".maxToolCalls", "must be zero or within the workflow safety ceiling")
 	}
 	if timeoutSeconds < 0 || timeoutSeconds > MaxWallTimeSeconds {
 		add("node_limit", path+".timeoutSeconds", "must be zero or within the workflow safety ceiling")
@@ -577,7 +628,7 @@ func validateBindings(bindings []domain.WorkflowInputBinding, path string, add f
 		}
 		seen[b.Name] = true
 		switch b.Source {
-		case domain.WorkflowBindingInput, domain.WorkflowBindingAttempts, domain.WorkflowBindingRunResult, domain.WorkflowBindingStructured, domain.WorkflowBindingHandoff, domain.WorkflowBindingSignal, domain.WorkflowBindingCounter, domain.WorkflowBindingChild, domain.WorkflowBindingExecution:
+		case domain.WorkflowBindingInput, domain.WorkflowBindingAttempts, domain.WorkflowBindingRunResult, domain.WorkflowBindingStructured, domain.WorkflowBindingHandoff, domain.WorkflowBindingSignal, domain.WorkflowBindingCounter, domain.WorkflowBindingChild, domain.WorkflowBindingExecution, domain.WorkflowBindingQualification:
 		default:
 			add("binding_source", p+".source", "unsupported journal source")
 		}
@@ -813,17 +864,28 @@ func validateContinuations(entry string, list []domain.WorkflowNode, nodes map[s
 		return false
 	}
 	for _, n := range list {
-		if n.Kind != domain.WorkflowNodeContinue || n.Continue == nil {
+		var sourceID, path, code string
+		if n.Run != nil && n.Run.ReviewInput != nil {
+			sourceID, path, code = n.Run.ReviewInput.FromNode, "nodes."+n.ID+".run.reviewInput.fromNode", "review"
+		} else if n.Kind == domain.WorkflowNodeContinue && n.Continue != nil {
+			sourceID, path, code = n.Continue.ConversationFromNode, "nodes."+n.ID+".continue.conversationFromNode", "continuation"
+		} else if n.Kind == domain.WorkflowNodeQualification && n.Qualification != nil {
+			sourceID, path, code = n.Qualification.ReviewFromNode, "nodes."+n.ID+".qualification.reviewFromNode", "qualification"
+		} else {
 			continue
 		}
-		source := nodes[n.Continue.ConversationFromNode]
-		if source == nil || source.Kind != domain.WorkflowNodeRun {
-			add("continuation_source", "nodes."+n.ID+".continue.conversationFromNode", "must name a run node")
+		source := nodes[sourceID]
+		if code == "qualification" && (source == nil || source.Run == nil || source.Run.ReviewInput == nil) {
+			add("qualification_source", path, "qualification requires a retained-review run node")
+			continue
+		}
+		if source == nil || source.ID == n.ID || (source.Kind != domain.WorkflowNodeRun && (code != "review" || source.Kind != domain.WorkflowNodeContinue)) {
+			add(code+"_source", path, "must name a prior agent node")
 		} else if !reachable(source.ID, n.ID) {
-			add("continuation_order", "nodes."+n.ID+".continue.conversationFromNode", "run node must be an ancestor of continuation")
+			add(code+"_order", path, "source node must be an ancestor of consumer")
 		} else {
-			// A valid source dominates the continuation: removing it must make
-			// the continuation unreachable from entry. This rejects forward or
+			// A valid source dominates its consumer: removing it must make
+			// the consumer unreachable from entry. This rejects forward or
 			// optional-path selectors that merely become reachable through a cycle.
 			seen := map[string]bool{}
 			q := []string{entry}
@@ -844,7 +906,7 @@ func validateContinuations(entry string, list []domain.WorkflowNode, nodes map[s
 				}
 			}
 			if bypasses {
-				add("continuation_order", "nodes."+n.ID+".continue.conversationFromNode", "run node must dominate every path to continuation")
+				add(code+"_order", path, "source node must dominate every path to consumer")
 			}
 		}
 	}

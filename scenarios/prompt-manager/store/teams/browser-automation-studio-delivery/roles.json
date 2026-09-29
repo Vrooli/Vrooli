@@ -1,0 +1,12 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "browser-automation-studio-delivery",
+  "roles": [
+    {
+      "id": "browser-automation-studio-coordinator",
+      "name": "Browser Automation Studio Coordinator",
+      "description": "Coordinates one owner-admitted BAS boundary through existing Agent Manager operations; does not accept, qualify or broaden worker work."
+    }
+  ]
+}

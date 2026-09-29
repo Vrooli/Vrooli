@@ -109,6 +109,30 @@ verified entry from that run's digest-checked catalog. Legacy runs are scanned
 read-only and labeled degraded. Evidence kinds remain open and descriptor-owned,
 so consumers filter by kind rather than phase identity.
 
+### Retained source preconditions vs resolved validation identity
+
+The validation broker checks `expectedIdentity` before admitting a receipt.
+An aggregate identity, when supplied, must match. Each supplied named root must
+exist exactly once and match its supplied root digest and/or complete file
+manifest (path, content digest and size; ordering does not matter). A digest-only
+root does not also assert an empty tree. A root with neither a digest nor files
+asserts an empty selected tree. Missing, extra, repeated or changed files refuse
+admission. A matching aggregate digest does not excuse a contradictory manifest.
+
+This permits an independently retained manifest to constrain selected source
+without copying the content-hash algorithm or equating another owner's snapshot
+digest with Test Genie's identity. Test Genie still resolves and retains the full
+identity, including build and execution-owner inputs not asserted by the caller.
+`test-genie.iterate` accepts these preconditions as `expected_identity` and forwards
+them unchanged. Its bounded output lists the omitted input field and manifest
+counts; the displayed intent is a preview, not a replacement for the retained
+request. A source-precondition rejection is a failure, not a transport outage
+that justifies submitting new work. Ordinary callers can omit the preconditions.
+The manifest proves content bytes, not independent approval, executable modes,
+symlink support or isolation from concurrent edits. The existing resolver rejects
+symlink inputs; callers must preserve that limitation rather than report them as
+qualified. The producer's existing identity checks detect later relevant drift.
+
 ## CLI Shape
 
 The CLI mirrors the domain packages:

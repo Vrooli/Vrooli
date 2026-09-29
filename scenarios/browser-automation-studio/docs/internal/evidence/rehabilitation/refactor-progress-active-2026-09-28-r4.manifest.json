@@ -1,0 +1,10 @@
+{
+  "schema_version": "bas-rehabilitation-archive/v1",
+  "source": "docs/internal/REFRACTOR_PROGRESS.md",
+  "selection": "Complete active progress view before bounded compaction; current resume state remains in the source file.",
+  "archive": "refactor-progress-active-2026-09-28-r4.md.gz",
+  "sha256": "13c77079142d5d7264ebd7c8ce00655440fbc6f62abfe5d23cbbcbfb5fe0bc60",
+  "compressed_bytes": 6614,
+  "retrieval": "gzip -cd scenarios/browser-automation-studio/docs/internal/evidence/rehabilitation/refactor-progress-active-2026-09-28-r4.md.gz",
+  "created_at": "2026-09-28T15:41:11Z"
+}

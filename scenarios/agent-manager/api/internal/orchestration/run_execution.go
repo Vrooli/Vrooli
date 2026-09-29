@@ -24,6 +24,7 @@ import (
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/runstate"
+	"agent-manager/internal/structuredresult"
 
 	agentconfig "agent-manager/internal/config"
 
@@ -80,6 +81,10 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
 		return nil, importedRunLifecycleError("continue")
 	}
+	resultSpec, err := continuationResultSpec(run, req.ResultSpec)
+	if err != nil {
+		return nil, err
+	}
 
 	if allowed, reason := domain.CanContinueRun(run); !allowed {
 		return nil, domain.NewStateError("Run", string(run.Status), "continue", reason)
@@ -104,7 +109,7 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 	// web-console session (never a process respawn) and reattaching a tailer to
 	// drive the new turn to completion — see continueInteractiveRun.
 	if run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive {
-		if req.MaxTurns != nil || req.Timeout != nil || req.ResultSpec != nil {
+		if req.MaxTurns != nil || req.MaxToolCalls != nil || req.Timeout != nil || req.ResultSpec != nil {
 			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 			return nil, domain.NewValidationError("continuationOverrides", "interactive continuation does not support per-turn workflow overrides")
 		}
@@ -119,7 +124,7 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		return continued, nil
 	}
 	effectsPossible = true
-	continued, err := o.resumeConversation(ctx, run, req.Message, req.AttachmentIDs, "Continuation requested", continuationOverrides{MaxTurns: req.MaxTurns, Timeout: req.Timeout, ResultSpec: req.ResultSpec})
+	continued, err := o.resumeConversation(ctx, run, req.Message, req.AttachmentIDs, "Continuation requested", continuationOverrides{MaxTurns: req.MaxTurns, MaxToolCalls: req.MaxToolCalls, Timeout: req.Timeout, ResultSpec: resultSpec})
 	if err != nil {
 		if domain.IsPreEffectRefusal(err) {
 			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
@@ -130,6 +135,30 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		return nil, err
 	}
 	return continued, nil
+}
+
+func continuationResultSpec(run *domain.Run, requested *domain.ResultSpec) (*domain.ResultSpec, error) {
+	digest := run.CustomEnv["VROOLI_REVIEW_SHA256"]
+	if digest == "" {
+		return requested, nil
+	}
+	if run.ResolvedConfig == nil || run.ResolvedConfig.ResultSpec == nil {
+		return nil, domain.NewValidationError("resultSpec", "retained review has no persisted result contract")
+	}
+	retained, err := structuredresult.BindReviewCandidate(run.ResolvedConfig.ResultSpec, digest)
+	if err != nil {
+		return nil, err
+	}
+	if requested != nil {
+		bound, err := structuredresult.BindReviewCandidate(requested, digest)
+		if err != nil {
+			return nil, err
+		}
+		if bound.SchemaDigest != retained.SchemaDigest {
+			return nil, domain.NewValidationError("resultSpec", "continuation cannot replace the retained review contract")
+		}
+	}
+	return retained, nil
 }
 
 func (o *Orchestrator) completeContinuationReceipt(ctx context.Context, req ContinueRunRequest) error {
@@ -150,9 +179,10 @@ func (o *Orchestrator) completeContinuationReceipt(ctx context.Context, req Cont
 // responsible for the precondition gate (CanContinueRun for continue, the parked
 // guard for wake) before calling this.
 type continuationOverrides struct {
-	MaxTurns   *int
-	Timeout    *time.Duration
-	ResultSpec *domain.ResultSpec
+	MaxTurns     *int
+	MaxToolCalls *int
+	Timeout      *time.Duration
+	ResultSpec   *domain.ResultSpec
 }
 
 func (o *Orchestrator) validateContinuationSession(ctx context.Context, run *domain.Run) error {
@@ -355,6 +385,12 @@ func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, 
 		resolved := *run.ResolvedConfig
 		if overrides.MaxTurns != nil {
 			resolved.MaxTurns = *overrides.MaxTurns
+		}
+		if overrides.MaxToolCalls != nil {
+			if *overrides.MaxToolCalls < 0 {
+				return nil, domain.NewValidationError("maxToolCalls", "must be zero or positive")
+			}
+			resolved.MaxToolCalls = *overrides.MaxToolCalls
 		}
 		if overrides.Timeout != nil {
 			resolved.Timeout = *overrides.Timeout
@@ -763,8 +799,16 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		SandboxID:      run.SandboxID,
 	}
 
-	// Execute continuation with per-turn timeout
-	result, err := r.Continue(execCtx, continueReq)
+	// Rebuild owner policy from persisted authority on every fresh process;
+	// runtime-home files are not a source of authority after a continuation.
+	var result *runner.ExecuteResult
+	root, err := o.resolveRunStateRoot(execCtx)
+	if err == nil {
+		continueReq.PolicyFiles, err = prepareRunnerPolicy(root, run.ID, run.ResolvedConfig)
+	}
+	if err == nil {
+		result, err = r.Continue(execCtx, continueReq)
+	}
 	if result != nil && result.Result != nil && run.ResolvedConfig != nil && o.structuredResults != nil {
 		result.Result.Structured = o.structuredResults.Resolve(execCtx, run.ResolvedConfig.ResultSpec, result.Result)
 	}
@@ -976,14 +1020,13 @@ func (o *Orchestrator) checkpointContinuationTurn(ctx context.Context, run *doma
 		Outcome:   outcome,
 		Cost:      cost,
 	})
-	if o.runs != nil {
-		if err := o.runs.Update(ctx, run); err != nil {
-			obs.Component("continuation").Error("continuation checkpoint status update failed",
-				obs.KeyRunID, run.ID.String(),
-				obs.KeyError, err.Error(),
-			)
-		}
-	}
+	// Continuations need the same detached, generation-checked cleanup and
+	// final projection as initial turns, including when apply is deferred.
+	phases.Finalize(phases.FinalizeInput{
+		Deps: phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers(), WorkspaceSandbox: o.workspaceSandbox},
+		Run:  run, SandboxID: run.SandboxID, Sandbox: o.sandbox,
+		Event: phases.TurnLifecycleEventForOutcome(outcome),
+	})
 }
 
 // executeRun handles the actual agent execution (runs in background).
@@ -1175,9 +1218,9 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 		o.failInteractiveRun(ctx, run, fmt.Sprintf("runner %q is not supported in interactive mode", run.ResolvedConfig.RunnerType))
 		return
 	}
-	// Validate the persisted resolved pair as a backstop. The choice itself was
-	// made by the declaration/capability resolver at creation time.
-	if err := domain.ValidateInteractiveRunMode(run.ExecutionMode, run.InteractiveSandboxMode()); err != nil {
+	// Recheck at launch, including retained rows admitted by older versions.
+	// Reading/recovering a running session does not invoke this launch gate.
+	if err := validateExecutionContainment(run.ExecutionMode, run.InteractiveSandboxMode(), run.ResolvedConfig); err != nil {
 		o.failInteractiveRun(ctx, run, err.Error())
 		return
 	}
@@ -1277,27 +1320,27 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 		obs.Component("interactive").Warn("interactive run finalize failed",
 			obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 	}
-	// Tracking mode uses the same sandbox provenance contract as codec-pipe
-	// execution. The interactive coordinator owns terminal detection; once it
+	// Tracking mode uses the same sandbox provenance/lifecycle contract as
+	// codec-pipe execution. The coordinator owns terminal detection; once it
 	// returns, finalize the attributed sandbox before exposing the terminal run.
-	if run.RunMode == domain.RunModeSandboxed && run.SandboxID != nil && o.sandbox != nil && run.Status.IsTerminal() {
-		outcome := domain.ContractRunOutcomeSuccess
-		switch run.Status {
-		case domain.RunStatusFailed:
-			outcome = domain.ContractRunOutcomeFailure
-		case domain.RunStatusCancelled:
-			outcome = domain.ContractRunOutcomeCancelled
-		}
-		phases.ApplyAtRunEnd(ctx, phases.ApplyAtRunEndInput{
-			Deps: phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers(), WorkspaceSandbox: o.workspaceSandbox},
-			Run:  run, SandboxID: run.SandboxID, Sandbox: o.sandbox, Outcome: outcome,
-		})
-		if o.runs != nil {
-			if err := o.runs.Update(ctx, run); err != nil {
-				obs.Component("interactive").Warn("interactive attribution persistence failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
-			}
-		}
+	o.finalizeSandboxForTerminalRun(ctx, run)
+}
+
+// Interactive execution uses a host web-console terminal, not the protected
+// launcher. Capability declarations alone cannot enforce this boundary: direct
+// requests and previously persisted rows also reach this path.
+func validateExecutionContainment(mode domain.ExecutionMode, sandboxMode domain.SandboxMode, cfg *domain.RunConfig) error {
+	if mode != domain.ExecutionModeInteractive {
+		return nil
 	}
+	required := sandboxMode.Effective() == domain.SandboxModeProtected
+	if cfg != nil {
+		required = required || cfg.RequireEffectContainment || (cfg.SandboxConfig != nil && cfg.SandboxConfig.WritePolicy != nil)
+	}
+	if required {
+		return domain.NewValidationErrorWithHint("executionMode", "interactive execution cannot enforce protected containment", "Use codec_pipe with protected mode; tracking/off interactive sessions do not provide containment")
+	}
+	return nil
 }
 
 // interactiveEventSink builds the per-run event sink interactive tail events are

@@ -3,6 +3,32 @@
   "version": "1.0.0",
   "storage": {
     "entries": {
+      "archives": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "archives",
+        "regenerable": false,
+        "sensitive": true,
+        "agent_removal": "deny",
+        "budget": {
+          "max_bytes": "10GiB",
+          "rationale": "Review threshold matching the owner's default archive-size budget. Only owner retention may evict indexed terminal archives; pending approvals and unindexed evidence must not be blindly pruned."
+        },
+        "reclaim": {
+          "pruner": "custom"
+        },
+        "rationale": "Content-addressed patches and file bodies retained by the archive and write-ahead approval owner through api-core/storage."
+      },
+      "archive-review-lock": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "archive-review.lock",
+        "regenerable": false,
+        "agent_removal": "deny",
+        "rationale": "One native-lock coordination file, outside evictable blob trees. Do not remove or replace it while any owner process may hold the inode."
+      },
       "logs": {
         "rung": "owned",
         "kind": "dir",
@@ -24,7 +50,7 @@
         "default_approval": "owner"
       }
     ],
-    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+    "rationale": "Declares scenario logs, retained archive content and approval-lock coordination. This is not a complete inventory of overlay or database storage and does not authorize generic deletion of retained evidence."
   },
   "service": {
     "parent": "vrooli",

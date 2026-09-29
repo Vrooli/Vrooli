@@ -356,7 +356,7 @@ func SandboxConfigToProto(cfg *domain.SandboxConfig) *pb.SandboxConfig {
 	if cfg == nil {
 		return nil
 	}
-	return &pb.SandboxConfig{
+	result := &pb.SandboxConfig{
 		Lifecycle:      SandboxLifecycleConfigToProto(cfg.Lifecycle),
 		Acceptance:     SandboxAcceptanceConfigToProto(cfg.Acceptance),
 		Mode:           SandboxModeToProto(cfg.Mode),
@@ -366,6 +366,10 @@ func SandboxConfigToProto(cfg *domain.SandboxConfig) *pb.SandboxConfig {
 		NetworkMode:    NetworkAccessToProto(cfg.NetworkMode),
 		NoLock:         cfg.NoLock,
 	}
+	if cfg.WritePolicy != nil {
+		result.WritePolicy = &pb.WorkspaceWritePolicy{Paths: append([]string(nil), cfg.WritePolicy.Paths...)}
+	}
+	return result
 }
 
 // SandboxConfigFromProto converts proto SandboxConfig to domain.
@@ -373,7 +377,7 @@ func SandboxConfigFromProto(cfg *pb.SandboxConfig) *domain.SandboxConfig {
 	if cfg == nil {
 		return nil
 	}
-	return &domain.SandboxConfig{
+	result := &domain.SandboxConfig{
 		Lifecycle:      SandboxLifecycleConfigFromProto(cfg.Lifecycle),
 		Acceptance:     SandboxAcceptanceConfigFromProto(cfg.Acceptance),
 		Mode:           SandboxModeFromProto(cfg.Mode),
@@ -383,6 +387,10 @@ func SandboxConfigFromProto(cfg *pb.SandboxConfig) *domain.SandboxConfig {
 		NetworkMode:    NetworkAccessFromProto(cfg.NetworkMode),
 		NoLock:         cfg.NoLock,
 	}
+	if cfg.WritePolicy != nil {
+		result.WritePolicy = &domain.WorkspaceWritePolicy{Paths: append([]string(nil), cfg.WritePolicy.Paths...)}
+	}
+	return result
 }
 
 // =============================================================================

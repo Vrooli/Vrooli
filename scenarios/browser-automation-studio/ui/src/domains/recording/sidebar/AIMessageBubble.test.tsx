@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@/test-utils';
+import { expectNoA11yViolations } from '@vrooli/api-base/testing';
 import userEvent from '@testing-library/user-event';
 import { AIMessageBubble } from './AIMessageBubble';
 import { createUserMessage, createAssistantMessage, createSystemMessage, type AIMessage } from './types';
@@ -239,6 +240,117 @@ describe('AIMessageBubble', () => {
   });
 
   describe('timeline steps', () => {
+    it('has no axe violations in the expanded timeline state', async () => {
+      const message: AIMessage = {
+        ...createAssistantMessage('nav-1'),
+        content: 'Fill the sign-in form',
+        status: 'completed',
+        steps: [{
+          ...mockStep,
+          reasoning: 'The sign-in form is ready.',
+          action: {
+            type: 'type',
+            selector: '#email',
+            value: 'user@example.com',
+            text: 'user@example.com',
+            success: true,
+          },
+        }],
+      };
+      const { container } = render(<AIMessageBubble message={message} />);
+
+      await expectNoA11yViolations(container);
+    });
+
+    it('labels provider-specific action types in the timeline', () => {
+      const providerActions = ['find', 'read', 'evaluate', 'tabs', 'drag', 'zoom'] as const;
+      const message: AIMessage = {
+        ...createAssistantMessage('nav-1'),
+        status: 'running',
+        steps: providerActions.map((type, index) => ({
+          ...mockStep,
+          id: `step-${index + 1}`,
+          stepNumber: index + 1,
+          action: { type },
+        })),
+      };
+      render(<AIMessageBubble message={message} />);
+
+      for (const label of ['Find', 'Read', 'Evaluate', 'Tabs', 'Drag', 'Zoom']) {
+        expect(screen.getByRole('button', { name: new RegExp(label) })).toBeInTheDocument();
+      }
+    });
+
+    it('shows preserved provider action details when a step is expanded', async () => {
+      const user = userEvent.setup();
+      const message: AIMessage = {
+        ...createAssistantMessage('nav-1'),
+        status: 'completed',
+        steps: [{
+          ...mockStep,
+          action: {
+            type: 'evaluate',
+            selector: '#email',
+            value: 'typed@example.com',
+            text: 'typed@example.com',
+            result: 'field updated',
+            success: true,
+          },
+        }],
+      };
+      render(<AIMessageBubble message={message} />);
+
+      await user.click(screen.getByRole('button', { name: /Evaluate/i }));
+
+      expect(screen.getByText('#email')).toBeInTheDocument();
+      expect(screen.getAllByText('typed@example.com')).toHaveLength(2);
+      expect(screen.getByText('field updated')).toBeInTheDocument();
+      expect(screen.getByText('Success')).toBeInTheDocument();
+    });
+
+    it('does not render synthetic secrets from sensitive AI actions', async () => {
+      const user = userEvent.setup();
+      const secret = 'BAS_SYNTHETIC_PASSWORD_7f3e';
+      const message: AIMessage = {
+        ...createAssistantMessage('nav-secret'),
+        status: 'completed',
+        steps: [{
+          ...mockStep,
+          action: {
+            type: 'type',
+            selector: 'input[name="password"]',
+            value: secret,
+            text: secret,
+            result: `password=${secret}`,
+          },
+        }],
+      };
+      render(<AIMessageBubble message={message} />);
+
+      await user.click(screen.getByRole('button', { name: /Type/i }));
+
+      expect(screen.queryByText(secret)).not.toBeInTheDocument();
+      expect(screen.getAllByText('[REDACTED]')).toHaveLength(2);
+      expect(screen.getByText('password=[REDACTED]')).toBeInTheDocument();
+    });
+
+    it('keeps intentional empty provider values visible', async () => {
+      const user = userEvent.setup();
+      const message: AIMessage = {
+        ...createAssistantMessage('nav-1'),
+        status: 'completed',
+        steps: [{
+          ...mockStep,
+          action: { type: 'type', selector: '#email', value: '', text: '' },
+        }],
+      };
+      render(<AIMessageBubble message={message} />);
+
+      await user.click(screen.getByRole('button', { name: /Type/i }));
+
+      expect(screen.getAllByText('(empty)')).toHaveLength(2);
+    });
+
     it('renders completed steps as timeline cards', () => {
       const message: AIMessage = {
         ...createAssistantMessage('nav-1'),
@@ -259,6 +371,32 @@ describe('AIMessageBubble', () => {
       render(<AIMessageBubble message={message} />);
 
       expect(screen.getByRole('button', { name: /Click/i })).toBeInTheDocument();
+    });
+
+    it('exposes disclosure state for the navigation and step controls', async () => {
+      const user = userEvent.setup();
+      const message: AIMessage = {
+        ...createAssistantMessage('nav-1'),
+        status: 'completed',
+        steps: [mockStep],
+      };
+      render(<AIMessageBubble message={message} />);
+
+      const navigationToggle = screen.getByRole('button', { name: 'AI Navigation' });
+      const stepToggle = screen.getByRole('button', { name: /Click/i });
+
+      expect(navigationToggle).toHaveAttribute('aria-expanded', 'true');
+      expect(navigationToggle).toHaveAttribute('aria-controls', 'ai-navigation-content-assistant-nav-1');
+      expect(stepToggle).toHaveAttribute('aria-expanded', 'false');
+      expect(stepToggle).toHaveAttribute('aria-controls', 'ai-navigation-step-details-step-1');
+
+      await user.click(navigationToggle);
+      expect(navigationToggle).toHaveAttribute('aria-expanded', 'false');
+
+      await user.click(navigationToggle);
+      const reopenedStepToggle = screen.getByRole('button', { name: /Click/i });
+      await user.click(reopenedStepToggle);
+      expect(reopenedStepToggle).toHaveAttribute('aria-expanded', 'true');
     });
 
     it('toggles an individual step\'s details on click', async () => {

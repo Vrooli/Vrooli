@@ -104,6 +104,13 @@ backfills, add a scenario-specific migration plan here and update
 
 ## Retention And Deletion
 
+Keyed declared-program admission stores an immutable `request_digest` in the
+existing program row. That row is retained for at least the 24-hour maximum
+admission window; normal longer retention and promoted-source protection still
+apply. The caller-pinned deadline prevents the original request from executing
+after its record expires. This is bounded retry evidence, not an authorization
+ledger. See [Program contracts](../guides/program-contracts.md).
+
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
 | Kernel variable state | Kernel process exit (explicit close, reclamation, or crash). | None — never persisted. | None. This is the designed behavior, not a gap. |

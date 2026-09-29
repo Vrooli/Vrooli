@@ -40,6 +40,7 @@ type ExecuteAgentInput struct {
 	SystemPrompt  string
 	Attachments   []runner.Attachment
 	EnvVars       map[string]string
+	PolicyFiles   []runner.PolicyFile
 	EventSink     runner.EventSink
 	RunState      *runstate.State
 	Mu            *sync.Mutex
@@ -127,6 +128,7 @@ func ExecuteAgent(ctx context.Context, in ExecuteAgentInput) ExecuteAgentOutput 
 		EventSink:      in.EventSink,
 		Attachments:    in.Attachments,
 		Environment:    in.EnvVars,
+		PolicyFiles:    in.PolicyFiles,
 		Transcript:     transcriptCfg,
 	}
 

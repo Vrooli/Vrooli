@@ -45,6 +45,7 @@ func LifecycleRefusalCount(operation string) uint64 {
 // by giving investigation runs shell access. A valid run identity may inspect
 // the service, but it may not create, resume, or stop agent-manager runs.
 // Operator requests carry no run identity token and continue unchanged.
+// A presented but unverified credential is refused, never treated as absence.
 func (h *Handler) denyRunInitiatedLifecycleOperation(w http.ResponseWriter, r *http.Request, operation string) bool {
 	token := strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken))
 	if token == "" {
@@ -57,7 +58,10 @@ func (h *Handler) denyRunInitiatedLifecycleOperation(w http.ResponseWriter, r *h
 		return true
 	}
 	if verified == nil || !verified.Valid || verified.Claims == nil {
-		return false
+		writeJSON(w, http.StatusUnauthorized, map[string]string{
+			"error": "run identity is invalid or unavailable",
+		})
+		return true
 	}
 
 	lifecycleRefusalCounts.Lock()

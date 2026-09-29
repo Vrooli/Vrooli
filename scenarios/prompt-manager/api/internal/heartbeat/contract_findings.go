@@ -133,6 +133,7 @@ func pluralItems(n int) string {
 // corpus scans. Heartbeats run far enough apart that a reading up to one TTL
 // old is still the current one.
 type MemberflowContractFindings struct {
+	Teams          store.TeamStore
 	StoreDir       string
 	RepoRoot       string
 	RuntimeDataDir string
@@ -146,20 +147,23 @@ type MemberflowContractFindings struct {
 const defaultContractFindingsTTL = 60 * time.Second
 
 // MemberContractFindings returns the findings attributed to one member.
-func (m *MemberflowContractFindings) MemberContractFindings(_ context.Context, teamID, memberID string) ([]ContractFinding, error) {
+func (m *MemberflowContractFindings) MemberContractFindings(ctx context.Context, teamID, memberID string) ([]ContractFinding, error) {
 	if m == nil {
 		return nil, nil
 	}
-	byMember, err := m.snapshot()
+	byMember, err := m.snapshot(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return byMember[memberflow.MemberRef{Team: teamID, Member: memberID}.String()], nil
 }
 
-func (m *MemberflowContractFindings) snapshot() (map[string][]ContractFinding, error) {
+func (m *MemberflowContractFindings) snapshot(ctx context.Context) (map[string][]ContractFinding, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.Teams == nil {
+		return nil, fmt.Errorf("contract findings require the configured team store")
+	}
 
 	ttl := m.TTL
 	if ttl <= 0 {
@@ -184,10 +188,11 @@ func (m *MemberflowContractFindings) snapshot() (map[string][]ContractFinding, e
 	})
 
 	byMember := filterActionableFindings(result.Findings)
-	teamStore := store.NewFileTeamStore(m.StoreDir, m.RuntimeDataDir, nil)
-	if teams, err := teamStore.List(context.Background()); err == nil {
-		mergeTeamValidationFindings(byMember, teams)
+	teams, err := m.Teams.List(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read team contract findings: %w", err)
 	}
+	mergeTeamValidationFindings(byMember, teams)
 	m.cached = byMember
 	m.cachedAt = time.Now()
 	return byMember, nil

@@ -16,6 +16,7 @@ import (
 	sharedartifacts "test-genie/internal/shared/artifacts"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
 var validScenarioName = regexp.MustCompile(`^[a-zA-Z0-9\-_]+$`)
@@ -45,7 +46,8 @@ type Environment struct {
 	// determinism phases. It is kept on the workspace environment so the
 	// orchestrator can request the uncached capabilities without changing the
 	// provider-owned phase runner contract.
-	CapabilitySubset []string
+	CapabilitySubset     []string
+	RetainedEvidenceSets []*scenariovalidationv1.RetainedEvidenceSet
 
 	ScenarioName string
 	TargetKind   string

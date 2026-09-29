@@ -103,6 +103,10 @@ type EfficiencyBreakdown struct {
 	FailedCount                        int64   `json:"failed_count"`
 	TotalCostUSD                       float64 `json:"total_cost_usd"`
 	TotalTokens                        int64   `json:"total_tokens"`
+	InputTokens                        int64   `json:"input_tokens"`
+	OutputTokens                       int64   `json:"output_tokens"`
+	CacheReadTokens                    int64   `json:"cache_read_tokens"`
+	CacheCreationTokens                int64   `json:"cache_creation_tokens"`
 	AverageDurationMS                  float64 `json:"average_duration_ms"`
 	ConsumptionPerSuccessfulCompletion float64 `json:"consumption_per_successful_completion"`
 	CompletionRate                     float64 `json:"completion_rate"`
@@ -313,7 +317,7 @@ func efficiencyDurationDTO(value invocationreadmodel.RunDurationStatistics) Effi
 func efficiencyBreakdownDTO(rows []invocationreadmodel.RunBreakdownRow) []EfficiencyBreakdown {
 	out := make([]EfficiencyBreakdown, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, EfficiencyBreakdown{Key: row.Key, Value: row.Value, RunCount: row.RunCount, SuccessCount: row.SuccessCount, FailedCount: row.FailedCount, TotalCostUSD: row.TotalCostUSD, TotalTokens: row.TotalTokens, AverageDurationMS: row.AvgDurationMS, ConsumptionPerSuccessfulCompletion: row.ConsumptionPerSuccessfulCompletion, CompletionRate: row.CompletionRate})
+		out = append(out, EfficiencyBreakdown{Key: row.Key, Value: row.Value, RunCount: row.RunCount, SuccessCount: row.SuccessCount, FailedCount: row.FailedCount, TotalCostUSD: row.TotalCostUSD, TotalTokens: row.TotalTokens, InputTokens: row.InputTokens, OutputTokens: row.OutputTokens, CacheReadTokens: row.CacheReadTokens, CacheCreationTokens: row.CacheCreationTokens, AverageDurationMS: row.AvgDurationMS, ConsumptionPerSuccessfulCompletion: row.ConsumptionPerSuccessfulCompletion, CompletionRate: row.CompletionRate})
 	}
 	return out
 }

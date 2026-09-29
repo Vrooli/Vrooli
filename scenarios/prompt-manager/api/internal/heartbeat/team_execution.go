@@ -125,6 +125,12 @@ type queuedExecution struct {
 	// RunTag is the owner-visible run tag recorded with the intent. It is
 	// preserved so a replayed run keeps the same attribution label.
 	RunTag string `json:"RunTag,omitempty"`
+	// Workload identity is persisted with the request so an uncertain replay
+	// cannot silently lose the accounting key that was present on the original
+	// dispatch.
+	WorkloadKind     string `json:"WorkloadKind,omitempty"`
+	WorkloadKey      string `json:"WorkloadKey,omitempty"`
+	WorkloadInstance string `json:"WorkloadInstance,omitempty"`
 	// ResetConsumedEventID marks the runtime-owner reset-eligibility event that
 	// already resumed this paused obligation. It makes consumption idempotent
 	// so a replayed owner event cannot wake the same run twice.
@@ -138,6 +144,9 @@ type runningEntry struct {
 	IdempotencyKey       string
 	TaskID               string
 	RunTag               string
+	WorkloadKind         string
+	WorkloadKey          string
+	WorkloadInstance     string
 	ResetConsumedEventID string
 }
 
@@ -146,9 +155,12 @@ type runningEntry struct {
 // retained uncertain obligation be replayed with the same owner request (and
 // the same idempotency key) after a crash or lost response.
 type DispatchIntent struct {
-	IdempotencyKey string
-	TaskID         string
-	RunTag         string
+	IdempotencyKey   string
+	TaskID           string
+	RunTag           string
+	WorkloadKind     string
+	WorkloadKey      string
+	WorkloadInstance string
 }
 
 // TeamExecutionContext manages execution for a single team according to queue policy.
@@ -384,6 +396,9 @@ func (c *TeamExecutionContext) BeginDispatch(agentID string, intent DispatchInte
 	entry.IdempotencyKey = intent.IdempotencyKey
 	entry.TaskID = intent.TaskID
 	entry.RunTag = intent.RunTag
+	entry.WorkloadKind = intent.WorkloadKind
+	entry.WorkloadKey = intent.WorkloadKey
+	entry.WorkloadInstance = intent.WorkloadInstance
 	c.running[agentID] = entry
 	c.persistLocked()
 }
@@ -422,19 +437,24 @@ func (c *TeamExecutionContext) ReconcileDispatch(ctx context.Context, agentID st
 	}
 	profileKey := entry.ProfileKey
 	intent := DispatchIntent{
-		IdempotencyKey: entry.IdempotencyKey,
-		TaskID:         entry.TaskID,
-		RunTag:         entry.RunTag,
+		IdempotencyKey:   entry.IdempotencyKey,
+		TaskID:           entry.TaskID,
+		RunTag:           entry.RunTag,
+		WorkloadKind:     entry.WorkloadKind,
+		WorkloadKey:      entry.WorkloadKey,
+		WorkloadInstance: entry.WorkloadInstance,
 	}
 	c.mu.Unlock()
 
 	attribKey, attribValue := buildHeartbeatAttributionEnv(c.teamID, agentID)
+	environment := map[string]string{attribKey: attribValue}
+	addWorkloadEnvironment(environment, intent.WorkloadKind, intent.WorkloadKey, intent.WorkloadInstance)
 	req := &CreateRunRequest{
 		TaskID:         intent.TaskID,
 		ProfileRef:     &ProfileRef{ProfileKey: profileKey},
 		Tag:            &intent.RunTag,
 		IdempotencyKey: intent.IdempotencyKey,
-		Environment:    map[string]string{attribKey: attribValue},
+		Environment:    environment,
 	}
 
 	run, err := c.agentClient.CreateRun(ctx, req)
@@ -620,6 +640,9 @@ func (c *TeamExecutionContext) reconcileRunningEntry(ctx context.Context, item q
 		IdempotencyKey:       item.IdempotencyKey,
 		TaskID:               item.TaskID,
 		RunTag:               item.RunTag,
+		WorkloadKind:         item.WorkloadKind,
+		WorkloadKey:          item.WorkloadKey,
+		WorkloadInstance:     item.WorkloadInstance,
 		ResetConsumedEventID: item.ResetConsumedEventID,
 	}
 	// A prior recovery already recorded a non-resolvable obligation. Preserve it
@@ -700,6 +723,9 @@ func (c *TeamExecutionContext) persistLocked() {
 			IdempotencyKey:       entry.IdempotencyKey,
 			TaskID:               entry.TaskID,
 			RunTag:               entry.RunTag,
+			WorkloadKind:         entry.WorkloadKind,
+			WorkloadKey:          entry.WorkloadKey,
+			WorkloadInstance:     entry.WorkloadInstance,
 			ResetConsumedEventID: entry.ResetConsumedEventID,
 		})
 	}

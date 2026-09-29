@@ -273,7 +273,7 @@ func validateObservation(name string, observation CaseObservation) error {
 	if observation.CleanupMS < 0 || observation.CleanupMS > 5000 || observation.RecoveryMS < 0 || observation.RecoveryMS > 10000 {
 		return fmt.Errorf("cancellation case %s exceeds cleanup or recovery band", name)
 	}
-	if (name == "cancellation" || name == "timeout") && (observation.InputStoppedMS < 0 || observation.InputStoppedMS > 1000) {
+	if observation.InputStoppedMS < 0 || observation.InputStoppedMS > 1000 {
 		return fmt.Errorf("cancellation case %s exceeds input-stop band", name)
 	}
 	if !observation.UncertainEffect || observation.RetryAdmitted {

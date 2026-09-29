@@ -10,9 +10,9 @@ metadata:
   icon: "list-checks"
   status: "active"
   targetToolId: "run-agent"
-  revision: 6
+  revision: 10
   createdAt: "2026-05-29T00:00:00Z"
-  updatedAt: "2026-09-11T12:00:00Z"
+  updatedAt: "2026-09-28T04:00:00Z"
   requires:
     scenarios: ["prompt-manager", "test-genie"]
     commands: ["prompt-manager skill read", "test-genie runs", "vrooli scenario test"]
@@ -24,9 +24,12 @@ metadata:
 Implement and verify successive improvements inside the caller's authorized
 engagement. Let the scenario improve skill choose the concern; let owner evidence
 establish the result. One coherent repair needs no campaign machinery of its own.
-The engagement always belongs to a canonical Plan Manager plan, normally one
-with shape `mandate` (see `adaptive-mandate-authoring`); the campaign is the
-improvement loop over that plan, not a planless development lifecycle.
+Use the selected work shape as the source of authority: a plan-backed engagement
+uses its canonical Plan Manager plan, while an explicitly approved convergence
+or owner-backed campaign uses the scenario's durable target, tracking packet and
+owner declaration without creating a Plan Manager plan. This skill is the
+improvement loop over the selected owner; it must not manufacture a plan merely
+because the campaign is long-running.
 
 Required reading:
 - `path:docs/agent-system/SCENARIO_DEVELOPMENT.md` — target, authority, and completion.
@@ -50,6 +53,18 @@ a second approval for an ordinary repair, and do not treat a slice result, a
 harness "met" verdict, or a workflow terminal result as the operator's final
 acceptance.
 
+For an explicitly approved convergence or owner-backed campaign, there may be no
+Swarm item or Plan Manager plan. Use the existing finite Prompt Manager delivery
+team as the campaign identity (`purpose: delivery`, `lifetime: finite`, exact
+`effortRefs`) and Agent Manager as the run/outcome owner. Scenario-owned target
+documents and data may remain the product source and generated operator
+projection; do not copy them into a second team ledger. The deterministic owner
+controller owns boundary selection, permitted paths, counters, qualification
+admission and evidence rotation; the worker receives only the current fixed
+boundary. Do not replace that owner state with Markdown, create a parallel
+scheduler, or let a worker edit the packet, acceptance records, qualification
+inputs or lifecycle controls.
+
 ### 1. Resolve the engagement
 
 Identify the approved target, work identity, permitted changes, effects, budget,
@@ -63,6 +78,7 @@ agents retain their actual grants, including fixed slice boundaries.
 | Reach a named maturity target. | The provider-owned target and evidence, not a copied ladder or local score. |
 | Fix a bounded defect. | Use the owning repair method directly; do not expand it into a campaign. |
 | Explore within a bounded investment. | Return findings and remaining work at the agreed limit, not a full-development claim. |
+| Converge a continuously improving scenario under an owner declaration. | Use the owner packet's boundary, evidence and qualification gates; create no Plan Manager plan unless the operator explicitly selects a plan-backed shape. |
 
 A profile prioritizes work; it cannot redefine completion. Do not default to zero
 findings or a comprehensive green suite for ordinary development.
@@ -104,8 +120,34 @@ Entry: an unmet outcome and a permitted intervention are identified.
 6. Run focused checks that distinguish success from the observed failure.
 7. Checkpoint the result and choose the next intervention from the new evidence.
 
+If a focused check reports a missing or mismatched generated message, field,
+service, client, descriptor, or manifest, stop consumer diagnosis long enough to
+run the owning generated-artifact preflight. For protobuf consumers, use
+`path:docs/development/proto.md#consumer-compile-preflight`: verify first,
+regenerate the affected closure only if drift is proven, and then rerun the
+focused check. Use the equivalent owner health command for other generated
+projections. Do not hand-edit generated output or add a local shim; retain the
+exact source/output drift and repair it at the shared owner when preflight fails.
+
 Exit: retain a supported result or a rejected hypothesis with its evidence.
 When the observation falsifies the hypothesis, revise it before another attempt.
+
+For a long-running campaign, an intervention is not automatically a reporting
+epoch. When the scenario declares a larger candidate/epoch protocol, keep one
+active semantic boundary across interventions and context compactions. Batch
+source edits that share invalidation roots, freeze the candidate only when that
+boundary's exit gate is met, then generate candidate-bound evidence and qualify
+at the declared cadence. A source edit may invalidate a receipt without
+disproving the implementation or the sensor; keep those states distinct.
+
+If the scenario supplies an executable campaign, packet, retention, or
+qualification admission guard, run it at entry and at its named producer or
+qualification boundaries. Repair a failed guard before creating more
+high-cardinality evidence; do not weaken it to continue. Keep live evidence to
+the newest applicable owner/candidate cohort and use the owner's archive or
+rotation path for superseded attempts. Validation commands must terminate or
+be diagnosed: at checkpoint, account for pending operation identities and
+owned child processes instead of abandoning them across continuations.
 
 Use `scientific-debugging` when the cause is uncertain. Repair sensors, programs,
 resources, and shared packages at their owners. Do not create private dependency

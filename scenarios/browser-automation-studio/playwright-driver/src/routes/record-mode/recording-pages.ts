@@ -17,7 +17,7 @@ import { parseJsonBody, sendJson, sendError } from '../../middleware';
 import { logger, SessionNotFoundError } from '../../utils';
 import { recordingOwner } from './recording-ownership';
 import type { ActivePageRequest, ActivePageResponse, HistoryEntryCallback } from './types';
-import { clearFrameCache } from './recording-frames';
+import { clearFrameCache } from '../../session/frame-cache';
 
 /** Read the existing document; tab chrome must never refetch its HTML. */
 export async function readFaviconUrl(page: Page): Promise<string> {

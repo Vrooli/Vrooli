@@ -4,18 +4,22 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestValidateRequiresCurrentSourcesExactOwnersAndHashedRawLogs(t *testing.T) {
 	root := fixtureScenarioRoot(t)
 	receipt := writePassingFixture(t, root)
-	if err := Validate(root, receipt.BuildIdentity); err != nil {
-		t.Fatalf("valid current receipt rejected: %v", err)
+	if err := validateFixture(t, root, receipt, receipt.BuildIdentity); err != nil {
+		t.Fatalf("valid retained receipt rejected: %v", err)
 	}
 
 	for _, tc := range []struct {
@@ -32,10 +36,64 @@ func TestValidateRequiresCurrentSourcesExactOwnersAndHashedRawLogs(t *testing.T)
 			candidate := writePassingFixture(t, root)
 			tc.mutate(&candidate)
 			writeReceipt(t, root, candidate)
-			if err := Validate(root, "sha256:fixture"); err == nil {
+			if err := validateFixture(t, root, candidate, "sha256:fixture"); err == nil {
 				t.Fatal("invalid owner receipt was accepted")
 			}
 		})
+	}
+}
+
+func TestValidateRetainedUsesOnlySelectedOpaqueArtifacts(t *testing.T) {
+	root := fixtureScenarioRoot(t)
+	receipt := writePassingFixture(t, root)
+	logBytes := make(map[string][]byte)
+	for _, artifact := range receipt.Artifacts {
+		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(artifact.Path)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		logBytes[artifact.SHA256] = data
+	}
+	receiptBytes, err := json.Marshal(receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receiptSum := sha256.Sum256(receiptBytes)
+	refs := []*commonv1.EvidenceRef{{Producer: "browser-automation-studio", ArtifactId: "artifact_receipt", Kind: "generic.file", Checksum: hex.EncodeToString(receiptSum[:]), SizeBytes: int64(len(receiptBytes))}}
+	byID := map[string][]byte{"artifact_receipt": receiptBytes}
+	for i, artifact := range receipt.Artifacts {
+		id := "artifact_log_" + string(rune('1'+i))
+		data := logBytes[artifact.SHA256]
+		refs = append(refs, &commonv1.EvidenceRef{Producer: "browser-automation-studio", ArtifactId: id, Kind: "command.output", Checksum: artifact.SHA256, SizeBytes: int64(len(data))})
+		byID[id] = data
+	}
+	if len(refs) != 3 || refs[0].GetKind() != "generic.file" || refs[1].GetKind() != "command.output" || refs[2].GetKind() != "command.output" {
+		t.Fatalf("owner output catalog kinds = %v, want generic.file receipt plus two command.output logs", []string{refs[0].GetKind(), refs[1].GetKind(), refs[2].GetKind()})
+	}
+	set := &scenariovalidationv1.RetainedEvidenceSet{ProducerReceiptId: "receipt-1", Producer: "evidence-completeness", Target: "browser-automation-studio", RunId: "run-1", CandidateIdentity: "sha256:candidate", CatalogDigest: "sha256:catalog", Artifacts: refs}
+	resolver := func(ref *commonv1.EvidenceRef) ([]byte, error) {
+		data, ok := byID[ref.GetArtifactId()]
+		if !ok {
+			return nil, os.ErrNotExist
+		}
+		return data, nil
+	}
+	if err := ValidateRetained(root, receipt.BuildIdentity, set, resolver); err != nil {
+		t.Fatalf("selected evidence rejected: %v", err)
+	}
+	if err := validateFixture(t, root, receipt, receipt.BuildIdentity); err != nil {
+		t.Fatalf("fixture source-tree check: %v", err)
+	}
+	changed := *set
+	changed.CatalogDigest = "sha256:other"
+	changed.Artifacts = append(append([]*commonv1.EvidenceRef(nil), refs...), proto.Clone(refs[1]).(*commonv1.EvidenceRef))
+	if err := ValidateRetained(root, receipt.BuildIdentity, &changed, resolver); err == nil {
+		t.Fatal("duplicate retained artifact was accepted")
+	}
+	oversized := proto.Clone(set).(*scenariovalidationv1.RetainedEvidenceSet)
+	oversized.Artifacts[1].SizeBytes = maxRetainedByteCount + 1
+	if err := ValidateRetained(root, receipt.BuildIdentity, oversized, resolver); err == nil {
+		t.Fatal("retained artifact beyond the producer byte bound was accepted")
 	}
 }
 
@@ -51,9 +109,41 @@ func TestValidateRejectsOwnerLogsWithoutPassingTestEvents(t *testing.T) {
 	sum := sha256.Sum256(content)
 	artifact.SHA256 = hex.EncodeToString(sum[:])
 	writeReceipt(t, root, receipt)
-	if err := Validate(root, receipt.BuildIdentity); err == nil {
+	if err := validateFixture(t, root, receipt, receipt.BuildIdentity); err == nil {
 		t.Fatal("owner log without passing test events was accepted")
 	}
+}
+
+func validateFixture(t *testing.T, root string, receipt Receipt, liveBuild string) error {
+	t.Helper()
+	writeReceipt(t, root, receipt)
+	receiptPath := filepath.Join(root, EvidenceDir, "evidence-completeness-fixture.json")
+	receiptBytes, err := os.ReadFile(receiptPath)
+	if err != nil {
+		return err
+	}
+	receiptHash := sha256.Sum256(receiptBytes)
+	refs := []*commonv1.EvidenceRef{{Producer: "browser-automation-studio", ArtifactId: "artifact_receipt", Kind: "generic.file", Checksum: hex.EncodeToString(receiptHash[:]), SizeBytes: int64(len(receiptBytes))}}
+	dataByID := map[string][]byte{"artifact_receipt": receiptBytes}
+	for index, artifact := range receipt.Artifacts {
+		data, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(artifact.Path)))
+		if readErr != nil {
+			return readErr
+		}
+		id := fmt.Sprintf("artifact_log_%d", index)
+		sum := sha256.Sum256(data)
+		checksum := hex.EncodeToString(sum[:])
+		refs = append(refs, &commonv1.EvidenceRef{Producer: "browser-automation-studio", ArtifactId: id, Kind: "command.output", Checksum: checksum, SizeBytes: int64(len(data))})
+		dataByID[id] = data
+	}
+	set := &scenariovalidationv1.RetainedEvidenceSet{ProducerReceiptId: "producer-receipt", Producer: "evidence-completeness", Target: "browser-automation-studio", RunId: "producer-run", CandidateIdentity: "candidate", CatalogDigest: "catalog-digest", Artifacts: refs}
+	return ValidateRetained(root, liveBuild, set, func(ref *commonv1.EvidenceRef) ([]byte, error) {
+		data, ok := dataByID[ref.GetArtifactId()]
+		if !ok {
+			return nil, os.ErrNotExist
+		}
+		return data, nil
+	})
 }
 
 func writePassingFixture(t *testing.T, root string) Receipt {

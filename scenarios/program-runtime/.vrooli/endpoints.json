@@ -233,6 +233,22 @@
       "category": "programs"
     },
     {
+      "id": "library_close_admission",
+      "path": "/vrooli.program_runtime.v1.library.LibraryService/CloseDeclaredAdmission",
+      "method": "POST",
+      "summary": "Close a keyed admission without starting work; drain an already-admitted execution.",
+      "description": "",
+      "category": "library"
+    },
+    {
+      "id": "library_execution",
+      "path": "/vrooli.program_runtime.v1.library.LibraryService/GetDeclaredExecution",
+      "method": "POST",
+      "summary": "Observe a declared-program admission without executing it.",
+      "description": "",
+      "category": "library"
+    },
+    {
       "id": "library_list",
       "path": "/vrooli.program_runtime.v1.library.LibraryService/ListLibrary",
       "method": "POST",

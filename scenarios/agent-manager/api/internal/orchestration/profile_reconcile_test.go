@@ -4,9 +4,66 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+
+	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
+	"agent-manager/internal/orchestration/phases"
 )
+
+func TestDeliveryProfilesKeepEconomicalWorkSeparateFromReview(t *testing.T) {
+	o := newDeclarationOrchestrator(t)
+	ctx := context.Background()
+	root := filepath.Clean("../../../../prompt-manager")
+	for _, tc := range []struct {
+		name    string
+		role    string
+		network domain.NetworkAccess
+		scopes  []string
+	}{
+		{"delivery-coordinator", "code.economy.delivery", domain.NetworkAccessNone, nil},
+		{"delivery-worker", "code.economy.delivery", domain.NetworkAccessNone, nil},
+		{"delivery-review", "code.supervision", domain.NetworkAccessNone, []string{"agent-manager:supervise"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := ".vrooli/agent-manager/" + tc.name + ".json"
+			result := o.reconcileProfileSource(ctx, "prompt-manager", root, source, profileReconcileModeUpdateIfUnmodified, false)
+			if result.Status != ProfileReconcileStatusCreated {
+				t.Fatalf("profile did not reconcile: %+v", result)
+			}
+			profile, err := o.profiles.GetByKey(ctx, "prompt-manager/"+tc.name)
+			if err != nil || profile == nil {
+				t.Fatalf("profile missing: %v", err)
+			}
+			if profile.RoleRef != tc.role || profile.Effort != domain.EffortMedium || profile.NetworkAccess != tc.network {
+				t.Fatalf("unexpected delivery selection: role=%s effort=%s network=%s", profile.RoleRef, profile.Effort, profile.NetworkAccess)
+			}
+			sandbox := profile.SandboxConfig
+			if sandbox == nil || sandbox.Mode != domain.SandboxModeProtected || !sandbox.ManualReview || sandbox.GetAutoApply() || sandbox.GetApplyOnFailure() {
+				t.Fatalf("delivery must retain candidate changes for independent acceptance: %+v", sandbox)
+			}
+			if sandbox.WritePolicy == nil || len(sandbox.WritePolicy.Paths) != 0 || sandbox.NetworkMode != domain.NetworkAccessNone {
+				t.Fatalf("delivery defaults must be read-only until an owner supplies node grants: %+v", sandbox.WritePolicy)
+			}
+			// An owner grant is not automatically delegated to a delivery worker,
+			// reviewer or coordinator merely because a profile omitted its scopes.
+			secret := []byte("delivery-profile-identity-fixture")
+			token := phases.GenerateIdentityToken(ctx, phases.GenerateIdentityTokenInput{
+				Run:     &domain.Run{ID: profile.ID, TaskID: profile.ID, OwnerScopes: []string{"agent-manager:supervise"}},
+				Profile: profile, Secret: secret, RequestedScopes: []string{"agent-manager:supervise"},
+			})
+			claims, err := identity.VerifyToken(token, secret)
+			if err != nil || !slices.Equal(claims.Scopes, tc.scopes) {
+				t.Fatalf("delivery profile scopes=%v, want %v; err=%v", claims.Scopes, tc.scopes, err)
+			}
+			if replay := o.reconcileProfileSource(ctx, "prompt-manager", root, source, profileReconcileModeUpdateIfUnmodified, false); replay.Status != ProfileReconcileStatusUnchanged || replay.ProfileID != result.ProfileID {
+				t.Fatalf("reconcile duplicated or changed profile: %+v", replay)
+			}
+		})
+	}
+}
 
 func TestReconcileScenarioProfilesPreservesUnifiedDeclarationValidation(t *testing.T) {
 	o := newDeclarationOrchestrator(t)

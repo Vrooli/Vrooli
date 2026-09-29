@@ -53,6 +53,19 @@ func TestCreateRunPreservesExplicitIdentityNarrowing(t *testing.T) {
 	}
 }
 
+func TestCreateRunPreservesWorkloadInstanceFromEnvironment(t *testing.T) {
+	capture := &createIdentityCapture{}
+	h := New(orchestration.HandlerServices{RunService: capture})
+	body := `{"taskId":"` + uuid.NewString() + `","environment":{"VROOLI_WORKLOAD_KIND":"scheduled","VROOLI_WORKLOAD_KEY":"effort:test","VROOLI_WORKLOAD_INSTANCE":"attempt-1"}}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer private-owner-bearer")
+	response := httptest.NewRecorder()
+	h.CreateRun(response, req)
+	if capture.request.WorkloadKind != domain.WorkloadKindScheduled || capture.request.WorkloadKey != "effort:test" || capture.request.WorkloadInstance != "attempt-1" {
+		t.Fatalf("workload identity was not preserved: %+v body=%s", capture.request, response.Body.String())
+	}
+}
+
 func TestCreateRunAllowsOnlyVerifiedParentLinkedChildren(t *testing.T) {
 	parentID := uuid.New()
 	capture := &createIdentityCapture{}
@@ -268,13 +281,33 @@ func TestSyncRunFromSandboxRejectsInvalidRequestsBeforeCallingService(t *testing
 }
 
 func TestSyncRunFromSandboxUpdatesApprovalState(t *testing.T) {
-	_, router := setupTestHandler(t)
+	_, router, repos, _ := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
+	// Approval events concern a retained candidate, not a concurrently starting
+	// executor. Seed the real repository so this HTTP contract cannot race the
+	// worker's lifecycle-version writes or pass by winning that race.
+	task := &domain.Task{ID: uuid.New(), Title: "sandbox review", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(t.Context(), task); err != nil {
+		t.Fatal(err)
+	}
+	newReviewRun := func() string {
+		t.Helper()
+		sandboxID := uuid.New()
+		run := &domain.Run{
+			ID: uuid.New(), TaskID: task.ID, SandboxID: &sandboxID,
+			Status: domain.RunStatusNeedsReview, Phase: domain.RunPhaseAwaitingReview,
+			ApprovalState: domain.ApprovalStatePending,
+		}
+		if err := repos.Runs.Create(t.Context(), run); err != nil {
+			t.Fatal(err)
+		}
+		return run.ID.String()
+	}
 
 	t.Run("fully approved", func(t *testing.T) {
-		run := createRunnableTestRun(t, router)
+		runID := newReviewRun()
 		rr := httptest.NewRecorder()
-		body := `{"runId":"` + run.GetId() + `","status":"approved","actor":"reviewer"}`
-		router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+run.GetId()+"/sandbox-sync", strings.NewReader(body)))
+		body := `{"runId":"` + runID + `","status":"approved","actor":"reviewer"}`
+		router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+runID+"/sandbox-sync", strings.NewReader(body)))
 		if rr.Code != http.StatusOK {
 			t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
 		}
@@ -288,10 +321,10 @@ func TestSyncRunFromSandboxUpdatesApprovalState(t *testing.T) {
 	})
 
 	t.Run("partially approved", func(t *testing.T) {
-		run := createRunnableTestRun(t, router)
+		runID := newReviewRun()
 		rr := httptest.NewRecorder()
 		body := `{"status":"approved","isPartial":true}`
-		router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+run.GetId()+"/sandbox-sync", strings.NewReader(body)))
+		router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+runID+"/sandbox-sync", strings.NewReader(body)))
 		if rr.Code != http.StatusOK {
 			t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
 		}
@@ -305,9 +338,9 @@ func TestSyncRunFromSandboxUpdatesApprovalState(t *testing.T) {
 	})
 
 	t.Run("unsupported status", func(t *testing.T) {
-		run := createRunnableTestRun(t, router)
+		runID := newReviewRun()
 		rr := httptest.NewRecorder()
-		router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+run.GetId()+"/sandbox-sync", strings.NewReader(`{"status":"unknown"}`)))
+		router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+runID+"/sandbox-sync", strings.NewReader(`{"status":"unknown"}`)))
 		if rr.Code != http.StatusBadRequest {
 			t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
 		}

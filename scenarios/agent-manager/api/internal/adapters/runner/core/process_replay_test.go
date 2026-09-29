@@ -59,7 +59,7 @@ func TestProcessReplay_AllSupportedCodecs(t *testing.T) {
 			r := NewRunner(tc.codec, runner.NewHostLauncher(), nil)
 			result, err := r.Execute(context.Background(), runner.ExecuteRequest{
 				RunID: uuid.New(), Tag: "replay-" + tc.name, Prompt: "replay corpus", WorkingDir: workDir,
-				ResolvedConfig: &domain.RunConfig{RunnerType: tc.codec.Type()}, EventSink: sink,
+				ResolvedConfig: &domain.RunConfig{RunnerType: tc.codec.Type(), SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}}, EventSink: sink,
 				Environment: map[string]string{
 					"FAKE_AGENT_CORPUS":     corpus,
 					"FAKE_AGENT_TAG_MARKER": marker,
@@ -123,9 +123,12 @@ func TestProcessReplay_FailureCorpusProducesFailedResult(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := NewRunner(codecs.NewClaudeForTestWithBinary(fakeAgent), runner.NewHostLauncher(), nil)
-	result, err := r.Execute(context.Background(), runner.ExecuteRequest{RunID: uuid.New(), Tag: "failure-replay", Prompt: "fail", WorkingDir: workDir, ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode}, EventSink: &recordingSink{}, Environment: map[string]string{"FAKE_AGENT_CORPUS": corpus}})
-	if err == nil && (result == nil || result.Success) {
-		t.Fatalf("failure corpus unexpectedly succeeded: result=%+v err=%v", result, err)
+	result, err := r.Execute(context.Background(), runner.ExecuteRequest{RunID: uuid.New(), Tag: "failure-replay", Prompt: "fail", WorkingDir: workDir, ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode, SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}}, EventSink: &recordingSink{}, Environment: map[string]string{"FAKE_AGENT_CORPUS": corpus}})
+	if err != nil {
+		t.Fatalf("failure replay did not execute: %v", err)
+	}
+	if result == nil || result.Success || result.SessionID != "failure-session" {
+		t.Fatalf("want parsed failure from replay process, got %+v", result)
 	}
 }
 
@@ -168,7 +171,7 @@ func TestProcessReplay_ContinuationAllSupportedCodecs(t *testing.T) {
 			r := NewRunner(continuationReplayCodec{tc.codec}, runner.NewHostLauncher(), nil)
 			result, err := r.Continue(context.Background(), runner.ContinueRequest{
 				RunID: uuid.New(), SessionID: "prior-session", Prompt: "follow-up", WorkingDir: workDir,
-				ResolvedConfig: &domain.RunConfig{RunnerType: tc.codec.Type()}, EventSink: &recordingSink{},
+				ResolvedConfig: &domain.RunConfig{RunnerType: tc.codec.Type(), SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}}, EventSink: &recordingSink{},
 				Environment: map[string]string{
 					"FAKE_AGENT_CORPUS":     corpus,
 					"FAKE_AGENT_TAG_MARKER": marker,

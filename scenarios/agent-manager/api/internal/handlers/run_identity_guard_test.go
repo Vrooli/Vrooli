@@ -53,7 +53,7 @@ func (s guardIdentityService) VerifyIdentityToken(context.Context, string) (*orc
 	return s.result, nil
 }
 
-func TestRunIdentityGuardRejectsOnlyValidRunIdentities(t *testing.T) {
+func TestRunIdentityGuardRefusesRunAuthorityAndUnverifiedClaims(t *testing.T) {
 	h := New(orchestration.HandlerServices{IdentityService: guardIdentityService{
 		result: &orchestration.IdentityVerifyResult{Valid: true, Claims: &identity.Claims{RunID: uuid.New()}},
 	}})
@@ -67,11 +67,22 @@ func TestRunIdentityGuardRejectsOnlyValidRunIdentities(t *testing.T) {
 		t.Fatalf("status = %d, want %d", rr.Code, http.StatusForbidden)
 	}
 
-	h = New(orchestration.HandlerServices{IdentityService: guardIdentityService{
-		result: &orchestration.IdentityVerifyResult{Valid: false},
-	}})
+	for _, result := range []*orchestration.IdentityVerifyResult{
+		nil,
+		{Valid: false},
+		{Valid: true}, // A verdict without signed claims is not an identity.
+	} {
+		h = New(orchestration.HandlerServices{IdentityService: guardIdentityService{result: result}})
+		rr = httptest.NewRecorder()
+		if !h.denyRunInitiatedLifecycleOperation(rr, req, "create-run") || rr.Code != http.StatusUnauthorized {
+			t.Fatalf("unverified run credential became operator authority: status=%d result=%+v", rr.Code, result)
+		}
+	}
+	// Absence of a run credential retains the existing operator-auth path.
+	// This guard does not itself authenticate that operator.
+	req.Header.Del(cliutil.HeaderAgentIdentityToken)
 	rr = httptest.NewRecorder()
 	if h.denyRunInitiatedLifecycleOperation(rr, req, "create-run") {
-		t.Fatal("guard rejected an invalid/non-run identity")
+		t.Fatal("run-specific guard intercepted an operator request")
 	}
 }

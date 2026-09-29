@@ -6,7 +6,7 @@
 
 ---
 
-## Current State (2026-04-30)
+## Historical audit snapshot (2026-04-30)
 
 | Status | Count |
 |---|---:|
@@ -16,6 +16,15 @@
 | **Total v1 routes** | **168** |
 
 `audit-pending` entries are not gaps in the strict CI-failing sense — they have been classified just enough to satisfy the guard, but every one needs a follow-up pass to either confirm `covered` (with the precise CLI invocation) or `intentionally-absent` (with a real reason). They are the work surface for follow-up backlog items.
+
+## Current guard state (2026-09-27)
+
+The checked-in map was reconciled with the current `api/main.go` route
+extractor. It contains one intentionally absent liveness route (`GET /health`),
+no stale route entries, and no audit-pending entries. The table above and the
+gap-cluster list below are retained as historical backlog context; re-audit the
+current handler registrations before treating any old count or cluster as an
+active CLI gap.
 
 ---
 
@@ -77,7 +86,6 @@ The following groups summarize where covered/audit-pending entries cluster. See 
 - **Runs** (8 routes) — `POST /runs`, investigation runs, retry/continue, run events; no top-level `run` command
 - **Search teams** (3 routes) — no `team search` or AI-team-search command
 - **Graph health-config** (2 routes) — no get/put for the health-config endpoint
-- **Discover-filter / budget config** (4 routes) — no get/put for `/config/budgets` or `/config/discover-filters`
 - **Heartbeat lifecycle edges** (5 routes) — no delete-heartbeat, no global running list, no team-wide log list, no single-log show, no execution-status
 - **Handoff clearing** (2 routes) — no DELETE wrappers for handoff or handoff-history
 - **Org chart full PUT** (1 route) — `team org-set` covers single edges; bulk `PUT /teams/{id}/org` not exposed

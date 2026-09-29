@@ -29,6 +29,11 @@ type CodingRoleCatalog struct {
 	// this resource catalog. The resource remains the authority for its model
 	// vocabulary; consumers receive this list as admission evidence.
 	ExcludedModels []string `json:"excluded_models,omitempty"`
+	// RestrictedModels limits a model to named resource roles. Resolution adds
+	// it to the existing exclusion response for every other role, including
+	// roles added later. Global exclusions still win. This does not authorize
+	// a caller to select a role; the execution owner controls that admission.
+	RestrictedModels map[string][]string `json:"restricted_models,omitempty"`
 	// ModelAliases is the resource-owned translation table from the runner's
 	// model vocabulary to the canonical identity used by pricing providers.
 	// Agent Manager consumes this through the resource CLI; it never owns this
@@ -193,21 +198,44 @@ func ParseObservedAt(value string) (time.Time, error) { return parseObservedAt(v
 func liveCatalogFindings(c CodingRoleCatalog, live LiveModelCatalog) []PolicyValidationFinding {
 	findings := make([]PolicyValidationFinding, 0)
 	named := make(map[string]struct{})
+	// Excluded models are deliberately named policy vocabulary too. They are
+	// not selectable, but reporting them as unnamed live models creates a
+	// false drift finding precisely when an operator has documented why a
+	// provider model must not be used.
+	for _, model := range c.ExcludedModels {
+		named[model] = struct{}{}
+	}
 	for roleName, role := range c.Roles {
 		named[role.Model] = struct{}{}
 		if !live.Contains(role.Model) && !live.Aliases {
-			findings = append(findings, PolicyValidationFinding{Type: "missing_primary_model", Severity: "error", Role: roleName, Model: role.Model, Message: "primary model is absent from the runner live catalog"})
+			severity := "warning"
+			typ := "unconfirmed_primary_model"
+			message := "primary model is not listed by the runner's non-exhaustive catalog; do not infer that it is unavailable"
+			if live.Exhaustive {
+				severity = "error"
+				typ = "missing_primary_model"
+				message = "primary model is absent from the runner exhaustive catalog"
+			}
+			findings = append(findings, PolicyValidationFinding{Type: typ, Severity: severity, Role: roleName, Model: role.Model, Message: message})
 		}
 		for _, fallback := range role.Fallbacks {
 			named[fallback] = struct{}{}
 			if !live.Contains(fallback) && !live.Aliases {
-				findings = append(findings, PolicyValidationFinding{Type: "missing_fallback_model", Severity: "warning", Role: roleName, Model: fallback, Message: "fallback model is absent from the runner live catalog"})
+				findings = append(findings, PolicyValidationFinding{Type: "missing_fallback_model", Severity: "warning", Role: roleName, Model: fallback, Message: "fallback model is not listed by the runner's non-exhaustive catalog; do not infer that it is unavailable"})
 			}
 		}
 		if role.Challenger != nil {
 			named[role.Challenger.Model] = struct{}{}
 			if !live.Contains(role.Challenger.Model) && !live.Aliases {
-				findings = append(findings, PolicyValidationFinding{Type: "missing_challenger_model", Severity: "error", Role: roleName, Model: role.Challenger.Model, Message: "challenger model is absent from the runner live catalog"})
+				severity := "warning"
+				typ := "unconfirmed_challenger_model"
+				message := "challenger model is not listed by the runner's non-exhaustive catalog; do not infer that it is unavailable"
+				if live.Exhaustive {
+					severity = "error"
+					typ = "missing_challenger_model"
+					message = "challenger model is absent from the runner exhaustive catalog"
+				}
+				findings = append(findings, PolicyValidationFinding{Type: typ, Severity: severity, Role: roleName, Model: role.Challenger.Model, Message: message})
 			}
 		}
 	}
@@ -268,6 +296,23 @@ func validateCodingRoleCatalog(c CodingRoleCatalog, expectedRunner string) error
 			errs = append(errs, fmt.Errorf("excluded_models contains duplicate %q", model))
 		}
 		seenExcluded[key] = struct{}{}
+	}
+	seenRestricted := make(map[string]bool, len(c.RestrictedModels))
+	for model, roles := range c.RestrictedModels {
+		if model == "" || strings.TrimSpace(model) != model || seenRestricted[strings.ToLower(model)] {
+			errs = append(errs, fmt.Errorf("restricted_models requires distinct trimmed model names: %q", model))
+		}
+		seenRestricted[strings.ToLower(model)] = true
+		if len(roles) == 0 {
+			errs = append(errs, fmt.Errorf("restricted_models.%s requires at least one role; use excluded_models for a global denial", model))
+		}
+		seenRoles := make(map[string]bool, len(roles))
+		for _, role := range roles {
+			if _, exists := c.Roles[role]; !exists || seenRoles[role] {
+				errs = append(errs, fmt.Errorf("restricted_models.%s references unknown or duplicate role %q", model, role))
+			}
+			seenRoles[role] = true
+		}
 	}
 	for _, required := range []string{"code.default", "code.fast", "code.smart", "code.cheap"} {
 		r, ok := c.Roles[required]
@@ -377,6 +422,9 @@ func ValidateCatalogAgainstLive(ctx context.Context, runner, path string) ([]Pol
 	live, err := DiscoverModels(ctx, runner)
 	if err != nil {
 		return nil, LiveModelCatalog{}, err
+	}
+	if !live.IsAuthoritative() {
+		return nil, live, fmt.Errorf("%w: source %q", ErrModelCatalogNonAuthoritative, live.Source)
 	}
 	findings := append([]PolicyValidationFinding{}, catalogStalenessFindings(catalog, time.Now().UTC(), true)...)
 	findings = append(findings, liveCatalogFindings(catalog, live)...)

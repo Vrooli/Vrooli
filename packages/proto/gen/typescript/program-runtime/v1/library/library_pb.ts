@@ -15,7 +15,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file program-runtime/v1/library/library.proto.
  */
 export const file_program_runtime_v1_library_library: GenFile = /*@__PURE__*/
-  fileDesc("Cihwcm9ncmFtLXJ1bnRpbWUvdjEvbGlicmFyeS9saWJyYXJ5LnByb3RvEiF2cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkiQgoSTGlzdExpYnJhcnlSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBWxpbWl0GAIgASgFEg4KBm9mZnNldBgDIAEoBSJZChNMaXN0TGlicmFyeVJlc3BvbnNlEkIKCHByb2dyYW1zGAEgAygLMjAudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5zaGFyZWQuTGlicmFyeVByb2dyYW0iMgoRR2V0TGlicmFyeVJlcXVlc3QSDAoEbmFtZRgBIAEoCRIPCgd2ZXJzaW9uGAIgASgDIokBCgxCaW5kaW5nRHJpZnQSEgoKYmluZGluZ19pZBgBIAEoCRIUCgx2YWxpZGF0ZWRfYXQYAiABKAkSGAoQZ2VuZXJhdGlvbl9tdGltZRgDIAEoCRIUCgxkcmlmdF9zdGF0dXMYBCABKAkSDwoHY2hhbmdlZBgFIAEoCBIOCgZyZWFzb24YBiABKAkilwEKEkdldExpYnJhcnlSZXNwb25zZRJBCgdwcm9ncmFtGAEgASgLMjAudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5zaGFyZWQuTGlicmFyeVByb2dyYW0SPgoFZHJpZnQYAiADKAsyLy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuQmluZGluZ0RyaWZ0IrgBChVQcm9tb3RlTGlicmFyeVJlcXVlc3QSEgoKcHJvZ3JhbV9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhMKC3Byb21vdGVkX2J5GAQgASgJEg4KBnJlYXNvbhgFIAEoCRIQCghjb3ZlcmFnZRgGIAEoCRIXCg9kZWNsYXJlZF9pbnB1dHMYByADKAkSGAoQZGVjbGFyZWRfb3V0cHV0cxgIIAMoCSJbChZQcm9tb3RlTGlicmFyeVJlc3BvbnNlEkEKB3Byb2dyYW0YASABKAsyMC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnNoYXJlZC5MaWJyYXJ5UHJvZ3JhbSI5ChhTZXRDdXJyZW50TGlicmFyeVJlcXVlc3QSDAoEbmFtZRgBIAEoCRIPCgd2ZXJzaW9uGAIgASgDIl4KGVNldEN1cnJlbnRMaWJyYXJ5UmVzcG9uc2USQQoHcHJvZ3JhbRgBIAEoCzIwLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuc2hhcmVkLkxpYnJhcnlQcm9ncmFtIvoBChlSdW5EZWNsYXJlZFByb2dyYW1SZXF1ZXN0EgwKBG5hbWUYASABKAkSJwoGaW5wdXRzGAIgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBJCCgpwcm92ZW5hbmNlGAMgASgOMi4udnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5Qcm92ZW5hbmNlEhcKD2V4cGVjdGVkX2RpZ2VzdBgEIAEoCRINCgVhc3luYxgFIAEoCBI6CgZjYWxsZXIYBiABKAsyKi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkNhbGxlciKDAQoaUnVuRGVjbGFyZWRQcm9ncmFtUmVzcG9uc2USPAoHcHJvZ3JhbRgBIAEoCzIrLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuUHJvZ3JhbRIQCgh0ZXJtaW5hbBgCIAEoCBIVCg13YWl0ZWRfbWlsbGlzGAMgASgDMrYFCg5MaWJyYXJ5U2VydmljZRJ8CgtMaXN0TGlicmFyeRI1LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEubGlicmFyeS5MaXN0TGlicmFyeVJlcXVlc3QaNi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuTGlzdExpYnJhcnlSZXNwb25zZRJ5CgpHZXRMaWJyYXJ5EjQudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LkdldExpYnJhcnlSZXF1ZXN0GjUudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LkdldExpYnJhcnlSZXNwb25zZRKFAQoOUHJvbW90ZUxpYnJhcnkSOC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuUHJvbW90ZUxpYnJhcnlSZXF1ZXN0GjkudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LlByb21vdGVMaWJyYXJ5UmVzcG9uc2USjgEKEVNldEN1cnJlbnRMaWJyYXJ5EjsudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LlNldEN1cnJlbnRMaWJyYXJ5UmVxdWVzdBo8LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEubGlicmFyeS5TZXRDdXJyZW50TGlicmFyeVJlc3BvbnNlEpEBChJSdW5EZWNsYXJlZFByb2dyYW0SPC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuUnVuRGVjbGFyZWRQcm9ncmFtUmVxdWVzdBo9LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEubGlicmFyeS5SdW5EZWNsYXJlZFByb2dyYW1SZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb2dyYW0tcnVudGltZS92MS9saWJyYXJ5O2xpYnJhcnlfdjFiBnByb3RvMw", [file_google_protobuf_struct, file_program_runtime_v1_programs_programs, file_program_runtime_v1_shared_library]);
+  fileDesc("Cihwcm9ncmFtLXJ1bnRpbWUvdjEvbGlicmFyeS9saWJyYXJ5LnByb3RvEiF2cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkiQgoSTGlzdExpYnJhcnlSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBWxpbWl0GAIgASgFEg4KBm9mZnNldBgDIAEoBSJZChNMaXN0TGlicmFyeVJlc3BvbnNlEkIKCHByb2dyYW1zGAEgAygLMjAudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5zaGFyZWQuTGlicmFyeVByb2dyYW0iMgoRR2V0TGlicmFyeVJlcXVlc3QSDAoEbmFtZRgBIAEoCRIPCgd2ZXJzaW9uGAIgASgDIokBCgxCaW5kaW5nRHJpZnQSEgoKYmluZGluZ19pZBgBIAEoCRIUCgx2YWxpZGF0ZWRfYXQYAiABKAkSGAoQZ2VuZXJhdGlvbl9tdGltZRgDIAEoCRIUCgxkcmlmdF9zdGF0dXMYBCABKAkSDwoHY2hhbmdlZBgFIAEoCBIOCgZyZWFzb24YBiABKAkilwEKEkdldExpYnJhcnlSZXNwb25zZRJBCgdwcm9ncmFtGAEgASgLMjAudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5zaGFyZWQuTGlicmFyeVByb2dyYW0SPgoFZHJpZnQYAiADKAsyLy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuQmluZGluZ0RyaWZ0IrgBChVQcm9tb3RlTGlicmFyeVJlcXVlc3QSEgoKcHJvZ3JhbV9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhMKC3Byb21vdGVkX2J5GAQgASgJEg4KBnJlYXNvbhgFIAEoCRIQCghjb3ZlcmFnZRgGIAEoCRIXCg9kZWNsYXJlZF9pbnB1dHMYByADKAkSGAoQZGVjbGFyZWRfb3V0cHV0cxgIIAMoCSJbChZQcm9tb3RlTGlicmFyeVJlc3BvbnNlEkEKB3Byb2dyYW0YASABKAsyMC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnNoYXJlZC5MaWJyYXJ5UHJvZ3JhbSI5ChhTZXRDdXJyZW50TGlicmFyeVJlcXVlc3QSDAoEbmFtZRgBIAEoCRIPCgd2ZXJzaW9uGAIgASgDIl4KGVNldEN1cnJlbnRMaWJyYXJ5UmVzcG9uc2USQQoHcHJvZ3JhbRgBIAEoCzIwLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuc2hhcmVkLkxpYnJhcnlQcm9ncmFtIr8CChlSdW5EZWNsYXJlZFByb2dyYW1SZXF1ZXN0EgwKBG5hbWUYASABKAkSJwoGaW5wdXRzGAIgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBJCCgpwcm92ZW5hbmNlGAMgASgOMi4udnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5Qcm92ZW5hbmNlEhcKD2V4cGVjdGVkX2RpZ2VzdBgEIAEoCRINCgVhc3luYxgFIAEoCBI6CgZjYWxsZXIYBiABKAsyKi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkNhbGxlchIXCg9pZGVtcG90ZW5jeV9rZXkYByABKAkSGgoSYWRtaXNzaW9uX2RlYWRsaW5lGAggASgJEg4KBmdyYW50cxgJIAMoCSKDAQoaUnVuRGVjbGFyZWRQcm9ncmFtUmVzcG9uc2USPAoHcHJvZ3JhbRgBIAEoCzIrLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuUHJvZ3JhbRIQCgh0ZXJtaW5hbBgCIAEoCBIVCg13YWl0ZWRfbWlsbGlzGAMgASgDIkQKG0dldERlY2xhcmVkRXhlY3V0aW9uUmVxdWVzdBIMCgRuYW1lGAEgASgJEhcKD2lkZW1wb3RlbmN5X2tleRgCIAEoCSKPAQocR2V0RGVjbGFyZWRFeGVjdXRpb25SZXNwb25zZRIiChphZG1pc3Npb25fY29udHJhY3RfdmVyc2lvbhgBIAEoDRINCgVmb3VuZBgCIAEoCBI8Cgdwcm9ncmFtGAMgASgLMisudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5Qcm9ncmFtMugHCg5MaWJyYXJ5U2VydmljZRKVAQoWQ2xvc2VEZWNsYXJlZEFkbWlzc2lvbhI8LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEubGlicmFyeS5SdW5EZWNsYXJlZFByb2dyYW1SZXF1ZXN0Gj0udnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LlJ1bkRlY2xhcmVkUHJvZ3JhbVJlc3BvbnNlEpcBChRHZXREZWNsYXJlZEV4ZWN1dGlvbhI+LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEubGlicmFyeS5HZXREZWNsYXJlZEV4ZWN1dGlvblJlcXVlc3QaPy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuR2V0RGVjbGFyZWRFeGVjdXRpb25SZXNwb25zZRJ8CgtMaXN0TGlicmFyeRI1LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEubGlicmFyeS5MaXN0TGlicmFyeVJlcXVlc3QaNi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuTGlzdExpYnJhcnlSZXNwb25zZRJ5CgpHZXRMaWJyYXJ5EjQudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LkdldExpYnJhcnlSZXF1ZXN0GjUudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LkdldExpYnJhcnlSZXNwb25zZRKFAQoOUHJvbW90ZUxpYnJhcnkSOC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuUHJvbW90ZUxpYnJhcnlSZXF1ZXN0GjkudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LlByb21vdGVMaWJyYXJ5UmVzcG9uc2USjgEKEVNldEN1cnJlbnRMaWJyYXJ5EjsudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LlNldEN1cnJlbnRMaWJyYXJ5UmVxdWVzdBo8LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEubGlicmFyeS5TZXRDdXJyZW50TGlicmFyeVJlc3BvbnNlEpEBChJSdW5EZWNsYXJlZFByb2dyYW0SPC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuUnVuRGVjbGFyZWRQcm9ncmFtUmVxdWVzdBo9LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEubGlicmFyeS5SdW5EZWNsYXJlZFByb2dyYW1SZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb2dyYW0tcnVudGltZS92MS9saWJyYXJ5O2xpYnJhcnlfdjFiBnByb3RvMw", [file_google_protobuf_struct, file_program_runtime_v1_programs_programs, file_program_runtime_v1_shared_library]);
 
 /**
  * @generated from message vrooli.program_runtime.v1.library.ListLibraryRequest
@@ -297,6 +297,32 @@ export type RunDeclaredProgramRequest = Message<"vrooli.program_runtime.v1.libra
    * @generated from field: vrooli.program_runtime.v1.programs.Caller caller = 6;
    */
   caller?: Caller | undefined;
+
+  /**
+   * Optional durable request key, scoped to name. Requires expected_digest.
+   * Repeating identical intent returns the original program, including failed
+   * or interrupted executions; it never repeats effects. Changed intent refuses.
+   *
+   * @generated from field: string idempotency_key = 7;
+   */
+  idempotencyKey: string;
+
+  /**
+   * Required with idempotency_key: fixed RFC3339 admission deadline, at most
+   * 24h in the future. Replays retain this value. After expiry a missing record
+   * is refused, not executed again; retained executions can still be observed.
+   *
+   * @generated from field: string admission_deadline = 8;
+   */
+  admissionDeadline: string;
+
+  /**
+   * Explicit grants of the form binding:<id>, limited to destructive bindings
+   * declared by this pinned contract. They are part of immutable replay intent.
+   *
+   * @generated from field: repeated string grants = 9;
+   */
+  grants: string[];
 };
 
 /**
@@ -334,9 +360,82 @@ export const RunDeclaredProgramResponseSchema: GenMessage<RunDeclaredProgramResp
   messageDesc(file_program_runtime_v1_library_library, 10);
 
 /**
+ * @generated from message vrooli.program_runtime.v1.library.GetDeclaredExecutionRequest
+ */
+export type GetDeclaredExecutionRequest = Message<"vrooli.program_runtime.v1.library.GetDeclaredExecutionRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string idempotency_key = 2;
+   */
+  idempotencyKey: string;
+};
+
+/**
+ * Describes the message vrooli.program_runtime.v1.library.GetDeclaredExecutionRequest.
+ * Use `create(GetDeclaredExecutionRequestSchema)` to create a new message.
+ */
+export const GetDeclaredExecutionRequestSchema: GenMessage<GetDeclaredExecutionRequest> = /*@__PURE__*/
+  messageDesc(file_program_runtime_v1_library_library, 11);
+
+/**
+ * @generated from message vrooli.program_runtime.v1.library.GetDeclaredExecutionResponse
+ */
+export type GetDeclaredExecutionResponse = Message<"vrooli.program_runtime.v1.library.GetDeclaredExecutionResponse"> & {
+  /**
+   * 2 = pinned intent, fixed deadline, atomic reservation, expiry refusal and
+   * atomic closure of an unused admission. Existing executions are drained.
+   *
+   * @generated from field: uint32 admission_contract_version = 1;
+   */
+  admissionContractVersion: number;
+
+  /**
+   * @generated from field: bool found = 2;
+   */
+  found: boolean;
+
+  /**
+   * @generated from field: vrooli.program_runtime.v1.programs.Program program = 3;
+   */
+  program?: Program | undefined;
+};
+
+/**
+ * Describes the message vrooli.program_runtime.v1.library.GetDeclaredExecutionResponse.
+ * Use `create(GetDeclaredExecutionResponseSchema)` to create a new message.
+ */
+export const GetDeclaredExecutionResponseSchema: GenMessage<GetDeclaredExecutionResponse> = /*@__PURE__*/
+  messageDesc(file_program_runtime_v1_library_library, 12);
+
+/**
  * @generated from service vrooli.program_runtime.v1.library.LibraryService
  */
 export const LibraryService: GenService<{
+  /**
+   * Atomically prevent an unused key from executing, or return its already
+   * admitted execution for draining. This never starts or retries a program.
+   *
+   * @generated from rpc vrooli.program_runtime.v1.library.LibraryService.CloseDeclaredAdmission
+   */
+  closeDeclaredAdmission: {
+    methodKind: "unary";
+    input: typeof RunDeclaredProgramRequestSchema;
+    output: typeof RunDeclaredProgramResponseSchema;
+  },
+  /**
+   * Read-only keyed observation also proves the deployed admission contract.
+   *
+   * @generated from rpc vrooli.program_runtime.v1.library.LibraryService.GetDeclaredExecution
+   */
+  getDeclaredExecution: {
+    methodKind: "unary";
+    input: typeof GetDeclaredExecutionRequestSchema;
+    output: typeof GetDeclaredExecutionResponseSchema;
+  },
   /**
    * @generated from rpc vrooli.program_runtime.v1.library.LibraryService.ListLibrary
    */

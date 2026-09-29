@@ -226,7 +226,7 @@ func TestInvocationReadModelRunMetricsUseDurableTerminalFactsAndSharedFilters(t 
 		t.Fatalf("status rows=%+v err=%v", statusRows, err)
 	}
 	runnerRows, err := repo.RunBreakdown(ctx, invocationreadmodel.Filter{From: &now, To: ptrTime(now.Add(time.Hour))}, "runner", 10)
-	if err != nil || len(runnerRows) != 1 || runnerRows[0].Key != "codex" || runnerRows[0].Value != "codex" || runnerRows[0].RunCount != 2 || runnerRows[0].SuccessCount != 1 || runnerRows[0].FailedCount != 1 || runnerRows[0].TotalCostUSD != 2 || runnerRows[0].TotalTokens != 30 {
+	if err != nil || len(runnerRows) != 1 || runnerRows[0].Key != "codex" || runnerRows[0].Value != "codex" || runnerRows[0].RunCount != 2 || runnerRows[0].SuccessCount != 1 || runnerRows[0].FailedCount != 1 || runnerRows[0].TotalCostUSD != 2 || runnerRows[0].TotalTokens != 30 || runnerRows[0].InputTokens != 15 || runnerRows[0].OutputTokens != 7 || runnerRows[0].CacheReadTokens != 3 || runnerRows[0].CacheCreationTokens != 3 {
 		t.Fatalf("runner rows=%+v err=%v", runnerRows, err)
 	}
 	trendRows, err := repo.RunTimeSeries(ctx, invocationreadmodel.Filter{From: &now, To: ptrTime(now.Add(time.Hour))}, time.Hour)

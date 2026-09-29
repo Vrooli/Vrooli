@@ -225,11 +225,20 @@ func (o *Orchestrator) ProbeRunner(ctx context.Context, runnerType domain.Runner
 	probeCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	result, execErr := r.Execute(probeCtx, runner.ExecuteRequest{
-		RunID:          uuid.New(),
-		Tag:            "agent-manager-runner-probe",
-		ResolvedConfig: &domain.RunConfig{RunnerType: runnerType, MaxTurns: 1},
-		WorkingDir:     os.TempDir(),
-		Prompt:         "Reply with exactly one word: PROBE_OK",
+		RunID: uuid.New(),
+		Tag:   "agent-manager-runner-probe",
+		// This is a read-only runner health check, not a workspace mutation.
+		// Declare tracking explicitly so the launcher does not interpret the
+		// omitted policy as a malformed protected run. A real delivery run
+		// receives its protected config and sandbox identity through normal
+		// owner admission and run creation.
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType:    runnerType,
+			MaxTurns:      1,
+			SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeTracking},
+		},
+		WorkingDir: os.TempDir(),
+		Prompt:     "Reply with exactly one word: PROBE_OK",
 	})
 	duration := time.Since(start)
 	if probeCtx.Err() == context.DeadlineExceeded {

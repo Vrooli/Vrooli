@@ -500,6 +500,9 @@ func TestClaudeCodeVisionNavigator_GetSession(t *testing.T) {
 		NavigationSession: &NavigationSession{
 			NavigationID: "nav_test",
 			SessionID:    "session123",
+			ExtractedData: map[string]interface{}{
+				"nested": map[string]interface{}{"value": "original"},
+			},
 		},
 		doneChan: make(chan struct{}),
 	}
@@ -514,6 +517,13 @@ func TestClaudeCodeVisionNavigator_GetSession(t *testing.T) {
 		}
 		if s.SessionID != "session123" {
 			t.Errorf("SessionID = %q, want %q", s.SessionID, "session123")
+		}
+		s.ExtractedData["nested"].(map[string]interface{})["value"] = "changed"
+		nav.mu.RLock()
+		live := nav.activeNavigations["nav_test"].NavigationSession
+		nav.mu.RUnlock()
+		if got := live.ExtractedData["nested"].(map[string]interface{})["value"]; got != "original" {
+			t.Errorf("Claude Code snapshot leaked extracted data: %v", got)
 		}
 	})
 

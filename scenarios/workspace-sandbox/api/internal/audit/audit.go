@@ -21,7 +21,7 @@
 // This package consolidates all of that. Production wires
 // RepoEmitter, which stamps EventTime via the injected Clock and
 // persists through Repository.LogAuditEvent. Tests wire FakeEmitter
-// (in testutil/mocks) and assert via assertx.AssertAuditEvents.
+// (in testutil/mocks) and inspect its recorded Events().
 //
 // The Event struct is the seam contract — callers pass the fields
 // they care about; the emitter handles the rest. The

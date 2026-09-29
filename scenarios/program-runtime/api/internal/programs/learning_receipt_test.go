@@ -72,19 +72,6 @@ func TestCompactLearningJSONNormalisesKernelReceipts(t *testing.T) {
 	require.Equal(t, `{"a":1,"b":[1,2]}`, compactLearningJSON(json.RawMessage(" {\"a\": 1,\n \"b\": [1, 2]} ")))
 }
 
-func TestEnsureCompatibilityAddsLearningJSONToExistingDatabase(t *testing.T) {
-	ctx := context.Background()
-	d := newProgramsTestDB(t)
-	_, err := d.ExecContext(ctx, `ALTER TABLE programs DROP COLUMN learning_json`)
-	require.NoError(t, err)
-	require.NoError(t, EnsureCompatibility(ctx, d))
-	repo := NewRepository(d)
-	require.NoError(t, repo.Save(ctx, &programsv1.Program{Id: "prog_upgraded", SessionId: "sess", Source: "x", Provenance: programsv1.Provenance_PROVENANCE_AGENT, Status: programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, CreatedAt: "2026-09-09T00:00:00Z", LearningJson: `{"outcome":"ok"}`}))
-	got, err := repo.Get(ctx, "prog_upgraded")
-	require.NoError(t, err)
-	require.Equal(t, `{"outcome":"ok"}`, got.GetLearningJson())
-}
-
 func TestServiceCarriesLearningReceiptOntoProgramRecord(t *testing.T) {
 	s := NewService(Options{Runner: fakeRunner{result: Result{Stdout: "ok", LearningJSON: liveLearningReceipt}}})
 	submitted, err := s.Submit(context.Background(), "s1", "learn.outcome('unknown', [])", programsv1.Provenance_PROVENANCE_OPERATOR, false)

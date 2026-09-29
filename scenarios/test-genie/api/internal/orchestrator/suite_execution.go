@@ -49,9 +49,21 @@ import (
 	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
+
+func cloneRetainedEvidenceSets(sets []*scenariovalidationv1.RetainedEvidenceSet) []*scenariovalidationv1.RetainedEvidenceSet {
+	cloned := make([]*scenariovalidationv1.RetainedEvidenceSet, 0, len(sets))
+	for _, set := range sets {
+		if set != nil {
+			cloned = append(cloned, proto.Clone(set).(*scenariovalidationv1.RetainedEvidenceSet))
+		}
+	}
+	return cloned
+}
 
 var (
 	defaultPhaseTimeout = phases.DefaultTimeout
@@ -195,11 +207,12 @@ type SuiteExecutionRequest struct {
 	ScenarioName string `json:"scenarioName"`
 	// Target accepts the generalized kind:id notation. ScenarioName remains
 	// required by legacy callers and is the display alias for scenario targets.
-	Target   string   `json:"target,omitempty"`
-	Preset   string   `json:"preset,omitempty"`
-	Phases   []string `json:"phases,omitempty"`
-	Skip     []string `json:"skip,omitempty"`
-	FailFast bool     `json:"failFast"`
+	Target               string                                      `json:"target,omitempty"`
+	Preset               string                                      `json:"preset,omitempty"`
+	Phases               []string                                    `json:"phases,omitempty"`
+	RetainedEvidenceSets []*scenariovalidationv1.RetainedEvidenceSet `json:"retainedEvidenceSets,omitempty"`
+	Skip                 []string                                    `json:"skip,omitempty"`
+	FailFast             bool                                        `json:"failFast"`
 
 	// RequestedAt is when the caller asked for this run, as opposed to when a
 	// concurrency slot opened for it. The run manager stamps it once at
@@ -213,6 +226,9 @@ type SuiteExecutionRequest struct {
 	// Threading the id keeps a single run-id scheme and makes the start→finalize
 	// index upsert idempotent under the pre-minted id.
 	RunID string `json:"runId,omitempty"`
+	// EvidenceProductionIntentDigest binds an explicitly admitted producer run
+	// to the exact server-resolved command pin. It never selects a suite phase.
+	EvidenceProductionIntentDigest string `json:"evidenceProductionIntentDigest,omitempty"`
 
 	// DiagnosticsPreset ("none"|"light"|"full"), when set, records the
 	// requested diagnostic depth for provider-owned evidence capture.
@@ -847,6 +863,7 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 		runID = newRunID()
 	}
 	planCtx.env.RunID = runID
+	planCtx.env.RetainedEvidenceSets = cloneRetainedEvidenceSets(req.RetainedEvidenceSets)
 	planCtx.env.CaptureProfile = strings.TrimSpace(req.CaptureProfile)
 	planCtx.env.DiagnosticsPreset = resolveDiagnosticsPreset(req)
 	if err := sharedartifacts.EnsureCoverageStructure(planCtx.env.ArtifactRoot); err != nil {
@@ -933,6 +950,7 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 			// the execution identity that was bound before admission; phase writers
 			// must never observe an empty run id after a queued rebase.
 			planCtx.env.RunID = runID
+			planCtx.env.RetainedEvidenceSets = cloneRetainedEvidenceSets(req.RetainedEvidenceSets)
 			planCtx.env.CaptureProfile = strings.TrimSpace(req.CaptureProfile)
 			planCtx.env.DiagnosticsPreset = resolveDiagnosticsPreset(req)
 			scenario = planCtx.env.ScenarioName

@@ -4,10 +4,67 @@ import (
 	"encoding/json"
 	"strconv"
 	"testing"
+	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/repository"
 	"github.com/google/uuid"
 )
+
+func TestTerminalAccountingFinalizesUnknownOnlyAfterGracePeriod(t *testing.T) {
+	for _, old := range []bool{false, true} {
+		t.Run(map[bool]string{false: "recent", true: "old"}[old], func(t *testing.T) {
+			d := budgetAdmissionDefinition()
+			e, store, children := testEngine(t, d)
+			e.TerminalAccountingGracePeriod = 24 * time.Hour
+			x, err := e.Start(t.Context(), revision(d), json.RawMessage(`{}`), "terminal-unknown-"+strconv.FormatBool(old))
+			if err != nil {
+				t.Fatal(err)
+			}
+			mustAdvance(t, e, x.ID)
+			mustAdvance(t, e, x.ID)
+			id := children.requests[0].runID
+			state := children.states[id]
+			state.Terminal = true
+			state.TokensKnown, state.ChargeMeasured = false, false
+			children.states[id] = state
+			stored, err := store.Get(t.Context(), x.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			stored.Status = domain.WorkflowExecutionFailed
+			stored.Output = json.RawMessage(`{"preserve":true}`)
+			ended := time.Now().UTC()
+			if old {
+				ended = ended.Add(-48 * time.Hour)
+			}
+			stored.EndedAt, stored.UpdatedAt = &ended, ended
+			stored.BudgetUsage.AccountingComplete = false
+			stored.Version++
+			if ok, err := store.Commit(t.Context(), repository.WorkflowCommit{ExpectedVersion: stored.Version - 1, Execution: stored}); err != nil || !ok {
+				t.Fatalf("seed terminal unknown ok=%t err=%v", ok, err)
+			}
+
+			got, err := e.ReconcileTerminalAccounting(t.Context(), x.ID)
+			if old {
+				if err != nil || got == nil || !got.BudgetUsage.AccountingFinalizedUnknown || got.BudgetUsage.AccountingComplete || got.Status != domain.WorkflowExecutionFailed || string(got.Output) != `{"preserve":true}` || got.EndedAt == nil || !got.EndedAt.Equal(ended) {
+					t.Fatalf("old terminal was not finalized honestly: %+v err=%v", got, err)
+				}
+				attempts, listErr := store.ListAttempts(t.Context(), x.ID)
+				if listErr != nil || len(attempts) != 1 || attempts[0].ErrorCode != "accounting_unknown" || attempts[0].Status != domain.WorkflowAttemptFailed {
+					t.Fatalf("unknown attempt was not settled explicitly: %+v err=%v", *attempts[0], listErr)
+				}
+				version := got.Version
+				again, againErr := e.ReconcileTerminalAccounting(t.Context(), x.ID)
+				if againErr != nil || again.Version != version {
+					t.Fatalf("finalized unknown was retried: %+v err=%v", again, againErr)
+				}
+			} else if err == nil || got.BudgetUsage.AccountingFinalizedUnknown {
+				t.Fatalf("recent unknown bypassed receipt grace period: %+v err=%v", got, err)
+			}
+		})
+	}
+}
 
 func TestOrdinaryCancellationWaitsForTerminalAccountingAfterRestart(t *testing.T) {
 	for _, tokens := range []int{0, 23} {

@@ -1,4 +1,5 @@
-import { handleRecordInput, handleRecordViewport, resetPageInputState, settlePageInput } from '../../../src/routes/record-mode/recording-input';
+import { handleRecordInput, handleRecordViewport } from '../../../src/routes/record-mode/recording-input';
+import { resetPageInputState, settlePageInput } from '../../../src/session/live-input';
 import { createMockHttpRequest, createMockHttpResponse, createMockPage, createTestConfig } from '../../helpers';
 import type { SessionManager } from '../../../src/session';
 import { updateFrameStreamViewport } from '../../../src/frame-streaming';
@@ -459,6 +460,32 @@ describe('recording input routes', () => {
     expect(mockPage.setViewportSize).toHaveBeenCalledWith({ width: 800, height: 601 });
     expect(res.statusCode).toBe(200);
     expect(res.getJSON()).toEqual({ session_id: 'test', driver_page_id: 'selected-page', width: 800, height: 600 });
+  });
+
+  it('makes released-page reset wait for an admitted viewport mutation [REQ:BAS-RH-J17]', async () => {
+    let allowResize!: () => void;
+    const resizeAllowed = new Promise<void>((resolve) => { allowResize = resolve; });
+    let resizeStarted!: () => void;
+    const started = new Promise<void>((resolve) => { resizeStarted = resolve; });
+    jest.mocked(mockPage.setViewportSize).mockImplementationOnce(async () => {
+      resizeStarted();
+      await resizeAllowed;
+    });
+
+    const pendingResize = handleRecordViewport(createMockHttpRequest({
+      method: 'POST',
+      body: { execution_id: 'owner', lease_id: 'lease', expected_page_id: 'selected-page', width: 900, height: 700 },
+    }), createMockHttpResponse(), 'test', sessionManager as SessionManager, config);
+    await started;
+
+    let resetFinished = false;
+    const pendingReset = resetPageInputState(mockPage).then(() => { resetFinished = true; });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(resetFinished).toBe(false);
+
+    allowResize();
+    await pendingResize;
+    await pendingReset;
   });
 
   it('rejects invalid viewport sizes', async () => {

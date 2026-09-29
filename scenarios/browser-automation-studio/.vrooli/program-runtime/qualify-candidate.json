@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "browser-automation-studio.qualify-candidate",
+  "version": "1",
+  "helpers": {"program": "1"},
+  "purpose": "Compose AM-pinned WSS promotion, selected TG evidence producers, exact rehabilitation validation and BAS's bound qualification reader.",
+  "inputs": {
+    "candidate": {"type": "object", "required": true, "description": "AM candidate with reviewAttemptId, verdictSha256, reviewerRunId, sourceRunId, sandboxId, reviewRequestId and bare-hex sha256."},
+    "request_key": {"type": "string", "required": true, "description": "AM-owned stable request key; at most 51 characters so all fixed producer-derived keys remain bounded."},
+    "invalidated_producers": {"type": "array", "default": [], "description": "Explicit producer names selected by AM, at most eight."},
+    "required_rows": {"type": "array", "required": true, "description": "Nonempty boundary row selection retained by AM in its original workflow_input before worker dispatch; separate from candidate."},
+    "retained_evidence_sets": {"type": "array", "required": true, "description": "Owner-produced typed evidence sets retained by AM, replaced only when their producer is invalidated."}
+  },
+  "assumptions": ["AM and PRT admitted the pinned program and retained its digest and owner grants", "TG implements producedEvidenceSet and retained_evidence_sets using the declared typed protocol", "Test Genie resolves the candidate identity after WSS promotion and before evidence admission"],
+  "invariants": [
+    "Validate all caller inputs before owner effects",
+    "Promote only candidate.reviewRequestId and candidate.sha; both confirmation flags are true, with commit, force and acceptance override disabled",
+    "Resolve the exact post-promotion Test Genie SourceIdentity through its read-only owner binding before any producer or validation admission",
+    "Use one forced managed BAS lifecycle start only after freshness reports stale; the destructive start binding is admitted only through AM's immutable exact grant",
+    "Admit every explicitly selected TG producer once with a fixed request-derived key, confirm flag and one owner receipt wait",
+    "Pass each exact TG-produced typed evidence set unchanged into one rehabilitation validation intent",
+    "Wait once on that validation receipt, then read the exact bound setpoint with the retained TG identity",
+    "Never select latest artifacts/runs, retry, poll, rebuild from unrelated freshness, or replay uncertain effects",
+    "Preserve known owner receipt IDs on failure; unknown usage and in-flight effect counts remain unknown",
+    "A boundary passes only when every independently selected row is exact, identity-bound and in band; preserve global product qualification separately"
+  ],
+  "bindings": [
+    {"id": "workspace-sandbox/change/promote", "effect": "destructive"},
+    {"id": "test-genie/validation/resolve-identity", "effect": "read"},
+    {"id": "vrooli/scenario/freshness", "effect": "read"},
+    {"id": "vrooli/scenario/start", "effect": "destructive", "optional": true},
+    {"id": "test-genie/validation/produce-evidence", "effect": "destructive"},
+    {"id": "test-genie/validation/wait", "effect": "read"},
+    {"id": "test-genie/validation/create", "effect": "write"}
+  ],
+  "outputs": {
+    "status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]},
+    "phase": {"enum": ["validate", "act", "collect", "report"]},
+    "signals": {
+      "candidate_sha256": "AM candidate's bare SHA-256 value",
+      "owner_handles": "Accepted AM review handles, WSS request, exact TG producer receipts and rehabilitation validation receipt",
+      "qualification": "Bound setpoint status, qualification_bound, product_qualified and unmet count",
+      "effects": "Bounded counts for each owner operation; in-flight uncertain counts are null"
+    },
+    "errors": {"classes": ["invalid_input", "remote_error", "no_governed_binding", "scenario_unreachable", "no_grant", "not_run_eligible", "binding_error", "kernel_runtime", "deadline_exceeded", "owner_failed"]},
+    "evidence": "Exact WSS and TG receipt handles"
+  },
+  "budget": {"wall_ms": 1800000, "async": true, "async_reason": "The selected TG producer may require a bounded 600s terminal wait; AM submits asynchronously and retains its original deadline while the program performs the 30s rehabilitation validation and bound read.", "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 10, "output_bytes": 4096},
+  "fixtures": [
+    {"id": "reject-malformed-before-effects", "inputs": {"candidate": {}, "request_key": "r"}, "expect": {"status": ["failed"], "signals": {"effects": {"promotion": 0, "producer_admissions": 0}}}}
+  ],
+  "rung": "S3",
+  "owner_skill": "browser-automation-studio-improve",
+  "verbs": ["lib", "validate"]
+}

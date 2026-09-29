@@ -32,7 +32,9 @@ type ReadinessReporter interface {
 
 // SuiteExecutionInput encapsulates a server-owned orchestration request.
 type SuiteExecutionInput struct {
-	Request orchestrator.SuiteExecutionRequest
+	Request          orchestrator.SuiteExecutionRequest
+	EvidenceProducer *EvidenceProducerCommand
+	ArtifactRoot     string
 }
 
 // SuiteExecutionService coordinates the orchestrator and execution persistence.
@@ -78,6 +80,9 @@ func (s *SuiteExecutionService) ExecuteWithEvents(ctx context.Context, input Sui
 // writer no-ops a nil emit, so streaming and non-streaming callers share one
 // execution and persistence path.
 func (s *SuiteExecutionService) run(ctx context.Context, input SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
+	if input.EvidenceProducer != nil {
+		return s.runEvidenceProducer(ctx, input)
+	}
 	if s.engine == nil {
 		return nil, fmt.Errorf("suite execution engine is not configured")
 	}

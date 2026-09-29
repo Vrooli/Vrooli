@@ -152,7 +152,9 @@ func (c *Codex) Capabilities() runner.Capabilities {
 		SupportedModels:      c.ollama.list(),
 		DynamicModelPrefixes: []string{ollamaModelPrefix},
 		SupportedFeatures:    []string{},
-		AllowedExtraFlags:    []string{"--verbose", "-c"},
+		// Raw -c overrides can replace typed model, effort and sandbox
+		// controls. Only the codec may generate those configuration flags.
+		AllowedExtraFlags: []string{"--verbose"},
 	})
 }
 

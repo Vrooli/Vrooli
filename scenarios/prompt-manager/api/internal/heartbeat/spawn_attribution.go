@@ -28,6 +28,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"prompt-manager/internal/store"
 )
@@ -38,6 +39,37 @@ import (
 // scenarios/prompt-manager/cli/internal/attribution.EnvVar; the two names
 // MUST stay equal.
 const attributionEnvVar = "VROOLI_PROMPT_MANAGER_ATTRIBUTION"
+
+const (
+	workloadKindEnv     = "VROOLI_WORKLOAD_KIND"
+	workloadKeyEnv      = "VROOLI_WORKLOAD_KEY"
+	workloadInstanceEnv = "VROOLI_WORKLOAD_INSTANCE"
+)
+
+// addWorkloadEnvironment carries the existing typed workload identity bridge
+// alongside heartbeat attribution. It is deliberately a no-op for an
+// incomplete identity: callers must not invent a key merely to make a report
+// look clean.
+func addWorkloadEnvironment(env map[string]string, kind, key, instance string) {
+	if env == nil || strings.TrimSpace(kind) == "" || strings.TrimSpace(key) == "" {
+		return
+	}
+	env[workloadKindEnv] = strings.TrimSpace(kind)
+	env[workloadKeyEnv] = strings.TrimSpace(key)
+	if strings.TrimSpace(instance) != "" {
+		env[workloadInstanceEnv] = strings.TrimSpace(instance)
+	}
+}
+
+// teamWorkloadIdentity returns a workload only when the team has one exact
+// effort binding. Multiple effort references remain detailed work references,
+// not an arbitrarily selected accounting key.
+func teamWorkloadIdentity(team *store.Team, instance string) (kind, key, workloadInstance string) {
+	if team == nil || len(team.EffortRefs) != 1 || strings.TrimSpace(team.EffortRefs[0]) == "" {
+		return "", "", ""
+	}
+	return "scheduled", strings.TrimSpace(team.EffortRefs[0]), strings.TrimSpace(instance)
+}
 
 // buildHeartbeatAttributionEnv returns the (key, value) pair the heartbeat
 // executor merges into CreateRunRequest.Environment so the spawned agent

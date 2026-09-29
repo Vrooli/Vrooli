@@ -64,4 +64,11 @@ func TestEfficiencyDTOsUseStableBoundedShapes(t *testing.T) {
 	if got := efficiencyDurationDTO(invocationreadmodel.RunDurationStatistics{AverageDurationMS: 12, Count: 1}); got.AverageMS != 12 || got.Count != 1 {
 		t.Fatalf("duration DTO = %+v", got)
 	}
+	rows := efficiencyBreakdownDTO([]invocationreadmodel.RunBreakdownRow{{
+		Key: "profile-id", Value: "Profile", TotalTokens: 30,
+		InputTokens: 15, OutputTokens: 7, CacheReadTokens: 3, CacheCreationTokens: 3,
+	}})
+	if len(rows) != 1 || rows[0].TotalTokens != 30 || rows[0].InputTokens != 15 || rows[0].OutputTokens != 7 || rows[0].CacheReadTokens != 3 || rows[0].CacheCreationTokens != 3 {
+		t.Fatalf("breakdown DTO lost token components: %+v", rows)
+	}
 }

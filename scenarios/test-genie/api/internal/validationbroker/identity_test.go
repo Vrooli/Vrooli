@@ -13,9 +13,154 @@ import (
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 
+	"connectrpc.com/connect"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation"
+	"google.golang.org/protobuf/proto"
 )
+
+func TestResolveSourceIdentityIsReadOnlyAndDoesNotAcceptCallerIdentity(t *testing.T) {
+	ctx := context.Background()
+	repo := NewRepository(testsqllite(t))
+	want := &validationv1.SourceIdentity{SchemaVersion: 1, Identity: "ci:v1:post-promotion"}
+	resolver := &sequenceIdentityResolver{values: []*validationv1.SourceIdentity{want}}
+	service := NewService(repo, nil)
+	service.SetIdentityResolver(resolver)
+	request := &validationv1.ResolveSourceIdentityRequest{
+		Targets: []*commonv1.ValidationTarget{{Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO, Id: "demo"}},
+		ContentInputs: []*validationv1.ContentInputRoot{{Name: "candidate", Root: "scenarios/demo", Selections: []*validationv1.InputSelection{{Glob: "**", Required: true}}}},
+	}
+	response, err := service.ResolveSourceIdentity(ctx, connect.NewRequest(request))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !proto.Equal(response.Msg.GetIdentity(), want) {
+		t.Fatalf("identity = %#v, want %#v", response.Msg.GetIdentity(), want)
+	}
+	rows, _, err := repo.List(ctx, ListFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 0 {
+		t.Fatalf("identity resolution created %d validation receipts", len(rows))
+	}
+}
+
+func TestResolveSourceIdentityRefusesMissingContentOrResolver(t *testing.T) {
+	ctx := context.Background()
+	service := NewService(NewRepository(testsqllite(t)), nil)
+	if _, err := service.ResolveSourceIdentity(ctx, connect.NewRequest(&validationv1.ResolveSourceIdentityRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("missing content error = %v, want invalid argument", err)
+	}
+	service.SetIdentityResolver(nil)
+	request := &validationv1.ResolveSourceIdentityRequest{ContentInputs: []*validationv1.ContentInputRoot{{Name: "candidate", Root: "scenarios/demo"}}}
+	if _, err := service.ResolveSourceIdentity(ctx, connect.NewRequest(request)); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("missing resolver error = %v, want failed precondition", err)
+	}
+}
+
+func TestAdmissionEnforcesRetainedFileManifest(t *testing.T) { // [REQ:TESTGENIE-VALIDATION-IDENTITY-P0]
+	for _, change := range []string{"unchanged", "reordered", "root-digest-only", "changed-bytes", "extra-file", "missing-file", "wrong-size", "wrong-root", "duplicate-root", "duplicate-file", "aggregate-conflict", "root-conflict", "empty-root", "schema-conflict", "aggregate-matches-files-conflict"} {
+		t.Run(change, func(t *testing.T) {
+			ctx := context.Background()
+			root := t.TempDir()
+			source := filepath.Join(root, "scenarios/demo")
+			if err := os.MkdirAll(source, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			for _, name := range []string{"a.go", "b.go"} {
+				if err := os.WriteFile(filepath.Join(source, name), []byte("reviewed bytes"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			intent := validIntent("agent-manager", "retained-review")
+			intent.ExpectedIdentity = nil
+			resolver := NewContentIdentityResolver(root, 0)
+			reviewed, err := resolver.Resolve(ctx, intent)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// The caller retains exact reviewed file bytes, not an unrelated hash
+			// domain or a freshly observed aggregate identity claimed as review.
+			expected := proto.Clone(reviewed).(*validationv1.SourceIdentity)
+			expected.Identity = ""
+			expected.Roots[0].Identity = ""
+			wantOK := false
+			switch change {
+			case "unchanged":
+				wantOK = true
+			case "reordered":
+				expected.Roots[0].Files[0], expected.Roots[0].Files[1] = expected.Roots[0].Files[1], expected.Roots[0].Files[0]
+				wantOK = true
+			case "root-digest-only":
+				expected.Roots[0].Identity = reviewed.Roots[0].Identity
+				expected.Roots[0].Files = nil
+				wantOK = true
+			case "changed-bytes":
+				if err := os.WriteFile(filepath.Join(source, "a.go"), []byte("unreviewed now"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			case "extra-file":
+				if err := os.WriteFile(filepath.Join(source, "c.go"), []byte("unreviewed"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			case "missing-file":
+				if err := os.Remove(filepath.Join(source, "a.go")); err != nil {
+					t.Fatal(err)
+				}
+			case "wrong-size":
+				expected.Roots[0].Files[0].Size++
+			case "wrong-root":
+				expected.Roots[0].Name = "not-selected"
+			case "duplicate-root":
+				expected.Roots = append(expected.Roots, proto.Clone(expected.Roots[0]).(*validationv1.ContentRootIdentity))
+			case "duplicate-file":
+				expected.Roots[0].Files[1] = proto.Clone(expected.Roots[0].Files[0]).(*validationv1.ContentFileIdentity)
+			case "aggregate-conflict":
+				expected.Identity = "ci:v1:wrong"
+			case "root-conflict":
+				expected.Roots[0].Identity = "ri:v1:wrong"
+			case "empty-root":
+				expected.Roots[0].Files = nil
+			case "schema-conflict":
+				expected.SchemaVersion++
+			case "aggregate-matches-files-conflict":
+				expected.Identity = reviewed.Identity
+				expected.Roots[0].Files[0].Size++
+			}
+			intent.ExpectedIdentity = expected
+			original := proto.Clone(intent)
+			repo := NewRepository(testsqllite(t))
+			service := NewService(repo, nil)
+			service.SetIdentityResolver(resolver)
+			response, err := service.CreateValidation(ctx, connect.NewRequest(&validationv1.CreateValidationRequest{Intent: intent}))
+			if wantOK {
+				if err != nil {
+					t.Fatal(err)
+				}
+				if response.Msg.GetReceipt().GetAdmittedIdentity().GetIdentity() != reviewed.GetIdentity() {
+					t.Fatal("receipt did not retain resolved identity")
+				}
+				repeated, err := service.CreateValidation(ctx, connect.NewRequest(&validationv1.CreateValidationRequest{Intent: intent}))
+				if err != nil || repeated.Msg.GetReceipt().GetReceiptId() != response.Msg.GetReceipt().GetReceiptId() {
+					t.Fatalf("reattachment changed identity: %v", err)
+				}
+			} else {
+				if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+					t.Fatalf("unreviewed or contradictory input: admitted=%t err=%v", response != nil, err)
+				}
+				rows, _, listErr := repo.List(ctx, ListFilter{})
+				if listErr != nil || len(rows) != 0 {
+					t.Fatalf("rejected input created a receipt: count=%d err=%v", len(rows), listErr)
+				}
+			}
+			if !proto.Equal(original, intent) {
+				t.Fatal("admission mutated caller's retained preconditions")
+			}
+		})
+	}
+}
 
 type identityPlannerFunc func(orchestrator.SuiteExecutionRequest) (*execution.ExecutionPlanPreview, error)
 

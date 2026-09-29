@@ -27,14 +27,15 @@
     "The output is bounded to 16 selected rows and 32 total detail references."
   ],
   "verbs": ["gather"],
+  "bindings": [],
   "outputs": {
     "status": {"enum": ["ok", "failed", "unavailable", "refused"]},
-    "phase": {"enum": ["validate", "project", "report"]},
+    "phase": {"enum": ["validate", "collect", "report"]},
     "signals": {"summary": "Selected compact owner rows and their bounded detail references"},
     "errors": {"classes": ["invalid_input", "identity_mismatch", "output_budget_exhausted", "kernel_runtime"]},
     "evidence": "Selected owner and detail references"
   },
-  "budget": {"wall_ms": 1000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 16},
+  "budget": {"wall_ms": 5000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 16},
   "fixtures": [
     {"id": "missing-selection", "inputs": {"owner_observation": {}, "selected_effort_refs": []}, "expect": {"status": ["failed"]}, "requires": []}
   ],

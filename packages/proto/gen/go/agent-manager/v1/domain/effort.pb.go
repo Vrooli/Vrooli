@@ -535,8 +535,13 @@ type SupervisorDispatchAuthorization struct {
 	DispatchedRuns         uint32                 `protobuf:"varint,14,opt,name=dispatched_runs,json=dispatchedRuns,proto3" json:"dispatched_runs,omitempty"`
 	MinimumIntervalSeconds uint32                 `protobuf:"varint,15,opt,name=minimum_interval_seconds,json=minimumIntervalSeconds,proto3" json:"minimum_interval_seconds,omitempty"`
 	LastDispatchedAt       *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=last_dispatched_at,json=lastDispatchedAt,proto3" json:"last_dispatched_at,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// Finite owner-issued aggregate allowance for this dispatch lease.
+	MaxTokens         int64 `protobuf:"varint,17,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
+	MaxChargeMicroUsd int64 `protobuf:"varint,18,opt,name=max_charge_micro_usd,json=maxChargeMicroUsd,proto3" json:"max_charge_micro_usd,omitempty"`
+	// Server-owned run identities whose terminal accounting settles this lease.
+	DispatchedRunIds []string `protobuf:"bytes,19,rep,name=dispatched_run_ids,json=dispatchedRunIds,proto3" json:"dispatched_run_ids,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *SupervisorDispatchAuthorization) Reset() {
@@ -677,6 +682,27 @@ func (x *SupervisorDispatchAuthorization) GetMinimumIntervalSeconds() uint32 {
 func (x *SupervisorDispatchAuthorization) GetLastDispatchedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.LastDispatchedAt
+	}
+	return nil
+}
+
+func (x *SupervisorDispatchAuthorization) GetMaxTokens() int64 {
+	if x != nil {
+		return x.MaxTokens
+	}
+	return 0
+}
+
+func (x *SupervisorDispatchAuthorization) GetMaxChargeMicroUsd() int64 {
+	if x != nil {
+		return x.MaxChargeMicroUsd
+	}
+	return 0
+}
+
+func (x *SupervisorDispatchAuthorization) GetDispatchedRunIds() []string {
+	if x != nil {
+		return x.DispatchedRunIds
 	}
 	return nil
 }
@@ -3302,7 +3328,7 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"\x10supervisor_scope\x18\x15 \x01(\tR\x0fsupervisorScope\x12h\n" +
 	"\x16dispatch_authorization\x18\x17 \x01(\v21.agent_manager.v1.SupervisorDispatchAuthorizationR\x15dispatchAuthorization\x125\n" +
 	"\x16autonomous_supervision\x18\x18 \x01(\bR\x15autonomousSupervision\x121\n" +
-	"\x14supervision_priority\x18\x19 \x01(\rR\x13supervisionPriority\"\xd4\x05\n" +
+	"\x14supervision_priority\x18\x19 \x01(\rR\x13supervisionPriority\"\xd2\x06\n" +
 	"\x1fSupervisorDispatchAuthorization\x12)\n" +
 	"\x10authorization_id\x18\x01 \x01(\tR\x0fauthorizationId\x12#\n" +
 	"\rowner_subject\x18\x02 \x01(\tR\fownerSubject\x12\x17\n" +
@@ -3323,7 +3349,11 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"\fmaximum_runs\x18\r \x01(\rR\vmaximumRuns\x12'\n" +
 	"\x0fdispatched_runs\x18\x0e \x01(\rR\x0edispatchedRuns\x128\n" +
 	"\x18minimum_interval_seconds\x18\x0f \x01(\rR\x16minimumIntervalSeconds\x12H\n" +
-	"\x12last_dispatched_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\x10lastDispatchedAt\"\\\n" +
+	"\x12last_dispatched_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\x10lastDispatchedAt\x12\x1d\n" +
+	"\n" +
+	"max_tokens\x18\x11 \x01(\x03R\tmaxTokens\x12/\n" +
+	"\x14max_charge_micro_usd\x18\x12 \x01(\x03R\x11maxChargeMicroUsd\x12,\n" +
+	"\x12dispatched_run_ids\x18\x13 \x03(\tR\x10dispatchedRunIds\"\\\n" +
 	"\x16EffortDiscoveryFinding\x12\x16\n" +
 	"\x06source\x18\x01 \x01(\tR\x06source\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x16\n" +

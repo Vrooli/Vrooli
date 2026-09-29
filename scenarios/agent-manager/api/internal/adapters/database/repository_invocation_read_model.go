@@ -750,6 +750,10 @@ func (r *invocationReadModelRepository) RunBreakdown(ctx context.Context, filter
 		SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed_count,
 		COALESCE(SUM(total_cost_usd), 0) AS total_cost_usd,
 		COALESCE(SUM(total_tokens), 0) AS total_tokens,
+		COALESCE(SUM(input_tokens), 0) AS input_tokens,
+		COALESCE(SUM(output_tokens), 0) AS output_tokens,
+		COALESCE(SUM(cache_read_tokens), 0) AS cache_read_tokens,
+		COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens,
 		COALESCE(SUM(total_charge_micro_usd), 0) AS total_charge_micro_usd,
 		COALESCE(AVG(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN duration_ms END), 0) AS avg_duration_ms,
 		COALESCE(SUM(total_tokens) / NULLIF(SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END), 0), 0) AS consumption_per_successful_completion,
@@ -763,7 +767,7 @@ func (r *invocationReadModelRepository) RunBreakdown(ctx context.Context, filter
 	out := []invocationreadmodel.RunBreakdownRow{}
 	for rows.Next() {
 		var row invocationreadmodel.RunBreakdownRow
-		if err := rows.Scan(&row.Value, &row.Key, &row.RunCount, &row.SuccessCount, &row.FailedCount, &row.TotalCostUSD, &row.TotalTokens, &row.TotalChargeMicroUSD, &row.AvgDurationMS, &row.ConsumptionPerSuccessfulCompletion, &row.CompletionRate); err != nil {
+		if err := rows.Scan(&row.Value, &row.Key, &row.RunCount, &row.SuccessCount, &row.FailedCount, &row.TotalCostUSD, &row.TotalTokens, &row.InputTokens, &row.OutputTokens, &row.CacheReadTokens, &row.CacheCreationTokens, &row.TotalChargeMicroUSD, &row.AvgDurationMS, &row.ConsumptionPerSuccessfulCompletion, &row.CompletionRate); err != nil {
 			return nil, err
 		}
 		out = append(out, row)

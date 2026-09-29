@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file workspace-sandbox/v1/workspace/workspace.proto.
  */
 export const file_workspace_sandbox_v1_workspace_workspace: GenFile = /*@__PURE__*/
-  fileDesc("Ci53b3Jrc3BhY2Utc2FuZGJveC92MS93b3Jrc3BhY2Uvd29ya3NwYWNlLnByb3RvEh53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UiLQoXUmVzb2x2ZVdvcmtzcGFjZVJlcXVlc3QSEgoKc2FuZGJveF9pZBgBIAEoCSJvChhSZXNvbHZlV29ya3NwYWNlUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBISCgpzYW5kYm94X2lkGAIgASgJEhYKDndvcmtzcGFjZV9yb290GAMgASgJEhYKDmlzb2xhdGlvbl9tb2RlGAQgASgJIo4BChRDcmVhdGVTYW5kYm94UmVxdWVzdBIMCgRuYW1lGAEgASgJEhIKCnNjb3BlX3BhdGgYAiABKAkSFAoMcHJvamVjdF9yb290GAMgASgJEg0KBW93bmVyGAQgASgJEhYKDnJlc2VydmVkX3BhdGhzGAUgAygJEhcKD2lkZW1wb3RlbmN5X2tleRgGIAEoCSKOAQoOU2FuZGJveFN1bW1hcnkSEgoKc2FuZGJveF9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSFgoOd29ya3NwYWNlX3Jvb3QYAyABKAkSFgoOaXNvbGF0aW9uX21vZGUYBCABKAkSEgoKc2NvcGVfcGF0aBgFIAEoCRIUCgxwcm9qZWN0X3Jvb3QYBiABKAkiaQoVQ3JlYXRlU2FuZGJveFJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSPwoHc2FuZGJveBgCIAEoCzIuLndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5TYW5kYm94U3VtbWFyeSIrChVHZXRTYW5kYm94RGlmZlJlcXVlc3QSEgoKc2FuZGJveF9pZBgBIAEoCSJUCghEaWZmRmlsZRIMCgRwYXRoGAEgASgJEhMKC2NoYW5nZV90eXBlGAIgASgJEgwKBHNpemUYAyABKAMSFwoPYXBwcm92YWxfc3RhdHVzGAQgASgJIqcBCglEaWZmU3RhdHMSFQoNZmlsZXNfY2hhbmdlZBgBIAEoBRITCgtmaWxlc19hZGRlZBgCIAEoBRIWCg5maWxlc19tb2RpZmllZBgDIAEoBRIVCg1maWxlc19kZWxldGVkGAQgASgFEhMKC2xpbmVzX2FkZGVkGAUgASgFEhUKDWxpbmVzX3JlbW92ZWQYBiABKAUSEwoLdG90YWxfYnl0ZXMYByABKAMi3QEKFkdldFNhbmRib3hEaWZmUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBISCgpzYW5kYm94X2lkGAIgASgJEjcKBWZpbGVzGAMgAygLMigud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLkRpZmZGaWxlEhQKDHVuaWZpZWRfZGlmZhgEIAEoCRI4CgVzdGF0cxgFIAEoCzIpLndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5EaWZmU3RhdHMSFQoNYXJjaGl2ZV9zdGF0ZRgGIAEoCSK0AQoVUHJvbW90ZVNhbmRib3hSZXF1ZXN0EhIKCnNhbmRib3hfaWQYASABKAkSDAoEbW9kZRgCIAEoCRINCgVhY3RvchgDIAEoCRIWCg5jb21taXRfbWVzc2FnZRgEIAEoCRIVCg1jcmVhdGVfY29tbWl0GAUgASgIEg0KBWZvcmNlGAYgASgIEhsKE292ZXJyaWRlX2FjY2VwdGFuY2UYByABKAgSDwoHY29uZmlybRgIIAEoCCK8AQoWUHJvbW90ZVNhbmRib3hSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEhIKCnNhbmRib3hfaWQYAiABKAkSDwoHYXBwbGllZBgDIAEoBRIOCgZmYWlsZWQYBCABKAUSEQoJcmVtYWluaW5nGAUgASgFEhIKCmlzX3BhcnRpYWwYBiABKAgSEwoLY29tbWl0X2hhc2gYByABKAkSDQoFZXJyb3IYCCABKAkSEQoJZGlmZl9wYXRoGAkgASgJMqEEChdXb3Jrc3BhY2VTYW5kYm94U2VydmljZRKFAQoQUmVzb2x2ZVdvcmtzcGFjZRI3LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5SZXNvbHZlV29ya3NwYWNlUmVxdWVzdBo4LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5SZXNvbHZlV29ya3NwYWNlUmVzcG9uc2USfAoNQ3JlYXRlU2FuZGJveBI0LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5DcmVhdGVTYW5kYm94UmVxdWVzdBo1LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5DcmVhdGVTYW5kYm94UmVzcG9uc2USfwoOR2V0U2FuZGJveERpZmYSNS53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuR2V0U2FuZGJveERpZmZSZXF1ZXN0GjYud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLkdldFNhbmRib3hEaWZmUmVzcG9uc2USfwoOUHJvbW90ZVNhbmRib3gSNS53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuUHJvbW90ZVNhbmRib3hSZXF1ZXN0GjYud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLlByb21vdGVTYW5kYm94UmVzcG9uc2VCWVpXZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby93b3Jrc3BhY2Utc2FuZGJveC92MS93b3Jrc3BhY2U7d29ya3NwYWNlYgZwcm90bzM");
+  fileDesc("Ci53b3Jrc3BhY2Utc2FuZGJveC92MS93b3Jrc3BhY2Uvd29ya3NwYWNlLnByb3RvEh53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UiLQoXUmVzb2x2ZVdvcmtzcGFjZVJlcXVlc3QSEgoKc2FuZGJveF9pZBgBIAEoCSJvChhSZXNvbHZlV29ya3NwYWNlUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBISCgpzYW5kYm94X2lkGAIgASgJEhYKDndvcmtzcGFjZV9yb290GAMgASgJEhYKDmlzb2xhdGlvbl9tb2RlGAQgASgJIo4BChRDcmVhdGVTYW5kYm94UmVxdWVzdBIMCgRuYW1lGAEgASgJEhIKCnNjb3BlX3BhdGgYAiABKAkSFAoMcHJvamVjdF9yb290GAMgASgJEg0KBW93bmVyGAQgASgJEhYKDnJlc2VydmVkX3BhdGhzGAUgAygJEhcKD2lkZW1wb3RlbmN5X2tleRgGIAEoCSKOAQoOU2FuZGJveFN1bW1hcnkSEgoKc2FuZGJveF9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSFgoOd29ya3NwYWNlX3Jvb3QYAyABKAkSFgoOaXNvbGF0aW9uX21vZGUYBCABKAkSEgoKc2NvcGVfcGF0aBgFIAEoCRIUCgxwcm9qZWN0X3Jvb3QYBiABKAkiaQoVQ3JlYXRlU2FuZGJveFJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSPwoHc2FuZGJveBgCIAEoCzIuLndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5TYW5kYm94U3VtbWFyeSIrChVHZXRTYW5kYm94RGlmZlJlcXVlc3QSEgoKc2FuZGJveF9pZBgBIAEoCSJUCghEaWZmRmlsZRIMCgRwYXRoGAEgASgJEhMKC2NoYW5nZV90eXBlGAIgASgJEgwKBHNpemUYAyABKAMSFwoPYXBwcm92YWxfc3RhdHVzGAQgASgJIqcBCglEaWZmU3RhdHMSFQoNZmlsZXNfY2hhbmdlZBgBIAEoBRITCgtmaWxlc19hZGRlZBgCIAEoBRIWCg5maWxlc19tb2RpZmllZBgDIAEoBRIVCg1maWxlc19kZWxldGVkGAQgASgFEhMKC2xpbmVzX2FkZGVkGAUgASgFEhUKDWxpbmVzX3JlbW92ZWQYBiABKAUSEwoLdG90YWxfYnl0ZXMYByABKAMi8wEKFkdldFNhbmRib3hEaWZmUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBISCgpzYW5kYm94X2lkGAIgASgJEjcKBWZpbGVzGAMgAygLMigud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLkRpZmZGaWxlEhQKDHVuaWZpZWRfZGlmZhgEIAEoCRI4CgVzdGF0cxgFIAEoCzIpLndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5EaWZmU3RhdHMSFQoNYXJjaGl2ZV9zdGF0ZRgGIAEoCRIUCgxwYXRjaF9zaGEyNTYYByABKAkijgIKFVByb21vdGVTYW5kYm94UmVxdWVzdBISCgpzYW5kYm94X2lkGAEgASgJEgwKBG1vZGUYAiABKAkSDQoFYWN0b3IYAyABKAkSFgoOY29tbWl0X21lc3NhZ2UYBCABKAkSFQoNY3JlYXRlX2NvbW1pdBgFIAEoCBINCgVmb3JjZRgGIAEoCBIbChNvdmVycmlkZV9hY2NlcHRhbmNlGAcgASgIEg8KB2NvbmZpcm0YCCABKAgSHQoVZXhwZWN0ZWRfcGF0Y2hfc2hhMjU2GAkgASgJEhkKEXJldmlld19yZXF1ZXN0X2lkGAogASgJEh4KFmV4cGVjdGVkX3Jldmlld19zaGEyNTYYCyABKAki2gEKFlByb21vdGVTYW5kYm94UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBISCgpzYW5kYm94X2lkGAIgASgJEg8KB2FwcGxpZWQYAyABKAUSDgoGZmFpbGVkGAQgASgFEhEKCXJlbWFpbmluZxgFIAEoBRISCgppc19wYXJ0aWFsGAYgASgIEhMKC2NvbW1pdF9oYXNoGAcgASgJEg0KBWVycm9yGAggASgJEhEKCWRpZmZfcGF0aBgJIAEoCRIcChRhcHBsaWVkX3BhdGNoX3NoYTI1NhgKIAEoCSJVChxDYXB0dXJlUmV2aWV3U25hcHNob3RSZXF1ZXN0EhIKCnNhbmRib3hfaWQYASABKAkSEgoKcmVxdWVzdF9pZBgCIAEoCRINCgVwYXRocxgDIAMoCSJCChhHZXRSZXZpZXdTbmFwc2hvdFJlcXVlc3QSEgoKc2FuZGJveF9pZBgBIAEoCRISCgpyZXF1ZXN0X2lkGAIgASgJImMKIE1hdGVyaWFsaXplUmV2aWV3U25hcHNob3RSZXF1ZXN0EhIKCnNhbmRib3hfaWQYASABKAkSEgoKcmVxdWVzdF9pZBgCIAEoCRIXCg9leHBlY3RlZF9zaGEyNTYYAyABKAkiLwoPUmV2aWV3V29ya3NwYWNlEgwKBHJvb3QYASABKAkSDgoGc2hhMjU2GAIgASgJIkYKClJldmlld0ZpbGUSDAoEcGF0aBgBIAEoCRIOCgZzaGEyNTYYAiABKAkSDAoEbW9kZRgDIAEoBRIMCgRzaXplGAQgASgDIscDCg5SZXZpZXdTbmFwc2hvdBIKCgJpZBgBIAEoCRISCgpyZXF1ZXN0X2lkGAIgASgJEhIKCnNhbmRib3hfaWQYAyABKAkSDgoGc2hhMjU2GAQgASgJEhIKCmNyZWF0ZWRfYXQYBSABKAkSFAoMcHJvamVjdF9yb290GAYgASgJEhIKCnNjb3BlX3BhdGgYByABKAkSDQoFb3duZXIYCCABKAkSDQoFcGF0aHMYCSADKAkSOgoGYmVmb3JlGAogAygLMioud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLlJldmlld0ZpbGUSOQoFYWZ0ZXIYCyADKAsyKi53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuUmV2aWV3RmlsZRIUCgxwYXRjaF9zaGEyNTYYDCABKAkSOQoHY2hhbmdlcxgNIAMoCzIoLndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5EaWZmRmlsZRI4CgVzdGF0cxgOIAEoCzIpLndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5EaWZmU3RhdHMSEwoLaW5wdXRfYnl0ZXMYDyABKAMiWgoWUmV2aWV3U25hcHNob3RSZXNwb25zZRJACghzbmFwc2hvdBgBIAEoCzIuLndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5SZXZpZXdTbmFwc2hvdCJaChRHZXRSZXZpZXdGaWxlUmVxdWVzdBISCgpzYW5kYm94X2lkGAEgASgJEhIKCnJlcXVlc3RfaWQYAiABKAkSDAoEc2lkZRgDIAEoCRIMCgRwYXRoGAQgASgJIigKFUdldFJldmlld0ZpbGVSZXNwb25zZRIPCgdjb250ZW50GAEgASgMMsgIChdXb3Jrc3BhY2VTYW5kYm94U2VydmljZRKFAQoQUmVzb2x2ZVdvcmtzcGFjZRI3LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5SZXNvbHZlV29ya3NwYWNlUmVxdWVzdBo4LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5SZXNvbHZlV29ya3NwYWNlUmVzcG9uc2USfAoNQ3JlYXRlU2FuZGJveBI0LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5DcmVhdGVTYW5kYm94UmVxdWVzdBo1LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5DcmVhdGVTYW5kYm94UmVzcG9uc2USfwoOR2V0U2FuZGJveERpZmYSNS53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuR2V0U2FuZGJveERpZmZSZXF1ZXN0GjYud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLkdldFNhbmRib3hEaWZmUmVzcG9uc2USjQEKFUNhcHR1cmVSZXZpZXdTbmFwc2hvdBI8LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5DYXB0dXJlUmV2aWV3U25hcHNob3RSZXF1ZXN0GjYud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLlJldmlld1NuYXBzaG90UmVzcG9uc2UShQEKEUdldFJldmlld1NuYXBzaG90Ejgud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLkdldFJldmlld1NuYXBzaG90UmVxdWVzdBo2LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5SZXZpZXdTbmFwc2hvdFJlc3BvbnNlEo4BChlNYXRlcmlhbGl6ZVJldmlld1NuYXBzaG90EkAud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLk1hdGVyaWFsaXplUmV2aWV3U25hcHNob3RSZXF1ZXN0Gi8ud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLlJldmlld1dvcmtzcGFjZRJ8Cg1HZXRSZXZpZXdGaWxlEjQud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLkdldFJldmlld0ZpbGVSZXF1ZXN0GjUud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLkdldFJldmlld0ZpbGVSZXNwb25zZRJ/Cg5Qcm9tb3RlU2FuZGJveBI1LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5Qcm9tb3RlU2FuZGJveFJlcXVlc3QaNi53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuUHJvbW90ZVNhbmRib3hSZXNwb25zZUJZWldnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dvcmtzcGFjZS1zYW5kYm94L3YxL3dvcmtzcGFjZTt3b3Jrc3BhY2ViBnByb3RvMw");
 
 /**
  * @generated from message workspace_sandbox.v1.workspace.ResolveWorkspaceRequest
@@ -296,6 +296,13 @@ export type GetSandboxDiffResponse = Message<"workspace_sandbox.v1.workspace.Get
    * @generated from field: string archive_state = 6;
    */
   archiveState: string;
+
+  /**
+   * SHA-256 of exact unified_diff bytes; not a frozen source-tree identity.
+   *
+   * @generated from field: string patch_sha256 = 7;
+   */
+  patchSha256: string;
 };
 
 /**
@@ -348,6 +355,23 @@ export type PromoteSandboxRequest = Message<"workspace_sandbox.v1.workspace.Prom
    * @generated from field: bool confirm = 8;
    */
   confirm: boolean;
+
+  /**
+   * If set, approve only this complete reviewed patch; force cannot bypass it.
+   *
+   * @generated from field: string expected_patch_sha256 = 9;
+   */
+  expectedPatchSha256: string;
+
+  /**
+   * @generated from field: string review_request_id = 10;
+   */
+  reviewRequestId: string;
+
+  /**
+   * @generated from field: string expected_review_sha256 = 11;
+   */
+  expectedReviewSha256: string;
 };
 
 /**
@@ -405,6 +429,11 @@ export type PromoteSandboxResponse = Message<"workspace_sandbox.v1.workspace.Pro
    * @generated from field: string diff_path = 9;
    */
   diffPath: string;
+
+  /**
+   * @generated from field: string applied_patch_sha256 = 10;
+   */
+  appliedPatchSha256: string;
 };
 
 /**
@@ -413,6 +442,294 @@ export type PromoteSandboxResponse = Message<"workspace_sandbox.v1.workspace.Pro
  */
 export const PromoteSandboxResponseSchema: GenMessage<PromoteSandboxResponse> = /*@__PURE__*/
   messageDesc(file_workspace_sandbox_v1_workspace_workspace, 10);
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.CaptureReviewSnapshotRequest
+ */
+export type CaptureReviewSnapshotRequest = Message<"workspace_sandbox.v1.workspace.CaptureReviewSnapshotRequest"> & {
+  /**
+   * @generated from field: string sandbox_id = 1;
+   */
+  sandboxId: string;
+
+  /**
+   * @generated from field: string request_id = 2;
+   */
+  requestId: string;
+
+  /**
+   * @generated from field: repeated string paths = 3;
+   */
+  paths: string[];
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.CaptureReviewSnapshotRequest.
+ * Use `create(CaptureReviewSnapshotRequestSchema)` to create a new message.
+ */
+export const CaptureReviewSnapshotRequestSchema: GenMessage<CaptureReviewSnapshotRequest> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 11);
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.GetReviewSnapshotRequest
+ */
+export type GetReviewSnapshotRequest = Message<"workspace_sandbox.v1.workspace.GetReviewSnapshotRequest"> & {
+  /**
+   * @generated from field: string sandbox_id = 1;
+   */
+  sandboxId: string;
+
+  /**
+   * @generated from field: string request_id = 2;
+   */
+  requestId: string;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.GetReviewSnapshotRequest.
+ * Use `create(GetReviewSnapshotRequestSchema)` to create a new message.
+ */
+export const GetReviewSnapshotRequestSchema: GenMessage<GetReviewSnapshotRequest> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 12);
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.MaterializeReviewSnapshotRequest
+ */
+export type MaterializeReviewSnapshotRequest = Message<"workspace_sandbox.v1.workspace.MaterializeReviewSnapshotRequest"> & {
+  /**
+   * @generated from field: string sandbox_id = 1;
+   */
+  sandboxId: string;
+
+  /**
+   * @generated from field: string request_id = 2;
+   */
+  requestId: string;
+
+  /**
+   * @generated from field: string expected_sha256 = 3;
+   */
+  expectedSha256: string;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.MaterializeReviewSnapshotRequest.
+ * Use `create(MaterializeReviewSnapshotRequestSchema)` to create a new message.
+ */
+export const MaterializeReviewSnapshotRequestSchema: GenMessage<MaterializeReviewSnapshotRequest> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 13);
+
+/**
+ * Owner-derived input. Consumers must bind root read-only, not treat file modes
+ * as containment. Contains before/, after/, changes.patch and snapshot.json.
+ *
+ * @generated from message workspace_sandbox.v1.workspace.ReviewWorkspace
+ */
+export type ReviewWorkspace = Message<"workspace_sandbox.v1.workspace.ReviewWorkspace"> & {
+  /**
+   * @generated from field: string root = 1;
+   */
+  root: string;
+
+  /**
+   * @generated from field: string sha256 = 2;
+   */
+  sha256: string;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.ReviewWorkspace.
+ * Use `create(ReviewWorkspaceSchema)` to create a new message.
+ */
+export const ReviewWorkspaceSchema: GenMessage<ReviewWorkspace> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 14);
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.ReviewFile
+ */
+export type ReviewFile = Message<"workspace_sandbox.v1.workspace.ReviewFile"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string sha256 = 2;
+   */
+  sha256: string;
+
+  /**
+   * @generated from field: int32 mode = 3;
+   */
+  mode: number;
+
+  /**
+   * @generated from field: int64 size = 4;
+   */
+  size: bigint;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.ReviewFile.
+ * Use `create(ReviewFileSchema)` to create a new message.
+ */
+export const ReviewFileSchema: GenMessage<ReviewFile> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 15);
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.ReviewSnapshot
+ */
+export type ReviewSnapshot = Message<"workspace_sandbox.v1.workspace.ReviewSnapshot"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string request_id = 2;
+   */
+  requestId: string;
+
+  /**
+   * @generated from field: string sandbox_id = 3;
+   */
+  sandboxId: string;
+
+  /**
+   * @generated from field: string sha256 = 4;
+   */
+  sha256: string;
+
+  /**
+   * @generated from field: string created_at = 5;
+   */
+  createdAt: string;
+
+  /**
+   * @generated from field: string project_root = 6;
+   */
+  projectRoot: string;
+
+  /**
+   * @generated from field: string scope_path = 7;
+   */
+  scopePath: string;
+
+  /**
+   * @generated from field: string owner = 8;
+   */
+  owner: string;
+
+  /**
+   * @generated from field: repeated string paths = 9;
+   */
+  paths: string[];
+
+  /**
+   * @generated from field: repeated workspace_sandbox.v1.workspace.ReviewFile before = 10;
+   */
+  before: ReviewFile[];
+
+  /**
+   * @generated from field: repeated workspace_sandbox.v1.workspace.ReviewFile after = 11;
+   */
+  after: ReviewFile[];
+
+  /**
+   * @generated from field: string patch_sha256 = 12;
+   */
+  patchSha256: string;
+
+  /**
+   * @generated from field: repeated workspace_sandbox.v1.workspace.DiffFile changes = 13;
+   */
+  changes: DiffFile[];
+
+  /**
+   * @generated from field: workspace_sandbox.v1.workspace.DiffStats stats = 14;
+   */
+  stats?: DiffStats | undefined;
+
+  /**
+   * @generated from field: int64 input_bytes = 15;
+   */
+  inputBytes: bigint;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.ReviewSnapshot.
+ * Use `create(ReviewSnapshotSchema)` to create a new message.
+ */
+export const ReviewSnapshotSchema: GenMessage<ReviewSnapshot> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 16);
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.ReviewSnapshotResponse
+ */
+export type ReviewSnapshotResponse = Message<"workspace_sandbox.v1.workspace.ReviewSnapshotResponse"> & {
+  /**
+   * @generated from field: workspace_sandbox.v1.workspace.ReviewSnapshot snapshot = 1;
+   */
+  snapshot?: ReviewSnapshot | undefined;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.ReviewSnapshotResponse.
+ * Use `create(ReviewSnapshotResponseSchema)` to create a new message.
+ */
+export const ReviewSnapshotResponseSchema: GenMessage<ReviewSnapshotResponse> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 17);
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.GetReviewFileRequest
+ */
+export type GetReviewFileRequest = Message<"workspace_sandbox.v1.workspace.GetReviewFileRequest"> & {
+  /**
+   * @generated from field: string sandbox_id = 1;
+   */
+  sandboxId: string;
+
+  /**
+   * @generated from field: string request_id = 2;
+   */
+  requestId: string;
+
+  /**
+   * before, after, or patch. Patch reads require an empty path.
+   *
+   * @generated from field: string side = 3;
+   */
+  side: string;
+
+  /**
+   * @generated from field: string path = 4;
+   */
+  path: string;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.GetReviewFileRequest.
+ * Use `create(GetReviewFileRequestSchema)` to create a new message.
+ */
+export const GetReviewFileRequestSchema: GenMessage<GetReviewFileRequest> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 18);
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.GetReviewFileResponse
+ */
+export type GetReviewFileResponse = Message<"workspace_sandbox.v1.workspace.GetReviewFileResponse"> & {
+  /**
+   * @generated from field: bytes content = 1;
+   */
+  content: Uint8Array;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.GetReviewFileResponse.
+ * Use `create(GetReviewFileResponseSchema)` to create a new message.
+ */
+export const GetReviewFileResponseSchema: GenMessage<GetReviewFileResponse> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 19);
 
 /**
  * WorkspaceSandboxService is the typed, governed change-path contract for
@@ -451,6 +768,38 @@ export const WorkspaceSandboxService: GenService<{
     methodKind: "unary";
     input: typeof GetSandboxDiffRequestSchema;
     output: typeof GetSandboxDiffResponseSchema;
+  },
+  /**
+   * @generated from rpc workspace_sandbox.v1.workspace.WorkspaceSandboxService.CaptureReviewSnapshot
+   */
+  captureReviewSnapshot: {
+    methodKind: "unary";
+    input: typeof CaptureReviewSnapshotRequestSchema;
+    output: typeof ReviewSnapshotResponseSchema;
+  },
+  /**
+   * @generated from rpc workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetReviewSnapshot
+   */
+  getReviewSnapshot: {
+    methodKind: "unary";
+    input: typeof GetReviewSnapshotRequestSchema;
+    output: typeof ReviewSnapshotResponseSchema;
+  },
+  /**
+   * @generated from rpc workspace_sandbox.v1.workspace.WorkspaceSandboxService.MaterializeReviewSnapshot
+   */
+  materializeReviewSnapshot: {
+    methodKind: "unary";
+    input: typeof MaterializeReviewSnapshotRequestSchema;
+    output: typeof ReviewWorkspaceSchema;
+  },
+  /**
+   * @generated from rpc workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetReviewFile
+   */
+  getReviewFile: {
+    methodKind: "unary";
+    input: typeof GetReviewFileRequestSchema;
+    output: typeof GetReviewFileResponseSchema;
   },
   /**
    * PromoteSandbox applies an explicitly confirmed approved change set.

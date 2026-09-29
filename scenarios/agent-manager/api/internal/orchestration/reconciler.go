@@ -17,6 +17,7 @@ package orchestration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -79,6 +80,16 @@ type ReconcilerConfig struct {
 	// AutoRecover determines whether to automatically recover stale runs
 	AutoRecover bool
 }
+
+const (
+	// orphanSandboxOperationTimeout prevents one wedged provider request from
+	// stalling the process-wide reconciliation loop. A diff is only evidence
+	// for deletion when the provider answers before this deadline.
+	orphanSandboxOperationTimeout = 15 * time.Second
+	// orphanSandboxSweepLimit keeps reconciliation bounded even if a provider
+	// returns an unexpectedly large inventory.
+	orphanSandboxSweepLimit = 10
+)
 
 // DefaultReconcilerConfig returns sensible defaults.
 // StaleThreshold is 5 minutes to match executor config and allow for slow operations.
@@ -192,19 +203,22 @@ func (r *Reconciler) currentStorageMaintainer() StorageMaintainer {
 
 // ReconcileStats contains statistics from a reconciliation cycle.
 type ReconcileStats struct {
-	Timestamp            time.Time
-	Duration             time.Duration
-	RunsChecked          int
-	StaleRuns            int
-	OrphansFound         int
-	RunsRecovered        int
-	OrphansKilled        int
-	ReviewChecked        int
-	ReviewSynced         int
-	WorkflowRecoveryRuns int
-	EventsPruned         int
-	ArtifactsPruned      int
-	Errors               []string
+	Timestamp               time.Time
+	Duration                time.Duration
+	RunsChecked             int
+	StaleRuns               int
+	OrphansFound            int
+	RunsRecovered           int
+	OrphansKilled           int
+	ReviewChecked           int
+	ReviewSynced            int
+	SandboxOrphansChecked   int
+	SandboxOrphansReclaimed int
+	SandboxOrphansPreserved int
+	WorkflowRecoveryRuns    int
+	EventsPruned            int
+	ArtifactsPruned         int
+	Errors                  []string
 }
 
 type WorkflowExecutionRecoverer interface{ RecoverWorkflowExecutions(context.Context) error }
@@ -493,13 +507,16 @@ func (r *Reconciler) updateStats(stats ReconcileStats) {
 	r.mu.Unlock()
 
 	// Log summary
-	if stats.StaleRuns > 0 || stats.OrphansFound > 0 {
+	if stats.StaleRuns > 0 || stats.OrphansFound > 0 || stats.SandboxOrphansChecked > 0 {
 		r.log().Info("cycle complete",
 			"checked", stats.RunsChecked,
 			"stale", stats.StaleRuns,
 			"orphans", stats.OrphansFound,
 			"recovered", stats.RunsRecovered,
 			"killed", stats.OrphansKilled,
+			"sandboxOrphansChecked", stats.SandboxOrphansChecked,
+			"sandboxOrphansReclaimed", stats.SandboxOrphansReclaimed,
+			"sandboxOrphansPreserved", stats.SandboxOrphansPreserved,
 			"errors", len(stats.Errors),
 		)
 	}
@@ -624,6 +641,12 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 
 	// Step 6: Sync needs_review runs with sandbox status
 	r.syncReviewRuns(ctx, &stats)
+
+	// Step 6b: Reconcile run-owned sandboxes whose durable run owner has
+	// disappeared. This is intentionally owner-backed and conservative: only
+	// old active sandboxes with an explicit run metadata binding are examined,
+	// and deletion is allowed only after the provider proves an empty diff.
+	r.reconcileOrphanSandboxes(ctx, &stats)
 
 	// Step 7: Garbage-collect old terminal run state directories.
 	r.cleanupRunStateDirs(ctx)
@@ -792,6 +815,93 @@ func (r *Reconciler) syncReviewRuns(ctx context.Context, stats *ReconcileStats) 
 			r.markRunRejectedFromSandbox(ctx, run, "workspace-sandbox-sync")
 			stats.ReviewSynced++
 		}
+	}
+}
+
+// reconcileOrphanSandboxes is a conservative owner-recovery sweep. A sandbox
+// is not an orphan merely because a run is terminal: terminal runs remain the
+// authoritative owner while their lifecycle/finalization is recoverable. The
+// sweep acts only when the run row is genuinely absent, the sandbox is old
+// enough to outlive create/dispatch races, and a bounded diff proves there
+// are no changes worth preserving. Provider errors and non-empty diffs remain
+// owner-review work and are never converted into deletion.
+func (r *Reconciler) reconcileOrphanSandboxes(ctx context.Context, stats *ReconcileStats) {
+	if r.sandbox == nil || r.runs == nil || r.config.OrphanGracePeriod <= 0 {
+		return
+	}
+	inventory, ok := r.sandbox.(sandbox.Inventory)
+	if !ok {
+		return
+	}
+
+	listCtx, cancel := context.WithTimeout(ctx, orphanSandboxOperationTimeout)
+	sandboxes, err := inventory.List(listCtx, string(sandbox.SandboxStatusActive))
+	cancel()
+	if err != nil {
+		stats.Errors = append(stats.Errors, "failed to list active run sandboxes: "+err.Error())
+		return
+	}
+
+	checked := 0
+	for _, sb := range sandboxes {
+		if checked >= orphanSandboxSweepLimit {
+			break
+		}
+		if sb == nil || sb.Status != sandbox.SandboxStatusActive {
+			continue
+		}
+		runIDText := strings.TrimSpace(sb.Metadata[sandbox.AgentManagerRunIDMetadataKey])
+		if runIDText == "" {
+			continue
+		}
+		runID, parseErr := uuid.Parse(runIDText)
+		if parseErr != nil {
+			stats.Errors = append(stats.Errors, fmt.Sprintf("active sandbox %s has invalid run owner %q: %v", sb.ID, runIDText, parseErr))
+			continue
+		}
+		if sb.CreatedAt.IsZero() || r.now().Sub(sb.CreatedAt) < r.config.OrphanGracePeriod {
+			continue
+		}
+		checked++
+		stats.SandboxOrphansChecked++
+
+		run, runErr := r.runs.Get(ctx, runID)
+		if runErr != nil {
+			var notFound *domain.NotFoundError
+			if !errors.As(runErr, &notFound) {
+				stats.Errors = append(stats.Errors, fmt.Sprintf("failed to resolve sandbox %s owner run %s: %v", sb.ID, runID, runErr))
+				stats.SandboxOrphansPreserved++
+				continue
+			}
+			// A typed NotFoundError continues through the same proof path as
+			// the SQL repository's nil,nil missing-row result.
+		} else if run != nil {
+			continue
+		}
+
+		diffCtx, diffCancel := context.WithTimeout(ctx, orphanSandboxOperationTimeout)
+		diff, diffErr := r.sandbox.GetDiff(diffCtx, sb.ID)
+		diffCancel()
+		if diffErr != nil {
+			stats.Errors = append(stats.Errors, fmt.Sprintf("failed to inspect orphan sandbox %s: %v", sb.ID, diffErr))
+			stats.SandboxOrphansPreserved++
+			continue
+		}
+		if !sandboxDiffEmpty(diff) {
+			stats.SandboxOrphansPreserved++
+			continue
+		}
+
+		deleteCtx, deleteCancel := context.WithTimeout(ctx, orphanSandboxOperationTimeout)
+		deleteErr := r.sandbox.Delete(deleteCtx, sb.ID)
+		deleteCancel()
+		if deleteErr != nil {
+			stats.Errors = append(stats.Errors, fmt.Sprintf("failed to delete empty orphan sandbox %s: %v", sb.ID, deleteErr))
+			stats.SandboxOrphansPreserved++
+			continue
+		}
+		stats.SandboxOrphansReclaimed++
+		r.log().Info("reclaimed empty sandbox with missing run owner", "sandboxId", sb.ID.String(), "runId", runID.String())
 	}
 }
 

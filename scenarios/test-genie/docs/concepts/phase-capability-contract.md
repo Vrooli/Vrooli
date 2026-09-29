@@ -266,6 +266,190 @@ Both descriptors returned with a phase diff come from their respective run
 snapshots. Finalization and comparison never consult `DefaultCatalog` to fill
 historical labels, provider attribution, ordering, policy, or applicability.
 
+## Declared evidence production — implementation target
+
+Evidence production is a separate, explicitly effectful operation, not a new
+validation phase or an alternate maturity assessment. A normal validation request
+MUST NOT run producers. Existing provider checks still decide whether produced
+evidence satisfies their contracts. Test Genie owns dispatch/recovery; the
+provider owns commands, fixtures, receipt formats and semantic assertions.
+
+### Declaration and admission
+
+The existing provider descriptor may declare an `evidenceProducers` map. Each
+named entry fixes literal argv, scenario-relative working directory, timeout,
+bounded output size, and whether it mutates managed lifecycle. The execution
+owner selects the private output directory; declarations do not grant persistent
+provider-tree writes or choose a second evidence store.
+No caller-supplied argv, shell string, environment, executable or directory is
+accepted. Only server-derived run/output identifiers may fill explicitly supported
+argument placeholders; unknown placeholders, traversal and escaping symlinks fail.
+The producer name is not a phase alias and is never selected by a normal preset.
+
+Expose `CreateEvidenceProduction` through the existing validation service and a
+separate governed, confirmation-required destructive CLI binding. Reuse the
+validation intent/receipt, content identity, child run, wait/abort and run index.
+The typed request names exactly one provider/producer and the expected candidate
+identity. The server resolves the authored declaration, pins its exact command,
+output destination, effect class, deadline and descriptor/source identity BEFORE
+receipt admission/dispatch, and refuses changed intent for a reused key. Resolved
+execution fields are server-owned; callers cannot inject or overwrite them.
+Do not hide execution controls in caller-attribution maps or free-text detail.
+
+The existing `runmanager` executes the pinned producer through its normal durable
+run admission and terminal artifact publication. Add a command-execution branch
+to the existing execution owner, not a second job service/store. Producer success
+means command completion only: it MUST NOT manufacture a passing validation
+phase, capability standing, fresh receipt or certification. Subsequent provider
+validation remains a separate admission. No provider-name switches in Test Genie.
+
+### Recovery and containment
+
+The original receipt/child ID survives duplicate calls, lost responses and owner
+restart. Recovery observes the pinned intent; it never re-resolves mutable argv
+or runs the producer again under a new ID. Uncertain launch must reconcile or
+fail closed. This includes a crash between admission and process launch. A run
+marked interrupted is not permission to replay lifecycle or fixture effects.
+
+Cancellation, timeout and owner death must terminate the entire process tree,
+including descendants whose original leader exited. Reuse existing process
+primitives where they prove this. For the initial Linux backend, a bubblewrap PID
+namespace with parent-death coupling is an available host capability; do not
+silently fall back to direct-child-only termination. Unsupported containment must
+refuse before effects. No private host-remediation implementation belongs here.
+Platform limitations must be explicit; this development runner must not remove
+or change BAS's existing desktop/mobile execution support.
+
+Use existing run artifact storage and retention. Cap command output while reading,
+not after buffering it; truncation is explicit. Pin bounded output metadata to the
+original run. Do not copy full logs into receipt JSON or model context. The outer
+qualification program chooses only invalidated producers, then performs its one
+exact checking phase; Test Genie must not infer an all-producers refresh or restart
+loop.
+
+### Bounded disposable storage
+
+The Linux execution owner uses private, size-limited tmpfs mounts for scratch and
+producer output. Scratch has a fixed owner ceiling (512 MiB); output uses the
+declared byte ceiling. Neither mount grants writes to host caches, source, or a
+provider evidence tree. `{outputDir}` denotes the server-selected private mount.
+Retained logs are streaming-capped separately at the smaller of 1 MiB and the
+declared output ceiling. File output is limited to the declared total bytes and
+4,096 entries; unsupported types and links are refused. Kernel block rounding is
+not permission to retain extra logical bytes. These are storage limits, not a
+claim of a complete process-memory or CPU quota.
+
+Retain output only beneath the existing run artifact directory, using its normal
+catalog and retention lifecycle. No additional store, reaper, host scratch tree,
+or caller-supplied output path. Publish a complete bounded output tree atomically;
+partial collection remains within the same bounded run-owned artifacts and is
+never a successful producer result. Later validation consumes retained artifacts,
+not mutable files written into the provider's source tree.
+
+For Linux, a fixed owner readiness gate after namespace setup can let the parent
+open a rooted directory handle to the output mount before permitting the declared
+command. Keep that handle through child termination, collect with rooted opens,
+then close it. Owner death closes the handle and parent-death containment destroys
+the child namespace, so scratch/output do not depend on a best-effort host defer.
+Bubblewrap's initial `--info-fd` message alone is NOT mount-readiness proof. Any
+handshake/collection failure must terminate and drain the child before return.
+This is a small execution detail, not a new shell-command API or generic protocol.
+
+### Required proof before adoption
+
+Use harmless temporary fixture commands, not live BAS cohorts, for implementation
+checks. Cover normal validation never dispatching a producer, unknown/tampered
+declarations and candidate mismatch refusing before effects, unchanged-key replay,
+changed-intent refusal, launch-gap/lost-response/restart handling, bounded logs,
+safe output paths, unsupported containment, and real parent/descendant cleanup.
+An injected executor proves routing, not process containment. Keep those claims
+separate. Normal provider validation and suite admission behavior must remain intact.
+Include a representative offline owner fixture, not only `printf`: the existing
+BAS evidence-completeness producer invokes Node and Go, checks the managed API,
+and needs temporary/build-cache writes. Supply the necessary bounded, disposable
+scratch and trusted runtime environment through the existing execution owner;
+do not expose caller-controlled environment or broaden persistent write roots.
+Refusing every real owner command is not successful containment integration.
+Then wire one BAS-owned producer and the pinned qualification program; do not
+enable unattended campaigns on contract or unit checks alone.
+
+Cancellation must cover the durable PENDING-child/pre-launch gap, not just an
+already indexed executor. Preserve a cancellation fence in the existing run
+owner/index, bound to the original admission identity, so a late or recovered
+Start cannot perform effects. Reuse the same pinned input construction for start
+and cancellation; do not add a cancellation store or broker-side polling loop.
+After abort settles, persist parent and affected child terminal states together.
+Keep already terminal child outcomes truthful. Prove both race orderings,
+pre-launch cancellation, restart replay and failed terminal-write recovery with
+deterministic barriers; a fake Abort that always succeeds is insufficient.
+
+### Retained evidence consumption — next integration gate
+
+Validation needs an explicit, bounded typed reference set for produced evidence;
+the artifact API alone does not select the evidence a provider must judge. Retain
+producer receipt/child, target/producer, candidate identity, catalog digest and
+opaque artifact IDs/digests with the existing validation intent before dispatch.
+Include these inputs in idempotency and compatibility; changed references must
+not attach to an unrelated prior validation. Forward the pinned set through the
+shared provider contract, never caller-attribution maps or source-tree pointers.
+Resolve bytes using existing run-artifact catalog/stream APIs and verify their
+identity; missing, foreign-run, legacy-discovered or changed evidence fails closed.
+Normal validation still never starts producers. Reuse existing expiring run pin
+leases for referenced evidence through qualification and recovery, with bounded
+owner renewal/release, not a new retention store. BAS's first adopter and exact
+setpoint handoff are specified in its [qualification target](../../../browser-automation-studio/docs/internal/TESTING.md#owner-bound-qualification-handoff--implementation-target).
+
+Implement this as one shared `RetainedEvidenceSet` in the existing
+`scenario-validation` protocol, carried by the TG intent and both provider
+validation request shapes. Its typed fields identify the producer receipt,
+producer name/target/run, candidate identity and catalog digest. Reuse
+`common.v1.EvidenceRef` for artifact IDs, checksums, kinds and byte lengths;
+do not add another artifact-reference schema or store. Bound admission to eight
+sets and 32 artifacts total, reject duplicates and missing identity/checksum
+fields, and include the normalized set in the existing intent compatibility key.
+Admission must resolve the exact successful producer receipt and catalog, reject
+foreign or legacy-discovered artifacts, and establish existing run-pin leases
+before asynchronous consumption. Recovery uses the same lease owner and child;
+terminal cleanup releases its leases without releasing another consumer's pins.
+Provider reads use the existing opaque run-artifact access route with bounded
+byte reads and checksum verification, never caller-selected URLs or paths.
+
+The completed producer receipt exposes `ValidationReceipt.produced_evidence_set`
+using that same shared type, including owner-computed checksums of retained bytes. A governed
+qualification caller must be able to pass it unchanged into validation; it must
+not invent digests, download raw logs into model context, or reconstruct the set
+from source-tree files. Bind this output to the original successful producer and
+catalog. Cover the actual producer-receipt-to-validation handoff, not only tests
+that fabricate already-complete reference sets. The declared destructive
+`validation/produce-evidence` binding remains run-eligible only behind explicit
+grants and confirmation; a CLI-local confirmation flag alone is insufficient.
+
+The first complete integration slice includes that typed handoff, the BAS
+evidence-completeness producer/consumer, and their regressions. The producer
+writes its receipt and both raw logs only to the declared output directory.
+Replace this row's source-tree glob/latest lookup with the selected retained
+bundle; preserve its four named assertions, exact source set and live-build
+checks. Leave unrelated cohorts intact and visibly unqualified when stale.
+No second artifact tree, migration shim, generic resolver framework, extra
+scheduler, or alternate qualification path is part of this slice.
+Bound-reference support must be explicit in the existing provider capability
+contract. An older peer silently ignoring unknown protobuf fields is not support;
+refuse unsupported bound-evidence validation rather than trusting a latest-file
+verdict. Keep unbound validation behavior for unrelated providers unchanged.
+
+The joined integration proof must start from the actual checked-in producer
+declaration and emitted catalog, then pass the owner-returned set through the
+real phase planner and provider consumer. Focused source regressions may cover
+these owner boundaries separately before source acceptance and managed adoption;
+they do not prove the joined handoff. The live qualification pilot must supply
+that missing proof before campaign activation. Do not add a shipping test-only
+service or bypass encapsulation solely to combine unit fixtures. A fixture that
+invents a catalog kind or bypasses applicability proves neither gate. A bad retained
+bundle fails its affected validation, not unrelated service startup; genuine
+storage-wide failures remain visible. Failed terminal pin releases must remain
+bounded and recoverable through the existing lease owner/expiry path, not a new
+cleanup ledger or indefinitely retained orphan.
+
 ## What this is not
 
 - **Not a rewrite.** The substrate exists and is reused: the descriptor `maturity`

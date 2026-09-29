@@ -2,6 +2,7 @@ package orchestration
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -149,15 +150,19 @@ func persistInteractiveRun(t *testing.T, runs repository.RunRepository, taskID u
 
 // TestExecuteInteractiveRun_ProtectedBackstop verifies the execution-path backstop
 // (in addition to the CreateRun-time gate): a run that reaches executeInteractiveRun
-// as protected (sandboxed) without a provider fails with an actionable error rather than
-// launching a session.
+// as protected (sandboxed) fails before workspace creation or host launch, even
+// when a sandbox provider is configured.
 func TestExecuteInteractiveRun_ProtectedBackstop(t *testing.T) {
 	ctx := context.Background()
 	repos, _, cleanup := testutil.SetupTestRepos(t)
 	t.Cleanup(cleanup)
 
 	sessions := newRecordingSessions()
-	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithRunStateRoot(t.TempDir()))
+	provider := mocks.NewFakeSandboxProvider()
+	provider.CreateFunc = func(context.Context, sandbox.CreateRequest) (*sandbox.Sandbox, error) {
+		return nil, errors.New("unexpected workspace creation before launch policy validation")
+	}
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithSandbox(provider), WithRunStateRoot(t.TempDir()))
 	task := interactiveTestTask(t, svc)
 
 	now := time.Now()
@@ -188,13 +193,40 @@ func TestExecuteInteractiveRun_ProtectedBackstop(t *testing.T) {
 	if got.Status != domain.RunStatusFailed {
 		t.Fatalf("status = %s, want failed", got.Status)
 	}
-	if !strings.Contains(strings.ToLower(got.ErrorMsg), "protected") {
+	if !strings.Contains(got.ErrorMsg, "interactive execution cannot enforce") {
 		t.Errorf("error should explain the protected-run gate, got %q", got.ErrorMsg)
+	}
+	if len(provider.CreateRequests()) != 0 {
+		t.Fatal("unsupported protected execution must be refused before workspace creation")
 	}
 	for _, c := range sessions.callLog() {
 		if c == "create" {
-			t.Fatal("a protected run without its sandbox provider must never create a web-console session")
+			t.Fatal("a protected run must never create a host web-console session")
 		}
+	}
+}
+
+func TestValidateExecutionContainment(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		mode    domain.ExecutionMode
+		sandbox domain.SandboxMode
+		config  *domain.RunConfig
+		denied  bool
+	}{
+		{"protected interactive", domain.ExecutionModeInteractive, domain.SandboxModeProtected, nil, true},
+		{"implicit protected interactive", domain.ExecutionModeInteractive, "", nil, true},
+		{"tracking interactive", domain.ExecutionModeInteractive, domain.SandboxModeTracking, nil, false},
+		{"off interactive", domain.ExecutionModeInteractive, domain.SandboxModeOff, nil, false},
+		{"effect-bearing interactive", domain.ExecutionModeInteractive, domain.SandboxModeTracking, &domain.RunConfig{RequireEffectContainment: true}, true},
+		{"write-restricted interactive", domain.ExecutionModeInteractive, domain.SandboxModeOff, &domain.RunConfig{SandboxConfig: &domain.SandboxConfig{WritePolicy: &domain.WorkspaceWritePolicy{}}}, true},
+		{"protected pipe", domain.ExecutionModeCodecPipe, domain.SandboxModeProtected, nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := validateExecutionContainment(tc.mode, tc.sandbox, tc.config); (err != nil) != tc.denied {
+				t.Fatalf("denied=%v, error=%v", tc.denied, err)
+			}
+		})
 	}
 }
 
@@ -228,7 +260,7 @@ func TestExecuteInteractiveRun_TrackingPersistsSandboxAttribution(t *testing.T) 
 		ID: uuid.New(), TaskID: task.ID, Tag: "interactive-tracking", RunMode: domain.RunModeSandboxed,
 		ExecutionMode: domain.ExecutionModeInteractive, Status: domain.RunStatusStarting, Phase: domain.RunPhaseExecuting,
 		ApprovalState:  domain.ApprovalStateNone,
-		SandboxConfig:  &domain.SandboxConfig{Mode: domain.SandboxModeTracking, AutoApply: func() *bool { value := true; return &value }()},
+		SandboxConfig:  &domain.SandboxConfig{Mode: domain.SandboxModeTracking, AutoApply: func() *bool { value := true; return &value }(), Lifecycle: domain.SandboxLifecycleConfig{DeleteOn: []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTerminal}}},
 		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeCodex}, CreatedAt: now, UpdatedAt: now,
 	}
 	if err := repos.Runs.Create(ctx, run); err != nil {
@@ -269,6 +301,9 @@ func TestExecuteInteractiveRun_TrackingPersistsSandboxAttribution(t *testing.T) 
 	}
 	if provider.ApplyAtRunEndCallCount() != 1 {
 		t.Fatalf("apply calls = %d, want 1", provider.ApplyAtRunEndCallCount())
+	}
+	if provider.DeleteCallCount() != 1 {
+		t.Fatalf("terminal tracking sandbox delete calls = %d, want 1", provider.DeleteCallCount())
 	}
 	created := provider.CreateRequests()
 	if len(created) != 1 || created[0].Behavior == nil || created[0].Behavior.Mode != domain.SandboxModeTracking {
@@ -322,6 +357,38 @@ func TestStopInteractiveRun_EscalationLadderAndSingleFinalize(t *testing.T) {
 	}
 	if svc.interactiveDrivers.has(run.ID) {
 		t.Error("driver should be deregistered after Stop")
+	}
+}
+
+func TestStopInteractiveRun_FinalizesTerminalSandbox(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	sessions := newRecordingSessions()
+	provider := mocks.NewFakeSandboxProvider()
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs,
+		WithInteractiveSessions(sessions), WithSandbox(provider), WithRunStateRoot(t.TempDir()))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "agent-sess", "wc-sandbox-stop")
+	sandboxID := uuid.New()
+	apply := true
+	run.RunMode = domain.RunModeSandboxed
+	run.SandboxID = &sandboxID
+	run.SandboxConfig = &domain.SandboxConfig{Mode: domain.SandboxModeTracking, AutoApply: &apply, Lifecycle: domain.SandboxLifecycleConfig{DeleteOn: []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTerminal}}}
+	run.ResolvedConfig.SandboxConfig = run.SandboxConfig
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("update run: %v", err)
+	}
+
+	if err := svc.StopRun(ctx, run.ID); err != nil {
+		t.Fatalf("StopRun: %v", err)
+	}
+	if provider.ApplyAtRunEndCallCount() != 1 {
+		t.Fatalf("apply calls = %d, want 1", provider.ApplyAtRunEndCallCount())
+	}
+	if provider.DeleteCallCount() != 1 {
+		t.Fatalf("delete calls = %d, want 1", provider.DeleteCallCount())
 	}
 }
 

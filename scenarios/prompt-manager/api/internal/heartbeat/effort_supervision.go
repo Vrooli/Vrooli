@@ -98,12 +98,18 @@ type supervisionQueue interface {
 // mutex serializes admission and dispatch; durable wake state fences restarts.
 // The lifecycle owns one PM process for a runtime root.
 type StandingSupervisor struct {
-	mu                 sync.Mutex
-	Owner              EffortSupervisionOwner
-	State              SupervisionStateStore
-	Queue              supervisionQueue
-	Agent              AgentClient
-	Config             func(context.Context, string, string) (*store.HeartbeatConfig, error)
+	mu     sync.Mutex
+	Owner  EffortSupervisionOwner
+	State  SupervisionStateStore
+	Queue  supervisionQueue
+	Agent  AgentClient
+	Config func(context.Context, string, string) (*store.HeartbeatConfig, error)
+	// ObservationConfig is the lifecycle-independent configuration loader used
+	// by explicit owner refreshes. It must validate the team/member contract,
+	// but must not require the team or heartbeat to be enabled: observing an
+	// owner cut is not dispatch and must remain available while scheduling is
+	// intentionally disabled.
+	ObservationConfig  func(context.Context, string, string) (*store.HeartbeatConfig, error)
 	Prompt             func(context.Context, string, string) (string, error)
 	Record             func(context.Context, string, string, *SupervisionWake, *Run) error
 	Root               string
@@ -166,12 +172,199 @@ func (s *StandingSupervisor) config(ctx context.Context, teamID, agentID string)
 	return cfg, nil
 }
 
+func (s *StandingSupervisor) observationConfig(ctx context.Context, teamID, agentID string) (*store.HeartbeatConfig, error) {
+	if s.ObservationConfig == nil || s.State == nil || s.Owner == nil {
+		return nil, fmt.Errorf("standing supervision observation dependencies unavailable")
+	}
+	cfg, err := s.ObservationConfig(ctx, teamID, agentID)
+	if err != nil {
+		return nil, err
+	}
+	if cfg == nil || cfg.Supervision == nil {
+		return nil, fmt.Errorf("standing supervision configuration unavailable")
+	}
+	if err := cfg.Supervision.Validate(); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
 func (s *StandingSupervisor) saveError(teamID, agentID string, state *SupervisionState, err error) error {
 	state.Status, state.Error = "unavailable", err.Error()
 	if saveErr := s.State.Save(teamID, agentID, state); saveErr != nil {
 		return saveErr
 	}
 	return err
+}
+
+// Observe refreshes the durable owner cut without enabling scheduling,
+// enqueueing work, building a prompt, or invoking a model. It is deliberately
+// separate from Tick so a disabled team can expose current owner state without
+// accidentally re-arming dispatch. An unresolved wake is never overwritten.
+func (s *StandingSupervisor) Observe(ctx context.Context, teamID, agentID string) (*SupervisionState, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cfg, err := s.observationConfig(ctx, teamID, agentID)
+	if err != nil {
+		return nil, err
+	}
+	state, err := s.State.Load(teamID, agentID)
+	if err != nil {
+		return nil, err
+	}
+	if state.Pending != nil {
+		// A disabled scheduler must still be able to reconcile a durable owner
+		// run that is already terminal. This is recovery/observation, not a new
+		// dispatch. Running wakes remain fenced and are reported unresolved.
+		if state.Pending.RunID == "" {
+			return state, fmt.Errorf("standing supervision wake unresolved; observation refresh refused")
+		}
+		if err := s.reconcile(ctx, teamID, agentID, cfg, state); err != nil {
+			return state, s.saveError(teamID, agentID, state, err)
+		}
+		if state.Pending != nil {
+			return state, fmt.Errorf("standing supervision wake unresolved; observation refresh refused")
+		}
+	}
+	state.AccountingRef = cfg.Supervision.DiagnosticAllowance.AccountingRef
+	if err := s.observe(ctx, cfg, state); err != nil {
+		return state, s.saveError(teamID, agentID, state, err)
+	}
+	state.Status = "observation-only"
+	if err := s.State.Save(teamID, agentID, state); err != nil {
+		return state, err
+	}
+	return state, nil
+}
+
+const (
+	maxWakeRecoveryEvidenceRefs = 8
+	maxWakeRecoveryReasonBytes  = 2000
+	maxReconciledWakeHistory    = 32
+)
+
+// ReconcileUnresolvedWake closes one uncertain dispatch fence after an
+// explicit owner has checked the original identity. It never retries a
+// dispatch and it refuses to close the fence while Agent Manager can still
+// return a matching run. The bounded receipt is retained in runtime state so
+// a later observation can distinguish owner reconciliation from silent loss.
+func (s *StandingSupervisor) ReconcileUnresolvedWake(ctx context.Context, teamID, agentID string, req ReconcileSupervisionRequest) (*SupervisionState, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if strings.TrimSpace(req.WakeID) == "" || len(req.WakeID) > 128 {
+		return nil, fmt.Errorf("wakeId is required and must be at most 128 bytes")
+	}
+	if len(req.EvidenceRefs) == 0 || len(req.EvidenceRefs) > maxWakeRecoveryEvidenceRefs {
+		return nil, fmt.Errorf("recovery requires 1-%d bounded evidence references", maxWakeRecoveryEvidenceRefs)
+	}
+	seen := make(map[string]struct{}, len(req.EvidenceRefs))
+	refs := make([]string, 0, len(req.EvidenceRefs))
+	for _, raw := range req.EvidenceRefs {
+		ref := strings.TrimSpace(raw)
+		if ref == "" || len(ref) > 512 {
+			return nil, fmt.Errorf("recovery evidence references must be non-empty and at most 512 bytes")
+		}
+		if _, ok := seen[ref]; ok {
+			return nil, fmt.Errorf("recovery evidence references must be distinct")
+		}
+		seen[ref] = struct{}{}
+		refs = append(refs, ref)
+	}
+	reason := strings.TrimSpace(req.Reason)
+	if reason == "" || len(reason) > maxWakeRecoveryReasonBytes {
+		return nil, fmt.Errorf("recovery reason is required and must be at most %d bytes", maxWakeRecoveryReasonBytes)
+	}
+	cfg, err := s.observationConfig(ctx, teamID, agentID)
+	if err != nil {
+		return nil, err
+	}
+	state, err := s.State.Load(teamID, agentID)
+	if err != nil {
+		return nil, err
+	}
+	for _, wake := range state.ReconciledWakes {
+		if wake != nil && wake.ID == req.WakeID {
+			return state, nil
+		}
+	}
+	index := -1
+	var wake *SupervisionWake
+	for i, candidate := range state.UnresolvedWakes {
+		if candidate != nil && candidate.ID == req.WakeID {
+			index, wake = i, candidate
+			break
+		}
+	}
+	if wake == nil {
+		return nil, fmt.Errorf("unresolved supervision wake %q not found", req.WakeID)
+	}
+	if wake.RunID != "" {
+		return nil, fmt.Errorf("wake %q already has an owner run; observe that run before reconciliation", req.WakeID)
+	}
+	if s.Agent == nil {
+		return nil, fmt.Errorf("agent-manager owner lookup unavailable; preserve unresolved wake")
+	}
+	// A failed delegated create can leave the task queued even when no run was
+	// returned. Cancel that exact orphan before closing the wake; otherwise a
+	// later owner scheduler could start work after the fence was reconciled.
+	if wake.TaskID != "" {
+		task, taskErr := s.Agent.GetTask(ctx, wake.TaskID)
+		if taskErr != nil {
+			return nil, fmt.Errorf("owner task lookup unavailable; preserve unresolved wake: %w", taskErr)
+		}
+		if task != nil {
+			status := strings.ToLower(strings.TrimSpace(task.Status))
+			switch status {
+			case "", "task_status_queued", "queued":
+				if task.Status == "" {
+					return nil, fmt.Errorf("owner task %q returned no lifecycle status; preserve unresolved wake", wake.TaskID)
+				}
+				if err := s.Agent.CancelTask(ctx, wake.TaskID); err != nil {
+					return nil, fmt.Errorf("owner task cancellation unavailable; preserve unresolved wake: %w", err)
+				}
+			case "task_status_running", "running":
+				return nil, fmt.Errorf("owner task %q is still running; reconcile its run before closing wake", wake.TaskID)
+			}
+		}
+	}
+	listed, err := s.Agent.ListRuns(ctx, ListRunsOptions{TagPrefix: "supervision-" + wake.ID, Limit: 2})
+	if err != nil {
+		return nil, fmt.Errorf("owner run lookup unavailable; preserve unresolved wake: %w", err)
+	}
+	if listed == nil || listed.HasMore {
+		return nil, fmt.Errorf("owner run lookup was incomplete; preserve unresolved wake")
+	}
+	for _, run := range listed.Runs {
+		if run == nil || run.Tag != "supervision-"+wake.ID {
+			continue
+		}
+		if err := validateSupervisorRunIdentity(run, wake.TaskID, "supervision-"+wake.ID); err != nil {
+			return nil, fmt.Errorf("owner returned a conflicting run identity; preserve unresolved wake: %w", err)
+		}
+		return nil, fmt.Errorf("owner run %q exists for wake %q; reconcile that run first", run.ID, req.WakeID)
+	}
+	wake.Disposition = "owner-reconciled"
+	wake.RecoveryEvidenceRefs = refs
+	wake.RecoveryReason = reason
+	wake.ReconciledAt = s.now().UTC()
+	state.UnresolvedWakes = append(state.UnresolvedWakes[:index], state.UnresolvedWakes[index+1:]...)
+	state.ReconciledWakes = append(state.ReconciledWakes, wake)
+	if len(state.ReconciledWakes) > maxReconciledWakeHistory {
+		state.ReconciledWakes = state.ReconciledWakes[len(state.ReconciledWakes)-maxReconciledWakeHistory:]
+	}
+	state.LastWake = wake
+	state.Sequence++
+	state.Error = ""
+	if len(state.UnresolvedWakes) == 0 {
+		state.Status = "observation-only"
+	} else {
+		state.Status = "degraded"
+	}
+	state.AccountingRef = cfg.Supervision.DiagnosticAllowance.AccountingRef
+	if err := s.State.Save(teamID, agentID, state); err != nil {
+		return nil, err
+	}
+	return state, nil
 }
 
 // observe retains unavailable rows and only updates those explicitly returned by
@@ -392,6 +585,23 @@ func supervisorWorkReferences(wake *SupervisionWake) []*eventpb.WorkReference {
 	return refs
 }
 
+// validateSupervisorRunIdentity keeps every dispatch path bound to the
+// durable wake it created. A non-empty run ID alone is not sufficient: an
+// owner response for another task or tag could otherwise be attached to this
+// wake and later reconciled as if it were its own child.
+func validateSupervisorRunIdentity(run *Run, taskID, tag string) error {
+	if run == nil || run.ID == "" {
+		return fmt.Errorf("supervisor run response missing identity")
+	}
+	if taskID == "" || run.TaskID != taskID {
+		return fmt.Errorf("supervisor run response task identity mismatch")
+	}
+	if tag != "" && run.Tag != tag {
+		return fmt.Errorf("supervisor run response dispatch tag mismatch")
+	}
+	return nil
+}
+
 // replayDelegatedDispatch performs at most one owner call for a wake whose
 // exact delegated binding was durably retained. It is deliberately fenced by
 // the current binding and fresh credential admission in AM. A legacy wake
@@ -443,7 +653,7 @@ func (s *StandingSupervisor) replayDelegatedDispatch(ctx context.Context, teamID
 		state.Status = "uncertain"
 		return nil
 	}
-	if run == nil || run.ID == "" || run.TaskID == "" || run.TaskID != wake.TaskID || run.Tag != "supervision-"+wake.ID {
+	if err := validateSupervisorRunIdentity(run, wake.TaskID, "supervision-"+wake.ID); err != nil {
 		wake.DispatchReplayError = "owner replay returned no identity bound to the original task"
 		state.Status = "uncertain"
 		return nil
@@ -500,12 +710,12 @@ func (s *StandingSupervisor) replayOrdinaryDispatch(ctx context.Context, teamID,
 		state.Status = "uncertain"
 		return nil
 	}
-	if run == nil || run.ID == "" || run.TaskID != wake.TaskID {
+	if err := validateSupervisorRunIdentity(run, wake.TaskID, ""); err != nil {
 		wake.DispatchReplayError = "owner replay returned no identity bound to the original task"
 		state.Status = "uncertain"
 		return nil
 	}
-	if run.Tag != tag {
+	if err := validateSupervisorRunIdentity(run, wake.TaskID, tag); err != nil {
 		wake.DispatchReplayError = "owner replay returned an identity with a different dispatch tag"
 		state.Status = "uncertain"
 		return nil
@@ -789,8 +999,8 @@ func (s *StandingSupervisor) Dispatch(ctx context.Context, teamID, agentID strin
 	if err != nil {
 		return result, s.saveError(teamID, agentID, state, err)
 	}
-	if run == nil || run.ID == "" {
-		return result, s.saveError(teamID, agentID, state, fmt.Errorf("supervisor run response missing identity"))
+	if err := validateSupervisorRunIdentity(run, wake.TaskID, tag); err != nil {
+		return result, s.saveError(teamID, agentID, state, err)
 	}
 	wake.RunID, state.Status = run.ID, run.Status
 	result.RunID, result.Status = run.ID, "running"

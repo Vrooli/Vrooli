@@ -99,6 +99,44 @@ func seedArchive(t *testing.T, env *archiveTestEnv, snapshotAt time.Time, projec
 	return id
 }
 
+func TestArchiveRetentionPreservesPendingApprovalEvidence(t *testing.T) {
+	env := newArchiveTestEnv(t)
+	id := seedArchive(t, env, time.Now().Add(-48*time.Hour), "/project", types.StatusApproved, 10)
+	archive, err := env.archiveRepo.Get(t.Context(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	intent := &types.PreparedApproval{Archive: *archive, Request: types.ApprovalRequest{SandboxID: id, Mode: "all"}, ScopePath: "/project/scope"}
+	if err := env.archiveRepo.PutPreparedApproval(t.Context(), intent); err != nil {
+		t.Fatal(err)
+	}
+	report := env.svc.ReconcileArchiveRetention(t.Context(), RetentionPolicy{MaxArchiveAgeDays: 1})
+	if report.TotalEvicted() != 0 || report.LastError == "" || !archiveExists(t, env, id) {
+		t.Fatalf("pending approval evidence must be preserved and reported: %+v", report)
+	}
+}
+
+func TestArchiveRetentionWaitsForPublicationOwner(t *testing.T) {
+	env := newArchiveTestEnv(t)
+	id := seedArchive(t, env, time.Now().Add(-48*time.Hour), "/project", types.StatusApproved, 10)
+	release, err := env.blobs.LockReview(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	defer cancel()
+	report := env.svc.ReconcileArchiveRetention(ctx, RetentionPolicy{MaxArchiveAgeDays: 1})
+	if report.TotalEvicted() != 0 || report.LastError == "" || !archiveExists(t, env, id) {
+		t.Fatalf("retention bypassed publication owner: %+v", report)
+	}
+	release()
+	report = env.svc.ReconcileArchiveRetention(t.Context(), RetentionPolicy{MaxArchiveAgeDays: 1})
+	if report.TotalEvicted() != 1 || report.LastError != "" || archiveExists(t, env, id) {
+		t.Fatalf("retention did not resume after owner release: %+v", report)
+	}
+}
+
 func min(a, b int) int {
 	if a < b {
 		return a
@@ -318,27 +356,15 @@ func TestRetention_EmptyStore_ReturnsCleanReport(t *testing.T) {
 // DeleteSandbox for a specific sandbox ID. Other operations (Put/Get/
 // Stat) pass through.
 type deleteFailingBlobs struct {
-	inner blobstore.BlobStore
-	fail  uuid.UUID
-}
-
-func (f *deleteFailingBlobs) Put(ctx context.Context, sandboxID string, content []byte) (blobstore.PutResult, error) {
-	return f.inner.Put(ctx, sandboxID, content)
-}
-
-func (f *deleteFailingBlobs) Get(ctx context.Context, sandboxID, sha string) ([]byte, error) {
-	return f.inner.Get(ctx, sandboxID, sha)
-}
-
-func (f *deleteFailingBlobs) Stat(ctx context.Context, sandboxID, sha string) (int64, bool, error) {
-	return f.inner.Stat(ctx, sandboxID, sha)
+	blobstore.BlobStore
+	fail uuid.UUID
 }
 
 func (f *deleteFailingBlobs) DeleteSandbox(ctx context.Context, sandboxID string) error {
 	if sandboxID == f.fail.String() {
 		return errors.New("induced failure")
 	}
-	return f.inner.DeleteSandbox(ctx, sandboxID)
+	return f.BlobStore.DeleteSandbox(ctx, sandboxID)
 }
 
 func TestRetention_BlobFailure_LeavesRow(t *testing.T) {
@@ -350,7 +376,7 @@ func TestRetention_BlobFailure_LeavesRow(t *testing.T) {
 
 	// Swap the service's blobstore for a failing wrapper. Both blobs
 	// still exist on the inner store; only the DeleteSandbox seam fails.
-	env.svc.blobs = &deleteFailingBlobs{inner: env.blobs, fail: bad}
+	env.svc.blobs = &deleteFailingBlobs{BlobStore: env.blobs, fail: bad}
 
 	report := env.svc.ReconcileArchiveRetention(context.Background(), RetentionPolicy{MaxArchiveAgeDays: 90})
 

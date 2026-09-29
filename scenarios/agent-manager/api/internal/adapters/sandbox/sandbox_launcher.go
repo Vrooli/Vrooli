@@ -320,6 +320,12 @@ func (l *SandboxLauncher) Launch(ctx context.Context, req runner.LaunchRequest) 
 	if req.Command == "" {
 		return nil, errors.New("SandboxLauncher: command is required")
 	}
+	if len(req.PolicyFiles) > 0 {
+		containment, ok := l.provider.ContainmentFor(ctx, l.sandboxID)
+		if !ok || !containment.HasEnforcement(runner.EnforcementPolicyFiles) {
+			return nil, errors.New("SandboxLauncher: required containment missing: " + runner.EnforcementPolicyFiles)
+		}
+	}
 
 	// Read stdin upfront (when present). The runner pattern is
 	// prompt-via-stdin: a single buffered prompt, not interactive bytes.
@@ -411,8 +417,10 @@ func (l *SandboxLauncher) Launch(ctx context.Context, req runner.LaunchRequest) 
 		Env:            envMap,
 		WorkingDir:     workingDir,
 		IsolationLevel: "vrooli-aware",
+		AllowNetwork:   launchNetworkOverride(req.NetworkMode),
 		WithStdin:      withStdin,
 		WritableMounts: runRuntimeMounts(envMap),
+		PolicyFiles:    req.PolicyFiles,
 	})
 	if err != nil {
 		return nil, err
@@ -433,13 +441,31 @@ func (l *SandboxLauncher) Launch(ctx context.Context, req runner.LaunchRequest) 
 
 // startProcessBody is the JSON body shape for POST /processes.
 type startProcessBody struct {
-	Command        string            `json:"command"`
-	Args           []string          `json:"args,omitempty"`
-	Env            map[string]string `json:"env,omitempty"`
-	WorkingDir     string            `json:"workingDir,omitempty"`
-	IsolationLevel string            `json:"isolationLevel,omitempty"`
-	WithStdin      bool              `json:"withStdin,omitempty"`
-	WritableMounts []WritableMount   `json:"writableMounts,omitempty"`
+	Command        string              `json:"command"`
+	Args           []string            `json:"args,omitempty"`
+	AllowNetwork   *bool               `json:"allowNetwork,omitempty"`
+	Env            map[string]string   `json:"env,omitempty"`
+	WorkingDir     string              `json:"workingDir,omitempty"`
+	IsolationLevel string              `json:"isolationLevel,omitempty"`
+	WithStdin      bool                `json:"withStdin,omitempty"`
+	WritableMounts []WritableMount     `json:"writableMounts,omitempty"`
+	PolicyFiles    []runner.PolicyFile `json:"policyFiles,omitempty"`
+}
+
+// launchNetworkOverride preserves the vrooli-aware filesystem/profile layout
+// while applying the run's admitted network posture. A nil value keeps the
+// legacy profile default for callers that predate the explicit field.
+func launchNetworkOverride(mode string) *bool {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case string(domain.NetworkAccessNone):
+		v := false
+		return &v
+	case string(domain.NetworkAccessLocalhost), string(domain.NetworkAccessFull):
+		v := true
+		return &v
+	default:
+		return nil
+	}
 }
 
 // runtimeRootEnvKey carries the run's single runtime folder to the launcher.

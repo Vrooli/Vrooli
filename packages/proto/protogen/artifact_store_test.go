@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -320,6 +321,10 @@ func TestArtifactStoreMaterializesCompatibilityViewWithoutMixedTree(t *testing.T
 	}
 	if got, err := os.ReadFile(filepath.Join(target, "go", "demo", "demo.pb.go")); err != nil || string(got) != "selected" {
 		t.Fatalf("compatibility output = %q, err=%v", got, err)
+	}
+	stamp, err := os.ReadFile(filepath.Join(target, compatibilityStampName))
+	if err != nil || !strings.Contains(string(stamp), `"artifact_id": "selected"`) {
+		t.Fatalf("compatibility stamp = %q, err=%v", stamp, err)
 	}
 	if _, err := os.Stat(filepath.Join(store.Root, "snapshots", "selected", "validation-receipt.json")); err != nil {
 		t.Fatalf("validation receipt missing: %v", err)

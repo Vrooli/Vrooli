@@ -421,6 +421,7 @@ func TestPlaywrightVisionNavigator_HandleCompleteCallback(t *testing.T) {
 		TotalTokens:     750,
 		TotalDurationMs: 15000,
 		FinalURL:        "https://example.com/success",
+		Error:           "",
 		Summary:         "Task completed successfully",
 	}
 
@@ -440,8 +441,155 @@ func TestPlaywrightVisionNavigator_HandleCompleteCallback(t *testing.T) {
 	if s.TotalTokens != 750 {
 		t.Errorf("TotalTokens = %d, want 750", s.TotalTokens)
 	}
+	if s.FinalURL != result.FinalURL || s.Summary != result.Summary || s.Error != result.Error {
+		t.Errorf("completion details = url %q error %q summary %q, want result values", s.FinalURL, s.Error, s.Summary)
+	}
+	if s.TotalDurationMs != result.TotalDurationMs {
+		t.Errorf("TotalDurationMs = %d, want %d", s.TotalDurationMs, result.TotalDurationMs)
+	}
 
 	// Verify broadcast
+	if wsHub.broadcastCount != 1 {
+		t.Errorf("broadcastCount = %d, want 1", wsHub.broadcastCount)
+	}
+}
+
+func TestPlaywrightVisionNavigator_DuplicateCompletionPreservesFirstResult(t *testing.T) {
+	log := logrus.New()
+	log.SetOutput(io.Discard)
+	wsHub := &mockWSHub{}
+	nav := NewPlaywrightVisionNavigator(log, WithPlaywrightHub(wsHub))
+
+	nav.mu.Lock()
+	nav.activeNavigations["nav_duplicate"] = &NavigationSession{
+		NavigationID: "nav_duplicate",
+		SessionID:    "session123",
+		Status:       StatusNavigating,
+	}
+	nav.mu.Unlock()
+
+	first := &NavigationResult{
+		NavigationID:    "nav_duplicate",
+		Status:          StatusCompleted,
+		VerifiedSuccess: true,
+		TotalSteps:      3,
+		TotalTokens:     300,
+	}
+	late := &NavigationResult{
+		NavigationID: "nav_duplicate",
+		Status:       StatusFailed,
+		TotalSteps:   99,
+		TotalTokens:  999,
+		Error:        "late retry",
+	}
+
+	if err := nav.HandleCompleteCallback(t.Context(), first); err != nil {
+		t.Fatalf("first HandleCompleteCallback() error = %v", err)
+	}
+	if err := nav.HandleCompleteCallback(t.Context(), late); err != nil {
+		t.Fatalf("duplicate HandleCompleteCallback() error = %v", err)
+	}
+
+	nav.mu.RLock()
+	session := nav.activeNavigations["nav_duplicate"]
+	nav.mu.RUnlock()
+	if session.Status != StatusCompleted || !session.VerifiedSuccess {
+		t.Fatalf("duplicate changed terminal result: status=%v verified=%v", session.Status, session.VerifiedSuccess)
+	}
+	if session.StepCount != 3 || session.TotalTokens != 300 {
+		t.Errorf("duplicate changed totals: steps=%d tokens=%d", session.StepCount, session.TotalTokens)
+	}
+	if wsHub.broadcastCount != 1 {
+		t.Errorf("broadcastCount = %d, want 1", wsHub.broadcastCount)
+	}
+}
+
+func TestPlaywrightVisionNavigator_LateStepAfterCompletionIsIgnored(t *testing.T) {
+	log := logrus.New()
+	log.SetOutput(io.Discard)
+	wsHub := &mockWSHub{}
+	creditSvc := &mockCreditService{}
+	nav := NewPlaywrightVisionNavigator(log,
+		WithPlaywrightHub(wsHub),
+		WithPlaywrightCreditService(creditSvc),
+	)
+
+	nav.mu.Lock()
+	nav.activeNavigations["nav_late_step"] = &NavigationSession{
+		NavigationID: "nav_late_step",
+		SessionID:    "session123",
+		Status:       StatusCompleted,
+		StepCount:    3,
+		TotalTokens:  300,
+	}
+	nav.mu.Unlock()
+
+	err := nav.HandleStepCallback(t.Context(), &NavigationStep{
+		NavigationID: "nav_late_step",
+		StepNumber:   4,
+		Action:       map[string]interface{}{"type": "click"},
+		TokensUsed: TokenUsage{
+			TotalTokens: 100,
+		},
+	})
+	if err != nil {
+		t.Fatalf("HandleStepCallback() error = %v", err)
+	}
+
+	nav.mu.RLock()
+	session := nav.activeNavigations["nav_late_step"]
+	nav.mu.RUnlock()
+	if session.Status != StatusCompleted || session.StepCount != 3 || session.TotalTokens != 300 {
+		t.Errorf("late step changed completed session: status=%v steps=%d tokens=%d", session.Status, session.StepCount, session.TotalTokens)
+	}
+	if creditSvc.chargeCount != 0 {
+		t.Errorf("late step charged credits %d times, want 0", creditSvc.chargeCount)
+	}
+	if wsHub.broadcastCount != 0 {
+		t.Errorf("late step broadcastCount = %d, want 0", wsHub.broadcastCount)
+	}
+}
+
+func TestPlaywrightVisionNavigator_DuplicateActiveStepIsIgnored(t *testing.T) {
+	log := logrus.New()
+	log.SetOutput(io.Discard)
+	wsHub := &mockWSHub{}
+	creditSvc := &mockCreditService{}
+	nav := NewPlaywrightVisionNavigator(log,
+		WithPlaywrightHub(wsHub),
+		WithPlaywrightCreditService(creditSvc),
+	)
+
+	nav.mu.Lock()
+	nav.activeNavigations["nav_duplicate_step"] = &NavigationSession{
+		NavigationID: "nav_duplicate_step",
+		SessionID:    "session123",
+		Status:       StatusNavigating,
+	}
+	nav.mu.Unlock()
+
+	event := &NavigationStep{
+		NavigationID: "nav_duplicate_step",
+		StepNumber:   1,
+		Action:       map[string]interface{}{"type": "click"},
+		TokensUsed:   TokenUsage{TotalTokens: 100},
+	}
+	if err := nav.HandleStepCallback(t.Context(), event); err != nil {
+		t.Fatalf("first HandleStepCallback() error = %v", err)
+	}
+	if err := nav.HandleStepCallback(t.Context(), event); err != nil {
+		t.Fatalf("duplicate HandleStepCallback() error = %v", err)
+	}
+
+	nav.mu.RLock()
+	session := nav.activeNavigations["nav_duplicate_step"]
+	nav.mu.RUnlock()
+	if len(session.Steps) != 1 || session.StepCount != 1 || session.TotalTokens != 100 {
+		t.Errorf("duplicate changed step state: history=%d steps=%d tokens=%d", len(session.Steps), session.StepCount, session.TotalTokens)
+	}
+	if creditSvc.chargeCount != 1 {
+		t.Errorf("chargeCount = %d, want 1", creditSvc.chargeCount)
+	}
 	if wsHub.broadcastCount != 1 {
 		t.Errorf("broadcastCount = %d, want 1", wsHub.broadcastCount)
 	}

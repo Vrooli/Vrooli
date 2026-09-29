@@ -33,6 +33,12 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// LibraryServiceCloseDeclaredAdmissionProcedure is the fully-qualified name of the LibraryService's
+	// CloseDeclaredAdmission RPC.
+	LibraryServiceCloseDeclaredAdmissionProcedure = "/vrooli.program_runtime.v1.library.LibraryService/CloseDeclaredAdmission"
+	// LibraryServiceGetDeclaredExecutionProcedure is the fully-qualified name of the LibraryService's
+	// GetDeclaredExecution RPC.
+	LibraryServiceGetDeclaredExecutionProcedure = "/vrooli.program_runtime.v1.library.LibraryService/GetDeclaredExecution"
 	// LibraryServiceListLibraryProcedure is the fully-qualified name of the LibraryService's
 	// ListLibrary RPC.
 	LibraryServiceListLibraryProcedure = "/vrooli.program_runtime.v1.library.LibraryService/ListLibrary"
@@ -53,6 +59,11 @@ const (
 // LibraryServiceClient is a client for the vrooli.program_runtime.v1.library.LibraryService
 // service.
 type LibraryServiceClient interface {
+	// Atomically prevent an unused key from executing, or return its already
+	// admitted execution for draining. This never starts or retries a program.
+	CloseDeclaredAdmission(context.Context, *connect.Request[library.RunDeclaredProgramRequest]) (*connect.Response[library.RunDeclaredProgramResponse], error)
+	// Read-only keyed observation also proves the deployed admission contract.
+	GetDeclaredExecution(context.Context, *connect.Request[library.GetDeclaredExecutionRequest]) (*connect.Response[library.GetDeclaredExecutionResponse], error)
 	ListLibrary(context.Context, *connect.Request[library.ListLibraryRequest]) (*connect.Response[library.ListLibraryResponse], error)
 	GetLibrary(context.Context, *connect.Request[library.GetLibraryRequest]) (*connect.Response[library.GetLibraryResponse], error)
 	PromoteLibrary(context.Context, *connect.Request[library.PromoteLibraryRequest]) (*connect.Response[library.PromoteLibraryResponse], error)
@@ -72,6 +83,18 @@ func NewLibraryServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 	baseURL = strings.TrimRight(baseURL, "/")
 	libraryServiceMethods := library.File_program_runtime_v1_library_library_proto.Services().ByName("LibraryService").Methods()
 	return &libraryServiceClient{
+		closeDeclaredAdmission: connect.NewClient[library.RunDeclaredProgramRequest, library.RunDeclaredProgramResponse](
+			httpClient,
+			baseURL+LibraryServiceCloseDeclaredAdmissionProcedure,
+			connect.WithSchema(libraryServiceMethods.ByName("CloseDeclaredAdmission")),
+			connect.WithClientOptions(opts...),
+		),
+		getDeclaredExecution: connect.NewClient[library.GetDeclaredExecutionRequest, library.GetDeclaredExecutionResponse](
+			httpClient,
+			baseURL+LibraryServiceGetDeclaredExecutionProcedure,
+			connect.WithSchema(libraryServiceMethods.ByName("GetDeclaredExecution")),
+			connect.WithClientOptions(opts...),
+		),
 		listLibrary: connect.NewClient[library.ListLibraryRequest, library.ListLibraryResponse](
 			httpClient,
 			baseURL+LibraryServiceListLibraryProcedure,
@@ -107,11 +130,24 @@ func NewLibraryServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // libraryServiceClient implements LibraryServiceClient.
 type libraryServiceClient struct {
-	listLibrary        *connect.Client[library.ListLibraryRequest, library.ListLibraryResponse]
-	getLibrary         *connect.Client[library.GetLibraryRequest, library.GetLibraryResponse]
-	promoteLibrary     *connect.Client[library.PromoteLibraryRequest, library.PromoteLibraryResponse]
-	setCurrentLibrary  *connect.Client[library.SetCurrentLibraryRequest, library.SetCurrentLibraryResponse]
-	runDeclaredProgram *connect.Client[library.RunDeclaredProgramRequest, library.RunDeclaredProgramResponse]
+	closeDeclaredAdmission *connect.Client[library.RunDeclaredProgramRequest, library.RunDeclaredProgramResponse]
+	getDeclaredExecution   *connect.Client[library.GetDeclaredExecutionRequest, library.GetDeclaredExecutionResponse]
+	listLibrary            *connect.Client[library.ListLibraryRequest, library.ListLibraryResponse]
+	getLibrary             *connect.Client[library.GetLibraryRequest, library.GetLibraryResponse]
+	promoteLibrary         *connect.Client[library.PromoteLibraryRequest, library.PromoteLibraryResponse]
+	setCurrentLibrary      *connect.Client[library.SetCurrentLibraryRequest, library.SetCurrentLibraryResponse]
+	runDeclaredProgram     *connect.Client[library.RunDeclaredProgramRequest, library.RunDeclaredProgramResponse]
+}
+
+// CloseDeclaredAdmission calls
+// vrooli.program_runtime.v1.library.LibraryService.CloseDeclaredAdmission.
+func (c *libraryServiceClient) CloseDeclaredAdmission(ctx context.Context, req *connect.Request[library.RunDeclaredProgramRequest]) (*connect.Response[library.RunDeclaredProgramResponse], error) {
+	return c.closeDeclaredAdmission.CallUnary(ctx, req)
+}
+
+// GetDeclaredExecution calls vrooli.program_runtime.v1.library.LibraryService.GetDeclaredExecution.
+func (c *libraryServiceClient) GetDeclaredExecution(ctx context.Context, req *connect.Request[library.GetDeclaredExecutionRequest]) (*connect.Response[library.GetDeclaredExecutionResponse], error) {
+	return c.getDeclaredExecution.CallUnary(ctx, req)
 }
 
 // ListLibrary calls vrooli.program_runtime.v1.library.LibraryService.ListLibrary.
@@ -142,6 +178,11 @@ func (c *libraryServiceClient) RunDeclaredProgram(ctx context.Context, req *conn
 // LibraryServiceHandler is an implementation of the
 // vrooli.program_runtime.v1.library.LibraryService service.
 type LibraryServiceHandler interface {
+	// Atomically prevent an unused key from executing, or return its already
+	// admitted execution for draining. This never starts or retries a program.
+	CloseDeclaredAdmission(context.Context, *connect.Request[library.RunDeclaredProgramRequest]) (*connect.Response[library.RunDeclaredProgramResponse], error)
+	// Read-only keyed observation also proves the deployed admission contract.
+	GetDeclaredExecution(context.Context, *connect.Request[library.GetDeclaredExecutionRequest]) (*connect.Response[library.GetDeclaredExecutionResponse], error)
 	ListLibrary(context.Context, *connect.Request[library.ListLibraryRequest]) (*connect.Response[library.ListLibraryResponse], error)
 	GetLibrary(context.Context, *connect.Request[library.GetLibraryRequest]) (*connect.Response[library.GetLibraryResponse], error)
 	PromoteLibrary(context.Context, *connect.Request[library.PromoteLibraryRequest]) (*connect.Response[library.PromoteLibraryResponse], error)
@@ -156,6 +197,18 @@ type LibraryServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewLibraryServiceHandler(svc LibraryServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	libraryServiceMethods := library.File_program_runtime_v1_library_library_proto.Services().ByName("LibraryService").Methods()
+	libraryServiceCloseDeclaredAdmissionHandler := connect.NewUnaryHandler(
+		LibraryServiceCloseDeclaredAdmissionProcedure,
+		svc.CloseDeclaredAdmission,
+		connect.WithSchema(libraryServiceMethods.ByName("CloseDeclaredAdmission")),
+		connect.WithHandlerOptions(opts...),
+	)
+	libraryServiceGetDeclaredExecutionHandler := connect.NewUnaryHandler(
+		LibraryServiceGetDeclaredExecutionProcedure,
+		svc.GetDeclaredExecution,
+		connect.WithSchema(libraryServiceMethods.ByName("GetDeclaredExecution")),
+		connect.WithHandlerOptions(opts...),
+	)
 	libraryServiceListLibraryHandler := connect.NewUnaryHandler(
 		LibraryServiceListLibraryProcedure,
 		svc.ListLibrary,
@@ -188,6 +241,10 @@ func NewLibraryServiceHandler(svc LibraryServiceHandler, opts ...connect.Handler
 	)
 	return "/vrooli.program_runtime.v1.library.LibraryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case LibraryServiceCloseDeclaredAdmissionProcedure:
+			libraryServiceCloseDeclaredAdmissionHandler.ServeHTTP(w, r)
+		case LibraryServiceGetDeclaredExecutionProcedure:
+			libraryServiceGetDeclaredExecutionHandler.ServeHTTP(w, r)
 		case LibraryServiceListLibraryProcedure:
 			libraryServiceListLibraryHandler.ServeHTTP(w, r)
 		case LibraryServiceGetLibraryProcedure:
@@ -206,6 +263,14 @@ func NewLibraryServiceHandler(svc LibraryServiceHandler, opts ...connect.Handler
 
 // UnimplementedLibraryServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedLibraryServiceHandler struct{}
+
+func (UnimplementedLibraryServiceHandler) CloseDeclaredAdmission(context.Context, *connect.Request[library.RunDeclaredProgramRequest]) (*connect.Response[library.RunDeclaredProgramResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.library.LibraryService.CloseDeclaredAdmission is not implemented"))
+}
+
+func (UnimplementedLibraryServiceHandler) GetDeclaredExecution(context.Context, *connect.Request[library.GetDeclaredExecutionRequest]) (*connect.Response[library.GetDeclaredExecutionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.library.LibraryService.GetDeclaredExecution is not implemented"))
+}
 
 func (UnimplementedLibraryServiceHandler) ListLibrary(context.Context, *connect.Request[library.ListLibraryRequest]) (*connect.Response[library.ListLibraryResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.library.LibraryService.ListLibrary is not implemented"))

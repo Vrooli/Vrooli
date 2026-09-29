@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/uiselectors"
@@ -261,34 +262,62 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	profileBound := h.getActiveSessionProfile(sessionID) != ""
+	profilePersisted := true
 	// Keep the browser available for retry until its complete profile snapshot
 	// has committed. Closing first destroys the only recoverable live state.
+	// If the browser has already disappeared, however, retrying the snapshot
+	// cannot recover it and must not strand the profile binding forever.
 	if err := h.persistSessionProfile(ctx, sessionID); err != nil {
-		h.log.WithError(err).WithField("session_id", sessionID).Warn("Failed to save profile before close")
-		h.respondError(w, ErrInternalServer.WithMessage("Session profile could not be saved; the browser remains open. Retry closing after resolving the save failure.").WithDetails(map[string]string{"error": err.Error()}))
-		return
+		if isGoneSessionError(err) {
+			profilePersisted = false
+			h.log.WithError(err).WithField("session_id", sessionID).Warn("Session already gone before profile snapshot; continuing idempotent close")
+		} else {
+			h.log.WithError(err).WithField("session_id", sessionID).Warn("Failed to save profile before close")
+			h.respondError(w, ErrInternalServer.WithMessage("Session profile could not be saved; the browser remains open. Retry closing after resolving the save failure.").WithDetails(map[string]string{"error": err.Error()}))
+			return
+		}
 	}
 
 	// Delegate to recordmode service
 	if err := h.recordModeService.CloseSession(ctx, sessionID); err != nil {
-		h.log.WithError(err).Error("Failed to close recording session")
-		// Check for not found error
-		if driverErr, ok := err.(*driver.Error); ok && driverErr.Status == 404 {
-			h.respondError(w, ErrExecutionNotFound.WithMessage("Session not found"))
+		if !profileBound || !isGoneSessionError(err) {
+			h.log.WithError(err).Error("Failed to close recording session")
+			// Check for not found error
+			if driverErr, ok := err.(*driver.Error); ok && driverErr.Status == 404 {
+				h.respondError(w, ErrExecutionNotFound.WithMessage("Session not found"))
+				return
+			}
+			h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+				"error": err.Error(),
+			}))
 			return
 		}
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
-		return
+		h.log.WithError(err).WithField("session_id", sessionID).Warn("Session was already gone during idempotent close")
 	}
 
 	h.clearActiveSessionProfile(sessionID)
 
-	h.respondSuccess(w, http.StatusOK, map[string]string{
-		"session_id": sessionID,
-		"status":     "closed",
+	h.respondSuccess(w, http.StatusOK, map[string]interface{}{
+		"session_id":        sessionID,
+		"status":            "closed",
+		"profile_persisted": profilePersisted,
 	})
+}
+
+// isGoneSessionError identifies terminal/absent browser state. Transient
+// storage or driver failures must still preserve the browser and its profile
+// binding for retry.
+func isGoneSessionError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var driverErr *driver.Error
+	if errors.As(err, &driverErr) {
+		return driverErr.Status == http.StatusNotFound || strings.Contains(strings.ToUpper(driverErr.Message), "SESSION_NOT_FOUND")
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "session closed") || strings.Contains(message, "session not found")
 }
 
 // GetRecordingDebug handles GET /api/v1/recordings/live/{sessionId}/debug

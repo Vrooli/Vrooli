@@ -819,7 +819,7 @@ func (h *Handler) runBreakdownRows(ctx context.Context, input *measurepb.Invocat
 func protoBreakdownRows(rows []invocationreadmodel.RunBreakdownRow) []*measurepb.RunBreakdownRow {
 	out := make([]*measurepb.RunBreakdownRow, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, &measurepb.RunBreakdownRow{Key: row.Key, Value: row.Value, RunCount: row.RunCount, SuccessCount: row.SuccessCount, FailedCount: row.FailedCount, TotalCostUsd: row.TotalCostUSD, TotalTokens: row.TotalTokens, AverageDurationMs: row.AvgDurationMS, TotalChargeMicroUsd: row.TotalChargeMicroUSD, ConsumptionPerSuccessfulCompletion: row.ConsumptionPerSuccessfulCompletion, CompletionRate: row.CompletionRate})
+		out = append(out, &measurepb.RunBreakdownRow{Key: row.Key, Value: row.Value, RunCount: row.RunCount, SuccessCount: row.SuccessCount, FailedCount: row.FailedCount, TotalCostUsd: row.TotalCostUSD, TotalTokens: row.TotalTokens, InputTokens: row.InputTokens, OutputTokens: row.OutputTokens, CacheReadTokens: row.CacheReadTokens, CacheCreationTokens: row.CacheCreationTokens, AverageDurationMs: row.AvgDurationMS, TotalChargeMicroUsd: row.TotalChargeMicroUSD, ConsumptionPerSuccessfulCompletion: row.ConsumptionPerSuccessfulCompletion, CompletionRate: row.CompletionRate})
 	}
 	return out
 }

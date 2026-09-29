@@ -145,6 +145,74 @@ func TestChangedScenariosIncludesDependentsOfMissingLock(t *testing.T) {
 	}
 }
 
+func TestChangedScenariosDetectsGeneratedOutputDrift(t *testing.T) {
+	repoRoot, protoRoot := makeRepo(t)
+	writeFile(t, filepath.Join(protoRoot, "schemas", "leaf", "v1", "leaf.proto"), "syntax = \"proto3\";\npackage leaf.v1;\nmessage Leaf {}\n")
+	output := filepath.Join(protoRoot, "gen", "go", "leaf", "v1", "leaf.pb.go")
+	writeFile(t, output, "generated")
+	manifest, err := BuildManifest(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot}, "leaf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteManifest(ManifestPath(protoRoot, "leaf"), manifest); err != nil {
+		t.Fatal(err)
+	}
+
+	changed, err := ChangedScenarios(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changed) != 0 {
+		t.Fatalf("fresh generated output reported as changed: %v", changed)
+	}
+
+	writeFile(t, output, "edited generated output")
+	changed, err = ChangedScenarios(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !equalStrings(changed, []string{"leaf"}) {
+		t.Fatalf("edited generated output reported %v, want [leaf]", changed)
+	}
+
+	if err := os.Remove(output); err != nil {
+		t.Fatal(err)
+	}
+	changed, err = ChangedScenarios(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !equalStrings(changed, []string{"leaf"}) {
+		t.Fatalf("missing generated output reported %v, want [leaf]", changed)
+	}
+}
+
+func TestChangedScenariosOutputDriftIncludesDependents(t *testing.T) {
+	repoRoot, protoRoot := makeRepo(t)
+	writeFile(t, filepath.Join(protoRoot, "schemas", "common", "v1", "common.proto"), "syntax = \"proto3\";\npackage common.v1;\nmessage Common {}\n")
+	writeFile(t, filepath.Join(protoRoot, "schemas", "dependent", "v1", "dependent.proto"), "syntax = \"proto3\";\npackage dependent.v1;\nimport \"common/v1/common.proto\";\nmessage Dependent { common.v1.Common value = 1; }\n")
+	writeFile(t, filepath.Join(protoRoot, "gen", "go", "common", "v1", "common.pb.go"), "common generated")
+	writeFile(t, filepath.Join(protoRoot, "gen", "go", "dependent", "v1", "dependent.pb.go"), "dependent generated")
+	for _, scenario := range []string{"common", "dependent"} {
+		manifest, err := BuildManifest(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot}, scenario)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := WriteManifest(ManifestPath(protoRoot, scenario), manifest); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	writeFile(t, filepath.Join(protoRoot, "gen", "go", "common", "v1", "common.pb.go"), "common edited")
+	changed, err := ChangedScenarios(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !equalStrings(changed, []string{"common", "dependent"}) {
+		t.Fatalf("output drift scope = %v, want [common dependent]", changed)
+	}
+}
+
 func makeRepo(t *testing.T) (string, string) {
 	t.Helper()
 	repoRoot := t.TempDir()

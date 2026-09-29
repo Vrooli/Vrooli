@@ -2,6 +2,8 @@ package recall
 
 import (
 	"context"
+	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -122,6 +124,41 @@ func TestWakeCharacterCeilingTruncatesSingleLineEntries(t *testing.T) {
 	require.Equal(t, "0123 "+truncationMarker, wake.Hits[0].Node.Text)
 	require.LessOrEqual(t, wake.CharsUsed, 10)
 	require.LessOrEqual(t, chars(wake.Hits[0].Node.Text), 6)
+}
+
+func TestWakeExcerptsStructuredContentWithoutChangingRecall(t *testing.T) { // [REQ:VMEM-P0-008]
+	content := "Continue the retained boundary; do not repeat accepted checks.\n" + strings.Repeat("界", 220)
+	raw, err := json.Marshal(map[string]any{
+		"at": "2026-09-27T00:00:00Z", "caller": strings.Repeat("metadata", 40),
+		"content": content, "id": "retained-note", "topic": "delivery/current",
+	})
+	require.NoError(t, err)
+	nodes := source{{ID: "retained-note", Text: string(raw), Frontier: true, Vectors: [][]float64{{1, 0}}}}
+	svc := NewService(nodes, embedder{[]float64{1, 0}}, Config{WakeBudget: 128, WakeBudgetChars: 12000, MaxEntryLines: 2, MaxEntryChars: 200})
+	wake, err := svc.Wake(context.Background(), 0)
+	require.NoError(t, err)
+	require.Len(t, wake.Hits, 1)
+	require.True(t, strings.HasPrefix(wake.Hits[0].Node.Text, "Continue the retained boundary;"))
+	require.Contains(t, wake.Hits[0].Node.Text, truncationMarker)
+	require.LessOrEqual(t, chars(wake.Hits[0].Node.Text), 200)
+	require.LessOrEqual(t, lines(wake.Hits[0].Node.Text), 2)
+	require.Equal(t, chars(wake.Hits[0].Node.Text), wake.CharsUsed)
+	hits, err := svc.Recall(context.Background(), "retained boundary", 1)
+	require.NoError(t, err)
+	require.Len(t, hits, 1)
+	require.Equal(t, string(raw), hits[0].Node.Text)
+	require.Equal(t, string(raw), nodes[0].Text)
+}
+
+func TestWakeStructuredExcerptPreservesUnrecognizedInput(t *testing.T) {
+	for _, input := range []string{
+		`{"content":42,"id":"number"}`, `{"content":"","id":"empty"}`,
+		`{"content":"  ","id":"blank"}`, `{"body":"unrecognized"}`,
+		`{"content":"incomplete"`, `[{"content":"array"}]`, "ordinary prose",
+	} {
+		t.Run(input, func(t *testing.T) { require.Equal(t, input, excerptText(input, 2, 200)) })
+	}
+	require.Equal(t, "useful prose", excerptText(`{"id":"note","content":"useful prose"}`, 2, 200))
 }
 
 func TestWakeWholeViewCharacterCeilingRefusesLaterEntries(t *testing.T) {

@@ -4,6 +4,7 @@ package recall
 
 import (
 	"context"
+	"encoding/json"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -282,13 +283,19 @@ func truncateRunes(text string, limit int) string {
 	return text
 }
 
-// splitLeadingMetadata separates a leading `---` fenced metadata block from the
-// prose after it, returning the block's most descriptive field as the lead.
-// Memories are stored verbatim, so a file that opens with frontmatter would
-// otherwise spend its whole excerpt on a delimiter and a slug. This is a
-// rendering concern only: the journal keeps every byte and recall returns them.
+// splitLeadingMetadata selects prose from structured source text before the
+// excerpt budget is spent on transport metadata. JSON content and frontmatter
+// are rendering concerns only: journal and recall retain every original byte.
 func splitLeadingMetadata(text string) (lead, body string) {
 	trimmed := strings.TrimSpace(text)
+	if strings.HasPrefix(trimmed, "{") {
+		var object struct {
+			Content string `json:"content"`
+		}
+		if json.Unmarshal([]byte(trimmed), &object) == nil && strings.TrimSpace(object.Content) != "" {
+			return "", strings.TrimSpace(object.Content)
+		}
+	}
 	if !strings.HasPrefix(trimmed, "---\n") {
 		return "", trimmed
 	}

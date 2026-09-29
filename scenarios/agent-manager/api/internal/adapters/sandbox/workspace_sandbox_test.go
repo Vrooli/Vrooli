@@ -119,6 +119,7 @@ func TestWorkspaceSandboxProvider_Get_DecodesWorkspaceLayout(t *testing.T) {
 			"mergedDir":     merged,
 			"workspacePath": "/workspace",
 			"pathIllusion":  true,
+			"behavior":      map[string]interface{}{"writePolicy": map[string]interface{}{"paths": []string{"src"}}},
 			"containment": map[string]interface{}{
 				"level":        "required",
 				"backend":      "bwrap",
@@ -165,6 +166,9 @@ func TestWorkspaceSandboxProvider_Get_DecodesWorkspaceLayout(t *testing.T) {
 	}
 	if len(cont.MissingProtectedEnforcements()) != 0 {
 		t.Errorf("fully contained sandbox reports missing: %v", cont.MissingProtectedEnforcements())
+	}
+	if cont.WritePolicy == nil || len(cont.WritePolicy.Paths) != 1 || cont.WritePolicy.Paths[0] != "src" {
+		t.Fatalf("persisted write policy missing from launch evidence: %+v", cont)
 	}
 }
 

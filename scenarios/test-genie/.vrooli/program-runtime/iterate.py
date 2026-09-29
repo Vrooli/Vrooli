@@ -41,7 +41,18 @@ try:
         if not isinstance(dependency, dict) or dependency.get("dependency") is not True:
             raise ValueError("additional content roots must be marked dependency=true")
     intent["content_inputs"] += extra
-    envelope["signals"].update(intent=intent, selection={
+    expected = inputs.get("expected_identity", {})
+    if not isinstance(expected, dict):
+        raise ValueError("expected_identity must be an object")
+    preview = dict(intent)
+    if expected:
+        roots = expected.get("roots", [])
+        if not isinstance(roots, list) or any(not isinstance(root, dict) or not isinstance(root.get("files", []), list) for root in roots):
+            raise ValueError("expected_identity roots must contain file manifests")
+        intent["expected_identity"] = expected
+        envelope["signals"].update(expected_manifest={"roots": len(roots), "files": sum(len(root.get("files", [])) for root in roots)},
+                                    intent_omitted_fields=["expected_identity"])
+    envelope["signals"].update(intent=preview, selection={
         "mode": "explicit_required" if phases else "owner_budget_profile",
         "phases": phases, "explanation": "Explicit phases are mandatory; otherwise Test Genie selects its history-informed quick profile. Budget exhaustion is incomplete validation, never permission to omit required checks."})
     envelope["status"] = "ok"
@@ -63,8 +74,8 @@ try:
         envelope["signals"]["wait_command"] = "test-genie validation wait " + receipt_id + " --wait-id " + receipt_id + "-iteration --timeout 30m --json"
         envelope["evidence"] = ["test-genie:validation:" + receipt_id]
 except Exception as exc:
-    envelope["status"] = "failed" if isinstance(exc, (ValueError, KeyError, TypeError)) else "unavailable"
-    envelope["errors"] = [{"class": "invalid_input" if envelope["status"] == "failed" else "admission_unavailable",
-                            "where": envelope["phase"], "detail": str(exc)[:240]}]
+    status, klass = ("failed", "invalid_input") if isinstance(exc, (ValueError, KeyError, TypeError)) else program.classify(exc)
+    envelope["status"] = status
+    envelope["errors"] = [{"class": klass, "where": envelope["phase"], "detail": str(exc)[:240]}]
 envelope["phase"] = "report"
 print(json.dumps(envelope))

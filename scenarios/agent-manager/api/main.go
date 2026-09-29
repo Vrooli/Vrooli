@@ -340,6 +340,13 @@ func (s *Server) startRecovery() {
 	if s.recovery == nil {
 		s.recovery = maintenance.NewRecovery()
 	}
+	// Model-policy drift is a read-only, bounded health observation. Start it
+	// independently of historical recovery so a large or degraded recovery
+	// queue cannot leave the live model-policy snapshot stale (and report
+	// models as missing) for the entire recovery window.
+	if s.modelPolicyDrift != nil {
+		s.modelPolicyDrift.Start(context.Background())
+	}
 	s.recovery.Start(context.Background(), s.recoverySteps())
 }
 
@@ -439,9 +446,6 @@ func (s *Server) recoverySteps() []maintenance.RecoveryStep {
 		}
 		if s.modelHealthProbe != nil {
 			s.modelHealthProbe.Start(ctx)
-		}
-		if s.modelPolicyDrift != nil {
-			s.modelPolicyDrift.Start(ctx)
 		}
 		return nil
 	}})

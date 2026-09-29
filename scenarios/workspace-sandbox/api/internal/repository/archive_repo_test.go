@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -61,6 +63,99 @@ func makeArchive(sandboxID uuid.UUID) *types.DiffArchive {
 		ProjectRoot:       "/project",
 		Owner:             "agent-7",
 		AgentManagerRunID: "run-abc",
+	}
+}
+
+func TestReviewSnapshotRepositoryImmutableBoundedAndVerified(t *testing.T) {
+	ar, sr, db := newTestArchiveRepo(t)
+	sb := seedSandbox(t, sr, types.StatusStopped)
+	snapshot := &types.ReviewSnapshot{SandboxID: sb.ID, RequestID: uuid.New(), Paths: []string{"."}, ProjectRoot: sb.ProjectRoot, ScopePath: sb.ScopePath}
+	snapshot.ID = types.ReviewSnapshotID(sb.ID, snapshot.RequestID)
+	snapshot.SHA256 = snapshot.ContentSHA256()
+	if err := ar.PutReviewSnapshot(t.Context(), snapshot); err != nil {
+		t.Fatal(err)
+	}
+	changed := *snapshot
+	changed.Owner = "replacement"
+	changed.SHA256 = changed.ContentSHA256()
+	if err := ar.PutReviewSnapshot(t.Context(), &changed); err == nil {
+		t.Fatal("published input replaced")
+	}
+	for i := 1; i < types.MaxReviewSnapshots; i++ {
+		next := *snapshot
+		next.RequestID = uuid.New()
+		next.ID = types.ReviewSnapshotID(sb.ID, next.RequestID)
+		next.SHA256 = next.ContentSHA256()
+		if err := ar.PutReviewSnapshot(t.Context(), &next); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := ar.CheckReviewCapacity(t.Context()); err == nil {
+		t.Fatal("full owner admitted more evidence")
+	}
+	if err := ar.PutReviewSnapshot(t.Context(), snapshot); err != nil {
+		t.Fatalf("full capacity broke same-ID replay: %v", err)
+	}
+	extra := *snapshot
+	extra.RequestID = uuid.New()
+	extra.ID = types.ReviewSnapshotID(sb.ID, extra.RequestID)
+	if err := ar.PutReviewSnapshot(t.Context(), &extra); err == nil {
+		t.Fatal("insert bypassed capacity check")
+	}
+	reader := NewArchiveRepository(db, schedule.System())
+	got, err := reader.GetReviewSnapshot(t.Context(), sb.ID, snapshot.RequestID)
+	if err != nil || !reflect.DeepEqual(got, snapshot) {
+		t.Fatalf("fresh owner lost original: %+v, %v", got, err)
+	}
+	if _, err := db.ExecContext(t.Context(), `UPDATE sandbox_review_snapshots SET snapshot_json = REPLACE(snapshot_json, ?, ?) WHERE id = ?`, `"scopePath":"`, `"scopePath":"corrupt`, snapshot.ID.String()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := reader.GetReviewSnapshot(t.Context(), sb.ID, snapshot.RequestID); err == nil {
+		t.Fatal("corrupt manifest accepted")
+	}
+}
+
+func TestPreparedApprovalImmutableAndTransactionallyConsumed(t *testing.T) {
+	ar, sr, db := newTestArchiveRepo(t)
+	sb := seedSandbox(t, sr, types.StatusActive)
+	intent := &types.PreparedApproval{Archive: *makeArchive(sb.ID), Request: types.ApprovalRequest{SandboxID: sb.ID, Mode: "all", Actor: "original"}, ScopePath: sb.ScopePath}
+	if err := ar.PutPreparedApproval(t.Context(), intent); err != nil {
+		t.Fatal(err)
+	}
+	if err := ar.PutPreparedApproval(t.Context(), intent); err != nil {
+		t.Fatalf("identical prepare retry: %v", err)
+	}
+	changed := *intent
+	changed.Request.Actor = "replacement"
+	if err := ar.PutPreparedApproval(t.Context(), &changed); err == nil {
+		t.Fatal("prepared intent was replaced")
+	}
+	reader := NewArchiveRepository(db, schedule.System())
+	got, err := reader.GetPreparedApproval(t.Context(), sb.ID)
+	if err != nil || got == nil || got.Request.Actor != "original" {
+		t.Fatalf("fresh repository lost original intent: %+v, %v", got, err)
+	}
+	if err := ar.DeletePreparedApproval(t.Context(), nil, sb.ID); err == nil {
+		t.Fatal("intent deletion must participate in terminal publication transaction")
+	}
+	tx, err := sr.BeginTx(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ar.Insert(t.Context(), tx.Tx(), &intent.Archive); err != nil {
+		t.Fatal(err)
+	}
+	if err := ar.DeletePreparedApproval(t.Context(), tx.Tx(), sb.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := ar.GetPreparedApproval(t.Context(), sb.ID); err != nil || got == nil {
+		t.Fatalf("rollback lost recovery identity: %+v, %v", got, err)
+	}
+	if got, err := ar.Get(t.Context(), sb.ID); err != nil || got != nil {
+		t.Fatalf("rollback published terminal archive: %+v, %v", got, err)
 	}
 }
 
@@ -226,30 +321,61 @@ func TestArchiveRepository_Insert_NotCaptured_Allowed(t *testing.T) {
 	}
 }
 
-func TestArchiveRepository_Insert_IsIdempotentOnSandboxID(t *testing.T) {
-	ar, sr, _ := newTestArchiveRepo(t)
-	s := seedSandbox(t, sr, types.StatusApproved)
-
-	a1 := makeArchive(s.ID)
-	a1.UnifiedDiffSHA256 = strings.Repeat("1", 64)
-	if err := ar.Insert(context.Background(), nil, a1); err != nil {
-		t.Fatalf("insert #1: %v", err)
-	}
-
-	a2 := makeArchive(s.ID)
-	a2.UnifiedDiffSHA256 = strings.Repeat("2", 64) // different content
-	a2.SnapshotAt = a1.SnapshotAt.Add(time.Minute)
-	if err := ar.Insert(context.Background(), nil, a2); err != nil {
-		t.Fatalf("insert #2: %v", err)
-	}
-
-	got, err := ar.Get(context.Background(), s.ID)
-	if err != nil || got == nil {
-		t.Fatalf("get: %v / %+v", err, got)
-	}
-	if got.UnifiedDiffSHA256 != a2.UnifiedDiffSHA256 {
-		t.Errorf("expected re-insert to overwrite; got unified hash %q, want %q",
-			got.UnifiedDiffSHA256, a2.UnifiedDiffSHA256)
+func TestArchiveRepository_Insert_ReplaysOnlyIdenticalEvidence(t *testing.T) {
+	for _, transactional := range []bool{false, true} {
+		t.Run(fmt.Sprintf("transaction=%t", transactional), func(t *testing.T) {
+			ar, sr, db := newTestArchiveRepo(t)
+			s := seedSandbox(t, sr, types.StatusApproved)
+			original := makeArchive(s.ID)
+			if err := ar.Insert(t.Context(), nil, original); err != nil {
+				t.Fatal(err)
+			}
+			var tx *sql.Tx
+			if transactional {
+				var err error
+				tx, err = db.BeginTx(t.Context(), nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = tx.Rollback() })
+			}
+			if err := ar.Insert(t.Context(), tx, makeArchive(s.ID)); err != nil {
+				t.Fatalf("identical replay: %v", err)
+			}
+			mutations := map[string]func(*types.DiffArchive){
+				"patch":        func(a *types.DiffArchive) { a.UnifiedDiffSHA256 = strings.Repeat("d", 64) },
+				"capture time": func(a *types.DiffArchive) { a.SnapshotAt = a.SnapshotAt.Add(time.Second) },
+				"file body":    func(a *types.DiffArchive) { a.Files[0].BlobSHA256 = strings.Repeat("d", 64) },
+				"stats":        func(a *types.DiffArchive) { a.Stats.FilesChanged++ },
+				"bytes":        func(a *types.DiffArchive) { a.TotalBlobBytes++ },
+				"root":         func(a *types.DiffArchive) { a.ProjectRoot += "/different" },
+				"owner":        func(a *types.DiffArchive) { a.Owner = "replacement" },
+				"run":          func(a *types.DiffArchive) { a.AgentManagerRunID = "other-run" },
+				"status":       func(a *types.DiffArchive) { a.SandboxStatus = types.StatusRejected },
+				"uncaptured": func(a *types.DiffArchive) {
+					a.ArchiveState = types.ArchiveStateNotCaptured
+					a.Files = nil
+					a.UnifiedDiffSHA256 = ""
+					a.TotalBlobBytes = 0
+				},
+			}
+			for name, mutate := range mutations {
+				changed := makeArchive(s.ID)
+				mutate(changed)
+				if err := ar.Insert(t.Context(), tx, changed); err == nil {
+					t.Errorf("%s replacement was accepted", name)
+				}
+			}
+			if tx != nil {
+				if err := tx.Commit(); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got, err := ar.Get(t.Context(), s.ID)
+			if err != nil || !reflect.DeepEqual(got, original) {
+				t.Fatalf("original evidence changed: %+v, %v", got, err)
+			}
+		})
 	}
 }
 

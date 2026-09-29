@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "kind": "superseded_rehabilitation_working_set",
+  "created_at": "2026-09-28T16:30:00Z",
+  "selection_rule": "All files in the BAS rehabilitation runtime working root before the E01 current-build refresh; the managed build was older than the current source and no file was eligible as current qualification proof. Existing archive entries were excluded.",
+  "archive": "superseded-working-set-before-e01-refresh-20260928.tar.gz",
+  "file_count": 52,
+  "uncompressed_bytes": 5662777,
+  "uncompressed_text_lines": 136508,
+  "archive_bytes": 438238,
+  "archive_sha256": "9b754468a4ce629b9ed7e06fb7d9a85decec25da0e989ef5836efe703063e1d0",
+  "listing_sha256": "ee73935ce71bec1e5dbd64955c8909d936f6685ef277fc4ed05db267a25351cc",
+  "retrieval_command": "tar -xzf superseded-working-set-before-e01-refresh-20260928.tar.gz",
+  "verified": true,
+  "verified_commands": [
+    "tar -tzf superseded-working-set-before-e01-refresh-20260928.tar.gz",
+    "sha256sum superseded-working-set-before-e01-refresh-20260928.tar.gz",
+    "tar -tzf superseded-working-set-before-e01-refresh-20260928.tar.gz | LC_ALL=C sort | sha256sum"
+  ]
+}

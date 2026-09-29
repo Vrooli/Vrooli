@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "program-runtime",
   "generator": "v1.0.0",
-  "manifest_hash": "64251341a6b9fd557cdecbfeefc9bc84a99de2c383d1b1763d08571ffcfcce6e",
+  "manifest_hash": "50419652d51ff909f49af1b3e6f45c62eddb7d3b1c4379635ee2c70de1527f9d",
   "commands": [
     {
       "path": "authoring eval",
@@ -83,6 +83,22 @@
       "group": "discovery",
       "command": "eval",
       "binding": "vrooli.program_runtime.v1.programs.ProgramService.RunDiscoveryEval",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "library close-admission",
+      "group": "library",
+      "command": "close-admission",
+      "binding": "LibraryService.CloseDeclaredAdmission",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "library execution",
+      "group": "library",
+      "command": "execution",
+      "binding": "LibraryService.GetDeclaredExecution",
+      "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },
     {

@@ -131,7 +131,7 @@ def step_collect():
                 record["provenance"] = {key: provenance[key] for key in ("projectionAt", "projectionAgeMs", "projectionStale", "projectionStaleReason") if key in provenance}
             out[name] = record
         out["statuses"] = [compact(row, ["status", "count"]) for row in raw.get("statuses", [])[:row_limit]]
-        out["breakdown"] = [compact(row, ["value", "runCount", "successCount", "failedCount", "totalTokens", "averageDurationMs", "completionRate"]) for row in raw.get("breakdown", [])[:row_limit]]
+        out["breakdown"] = [compact(row, ["key", "value", "runCount", "successCount", "failedCount", "totalTokens", "inputTokens", "outputTokens", "cacheReadTokens", "cacheCreationTokens", "averageDurationMs", "completionRate"]) for row in raw.get("breakdown", [])[:row_limit]]
         out["tools"] = [compact(row, ["toolName", "callCount", "failedCount", "totalTokens"]) for row in raw.get("tools", [])[:row_limit]]
         freshness = next((item.get("provenance") for name in ("volume", "success", "durations", "cost")
                           for item in (raw.get(name) or []) if item.get("provenance")), None)

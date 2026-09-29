@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 
+	"program-runtime/internal/programs"
 	"program-runtime/internal/shapes"
 
 	"program-runtime/internal/sessions"
@@ -86,10 +87,16 @@ func (w *Worker) RunOnce(ctx context.Context) (Result, error) {
 		{table: "reclamation_reasons", column: "reclaimed_at", cutoff: now.Add(-w.reclaims), target: &out.ReclamationsDeleted},
 	} {
 		where := item.column + " < ?"
+		args := []any{formatCutoff(item.cutoff)}
+		if item.table == "programs" {
+			// Even a zero evidence window must not re-open a live request key.
+			where += " AND (request_digest = '' OR created_at < ?)"
+			args = append(args, formatCutoff(now.Add(-programs.DeclaredAdmissionWindow)))
+		}
 		if item.predicate != "" {
 			where += " AND " + item.predicate
 		}
-		result, err := w.db.ExecContext(ctx, "DELETE FROM "+item.table+" WHERE "+where, formatCutoff(item.cutoff))
+		result, err := w.db.ExecContext(ctx, "DELETE FROM "+item.table+" WHERE "+where, args...)
 		if err != nil {
 			return out, fmt.Errorf("prune %s: %w", item.table, err)
 		}

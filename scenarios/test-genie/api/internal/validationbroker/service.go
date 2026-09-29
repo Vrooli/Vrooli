@@ -10,10 +10,14 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation"
 	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation/validation_v1connect"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"test-genie/internal/execution"
+	sharedruns "test-genie/internal/shared/runs"
 )
 
 const maximumWait = 30 * time.Minute
@@ -29,6 +33,10 @@ type WorkAborter interface {
 	AbortValidation(context.Context, *validationv1.ValidationReceipt, string, string) error
 }
 
+type EvidenceWorkAborter interface {
+	AbortEvidenceValidation(context.Context, *validationv1.ValidationReceipt, *validationv1.ValidationIntent, string, string) error
+}
+
 type TransitionFunc func(context.Context, string, validationv1.ReceiptState, func(*validationv1.ValidationReceipt) error) (*validationv1.ValidationReceipt, error)
 
 // WorkProducer owns server-lifetime validation execution. ExecuteValidation is
@@ -37,20 +45,50 @@ type WorkProducer interface {
 	ExecuteValidation(context.Context, *validationv1.ValidationReceipt, *validationv1.ValidationIntent, TransitionFunc) error
 }
 
+type EvidenceDeclarationResolver interface {
+	ResolveEvidenceProducer(context.Context, string, string, string) (*validationv1.PinnedEvidenceProducer, error)
+}
+
+// RetainedEvidenceAdmission owns exact catalog verification and existing run
+// pin leases. A missing implementation must fail closed for bound evidence.
+type RetainedEvidenceAdmission interface {
+	Verify(context.Context, *scenariovalidationv1.RetainedEvidenceSet) error
+	Pin(context.Context, string, *scenariovalidationv1.RetainedEvidenceSet) error
+	Release(context.Context, string, *scenariovalidationv1.RetainedEvidenceSet) error
+}
+
+// InvalidRetainedEvidenceError marks a bundle defect local to one validation
+// receipt. Recovery can fail that receipt while continuing unrelated work.
+type InvalidRetainedEvidenceError struct{ Cause error }
+
+func (e *InvalidRetainedEvidenceError) Error() string { return e.Cause.Error() }
+func (e *InvalidRetainedEvidenceError) Unwrap() error { return e.Cause }
+
+func invalidRetainedEvidence(format string, args ...any) error {
+	return &InvalidRetainedEvidenceError{Cause: fmt.Errorf(format, args...)}
+}
+
+func IsInvalidRetainedEvidence(err error) bool {
+	var invalid *InvalidRetainedEvidenceError
+	return errors.As(err, &invalid)
+}
+
 // Service is the receipt observation and control surface. Producer adapters
 // call Transition after durable child progress; all waiting is notification-
 // driven and a client context never owns producer work.
 type Service struct {
 	validationconnect.UnimplementedValidationServiceHandler
-	repo          ReceiptRepository
-	aborter       WorkAborter
-	producer      WorkProducer
-	identity      IdentityResolver
-	shadows       ShadowRepository
-	mu            sync.Mutex
-	waiters       map[string]map[string]chan waitSignal
-	drivers       map[string]bool
-	reattachDelay time.Duration
+	repo                 ReceiptRepository
+	aborter              WorkAborter
+	producer             WorkProducer
+	identity             IdentityResolver
+	evidenceDeclarations EvidenceDeclarationResolver
+	retainedEvidence     RetainedEvidenceAdmission
+	shadows              ShadowRepository
+	mu                   sync.Mutex
+	waiters              map[string]map[string]chan waitSignal
+	drivers              map[string]bool
+	reattachDelay        time.Duration
 }
 
 type ShadowRepository interface {
@@ -71,19 +109,174 @@ func (s *Service) SetIdentityResolver(identity IdentityResolver) {
 	s.identity = identity
 }
 
+func (s *Service) SetEvidenceDeclarationResolver(resolver EvidenceDeclarationResolver) {
+	s.evidenceDeclarations = resolver
+}
+
+func (s *Service) SetRetainedEvidenceAdmission(admission RetainedEvidenceAdmission) {
+	s.retainedEvidence = admission
+}
+
+// ResolveSourceIdentity is the read-only owner seam for workflows that need
+// to bind evidence after an effectful candidate handoff. It deliberately
+// accepts only content roots and targets, never a caller-supplied identity;
+// the resolver therefore computes the identity from the current repository
+// state at the point of the call.
+func (s *Service) ResolveSourceIdentity(ctx context.Context, req *connect.Request[validationv1.ResolveSourceIdentityRequest]) (*connect.Response[validationv1.ResolveSourceIdentityResponse], error) {
+	if req == nil || req.Msg == nil || len(req.Msg.GetContentInputs()) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("content inputs are required"))
+	}
+	request := req.Msg
+	if s.identity == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("source identity resolver is unavailable"))
+	}
+	intent := &validationv1.ValidationIntent{
+		SchemaVersion: ReceiptSchemaVersion,
+		Purpose:       validationv1.ValidationPurpose_VALIDATION_PURPOSE_EVIDENCE_PRODUCTION,
+		Targets:       append([]*commonv1.ValidationTarget(nil), request.GetTargets()...),
+		ContentInputs: append([]*validationv1.ContentInputRoot(nil), request.GetContentInputs()...),
+	}
+	identity, err := s.identity.Resolve(ctx, intent)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("resolve source identity: %w", err))
+	}
+	return connect.NewResponse(&validationv1.ResolveSourceIdentityResponse{Identity: identity}), nil
+}
+
+func (s *Service) verifyRetainedEvidenceProducers(ctx context.Context, intent *validationv1.ValidationIntent) error {
+	for _, set := range intent.GetRetainedEvidenceSets() {
+		producer, err := s.repo.Get(ctx, set.GetProducerReceiptId())
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				return invalidRetainedEvidence("retained producer receipt %q is missing", set.GetProducerReceiptId())
+			}
+			return fmt.Errorf("resolve retained producer receipt: %w", err)
+		}
+		producerIntent, err := s.repo.GetIntent(ctx, set.GetProducerReceiptId())
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				return invalidRetainedEvidence("retained producer intent %q is missing", set.GetProducerReceiptId())
+			}
+			return fmt.Errorf("resolve retained producer intent: %w", err)
+		}
+		pin := producerIntent.GetPinnedEvidenceProducer()
+		if producer.GetState() != validationv1.ReceiptState_RECEIPT_STATE_SUCCEEDED || pin == nil || pin.GetProducer() != set.GetProducer() {
+			return invalidRetainedEvidence("retained evidence does not reference the exact successful producer receipt")
+		}
+		if producer.GetProducedEvidenceSet() == nil || !proto.Equal(producer.GetProducedEvidenceSet(), set) {
+			return invalidRetainedEvidence("retained evidence must be passed unchanged from its producer receipt")
+		}
+		if len(producerIntent.GetTargets()) != 1 || producerIntent.GetTargets()[0].GetId() != set.GetTarget() {
+			return invalidRetainedEvidence("retained evidence producer target changed")
+		}
+		if producer.GetAdmittedIdentity().GetIdentity() != set.GetCandidateIdentity() {
+			return invalidRetainedEvidence("retained evidence candidate identity differs from its producer admission")
+		}
+		child := childByID(producer, evidenceProducerChildID(pin))
+		if child == nil || child.GetState() != validationv1.ChildOperationState_CHILD_OPERATION_STATE_SUCCEEDED || child.GetOperationId() != set.GetRunId() {
+			return invalidRetainedEvidence("retained evidence run is not the successful child of its producer receipt")
+		}
+	}
+	return nil
+}
+
 func (s *Service) CreateValidation(ctx context.Context, req *connect.Request[validationv1.CreateValidationRequest]) (*connect.Response[validationv1.CreateValidationResponse], error) {
 	intent := req.Msg.GetIntent()
 	if intent != nil {
 		intent = proto.Clone(intent).(*validationv1.ValidationIntent)
 	}
+	if intent != nil && (intent.GetPurpose() == validationv1.ValidationPurpose_VALIDATION_PURPOSE_EVIDENCE_PRODUCTION || intent.GetPinnedEvidenceProducer() != nil) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("evidence production requires CreateEvidenceProduction"))
+	}
+	if intent != nil && len(intent.GetRetainedEvidenceSets()) > 0 {
+		if s.retainedEvidence == nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("retained evidence catalog admission is unavailable"))
+		}
+		if err := s.verifyRetainedEvidenceProducers(ctx, intent); err != nil {
+			if IsInvalidRetainedEvidence(err) {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+			}
+			return nil, connectError(err)
+		}
+		for _, set := range intent.GetRetainedEvidenceSets() {
+			if err := s.retainedEvidence.Verify(ctx, set); err != nil {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+			}
+		}
+	}
+	receipt, err := s.createValidation(ctx, intent)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&validationv1.CreateValidationResponse{Receipt: receipt}), nil
+}
+
+func (s *Service) CreateEvidenceProduction(ctx context.Context, req *connect.Request[validationv1.CreateEvidenceProductionRequest]) (*connect.Response[validationv1.CreateEvidenceProductionResponse], error) {
+	request := req.Msg
+	if request == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("evidence production request is required"))
+	}
+	// Resolve a durable key before touching the mutable provider declaration or
+	// host containment. Replays compare only the original typed request.
+	if request.GetIdempotencyKey() != "" && request.GetCallerScenario() != "" {
+		receipt, replayErr := s.repo.FindEvidenceProductionReplay(ctx, request)
+		if replayErr != nil {
+			return nil, connectError(replayErr)
+		}
+		if receipt != nil {
+			return connect.NewResponse(&validationv1.CreateEvidenceProductionResponse{Receipt: receipt}), nil
+		}
+	}
+	if s.evidenceDeclarations == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("evidence producer declarations are unavailable"))
+	}
+	if request == nil || request.GetExpectedCandidateIdentity() == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("expected candidate identity is required"))
+	}
+	pinned, err := s.evidenceDeclarations.ResolveEvidenceProducer(ctx, request.GetProvider(), request.GetProducer(), request.GetCandidateScenario())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	if err := execution.CheckEvidenceProducerContainment(ctx); err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	if s.identity == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("producer source identity resolver is unavailable"))
+	}
+	sourceIdentity, err := s.identity.Resolve(ctx, producerSourceIntent(pinned))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("resolve provider source identity: %w", err))
+	}
+	pinned.SourceIdentity = sourceIdentity.GetIdentity()
+	intent := &validationv1.ValidationIntent{
+		SchemaVersion: ReceiptSchemaVersion, IdempotencyKey: request.GetIdempotencyKey(), CallerScenario: request.GetCallerScenario(), CallerExecutionId: request.GetCallerExecutionId(), PlanId: request.GetPlanId(),
+		Targets:                []*commonv1.ValidationTarget{{Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO, Id: request.GetCandidateScenario()}},
+		Purpose:                validationv1.ValidationPurpose_VALIDATION_PURPOSE_EVIDENCE_PRODUCTION,
+		RequiredStrength:       validationv1.ValidationStrength_VALIDATION_STRENGTH_TARGETED,
+		ExpectedIdentity:       proto.Clone(request.GetExpectedCandidateIdentity()).(*validationv1.SourceIdentity),
+		ContentInputs:          []*validationv1.ContentInputRoot{{Name: "candidate", Root: "scenarios/" + request.GetCandidateScenario(), Selections: []*validationv1.InputSelection{{Glob: "**", Required: true}}}},
+		EvidencePolicy:         &validationv1.EvidencePolicy{},
+		ReusePolicy:            &validationv1.ReusePolicy{Mode: validationv1.ReuseMode_REUSE_MODE_NEVER},
+		ConcurrencyPolicy:      &validationv1.ConcurrencyPolicy{Mode: validationv1.ConcurrencyMode_CONCURRENCY_MODE_EXCLUSIVE},
+		DeadlinePolicy:         &validationv1.DeadlinePolicy{MaximumAttempts: 1},
+		PinnedEvidenceProducer: pinned,
+	}
+	receipt, err := s.createValidation(ctx, intent)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&validationv1.CreateEvidenceProductionResponse{Receipt: receipt}), nil
+}
+
+func (s *Service) createValidation(ctx context.Context, intent *validationv1.ValidationIntent) (*validationv1.ValidationReceipt, error) {
 	if s.identity != nil && intent != nil {
 		expected := intent.GetExpectedIdentity()
 		resolved, resolveErr := s.identity.Resolve(ctx, intent)
 		if resolveErr != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%w: resolve content inputs: %v", ErrInvalidIntent, resolveErr))
 		}
-		if expected != nil && strings.TrimSpace(expected.GetIdentity()) != "" && expected.GetIdentity() != resolved.GetIdentity() {
-			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("expected content identity %s but resolved %s", expected.GetIdentity(), resolved.GetIdentity()))
+		if err := matchExpectedIdentity(expected, resolved); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 		}
 		intent.ExpectedIdentity = resolved
 	}
@@ -95,6 +288,20 @@ func (s *Service) CreateValidation(ctx context.Context, req *connect.Request[val
 	if err != nil {
 		return nil, connectError(err)
 	}
+	if len(intent.GetRetainedEvidenceSets()) > 0 && !terminal(admission.Receipt.GetState()) {
+		for _, set := range intent.GetRetainedEvidenceSets() {
+			if err := s.retainedEvidence.Pin(context.WithoutCancel(ctx), admission.Receipt.GetReceiptId(), set); err != nil {
+				if admission.Kind == AdmissionNew {
+					_, _ = s.Transition(context.WithoutCancel(ctx), admission.Receipt.GetReceiptId(), validationv1.ReceiptState_RECEIPT_STATE_FAILED, func(r *validationv1.ValidationReceipt) error {
+						r.ReasonCode = validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_PROVIDER_UNAVAILABLE
+						r.Detail = "retained evidence pin failed: " + err.Error()
+						return nil
+					})
+				}
+				return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+			}
+		}
+	}
 	if admission.Kind == AdmissionNew && s.producer != nil {
 		queued, transitionErr := s.Transition(context.WithoutCancel(ctx), admission.Receipt.GetReceiptId(), validationv1.ReceiptState_RECEIPT_STATE_QUEUED, nil)
 		if transitionErr != nil {
@@ -103,7 +310,7 @@ func (s *Service) CreateValidation(ctx context.Context, req *connect.Request[val
 		admission.Receipt = queued
 		s.startProducer(admission.Receipt, intent)
 	}
-	return connect.NewResponse(&validationv1.CreateValidationResponse{Receipt: admission.Receipt}), nil
+	return admission.Receipt, nil
 }
 
 // Recovery and admission may race within the owner process. Register before
@@ -189,13 +396,73 @@ func (s *Service) Recover(ctx context.Context) (int, error) {
 	for _, item := range active {
 		intent, err := normalizeIntent(item.Intent)
 		if err != nil {
+			if len(item.Intent.GetRetainedEvidenceSets()) > 0 && errors.Is(err, ErrInvalidIntent) {
+				if failErr := s.failRecoveredRetainedEvidence(ctx, item.Receipt.GetReceiptId(), err); failErr != nil {
+					return 0, failErr
+				}
+				continue
+			}
 			return 0, err
+		}
+		if len(intent.GetRetainedEvidenceSets()) > 0 {
+			if s.retainedEvidence == nil {
+				return 0, errors.New("retained evidence lease recovery is unavailable")
+			}
+			if err := s.verifyRetainedEvidenceProducers(ctx, intent); err != nil {
+				if !IsInvalidRetainedEvidence(err) {
+					return 0, err
+				}
+				if failErr := s.failRecoveredRetainedEvidence(ctx, item.Receipt.GetReceiptId(), err); failErr != nil {
+					return 0, failErr
+				}
+				continue
+			}
+			invalidated := false
+			for _, set := range intent.GetRetainedEvidenceSets() {
+				if err := s.retainedEvidence.Verify(ctx, set); err != nil {
+					if !IsInvalidRetainedEvidence(err) {
+						return 0, err
+					}
+					if failErr := s.failRecoveredRetainedEvidence(ctx, item.Receipt.GetReceiptId(), err); failErr != nil {
+						return 0, failErr
+					}
+					invalidated = true
+					break
+				}
+				if err := s.retainedEvidence.Pin(ctx, item.Receipt.GetReceiptId(), set); err != nil {
+					if !invalidRetainedLeaseError(err) {
+						return 0, err
+					}
+					if failErr := s.failRecoveredRetainedEvidence(ctx, item.Receipt.GetReceiptId(), err); failErr != nil {
+						return 0, failErr
+					}
+					invalidated = true
+					break
+				}
+			}
+			if invalidated {
+				continue
+			}
 		}
 		if s.startProducer(item.Receipt, intent) {
 			started++
 		}
 	}
 	return started, nil
+}
+
+func invalidRetainedLeaseError(err error) bool {
+	code := connect.CodeOf(err)
+	return IsInvalidRetainedEvidence(err) || code == connect.CodeInvalidArgument || code == connect.CodeNotFound || code == connect.CodeFailedPrecondition
+}
+
+func (s *Service) failRecoveredRetainedEvidence(ctx context.Context, receiptID string, cause error) error {
+	_, err := s.Transition(context.WithoutCancel(ctx), receiptID, validationv1.ReceiptState_RECEIPT_STATE_FAILED, func(receipt *validationv1.ValidationReceipt) error {
+		receipt.ReasonCode = validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_REQUIRED_EVIDENCE_MISSING
+		receipt.Detail = "retained evidence admission failed during recovery: " + cause.Error()
+		return nil
+	})
+	return err
 }
 
 func (s *Service) GetValidation(ctx context.Context, req *connect.Request[validationv1.GetValidationRequest]) (*connect.Response[validationv1.GetValidationResponse], error) {
@@ -303,10 +570,25 @@ func (s *Service) AbortValidationWork(ctx context.Context, req *connect.Request[
 		return connect.NewResponse(&validationv1.AbortValidationWorkResponse{Receipt: receipt}), nil
 	}
 	if s.aborter != nil {
-		if err := s.aborter.AbortValidation(ctx, receipt, req.Msg.GetReason(), req.Msg.GetRequestedBy()); err != nil {
-			return nil, connect.NewError(connect.CodeUnavailable, err)
+		intent, intentErr := s.repo.GetIntent(ctx, receipt.GetReceiptId())
+		if intentErr != nil {
+			return nil, connectError(intentErr)
+		}
+		var abortErr error
+		if intent.GetPurpose() == validationv1.ValidationPurpose_VALIDATION_PURPOSE_EVIDENCE_PRODUCTION {
+			if evidenceAborter, ok := s.aborter.(EvidenceWorkAborter); ok {
+				abortErr = evidenceAborter.AbortEvidenceValidation(ctx, receipt, intent, req.Msg.GetReason(), req.Msg.GetRequestedBy())
+			} else {
+				abortErr = errors.New("pinned evidence producer abort is unavailable")
+			}
+		} else {
+			abortErr = s.aborter.AbortValidation(ctx, receipt, req.Msg.GetReason(), req.Msg.GetRequestedBy())
+		}
+		if abortErr != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, abortErr)
 		}
 	}
+	settledChildren := proto.Clone(receipt).(*validationv1.ValidationReceipt)
 	receipt, err = s.repo.Get(ctx, req.Msg.GetReceiptId())
 	if err != nil {
 		return nil, connectError(err)
@@ -315,6 +597,7 @@ func (s *Service) AbortValidationWork(ctx context.Context, req *connect.Request[
 		return connect.NewResponse(&validationv1.AbortValidationWorkResponse{Receipt: receipt}), nil
 	}
 	receipt, err = s.Transition(ctx, receipt.GetReceiptId(), validationv1.ReceiptState_RECEIPT_STATE_CANCELLED, func(value *validationv1.ValidationReceipt) error {
+		mergeAbortedChildOutcomes(value, settledChildren)
 		value.ReasonCode = validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_ABORTED
 		value.Detail = fmt.Sprintf("work aborted by %s: %s", strings.TrimSpace(req.Msg.GetRequestedBy()), strings.TrimSpace(req.Msg.GetReason()))
 		return nil
@@ -323,6 +606,26 @@ func (s *Service) AbortValidationWork(ctx context.Context, req *connect.Request[
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&validationv1.AbortValidationWorkResponse{Receipt: receipt}), nil
+}
+
+func mergeAbortedChildOutcomes(current, settled *validationv1.ValidationReceipt) {
+	for _, outcome := range settled.GetChildren() {
+		if outcome.GetState() != validationv1.ChildOperationState_CHILD_OPERATION_STATE_SUCCEEDED && outcome.GetState() != validationv1.ChildOperationState_CHILD_OPERATION_STATE_FAILED && outcome.GetState() != validationv1.ChildOperationState_CHILD_OPERATION_STATE_CANCELLED {
+			continue
+		}
+		for _, child := range current.GetChildren() {
+			if child.GetChildId() != outcome.GetChildId() {
+				continue
+			}
+			if child.GetState() == validationv1.ChildOperationState_CHILD_OPERATION_STATE_SUCCEEDED || child.GetState() == validationv1.ChildOperationState_CHILD_OPERATION_STATE_FAILED || child.GetState() == validationv1.ChildOperationState_CHILD_OPERATION_STATE_CANCELLED {
+				break
+			}
+			child.State = outcome.GetState()
+			child.Detail = outcome.GetDetail()
+			child.ReasonCode = outcome.GetReasonCode()
+			break
+		}
+	}
 }
 
 func (s *Service) ExplainValidation(ctx context.Context, req *connect.Request[validationv1.ExplainValidationRequest]) (*connect.Response[validationv1.ExplainValidationResponse], error) {
@@ -369,12 +672,37 @@ func (s *Service) Transition(ctx context.Context, receiptID string, next validat
 	if err == nil {
 		s.notify(receiptID)
 		if terminal(receipt.GetState()) {
-			attached, propagateErr := s.repo.PropagateTerminal(ctx, receipt)
-			if propagateErr != nil {
-				return nil, propagateErr
+			var cleanupErr error
+			if s.retainedEvidence != nil {
+				intent, intentErr := s.repo.GetIntent(ctx, receiptID)
+				if intentErr != nil {
+					cleanupErr = fmt.Errorf("load retained evidence intent for terminal cleanup: %w", intentErr)
+				} else {
+					for _, set := range intent.GetRetainedEvidenceSets() {
+						var releaseErr error
+						for attempt := 0; attempt < 2; attempt++ {
+							releaseCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
+							releaseErr = s.retainedEvidence.Release(releaseCtx, receiptID, set)
+							cancel()
+							if releaseErr == nil {
+								break
+							}
+						}
+						if releaseErr != nil {
+							cleanupErr = errors.Join(cleanupErr, fmt.Errorf("release retained evidence pin after bounded retry; the existing %s run-pin lease remains bounded by expiry: %w", sharedruns.DefaultPinLeaseTTL, releaseErr))
+						}
+					}
+				}
 			}
+			attached, propagateErr := s.repo.PropagateTerminal(ctx, receipt)
 			for _, attachedID := range attached {
 				s.notify(attachedID)
+			}
+			if propagateErr != nil {
+				cleanupErr = errors.Join(cleanupErr, fmt.Errorf("propagate terminal receipt: %w", propagateErr))
+			}
+			if cleanupErr != nil {
+				return receipt, cleanupErr
 			}
 		}
 	}

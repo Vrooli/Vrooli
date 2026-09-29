@@ -1,6 +1,16 @@
 # Effort workspace contract
 
-The workspace is the leader's durable source and review desk. Keep it outside scenario source and outside generated native skills. Resolve `runtime_home.dir_name` and `runtime_home.entries.plan_artifacts.path` from `.vrooli/repo-contract.json`; use `<runtime-home>/<plan-artifacts>/efforts/<slug>/`. This existing protected class retains sources cited by plans. A Plan Manager supplied artifact location takes precedence when one already owns this effort. Do not create a new runtime-home class or store irreplaceable intent in cache.
+The workspace is the leader's durable source and review index. Resolve `runtime_home.dir_name` and `runtime_home.entries.plan_artifacts.path` from `.vrooli/repo-contract.json`; use `<runtime-home>/<plan-artifacts>/efforts/<slug>/` for that protected index. A Plan Manager supplied artifact location takes precedence when one already owns this effort. Do not create a new runtime-home class or store irreplaceable intent in cache or generated native skills.
+
+Keep existing scenario-owned requirements, architecture, feedback, issues and
+evidence at their canonical paths. Prompt Manager operating contracts support
+`base: repo-root` references in both `documents.planOfRecord` and
+`documents.sharedState`, plus member write references. Use those references to
+make a scenario's documents the team's working surfaces without copying or moving
+them. The protected effort index retains identity, authority and owner/source
+pointers; it does not require a second copy of the scenario's ledger. Team path
+declarations describe ownership, not enforcement; qualify the execution owner's
+write and effect restrictions separately.
 
 Use the canonical helper for a new folder or a structural review:
 

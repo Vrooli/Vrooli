@@ -132,12 +132,14 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	h := &handlers{client: libraryconnect.NewLibraryServiceClient(httpClient, baseURL), programs: programsconnect.NewProgramServiceClient(httpClient, baseURL), progress: os.Stderr}
 	return cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{
-		"LibraryService.ListLibrary":        cliapp.ProtoList(h.list, h.listReport),
-		"search":                            cliapp.ProtoList(h.list, h.listReport),
-		"LibraryService.GetLibrary":         cliapp.ProtoList(h.get, h.getReport),
-		"LibraryService.PromoteLibrary":     cliapp.ProtoMutation(h.promote, h.promoteReport),
-		"LibraryService.SetCurrentLibrary":  cliapp.ProtoMutation(h.setCurrent, h.currentReport),
-		"LibraryService.RunDeclaredProgram": cliapp.ProtoMutationOutcome(h.run, h.runReport, h.runOutcome),
+		"LibraryService.ListLibrary":            cliapp.ProtoList(h.list, h.listReport),
+		"search":                                cliapp.ProtoList(h.list, h.listReport),
+		"LibraryService.GetLibrary":             cliapp.ProtoList(h.get, h.getReport),
+		"LibraryService.GetDeclaredExecution":   cliapp.ProtoList(h.execution, h.executionReport),
+		"LibraryService.PromoteLibrary":         cliapp.ProtoMutation(h.promote, h.promoteReport),
+		"LibraryService.SetCurrentLibrary":      cliapp.ProtoMutation(h.setCurrent, h.currentReport),
+		"LibraryService.RunDeclaredProgram":     cliapp.ProtoMutationOutcome(h.run, h.runReport, h.runOutcome),
+		"LibraryService.CloseDeclaredAdmission": cliapp.ProtoMutation(h.closeAdmission, h.closeAdmissionReport),
 	})
 }
 
@@ -157,7 +159,7 @@ func libraryRunStatus(stdout string) string {
 	return ""
 }
 
-func (h *handlers) run(ctx cliapp.OperationContext) (*libraryv1.RunDeclaredProgramResponse, error) {
+func declaredRequest(ctx cliapp.OperationContext) (*libraryv1.RunDeclaredProgramRequest, error) {
 	name := ctx.Positional("name")
 	parts := strings.SplitN(name, ".", 2)
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
@@ -183,12 +185,46 @@ func (h *handlers) run(ctx cliapp.OperationContext) (*libraryv1.RunDeclaredProgr
 	default:
 		return nil, fmt.Errorf("provenance must be operator, agent, test, or replay")
 	}
-	result, err := h.client.RunDeclaredProgram(context.Background(), connect.NewRequest(&libraryv1.RunDeclaredProgramRequest{
+	return &libraryv1.RunDeclaredProgramRequest{
 		Name: name, Inputs: structured, Provenance: provenance, Caller: callerFromFlags(ctx), Async: true,
-	}))
+		Grants:         ctx.FlagValues("grant"),
+		ExpectedDigest: ctx.Flag("expected-digest"), IdempotencyKey: ctx.Flag("idempotency-key"), AdmissionDeadline: ctx.Flag("admission-deadline"),
+	}, nil
+}
+
+func (h *handlers) closeAdmission(ctx cliapp.OperationContext) (*libraryv1.RunDeclaredProgramResponse, error) {
+	request, err := declaredRequest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	r, err := h.client.CloseDeclaredAdmission(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("close declared admission", err, nil)
+	}
+	return r.Msg, nil
+}
+
+func (*handlers) closeAdmissionReport(_ cliapp.OperationContext, r *libraryv1.RunDeclaredProgramResponse) cliapp.MutationReport {
+	status := "Terminal original receipt retained."
+	if !r.GetTerminal() {
+		status = "Already-admitted work is still draining; this is not proof of stopped effects."
+	}
+	return cliapp.MutationReport{Result: []string{"Admission closed: " + r.GetProgram().GetId(), status}}
+}
+
+func (h *handlers) run(ctx cliapp.OperationContext) (*libraryv1.RunDeclaredProgramResponse, error) {
+	request, err := declaredRequest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	name := request.Name
+	result, err := h.client.RunDeclaredProgram(context.Background(), connect.NewRequest(request))
 	if err != nil {
 		if code := connect.CodeOf(err); code == connect.CodeInvalidArgument || code == connect.CodeNotFound || code == connect.CodeFailedPrecondition {
 			return nil, fmt.Errorf("declared program %s rejected before acceptance: %w", name, err)
+		}
+		if ctx.Flag("idempotency-key") != "" {
+			return nil, fmt.Errorf("accept declared program %s: %w; acceptance is unknown: repeat only this exact request with the same key, digest, inputs, caller and admission deadline to recover its execution; do not renew the deadline", name, err)
 		}
 		return nil, fmt.Errorf("accept declared program %s: %w; acceptance is unknown: do not blindly retry an effectful program; inspect program-runtime programs list --include-operator --since-seconds 600 --json and vrooli scenario logs program-runtime", name, err)
 	}
@@ -310,6 +346,21 @@ func (h *handlers) get(ctx cliapp.OperationContext) (*libraryv1.GetLibraryRespon
 		return nil, cliapp.WrapAPIError("get library", err, nil)
 	}
 	return r.Msg, nil
+}
+
+func (h *handlers) execution(ctx cliapp.OperationContext) (*libraryv1.GetDeclaredExecutionResponse, error) {
+	r, err := h.client.GetDeclaredExecution(context.Background(), connect.NewRequest(&libraryv1.GetDeclaredExecutionRequest{Name: ctx.Positional("name"), IdempotencyKey: ctx.Flag("idempotency-key")}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("observe declared execution", err, nil)
+	}
+	return r.Msg, nil
+}
+
+func (*handlers) executionReport(_ cliapp.OperationContext, r *libraryv1.GetDeclaredExecutionResponse) cliapp.ListReport {
+	if !r.GetFound() {
+		return cliapp.ListReport{Summary: []string{"No retained execution found. Nothing was submitted; absence does not authorize a retry."}}
+	}
+	return cliapp.ListReport{Summary: []string{"Original execution: " + r.GetProgram().GetId()}, Results: []string{r.GetProgram().GetStatus().String()}, ResultCount: 1}
 }
 
 func (h *handlers) promote(ctx cliapp.OperationContext) (*libraryv1.PromoteLibraryResponse, error) {

@@ -285,6 +285,32 @@ func TestSandboxConfigRoundTripPreservesLifecycleAcceptanceAndNilCriteria(t *tes
 	}
 }
 
+func TestWorkspaceWritePolicyPreservesPresenceAcrossWireAndStorage(t *testing.T) {
+	for _, policy := range []*domain.WorkspaceWritePolicy{nil, {}, {Paths: []string{"src", "tests"}}} {
+		cfg := domain.DefaultSandboxConfig()
+		cfg.WritePolicy = policy
+		wire, err := proto.Marshal(SandboxConfigToProto(cfg))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var decoded pb.SandboxConfig
+		if err := proto.Unmarshal(wire, &decoded); err != nil {
+			t.Fatal(err)
+		}
+		data, err := json.Marshal(SandboxConfigFromProto(&decoded))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var stored domain.SandboxConfig
+		if err := json.Unmarshal(data, &stored); err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(stored.WritePolicy, policy) {
+			t.Fatalf("write policy lost across wire/storage: got %#v, want %#v", stored.WritePolicy, policy)
+		}
+	}
+}
+
 func TestSandboxLifecycleEventsModesAndAcceptanceConvertersFailClosed(t *testing.T) {
 	events := []domain.SandboxLifecycleEvent{
 		domain.SandboxLifecycleTurnCompleted, domain.SandboxLifecycleTurnFailed, domain.SandboxLifecycleTurnCancelled,

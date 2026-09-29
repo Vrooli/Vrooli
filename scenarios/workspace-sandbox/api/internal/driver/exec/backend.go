@@ -56,6 +56,22 @@ func (noneBackend) buildStartOpts(_ process.Starter, s *types.Sandbox, _ BwrapCo
 //	ContainmentRequired:  platform backend, or a hard error when none is
 //	                      available on this host.
 func buildStartOpts(starter process.Starter, s *types.Sandbox, level driver.ContainmentLevel, cfg BwrapConfig, cmd string, args ...string) (process.StartOpts, string, error) {
+	if len(cfg.PolicyFiles) > 0 {
+		if level != driver.ContainmentRequired || runtime.GOOS != "linux" {
+			return process.StartOpts{}, "", fmt.Errorf("policy files require the Linux required-containment backend")
+		}
+		if err := validatePolicyFiles(s, cfg); err != nil {
+			return process.StartOpts{}, "", err
+		}
+	}
+	if s.Behavior.WritePolicy != nil {
+		if level != driver.ContainmentRequired || runtime.GOOS != "linux" {
+			return process.StartOpts{}, "", fmt.Errorf("workspace write policy requires the Linux required-containment backend")
+		}
+		if err := validateWorkspaceWritePolicy(s, cfg); err != nil {
+			return process.StartOpts{}, "", err
+		}
+	}
 	direct := noneBackend{}
 	switch level {
 	case driver.ContainmentNone:

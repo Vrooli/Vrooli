@@ -41,6 +41,47 @@ connection. Startup marks unfinished records `runtime_interrupted`, preserves
 their output, and reports that downstream effects require inspection. It does
 not replay them. The runtime still has one execution-owning API process.
 
+For automation that must recover a lost **acceptance** response, persist one
+request before dispatch and supply `--expected-digest`, `--idempotency-key`, and
+`--admission-deadline` (the same fields on `RunDeclaredProgramRequest`). The key
+is scoped to the declared program name. The fixed RFC3339 deadline MUST be
+within 24 hours on first admission. Retrying MUST preserve key, deadline,
+pinned digest, resolved inputs, provenance and caller attribution. Changing
+that intent while its record exists is refused; asynchronous versus synchronous
+observation does not change intent. Concurrent identical calls share one program
+record and execute at most once. No key means an independent submission.
+
+Replay returns the retained execution, including failure or `runtime_interrupted`;
+it does not repeat effects. After the admission deadline, a retained execution
+remains readable, but a missing execution is refused. Evidence retention keeps
+keyed records for at least the admission window, even with a shorter configured
+evidence window. After pruning, the original expired request still cannot execute.
+Never renew a deadline or mint another key to work around an unknown outcome.
+One-use qualification authority belongs to the accepting workflow, not this key;
+the workflow must retain its consumption decision and prohibit renewed attempts
+without a new authorized transition. These guarantees do not make downstream
+effects transactional or authorize the caller. Restart-redacted bearer receipts
+remain redacted; the runtime compares a stored intent fingerprint instead of
+recovering credentials from historical source.
+
+For cancellation, `library close-admission` takes the exact original declared
+request. Closure races on the same unique program row as submission. If closure
+wins, the retained terminal `admission_closed` record prevents later execution;
+if submission wins, closure returns that original program for draining. It does
+not kill already-admitted work or prove downstream effects stopped. Observe with
+`library execution <name> --idempotency-key <key>` and attach to the retained
+program with `programs wait`; never submit from a cancellation path. Missing
+observation is not proof that a racing submission cannot arrive.
+
+Declared execution accepts explicit repeatable `--grant binding:<id>` values
+only for destructive bindings listed by the pinned contract. The declaration
+alone grants nothing. Broad grants, wildcards and undeclared binding IDs refuse.
+Grant sets participate in immutable admission and closure intent; recovery MUST
+preserve them. The serving `GetDeclaredExecution` response advertises admission
+contract version 2 for this atomic closure and exact-grant path. A client that
+requires it must refuse older runtimes before dispatch, not assume unknown
+protobuf request fields were enforced.
+
 Repeat `--input` for independent inputs or use comma-separated pairs. Every flag
 is retained; conflicting repeated keys are rejected instead of silently selecting
 another channel or target.

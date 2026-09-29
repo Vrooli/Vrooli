@@ -3,6 +3,8 @@ package runner
 import (
 	"context"
 
+	"agent-manager/internal/domain"
+
 	"github.com/google/uuid"
 )
 
@@ -20,6 +22,10 @@ type Containment struct {
 	// Enforcements lists the platform-neutral guarantees the backend
 	// provides for this sandbox.
 	Enforcements []string
+	// WritePolicy is the persisted sandbox policy, not merely a backend
+	// capability. It prevents reuse of an unconstrained sandbox for a run
+	// whose creation or continuation requests a constrained workspace.
+	WritePolicy *domain.WorkspaceWritePolicy
 }
 
 // Enforcement names — the platform-neutral vocabulary workspace-sandbox
@@ -27,6 +33,8 @@ type Containment struct {
 // scenarios are separate Go modules; the parity is a wire contract.
 const (
 	EnforcementFilesystemWriteContainment = "filesystem-write-containment"
+	EnforcementWorkspaceWritePolicy       = "workspace-write-policy"
+	EnforcementPolicyFiles                = "read-only-policy-files"
 	EnforcementNetworkDeny                = "network-deny"
 	EnforcementPIDNamespace               = "pid-namespace"
 	EnforcementPathIllusion               = "path-illusion"
@@ -41,8 +49,8 @@ const (
 
 // protectedModeEnforcements are the guarantees a protected-mode run
 // depends on: the agent's writes stay contained in the overlay and its
-// network is denied. Missing any of these means protected mode is
-// degraded (the run still proceeds, but the gap is surfaced loudly).
+// backend supports network denial. Missing any of these refuses protected
+// launch. Backend capability does not prove the selected process network mode.
 var protectedModeEnforcements = []string{
 	EnforcementFilesystemWriteContainment,
 	EnforcementNetworkDeny,
@@ -63,8 +71,8 @@ func (c *Containment) HasEnforcement(name string) bool {
 
 // MissingProtectedEnforcements returns the protected-mode-required
 // enforcements this containment does NOT provide, in a stable order. A
-// nil containment (or backend "none") returns all of them. An empty
-// result means protected mode is fully honored.
+// nil containment returns all of them. The launcher separately checks backend
+// and level; these names alone are not proof of runtime enforcement.
 func (c *Containment) MissingProtectedEnforcements() []string {
 	var missing []string
 	for _, want := range protectedModeEnforcements {
@@ -77,9 +85,8 @@ func (c *Containment) MissingProtectedEnforcements() []string {
 
 // SandboxContainmentReporter is optionally implemented by a
 // SandboxLauncherFactory that can report a sandbox's enforced containment.
-// The selector type-asserts the factory to this interface so protected-mode
-// capability probing degrades gracefully when the factory cannot report
-// (e.g. test doubles).
+// Protected launches require this interface and a current report. Tracking
+// callers can continue without a report, without claiming containment.
 type SandboxContainmentReporter interface {
 	// ContainmentFor reports the containment the given sandbox actually
 	// enforces. Returns a nil report (ok=false) when it cannot be resolved.

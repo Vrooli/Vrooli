@@ -565,8 +565,9 @@ func TestContinueRun_ProtectedSandboxCarriesLauncherInputsAndLifecycleEvents(t *
 		StartedAt:      &now,
 		EndedAt:        &now,
 		ResolvedConfig: &domain.RunConfig{
-			RunnerType:    domain.RunnerTypeClaudeCode,
-			SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
+			RunnerType: domain.RunnerTypeClaudeCode, NetworkAccess: domain.NetworkAccessNone,
+			SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected,
+				NetworkMode: domain.NetworkAccessNone, WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}}},
 		},
 		ApprovalState: domain.ApprovalStateNone,
 		CreatedAt:     now,
@@ -574,6 +575,13 @@ func TestContinueRun_ProtectedSandboxCarriesLauncherInputsAndLifecycleEvents(t *
 	}
 	if err := repos.Runs.Create(ctx, run); err != nil {
 		t.Fatalf("create run: %v", err)
+	}
+
+	// Profile changes after admission must not widen a resumed assignment.
+	profile.NetworkAccess = domain.NetworkAccessFull
+	profile.SandboxConfig = &domain.SandboxConfig{Mode: domain.SandboxModeOff}
+	if _, err := svc.UpdateProfile(ctx, profile); err != nil {
+		t.Fatal(err)
 	}
 
 	if _, err := svc.ContinueRun(ctx, orchestration.ContinueRunRequest{
@@ -597,6 +605,11 @@ func TestContinueRun_ProtectedSandboxCarriesLauncherInputsAndLifecycleEvents(t *
 	}
 	if captured.ResolvedConfig.SandboxConfig == nil || captured.ResolvedConfig.SandboxConfig.Mode != domain.SandboxModeProtected {
 		t.Fatalf("expected protected sandbox config, got %#v", captured.ResolvedConfig.SandboxConfig)
+	}
+	policy := captured.ResolvedConfig.SandboxConfig
+	if captured.ResolvedConfig.NetworkAccess != domain.NetworkAccessNone || policy.NetworkMode != domain.NetworkAccessNone ||
+		policy.WritePolicy == nil || len(policy.WritePolicy.Paths) != 1 || policy.WritePolicy.Paths[0] != "src" {
+		t.Fatalf("continuation widened persisted authority after profile mutation: %+v", captured.ResolvedConfig)
 	}
 	if captured.SandboxID == nil || *captured.SandboxID != sandboxID {
 		t.Fatalf("expected sandbox ID %s, got %v", sandboxID, captured.SandboxID)

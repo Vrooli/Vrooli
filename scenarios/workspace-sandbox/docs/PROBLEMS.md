@@ -4,6 +4,35 @@ This document tracks known issues, open questions, and ideas deferred for future
 
 ## Open Issues
 
+### Workspace alias shadowing — repaired and adopted (2026-09-27)
+
+The bwrap builder mounted private `/tmp` after workspace aliases. With
+`MirrorProjectRoot=true`, this hid project or merged aliases below `/tmp`.
+Masks could also hide the project alias; root `/` was incorrectly excluded
+from the ancestor comparison. Failing regressions reproduced both cases.
+Private `/tmp` now precedes workspace binds, and masks preserve every alias.
+Full driver/exec and driver tests pass with `-trimpath`. The opt-in
+`TestLiveWorkspaceAliasesUnderTemporaryDirectory` also passes against actual
+bubblewrap (`go test ./internal/driver/exec -run '^TestLiveWorkspaceAliasesUnderTemporaryDirectory$' -count=1 -args -live-bwrap-aliases`).
+
+Adoption initially waited for the 45 active sandbox records to be distinguished
+from running processes. The provider reported complete, empty process inventory
+and the host had no bwrap child. Normal lifecycle restart then adopted API build
+`sha256:886d0cf2db08ce0a2822aaffb147b80eac2fe6826e10ccd34999bacaac437491`.
+The retained Agent Manager sandbox remained active. Post-restart disposable
+live-API checks proved workspace/merged aliases, overlay writes, read-only
+lower-layer denial, network denial and no running child afterward. Both probe
+sandboxes were deleted without promotion. Optional project-root mirroring was
+tested by the real-bwrap integration test, not enabled on the live service.
+
+Unit receipt `20260927-031429-f85404c2` remains failed. Its API failures came
+from four compiler-source-path-dependent fixtures and request-duration logging
+using the system clock instead of its injected clock. After repair, the full
+API suite passes with `-count=1 -trimpath -covermode=atomic`, including Darwin
+and Windows cross-builds. Separate test-policy/architecture findings remain;
+the green API run does not replace the failed owner receipt. The cross-scenario
+integration checkpoint retains the evidence index.
+
 ### Behavior config seam — deferred follow-ups (2026-05-21)
 
 - **Wire-level override.** Today the rejection-message template comes

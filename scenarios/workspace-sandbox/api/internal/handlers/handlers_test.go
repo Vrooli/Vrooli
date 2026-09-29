@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"testing"
 	"time"
 
@@ -291,16 +292,16 @@ func TestGetSandboxStampsWorkspaceLayout(t *testing.T) {
 	const merged = "/tmp/ws-sandbox/merged"
 
 	cases := []struct {
-		name         string
-		level        driver.ContainmentLevel
-		bwrap        bool
-		wantPath     string
-		wantIllusion bool
-		wantBackend  string
-		wantEnforceN int
+		name             string
+		level            driver.ContainmentLevel
+		bwrap            bool
+		wantPath         string
+		wantIllusion     bool
+		wantBackend      string
+		wantEnforcements []string
 	}{
-		{"contained-bwrap", driver.ContainmentRequired, true, "/workspace", true, "bwrap", 4},
-		{"identity-none", driver.ContainmentNone, false, merged, false, "none", 0},
+		{"contained-bwrap", driver.ContainmentRequired, true, "/workspace", true, "bwrap", []string{"filesystem-write-containment", "workspace-write-policy", "read-only-policy-files", "network-deny", "pid-namespace", "path-illusion"}},
+		{"identity-none", driver.ContainmentNone, false, merged, false, "none", nil},
 	}
 
 	for _, tc := range cases {
@@ -344,8 +345,8 @@ func TestGetSandboxStampsWorkspaceLayout(t *testing.T) {
 			if got.Containment.Backend != tc.wantBackend {
 				t.Errorf("containment.backend = %q, want %q", got.Containment.Backend, tc.wantBackend)
 			}
-			if len(got.Containment.Enforcements) != tc.wantEnforceN {
-				t.Errorf("containment.enforcements = %v, want %d", got.Containment.Enforcements, tc.wantEnforceN)
+			if !slices.Equal(got.Containment.Enforcements, tc.wantEnforcements) {
+				t.Errorf("containment.enforcements = %v, want %v", got.Containment.Enforcements, tc.wantEnforcements)
 			}
 		})
 	}

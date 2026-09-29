@@ -27,6 +27,25 @@ export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
     scrollIntoViewIfNeeded: jest.fn().mockResolvedValue(undefined),
     screenshot: jest.fn().mockResolvedValue(Buffer.from('element-screenshot')),
   };
+  const mockCDPSession = {
+    send: jest.fn().mockResolvedValue({
+      result: {
+        type: 'string',
+        value: JSON.stringify({
+          loaded: true,
+          loadTime: Date.now(),
+          version: 'test-recording-script',
+          ready: true,
+          handlersCount: 1,
+          inMainContext: true,
+        }),
+      },
+    }),
+    detach: jest.fn().mockResolvedValue(undefined),
+  };
+  const mockPageContext = {
+    newCDPSession: jest.fn().mockResolvedValue(mockCDPSession),
+  };
 
   const mockPage = {
     goto: jest.fn().mockResolvedValue(null),
@@ -57,7 +76,7 @@ export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
     title: jest.fn().mockResolvedValue('Test Page'),
     viewport: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
     viewportSize: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
-    context: jest.fn().mockReturnValue({}),
+    context: jest.fn().mockReturnValue(mockPageContext),
     frames: jest.fn().mockReturnValue([]),
     mainFrame: jest.fn(),
     isVisible: jest.fn().mockResolvedValue(true),

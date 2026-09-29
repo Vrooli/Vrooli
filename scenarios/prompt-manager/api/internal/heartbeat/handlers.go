@@ -327,6 +327,136 @@ func (h *Handlers) GetHeartbeat(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(h.toResponse(config))
 }
 
+// RefreshSupervision handles an explicit owner-cut refresh. It is
+// observation-only: a disabled team may be inspected, but an unresolved wake
+// is never overwritten and no queue/model work is admitted.
+func (h *Handlers) RefreshSupervision(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	teamID, agentID := vars["id"], vars["agentId"]
+	if h.teamStore == nil {
+		http.Error(w, "Team store not configured", http.StatusServiceUnavailable)
+		return
+	}
+	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+	if err := h.requireMember(ctx, teamID, agentID); err != nil {
+		if errors.Is(err, errMemberNotFound) {
+			http.Error(w, "Team member not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if h.executor == nil || h.executor.EffortSupervisor == nil {
+		http.Error(w, "Standing supervision unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	config, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if config == nil || config.Supervision == nil {
+		http.Error(w, "Standing supervision heartbeat config not found", http.StatusNotFound)
+		return
+	}
+	state, err := h.executor.EffortSupervisor.Observe(ctx, teamID, agentID)
+	if err != nil {
+		status := http.StatusServiceUnavailable
+		if strings.Contains(err.Error(), "wake unresolved") {
+			status = http.StatusConflict
+		}
+		http.Error(w, err.Error(), status)
+		return
+	}
+	response := h.toResponse(config)
+	response.SupervisionState = state
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(response)
+}
+
+// ReconcileSupervision closes one owner-verified uncertain dispatch. This is
+// an operator recovery operation, not a trigger: it performs one exact run
+// lookup and only moves the retained wake into bounded resolved history.
+func (h *Handlers) ReconcileSupervision(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	teamID, agentID := vars["id"], vars["agentId"]
+	if h.teamStore == nil {
+		http.Error(w, "Team store not configured", http.StatusServiceUnavailable)
+		return
+	}
+	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+	if err := h.requireMember(ctx, teamID, agentID); err != nil {
+		if errors.Is(err, errMemberNotFound) {
+			http.Error(w, "Team member not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if h.executor == nil || h.executor.EffortSupervisor == nil {
+		http.Error(w, "Standing supervision unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if h.controlStore != nil {
+		_, human, err := attributionFromRequest(r, teamID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if !human {
+			http.Error(w, "operator-direct attribution is required", http.StatusForbidden)
+			return
+		}
+	}
+	var req ReconcileSupervisionRequest
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16*1024))
+	if err := decoder.Decode(&req); err != nil {
+		http.Error(w, "invalid supervision recovery request", http.StatusBadRequest)
+		return
+	}
+	state, err := h.executor.EffortSupervisor.ReconcileUnresolvedWake(ctx, teamID, agentID, req)
+	if err != nil {
+		status := http.StatusConflict
+		if strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "at most") || strings.Contains(err.Error(), "distinct") {
+			status = http.StatusBadRequest
+		}
+		http.Error(w, err.Error(), status)
+		return
+	}
+	if h.controlStore != nil {
+		event, eventErr := h.operatorEngagementEventFromRequest(r, teamID, "supervision-wake-reconciled")
+		if eventErr != nil {
+			http.Error(w, eventErr.Error(), http.StatusBadRequest)
+			return
+		}
+		if eventErr = h.recordOperatorEngagementEvent(ctx, event); eventErr != nil {
+			http.Error(w, eventErr.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	config, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
+	if err != nil || config == nil {
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			http.Error(w, "Standing supervision heartbeat config not found", http.StatusNotFound)
+		}
+		return
+	}
+	response := h.toResponse(config)
+	response.SupervisionState = state
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(response)
+}
+
 // CreateHeartbeat handles POST /teams/{id}/heartbeats/{agentId} - creates heartbeat config
 func (h *Handlers) CreateHeartbeat(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

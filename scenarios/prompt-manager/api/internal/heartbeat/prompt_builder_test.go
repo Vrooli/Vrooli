@@ -2,6 +2,8 @@ package heartbeat
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -10,7 +12,64 @@ import (
 	"prompt-manager/internal/sourceledger"
 	"prompt-manager/internal/store"
 	"prompt-manager/internal/teamconfig"
+	"prompt-manager/internal/teamcontract"
 )
+
+func TestPromptBuilderUsesConfiguredRepositoryForScenarioDocuments(t *testing.T) {
+	ctx := context.Background()
+	roots := paths.RootsForTest(t)
+	const document = "scenarios/fixture/docs/PROGRESS.md"
+	fullPath := filepath.Join(roots.RepoRoot, document)
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(fullPath, []byte("Canonical scenario progress\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Production storage roots need not be under the repository; an unrelated
+	// environment or CWD must not replace the explicitly configured root.
+	t.Setenv("VROOLI_ROOT", t.TempDir())
+	fileStore := newFileStore(t, roots)
+	agents := fileStore.Agents().(*store.FileAgentStore)
+	teams := fileStore.Teams().(*store.FileTeamStore)
+	agent := &store.Agent{ID: "agent-1", DisplayName: "Agent One", Status: store.AgentStatusActive}
+	if err := agents.Create(ctx, agent); err != nil {
+		t.Fatal(err)
+	}
+	team := newIndependentTestTeam("team-1", "Team One")
+	team.OperatingContract.Documents.SharedState = []teamcontract.SharedStateDocument{{
+		ID: "progress", Path: teamcontract.PathRef{Base: teamcontract.BaseRepoRoot, Path: document},
+		Kind: teamcontract.TeamWorkingStateKindRollingSnapshot, Required: true,
+	}}
+	if err := teams.Create(ctx, team); err != nil {
+		t.Fatalf("create team with existing scenario document: %v", err)
+	}
+	builder := NewPromptBuilder(teams, agents)
+	builder.SetContractFindingsProvider(&MemberflowContractFindings{
+		Teams: teams, StoreDir: roots.Config, RepoRoot: roots.RepoRoot, RuntimeDataDir: roots.RuntimeData,
+	})
+	request := PromptBuildRequest{TeamID: team.ID, AgentID: agent.ID}
+	for name, build := range map[string]func(context.Context, PromptBuildRequest) (string, error){
+		"heartbeat":      builder.Build,
+		"member-context": builder.BuildContext,
+	} {
+		t.Run(name, func(t *testing.T) {
+			prompt, err := build(ctx, request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(prompt, document) || strings.Contains(prompt, "repo-root requires RepoRoot") {
+				t.Fatalf("prompt did not retain canonical document: %s", prompt)
+			}
+		})
+	}
+	if err := os.Remove(fullPath); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := builder.Build(ctx, request); err == nil || !strings.Contains(err.Error(), "required path is missing") {
+		t.Fatalf("missing required scenario document must fail closed: %v", err)
+	}
+}
 
 func TestRenderTeamContextWakeSectionDisclosesTruncation(t *testing.T) {
 	section := renderTeamContextWakeSection("marketing-crew", sourceledger.WakeResult{

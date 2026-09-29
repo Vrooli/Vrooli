@@ -119,7 +119,7 @@ func TestIssueDispatchUsesRealOwnerAuthorizerScopeCeiling(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			issue := connect.NewRequest(&api.IssueSupervisorDispatchRequest{EffortRef: enrolled.Msg.EffortRef, ExpectedRevision: enrolled.Msg.Revision, TeamId: "supervisors", MemberId: "supervisor", ProfileKey: "qualified", MaximumRuns: 1, MinimumIntervalSeconds: 60, ExpiresAt: timestamppb.New(time.Now().Add(30 * time.Minute)), IdempotencyKey: "issue"})
+			issue := connect.NewRequest(&api.IssueSupervisorDispatchRequest{EffortRef: enrolled.Msg.EffortRef, ExpectedRevision: enrolled.Msg.Revision, TeamId: "supervisors", MemberId: "supervisor", ProfileKey: "qualified", MaximumRuns: 1, MinimumIntervalSeconds: 60, MaxTokens: 100000, MaxChargeMicroUsd: 1000000, ExpiresAt: timestamppb.New(time.Now().Add(30 * time.Minute)), IdempotencyKey: "issue"})
 			issue.Header().Set("Authorization", "Bearer private-owner-fixture")
 			issued, err := rpc.IssueSupervisorDispatch(t.Context(), issue)
 			if !tc.allow {

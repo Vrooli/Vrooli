@@ -108,6 +108,7 @@ func TestValidateRequiresEveryCurrentCaseAndEnforcesBands(t *testing.T) {
 	}{
 		{name: "missing driver-death case", mutate: func(r *Receipt) { delete(r.Cases, "driverDeath") }},
 		{name: "late input stop", mutate: func(r *Receipt) { o := r.Cases["cancellation"]; o.InputStoppedMS = 1001; r.Cases["cancellation"] = o }},
+		{name: "late API-restart input stop", mutate: func(r *Receipt) { o := r.Cases["apiRestart"]; o.InputStoppedMS = 1001; r.Cases["apiRestart"] = o }},
 		{name: "late resource cleanup", mutate: func(r *Receipt) { o := r.Cases["timeout"]; o.CleanupMS = 5001; r.Cases["timeout"] = o }},
 		{name: "late session recovery", mutate: func(r *Receipt) { o := r.Cases["apiRestart"]; o.RecoveryMS = 10001; r.Cases["apiRestart"] = o }},
 		{name: "replayed uncertain effect", mutate: func(r *Receipt) { o := r.Cases["retriedStart"]; o.RetryAdmitted = true; r.Cases["retriedStart"] = o }},

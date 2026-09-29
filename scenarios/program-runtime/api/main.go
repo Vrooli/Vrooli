@@ -119,14 +119,8 @@ func main() {
 	if err := tasks.EnsureCompatibility(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("task schema compatibility failed: %v", err)
 	}
-	if err := sessions.EnsureCompatibility(context.Background(), db.Primary()); err != nil {
-		log.Fatalf("session schema compatibility failed: %v", err)
-	}
 	if err := bindings.EnsureCompatibility(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("binding schema compatibility failed: %v", err)
-	}
-	if err := programs.EnsureCompatibility(context.Background(), db.Primary()); err != nil {
-		log.Fatalf("program schema compatibility failed: %v", err)
 	}
 	libraryRepository := library.NewRepository(db.Primary())
 	if err := library.EnsureCompatibility(context.Background(), db.Primary()); err != nil {
@@ -275,7 +269,7 @@ func main() {
 			return programs.ExecutionLimits{}, err
 		}
 		return programs.ExecutionLimits{Wall: budget.WallBudget - budget.WallConsumed, CPU: budget.CPUBudget - budget.CPUConsumed}, nil
-	}, ChargeExecution: func(id string, wall, cpu time.Duration) error {
+	}, UsageReceipt: declaredUsageReceipt(sessionManager), ChargeExecution: func(id string, wall, cpu time.Duration) error {
 		return sessionManager.ChargeExecution(context.Background(), id, wall, cpu)
 	}, ValidateSession: func(id string) bool { _, err := sessionManager.Get(context.Background(), id); return err == nil }, LibraryVersion: func(string) string { return libraryRepository.CurrentStamp(context.Background()) }, Events: telemetryStore})
 	if recovered, err := programService.RecoverInterrupted(context.Background()); err != nil {
@@ -517,4 +511,38 @@ func envDurationMillis(name string) time.Duration {
 		return 0
 	}
 	return time.Duration(value) * time.Millisecond
+}
+
+func declaredUsageReceipt(manager *sessions.Manager) func(context.Context, string) (programs.UsageReceipt, error) {
+	return func(ctx context.Context, id string) (programs.UsageReceipt, error) {
+		session, err := manager.Get(ctx, id)
+		if err != nil {
+			return programs.UsageReceipt{}, err
+		}
+		// Aggregate meters are attributable only to the fresh lease owned by
+		// RunDeclaredProgram. A reused session remains explicitly unknown.
+		if !strings.HasPrefix(session.Name, "declared-program:") {
+			return programs.UsageReceipt{}, nil
+		}
+		complete := !session.InferenceChargeUnknown && (!session.DelegationUsageObserved || session.DelegationSpendMeasured)
+		delegations, err := manager.ListDelegations(ctx)
+		if err != nil {
+			return programs.UsageReceipt{}, err
+		}
+		for _, delegation := range delegations {
+			if delegation.SessionID != id {
+				continue
+			}
+			if !delegation.UsageSettled {
+				complete = false
+			}
+		}
+		return programs.UsageReceipt{
+			Tokens:             session.InferenceTokens,
+			ChargeMicros:       session.InferenceCostMicros + session.DelegationCostMicros,
+			AccountingComplete: complete,
+			ChargeMeasured:     complete,
+			Basis:              "dedicated_declared_session",
+		}, nil
+	}
 }

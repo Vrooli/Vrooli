@@ -3,6 +3,7 @@ package sandbox
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -25,16 +26,25 @@ import (
 // Approve; ApplyAtRunEnd is a thin translator that forwards to it so
 // per-file state cannot diverge between operator and auto-apply paths.
 
-// GetDiff generates a diff for the sandbox changes.
-//
-// # Preconditions
-//
-// The sandbox must be in a state where diff generation is valid (Active, Stopped,
-// or terminal states for historical view). The overlay directories must exist.
+// GetDiff owns live-versus-archived evidence selection for every transport.
+// Terminal sandboxes never fall back to a surviving or recreated overlay.
 func (s *Service) GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult, error) {
 	sandbox, err := s.Get(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+	switch sandbox.Status {
+	case types.StatusApproved, types.StatusRejected, types.StatusDeleted:
+		archived, err := s.GetArchive(ctx, id)
+		if err != nil || archived != nil {
+			return archived, err
+		}
+		return &types.DiffResult{
+			SandboxID: id, Files: []*types.FileChange{}, Generated: sandbox.UpdatedAt,
+			ArchiveState: types.ArchiveStateNotCaptured,
+		}, nil
+	case types.StatusCreating:
+		return &types.DiffResult{SandboxID: id, Files: []*types.FileChange{}, Generated: sandbox.CreatedAt}, nil
 	}
 
 	if err := types.CanGenerateDiff(sandbox.Status); err != nil {
@@ -81,7 +91,7 @@ func (s *Service) GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult,
 	if sandbox.SizeBytes != totalSizeBytes || sandbox.FileCount != len(changes) {
 		sandbox.SizeBytes = totalSizeBytes
 		sandbox.FileCount = len(changes)
-		if err := s.repo.Update(ctx, sandbox); err != nil {
+		if err := s.repo.UpdateWithVersionCheck(ctx, sandbox, sandbox.Version); err != nil {
 			fmt.Printf("warning: failed to update sandbox metrics: %v\n", err)
 		}
 	}
@@ -91,6 +101,7 @@ func (s *Service) GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult,
 			SandboxID:   sandbox.ID,
 			Files:       []*types.FileChange{},
 			UnifiedDiff: "",
+			PatchSHA256: diff.HashPatch(""),
 			Generated:   s.clock.Now(),
 		}, nil
 	}
@@ -128,24 +139,88 @@ func filterDiffChanges(changes []*types.FileChange) []*types.FileChange {
 // a success result indicating the prior approval (no re-apply, no
 // duplicate commit).
 func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error) {
+	if req == nil {
+		return nil, types.NewValidationError("request", "request body is required")
+	}
+	// Do not rewrite caller-owned request fields when binding a retained review.
+	request := *req
+	req = &request
+	if (req.ReviewRequestID == uuid.Nil) != (req.ExpectedReviewSHA256 == "") {
+		return nil, types.NewValidationError("review", "review request ID and expected review digest are required together")
+	}
+	if req.ReviewRequestID != uuid.Nil {
+		if req.Mode != "all" || req.CreateCommit || len(req.FileIDs) != 0 || len(req.HunkRanges) != 0 {
+			return nil, types.NewValidationError("review", "retained review approval requires all changes without a commit or partial selection")
+		}
+		snapshot, err := s.GetReviewSnapshot(ctx, req.SandboxID, req.ReviewRequestID)
+		if err != nil {
+			return nil, err
+		}
+		if snapshot.SHA256 != req.ExpectedReviewSHA256 {
+			return nil, types.NewValidationError("review", "review content identity does not match retained input")
+		}
+		if err := checkReviewedPatch(req.ExpectedPatchSHA256, snapshot.PatchSHA256); err != nil {
+			return nil, err
+		}
+		req.ExpectedPatchSHA256 = snapshot.PatchSHA256
+	}
+	if req.ExpectedPatchSHA256 != "" {
+		digest, err := hex.DecodeString(req.ExpectedPatchSHA256)
+		if err != nil || len(digest) != sha256.Size || strings.ToLower(req.ExpectedPatchSHA256) != req.ExpectedPatchSHA256 {
+			return nil, types.NewValidationError("expectedPatchSha256", "must be a lowercase SHA-256 hex digest")
+		}
+		if req.Mode != "all" || len(req.FileIDs) != 0 || len(req.HunkRanges) != 0 {
+			return nil, types.NewValidationError("mode", "reviewed patch approval requires all changes without file or hunk selection")
+		}
+	}
+	release, err := s.lockReview(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	sandbox, err := s.Get(ctx, req.SandboxID)
 	if err != nil {
 		return nil, err
 	}
 
-	if sandbox.Status == types.StatusApproved {
+	if sandbox.Status == types.StatusApproved || (sandbox.Status == types.StatusDeleted && sandbox.ApprovedAt != nil) {
+		if req.ReviewRequestID != uuid.Nil && (metadataString(sandbox.Metadata, metadataApprovedReviewSHA256) != req.ExpectedReviewSHA256 || metadataString(sandbox.Metadata, metadataApprovedReviewRequestID) != req.ReviewRequestID.String()) {
+			return nil, types.NewValidationError("review", "terminal approval does not belong to this retained review")
+		}
+		appliedDigest := metadataString(sandbox.Metadata, metadataApprovedPatchSHA256)
+		if err := checkReviewedPatch(req.ExpectedPatchSHA256, appliedDigest); err != nil {
+			return nil, err
+		}
+		if sandbox.ApprovedAt == nil {
+			return nil, fmt.Errorf("approved sandbox lacks approval timestamp")
+		}
 		return &types.ApprovalResult{
-			Success:   true,
-			Applied:   0,
-			AppliedAt: *sandbox.ApprovedAt,
+			AppliedPatchSHA256: appliedDigest,
+			Success:            true,
+			Applied:            0,
+			AppliedAt:          *sandbox.ApprovedAt,
 		}, nil
 	}
 
 	if err := types.CanApprove(sandbox.Status); err != nil {
 		return nil, types.NewStateError(err.(*types.InvalidTransitionError))
 	}
+	if req.ReviewRequestID != uuid.Nil && sandbox.Status != types.StatusStopped {
+		return nil, types.NewValidationError("review", "retained review approval requires a stopped sandbox")
+	}
+	if err := s.requireUnpublishedArchive(ctx, sandbox.ID); err != nil {
+		return nil, err
+	}
 
-	applyResult, err := s.applyAcceptedChanges(ctx, sandbox, req)
+	applyResult, err := s.recoverPreparedApproval(ctx, sandbox, req)
+	if err == nil && applyResult == nil {
+		if req.ReviewRequestID != uuid.Nil {
+			if err := s.checkReviewSource(ctx, sandbox, req, false); err != nil {
+				return nil, err
+			}
+		}
+		applyResult, err = s.applyAcceptedChanges(ctx, sandbox, req, true)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +236,13 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 		return applyResult.ApprovalResult(), nil
 	}
 
-	s.recordApprovalProvenance(ctx, sandbox, applyResult.Changes, req, applyResult.CommitHash, applyResult.CommitMsg)
+	if applyResult.PreparedApproval != nil {
+		if err := s.recordPreparedApprovalProvenance(ctx, sandbox, applyResult.PreparedApproval); err != nil {
+			return nil, fmt.Errorf("source applied but approval provenance is pending; retry original approval: %w", err)
+		}
+	} else {
+		s.recordApprovalProvenance(ctx, sandbox, applyResult.Changes, req, applyResult.CommitHash, applyResult.CommitMsg)
+	}
 	if len(applyResult.Rejected) > 0 {
 		pendingChanges, err := s.newPendingReviewChanges(ctx, sandbox, applyResult.Rejected)
 		if err != nil {
@@ -174,7 +255,32 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 			})
 		}
 	}
-	return s.finalizeApproval(ctx, sandbox, req, applyResult.CommitHash, applyResult.Changes, applyResult.TotalChanges), nil
+	result := s.finalizeApproval(ctx, sandbox, req, applyResult)
+	result.AppliedPatchSHA256 = applyResult.PatchSHA256
+	if applyResult.Recovered {
+		result.Applied, result.AppliedSizeBytes = 0, 0
+	}
+	// Lifecycle deletion acquires the same owner lock. Release only after the
+	// archive/status transaction has published and consumed the pending intent.
+	release()
+	if result.Success {
+		if !result.IsPartial {
+			s.applyLifecycleOnTerminal(ctx, sandbox, types.StatusApproved)
+		}
+		s.notifyAgentManager(ctx, sandbox, "approved", req.Actor, result)
+	}
+	return result, nil
+}
+
+const metadataApprovedPatchSHA256 = "approved_patch_sha256"
+const metadataApprovedReviewSHA256 = "approved_review_sha256"
+const metadataApprovedReviewRequestID = "approved_review_request_id"
+
+func checkReviewedPatch(expected, actual string) error {
+	if expected != "" && expected != actual {
+		return types.NewValidationErrorWithHint("expectedPatchSha256", "reviewed patch does not match the patch being approved", "Read and review the current diff before requesting approval; force cannot bypass content identity")
+	}
+	return nil
 }
 
 // ApplyAtRunEnd is the final agent-manager run-end apply path. Continuable
@@ -223,18 +329,7 @@ func (s *Service) ApplyAtRunEnd(ctx context.Context, req *types.ApplyAtRunEndReq
 		})
 	}
 
-	return &types.ApprovalResult{
-		Success:          result.Success,
-		Applied:          result.Applied,
-		Failed:           result.Failed,
-		Remaining:        result.Remaining,
-		IsPartial:        result.IsPartial,
-		CommitHash:       result.CommitHash,
-		ErrorMsg:         result.ErrorMsg,
-		AppliedAt:        result.AppliedAt,
-		AppliedSizeBytes: result.AppliedSizeBytes,
-		DiffPath:         result.DiffPath,
-	}, nil
+	return result, nil
 }
 
 // validateApplyAtRunEndRequest rejects malformed apply-at-run-end
@@ -280,6 +375,11 @@ func validateApplyAtRunEndRequest(req *types.ApplyAtRunEndRequest) error {
 // Idempotent: calling Reject on an already-rejected sandbox returns
 // success with the current sandbox state.
 func (s *Service) Reject(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error) {
+	release, err := s.lockUnprepared(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	sandbox, err := s.Get(ctx, id)
 	if err != nil {
 		return nil, err
@@ -294,7 +394,7 @@ func (s *Service) Reject(ctx context.Context, id uuid.UUID, actor string) (*type
 	}
 
 	captured := types.CanGenerateDiff(sandbox.Status) == nil
-	if err := s.snapshotAndTransition(ctx, sandbox, types.StatusRejected, captured, nil); err != nil {
+	if err := s.snapshotAndTransition(ctx, sandbox, types.StatusRejected, captured, nil, nil); err != nil {
 		s.logAuditEvent(ctx, sandbox, "snapshot_failed", actor, "", map[string]interface{}{
 			"phase": "reject",
 			"error": err.Error(),
@@ -304,6 +404,7 @@ func (s *Service) Reject(ctx context.Context, id uuid.UUID, actor string) (*type
 
 	s.logAuditEvent(ctx, sandbox, "rejected", actor, "", nil)
 
+	release()
 	s.applyLifecycleOnTerminal(ctx, sandbox, types.StatusRejected)
 
 	s.notifyAgentManager(ctx, sandbox, "rejected", actor, nil)
@@ -364,10 +465,11 @@ func (s *Service) preflightConflicts(ctx context.Context, sandbox *types.Sandbox
 // transactionally with the status flip (see service_archive.go). If
 // the snapshot fails, the sandbox stays in its pre-terminal state and
 // the failure is returned to the caller via *ApprovalResult.ErrorMsg —
-// the patch was already applied to the canonical repo, so the caller
-// must not re-apply, but the sandbox remains visible/inspectable for
-// retry of the snapshot or operator intervention.
-func (s *Service) finalizeApproval(ctx context.Context, sandbox *types.Sandbox, req *types.ApprovalRequest, commitHash string, changes []*types.FileChange, totalChanges int) *types.ApprovalResult {
+// the patch was already applied to the canonical repo. Non-committing whole-file
+// approval retains its durable intent so the original request can reconcile
+// source and publish without re-applying. Other paths still need intervention.
+func (s *Service) finalizeApproval(ctx context.Context, sandbox *types.Sandbox, req *types.ApprovalRequest, applied *selectedApplyResult) *types.ApprovalResult {
+	changes, totalChanges, commitHash := applied.Changes, applied.TotalChanges, applied.CommitHash
 	remainingChanges := totalChanges - len(changes)
 	isPartial := remainingChanges > 0
 	now := s.clock.Now()
@@ -400,7 +502,15 @@ func (s *Service) finalizeApproval(ctx context.Context, sandbox *types.Sandbox, 
 		captured := types.CanGenerateDiff(sandbox.Status) == nil
 		if err := s.snapshotAndTransition(ctx, sandbox, types.StatusApproved, captured, func(sb *types.Sandbox) {
 			sb.ApprovedAt = &now
-		}); err != nil {
+			if sb.Metadata == nil {
+				sb.Metadata = make(map[string]interface{})
+			}
+			sb.Metadata[metadataApprovedPatchSHA256] = applied.PatchSHA256
+			if req.ReviewRequestID != uuid.Nil {
+				sb.Metadata[metadataApprovedReviewSHA256] = req.ExpectedReviewSHA256
+				sb.Metadata[metadataApprovedReviewRequestID] = req.ReviewRequestID.String()
+			}
+		}, applied.PreparedArchive); err != nil {
 			s.logAuditEvent(ctx, sandbox, "snapshot_failed", req.Actor, "", map[string]interface{}{
 				"phase":      "approve",
 				"error":      err.Error(),
@@ -423,7 +533,6 @@ func (s *Service) finalizeApproval(ctx context.Context, sandbox *types.Sandbox, 
 			"mode":         req.Mode,
 		})
 
-		s.applyLifecycleOnTerminal(ctx, sandbox, types.StatusApproved)
 	}
 
 	result := &types.ApprovalResult{
@@ -436,7 +545,6 @@ func (s *Service) finalizeApproval(ctx context.Context, sandbox *types.Sandbox, 
 		AppliedSizeBytes: appliedSizeBytes,
 		DiffPath:         fmt.Sprintf("/api/v1/sandboxes/%s/diff", sandbox.ID),
 	}
-	s.notifyAgentManager(ctx, sandbox, "approved", req.Actor, result)
 	return result
 }
 

@@ -116,6 +116,17 @@ func TestProcessSupervisor_Stop(t *testing.T) {
 		assert.Equal(t, int64(1), mock.StopCalled.Load())
 	})
 
+	t.Run("honors caller shutdown deadline over configured grace period", func(t *testing.T) {
+		mock := NewMockProcess()
+		sup := NewProcessSupervisor(testConfig(), mock, func(context.Context) error { return nil }, testLogger())
+		require.NoError(t, sup.Start(context.Background()))
+
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+		defer cancel()
+		require.NoError(t, sup.Stop(ctx))
+		assert.LessOrEqual(t, mock.LastGraceMS.Load(), int64(20))
+	})
+
 	t.Run("idempotent - can call multiple times", func(t *testing.T) {
 		mock := NewMockProcess()
 		healthCheck := func(ctx context.Context) error { return nil }
@@ -215,6 +226,30 @@ func TestProcessSupervisor_Restart(t *testing.T) {
 		_ = sup.Stop(context.Background())
 	})
 
+	t.Run("manual restart does not trigger an automatic second restart", func(t *testing.T) {
+		mock := NewMockProcess()
+		cfg := testConfig()
+		cfg.InitialBackoff = 5 * time.Millisecond
+		sup := NewProcessSupervisor(cfg, mock, func(context.Context) error { return nil }, testLogger())
+		require.NoError(t, sup.Start(context.Background()))
+		// Let the monitor arm its exit-channel wait before exercising the
+		// intentional stop performed by Restart.
+		time.Sleep(20 * time.Millisecond)
+
+		require.NoError(t, sup.Restart(context.Background()))
+		// Give a monitor that misclassified the intentional stop enough time to
+		// schedule and perform its automatic restart.
+		time.Sleep(50 * time.Millisecond)
+
+		assert.Equal(t, int64(2), mock.StartCalled.Load(),
+			"manual restart was followed by an unexpected automatic restart")
+		assert.Equal(t, 0, sup.RestartCount(),
+			"intentional restart must not consume crash-restart budget")
+		assert.Equal(t, StateRunning, sup.State())
+
+		require.NoError(t, sup.Stop(context.Background()))
+	})
+
 	t.Run("manual restart resets unrecoverable state", func(t *testing.T) {
 		mock := NewMockProcess()
 		healthCheck := func(ctx context.Context) error { return nil }
@@ -256,9 +291,15 @@ func TestProcessSupervisor_Restart(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, StateRunning, sup.State())
-		// Note: RestartCount may not be exactly 0 due to a race between the monitorLoop
-		// spinning on the closed exitChan and Restart() clearing restartTimes.
-		// The key assertion is that manual restart succeeds from unrecoverable state.
+		// Restarting from unrecoverable must also re-arm supervision. A fresh
+		// crash should therefore consume the new generation's first retry.
+		mock.TriggerCrash()
+		eventually(t, 3*time.Second, func() bool {
+			return sup.State() == StateRunning && mock.StartCalled.Load() == 4
+		})
+		assert.Equal(t, 1, sup.RestartCount())
+		// The key assertions are that manual recovery succeeds and that the
+		// restarted supervisor owns subsequent crash recovery again.
 
 		_ = sup.Stop(context.Background())
 	})

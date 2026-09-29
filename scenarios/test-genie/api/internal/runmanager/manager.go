@@ -2,6 +2,8 @@ package runmanager
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,7 +27,9 @@ import (
 	"github.com/vrooli/freshness-go/treedigest"
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Executor is the suite engine the manager drives. It is satisfied by
@@ -710,6 +714,7 @@ func admissionKey(req orchestrator.SuiteExecutionRequest) string {
 		"phaseSet=" + strings.TrimSpace(req.AdmissionPhaseSetDigest),
 		"descriptor=" + strings.TrimSpace(req.AdmissionDescriptorDigest),
 		"config=" + strings.TrimSpace(req.AdmissionConfigurationDigest),
+		"evidenceProducer=" + strings.TrimSpace(req.EvidenceProductionIntentDigest),
 		fmt.Sprintf("gateQuality=%t", req.RequireGateQuality),
 	}
 	if identity := req.ReleaseIdentity; identity != nil {
@@ -787,16 +792,36 @@ func (m *Manager) lookup(scenario, runID string) *activeRun {
 //
 // Terminal runs lingering within retireGrace are ignored: a just-finished run
 // never blocks or coalesces a fresh start.
-func (m *Manager) Start(opts StartOptions) (StartResult, error) {
+// AdmissionRefusedError proves this Start call did not launch an executor. It
+// does not prove that an earlier call with the same ID never launched one.
+type AdmissionRefusedError struct{ Cause error }
+
+func (e *AdmissionRefusedError) Error() string { return e.Cause.Error() }
+func (e *AdmissionRefusedError) Unwrap() error { return e.Cause }
+
+func (m *Manager) Start(opts StartOptions) (result StartResult, err error) {
+	defer func() {
+		if err != nil {
+			err = &AdmissionRefusedError{Cause: err}
+		}
+	}()
 	scenario := strings.TrimSpace(opts.Input.Request.ScenarioName)
 	if scenario == "" {
 		return StartResult{}, fmt.Errorf("scenarioName is required")
 	}
 	runID := strings.TrimSpace(opts.Input.Request.RunID)
+	explicitRunID := runID != ""
 	if runID == "" {
 		runID = sharedruns.NewRunID()
 	}
 	opts.Input.Request.RunID = runID
+	evidenceProducer := opts.Input.EvidenceProducer != nil
+	if evidenceProducer {
+		if err := m.prepareEvidenceProducerInput(&opts.Input, scenario); err != nil {
+			return StartResult{}, err
+		}
+	}
+	intentDigest := suiteIntentDigest(opts.Input.Request)
 	preset := strings.TrimSpace(opts.Input.Request.Preset)
 	key := admissionKey(opts.Input.Request)
 	caller := normalizedCaller(opts.Caller)
@@ -827,11 +852,34 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 	// immediately reports a queue wait of zero, which is true; a run that waits
 	// has this value re-attached by the dispatcher when its slot opens.
 	ar.input.Request.RequestedAt = now
-	probe := m.evaluateSuiteAdmission(runCtx, ar.input.Request, runID)
-	ar.suiteLease, ar.suiteEstimate, ar.suiteEstimateKnown = probe.lease, probe.estimate, probe.known
-	m.observeShadowSwap(ar, runCtx)
+	if !evidenceProducer {
+		probe := m.evaluateSuiteAdmission(runCtx, ar.input.Request, runID)
+		ar.suiteLease, ar.suiteEstimate, ar.suiteEstimateKnown = probe.lease, probe.estimate, probe.known
+		m.observeShadowSwap(ar, runCtx)
+	}
 
 	m.mu.Lock()
+	if explicitRunID {
+		prior, findErr := sharedruns.NewIndex(m.scenarioDir(scenario)).Find(runID)
+		if findErr == nil {
+			if prior.AdmissionIntentDigest == "" || prior.AdmissionIntentDigest != intentDigest {
+				m.mu.Unlock()
+				cancel()
+				m.releaseSuiteLease(ar.suiteLease)
+				return StartResult{}, fmt.Errorf("explicit run %s has unknown or conflicting admission intent", runID)
+			}
+			m.mu.Unlock()
+			cancel()
+			m.releaseSuiteLease(ar.suiteLease)
+			return StartResult{RunID: runID, Coalesced: true}, nil
+		}
+		if !errors.Is(findErr, sharedruns.ErrRunNotFound) {
+			m.mu.Unlock()
+			cancel()
+			m.releaseSuiteLease(ar.suiteLease)
+			return StartResult{}, fmt.Errorf("read explicit run admission %s: %w", runID, findErr)
+		}
+	}
 	// Enumerate in-progress runs of this scenario (ignoring terminal lingerers).
 	// Queued runs count as in-flight: a scenario may hold at most one pending OR
 	// running run, so the per-scenario serialization invariant holds end to end.
@@ -847,7 +895,7 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 	}
 	// Coalesce onto an identical in-flight request.
 	for _, other := range inFlight {
-		if other.admissionKey == key {
+		if other.admissionKey == key && (!explicitRunID || other.runID == runID) {
 			m.mu.Unlock()
 			cancel()
 			atomic.AddUint64(&m.coalescedTotal, 1)
@@ -942,9 +990,10 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 	if queued {
 		status = sharedruns.StatusQueued
 	}
-	if err := sharedruns.NewIndex(m.scenarioDir(scenario)).Append(sharedruns.RunRecord{
+	record := sharedruns.RunRecord{
 		RunID:                    runID,
 		Scenario:                 scenario,
+		AdmissionIntentDigest:    intentDigest,
 		StartedAt:                now,
 		Status:                   status,
 		Preset:                   preset,
@@ -953,7 +1002,30 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 		PhaseSetDigest:           strings.TrimSpace(ar.input.Request.AdmissionPhaseSetDigest),
 		DescriptorSnapshotDigest: strings.TrimSpace(ar.input.Request.AdmissionDescriptorDigest),
 		TreeDigest:               strings.TrimSpace(ar.input.Request.AdmissionTreeDigest),
-	}); err != nil {
+	}
+	index := sharedruns.NewIndex(m.scenarioDir(scenario))
+	var persistErr error
+	if explicitRunID {
+		prior, created, err := index.AdmitExplicit(record)
+		if err != nil {
+			persistErr = err
+		} else if !created {
+			if prior.AdmissionIntentDigest != intentDigest {
+				persistErr = fmt.Errorf("explicit run %s has unknown or conflicting admission intent", runID)
+			} else {
+				delete(m.runs, runKey(scenario, runID))
+				lease := ar.suiteLease
+				ar.suiteLease = nil
+				m.mu.Unlock()
+				cancel()
+				m.releaseSuiteLease(lease)
+				return StartResult{RunID: runID, Coalesced: true}, nil
+			}
+		}
+	} else {
+		persistErr = index.Append(record)
+	}
+	if persistErr != nil {
 		if retentionLeaseOwner != "" {
 			_ = sharedruns.NewPinLeaseStore(m.scenarioDir(scenario)).Revoke(runID, retentionLeaseOwner)
 		}
@@ -963,7 +1035,7 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 		m.mu.Unlock()
 		cancel()
 		m.releaseSuiteLease(lease)
-		return StartResult{}, fmt.Errorf("persist admitted run %s/%s: %w", scenario, runID, err)
+		return StartResult{}, fmt.Errorf("persist admitted run %s/%s: %w", scenario, runID, persistErr)
 	}
 	m.mu.Unlock()
 
@@ -980,6 +1052,75 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 	m.wg.Add(1)
 	go m.drive(runCtx, ar, opts.Input)
 	return StartResult{RunID: runID}, nil
+}
+
+func (m *Manager) prepareEvidenceProducerInput(input *execution.SuiteExecutionInput, scenario string) error {
+	if input == nil || input.EvidenceProducer == nil {
+		return errors.New("pinned evidence producer input is required")
+	}
+	if input.EvidenceProducer.DescriptorDigest == "" || input.EvidenceProducer.SourceIdentity == "" {
+		return fmt.Errorf("pinned evidence producer identity is incomplete")
+	}
+	pinBytes, _ := json.Marshal(input.EvidenceProducer)
+	pinDigest := sha256.Sum256(pinBytes)
+	input.Request.EvidenceProductionIntentDigest = fmt.Sprintf("sha256:%x", pinDigest)
+	input.ArtifactRoot = m.scenarioDir(scenario)
+	return nil
+}
+
+// AbortEvidenceProducer uses the same pinned command and run identity as
+// Start. When the run has not reached the manager yet, the shared run index
+// records an admission-bound abort fence so a late Start coalesces without
+// executing effects.
+func (m *Manager) AbortEvidenceProducer(opts StartOptions) (LiveStatus, error) {
+	scenario := strings.TrimSpace(opts.Input.Request.ScenarioName)
+	runID := strings.TrimSpace(opts.Input.Request.RunID)
+	if scenario == "" || runID == "" {
+		return LiveStatus{}, errors.New("evidence producer abort requires scenario and explicit run id")
+	}
+	if opts.Input.EvidenceProducer == nil {
+		return LiveStatus{}, errors.New("evidence producer abort requires pinned input")
+	}
+	if err := m.prepareEvidenceProducerInput(&opts.Input, scenario); err != nil {
+		return LiveStatus{}, err
+	}
+	digest := suiteIntentDigest(opts.Input.Request)
+	key := runKey(scenario, runID)
+
+	m.mu.Lock()
+	if active := m.runs[key]; active != nil {
+		if suiteIntentDigest(active.input.Request) != digest {
+			m.mu.Unlock()
+			return LiveStatus{}, fmt.Errorf("evidence producer run %s admission identity conflicts with abort", runID)
+		}
+		m.mu.Unlock()
+		return m.Abort(scenario, runID)
+	}
+	now := time.Now().UTC()
+	fenced, err := sharedruns.NewIndex(m.scenarioDir(scenario)).FenceExplicitAbort(sharedruns.RunRecord{
+		RunID: runID, Scenario: scenario, AdmissionIntentDigest: digest,
+		StartedAt: now, CompletedAt: now, Status: sharedruns.StatusAborted,
+		Preset:                   strings.TrimSpace(opts.Input.Request.Preset),
+		CaptureProfile:           strings.TrimSpace(opts.Input.Request.CaptureProfile),
+		PlannedPhases:            append([]string(nil), opts.Input.Request.ResolvedPhases...),
+		PhaseSetDigest:           strings.TrimSpace(opts.Input.Request.AdmissionPhaseSetDigest),
+		DescriptorSnapshotDigest: strings.TrimSpace(opts.Input.Request.AdmissionDescriptorDigest),
+		TreeDigest:               strings.TrimSpace(opts.Input.Request.AdmissionTreeDigest),
+	})
+	m.mu.Unlock()
+	if err != nil {
+		return LiveStatus{}, fmt.Errorf("persist evidence producer abort fence: %w", err)
+	}
+	return LiveStatus{RunID: runID, Scenario: scenario, Status: fenced.Status}, nil
+}
+
+func suiteIntentDigest(req orchestrator.SuiteExecutionRequest) string {
+	req.RunID = ""
+	req.RequestedAt = time.Time{}
+	req.AdmissionQueued = false
+	data, _ := json.Marshal(req)
+	digest := sha256.Sum256(data)
+	return fmt.Sprintf("sha256:%x", digest)
 }
 
 func (m *Manager) releaseSuiteLease(lease sharedcapacity.Lease) {
@@ -1966,6 +2107,62 @@ func (m *Manager) scenarioDir(scenario string) string {
 		}
 	}
 	return filepath.Join(m.scenariosRoot, value)
+}
+
+// RetainedEvidenceSet publishes owner-computed byte checksums for files in the
+// persisted evidence-producer output catalog. It intentionally refuses legacy
+// discovery and never accepts caller-supplied artifact metadata.
+func (m *Manager) RetainedEvidenceSet(scenario, runID, receiptID, producer, candidateIdentity string) (*scenariovalidationv1.RetainedEvidenceSet, error) {
+	if m == nil || strings.TrimSpace(receiptID) == "" || strings.TrimSpace(producer) == "" || strings.TrimSpace(candidateIdentity) == "" {
+		return nil, errors.New("retained evidence identity is incomplete")
+	}
+	catalog, err := sharedartifacts.ReadArtifactCatalog(m.scenarioDir(scenario), runID)
+	if err != nil {
+		return nil, fmt.Errorf("read persisted producer catalog: %w", err)
+	}
+	if catalog.LegacyDiscovered || catalog.RunID != runID || strings.TrimSpace(catalog.Digest) == "" {
+		return nil, errors.New("producer catalog is not authoritative")
+	}
+	set := &scenariovalidationv1.RetainedEvidenceSet{
+		ProducerReceiptId: receiptID, Producer: producer, Target: scenario,
+		RunId: runID, CandidateIdentity: candidateIdentity, CatalogDigest: catalog.Digest,
+	}
+	var total int64
+	for _, artifact := range catalog.Artifacts {
+		if artifact.Provenance != sharedartifacts.ArtifactProvenanceCatalog || artifact.StorageRoot != "run" || !strings.HasPrefix(filepath.ToSlash(artifact.StoragePath), "evidence-producer/output/") {
+			continue
+		}
+		if len(set.Artifacts) >= 32 {
+			return nil, errors.New("producer output exceeds retained evidence artifact limit")
+		}
+		ref, path, resolveErr := sharedartifacts.ResolveCatalogArtifact(m.scenarioDir(scenario), runID, artifact.ID, nil)
+		if resolveErr != nil {
+			return nil, fmt.Errorf("resolve producer output %s: %w", artifact.ID, resolveErr)
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil, fmt.Errorf("read producer output %s: %w", artifact.ID, readErr)
+		}
+		total += int64(len(data))
+		if total > 16<<20 {
+			return nil, errors.New("producer output exceeds retained evidence byte limit")
+		}
+		createdAt, parseErr := time.Parse(time.RFC3339Nano, ref.CreatedAt)
+		if parseErr != nil {
+			return nil, fmt.Errorf("producer artifact %s has invalid creation time", artifact.ID)
+		}
+		digest := sha256.Sum256(data)
+		set.Artifacts = append(set.Artifacts, &commonv1.EvidenceRef{
+			Producer: scenario, ArtifactId: ref.ID, Kind: ref.Kind,
+			Checksum: hex.EncodeToString(digest[:]), SizeBytes: int64(len(data)),
+			CreatedAt: timestamppb.New(createdAt),
+		})
+	}
+	if len(set.Artifacts) == 0 {
+		return nil, errors.New("producer catalog contains no retained output artifacts")
+	}
+	sort.Slice(set.Artifacts, func(i, j int) bool { return set.Artifacts[i].GetArtifactId() < set.Artifacts[j].GetArtifactId() })
+	return set, nil
 }
 
 func (m *Manager) snapshot(ar *activeRun) LiveStatus {

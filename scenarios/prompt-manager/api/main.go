@@ -1057,6 +1057,7 @@ func main() {
 	// spawn path and `team prompt-preview`, so the operator previews exactly
 	// what the agent receives.
 	heartbeatExecutor.SetContractFindingsProvider(&heartbeat.MemberflowContractFindings{
+		Teams:          fileStore.Teams(),
 		StoreDir:       roots.Config,
 		RepoRoot:       roots.RepoRoot,
 		RuntimeDataDir: roots.RuntimeData,

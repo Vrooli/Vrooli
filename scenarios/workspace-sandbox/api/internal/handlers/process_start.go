@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -23,14 +22,15 @@ import (
 
 // StartProcessRequest is the body for POST /sandboxes/{id}/processes.
 type StartProcessRequest struct {
-	Command        string            `json:"command"`
-	Args           []string          `json:"args,omitempty"`
-	AllowNetwork   bool              `json:"allowNetwork,omitempty"`
-	Env            map[string]string `json:"env,omitempty"`
-	WorkingDir     string            `json:"workingDir,omitempty"`
-	SessionID      string            `json:"sessionId,omitempty"`
-	WritableMounts []WritableMount   `json:"writableMounts,omitempty"`
-	Name           string            `json:"name,omitempty"` // Optional friendly name
+	Command        string             `json:"command"`
+	Args           []string           `json:"args,omitempty"`
+	AllowNetwork   *bool              `json:"allowNetwork,omitempty"` // nil inherits the profile; false explicitly denies network
+	Env            map[string]string  `json:"env,omitempty"`
+	WorkingDir     string             `json:"workingDir,omitempty"`
+	SessionID      string             `json:"sessionId,omitempty"`
+	WritableMounts []WritableMount    `json:"writableMounts,omitempty"`
+	PolicyFiles    []types.PolicyFile `json:"policyFiles,omitempty"`
+	Name           string             `json:"name,omitempty"` // Optional friendly name
 
 	// WithStdin requests the driver create a stdin pipe wired to the
 	// process. Callers can then stream input via POST /processes/{pid}/stdin
@@ -72,10 +72,11 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sb, err := h.Service.Get(r.Context(), id)
+	sb, release, err := h.Service.BeginProcess(r.Context(), id)
 	if h.HandleDomainError(w, err) {
 		return
 	}
+	defer release()
 
 	if !types.CanRunProcess(sb.Status) {
 		h.JSONError(w, "sandbox must be active to start processes", http.StatusConflict)
@@ -126,7 +127,7 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		cfg.Env[k] = v
 	}
 
-	if err := h.applyIsolationProfile(sb, &cfg, req.IsolationLevel); err != nil {
+	if err := h.applyIsolationProfile(sb, &cfg, req.IsolationLevel, req.AllowNetwork); err != nil {
 		h.HandleDomainError(w, err)
 		return
 	}
@@ -134,9 +135,9 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		h.JSONError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	if req.AllowNetwork {
-		cfg.AllowNetwork = true
+	if err := addPolicyFiles(&cfg, sb, req.PolicyFiles); err != nil {
+		h.JSONError(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	// Background processes ignore TimeoutSec — use manual kill.
@@ -175,19 +176,9 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 	pidCh := make(chan int, 1)
 	var onExitOnce sync.Once
 	cfg.OnExit = func(exitCode, signal int, oomKilled bool) {
-		var pid int
-		select {
-		case pid = <-pidCh:
-		case <-time.After(2 * time.Second):
-			// PID never published — process must have failed to start in a
-			// way the driver still surfaced; nothing to record.
-			return
-		}
-		// Republish so any racing reads still see it.
-		select {
-		case pidCh <- pid:
-		default:
-		}
+		// The driver starts a reaper only after a successful spawn; that path
+		// always publishes the PID after registration or failure cleanup.
+		pid := <-pidCh
 		onExitOnce.Do(func() {
 			// StoppedAt is left zero so the tracker stamps it via its
 			// injected clock — keeps a single source of truth for the
@@ -220,9 +211,15 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Publish the pid so any pending OnExit dispatch (process died very
-	// quickly) can pick it up.
-	pidCh <- pid
+	// Publish only after tracking is registered, including for immediate exit.
+	// On setup failure, kill the launched group before releasing admission.
+	registered := false
+	defer func() {
+		if !registered {
+			_ = driverexec.KillProcessGroup(pid)
+		}
+		pidCh <- pid
+	}()
 
 	// Effective containment: the backend that actually launched this process
 	// plus the enforcements it provides on this host. Stamped on the tracked
@@ -268,6 +265,7 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		_ = stdinWriter.Close()
 	}
 
+	registered = true
 	response := map[string]interface{}{
 		"pid":         pid,
 		"sandboxId":   id,

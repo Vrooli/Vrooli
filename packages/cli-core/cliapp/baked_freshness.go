@@ -2,6 +2,8 @@ package cliapp
 
 import "strings"
 
+const sharedProtoArtifactFreshnessInput = "../../packages/proto/gen/.vrooli-proto-artifact.json"
+
 // BakedFreshnessInputs is overwritten at link time by cli-installer with the
 // exact freshness-input list the binary was built against. It is a single
 // string with comma (",") separators — no current resource/scenario
@@ -33,13 +35,20 @@ var BakedFreshnessInputs string
 //  2. linker-baked BakedFreshnessInputs (set by cli-installer),
 //  3. the package's hardcoded fallback.
 func resolveFreshnessInputs(callerInputs, fallback []string) []string {
+	var inputs []string
 	if len(callerInputs) > 0 {
-		return append([]string(nil), callerInputs...)
+		inputs = append([]string(nil), callerInputs...)
+	} else if baked := parseBakedFreshnessInputs(BakedFreshnessInputs); len(baked) > 0 {
+		inputs = baked
+	} else {
+		inputs = append([]string(nil), fallback...)
 	}
-	if baked := parseBakedFreshnessInputs(BakedFreshnessInputs); len(baked) > 0 {
-		return baked
+	for _, input := range inputs {
+		if input == sharedProtoArtifactFreshnessInput {
+			return inputs
+		}
 	}
-	return append([]string(nil), fallback...)
+	return append(inputs, sharedProtoArtifactFreshnessInput)
 }
 
 // parseBakedFreshnessInputs splits the linker-baked string into trimmed,

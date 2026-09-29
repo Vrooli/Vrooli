@@ -184,6 +184,10 @@ func (e *Engine) advanceParallelBranch(ctx context.Context, x *domain.WorkflowEx
 		if failed {
 			attempt.Status, attempt.ErrorCode = domain.WorkflowAttemptFailed, "parallel_child_failed"
 		}
+		if validationError := structuredValidationError(target, result); validationError != "" {
+			attempt.Status, attempt.ErrorCode = domain.WorkflowAttemptFailed, "structured_result_invalid"
+			attempt.ValidationError = validationError
+		}
 		attempt.Version++
 		attempt.UpdatedAt, attempt.CompletedAt = now, &now
 		x.BudgetUsage.Turns += usage.Turns

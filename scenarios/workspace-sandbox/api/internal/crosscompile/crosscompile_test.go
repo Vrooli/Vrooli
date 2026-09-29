@@ -4,26 +4,24 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"testing"
 )
 
-// moduleRoot walks up from this test file to the api module root (the
-// directory containing go.mod).
+// moduleRoot walks up from the test working directory, including in trimpath
+// builds where compiler source paths do not identify real filesystem paths.
 func moduleRoot(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("crosscompile: cannot resolve caller path")
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("crosscompile: get working directory: %v", err)
 	}
-	dir := filepath.Dir(file)
 	for {
 		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
 			return dir
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			t.Fatal("crosscompile: go.mod not found above test file")
+			t.Fatal("crosscompile: go.mod not found above working directory")
 		}
 		dir = parent
 	}

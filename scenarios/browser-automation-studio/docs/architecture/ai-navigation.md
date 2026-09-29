@@ -2,6 +2,8 @@
 
 _Last reviewed: 2026-01-30_
 
+_Lifecycle ownership rechecked: 2026-09-29_
+
 ## Overview
 
 The AI navigation feature (also called "autopilot") enables users to control browser sessions using natural language prompts. A vision-language model observes the browser state via annotated screenshots and decides what actions to take to accomplish the user's goal.
@@ -296,7 +298,10 @@ User types prompt
 |------|---------|
 | [CODE: ui/src/domains/recording/sidebar/AutoTab.tsx] | Chat interface for AI navigation |
 | [CODE: ui/src/domains/recording/ai-conversation/useAIConversation.ts] | Message history management |
-| [CODE: ui/src/domains/recording/ai-navigation/useAINavigation.ts] | Navigation state & API calls |
+| [CODE: ui/src/domains/recording/ai-navigation/useAINavigation.ts] | Composition of navigation projections and public state |
+| [CODE: ui/src/domains/recording/ai-navigation/useAINavigationRuntime.ts] | Identity, cancellation, lifecycle reset and shared command/event refs |
+| [CODE: ui/src/domains/recording/ai-navigation/useAINavigationCommands.ts] | Start/abort/resume admission and request-to-identity handoff |
+| [CODE: ui/src/domains/recording/ai-navigation/useAINavigationEvents.ts] | Incremental WebSocket event admission |
 | [CODE: ui/src/domains/recording/ai-navigation/types.ts] | TypeScript type definitions |
 | [CODE: ui/src/domains/recording/ai-navigation/HumanInterventionOverlay.tsx] | Human intervention UI |
 
@@ -349,6 +354,48 @@ User types prompt
 | `max_steps_reached` | Hit configured step limit |
 | `loop_detected` | Agent stuck in repetitive actions |
 | `aborted` | User cancelled the navigation |
+
+## Current lifecycle ownership and recovery contract
+
+The browser callback is admitted and normalized once by
+`api/services/vision/playwright_navigator.go`. Under the session owner it
+rejects terminal or duplicate steps, creates one redacted event projection,
+then reuses that projection for bounded history, recording callbacks and
+WebSocket fan-out. Consumers must not independently redact or reinterpret the
+same callback envelope.
+
+The UI has deliberately separate observation responsibilities:
+
+- `navigationEvents.ts` parses the wire envelope and recovery snapshot.
+- `useAINavigationEvents.ts` admits low-latency WebSocket events and fences
+  stale generations.
+- `useAINavigationRuntime.ts` owns the identity refs, cancellation controllers,
+  reset lifecycle and one shared command/event ref contract, including the
+  generation predicate and current-command state updater. It is the only owner
+  that creates those refs; consumers receive the same fenced object.
+- `useAINavigationCommands.ts` owns start/abort/resume admission, handoff
+  failure cleanup and the server request-to-navigation identity commit.
+- `useAINavigation.ts` composes the runtime, event path and server-owned status
+  wait used after transport loss. WebSocket and
+  recovery projections remain separate transport owners, but share the same
+  navigation identity and generation fences.
+- `useAIConversation.ts` owns conversation-message projection.
+- `utils/actionDisplay.ts` is the presentation redaction boundary for action
+  details; it is not a substitute for API-side redaction.
+
+WebSocket delivery is the low-latency path. A status-wait failure is an
+`observation_unavailable` transport state, not proof that navigation failed:
+the navigation identity remains available for stop/recovery and a successor
+cannot start until the server operation settles. A valid current-session live
+step is authoritative transport recovery and returns the projection to
+`navigating`, clearing only the stale observer error. Abort, replacement and
+unmount cancel the outstanding status wait. Managed shutdown gives HTTP drain
+and owner cleanup separate budgets; cleanup remains mandatory after a drain
+deadline and active requests are force-closed so browser and sidecar owners
+cannot survive the process boundary.
+
+This boundary is source- and focused-test verified only until a fresh managed
+build and qualification receipt bind it to runtime behavior.
 
 ## API Endpoints
 

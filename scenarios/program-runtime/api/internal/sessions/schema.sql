@@ -9,10 +9,12 @@ CREATE TABLE IF NOT EXISTS sessions (
   reclaimed_reason TEXT NOT NULL DEFAULT '',
   inference_cost_micros INTEGER NOT NULL DEFAULT 0,
   inference_tokens INTEGER NOT NULL DEFAULT 0,
+  inference_charge_unknown INTEGER NOT NULL DEFAULT 0,
   delegation_cost_micros INTEGER NOT NULL DEFAULT 0,
   inference_ceiling_micros INTEGER NOT NULL DEFAULT 0,
   delegation_ceiling_micros INTEGER NOT NULL DEFAULT 0,
   delegation_spend_measured INTEGER NOT NULL DEFAULT 0,
+  delegation_usage_observed INTEGER NOT NULL DEFAULT 0,
   delegation_spend_note TEXT NOT NULL DEFAULT '',
   wall_budget_millis INTEGER NOT NULL DEFAULT 14400000,
   wall_consumed_millis INTEGER NOT NULL DEFAULT 0,
@@ -50,7 +52,8 @@ CREATE TABLE IF NOT EXISTS session_delegations (
   workflow_key TEXT NOT NULL,
   idempotency_key TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
-  last_status TEXT NOT NULL DEFAULT ''
+  last_status TEXT NOT NULL DEFAULT '',
+  usage_settled INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_delegations_session ON session_delegations(session_id, created_at);

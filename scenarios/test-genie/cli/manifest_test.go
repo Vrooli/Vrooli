@@ -34,3 +34,25 @@ func TestManifestDeclaresExecuteDurableException(t *testing.T) {
 	}
 	t.Fatal("manifest does not declare execute as a durable_run exception")
 }
+
+func TestEvidenceProductionIsGovernedAndConfirmationRequired(t *testing.T) {
+	m, err := cliapp.ParseManifest(manifestBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, group := range m.Groups {
+		if group.Name != "validation" {
+			continue
+		}
+		for _, command := range group.Commands {
+			if command.Name == "produce-evidence" {
+				g := command.Governance
+				if !g.RunEligible || g.Effect != "destructive" || g.RequiresConfirmation == nil || !*g.RequiresConfirmation {
+					t.Fatalf("producer must be callable only as a confirmation-required destructive binding: %+v", g)
+				}
+				return
+			}
+		}
+	}
+	t.Fatal("missing validation produce-evidence binding")
+}

@@ -4,6 +4,7 @@ package evidencecompletenessqualification
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -11,14 +12,16 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
+
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
 const (
-	ContractRow  = "evidence-completeness"
-	EvidenceDir  = ".vrooli/runtime/rehabilitation-evidence"
-	EvidenceGlob = EvidenceDir + "/evidence-completeness-*.json"
+	ContractRow          = "evidence-completeness"
+	EvidenceDir          = ".vrooli/runtime/rehabilitation-evidence"
+	maxRetainedByteCount = 16 << 20
 )
 
 var RequiredSources = []string{
@@ -42,57 +45,80 @@ var RequiredSources = []string{
 	"api/cmd/qualification-support.mjs",
 }
 
-var RequiredTests = []string{
-	"TestScreenshotAndOutcomeWriteFailuresBothSurvive",
-	"TestInlineTelemetryRemainsAttributableWhenSnapshotStorageFails",
-	"TestExternalArtifactsRejectMissingOrUncommittedEvidence",
-	"TestActiveEvidenceRefusesDeletionUntilExportFinishes",
-}
-
-type Receipt struct {
-	SchemaVersion int               `json:"schemaVersion"`
-	ContractRow   string            `json:"contractRow"`
-	Result        string            `json:"result"`
-	BuildIdentity string            `json:"managedBuildIdentity"`
-	SourceSHA256  map[string]string `json:"sourceSha256"`
-	Artifacts     []Artifact        `json:"artifacts"`
-}
-
-type Artifact struct {
-	Path   string   `json:"path"`
-	SHA256 string   `json:"sha256"`
-	Tests  []string `json:"tests"`
-}
-
-// Validate accepts only the newest passing receipt bound to the live build,
-// exact contract/source versions, four focused owners and their retained logs.
-func Validate(scenarioRoot, liveBuild string) error {
-	if strings.TrimSpace(liveBuild) == "" {
-		return fmt.Errorf("live managed build identity is empty")
+// ValidateRetained validates the exact opaque artifact references admitted by
+// Test Genie. The resolver is the Test Genie run-artifact byte route; paths
+// inside the source tree are never used to discover a replacement receipt.
+func ValidateRetained(scenarioRoot, liveBuild string, set *scenariovalidationv1.RetainedEvidenceSet, resolve func(*commonv1.EvidenceRef) ([]byte, error)) error {
+	if set == nil || strings.TrimSpace(set.GetProducerReceiptId()) == "" || strings.TrimSpace(set.GetProducer()) == "" || strings.TrimSpace(set.GetTarget()) == "" || strings.TrimSpace(set.GetRunId()) == "" || strings.TrimSpace(set.GetCandidateIdentity()) == "" || strings.TrimSpace(set.GetCatalogDigest()) == "" {
+		return fmt.Errorf("retained evidence identity is incomplete")
 	}
-	paths, err := filepath.Glob(filepath.Join(scenarioRoot, filepath.FromSlash(EvidenceGlob)))
-	if err != nil {
-		return err
+	if resolve == nil || len(set.GetArtifacts()) != 3 {
+		return fmt.Errorf("retained evidence artifact set is incomplete")
 	}
-	sort.Sort(sort.Reverse(sort.StringSlice(paths)))
-	for _, path := range paths {
-		data, readErr := os.ReadFile(path)
-		if readErr != nil {
-			continue
+	seen := map[string]bool{}
+	var receiptBytes []byte
+	var retainedByteCount int64
+	contents := make(map[string][]byte, len(set.GetArtifacts()))
+	for _, ref := range set.GetArtifacts() {
+		if ref == nil || strings.TrimSpace(ref.GetArtifactId()) == "" || ref.GetProducer() != set.GetTarget() || !supportedOwnerArtifactKind(ref.GetKind()) || len(ref.GetChecksum()) != sha256.Size*2 || ref.GetSizeBytes() < 0 || ref.GetSizeBytes() > maxRetainedByteCount {
+			return fmt.Errorf("retained evidence reference is incomplete")
 		}
-		var candidate Receipt
-		if json.Unmarshal(data, &candidate) != nil || candidate.BuildIdentity != liveBuild {
-			continue
+		if seen[ref.GetArtifactId()] {
+			return fmt.Errorf("duplicate retained artifact %q", ref.GetArtifactId())
 		}
-		if err := validate(scenarioRoot, candidate); err != nil {
-			return fmt.Errorf("%s: %w", filepath.Base(path), err)
+		seen[ref.GetArtifactId()] = true
+		data, err := resolve(ref)
+		if err != nil {
+			return fmt.Errorf("resolve retained artifact %s: %w", ref.GetArtifactId(), err)
 		}
-		return nil
+		if int64(len(data)) != ref.GetSizeBytes() {
+			return fmt.Errorf("retained artifact size changed: %s", ref.GetArtifactId())
+		}
+		retainedByteCount += int64(len(data))
+		if retainedByteCount > maxRetainedByteCount {
+			return fmt.Errorf("retained evidence bundle exceeds %d bytes", maxRetainedByteCount)
+		}
+		digest := sha256.Sum256(data)
+		if hex.EncodeToString(digest[:]) != ref.GetChecksum() {
+			return fmt.Errorf("retained artifact checksum changed: %s", ref.GetArtifactId())
+		}
+		if isOwnerReceipt(data) {
+			if ref.GetKind() != "generic.file" {
+				return fmt.Errorf("evidence-completeness receipt has catalog kind %q; want generic.file", ref.GetKind())
+			}
+			if receiptBytes != nil {
+				return fmt.Errorf("multiple evidence-completeness receipts were selected")
+			}
+			receiptBytes = data
+		}
+		contents[ref.GetChecksum()] = data
 	}
-	return fmt.Errorf("no retained evidence-completeness receipt matches live build %q", liveBuild)
+	if receiptBytes == nil {
+		return fmt.Errorf("selected evidence set lacks its evidence-completeness receipt")
+	}
+	var candidate Receipt
+	if err := json.Unmarshal(receiptBytes, &candidate); err != nil {
+		return fmt.Errorf("decode retained owner receipt: %w", err)
+	}
+	if candidate.BuildIdentity != liveBuild {
+		return fmt.Errorf("retained receipt build %q does not match live build %q", candidate.BuildIdentity, liveBuild)
+	}
+	return validateRetained(scenarioRoot, candidate, contents)
 }
 
-func validate(root string, r Receipt) error {
+func supportedOwnerArtifactKind(kind string) bool {
+	return kind == "generic.file" || kind == "command.output"
+}
+
+func isOwnerReceipt(data []byte) bool {
+	var receipt Receipt
+	if err := json.Unmarshal(data, &receipt); err != nil {
+		return false
+	}
+	return receipt.SchemaVersion == 1 && receipt.ContractRow == ContractRow
+}
+
+func validateRetained(root string, r Receipt, contents map[string][]byte) error {
 	if r.SchemaVersion != 1 || r.ContractRow != ContractRow || r.Result != "passed" || strings.TrimSpace(r.BuildIdentity) == "" {
 		return fmt.Errorf("receipt schema, outcome, row or build identity is invalid")
 	}
@@ -117,7 +143,11 @@ func validate(root string, r Receipt) error {
 	}
 	seen := make(map[string]bool, len(RequiredTests))
 	for _, artifact := range r.Artifacts {
-		passed, err := validateArtifact(root, artifact)
+		data, ok := contents[artifact.SHA256]
+		if !ok {
+			return fmt.Errorf("selected retained set lacks raw owner log digest %s", artifact.SHA256)
+		}
+		passed, err := validateArtifactBytes(data, Artifact{SHA256: artifact.SHA256, Tests: artifact.Tests})
 		if err != nil {
 			return err
 		}
@@ -136,36 +166,45 @@ func validate(root string, r Receipt) error {
 	return nil
 }
 
-func validateArtifact(root string, artifact Artifact) (map[string]bool, error) {
-	rel := filepath.Clean(filepath.FromSlash(artifact.Path))
-	if rel == "." || filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || !strings.HasPrefix(rel, filepath.FromSlash(EvidenceDir)+string(filepath.Separator)) {
-		return nil, fmt.Errorf("owner log path escapes retained evidence: %q", artifact.Path)
-	}
-	path := filepath.Join(root, rel)
-	got, err := fileSHA(path)
-	if err != nil {
-		return nil, err
-	}
-	if len(artifact.SHA256) != sha256.Size*2 || got != artifact.SHA256 {
-		return nil, fmt.Errorf("owner log digest mismatch: %s", artifact.Path)
+var RequiredTests = []string{
+	"TestScreenshotAndOutcomeWriteFailuresBothSurvive",
+	"TestInlineTelemetryRemainsAttributableWhenSnapshotStorageFails",
+	"TestExternalArtifactsRejectMissingOrUncommittedEvidence",
+	"TestActiveEvidenceRefusesDeletionUntilExportFinishes",
+}
+
+type Receipt struct {
+	SchemaVersion int               `json:"schemaVersion"`
+	ContractRow   string            `json:"contractRow"`
+	Result        string            `json:"result"`
+	BuildIdentity string            `json:"managedBuildIdentity"`
+	SourceSHA256  map[string]string `json:"sourceSha256"`
+	Artifacts     []Artifact        `json:"artifacts"`
+}
+
+type Artifact struct {
+	Path   string   `json:"path"`
+	SHA256 string   `json:"sha256"`
+	Tests  []string `json:"tests"`
+}
+
+func validateArtifactBytes(data []byte, artifact Artifact) (map[string]bool, error) {
+	digest := sha256.Sum256(data)
+	if len(artifact.SHA256) != sha256.Size*2 || hex.EncodeToString(digest[:]) != artifact.SHA256 {
+		return nil, fmt.Errorf("owner log digest mismatch")
 	}
 	if len(artifact.Tests) == 0 {
-		return nil, fmt.Errorf("owner log has no declared tests: %s", artifact.Path)
+		return nil, fmt.Errorf("owner log has no declared tests")
 	}
 	expected := make(map[string]bool, len(artifact.Tests))
 	for _, name := range artifact.Tests {
 		if name == "" || expected[name] {
-			return nil, fmt.Errorf("owner log declares an empty or duplicate test name: %s", name)
+			return nil, fmt.Errorf("owner log declares an empty or duplicate test name")
 		}
 		expected[name] = true
 	}
 	passed := make(map[string]bool, len(expected))
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(bytes.NewReader(data))
 	scanner.Buffer(make([]byte, 4096), 2*1024*1024)
 	for line := 1; scanner.Scan(); line++ {
 		var event struct {
@@ -173,7 +212,7 @@ func validateArtifact(root string, artifact Artifact) (map[string]bool, error) {
 			Test   string `json:"Test"`
 		}
 		if err := json.Unmarshal(scanner.Bytes(), &event); err != nil {
-			return nil, fmt.Errorf("decode owner test log %s line %d: %w", artifact.Path, line, err)
+			return nil, fmt.Errorf("decode owner test log line %d: %w", line, err)
 		}
 		if expected[event.Test] {
 			if event.Action == "fail" {

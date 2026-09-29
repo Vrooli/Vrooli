@@ -289,10 +289,13 @@ func (n *PlaywrightVisionNavigator) Navigate(ctx context.Context, req Navigation
 
 // HandleStepCallback processes a step callback from playwright-driver.
 func (n *PlaywrightVisionNavigator) HandleStepCallback(ctx context.Context, event *NavigationStep) error {
+	actionType, _ := event.Action["type"].(string)
+	var safeAction map[string]interface{}
+	safeEvent := *event
 	n.log.WithFields(logrus.Fields{
 		"navigation_id":  event.NavigationID,
 		"step_number":    event.StepNumber,
-		"action_type":    event.Action["type"],
+		"action_type":    actionType,
 		"goal_achieved":  event.GoalAchieved,
 		"awaiting_human": event.AwaitingHuman,
 	}).Debug("vision_navigation_callback: received step")
@@ -301,11 +304,30 @@ func (n *PlaywrightVisionNavigator) HandleStepCallback(ctx context.Context, even
 	n.mu.Lock()
 	session := n.activeNavigations[event.NavigationID]
 	if session != nil {
+		switch session.Status {
+		case StatusCompleted, StatusFailed, StatusAborted, StatusMaxSteps, StatusLoopDetected:
+			n.mu.Unlock()
+			return nil
+		}
+		if event.StepNumber <= session.StepCount {
+			n.mu.Unlock()
+			return nil
+		}
+		safeAction = redactNavigationAction(event.Action)
 		session.StepCount = event.StepNumber
 		session.TotalTokens += event.TokensUsed.TotalTokens
 		session.AwaitingHuman = event.AwaitingHuman
-		session.HumanIntervention = event.HumanIntervention
-		session.RecordStep(stepRecordFromEvent(event))
+		if event.HumanIntervention != nil {
+			session.HumanIntervention = redactedHumanIntervention(event.HumanIntervention)
+		} else {
+			session.HumanIntervention = nil
+		}
+		safeEvent.Action = safeAction
+		safeEvent.CurrentURL = redactNavigationURL(event.CurrentURL)
+		safeEvent.Reasoning = redactNavigationText(event.Reasoning)
+		safeEvent.Error = redactNavigationText(event.Error)
+		safeEvent.HumanIntervention = session.HumanIntervention
+		session.RecordStep(stepRecordFromEvent(&safeEvent, safeAction))
 		if event.AwaitingHuman {
 			session.SetStatus(StatusAwaitingHuman)
 		}
@@ -316,18 +338,18 @@ func (n *PlaywrightVisionNavigator) HandleStepCallback(ctx context.Context, even
 	if n.onActionRecord != nil && session != nil {
 		actionType := ""
 		selector := ""
-		if t, ok := event.Action["type"].(string); ok {
+		if t, ok := safeAction["type"].(string); ok {
 			actionType = t
 		}
-		if s, ok := event.Action["selector"].(string); ok {
+		if s, ok := safeAction["selector"].(string); ok {
 			selector = s
 		}
 
 		recordedAction := &RecordedNavigationAction{
 			ActionType: actionType,
-			URL:        event.CurrentURL,
+			URL:        safeEvent.CurrentURL,
 			Selector:   selector,
-			Reasoning:  event.Reasoning,
+			Reasoning:  safeEvent.Reasoning,
 			StepNumber: event.StepNumber,
 			Timestamp:  time.Now().Format(time.RFC3339Nano),
 			Source:     "ai",
@@ -360,42 +382,43 @@ func (n *PlaywrightVisionNavigator) HandleStepCallback(ctx context.Context, even
 			"navigationId": event.NavigationID,
 			"sessionId":    session.SessionID,
 			"stepNumber":   event.StepNumber,
-			"action":       event.Action,
-			"reasoning":    event.Reasoning,
-			"currentUrl":   event.CurrentURL,
+			"action":       safeAction,
+			"reasoning":    safeEvent.Reasoning,
+			"currentUrl":   safeEvent.CurrentURL,
 			"goalAchieved": event.GoalAchieved,
 			"tokensUsed":   event.TokensUsed,
 			"durationMs":   event.DurationMs,
 			"timestamp":    time.Now().UTC().Format(time.RFC3339),
 		}
 		if event.Error != "" {
-			wsEvent["error"] = event.Error
+			wsEvent["error"] = safeEvent.Error
 		}
 
 		n.wsHub.BroadcastEnvelope(wsEvent)
 
 		// If awaiting human intervention, send additional event
-		if event.AwaitingHuman && event.HumanIntervention != nil {
+		if event.AwaitingHuman && safeEvent.HumanIntervention != nil {
+			safeIntervention := safeEvent.HumanIntervention
 			humanEvent := map[string]interface{}{
 				"type":             "ai_navigation_awaiting_human",
 				"navigationId":     event.NavigationID,
 				"sessionId":        session.SessionID,
 				"stepNumber":       event.StepNumber,
-				"reason":           event.HumanIntervention.Reason,
-				"interventionType": event.HumanIntervention.InterventionType,
-				"trigger":          event.HumanIntervention.Trigger,
+				"reason":           safeIntervention.Reason,
+				"interventionType": safeIntervention.InterventionType,
+				"trigger":          safeIntervention.Trigger,
 				"timestamp":        time.Now().UTC().Format(time.RFC3339),
 			}
-			if event.HumanIntervention.Instructions != "" {
-				humanEvent["instructions"] = event.HumanIntervention.Instructions
+			if safeIntervention.Instructions != "" {
+				humanEvent["instructions"] = safeIntervention.Instructions
 			}
 
 			n.wsHub.BroadcastEnvelope(humanEvent)
 
 			n.log.WithFields(logrus.Fields{
 				"navigation_id":     event.NavigationID,
-				"intervention_type": event.HumanIntervention.InterventionType,
-				"trigger":           event.HumanIntervention.Trigger,
+				"intervention_type": safeIntervention.InterventionType,
+				"trigger":           safeIntervention.Trigger,
 			}).Info("vision_navigation_callback: awaiting human intervention")
 		}
 	}
@@ -405,6 +428,11 @@ func (n *PlaywrightVisionNavigator) HandleStepCallback(ctx context.Context, even
 
 // HandleCompleteCallback processes a completion callback from playwright-driver.
 func (n *PlaywrightVisionNavigator) HandleCompleteCallback(ctx context.Context, result *NavigationResult) error {
+	safeFinalURL := redactNavigationURL(result.FinalURL)
+	safeError := redactNavigationText(result.Error)
+	safeSummary := redactNavigationText(result.Summary)
+	safeVerificationError := redactNavigationText(result.VerificationError)
+	safeExtractedData := redactNavigationMap(result.ExtractedData, navigationMapSensitive(result.ExtractedData))
 	n.log.WithFields(logrus.Fields{
 		"navigation_id": result.NavigationID,
 		"status":        result.Status,
@@ -415,14 +443,28 @@ func (n *PlaywrightVisionNavigator) HandleCompleteCallback(ctx context.Context, 
 	// Update navigation session
 	n.mu.Lock()
 	session := n.activeNavigations[result.NavigationID]
-	if session != nil {
-		session.VerifiedSuccess = result.VerifiedSuccess
-		session.ExtractedData = result.ExtractedData
-		session.VerificationError = result.VerificationError
-		session.SetStatus(result.Status)
-		session.StepCount = result.TotalSteps
-		session.TotalTokens = result.TotalTokens
+	if session == nil {
+		n.mu.Unlock()
+		return nil
 	}
+	// Awaiting human is a resumable pause, so it is intentionally not treated
+	// as a committed completion here. Actual terminal results are immutable once
+	// the first completion callback has been applied.
+	switch session.Status {
+	case StatusCompleted, StatusFailed, StatusAborted, StatusMaxSteps, StatusLoopDetected:
+		n.mu.Unlock()
+		return nil
+	}
+	session.VerifiedSuccess = result.VerifiedSuccess
+	session.ExtractedData = safeExtractedData
+	session.VerificationError = safeVerificationError
+	session.FinalURL = safeFinalURL
+	session.Error = safeError
+	session.Summary = safeSummary
+	session.TotalDurationMs = result.TotalDurationMs
+	session.SetStatus(result.Status)
+	session.StepCount = result.TotalSteps
+	session.TotalTokens = result.TotalTokens
 	n.mu.Unlock()
 
 	// Broadcast via WebSocket
@@ -435,14 +477,14 @@ func (n *PlaywrightVisionNavigator) HandleCompleteCallback(ctx context.Context, 
 			"totalSteps":      result.TotalSteps,
 			"totalTokens":     result.TotalTokens,
 			"totalDurationMs": result.TotalDurationMs,
-			"finalUrl":        result.FinalURL,
+			"finalUrl":        safeFinalURL,
 			"timestamp":       time.Now().UTC().Format(time.RFC3339),
 		}
-		if result.Error != "" {
-			wsEvent["error"] = result.Error
+		if safeError != "" {
+			wsEvent["error"] = safeError
 		}
-		if result.Summary != "" {
-			wsEvent["summary"] = result.Summary
+		if safeSummary != "" {
+			wsEvent["summary"] = safeSummary
 		}
 
 		n.wsHub.BroadcastEnvelope(wsEvent)
@@ -470,9 +512,10 @@ func (n *PlaywrightVisionNavigator) GetSession(navigationID string) (*Navigation
 	return session.Snapshot(), true
 }
 
-// stepRecordFromEvent maps a driver step callback onto the bounded history
-// entry kept on the NavigationSession.
-func stepRecordFromEvent(event *NavigationStep) NavigationStepRecord {
+// stepRecordFromEvent maps an already-sanitized driver step callback onto the
+// bounded history entry kept on the NavigationSession. Callback admission owns
+// redaction so history does not traverse the same payload a second time.
+func stepRecordFromEvent(event *NavigationStep, safeAction map[string]interface{}) NavigationStepRecord {
 	rec := NavigationStepRecord{
 		Index:       event.StepNumber,
 		URL:         event.CurrentURL,
@@ -481,19 +524,19 @@ func stepRecordFromEvent(event *NavigationStep) NavigationStepRecord {
 		Error:       event.Error,
 		At:          time.Now(),
 	}
-	if t, ok := event.Action["type"].(string); ok {
+	if t, ok := safeAction["type"].(string); ok {
 		rec.ActionType = t
 	}
-	if sel, ok := event.Action["selector"].(string); ok {
+	if sel, ok := safeAction["selector"].(string); ok {
 		rec.Selector = sel
 	}
 	for _, key := range []string{"value", "text", "key"} {
-		if v, ok := event.Action[key].(string); ok && v != "" {
+		if v, ok := safeAction[key].(string); ok && v != "" {
 			rec.Value = v
 			break
 		}
 	}
-	if u, ok := event.Action["url"].(string); ok && u != "" && (rec.ActionType == "navigate" || rec.URL == "") {
+	if u, ok := safeAction["url"].(string); ok && u != "" && (rec.ActionType == "navigate" || rec.URL == "") {
 		rec.URL = u
 	}
 	return rec

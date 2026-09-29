@@ -243,10 +243,9 @@ func (p *WorkspaceSandboxProvider) GetWorkspacePath(ctx context.Context, id uuid
 
 // ContainmentFor reports the containment a sandbox actually enforces,
 // satisfying runner.SandboxContainmentReporter so the launcher selector can
-// surface degraded protected-mode runs. Returns ok=false when the sandbox
+// reject unqualified protected-mode runs. Returns ok=false when the sandbox
 // cannot be fetched or the server did not report containment (older
-// workspace-sandbox), so the caller degrades to silence rather than a false
-// "fully contained" claim.
+// workspace-sandbox); protected callers must refuse launch in that case.
 func (p *WorkspaceSandboxProvider) ContainmentFor(ctx context.Context, sandboxID uuid.UUID) (*runner.Containment, bool) {
 	sb, err := p.Get(ctx, sandboxID)
 	if err != nil || sb == nil || sb.Containment == nil {
@@ -797,6 +796,9 @@ func (p *WorkspaceSandboxProvider) parseError(operation string, sandboxID *uuid.
 // =============================================================================
 
 type wsSandboxResponse struct {
+	Behavior struct {
+		WritePolicy *domain.WorkspaceWritePolicy `json:"writePolicy"`
+	} `json:"behavior"`
 	ID               string            `json:"id"`
 	ScopePath        string            `json:"scopePath"`
 	ProjectRoot      string            `json:"projectRoot"`
@@ -841,6 +843,7 @@ func (r *wsSandboxResponse) toSandbox() *Sandbox {
 			Level:        r.Containment.Level,
 			Backend:      r.Containment.Backend,
 			Enforcements: r.Containment.Enforcements,
+			WritePolicy:  r.Behavior.WritePolicy,
 		}
 	}
 	return &Sandbox{
@@ -1206,6 +1209,9 @@ func encodeBehaviorForWire(cfg *domain.SandboxConfig) map[string]interface{} {
 		"manualReview": cfg.ManualReview,
 		"lifecycle":    cfg.Lifecycle,
 		"acceptance":   cfg.Acceptance,
+	}
+	if cfg.WritePolicy != nil {
+		wire["writePolicy"] = cfg.WritePolicy
 	}
 	if cfg.Mode.Effective() == domain.SandboxModeProtected {
 		// Per the protected-agent-sandboxing contract, agent-manager owns

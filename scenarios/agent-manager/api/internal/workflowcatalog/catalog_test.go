@@ -26,6 +26,151 @@ func validBudgets() domain.WorkflowBudgets {
 	return domain.WorkflowBudgets{WallTimeSeconds: 60, MaxTurns: 4, MaxTokens: 1000, MaxChargeMicroUSD: 1, MaxNodeAttempts: 3, MaxChildren: 2, MaxConcurrency: 2, MaxRecursion: 2, MaxRetries: 2, MaxWaitSeconds: 30}
 }
 
+func TestQualificationRequiresPinnedProgramAndDominatingIndependentReview(t *testing.T) {
+	for _, kind := range []string{"valid", "worker-is-review", "review-bypass", "dynamic-program", "missing-digest", "reserved-candidate", "metered-qualification", "broad-grant"} {
+		t.Run(kind, func(t *testing.T) {
+			d := validDefinition()
+			off := false
+			zero := 0
+			review := &domain.WorkflowRunNode{RoleRef: "code.supervision", PromptTemplate: "Review the retained candidate", ReviewInput: &domain.WorkflowReviewInput{FromNode: "start", Paths: []string{"src"}}, SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected, AutoApply: &off, WritePolicy: &domain.WorkspaceWritePolicy{}, NetworkMode: domain.NetworkAccessNone}, ResultSpec: &domain.ResultSpec{Kind: domain.ResultSpecKindJSONSchema, SchemaRepairAttempts: &zero, Schema: json.RawMessage(`{"type":"object","properties":{"accepted":{"type":"boolean"},"candidateSha256":{"type":"string"}},"required":["accepted","candidateSha256"]}`)}}
+			qualify := &domain.WorkflowQualificationNode{ReviewFromNode: "review", ProgramName: "example.qualify", ProgramDigest: strings.Repeat("a", 64)}
+			d.Nodes = append(d.Nodes, domain.WorkflowNode{ID: "review", Kind: domain.WorkflowNodeRun, Run: review}, domain.WorkflowNode{ID: "qualify", Kind: domain.WorkflowNodeQualification, Qualification: qualify})
+			d.Edges = []domain.WorkflowEdge{{From: "start", To: "review"}, {From: "review", To: "qualify"}, {From: "qualify", To: "done"}}
+			switch kind {
+			case "worker-is-review":
+				qualify.ReviewFromNode = "start"
+			case "review-bypass":
+				d.EntryNode = "qualify"
+			case "dynamic-program":
+				qualify.ProgramName = "{{.input.program}}"
+			case "missing-digest":
+				qualify.ProgramDigest = ""
+			case "reserved-candidate":
+				qualify.Bindings = []domain.WorkflowInputBinding{{Name: "candidate", Source: domain.WorkflowBindingInput, Limit: 1, MaxBytes: 4096, RenderAs: "json", MissingPolicy: "error"}}
+			case "metered-qualification":
+				d.Budgets.Enforcement = domain.WorkflowBudgetMeteredCancellation
+			case "broad-grant":
+				qualify.Grants = []string{"effect:destructive"}
+			}
+			result, err := Validate(d, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if kind == "valid" || kind == "metered-qualification" {
+				if result.Digest == "" || domain.HasBlockingDiagnostic(result.Diagnostics) {
+					t.Fatal(result.Diagnostics)
+				}
+				qualify.ProgramDigest = strings.Repeat("b", 64)
+				changed, err := Validate(d, nil)
+				if err != nil || changed.Digest == result.Digest {
+					t.Fatal("qualification program was not pinned in workflow revision")
+				}
+			} else if !domain.HasBlockingDiagnostic(result.Diagnostics) {
+				t.Fatal("unsafe qualification declaration admitted")
+			}
+		})
+	}
+}
+
+func TestWorkflowReviewInputPinsReadOnlySourceSelection(t *testing.T) {
+	for _, kind := range []string{"valid", "localhost-transport", "writable", "auto-apply", "unprotected", "network", "missing-source", "self", "traversal", "dynamic-scope", "empty-paths", "missing-result", "unbound-result"} {
+		t.Run(kind, func(t *testing.T) {
+			d := validDefinition()
+			off := false
+			review := &domain.WorkflowRunNode{RoleRef: "code.supervision", PromptTemplate: "Review the retained candidate", ReviewInput: &domain.WorkflowReviewInput{FromNode: "start", Paths: []string{"src"}}, SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected, AutoApply: &off, WritePolicy: &domain.WorkspaceWritePolicy{}, NetworkMode: domain.NetworkAccessNone}}
+			review.ResultSpec = &domain.ResultSpec{Kind: domain.ResultSpecKindJSONSchema, Schema: json.RawMessage(`{"type":"object","properties":{"accepted":{"type":"boolean"},"candidateSha256":{"type":"string"}},"required":["accepted","candidateSha256"]}`)}
+			d.Nodes = append(d.Nodes, domain.WorkflowNode{ID: "review", Kind: domain.WorkflowNodeRun, Run: review})
+			d.Edges = []domain.WorkflowEdge{{From: "start", To: "review"}, {From: "review", To: "done"}}
+			switch kind {
+			case "localhost-transport":
+				review.SandboxConfig.NetworkMode = domain.NetworkAccessLocalhost
+			case "writable":
+				review.SandboxConfig.WritePolicy.Paths = []string{"src"}
+			case "auto-apply":
+				review.SandboxConfig.AutoApply = nil
+			case "unprotected":
+				review.SandboxConfig.Mode = domain.SandboxModeTracking
+			case "network":
+				review.SandboxConfig.NetworkMode = domain.NetworkAccessFull
+			case "missing-source":
+				review.ReviewInput.FromNode = "absent"
+			case "self":
+				review.ReviewInput.FromNode = "review"
+			case "traversal":
+				review.ReviewInput.Paths = []string{"../other"}
+			case "dynamic-scope":
+				review.ScopePathTemplate = "."
+			case "empty-paths":
+				review.ReviewInput.Paths = nil
+			case "missing-result":
+				review.ResultSpec = nil
+			case "unbound-result":
+				review.ResultSpec.Schema = json.RawMessage(`{"type":"object"}`)
+			}
+			result, err := Validate(d, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if kind == "valid" || kind == "localhost-transport" {
+				if result.Digest == "" || domain.HasBlockingDiagnostic(result.Diagnostics) {
+					t.Fatal(result.Diagnostics)
+				}
+				review.ReviewInput.Paths = []string{"other"}
+				changed, err := Validate(d, nil)
+				if err != nil || result.Digest == changed.Digest {
+					t.Fatal("selection not part of immutable revision")
+				}
+			} else if !domain.HasBlockingDiagnostic(result.Diagnostics) {
+				t.Fatal("unsafe review definition accepted")
+			}
+		})
+	}
+}
+
+func TestWorkflowRevisionPinsSandboxAuthority(t *testing.T) {
+	data, err := json.Marshal(validDefinition())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var authored map[string]any
+	if err := json.Unmarshal(data, &authored); err != nil {
+		t.Fatal(err)
+	}
+	run := authored["nodes"].([]any)[0].(map[string]any)["run"].(map[string]any)
+	policy := map[string]any{"mode": "protected", "networkMode": "none", "manualReview": true,
+		"autoApply": false, "applyOnFailure": false, "writePolicy": map[string]any{"paths": []string{"src"}}}
+	run["sandboxConfig"] = policy
+	parse := func() *Result {
+		t.Helper()
+		data, err := json.Marshal(authored)
+		if err != nil {
+			t.Fatal(err)
+		}
+		result, err := Parse(data, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return result
+	}
+	initial := parse()
+	if initial.Digest == "" || !strings.Contains(string(initial.Canonical), `"writePolicy":{"paths":["src"]}`) {
+		t.Fatalf("authority lost from revision: %+v", initial)
+	}
+	policy["writePolicy"] = map[string]any{"paths": []string{}}
+	readOnly := parse()
+	if readOnly.Digest == "" || readOnly.Digest == initial.Digest || !strings.Contains(string(readOnly.Canonical), `"writePolicy":{"paths":[]}`) {
+		t.Fatalf("empty explicit grant must persist and change revision: %+v", readOnly)
+	}
+	for field, invalid := range map[string]string{"mode": "off", "networkMode": "unknown"} {
+		previous := policy[field]
+		policy[field] = invalid
+		if result := parse(); result.Digest != "" || !hasCode(result.Diagnostics, "sandbox_config") {
+			t.Errorf("invalid %s admitted: %+v", field, result)
+		}
+		policy[field] = previous
+	}
+}
+
 func TestGrantCapacityDoesNotIncreaseDefaultsAndRejectsUnboundedCapacity(t *testing.T) {
 	d := validDefinition()
 	defaults := d.Budgets
@@ -424,6 +569,7 @@ func TestValidateAcceptsDistinctAuthoredTerminalOutcomes(t *testing.T) {
 func TestValidateRejectsInvalidAgentNodeLimits(t *testing.T) {
 	d := validDefinition()
 	d.Nodes[0].Run.MaxTurns = -1
+	d.Nodes[0].Run.MaxToolCalls = MaxToolCalls + 1
 	d.Nodes[0].Run.TimeoutSeconds = MaxWallTimeSeconds + 1
 	result, err := Validate(d, nil)
 	if err != nil {

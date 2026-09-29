@@ -12,18 +12,25 @@
   "dimensions": ["tests", "contracts"],
   "evidenceKinds": ["motion", "interactive-feedback", "evidence-completeness", "resource-budget", "profile-durability", "cancellation-recovery", "passive-fidelity", "owner-receipt"],
   "validation": {"contract": "scenario-validation/v1", "includeExecution": true},
+  "evidenceProducers": {
+    "evidence-completeness": {
+      "argv": ["node", "api/cmd/evidence-completeness-cohort/qualification.mjs", "{output_dir}"],
+      "workingDirectory": ".",
+      "timeout": "10m",
+      "maximumOutputBytes": 16777216
+    }
+  },
   "targets": {
     "kinds": ["scenario"],
     "selection": "enumerate",
     "notApplicableKinds": [{"kind": "control-plane", "reason": "Profile storage durability is a browser scenario behavior and cannot apply to control-plane targets."}]
   },
   "applicability": {
-    "default": "not_applicable",
+    "default": "applies",
     "any": [
       {"pathGlob": ".vrooli/runtime/rehabilitation-evidence/profile-durability-*.json"},
       {"pathGlob": ".vrooli/runtime/rehabilitation-evidence/cancellation-recovery-*.json"},
       {"pathGlob": ".vrooli/runtime/rehabilitation-evidence/passive-fidelity-*.json"},
-      {"pathGlob": ".vrooli/runtime/rehabilitation-evidence/evidence-completeness-*.json"},
       {"pathGlob": ".vrooli/runtime/rehabilitation-evidence/resource-budget-w189-*.json"},
       {"pathGlob": ".vrooli/runtime/rehabilitation-evidence/interactive-feedback-*.json"}
     ]

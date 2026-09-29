@@ -5,6 +5,9 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
+	"syscall"
 	"testing"
 	"time"
 
@@ -167,6 +170,122 @@ func TestKillAll(t *testing.T) {
 	}
 	if len(errs) != 0 {
 		t.Logf("errors (may be expected): %v", errs)
+	}
+}
+
+// Wait has reaped the child, but the owner has not delivered its exit receipt.
+// Kernel liveness is not an exit code and must not win the RecordExit race.
+func TestKillAllPreservesDelayedActualExit(t *testing.T) {
+	reaped := make(chan struct{})
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	clk := &reapedClock{Clock: schedule.System(), ctx: ctx, reaped: reaped}
+	tracker := NewTracker(clk)
+	id := uuid.New()
+	cmd := exec.Command("sleep", "30")
+	cmd.SysProcAttr = NewProcessGroupSysProcAttr()
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = KillProcessGroupByPID(cmd.Process.Pid) })
+	if _, err := tracker.Track(id, cmd.Process.Pid, "sleep", ""); err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		_ = cmd.Wait()
+		close(reaped)
+	}()
+	if _, errs := tracker.KillAll(ctx, id); len(errs) != 0 {
+		t.Fatal(errs)
+	}
+	if got := tracker.GetExitInfo(id, cmd.Process.Pid); got != nil {
+		t.Fatalf("termination invented exit evidence before the reaper delivered it: %+v", got)
+	}
+	status := cmd.ProcessState.Sys().(syscall.WaitStatus)
+	tracker.RecordExit(id, cmd.Process.Pid, ExitInfo{ExitCode: cmd.ProcessState.ExitCode(), Signal: int(status.Signal())})
+	if got := tracker.GetExitInfo(id, cmd.Process.Pid); got == nil || got.Signal != int(syscall.SIGTERM) {
+		t.Fatalf("actual SIGTERM exit was lost: %+v", got)
+	}
+}
+
+func TestDrainKillsChildAfterTrackedLeaderExits(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX process groups are required")
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+	defer cancel()
+	id := uuid.New()
+	tracker := NewTrackerWithConfig(TrackerConfig{GracePeriod: 30 * time.Millisecond, KillWait: 30 * time.Millisecond}, schedule.System())
+	marker := filepath.Join(t.TempDir(), "writes")
+	cmd := exec.Command("sh", "-c", `while :; do echo x >> "$1"; sleep 0.02; done & exit 0`, "leader", marker)
+	cmd.SysProcAttr = NewProcessGroupSysProcAttr()
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	pgid := cmd.Process.Pid
+	runnerPGID, _ := sysGetpgid(os.Getpid())
+	if pgid <= 1 || pgid == runnerPGID {
+		t.Fatalf("unsafe test process group %d", pgid)
+	}
+	t.Cleanup(func() {
+		if pgid > 1 && pgid != runnerPGID {
+			_ = sysKill(-pgid, syscall.SIGKILL)
+		}
+	})
+	if _, err := tracker.Track(id, cmd.Process.Pid, cmd.String(), ""); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for {
+		if info, err := os.Stat(marker); err == nil && info.Size() > 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("child did not begin writing")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("leader failed before exiting: %v", err)
+	}
+	state := cmd.ProcessState
+	tracker.RecordExit(id, cmd.Process.Pid, ExitInfo{ExitCode: state.ExitCode()})
+	recorded := tracker.GetExitInfo(id, cmd.Process.Pid)
+	if recorded == nil || recorded.ExitCode != 0 {
+		t.Fatalf("missing actual leader exit evidence: %+v", recorded)
+	}
+
+	if err := tracker.Drain(ctx, id); err != nil {
+		t.Fatalf("Drain failed: %v", err)
+	}
+	stoppedSize, err := os.Stat(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(80 * time.Millisecond)
+	finalSize, err := os.Stat(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finalSize.Size() != stoppedSize.Size() {
+		t.Fatalf("child kept writing after Drain: size %d -> %d", stoppedSize.Size(), finalSize.Size())
+	}
+	if got := tracker.GetExitInfo(id, cmd.Process.Pid); got == nil || got.ExitCode != 0 || got.StoppedAt != recorded.StoppedAt {
+		t.Fatalf("Drain changed recorded leader exit evidence: before=%+v after=%+v", recorded, got)
+	}
+}
+
+type reapedClock struct {
+	schedule.Clock
+	ctx    context.Context
+	reaped <-chan struct{}
+}
+
+func (c *reapedClock) Sleep(time.Duration) {
+	select {
+	case <-c.reaped:
+	case <-c.ctx.Done():
 	}
 }
 

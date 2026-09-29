@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -80,11 +79,10 @@ func pathologyCorpusPath(t testing.TB, name string) string {
 	if strings.TrimSpace(name) == "" || strings.Contains(name, string(filepath.Separator)) {
 		t.Fatalf("invalid pathology name %q", name)
 	}
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("locate pathology corpus")
+	path, err := filepath.Abs(filepath.Join("..", "..", "adapters", "runner", "codecs", "testdata", "corpus", "pathology", name+".jsonl"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	path := filepath.Join(filepath.Dir(file), "..", "..", "adapters", "runner", "codecs", "testdata", "corpus", "pathology", name+".jsonl")
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("pathology corpus %s: %v", name, err)
 	}

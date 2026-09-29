@@ -16,7 +16,7 @@ import { safeParse } from '@/shared/api/safeParse';
 import { getApiBase } from '@/config';
 import { logger } from '@/utils/logger';
 import { visionNavigationClient } from '@/api/visionNavigation';
-import type { StartNavigationResponse } from '@/api/visionNavigation';
+import type { GetNavigationStatusResponse, StartNavigationResponse } from '@/api/visionNavigation';
 import * as schemas from './schemas';
 
 // ============================================================================
@@ -462,6 +462,23 @@ export class RecordingApiService {
       return { success: true, data: resp };
     } catch (err) {
       return this.handleConnectError(err, 'startAINavigation', true);
+    }
+  }
+
+  /** Read navigation status, optionally waiting for a terminal transition. */
+  async getAINavigationStatus(
+    navigationId: string,
+    waitMillis = 300_000,
+    options?: RequestOptions,
+  ): Promise<ApiResult<GetNavigationStatusResponse>> {
+    try {
+      const resp = await visionNavigationClient.getNavigationStatus(
+        { navigationId, waitMillis: BigInt(waitMillis) },
+        { signal: options?.signal },
+      );
+      return { success: true, data: resp };
+    } catch (err) {
+      return this.handleConnectError(err, 'getAINavigationStatus', false);
     }
   }
 

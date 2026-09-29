@@ -443,12 +443,45 @@
           }
         },
         {
+          "name": "execution",
+          "description": "Observe the original keyed execution without submitting or retrying it.",
+          "positionals": [{"name": "name", "required": true, "description": "Declared contract <scenario>.<program>."}],
+          "flags": [{"name": "idempotency-key", "required": true, "description": "Original request key; observation never executes the program."}],
+          "binding": {"kind": "connect-rpc", "service": "LibraryService", "method": "GetDeclaredExecution"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "close-admission",
+          "description": "Close the exact original keyed request without starting work. Already-admitted execution must still drain.",
+          "positionals": [{"name": "name", "required": true, "description": "Declared contract <scenario>.<program>."}],
+          "flags": [
+            {"name": "expected-digest", "required": true, "description": "Original pinned program digest."},
+            {"name": "grant", "repeatable": true, "description": "Original exact binding:<id> grant; repeatable.", "bind": {"field": "grants"}, "bind_waiver": "Repeated grant values supply the grants sequence."},
+            {"name": "idempotency-key", "required": true, "description": "Original request key."},
+            {"name": "admission-deadline", "required": true, "description": "Original fixed RFC3339 deadline; never renew it."},
+            {"name": "input", "description": "Original key=value inputs.", "bind": {"field": "inputs"}, "bind_waiver": "The library adapter constructs the structured inputs message."},
+            {"name": "provenance", "default": "operator", "description": "Original caller provenance."},
+            {"name": "caller-run-id", "local_only": true, "description": "Original caller run; defaults to VROOLI_RUN_ID."},
+            {"name": "caller-agent-profile", "local_only": true, "description": "Original profile; defaults to VROOLI_AGENT_PROFILE."},
+            {"name": "caller-skill-id", "local_only": true, "description": "Original skill; defaults to VROOLI_SKILL_ID."},
+            {"name": "caller-harness", "local_only": true, "description": "Original harness; defaults to VROOLI_HARNESS or cli."}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "LibraryService", "method": "CloseDeclaredAdmission"},
+          "governance": {"effect": "write", "run_eligible": true},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
           "name": "run",
           "description": "Run one declared contract with validated named inputs.",
           "positionals": [
             {"name": "name", "required": true, "description": "Declared contract <scenario>.<program>."}
           ],
           "flags": [
+            {"name": "expected-digest", "description": "Pin the exact declared program content digest."},
+            {"name": "grant", "repeatable": true, "description": "Explicit binding:<id> grant for a destructive binding declared by the pinned contract.", "bind": {"field": "grants"}, "bind_waiver": "Repeated grant values supply the grants sequence."},
+            {"name": "idempotency-key", "description": "Stable request key scoped to the program; requires expected-digest and admission-deadline."},
+            {"name": "admission-deadline", "description": "Fixed RFC3339 deadline within 24h for keyed admission. Never renew on retry."},
             {"name": "input", "description": "Comma-separated key=value inputs.", "bind": {"field": "inputs"}, "bind_waiver": "The library CLI adapter parses key=value pairs and constructs the structured inputs message."},
             {"name": "provenance", "description": "Caller provenance: operator, agent, test, or replay.", "default": "operator"},
             {"name": "caller-run-id", "local_only": true, "description": "Explicit caller run id; defaults to VROOLI_RUN_ID."},

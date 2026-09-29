@@ -49,6 +49,64 @@ argument-populatable read bindings and records `PROVENANCE_OPERATOR` with
 program id `sweep`. That provenance contributes to ledger exercise but is
 excluded from the default friction-mining corpus.
 
+### Durable declared-program accounting — implementation target
+
+Qualification consumes runtime-owned usage, never a program's stdout claim.
+The existing persisted `Program` receipt must retain typed token and marginal
+charge totals, accounting completeness and charge-measurement status before its
+dedicated session is reclaimed. Reuse the existing program repository and
+session/invocation/delegation owners; do not create another usage ledger, scheduler
+or lifecycle. AM's qualification owner consumes this receipt and retains its
+existing candidate, program, request and caller identity checks.
+
+Settle actual executed work, including nested libraries, inference and delegated
+children, exactly once. A dedicated declared-program session may supply its full
+totals; a reused session must not charge previous or concurrent submissions to
+this program. An explicit owner-observed local execution with no metered work can
+have measured zero. Missing, unpriced, pending or interrupted work stays unknown;
+contract budgets, empty numeric defaults and caller-authored `usage` are not proof.
+Preserve explicit charge-presence/basis evidence where the existing accounting
+path currently discards it. Do not count nested totals twice or settle while a
+child may still run. Retained usage must survive session reclamation and API
+restart, without replaying effects or allocating a replacement session.
+
+The scoped regression gate covers local measured zero; measured inference and
+delegation; missing/unpriced charge; nested attribution; unfinished children;
+reused-session isolation; persistence failure and reclaimed/restarted reads.
+AM must reject forged stdout usage and accept only the matching runtime-owned
+receipt. Exercise production wiring, not only manually supplied test callbacks.
+Use existing storage/schema governance for data-preserving adoption; no runtime
+migration shim. Source proof is not live qualification or campaign activation.
+
+### Governed terminal waits — implementation target
+
+The exact `test-genie/validation/wait` binding needs a server-owned long-wait
+profile in the existing bridge and kernel invocation seams. Ordinary calls keep
+their 90-second bridge/100-second kernel bounds. The owner-wait profile uses a
+12-minute bridge ceiling and 13-minute kernel ceiling, both within PRT's existing
+15-minute server write ceiling and TG's 20-minute ceiling. Derive these values in
+the existing budgets package and its kernel envelope; do not duplicate literals,
+accept arbitrary caller timeout overrides, or raise global/default limits.
+
+The BAS composition uses at most an 11-minute terminal wait per retained receipt:
+the declared producer can run for 10 minutes, so observing it needs terminalization
+headroom. Compatible admitted owner budgets (including queue and cleanup) and
+async execution must fit the declared wall allowance. Validate those bounds before
+effects; the original AM/PRT deadline still limits every call and is never renewed. This does not support a
+single 30-minute wait. Preserve exact program/receipt/wait IDs, grants and pending
+handles across cancellation or runtime interruption; never replay promotion or
+producer effects. No private polling loop, new suspension engine or scheduler.
+
+Prove the actual kernel → bridge → TG notification-based wait path with scaled
+test budgets: one wait outlasts the ordinary cap and returns a terminal receipt;
+cancellation and restart preserve handles without a second producer admission.
+Tests must also show ordinary bindings retain their old bounds and unknown
+bindings cannot opt into the longer profile. Source tests do not prove adoption.
+Source acceptance may use separate authentic kernel/bridge and TG owner
+regressions; clearly label simulated transports. The joined live owner path
+remains required before campaign activation. Do not add a shipping test facade
+or bypass module ownership solely to combine fixtures in one source test.
+
 ## Logs
 
 | Log | Source | How To Read | Details |

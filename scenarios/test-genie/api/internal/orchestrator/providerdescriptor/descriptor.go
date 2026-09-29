@@ -41,6 +41,8 @@ const (
 )
 
 var evidenceKindPattern = regexp.MustCompile(`^[a-z0-9]+(?:[._-][a-z0-9]+)*$`)
+var evidenceProducerNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]*$`)
+var evidenceProducerPlaceholderPattern = regexp.MustCompile(`\{([^{}]+)\}`)
 
 type Descriptor struct {
 	SchemaVersion string `json:"schemaVersion"`
@@ -55,34 +57,47 @@ type Descriptor struct {
 	ConformanceTarget string `json:"conformanceTarget,omitempty"`
 	// DBIsolationProvider identifies the descriptor that owns routed database
 	// isolation checks. It is a declaration, not an orchestrator special case.
-	DBIsolationProvider        bool             `json:"dbIsolationProvider,omitempty"`
-	ArtifactComparisonProvider bool             `json:"artifactComparisonProvider,omitempty"`
-	OrderHint                  int              `json:"orderHint,omitempty"`
-	Timeout                    string           `json:"timeout"`
-	FindingSource              string           `json:"findingSource,omitempty"`
-	ProfileMembership          []string         `json:"profileMembership,omitempty"`
-	FreshnessRequirement       string           `json:"freshnessRequirement,omitempty"`
-	PhaseClass                 string           `json:"phaseClass,omitempty"`
-	RuntimeClass               string           `json:"runtimeClass,omitempty"`
-	Concurrency                Concurrency      `json:"concurrency,omitempty"`
-	Determinism                Determinism      `json:"determinism,omitempty"`
-	Dimensions                 []string         `json:"dimensions,omitempty"`
-	EvidenceKinds              []string         `json:"evidenceKinds,omitempty"`
-	Aliases                    []string         `json:"aliases,omitempty"`
-	Supersedes                 []string         `json:"supersedes,omitempty"`
-	Comparison                 Comparison       `json:"comparison,omitempty"`
-	Validation                 Validation       `json:"validation"`
-	Targets                    Targets          `json:"targets,omitempty"`
-	Applicability              Applicability    `json:"applicability"`
-	Policy                     Policy           `json:"policy"`
-	Runnability                Runnability      `json:"runnability"`
-	Docs                       Docs             `json:"docs,omitempty"`
-	Maturity                   json.RawMessage  `json:"maturity"`
-	Path                       string           `json:"-"`
-	TimeoutValue               time.Duration    `json:"-"`
-	MaturitySpec               *assessment.Spec `json:"-"`
-	concurrencyDeclared        bool             `json:"-"`
-	determinismDeclared        bool             `json:"-"`
+	DBIsolationProvider        bool                        `json:"dbIsolationProvider,omitempty"`
+	ArtifactComparisonProvider bool                        `json:"artifactComparisonProvider,omitempty"`
+	OrderHint                  int                         `json:"orderHint,omitempty"`
+	Timeout                    string                      `json:"timeout"`
+	FindingSource              string                      `json:"findingSource,omitempty"`
+	ProfileMembership          []string                    `json:"profileMembership,omitempty"`
+	FreshnessRequirement       string                      `json:"freshnessRequirement,omitempty"`
+	PhaseClass                 string                      `json:"phaseClass,omitempty"`
+	RuntimeClass               string                      `json:"runtimeClass,omitempty"`
+	Concurrency                Concurrency                 `json:"concurrency,omitempty"`
+	Determinism                Determinism                 `json:"determinism,omitempty"`
+	Dimensions                 []string                    `json:"dimensions,omitempty"`
+	EvidenceKinds              []string                    `json:"evidenceKinds,omitempty"`
+	Aliases                    []string                    `json:"aliases,omitempty"`
+	Supersedes                 []string                    `json:"supersedes,omitempty"`
+	Comparison                 Comparison                  `json:"comparison,omitempty"`
+	Validation                 Validation                  `json:"validation"`
+	EvidenceProducers          map[string]EvidenceProducer `json:"evidenceProducers,omitempty"`
+	Targets                    Targets                     `json:"targets,omitempty"`
+	Applicability              Applicability               `json:"applicability"`
+	Policy                     Policy                      `json:"policy"`
+	Runnability                Runnability                 `json:"runnability"`
+	Docs                       Docs                        `json:"docs,omitempty"`
+	Maturity                   json.RawMessage             `json:"maturity"`
+	Path                       string                      `json:"-"`
+	TimeoutValue               time.Duration               `json:"-"`
+	MaturitySpec               *assessment.Spec            `json:"-"`
+	concurrencyDeclared        bool                        `json:"-"`
+	determinismDeclared        bool                        `json:"-"`
+}
+
+// EvidenceProducer is an owner-authored command declaration. Values are
+// literal argv entries; only the documented server placeholders are expanded.
+type EvidenceProducer struct {
+	Argv               []string      `json:"argv"`
+	WorkingDirectory   string        `json:"workingDirectory"`
+	OutputRoot         string        `json:"-"`
+	Timeout            string        `json:"timeout"`
+	MaximumOutputBytes int64         `json:"maximumOutputBytes"`
+	MutatesLifecycle   bool          `json:"mutatesLifecycle,omitempty"`
+	TimeoutValue       time.Duration `json:"-"`
 }
 
 type Concurrency struct {
@@ -612,6 +627,42 @@ func validateDescriptor(d *Descriptor) []Diagnostic {
 	if d.Validation.Contract != "scenario-validation/v1" {
 		add("invalid_validation_contract", "validation.contract must be scenario-validation/v1")
 	}
+	for name, producer := range d.EvidenceProducers {
+		if !evidenceProducerNamePattern.MatchString(name) {
+			add("invalid_evidence_producer_name", fmt.Sprintf("evidence producer name %q must match %s", name, evidenceProducerNamePattern))
+		}
+		if len(producer.Argv) == 0 || strings.TrimSpace(producer.Argv[0]) == "" {
+			add("invalid_evidence_producer_argv", fmt.Sprintf("evidence producer %q requires literal argv with an executable", name))
+		}
+		for _, arg := range producer.Argv {
+			if strings.TrimSpace(arg) == "" {
+				add("invalid_evidence_producer_argv", fmt.Sprintf("evidence producer %q argv entries must be non-empty strings", name))
+			}
+			for _, placeholder := range evidenceProducerPlaceholderPattern.FindAllStringSubmatch(arg, -1) {
+				if placeholder[1] != "run_id" && placeholder[1] != "output_dir" {
+					add("invalid_evidence_producer_placeholder", fmt.Sprintf("evidence producer %q uses unsupported placeholder {%s}", name, placeholder[1]))
+				}
+			}
+		}
+		for field, value := range map[string]string{"workingDirectory": producer.WorkingDirectory} {
+			clean := filepath.Clean(filepath.FromSlash(strings.TrimSpace(value)))
+			rootWorkingDirectory := field == "workingDirectory" && (value == "." || clean == ".")
+			if value == "" || filepath.IsAbs(value) || (!rootWorkingDirectory && clean == ".") || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+				add("invalid_evidence_producer_path", fmt.Sprintf("evidence producer %q %s must be a non-empty scenario-relative path", name, field))
+			}
+		}
+		if producer.Timeout == "" {
+			add("invalid_evidence_producer_timeout", fmt.Sprintf("evidence producer %q requires a positive timeout", name))
+		} else if timeout, err := time.ParseDuration(producer.Timeout); err != nil || timeout <= 0 {
+			add("invalid_evidence_producer_timeout", fmt.Sprintf("evidence producer %q timeout must be a positive Go duration", name))
+		} else {
+			producer.TimeoutValue = timeout
+		}
+		if producer.MaximumOutputBytes <= 0 || producer.MaximumOutputBytes > 16<<20 {
+			add("invalid_evidence_producer_output_limit", fmt.Sprintf("evidence producer %q maximumOutputBytes must be between 1 and 16777216", name))
+		}
+		d.EvidenceProducers[name] = producer
+	}
 	if len(d.Targets.Kinds) == 0 {
 		add("missing_targets", "targets.kinds is required; declare the target kinds this provider actually validates")
 	}
@@ -676,6 +727,74 @@ func validateDescriptor(d *Descriptor) []Diagnostic {
 		add("missing_maturity", "maturity is required")
 	}
 	return out
+}
+
+// ResolveEvidenceProducer pins an authored declaration to canonical paths and
+// substitutes only server-owned run/output identifiers. It performs no writes.
+func (d Descriptor) ResolveEvidenceProducer(scenarioRoot, name, runID string) (EvidenceProducer, error) {
+	producer, ok := d.EvidenceProducers[name]
+	if !ok {
+		return EvidenceProducer{}, fmt.Errorf("unknown evidence producer %q", name)
+	}
+	producer.Argv = append([]string(nil), producer.Argv...)
+	root, err := filepath.EvalSymlinks(scenarioRoot)
+	if err != nil {
+		return EvidenceProducer{}, fmt.Errorf("resolve scenario root: %w", err)
+	}
+	root, err = filepath.Abs(root)
+	if err != nil {
+		return EvidenceProducer{}, err
+	}
+	resolve := func(rel string, requireExisting bool) (string, error) {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if requireExisting {
+			path, err = filepath.EvalSymlinks(path)
+			if err != nil {
+				return "", err
+			}
+		} else {
+			ancestor := path
+			for {
+				if _, statErr := os.Lstat(ancestor); statErr == nil {
+					break
+				}
+				parent := filepath.Dir(ancestor)
+				if parent == ancestor {
+					return "", fmt.Errorf("no existing ancestor for %s", rel)
+				}
+				ancestor = parent
+			}
+			resolved, evalErr := filepath.EvalSymlinks(ancestor)
+			if evalErr != nil {
+				return "", evalErr
+			}
+			path = filepath.Join(resolved, strings.TrimPrefix(path, ancestor))
+		}
+		abs, absErr := filepath.Abs(path)
+		if absErr != nil {
+			return "", absErr
+		}
+		relPath, relErr := filepath.Rel(root, abs)
+		if relErr != nil || relPath == ".." || strings.HasPrefix(relPath, ".."+string(filepath.Separator)) {
+			return "", fmt.Errorf("path escapes scenario root")
+		}
+		return abs, nil
+	}
+	producer.WorkingDirectory, err = resolve(producer.WorkingDirectory, true)
+	if err != nil {
+		return EvidenceProducer{}, fmt.Errorf("unsafe producer working directory: %w", err)
+	}
+	producer.OutputRoot = "/dev/shm/tg-output"
+	if runID == "" || strings.ContainsAny(runID, `/\\`) || runID == "." || runID == ".." {
+		return EvidenceProducer{}, fmt.Errorf("invalid server run id")
+	}
+	for i, arg := range producer.Argv {
+		producer.Argv[i] = strings.ReplaceAll(strings.ReplaceAll(arg, "{run_id}", runID), "{output_dir}", producer.OutputRoot)
+		if strings.Contains(producer.Argv[i], "{") || strings.Contains(producer.Argv[i], "}") {
+			return EvidenceProducer{}, fmt.Errorf("unresolved producer placeholder")
+		}
+	}
+	return producer, nil
 }
 
 func normalizeValidationDefaults(validation *Validation) {

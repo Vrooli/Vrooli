@@ -9,9 +9,9 @@ metadata:
   tags: [goal, harness, until, delegation, sub-agent, orchestration, prompt]
   icon: target
   status: active
-  revision: 5
+  revision: 11
   createdAt: "2026-09-11T00:00:00Z"
-  updatedAt: "2026-09-21T00:00:00Z"
+  updatedAt: "2026-09-27T20:19:20Z"
   requires:
     scenarios: [prompt-manager]
     commands: [prompt-manager skill read]
@@ -23,17 +23,19 @@ metadata:
 
 Write a goal message that a fresh agent can finish from, that a transcript-only
 evaluator can judge, and that stays under 2,048 characters (Agent Manager's
-`until` cap) because the design it serves lives in the documentation and the
-plan, not in the message.
+`until` cap) because the design it serves lives in durable documentation and
+the selected work-shape artifact (a plan only when the shape requires one), not
+in the message.
 
 Required reading:
 - `docs/agent-system/SWARM_MANAGER_WORK.md` §"Work shapes" — which shape of work
   to hand off, and when a plan is warranted. This skill does not restate it.
 - `docs/TESTING.md` — validation scope. A goal selects a posture; it does not
   redefine the scope rules.
-- `implementation-plan-execution` §"Divergence tiers" and §"Blocked" — the
-  receiving agent's rules for adjacent defects and for the word "blocked". A goal
-  selects among them; it does not rewrite them.
+- `implementation-plan-execution` §"Divergence tiers" and §"Blocked" when the
+  selected shape is plan-backed — the receiving agent's rules for adjacent
+  defects and for the word "blocked". A goal selects among them; it does not
+  rewrite them.
 
 ### 1. Scope
 
@@ -87,12 +89,12 @@ predicate is not a report of current state.
 |---|---|---|
 | **destination** | One future end state in the present tense, introduced as an instruction. | Start with “Work until this verified end state is true:” or “Bring `<target>` to this state:”. Do not open with an unmarked assertion such as “The work is complete,” which can sound like current-state context. An outcome that splits is a separate goal. No feeling-words ("clean", "production-ready"). |
 | **proof** | The commands or artifacts whose output must appear in the transcript, and what counts as passing. | Name the check. "Validated" without a command is not a proof clause. |
-| **sources** | What to read first, by name: skills, the plan, the scenario docs. | Point; do not paste. Docs first, then code. |
+| **sources** | What to read first, by name: skills, the selected plan or owner packet when applicable, and the scenario docs. | Point; do not paste. Docs first, then code. |
 | **boundary** | Allowed paths and effects. Scope policy: `fixed` or `extend-with-record`. | Use the plan's `acceptance_allow` when a plan exists. |
 | **dials** | Validation posture (targeted by default; name the heavy runs that are owed). Adjacent-defect posture (fix when understood and blocking; otherwise file and continue). Quality bar (no shims, no dead code, docs updated with the code). | Select a posture. The tiers themselves live in `implementation-plan-execution`. |
 | **blocked** | "Blocked means a decision, credential, or approval you lack. Name it. Friction you can diagnose is not blocked." | Include this sentence verbatim or by skill reference. Agents define "blocked" for themselves when the goal does not. |
 | **budget** | A turn, time, or token clause, and the wrap-up action when it hits. | Claude Code has no turn cap of its own. Codex needs the wrap-up instruction to make `budget_limited` useful. State that an involuntary interruption (usage window, timeout, crash, session lost) is resumed by Swarm under `continuation: until-allowance`, and that a verdict (`complete`, `blocked`, `abstained`) is final. |
-| **handoff** | Where to checkpoint (Plan Manager log, a progress file) and the final report shape: changed, verified, remaining, unverified. | A report shape turns completion prose into checkable fields. |
+| **handoff** | Where to checkpoint (Plan Manager log for plan-backed work, otherwise the owner packet or progress file) and the final report shape: changed, verified, remaining, unverified. | A report shape turns completion prose into checkable fields. |
 | **non-goals** | What not to do: widen scope, loosen or delete tests, rerun unchanged validation for a greener result. | Cite `improvement-do-and-dont` for the anti-gaming rules. |
 
 Test the whole message with two questions: is the first sentence clearly an
@@ -103,7 +105,7 @@ destination needs an explicit directive or the proof is unnamed.
 
 ### 4. What goes where
 
-| Documentation and plan | A skill the agent reads | The goal message |
+| Documentation and selected work-shape artifact | A skill the agent reads | The goal message |
 |---|---|---|
 | Target design, interfaces, acceptance criteria, the route when the route is the requirement, setpoint rows and sensors, `acceptance_allow`. | How to act under a goal: divergence tiers, the meaning of blocked, validation scope, checkpoint procedure, anti-gaming. | This run's finish line, the proof command, pointers, the posture dials, budget, report shape, non-goals. |
 | Changes when the design changes. | Changes when doctrine changes. | Changes every dispatch. |
@@ -125,7 +127,9 @@ separate plan-shaped change boundary selected by the Work shapes rule. Do not
 author a child plan merely to make a worker's handoff look formal.
 
 **A. Plan-backed goal.** The route or phase order matters, or several sessions
-will touch the work. Receiving skill: `implementation-plan-execution`.
+will touch the work. Receiving skill: `implementation-plan-execution`. A
+convergence or quality-loop that spans sessions is still not this shape — it has
+no phase order; use Shape C and track state in files (§6).
 
 ```text
 /goal Plan <slug> is complete to its intent: every phase is done in Plan Manager with recorded evidence, or the handoff names exactly what remains and the decision it waits on.
@@ -206,23 +210,63 @@ condition, not as a list of features that exist.
 - **The pass judges more than features.** Direct it at correctness, edge cases,
   code maturity, cleanliness, maintainability, and, for a UI, visual polish
   against the named mockups. "It works" is not "it is done".
-- **No downstream reviewer appears in the text.** Do not state that a human or a
-  later stage will check the result. A named safety net makes the agent stop
-  early. Write the agent as the sole and final reviewer; anything it leaves ships
-  broken.
-- **Relentless points at the spec and at simplicity, not at accretion.**
-  Improvement means closer to the design and cleaner, not more. Over-engineering
-  and ornamentation the goal did not ask for are material findings, not progress.
+- **Require self-critique without assigning self-acceptance.** The implementer
+  fixes and verifies the full assigned boundary before handing it back. When
+  the workflow has independent review, name that owner and keep its acceptance
+  decision outside the implementer's authority. Do not conceal the review stage
+  or tell a worker that its own verdict can accept the larger effort.
+- **Relentless points at the spec, at simplicity, and at less debt — not at
+  accretion.** Improvement means closer to the design, cleaner, and lower in
+  technical debt and complexity than you found it: less duplication, no shims, no
+  dead code, simpler control flow. Leave the target materially better, not merely
+  passing. Over-engineering, ornamentation the goal did not ask for, and any new
+  debt are material findings, not progress.
+- **Track the work in files, not a plan.** A convergence goal is not phased — it
+  loops until dry, so it has no phase order. Do not author or accept a phased Plan
+  Manager plan for it; Shape A is the wrong shape. Default to Shape C and track
+  ongoing work and every open issue in durable files in the scenario — the
+  findings ledger, the operator-feedback ledger, and the scenario's own issue
+  store — re-read each pass. Use a mandate plan (Shape B) only when the work needs
+  an improve skill's sensors and setpoints; a mandate is still never a phased plan.
+- **Preserve proven persistence controls when adding efficiency controls.** If an
+  existing continuous goal has demonstrated that its stakes, autonomous loop,
+  non-blocking posture, adversarial triggers, feedback capture, and interruption
+  checkpoint prevent premature stopping, retain those controls. Put epoch size,
+  packet/evidence bounds, candidate freeze and cleanup mechanics in the pointed-to
+  docs and their owning runtime. A worker-editable guard or Markdown declaration
+  is not enforcement. Do not replace a
+  working convergence construction with a shorter ordinary task prompt merely to
+  add cadence.
+- **Separate campaign persistence from worker completion.** An operator's
+  continuous-until-stopped policy overrides the finite two-empty-passes default.
+  Keep that policy with the campaign coordinator and supervisor; a bounded
+  worker returns changed, verified, remaining and unverified for its assigned
+  boundary. A context limit, checkpoint or single defect is not a new epoch.
+  Independent acceptance and qualification follow the documented owner protocol.
+- **State the real stakes.** Name why the work matters and what stays blocked or
+  lost while it is broken — adoption, reliability, the project's momentum. Genuine
+  consequences raise persistence through friction. Keep them true; do not invent
+  stakes the agent could later find hollow.
+- **Operator feedback is a durable, gating input, not a passing remark.** When the
+  operator gives feedback while the goal runs, the receiving agent's first action
+  is to append every item verbatim, as discrete open entries, to a durable
+  feedback ledger (`scenarios/<target>/docs/internal/OPERATOR_FEEDBACK.md`) before
+  it acts on any of them. It re-reads that ledger at the start of every pass;
+  context is compacted and unrecorded feedback is lost. Each item is resolved with
+  a receipt. The goal is not done while any ledger item is open. Instruct this in
+  the goal, because a passing remark typed into the session does not survive.
 
 The gaming definitions — weakening a test, deleting a ledger row, suppressing a
 finding — live in `improvement-do-and-dont`; cite it, do not restate it. This
-section adds only the completion shape: fresh-pass-until-twice-empty.
+section distinguishes finite convergence, operator-selected continuous work and
+bounded worker handoffs; it does not replace independent owner acceptance.
 
-Destination fragment for a Shape B or C goal (point at the mockups and the
-durable doc; do not describe them, to stay under the character cap):
+Destination fragment for a Shape C goal (or a Shape B mandate — never a phased
+Shape A plan; point at the mockups and the durable doc, do not describe them, to
+stay under the character cap):
 
 ```text
-You are done only when two consecutive fresh, hostile review passes over <target> find nothing material. Treat a green suite as the signal to start a new pass, never as completion. Each pass judges correctness, edge cases, code cleanliness and maintainability, and visual polish against <mockups/spec>, not feature presence. You are the sole and final reviewer; fix everything you find and record findings and resolutions in <durable doc> each pass.
+Before handing off <target>, run two consecutive fresh, hostile review passes that find nothing material. Treat a green suite as the signal to start a new pass. Each pass judges correctness, edge cases, code cleanliness and maintainability, and visual polish against <mockups/spec>, not feature presence. Fix findings within the assigned boundary and record findings and resolutions in <durable doc>. Follow <acceptance protocol>; your self-review does not replace independent acceptance. Do not create a plan; <durable doc> is the tracking system. Leave <target> cleaner and with less technical debt than you found it; new debt is a finding. Record operator feedback in the assigned durable feedback surface and resolve every assigned item before handoff. Stakes: <why this matters and what stays blocked until it is fixed>.
 ```
 
 ### 7. Acting under a goal
@@ -235,7 +279,8 @@ A receiving agent that has no other skill for the work follows these rules.
 4. Checkpoint before the budget clause fires. Write changed, verified, remaining, unverified.
 5. Do not widen scope, loosen a test, or rerun unchanged validation to produce a greener result.
 6. When the harness offers `ProposeGoal` and the operator's words already state a verifiable outcome, propose the goal instead of asking; never propose a goal that widens scope.
-7. On a convergence goal (§6), when you believe the work is done, run a fresh hostile review pass before you report done. Repeat until two consecutive passes find nothing material.
+7. On a convergence goal (§6), run fresh hostile review before handoff. Two empty passes are the finite default, not completion of an operator-selected continuous campaign or a replacement for independent acceptance.
+8. Append operator feedback to the durable ledger the instant it arrives, before acting; re-read the ledger each pass; resolve every item before you report done.
 
 ### 8. Output expectations
 
@@ -256,6 +301,7 @@ receiving skill's doctrine from inside a goal.
 | A goal that explains the design | Lossy, stale on arrival | Write the design into the docs; point the goal at it |
 | Completion by self-report | Harness "met" with no evidence | Proof in transcript; independent review for material outcomes |
 | Stopping when the suite turns green | The agent declares done at first green; hidden defects and rough edges ship | On a convergence goal, green triggers a fresh hostile pass; done is two empty passes in a row (§6) |
+| A Plan Manager plan for convergence/quality-loop work | A loop has no phase order; the plan is overhead and misroutes the work | Shape C: no plan; track issues in scenario files and loop per §6 |
 
 ### Troubleshooting & Edge Cases
 

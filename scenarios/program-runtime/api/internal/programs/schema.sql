@@ -23,7 +23,13 @@ CREATE TABLE IF NOT EXISTS programs (
   caller_agent_profile TEXT NOT NULL DEFAULT '',
   caller_skill_id TEXT NOT NULL DEFAULT '',
   caller_harness TEXT NOT NULL DEFAULT '',
-  learning_json TEXT NOT NULL DEFAULT ''
+  learning_json TEXT NOT NULL DEFAULT '',
+  request_digest TEXT NOT NULL DEFAULT '',
+  usage_tokens INTEGER NOT NULL DEFAULT 0,
+  usage_charge_micros INTEGER NOT NULL DEFAULT 0,
+  usage_accounting_complete INTEGER NOT NULL DEFAULT 0,
+  usage_charge_measured INTEGER NOT NULL DEFAULT 0,
+  usage_basis TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_programs_session ON programs(session_id);

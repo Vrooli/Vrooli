@@ -183,6 +183,9 @@ func TestProbeRunnerUsesManagedRunnerExecution(t *testing.T) {
 			if req.ResolvedConfig == nil || req.ResolvedConfig.RunnerType != wantRunnerType || req.ResolvedConfig.MaxTurns != 1 || req.Prompt != "Reply with exactly one word: PROBE_OK" {
 				t.Fatalf("managed probe request = %+v", req)
 			}
+			if req.ResolvedConfig.SandboxConfig == nil || req.ResolvedConfig.SandboxConfig.Mode != domain.SandboxModeTracking {
+				t.Fatalf("managed probe sandbox policy = %#v, want explicit tracking mode", req.ResolvedConfig.SandboxConfig)
+			}
 			return &runner.ExecuteResult{Success: true}, nil
 		}
 		if err := registry.Register(mock); err != nil {

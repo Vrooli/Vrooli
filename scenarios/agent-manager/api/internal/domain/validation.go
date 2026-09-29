@@ -232,7 +232,7 @@ func (p *AgentProfile) Validate() error {
 			"valid values: none, localhost, full")
 	}
 
-	if err := validateSandboxConfig(p.SandboxConfig); err != nil {
+	if err := ValidateSandboxConfig(p.SandboxConfig); err != nil {
 		return err
 	}
 
@@ -303,9 +303,13 @@ func minInt(values ...int) int {
 	return min
 }
 
-func validateSandboxConfig(cfg *SandboxConfig) error {
+// ValidateSandboxConfig shares run-policy validation across profiles and workflows.
+func ValidateSandboxConfig(cfg *SandboxConfig) error {
 	if cfg == nil {
 		return nil
+	}
+	if cfg.WritePolicy != nil && cfg.Mode.Effective() != SandboxModeProtected {
+		return NewValidationError("sandboxConfig.writePolicy", "runtime write policy requires protected mode")
 	}
 	if cfg.Acceptance.Mode != "" && cfg.Acceptance.Mode != "allowlist" {
 		return NewValidationError("sandboxConfig.acceptance.mode", "invalid acceptance mode")

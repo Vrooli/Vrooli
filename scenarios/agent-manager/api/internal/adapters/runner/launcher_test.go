@@ -20,6 +20,15 @@ import (
 
 // TestHostLauncher_LaunchEcho asserts the basic shape: launch a process,
 // read stdout, wait for clean exit.
+func TestHostLauncherRefusesPolicyFiles(t *testing.T) {
+	proc, err := NewHostLauncher().Launch(context.Background(), LaunchRequest{
+		Command: "/bin/true", PolicyFiles: []PolicyFile{{Source: "/owner/policy", Target: "/etc/consumer/policy"}},
+	})
+	if proc != nil || err == nil || !strings.Contains(err.Error(), "read-only sandbox mounts") {
+		t.Fatalf("host execution cannot enforce owner policy: process=%v error=%v", proc, err)
+	}
+}
+
 func TestHostLauncher_LaunchEcho(t *testing.T) {
 	launcher := NewHostLauncher()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

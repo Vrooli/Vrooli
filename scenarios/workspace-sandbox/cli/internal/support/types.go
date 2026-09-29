@@ -30,6 +30,7 @@ type DiffFile struct {
 type DiffResponse struct {
 	SandboxID   string     `json:"sandboxId"`
 	UnifiedDiff string     `json:"unifiedDiff"`
+	PatchSHA256 string     `json:"patchSha256,omitempty"`
 	Stats       DiffStats  `json:"stats"`
 	Files       []DiffFile `json:"files"`
 	// ArchiveState distinguishes archived diffs from live ones; one of

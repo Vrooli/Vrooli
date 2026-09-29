@@ -61,7 +61,7 @@ func TestCanonicalScenarioSpecMatchesStaleCheckerDerivation(t *testing.T) {
 	runtime := StaleChecker{
 		BuildSourceRoot:   modulePath,
 		SourceContextPath: "..",
-		FreshnessInputs:   []string{"cli/**", ".vrooli/service.json", "../../packages/cli-core"},
+		FreshnessInputs:   []string{"cli/**", ".vrooli/service.json", "../../packages/cli-core", "../../packages/proto/gen/.vrooli-proto-artifact.json"},
 	}
 	runtimeSpec := runtime.freshnessSpec(modulePath)
 	runtimeSpec.SkipFiles = []string{"alpha"}
@@ -77,8 +77,15 @@ func TestCanonicalScenarioSpecMatchesStaleCheckerDerivation(t *testing.T) {
 
 func TestCanonicalSpecHonorsCustomInputs(t *testing.T) {
 	spec := CanonicalScenarioGoModuleFreshnessSpec("/scenarios/alpha", "/scenarios/alpha/cli", "alpha", []string{"cli/**", "docs/**"})
-	if len(spec.Inputs) != 2 || spec.Inputs[0] != "cli/**" || spec.Inputs[1] != "docs/**" {
+	if len(spec.Inputs) != 4 || spec.Inputs[0] != "cli/**" || spec.Inputs[1] != "docs/**" || spec.Inputs[2] != "../../packages/cli-core" || spec.Inputs[3] != "../../packages/proto/gen/.vrooli-proto-artifact.json" {
 		t.Fatalf("custom inputs not used: %#v", spec.Inputs)
+	}
+}
+
+func TestCanonicalResourceSpecRetainsSharedCLICoreWithCustomInputs(t *testing.T) {
+	spec := CanonicalResourceGoModuleFreshnessSpec("/resources/codex", "/resources/codex/cli", "resource-codex", []string{"cli/**", "resource.json"})
+	if len(spec.Inputs) != 4 || spec.Inputs[2] != "../../packages/cli-core" || spec.Inputs[3] != "../../packages/proto/gen/.vrooli-proto-artifact.json" {
+		t.Fatalf("custom resource inputs dropped shared cli-core: %#v", spec.Inputs)
 	}
 }
 
@@ -87,7 +94,7 @@ func TestCanonicalSpecFallsBackToDefaultModuleDir(t *testing.T) {
 	if spec.Inputs[0] != "cli/**" {
 		t.Fatalf("expected cli/** default, got %q", spec.Inputs[0])
 	}
-	if spec.Inputs[2] != "../../packages/cli-core" {
+	if spec.Inputs[2] != "../../packages/cli-core" || spec.Inputs[3] != "../../packages/proto/gen/.vrooli-proto-artifact.json" {
 		t.Fatalf("expected shared cli-core default, got %#v", spec.Inputs)
 	}
 }

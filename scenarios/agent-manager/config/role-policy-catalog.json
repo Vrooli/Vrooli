@@ -2,10 +2,26 @@
   "schemaVersion": 1,
   "metadata": {
     "catalogId": "agent-manager-coding-role-policy",
-    "updatedAt": "2026-07-15"
+    "updatedAt": "2026-09-27"
   },
   "defaultRole": "code.default",
   "roles": {
+    "code.economy.delivery": {
+      "description": "Economical delivery coordination and implementation on the Codex subscription; campaign profiles require medium effort.",
+      "intent": "economical sustained delivery",
+      "orderingReason": "One subscription route; no premium or metered fallback.",
+      "candidates": [
+        {"runner": "codex", "resourceRole": "code.delivery"}
+      ]
+    },
+    "code.supervision": {
+      "description": "Infrequent independently admitted delivery review on the operator-authorized Sol subscription route.",
+      "intent": "independent delivery supervision",
+      "orderingReason": "One explicitly authorized review route; the owner controls admission and cadence, with no provider fallback.",
+      "candidates": [
+        {"runner": "codex", "resourceRole": "judgment.supervision"}
+      ]
+    },
     "code.economy.judgment": {
       "description": "Judgment and challenge work on the Codex subscription using Luna. Routine heartbeats use medium effort under the operator 2026-09-12 quota policy.",
       "intent": "economical judgment",

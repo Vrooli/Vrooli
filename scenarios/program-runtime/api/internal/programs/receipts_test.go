@@ -4,10 +4,29 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 )
+
+func TestDeclaredKeySurvivesReceiptRedactionWithoutRestoringAuthority(t *testing.T) {
+	db := newProgramsTestDB(t)
+	runner := &admissionRunner{}
+	s := NewService(Options{Store: db, Runner: runner})
+	token := "prt_resume_v1_" + strings.Repeat("a", 43)
+	source := `tasks.get(resume_token="` + token + `")`
+	identity := Identity{ProgramName: "fixture.once", ProgramDigest: "digest", IdempotencyKey: "receipt", AdmissionDeadline: time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano)}
+	first, _, err := s.SubmitDeclared(t.Context(), "s", source, programsv1.Provenance_PROVENANCE_TEST, false, false, identity, Caller{})
+	require.NoError(t, err)
+	s = NewService(Options{Store: db, Runner: runner})
+	second, _, err := s.SubmitDeclared(t.Context(), "", source, programsv1.Provenance_PROVENANCE_TEST, false, false, identity, Caller{})
+	require.NoError(t, err)
+	require.Equal(t, first.Id, second.Id)
+	require.NotContains(t, second.Source, token)
+	require.Contains(t, second.Source, "unavailable after restart")
+	require.EqualValues(t, 1, runner.calls.Load())
+}
 
 func TestTaskResumeReceiptIsLiveButNeverPlaintextInCorpus(t *testing.T) {
 	ctx := context.Background()

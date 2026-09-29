@@ -67,7 +67,18 @@ func Exec(ctx context.Context, starter process.Starter, s *types.Sandbox, level 
 		opts.Env = append(base, opts.Env...)
 	}
 
-	res, runErr := process.Run(execCtx, starter, opts)
+	// Every managed command has its own process group, including synchronous
+	// exec, so draining it cannot signal the API owner's process group.
+	opts.SysProcAttr = process.NewProcessGroupSysProcAttr()
+	res, runErr := process.RunObserved(execCtx, starter, opts, func(handle process.Handle) error {
+		if cfg.OnStart != nil {
+			return cfg.OnStart(handle.PID())
+		}
+		return nil
+	})
+	if res.PID > 0 && cfg.OnExit != nil {
+		cfg.OnExit(res.Exit.ExitCode, res.Exit.Signal, res.Exit.OOMKilled)
+	}
 
 	result := &ExecResult{
 		PID:      res.PID,

@@ -30,7 +30,28 @@ func codexControlArgs(cfg *domain.RunConfig) ([]string, error) {
 	// command-approval prompt.
 	switch cfg.NetworkAccess.Effective() {
 	case domain.NetworkAccessNone:
-		args = append(args, "--sandbox", "workspace-write")
+		if sandbox := cfg.SandboxConfig; sandbox != nil && sandbox.WritePolicy != nil {
+			if sandbox.Mode.Effective() != domain.SandboxModeProtected {
+				return nil, fmt.Errorf("Codex owner write grants require protected execution")
+			}
+			// workspace-write implicitly grants the whole cwd. Its metadata
+			// masks then try to mkdir .git under WSS's read-only workspace root.
+			// WSS owns filesystem grants (including file grants and all aliases).
+			// Native tools retain network denial without rebuilding conflicting
+			// filesystem masks. PickFor refuses absent/mismatched outer policy;
+			// this profile must never be used by a host or tracking launcher.
+			// :root selects native full-filesystem semantics inside the outer
+			// namespace. A literal / bind would shadow native /dev with nodev.
+			profile := `permissions.vrooli-network-only={filesystem={":root"="write"},network={enabled=false}}`
+			args = append(args, "-c", `default_permissions="vrooli-network-only"`, "-c", profile, "-c", "approval_policy=never")
+			break
+		}
+		// The user's config may enable networking for workspace-write. Do
+		// not inherit it, or permit an approval to widen the owner's policy.
+		args = append(args, "--sandbox", "workspace-write",
+			"-c", "sandbox_workspace_write.network_access=false",
+			"-c", "sandbox_workspace_write.writable_roots=[]",
+			"-c", "approval_policy=never")
 	default:
 		args = append(args, "--dangerously-bypass-approvals-and-sandbox")
 	}

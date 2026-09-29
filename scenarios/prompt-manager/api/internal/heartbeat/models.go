@@ -90,6 +90,16 @@ type TriggerHeartbeatRequest struct {
 	// No fields needed for now - could add prompt override later
 }
 
+// ReconcileSupervisionRequest is an explicit owner receipt for an uncertain
+// standing-supervision dispatch. It never authorizes a replay; it only closes
+// a durable fence after the owner has checked the exact wake identity and
+// retained bounded evidence for the disposition.
+type ReconcileSupervisionRequest struct {
+	WakeID       string   `json:"wakeId"`
+	EvidenceRefs []string `json:"evidenceRefs"`
+	Reason       string   `json:"reason"`
+}
+
 // TriggerHeartbeatResponse is the response for manual trigger
 type TriggerHeartbeatResponse struct {
 	TeamID   string `json:"teamId"`

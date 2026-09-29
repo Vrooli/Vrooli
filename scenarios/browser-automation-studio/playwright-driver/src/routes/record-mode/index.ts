@@ -78,9 +78,8 @@ export {
 export {
   handleRecordFrame,
   handleRecordScreenshot,
-  clearFrameCache,
-  clearAllFrameCaches,
 } from './recording-frames';
+export { clearFrameCache, clearAllFrameCaches } from '../../session/frame-cache';
 
 // Recording input handlers
 export {
@@ -94,15 +93,3 @@ export {
   handleRecordActivePage,
   handleRecordClosePage,
 } from './recording-pages';
-
-// Cleanup utility
-import { removeRecordingBuffer } from '../../recording';
-import { clearFrameCache } from './recording-frames';
-
-/**
- * Clean up recording buffer and frame cache for a session
- */
-export function cleanupSessionRecording(sessionId: string): void {
-  removeRecordingBuffer(sessionId);
-  clearFrameCache(sessionId);
-}

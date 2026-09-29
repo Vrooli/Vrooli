@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -18,14 +19,13 @@ import (
 //
 // All three coding-agent runners (claude_code, codex, opencode) need the
 // same routing decision when picking between host and sandbox execution:
-// "sandboxed tracking or protected mode → sandbox if a factory is wired
-// AND a sandbox ID is present, otherwise warn and fall back to host."
+// Tracking may fall back with a warning. Protected or effect-bearing runs
+// require a bound launcher and a verified containment report; they never
+// substitute host execution when either is unavailable.
 // Without this seam every runner would copy the switch into its Execute
 // method, drift over time, and need parallel routing tests.
 //
-// The selector also owns the warn-event emission so misconfigured
-// environments (protected mode requested, factory missing, etc.) surface
-// as visible run-level log events rather than silent downgrades.
+// The selector owns tracking fallback warnings and protected launch refusals.
 //
 // The concrete type is exported (rather than only its constructor) so
 // the generic [core.Runner] can hold it behind an interface while tests
@@ -38,7 +38,7 @@ type LauncherSelector struct {
 
 // NewLauncherSelector returns a selector wired with the given launchers.
 // A nil host launcher is replaced with a fresh [HostLauncher]; a nil
-// factory means protected-mode requests will warn-and-fall-back to host.
+// factory refuses protected-mode requests; tracking requests warn and use host.
 //
 // Exposed for use by the generic [core.Runner], which holds a selector
 // behind an interface so the parent package's concrete type stays internal.
@@ -88,79 +88,75 @@ func (s *LauncherSelector) Pick(ctx context.Context, req ExecuteRequest) Launche
 // sandbox id, event sink); accepting them directly avoids forcing every
 // request shape to conform to a common interface.
 //
-// Routing rules:
-//
-//  1. Tracking or protected mode with a sandbox → sandbox launcher.
-//  2. Unspecified/off mode → host launcher.
-//  3. Sandboxed mode without a wired factory → warn-and-fallback to host.
-//  4. Sandboxed mode without sandboxID → warn-and-fallback.
-//  5. Sandboxed mode with factory + sandboxID, factory returns nil →
-//     warn-and-fallback. (Common when the provider doesn't recognise the
-//     sandbox ID, e.g. cross-environment misconfiguration.)
-//  6. Sandboxed mode + factory + sandboxID + non-nil launcher → sandbox.
-//
-// Each warn-and-fallback path emits a log event on the supplied EventSink
-// (when non-nil) so operators can spot misconfigured environments rather
-// than silently watching protected runs downgrade to host execution.
+// Protected mode and effect-bearing runs fail closed on missing launch wiring,
+// identity or containment evidence. Tracking preserves its explicit fallback;
+// explicit off mode uses the host unless effect containment is required.
 func (s *LauncherSelector) PickFor(ctx context.Context, runID uuid.UUID, cfg *domain.RunConfig, sandboxID *uuid.UUID, sink EventSink) Launcher {
-	_ = ctx // reserved for future per-call factory needs (e.g. tracing)
 	s.mu.RLock()
 	host := s.host
 	factory := s.sandboxFactory
 	s.mu.RUnlock()
 
 	if cfg == nil || cfg.SandboxConfig == nil {
-		return host
+		return newDeniedLauncher("required containment policy has no sandbox configuration")
 	}
 	mode := cfg.SandboxConfig.Mode.Effective()
-	requiresContainment := cfg.RequireEffectContainment
-	if mode != domain.SandboxModeTracking && mode != domain.SandboxModeProtected {
+	if cfg.SandboxConfig.WritePolicy != nil && mode != domain.SandboxModeProtected {
+		return newDeniedLauncher("workspace write policy requires protected mode")
+	}
+	if !mode.IsValid() {
+		return newDeniedLauncher("unknown sandbox mode: " + string(mode))
+	}
+	requiresContainment := cfg.RequireEffectContainment || mode == domain.SandboxModeProtected
+	if mode == domain.SandboxModeOff {
 		if requiresContainment {
 			return newDeniedLauncher("effect-bearing run requires protected workspace containment")
 		}
 		return host
 	}
-	if factory == nil {
-		emitLauncherFallbackWarn(runID, sink, "no SandboxLauncherFactory configured for "+string(mode)+" mode")
+	fallback := func(reason string) Launcher {
 		if requiresContainment {
-			return newDeniedLauncher("effect-bearing run requires a workspace sandbox launcher")
+			return newDeniedLauncher("required workspace containment unavailable: " + reason)
 		}
+		emitLauncherFallbackWarn(runID, sink, reason)
 		return host
 	}
-	if sandboxID == nil {
-		emitLauncherFallbackWarn(runID, sink, "SandboxID is nil for "+string(mode)+" mode")
-		if requiresContainment {
-			return newDeniedLauncher("effect-bearing run requires a bound workspace sandbox")
-		}
-		return host
+	if factory == nil {
+		return fallback("no SandboxLauncherFactory configured for " + string(mode) + " mode")
+	}
+	if sandboxID == nil || *sandboxID == uuid.Nil {
+		return fallback("SandboxID is nil or zero for " + string(mode) + " mode")
 	}
 	launcher := factory.LauncherFor(*sandboxID)
 	if launcher == nil {
-		emitLauncherFallbackWarn(runID, sink, "factory returned nil launcher")
-		if requiresContainment {
-			return newDeniedLauncher("effect-bearing run requires a workspace sandbox launcher")
+		return fallback("factory returned nil launcher")
+	}
+	var cont *Containment
+	if reporter, ok := factory.(SandboxContainmentReporter); ok {
+		if reported, available := reporter.ContainmentFor(ctx, *sandboxID); available {
+			cont = reported
 		}
-		return host
 	}
 	if requiresContainment {
-		reporter, ok := factory.(SandboxContainmentReporter)
-		if !ok {
-			return newDeniedLauncher("effect-bearing run requires a verifiable workspace containment report")
-		}
-		cont, ok := reporter.ContainmentFor(ctx, *sandboxID)
-		if !ok || cont == nil {
-			return newDeniedLauncher("effect-bearing run requires a workspace containment report")
+		if cont == nil || cont.Level != "required" || cont.Backend == "" || cont.Backend == "none" {
+			return newDeniedLauncher("required workspace containment report is missing or uncontained")
 		}
 		if missing := cont.MissingProtectedEnforcements(); len(missing) > 0 {
-			return newDeniedLauncher("effect-bearing run requires protected containment; missing: " + strings.Join(missing, ", "))
+			return newDeniedLauncher("required workspace containment missing: " + strings.Join(missing, ", "))
+		}
+		if cfg.SandboxConfig.WritePolicy != nil && !cont.HasEnforcement(EnforcementWorkspaceWritePolicy) {
+			return newDeniedLauncher("required workspace containment missing: " + EnforcementWorkspaceWritePolicy)
+		}
+		if requested := cfg.SandboxConfig.WritePolicy; requested != nil &&
+			(cont.WritePolicy == nil || !slices.Equal(requested.Paths, cont.WritePolicy.Paths)) {
+			return newDeniedLauncher("sandbox's persisted workspace write policy does not match the admitted run")
 		}
 	}
-	// Capability honesty: protected-mode selection proceeds, but if the
-	// sandbox does not actually enforce the guarantees protected mode
-	// depends on, say so loudly and record the effective containment on the
-	// run timeline. Policy denial is a future lever; here we only surface the
-	// gap so a degraded protected run is never silent.
-	emitContainmentGapWarn(ctx, factory, runID, *sandboxID, sink)
+	networkMode := domain.NetworkAccessLocalhost
+	if cfg != nil && cfg.SandboxConfig != nil {
+		networkMode = cfg.SandboxConfig.NetworkMode.Effective()
+	}
+	emitContainmentGapWarn(cont, runID, sink, networkMode)
 	return launcher
 }
 
@@ -172,28 +168,16 @@ func (l *deniedLauncher) Launch(context.Context, LaunchRequest) (LaunchedProcess
 	return nil, fmt.Errorf("launch refused: %s", l.reason)
 }
 
-// emitContainmentGapWarn probes the selected sandbox's enforced containment
-// (when the factory can report it) and, if any protected-mode enforcement
-// is missing, emits a warn run-event naming exactly which enforcements are
-// absent alongside the effective containment. It additionally warns when
-// the backend lacks network-loopback-only enforcement, because the agent
-// always launches under the localhost-network profile. No-op when the
-// factory cannot report containment or the sink is nil.
-func emitContainmentGapWarn(ctx context.Context, factory SandboxLauncherFactory, runID, sandboxID uuid.UUID, sink EventSink) {
-	if sink == nil {
-		return
-	}
-	reporter, ok := factory.(SandboxContainmentReporter)
-	if !ok {
-		return
-	}
-	cont, ok := reporter.ContainmentFor(ctx, sandboxID)
-	if !ok {
+// emitContainmentGapWarn records the report already read during selection.
+// Baseline gaps reach this point only for tracking. Loopback capability remains
+// distinct from baseline containment and is not claimed when unavailable.
+func emitContainmentGapWarn(cont *Containment, runID uuid.UUID, sink EventSink, networkMode domain.NetworkAccess) {
+	if sink == nil || cont == nil {
 		return
 	}
 	if missing := cont.MissingProtectedEnforcements(); len(missing) > 0 {
 		msg := strings.Join([]string{
-			"protected mode requested but the sandbox does not enforce ",
+			"selected sandbox does not enforce ",
 			strings.Join(missing, ", "),
 			" (effective containment: backend=", cont.Backend,
 			", level=", cont.Level,
@@ -207,22 +191,22 @@ func emitContainmentGapWarn(ctx context.Context, factory SandboxLauncherFactory,
 	// grants unrestricted network (knw-1784006975589682125). Surface that
 	// on the run timeline so the run's true network posture is never
 	// silent; the warn disappears once a backend claims the enforcement.
-	if !cont.HasEnforcement(EnforcementNetworkLoopbackOnly) {
+	if networkMode == domain.NetworkAccessLocalhost && !cont.HasEnforcement(EnforcementNetworkLoopbackOnly) {
 		_ = sink.Emit(domain.NewLogEvent(runID, "warn",
 			"protected agent launches under the vrooli-aware profile (localhost network mode) but the containment backend lacks "+
 				EnforcementNetworkLoopbackOnly+" — the agent has unrestricted network access"))
 	}
 }
 
-// emitLauncherFallbackWarn surfaces a warn-level run log when protected
-// mode was requested but cannot be honored. Reason becomes part of the
+// emitLauncherFallbackWarn surfaces a warn-level run log when tracking
+// could not obtain its sandbox launcher. Reason becomes part of the
 // log message so operators can grep for the specific failure.
 func emitLauncherFallbackWarn(runID uuid.UUID, sink EventSink, reason string) {
 	if sink == nil {
 		return
 	}
 	msg := strings.Join([]string{
-		"protected mode requested but ",
+		"tracking mode requested but ",
 		reason,
 		"; falling back to HostLauncher",
 	}, "")

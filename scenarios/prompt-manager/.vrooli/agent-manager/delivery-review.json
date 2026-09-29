@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "prompt-manager-delivery-review",
+  "profileKey": "prompt-manager/delivery-review",
+  "description": "Infrequent independent review of a frozen delivery candidate using the authorized subscription supervisor role. The dispatch owner must enforce cadence and separation from the author; no heartbeat is bound by this declaration.",
+  "roleRef": "code.supervision",
+  "declaredScopes": [
+    "agent-manager:supervise"
+  ],
+  "effort": "medium",
+  "maxTurns": 60,
+  "timeout": "900s",
+  "networkAccess": "NETWORK_ACCESS_NONE",
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED",
+    "networkMode": "NETWORK_ACCESS_NONE",
+    "manualReview": true,
+    "autoApply": false,
+    "applyOnFailure": false,
+    "writePolicy": { "paths": [] }
+  },
+  "createdBy": "prompt-manager"
+}

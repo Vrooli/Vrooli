@@ -447,14 +447,18 @@ func (t *Tracker) GetActiveCount(sandboxID uuid.UUID) int {
 // Returns the count of processes killed and any errors encountered.
 func (t *Tracker) KillAll(ctx context.Context, sandboxID uuid.UUID) (int, []error) {
 	t.mu.Lock()
-	procs := t.processes[sandboxID]
+	procs := append([]*TrackedProcess(nil), t.processes[sandboxID]...)
 	t.mu.Unlock()
 
 	var killed int
 	var errors []error
 
 	for _, proc := range procs {
-		if !proc.IsRunning() {
+		if err := ctx.Err(); err != nil {
+			return killed, append(errors, err)
+		}
+		group := sysOwnedProcessGroup(proc.PID, proc.PGID)
+		if !proc.IsRunning() && (!group || !sysProcessGroupExists(proc.PGID)) {
 			continue
 		}
 
@@ -467,12 +471,14 @@ func (t *Tracker) KillAll(ctx context.Context, sandboxID uuid.UUID) (int, []erro
 		t.clock.Sleep(t.config.GracePeriod)
 
 		// If still running, force kill (SIGKILL)
-		if proc.IsRunning() {
+		if proc.IsRunning() || (group && sysProcessGroupExists(proc.PGID)) {
 			if err := t.killProcess(proc, syscall.SIGKILL); err != nil {
 				errors = append(errors, err)
 				// Still try direct PID kill as last resort
-				if killErr := sysKill(proc.PID, syscall.SIGKILL); killErr != nil {
-					errors = append(errors, killErr)
+				if proc.IsRunning() && sysCanSignalProcess(proc.PID) {
+					if killErr := sysKill(proc.PID, syscall.SIGKILL); killErr != nil {
+						errors = append(errors, killErr)
+					}
 				}
 			}
 		}
@@ -481,17 +487,9 @@ func (t *Tracker) KillAll(ctx context.Context, sandboxID uuid.UUID) (int, []erro
 		t.clock.Sleep(t.config.KillWait)
 
 		// Check if actually dead now
-		if !proc.IsRunning() {
-			// Wait reaper will record real exit info; if for some reason
-			// it hasn't (e.g., process not started by us), record a
-			// best-effort placeholder so callers are unblocked.
-			if t.GetExitInfo(sandboxID, proc.PID) == nil {
-				t.RecordExit(sandboxID, proc.PID, ExitInfo{
-					ExitCode:  -1,
-					Signal:    int(syscall.SIGKILL),
-					StoppedAt: t.clock.Now(),
-				})
-			}
+		if !proc.IsRunning() && (!group || !sysProcessGroupExists(proc.PGID)) {
+			// Only the wait owner can record actual exit evidence. A guessed
+			// signal here would permanently suppress its delayed receipt.
 			killed++
 		} else {
 			errors = append(errors, fmt.Errorf("failed to kill PID %d", proc.PID))
@@ -501,10 +499,28 @@ func (t *Tracker) KillAll(ctx context.Context, sandboxID uuid.UUID) (int, []erro
 	return killed, errors
 }
 
+// Drain is called under the service admission fence. Failure cannot become a
+// successful stopped state. Existing kill/wait ownership stays in this tracker.
+func (t *Tracker) Drain(ctx context.Context, sandboxID uuid.UUID) error {
+	_, errs := t.KillAll(ctx, sandboxID)
+	if len(errs) != 0 {
+		return fmt.Errorf("managed process termination failed: %v", errs)
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	for _, proc := range t.GetProcesses(sandboxID) {
+		if proc.IsRunning() || (sysOwnedProcessGroup(proc.PID, proc.PGID) && sysProcessGroupExists(proc.PGID)) {
+			return fmt.Errorf("sandbox still has live managed processes")
+		}
+	}
+	return nil
+}
+
 // killProcess sends a signal to a process and its group.
 func (t *Tracker) killProcess(proc *TrackedProcess, sig syscall.Signal) error {
 	// Try to kill the entire process group first
-	if proc.PGID != 0 {
+	if sysOwnedProcessGroup(proc.PID, proc.PGID) {
 		err := sysKill(-proc.PGID, sig)
 		if err == nil {
 			return nil
@@ -512,6 +528,9 @@ func (t *Tracker) killProcess(proc *TrackedProcess, sig syscall.Signal) error {
 	}
 
 	// Fallback to killing just the process
+	if !sysCanSignalProcess(proc.PID) {
+		return fmt.Errorf("refusing to signal unsafe PID %d", proc.PID)
+	}
 	return sysKill(proc.PID, sig)
 }
 
@@ -539,8 +558,12 @@ func (t *Tracker) KillProcess(ctx context.Context, sandboxID uuid.UUID, pid int)
 			errors = append(errors, err)
 		}
 		// Also try direct PID kill as last resort
-		if err := sysKill(pid, syscall.SIGKILL); err != nil {
-			errors = append(errors, err)
+		if sysCanSignalProcess(pid) {
+			if err := sysKill(pid, syscall.SIGKILL); err != nil {
+				errors = append(errors, err)
+			}
+		} else {
+			errors = append(errors, fmt.Errorf("refusing to signal unsafe PID %d", pid))
 		}
 	}
 

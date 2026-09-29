@@ -448,7 +448,13 @@
       "runtime_only_rationale": "Browser automation programs use agent-manager's governed delegated-run boundary for optional supervision and setpoint telemetry.",
       "startup_policy": "try_start",
       "description": "Optional delegated-agent workflow provider for browser automation learning programs.",
-      "degraded_behavior": "Browser navigation, authoring, and replay remain available; delegated supervision and its telemetry are reported unavailable."
+      "degraded_behavior": "Browser navigation, authoring, and replay remain available; delegated supervision and its telemetry are reported unavailable.",
+      "config": {
+        "declarations": {
+          "reconcile": true,
+          "sources": [".vrooli/agent-manager/rehabilitation-pilot.json"]
+        }
+      }
     },
       "workflow-health": {
         "enabled": true,

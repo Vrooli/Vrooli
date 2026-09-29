@@ -64,6 +64,37 @@ Pause is separate from member heartbeat `enabled`. A paused team can still have 
 
 ## Heartbeat Configuration
 
+### Refresh standing-supervision owner evidence without dispatch
+
+Readiness is a cached projection of the last bounded Agent Manager owner cut.
+Refresh it after an owner repair or configuration change without enabling the
+team, queuing a task, or starting a model:
+
+```bash
+prompt-manager team heartbeat-supervision-observe <team-id> <agent-id> [--json]
+```
+
+The command uses `POST /teams/{teamId}/heartbeats/{agentId}/observe` and is
+safe while the heartbeat or team is disabled. Read the result with
+`heartbeat-supervision-readiness` afterward.
+
+### Reconcile an uncertain standing-supervision wake
+
+Use the existing owner route when a disabled standing supervisor retains a
+`recovery-required` wake and Agent Manager's exact task/tag inspection proves
+that no run was accepted. This command cancels a queued orphan task, refuses a
+matching run, never retries the dispatch, and preserves the bounded receipt:
+
+```bash
+prompt-manager team heartbeat-supervision-reconcile <team-id> <agent-id> \
+  --wake-id=<exact-wake-id> \
+  --evidence-refs=<owner-ref-1,owner-ref-2> \
+  --reason="<bounded owner comparison>" [--json]
+```
+
+It requires operator-direct attribution and is separate from
+`heartbeat-trigger` and the read-only `heartbeat-supervision-readiness` command.
+
 ### Finite effort leader provisioning
 
 The operator order is: create or resume a finite delivery team; register and
@@ -174,26 +205,31 @@ recurrence and fresh-run recovery disabled until their separate gates pass.
 The bundled identity is team `effort-supervision`, member `effort-supervisor`.
 Its authored contract, charter, responsibilities, heartbeat and topics are under
 `store/teams/effort-supervision/`; global identity is under
-`store/agents/effort-supervisor/`. The team is disabled and has no installed
-heartbeat config. Other teams are not changed.
+`store/agents/effort-supervisor/`. The team is disabled, and its disabled
+heartbeat configuration is retained for owner review. Other teams are not
+changed.
 
 After the implementation owner qualifies the AM board and PM runtime, configure
 the bounded observation pilot while the team remains disabled:
 
 ```bash
 prompt-manager team heartbeat-enable effort-supervision effort-supervisor \
-  --supervision --schedule='*/5 * * * *' \
-  --discovery-limit=100 --max-efforts-per-wake=3 \
+  --supervision --schedule='0 */6 * * *' \
+  --wake-admission=on-change --wake-sources=team,member,inbox,corpus \
+  --profile='prompt-manager/delivery-review' \
+  --discovery-limit=100 --max-efforts-per-wake=5 \
   --min-wake-interval-seconds=300 \
   --diagnostic-wakes-per-window=4 --diagnostic-window-seconds=3600 \
-  --accounting-ref=effort-supervision:standing-diagnostics \
-  --healthy-sample-interval-seconds=3600 --max-healthy-samples-per-wake=1
+  --accounting-ref=service:standing-supervision
 prompt-manager team heartbeat effort-supervision effort-supervisor --json
 ```
 
 The allowance counts attempted inference wakes, including sampling and uncertain
 dispatch. Idle discovery and owner reads use the shared accounting reference.
-Token and dollar usage remain AM observations; this count is not a spend limit.
+This count is not a spend limit: a standing supervisor must also use an Agent
+Manager dispatch authorization with finite `maxTokens` and
+`maxChargeMicroUsd`; AM settles those bounds from canonical run accounting and
+blocks admission when usage is unknown or exhausted.
 Omitting `--profile` retains PM's qualified declared profile. An explicit profile
 override must name an existing qualified route; no provider or paid fallback is
 introduced by supervision.
@@ -313,14 +349,14 @@ prompt-manager team heartbeat my-team agent-1
 Enable or create a heartbeat configuration for a member.
 
 ```bash
-prompt-manager team heartbeat-enable <team-id> <agent-id> --schedule=<cron> [--profile=<key>] [--wake-admission=always|on-change] [--wake-sources=team,inbox] [--json]
+prompt-manager team heartbeat-enable <team-id> <agent-id> [--schedule=<cron>] [--profile=<key>] [--wake-admission=always|on-change] [--wake-sources=team,inbox] [--json]
 ```
 
 **Options:**
 | Flag | Required | Description |
 |------|----------|-------------|
-| `--schedule` | Yes | Cron expression for execution schedule |
-| `--profile` | No | Declared Agent Manager profile key override. Defaults to `prompt-manager/heartbeat-judgment` (declared in `.vrooli/agent-manager/heartbeat.json`; role `code.economy.judgment`, Codex gpt-5.6-luna at effort xhigh) for multi-process teams and `prompt-manager/heartbeat-inspection` (declared in `.vrooli/agent-manager/heartbeat-single-process.json`; role `code.flatrate`, OpenCode Go DeepSeek V4.1 Flash) for single-process teams. The runner and model come from the role, not the profile; change the role in the declaration to move heartbeats to another model. |
+| `--schedule` | No | Cron expression for execution schedule; new heartbeats default to `0 */6 * * *`, while updates preserve the existing schedule unless this flag is supplied |
+| `--profile` | No | Declared Agent Manager profile key override. Defaults to `prompt-manager/heartbeat-judgment` (declared in `.vrooli/agent-manager/heartbeat.json`; role `code.economy.judgment`) for multi-process teams and `prompt-manager/heartbeat-inspection` (declared in `.vrooli/agent-manager/heartbeat-single-process.json`; role `code.flatrate`) for single-process teams. The runner, model, and effort come from the resource-owned role policy, not this document or the profile name; resolve them from the live catalog before changing a route. |
 | `--wake-admission` | No | `always` (default) runs on every schedule; `on-change` admits only when a selected bounded source identity changes. |
 | `--wake-sources` | No | Comma-separated `team`, `member`, `inbox`, or `corpus` sources required with `--wake-admission=on-change`. |
 | `--json` | No | Output as JSON |

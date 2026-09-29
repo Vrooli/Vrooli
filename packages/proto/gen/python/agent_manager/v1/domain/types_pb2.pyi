@@ -331,7 +331,7 @@ class SandboxLifecycleConfig(_message.Message):
     def __init__(self, stop_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ..., delete_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ..., ttl: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., idle_timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., checkpoint_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ...) -> None: ...
 
 class SandboxConfig(_message.Message):
-    __slots__ = ("lifecycle", "acceptance", "mode", "manual_review", "auto_apply", "apply_on_failure", "network_mode", "no_lock")
+    __slots__ = ("lifecycle", "acceptance", "mode", "manual_review", "auto_apply", "apply_on_failure", "network_mode", "no_lock", "write_policy")
     LIFECYCLE_FIELD_NUMBER: _ClassVar[int]
     ACCEPTANCE_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
@@ -340,6 +340,7 @@ class SandboxConfig(_message.Message):
     APPLY_ON_FAILURE_FIELD_NUMBER: _ClassVar[int]
     NETWORK_MODE_FIELD_NUMBER: _ClassVar[int]
     NO_LOCK_FIELD_NUMBER: _ClassVar[int]
+    WRITE_POLICY_FIELD_NUMBER: _ClassVar[int]
     lifecycle: SandboxLifecycleConfig
     acceptance: SandboxAcceptanceConfig
     mode: SandboxMode
@@ -348,7 +349,14 @@ class SandboxConfig(_message.Message):
     apply_on_failure: bool
     network_mode: NetworkAccess
     no_lock: bool
-    def __init__(self, lifecycle: _Optional[_Union[SandboxLifecycleConfig, _Mapping]] = ..., acceptance: _Optional[_Union[SandboxAcceptanceConfig, _Mapping]] = ..., mode: _Optional[_Union[SandboxMode, str]] = ..., manual_review: _Optional[bool] = ..., auto_apply: _Optional[bool] = ..., apply_on_failure: _Optional[bool] = ..., network_mode: _Optional[_Union[NetworkAccess, str]] = ..., no_lock: _Optional[bool] = ...) -> None: ...
+    write_policy: WorkspaceWritePolicy
+    def __init__(self, lifecycle: _Optional[_Union[SandboxLifecycleConfig, _Mapping]] = ..., acceptance: _Optional[_Union[SandboxAcceptanceConfig, _Mapping]] = ..., mode: _Optional[_Union[SandboxMode, str]] = ..., manual_review: _Optional[bool] = ..., auto_apply: _Optional[bool] = ..., apply_on_failure: _Optional[bool] = ..., network_mode: _Optional[_Union[NetworkAccess, str]] = ..., no_lock: _Optional[bool] = ..., write_policy: _Optional[_Union[WorkspaceWritePolicy, _Mapping]] = ...) -> None: ...
+
+class WorkspaceWritePolicy(_message.Message):
+    __slots__ = ("paths",)
+    PATHS_FIELD_NUMBER: _ClassVar[int]
+    paths: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, paths: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class FeatureFlags(_message.Message):
     __slots__ = ("enable_browser",)

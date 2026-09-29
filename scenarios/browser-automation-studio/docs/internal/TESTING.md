@@ -7,6 +7,17 @@ are in [REFRACTOR_CONTRACT.json](REFRACTOR_CONTRACT.json). The earlier assessmen
 remains dated evidence. Its proposed values are adopted as this engineering
 target; they are not claims about current performance or public release promises.
 
+Execution amendment, 2026-09-26: the standalone BAS worker is stopped. The
+operator authorized integration into the existing Prompt Manager delivery-team
+and effort-supervision system. Follow the
+[delivery campaign contract](../../../../docs/agent-system/EFFORT_SUPERVISION.md#delivery-campaign-amendment--2026-09-26)
+and its [current implementation checkpoint](../../../../docs/agent-system/effort-supervision-validation.md#current-integration-checkpoint--2026-09-27).
+The continuous product target and preservation obligations below remain in force.
+The Markdown candidate protocol and `campaign_guard.py` are diagnostic guidance,
+not proof of externally enforced boundaries. Resume product work through the
+qualified team route once its gates pass; do not restart the old unrestricted
+goal to work around missing runtime enforcement. Keep BAS's canonical files here.
+
 ## Work model and stakes
 
 This is a **file-based continuous improvement goal**, explicitly authorized by
@@ -146,21 +157,21 @@ specific code, test, checkpoint or decision reference. When an active file
 accumulates superseded narrative, compact it during the current epoch rather
 than waiting for another size complaint.
 
-The campaign guard makes these limits admission rules rather than optional
-prose. Run it immediately after resume and after every checkpoint rewrite:
+The old campaign guard checks these document conventions; it does **not**
+enforce admission because its inputs are worker-editable. It remains available
+as a read-only diagnostic during delivery-system integration:
 
 ```bash
 python3 scenarios/browser-automation-studio/docs/internal/campaign_guard.py --stage resume
 ```
 
-It must exit zero before implementation continues. Run `--stage producer`
-before any high-cardinality owner/evidence producer and `--stage qualify`
-before the exact evidence phase or setpoint read. Those stages require the
-active checkpoint to say `Candidate state: **frozen**`; qualification also
-requires `Qualification cycle: **unused**`. A failed guard is campaign
-maintenance to repair immediately, never permission to bypass a limit, create
-a second epoch or run qualification anyway. The guard does not certify product
-behavior.
+Its `--stage producer` and `--stage qualify` checks inspect the old checkpoint's
+`Candidate state: **frozen**` and `Qualification cycle: **unused**` lines.
+Passing them grants no runtime permission. Do not rewrite those lines to admit
+work or launch producers/qualification from a worker. The delivery owner must
+hold the accepted candidate identity and qualification admission externally.
+Retire this diagnostic after that replacement is adopted; neither guard output
+nor team registration certifies product behavior or runtime enforcement.
 
 ### Candidate-epoch execution protocol
 
@@ -248,6 +259,104 @@ recorded for its owning epoch unless it prevents truthful qualification. Explain
 every out-of-cadence rebuild, restart, evidence-phase or setpoint invocation.
 The agent never commits; the owner controls Git commits.
 
+#### Owner-bound qualification handoff — implementation target
+
+The existing AM workflow admits a pinned program after independent acceptance;
+the worker cannot perform this sequence. TG retains producer output in its run
+artifact catalog. Pass a bounded typed producer-receipt/run/artifact reference
+set through validation admission to the provider; pin the candidate, catalog and
+byte digests before dispatch. Reuse TG artifact reads and expiring owner pin
+leases through qualification/recovery. Do not copy output into a second BAS
+evidence tree, substitute latest files, or hide controls in attribution maps.
+First adopt evidence-completeness while preserving all four named tests, source
+and live-build checks, raw-log hashes and pass-event assertions. Other owner
+checks remain required; a partial adoption cannot certify the product.
+
+The governed `setpoint-read` gains paired `validation_receipt_id` and
+`expected_source_identity` inputs for qualification. Resolve that exact TG receipt
+through `test-genie/validation/get`, verify admitted and observed TG source
+identities, then its single terminal suite child and exact rehabilitation phase.
+Read that child's findings, never a recent replacement run. TG source identity
+and WSS review SHA are different domains. Invalid, missing or mismatched bound
+evidence fails closed without falling back to discovery. Unbound reads remain
+explicit diagnostics (`qualification_bound=false`), not qualification receipts.
+Validate each binding before dependent reads, using one linear selection path;
+do not accumulate duplicate validity flags or exceed the declared row-read bound.
+Preserve all 17 rows, freshness/build checks, bounded output and read-only effects;
+report a failed selected run honestly rather than replacing it with a green one.
+
+The pinned `browser-automation-studio.qualify-candidate` program composes these
+existing owners; it is not another campaign controller. AM supplies the accepted
+`candidate` object and retains the request key, explicit invalidated producer
+selection (at most eight), program digest and the immutable exact lifecycle
+grant before execution. It does not accept caller-authored lifecycle authority
+or a Test Genie source identity. Validate all inputs before effects. Promote only
+the exact WSS review
+request/SHA without commit, force or acceptance override. Refresh managed BAS
+artifacts at most once and only when freshness proves it necessary; the
+destructive start binding is available only in the AM-admitted grant set. Never
+infer a rebuild from an unrelated stale cohort.
+
+After WSS promotion, resolve the candidate source identity through Test Genie’s
+read-only owner RPC using the declared content roots. For each selected producer,
+admit once with a stable derived key, wait once on its owner receipt and consume
+its owner-computed typed retained reference set. Submit one exact rehabilitation
+validation with that set and the newly resolved identity, wait once, then compose
+the bound setpoint read. No latest-file lookup, shell command, private
+polling/retry loop, regenerated identity, renewed deadline or replay after
+uncertain effects. Preserve original receipt IDs on every failure. Report
+candidate SHA, owner handles, qualification result, bounded effect counts and
+measured usage; unknown accounting is not zero or complete.
+AM also retains the independently reviewed boundary and nonempty required row
+selection before effects. `ok` and `boundary_accepted=true` require applicable,
+identity-bound passing evidence for every selected row; the worker cannot choose
+or shrink that selection. Use the original owner-selected workflow input, retained
+before worker dispatch, and a `workflow_input` qualification binding; never bind
+`required_rows` from worker output. The pilot must exercise this actual AM path,
+not claim that the program's nonempty-array check establishes independence.
+A failed selected assertion, missing row, failed owner
+operation or ambiguous execution cannot pass. A completed evidence run can expose
+passing selected rows alongside unrelated product failures: retain its actual
+failed receipt/phase status and all 17 setpoint rows, never relabel that run passed.
+`product_qualified` remains the separate full-product result, false until all
+required product evidence passes. Admission, process success or one migrated
+cohort is not product readiness or completion of the continuous BAS mandate.
+Use existing Program Runtime helpers, contracts and BAS workflow tests. Exercise
+refusal and stale/mismatched/failed owner paths with fixtures before live adoption.
+The new shared handoff is concurrently owned by the TG integration assignment:
+the successful receipt exposes `produced_evidence_set` (`producedEvidenceSet` in
+the kernel), passed in validation intent `retained_evidence_sets`. Implement the
+complete composition and its mocked successful path against this declared
+contract. A refusal-only stub is not delivery. Missing live support is an adoption
+gap and must prevent live effects; it is not permission to omit the implementation.
+Use the actual AM candidate keys: `reviewAttemptId`, `verdictSha256`,
+`reviewerRunId`, `sourceRunId`, `sandboxId`, `reviewRequestId`, `sha256` (bare
+64-character SHA). Test Genie source identity is resolved after promotion from
+the candidate roots; it is not a separate retained caller input. AM/PRT already
+pin the program digest and exact grants; do not require a second caller-authored
+copy or invent an injected patch SHA. WSS review identity binds promotion; use
+both `confirm=true` and the runtime `_confirm=true`.
+Shared set keys are `producerReceiptId`, `producer`, `target`, `runId`,
+`candidateIdentity` (string), `catalogDigest`, `artifacts`. Forward that typed set
+unchanged; TG owns full artifact validation. Fixtures must mirror owner protojson
+and AM injection, not an invented interface. Report `signals.candidate_sha256`
+and root-level `usage` in the existing AM envelope shape; do not fabricate usage.
+Use a linear `program.run` phase flow and `program.report` exactly once, without
+local stop/report/classifier scaffolding or nested report-then-continue branches.
+
+The selected refresh list is not the complete qualification input. Retain valid
+existing evidence sets as explicit owner inputs and replace only the sets whose
+producers were declared invalidated. Before promotion, reject an unsupported
+producer, a missing required cohort, duplicates, identity mismatch or excess
+bounds. With no invalidation, reuse the retained cohort without producing again;
+an empty refresh list must not silently become unbound validation. Fixtures must
+enforce the actual provider's supported selection rather than invent extra
+producers. Register evidence-completeness in the checked-in TG descriptor and
+exercise its real catalog kinds and retained-input phase applicability, not only
+preconstructed reference sets. Do not enlarge global runtime timeouts to disguise
+the existing 90-second bridge limit; qualification needs an owner-backed bounded
+wait that preserves its original deadline and receipt without replaying effects.
+
 At epoch closure replace the active checkpoint with a compact summary of user
 outcome, production-source delta, product tests, qualification-only changes,
 retired paths, measured debt/complexity delta, receipts, score and all three
@@ -279,6 +388,13 @@ do not retain several tags for the same owner at the live root. A producer that
 regularly requires manual cleanup is itself unfinished: change it to replace or
 rotate its prior owner/candidate cohort as part of that ownership-boundary
 epoch.
+
+The BAS runtime owner’s automatic retention sweep governs durable recordings
+and captures only. It does not silently delete this rehabilitation working set:
+the owner-controlled qualification/controller must archive superseded producer
+cohorts before another broad run and retain the manifest/receipt needed by the
+active candidate. This distinction keeps user evidence safe while preventing
+qualification logs from becoming an unbounded second history.
 
 Durable `docs/internal/evidence/rehabilitation/` contains only cited design or
 repair evidence and compressed histories. Do not copy transient qualification
@@ -545,6 +661,13 @@ before/after cleanup, accepted-input stop time, cleanup time, recovery time,
 uncertain-effect state, and retry admission. Its oracle uses the fixture's
 independent action log and resource counter, never the product's own emitted
 events as the expected count.
+
+The restart owner also records `restartRequestAfterEffectMs`,
+`restartPreparationMs`, `inputStopAfterStopMs`, and `failureReasons`. It
+appends one bounded diagnostic observation even when a timing band fails;
+`passed:false` diagnostics are investigation data only and cannot be consumed
+as a retained qualification receipt. A passing line still requires the
+unchanged end-to-end input-stop, cleanup, and recovery bands.
 
 The API executor now has focused in-process HTTP fault tests for a live
 instruction timeout and driver-listener death. They assert an independent

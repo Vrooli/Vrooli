@@ -83,6 +83,10 @@ func BuildBwrapArgs(s *types.Sandbox, cfg BwrapConfig) []string {
 		args = append(args, "--hostname", cfg.Hostname)
 	}
 
+	// Create private temporary storage before workspace aliases. A trailing
+	// /tmp mount would hide projects or merged directories located beneath it.
+	args = append(args, "--tmpfs", "/tmp")
+
 	// Bind the sandbox merged directory as the agent-visible workspace path.
 	args = append(args, "--bind", s.MergedDir, driver.NamespaceWorkspacePath)
 
@@ -126,6 +130,17 @@ func BuildBwrapArgs(s *types.Sandbox, cfg BwrapConfig) []string {
 	for _, src := range sortedKeys(cfg.ReadWriteBinds) {
 		args = append(args, "--bind", src, cfg.ReadWriteBinds[src])
 	}
+	// Persisted per-sandbox authority wins over launch profiles. Apply it to
+	// every workspace alias, including the project path exposed by HOME.
+	if s.Behavior.WritePolicy != nil {
+		for _, root := range workspaceWritePolicyRoots(s) {
+			addDirHierarchy(&args, root)
+			args = append(args, "--ro-bind", s.MergedDir, root)
+			for _, path := range s.Behavior.WritePolicy.Paths {
+				args = append(args, "--bind", filepath.Join(s.MergedDir, path), filepath.Join(root, path))
+			}
+		}
+	}
 
 	// Mask paths: empty tmpfs over-binds emitted after every other bind so
 	// deny beats allow. Hides host state the home overlay would otherwise
@@ -142,15 +157,25 @@ func BuildBwrapArgs(s *types.Sandbox, cfg BwrapConfig) []string {
 		mask = filepath.Clean(mask)
 		if pathsOverlap(mask, driver.NamespaceWorkspacePath) ||
 			pathsOverlap(mask, s.MergedDir) ||
+			(cfg.MirrorProjectRoot && pathsOverlap(mask, s.ProjectRoot)) ||
 			pathsOverlap(mask, "/workspace-readonly") {
 			continue
 		}
 		args = append(args, "--tmpfs", mask)
 	}
 
+	// Owner policy wins over profile binds. Mount each source alias read-only
+	// too, so the workload cannot edit the consumer's inode through that alias.
+	// Validation refuses workspace/writable-root/mask collisions before launch.
+	for _, file := range cfg.PolicyFiles {
+		for _, target := range []string{file.Source, file.Target} {
+			addDirHierarchy(&args, filepath.Dir(target))
+			args = append(args, "--ro-bind", file.Source, target)
+		}
+	}
+
 	args = append(args, "--proc", "/proc")
 	args = append(args, "--dev", "/dev")
-	args = append(args, "--tmpfs", "/tmp")
 
 	workDir := cfg.WorkingDir
 	if workDir == "" {
@@ -174,6 +199,9 @@ func pathsOverlap(a, b string) bool {
 		return false
 	}
 	a, b = filepath.Clean(a), filepath.Clean(b)
+	if a == string(filepath.Separator) || b == string(filepath.Separator) {
+		return filepath.IsAbs(a) && filepath.IsAbs(b)
+	}
 	return a == b ||
 		strings.HasPrefix(b, a+string(filepath.Separator)) ||
 		strings.HasPrefix(a, b+string(filepath.Separator))

@@ -139,6 +139,23 @@ func TestOrphanRecordingCandidatesProtectIndexedAndRecentDirectories(t *testing.
 	}
 }
 
+func TestSelectUnprotectedCleanupItemsProtectsNewestAndCapsOldest(t *testing.T) {
+	now := time.Now()
+	items := []captureCleanupItem{
+		{ID: "old", Bytes: 3, ModifiedAt: now.Add(-3 * time.Hour)},
+		{ID: "middle", Bytes: 4, ModifiedAt: now.Add(-2 * time.Hour)},
+		{ID: "new", Bytes: 5, ModifiedAt: now.Add(-time.Hour)},
+	}
+
+	selected := selectUnprotectedCleanupItems(items, 1, 4)
+	if len(selected) != 1 || selected[0].ID != "old" {
+		t.Fatalf("selected = %#v, want only oldest item within byte cap", selected)
+	}
+	if !items[2].Protected {
+		t.Fatal("newest item was not protected")
+	}
+}
+
 func TestRemoveCaptureRejectsPathsOutsideRoot(t *testing.T) {
 	if err := removeCapture(filepath.Join(t.TempDir(), "outside"), filepath.Join(t.TempDir(), "captures")); err == nil {
 		t.Fatal("removeCapture accepted a path outside the configured root")

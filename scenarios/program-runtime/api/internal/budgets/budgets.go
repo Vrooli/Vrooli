@@ -45,10 +45,17 @@ const (
 	// surface as an untyped transport error.
 	BridgeCall = 90 * time.Second
 
+	// OwnerWaitBridge is reserved for the one server-owned validation wait
+	// binding. It is not a caller-selectable timeout.
+	OwnerWaitBridge = 12 * time.Minute
+
 	// KernelInvoke bounds the kernel's wait on the bridge for a binding call,
 	// a projection verb, or intent discovery. It exceeds BridgeCall by the
 	// margin the bridge needs to serialise and write its typed error.
 	KernelInvoke = 100 * time.Second
+
+	// OwnerWaitKernel leaves room for the bridge to return its typed response.
+	OwnerWaitKernel = 13 * time.Minute
 
 	// SyncSubmit bounds a synchronous SubmitProgram. Work that legitimately
 	// takes longer is not an error — it is what `--async` plus WaitForProgram
@@ -139,9 +146,10 @@ func Validate() error {
 // carries its own copy of these numbers; Go stays the single authority and the
 // two languages cannot drift.
 type KernelEnvelope struct {
-	Telemetry float64 `json:"telemetry_seconds"`
-	Describe  float64 `json:"describe_seconds"`
-	Invoke    float64 `json:"invoke_seconds"`
+	Telemetry      float64            `json:"telemetry_seconds"`
+	Describe       float64            `json:"describe_seconds"`
+	Invoke         float64            `json:"invoke_seconds"`
+	BindingInvokes map[string]float64 `json:"binding_invoke_seconds"`
 }
 
 // Kernel returns the envelope handed to a kernel process at spawn.
@@ -150,7 +158,19 @@ func Kernel() KernelEnvelope {
 		Telemetry: KernelTelemetry.Seconds(),
 		Describe:  KernelDescribe.Seconds(),
 		Invoke:    KernelInvoke.Seconds(),
+		BindingInvokes: map[string]float64{
+			"test-genie/validation/wait": OwnerWaitKernel.Seconds(),
+		},
 	}
+}
+
+// BridgeForBinding returns the server-owned bridge call cap for a governed
+// binding. Unknown bindings always retain the ordinary cap.
+func BridgeForBinding(bindingID string) time.Duration {
+	if bindingID == "test-genie/validation/wait" {
+		return OwnerWaitBridge
+	}
+	return BridgeCall
 }
 
 // BoundWait clamps a caller-supplied wait deadline into the ladder. A caller

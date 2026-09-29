@@ -2,24 +2,55 @@
 import contextlib
 import io
 import json
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
 
 ROOT = Path(__file__).parents[1]
+sys.path.insert(0, str(ROOT.parents[2] / "program-runtime/kernel/host"))
+from program_helper import ProgramHelper, RemoteError, ScenarioUnreachable
 
 class IterateTests(unittest.TestCase):
-    def invoke(self, receipt_extra=None, **changes):
+    def invoke(self, receipt_extra=None, admission_error=None, **changes):
         calls = []
         def create(**kwargs):
             calls.append(kwargs)
+            if admission_error:
+                raise admission_error
             return SimpleNamespace(head=lambda n: [], meta=lambda: {"receipt": {"receiptId": "receipt-1", "state": "RECEIPT_STATE_QUEUED", **(receipt_extra or {})}})
         values = {"scenario": "demo", "request_id": "change-1", **changes}
+        helper = ProgramHelper()
+        scope = {"inputs": values, "program": helper,
+                 "test_genie": SimpleNamespace(validation=SimpleNamespace(create=create))}
+        helper._bind(scope)
         stream = io.StringIO()
         with contextlib.redirect_stdout(stream):
-            exec(compile((ROOT / "iterate.py").read_text(), "iterate", "exec"), {
-                "inputs": values, "test_genie": SimpleNamespace(validation=SimpleNamespace(create=create))})
+            exec(compile((ROOT / "iterate.py").read_text(), "iterate", "exec"), scope)
         return json.loads(stream.getvalue()), calls
+
+    def test_retained_manifest_is_forwarded_once_without_flooding_resume_output(self):
+        expected = {"schema_version": 1, "roots": [{"name": "reviewed", "files": [
+            {"path": "file-" + str(i), "digest": "sha256:" + "a" * 64, "size": 4}
+            for i in range(1000)]}]}
+        before = json.dumps(expected)
+        result, calls = self.invoke(expected_identity=expected, phases=["rehabilitation-evidence"])
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["intent"]["expected_identity"], expected)
+        self.assertEqual(json.dumps(expected), before)
+        self.assertLess(len(json.dumps(result)), 4096)
+        self.assertEqual(result["signals"]["expected_manifest"], {"roots": 1, "files": 1000})
+        self.assertEqual(result["signals"]["intent_omitted_fields"], ["expected_identity"])
+        self.assertIn("receipt-1", result["signals"]["wait_command"])
+
+    def test_owner_rejection_is_not_relabelled_as_transport_outage(self):
+        for error, status, klass in ((RemoteError("reviewed bytes changed"), "failed", "remote_error"),
+                                     (ScenarioUnreachable("owner down"), "unavailable", "scenario_unreachable")):
+            result, calls = self.invoke(admission_error=error)
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(result["status"], status)
+            self.assertEqual(result["errors"][0]["class"], klass)
+            self.assertNotIn("wait_command", result["signals"])
 
     def test_required_phases_survive_small_budget_and_single_admission(self):
         result, calls = self.invoke(phases=["programs", "unit", "unit"], budget_seconds=30)
@@ -43,7 +74,7 @@ class IterateTests(unittest.TestCase):
         self.assertEqual(result["signals"]["intent"], again["signals"]["intent"])
 
     def test_bad_input_never_admits(self):
-        for values in ({"scenario": "../outside"}, {"phases": ["unit;echo"]}, {"budget_seconds": True}, {"request_id": ""}, {"dependency_inputs": [{"root": "packages"}]}):
+        for values in ({"scenario": "../outside"}, {"phases": ["unit;echo"]}, {"budget_seconds": True}, {"request_id": ""}, {"dependency_inputs": [{"root": "packages"}]}, {"expected_identity": []}):
             result, calls = self.invoke(**values)
             self.assertEqual(result["status"], "failed")
             self.assertEqual(calls, [])

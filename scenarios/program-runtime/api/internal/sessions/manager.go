@@ -98,10 +98,12 @@ type Session struct {
 	MemoryBytes             int64
 	InferenceCostMicros     int64
 	InferenceTokens         int64
+	InferenceChargeUnknown  bool
 	DelegationCostMicros    int64
 	InferenceCeilingMicros  int64
 	DelegationCeilingMicros int64
 	DelegationSpendMeasured bool
+	DelegationUsageObserved bool
 	DelegationSpendNote     string
 	WallBudget              time.Duration
 	WallConsumed            time.Duration
@@ -111,10 +113,11 @@ type Session struct {
 }
 
 type Manager struct {
-	mu      sync.Mutex
-	options Options
-	repo    Repository
-	kernels map[string]Kernel
+	mu                  sync.Mutex
+	options             Options
+	repo                Repository
+	kernels             map[string]Kernel
+	uncertainAccounting map[string]struct{}
 }
 
 func NewManager(options Options) *Manager {
@@ -140,7 +143,7 @@ func NewManager(options Options) *Manager {
 	if options.WorkspaceResolver == nil {
 		options.WorkspaceResolver = &localWorkspaceResolver{}
 	}
-	return &Manager{options: options, repo: repo, kernels: make(map[string]Kernel)}
+	return &Manager{options: options, repo: repo, kernels: make(map[string]Kernel), uncertainAccounting: make(map[string]struct{})}
 }
 
 func (m *Manager) Create(ctx context.Context, name, sandbox string, grants []string) (*Session, error) {
@@ -217,11 +220,20 @@ func (m *Manager) EnsureInferenceAvailable(ctx context.Context, id string) error
 }
 
 func (m *Manager) RecordInferenceUsage(ctx context.Context, id string, costMicros, tokens int64) error {
-	return m.repo.RecordInferenceUsage(ctx, id, costMicros, tokens)
+	if err := m.repo.RecordInferenceUsage(ctx, id, costMicros, tokens); err != nil {
+		if markErr := m.MarkAccountingUnknown(ctx, id); markErr != nil {
+			return fmt.Errorf("record inference usage: %v; preserve unknown charge: %w", err, markErr)
+		}
+		return err
+	}
+	return nil
 }
 
-func (m *Manager) RecordDelegationUsage(ctx context.Context, id string, costMicros int64, measured bool, note string) error {
-	return m.repo.RecordDelegationUsage(ctx, id, costMicros, measured, note)
+func (m *Manager) MarkAccountingUnknown(ctx context.Context, id string) error {
+	m.mu.Lock()
+	m.uncertainAccounting[id] = struct{}{}
+	m.mu.Unlock()
+	return m.repo.MarkAccountingUnknown(ctx, id)
 }
 
 func (m *Manager) SaveDelegation(ctx context.Context, delegation *Delegation) error {
@@ -232,6 +244,29 @@ func (m *Manager) SaveDelegation(ctx context.Context, delegation *Delegation) er
 		return err
 	}
 	return m.repo.SaveDelegation(ctx, delegation)
+}
+
+// SettleDelegationUsage records one terminal child's charge at most once.
+func (m *Manager) SettleDelegationUsage(ctx context.Context, sessionID, executionID, status string, costMicros int64, measured bool, note string) (bool, error) {
+	if !terminalDelegationStatus(status) {
+		return false, fmt.Errorf("delegation usage requires a terminal status")
+	}
+	applied, err := m.repo.SettleDelegationUsage(ctx, sessionID, executionID, strings.ToLower(strings.TrimSpace(status)), costMicros, measured, note)
+	if err != nil {
+		if markErr := m.MarkAccountingUnknown(ctx, sessionID); markErr != nil {
+			return false, fmt.Errorf("settle delegation: %v; preserve accounting uncertainty: %w", err, markErr)
+		}
+	}
+	return applied, err
+}
+
+func terminalDelegationStatus(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "succeeded", "failed", "cancelled":
+		return true
+	default:
+		return false
+	}
 }
 
 func (m *Manager) GetDelegation(ctx context.Context, sessionID, executionID string) (*Delegation, error) {
@@ -272,6 +307,11 @@ func (m *Manager) Get(ctx context.Context, id string) (*Session, error) {
 	}
 	m.mu.Lock()
 	s.Kernel = m.kernels[id]
+	if _, unknown := m.uncertainAccounting[id]; unknown {
+		s.InferenceChargeUnknown = true
+		s.DelegationUsageObserved = true
+		s.DelegationSpendMeasured = false
+	}
 	m.mu.Unlock()
 	if s.SandboxWorkspace != "" && m.options.OnWorkspaceResolved != nil {
 		m.options.OnWorkspaceResolved(id, s.SandboxWorkspace)

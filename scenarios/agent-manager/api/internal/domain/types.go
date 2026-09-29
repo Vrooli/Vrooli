@@ -64,8 +64,10 @@ type AgentProfile struct {
 	// Path restrictions
 	AllowedPaths []string `json:"allowedPaths,omitempty" db:"allowed_paths"`
 	DeniedPaths  []string `json:"deniedPaths,omitempty" db:"denied_paths"`
-	// DeclaredScopes is an optional profile ceiling for delegated identity
-	// tokens. Empty/nil preserves the account's full scope by default.
+	// DeclaredScopes is the profile ceiling for delegated identity tokens.
+	// Omitted and empty lists both grant nothing. Use IdentityScopeCeiling
+	// when intersecting grants so transport nil/empty differences cannot
+	// silently restore the account's full authority.
 	DeclaredScopes []string `json:"declaredScopes,omitempty" db:"declared_scopes"`
 	// SkillPack names the prompt-manager skills projected into this profile's
 	// private run scope. It is an allow-list of identifiers, never a path.
@@ -82,6 +84,16 @@ type AgentProfile struct {
 	LocalOverride   bool      `json:"localOverride,omitempty" db:"local_override"`
 	CreatedAt       time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt       time.Time `json:"updatedAt" db:"updated_at"`
+}
+
+// IdentityScopeCeiling distinguishes an absent profile (no profile layer) from
+// an existing profile with no declared API capability (an empty ceiling).
+// Return a copy so narrowing a request cannot mutate the profile's policy.
+func (p *AgentProfile) IdentityScopeCeiling() []string {
+	if p == nil {
+		return nil
+	}
+	return append([]string{}, p.DeclaredScopes...)
 }
 
 // SpawnPolicy is declaration-only preference data. Runtime selection must
@@ -538,11 +550,9 @@ const (
 	// SandboxModeProtected runs the agent process tree itself inside the
 	// workspace-sandbox container — bwrap isolation, network mode, and
 	// git allowlist are enforced on the agent process, not just on its
-	// merged-overlay output. This is the production default. Whether a
-	// protected-mode request actually launches in the sandbox or falls
-	// back to host execution depends on the runner having a
-	// SandboxLauncherFactory wired at runtime; in production main.go
-	// always wires this.
+	// merged-overlay output. This is the production default. Launch requires
+	// a bound SandboxLauncherFactory and a current containment report;
+	// missing wiring or enforcement refuses launch, never falls back to host.
 	//
 	// See execute/protected-sandbox-agent-launch and
 	// scenarios/agent-manager/docs/PROTECTED_MODE_RUNNERS.md.
@@ -616,8 +626,11 @@ func (m SandboxMode) AtLeast(required SandboxMode) bool {
 type SandboxConfig struct {
 	Lifecycle  SandboxLifecycleConfig  `json:"lifecycle,omitempty"`
 	Acceptance SandboxAcceptanceConfig `json:"acceptance,omitempty"`
+	// WritePolicy is a runtime workspace grant, separate from apply acceptance.
+	// Nil preserves the full workspace; an explicit empty policy is read-only.
+	WritePolicy *WorkspaceWritePolicy `json:"writePolicy,omitempty"`
 
-	// Mode selects the auditability mode. Empty defaults to "tracking".
+	// Mode selects the auditability mode. Empty defaults to "protected".
 	Mode SandboxMode `json:"mode,omitempty"`
 
 	// ManualReview defers apply at run end until an operator approves via
@@ -646,6 +659,13 @@ type SandboxConfig struct {
 	// and acceptance orthogonal: NoLock does not bypass acceptance.
 	// (Contract framing names this "lock"; lock=false ↔ NoLock=true.)
 	NoLock bool `json:"noLock,omitempty"`
+}
+
+// WorkspaceWritePolicy grants existing literal paths relative to the sandbox's
+// merged root. Directories include descendants. The sandbox owner rejects root,
+// traversal, globs, overlapping grants, missing paths and symlink components.
+type WorkspaceWritePolicy struct {
+	Paths []string `json:"paths"`
 }
 
 // GetAutoApply resolves AutoApply, defaulting to the contract value (true)
@@ -1501,16 +1521,20 @@ type RunConfig struct {
 	RunnerType RunnerType `json:"runnerType"`
 	// ManifestIndexSnapshot pins the CLI catalog index used by an imported
 	// transcript. Imported episode attribution remains historical evidence.
-	ManifestIndexSnapshot string        `json:"manifestIndexSnapshot,omitempty"`
-	TranscriptCodec       string        `json:"transcriptCodec,omitempty"`
-	TranscriptCodecScore  float64       `json:"transcriptCodecScore,omitempty"`
-	Until                 string        `json:"until,omitempty"`
-	Model                 string        `json:"model,omitempty"`
-	RoleRef               string        `json:"roleRef,omitempty"`
-	PreferredRunner       string        `json:"preferredRunner,omitempty"`
-	MaxTurns              int           `json:"maxTurns,omitempty"`
-	Timeout               time.Duration `json:"timeout,omitempty"`
-	Effort                Effort        `json:"effort,omitempty"`
+	ManifestIndexSnapshot string  `json:"manifestIndexSnapshot,omitempty"`
+	TranscriptCodec       string  `json:"transcriptCodec,omitempty"`
+	TranscriptCodecScore  float64 `json:"transcriptCodecScore,omitempty"`
+	Until                 string  `json:"until,omitempty"`
+	Model                 string  `json:"model,omitempty"`
+	RoleRef               string  `json:"roleRef,omitempty"`
+	PreferredRunner       string  `json:"preferredRunner,omitempty"`
+	MaxTurns              int     `json:"maxTurns,omitempty"`
+	// MaxToolCalls is an owner-declared hard ceiling for one runner process.
+	// Unlike aggregate token accounting, it remains enforceable when a provider
+	// emits usage only at terminal completion. Zero preserves unlimited behavior.
+	MaxToolCalls int           `json:"maxToolCalls,omitempty"`
+	Timeout      time.Duration `json:"timeout,omitempty"`
+	Effort       Effort        `json:"effort,omitempty"`
 
 	// PolicySnapshot pins the exact active catalog revision and ordered
 	// candidate sequence selected before this run was persisted.

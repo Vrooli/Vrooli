@@ -26,17 +26,17 @@ var digestFn = treedigest.Compute
 // live in the shared freshness-go package; this RPC only resolves inputs and
 // converts the report to the wire shape.
 func (s *Service) CheckFreshness(ctx context.Context, req *connect.Request[runspb.CheckFreshnessRequest]) (*connect.Response[runspb.CheckFreshnessResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetTarget())
+	sourceDir, artifactDir, err := s.targetDirs(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
 
-	digest, err := digestFn(dir)
+	digest, err := digestFn(sourceDir)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("compute tree digest: %w", err))
 	}
 
-	records, err := sharedruns.NewIndex(dir).List()
+	records, err := sharedruns.NewIndex(artifactDir).List()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

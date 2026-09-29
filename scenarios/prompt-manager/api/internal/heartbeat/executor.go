@@ -356,6 +356,9 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	// replayed create after an uncertain response resolves to the same run
 	// instead of starting a second one.
 	dispatchKey := fmt.Sprintf("prompt-manager-heartbeat:%s:%s:%s", teamID, agentID, attemptID)
+	workloadKind, workloadKey, workloadInstance := teamWorkloadIdentity(team, dispatchKey)
+	environment := map[string]string{attribKey: attribValue}
+	addWorkloadEnvironment(environment, workloadKind, workloadKey, workloadInstance)
 	runReq := &CreateRunRequest{
 		TaskID: createdTask.ID,
 		ProfileRef: &ProfileRef{
@@ -363,9 +366,7 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		},
 		Tag:            &runTag,
 		IdempotencyKey: dispatchKey,
-		Environment: map[string]string{
-			attribKey: attribValue,
-		},
+		Environment:    environment,
 	}
 
 	// Persist the dispatch intent before the owner start request. If the
@@ -373,9 +374,12 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	// (with the idempotency key) instead of a free slot.
 	if e.teamExecStore != nil {
 		e.teamExecStore.BeginDispatch(teamID, agentID, DispatchIntent{
-			IdempotencyKey: dispatchKey,
-			TaskID:         createdTask.ID,
-			RunTag:         runTag,
+			IdempotencyKey:   dispatchKey,
+			TaskID:           createdTask.ID,
+			RunTag:           runTag,
+			WorkloadKind:     workloadKind,
+			WorkloadKey:      workloadKey,
+			WorkloadInstance: workloadInstance,
 		})
 	}
 

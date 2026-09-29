@@ -270,6 +270,11 @@ The template can use only declared binding names. An undeclared or malformed
 reference fails declaration reconciliation. The rendered path still receives
 normal task scope validation, including rejection of path traversal.
 
+Scope is not a write grant. A Run node may also pin a literal `sandboxConfig`
+with `writePolicy.paths` and `networkMode` in its immutable revision. Continue
+nodes keep the source run's authority; they cannot supply another policy.
+See [fixed worker authority](../guides/workflow-adoption.md#fixed-worker-authority).
+
 ## Prompt maturity gradient
 
 An inline `promptTemplate` remains valid and produces an `inline_prompt`

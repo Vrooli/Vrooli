@@ -30,6 +30,7 @@ require (
 
 require (
 	github.com/go-chi/chi/v5 v5.0.11 // indirect
+	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 )

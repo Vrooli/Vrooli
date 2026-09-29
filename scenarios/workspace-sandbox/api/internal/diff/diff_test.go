@@ -16,6 +16,76 @@ import (
 	"workspace-sandbox/internal/types"
 )
 
+func TestSymlinkChangesPreserveLinksWithoutReadingTargets(t *testing.T) {
+	for _, kind := range []types.ChangeType{types.ChangeTypeAdded, types.ChangeTypeModified, types.ChangeTypeDeleted} {
+		t.Run(string(kind), func(t *testing.T) {
+			lower, upper, target := t.TempDir(), t.TempDir(), t.TempDir()
+			rel := "link"
+			old, want := "../missing-original", filepath.Join(t.TempDir(), "private")
+			if err := os.WriteFile(want, []byte("PRIVATE_TARGET_NOT_EVIDENCE"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if kind != types.ChangeTypeAdded {
+				for _, root := range []string{lower, target} {
+					if err := os.Symlink(old, filepath.Join(root, rel)); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			if kind != types.ChangeTypeDeleted {
+				if err := os.Symlink(want, filepath.Join(upper, rel)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if kind != types.ChangeTypeAdded {
+				if binary, err := IsBinaryFile(filepath.Join(lower, rel)); err != nil || binary {
+					t.Fatalf("dangling link must classify without opening its target: %v, %v", binary, err)
+				}
+			}
+			ctx := context.Background()
+			result, err := NewGenerator(process.NewOSExecStarter()).GenerateDiff(ctx, &types.Sandbox{ID: uuid.New(), LowerDir: lower, UpperDir: upper}, []*types.FileChange{{FilePath: rel, ChangeType: kind}}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(result.UnifiedDiff, "PRIVATE_TARGET_NOT_EVIDENCE") || !strings.Contains(result.UnifiedDiff, "120000") {
+				t.Fatalf("diff must preserve link metadata, not target bytes: %s", result.UnifiedDiff)
+			}
+			content, err := GetFileContent(upper, lower, rel, kind)
+			expected := want
+			if kind == types.ChangeTypeDeleted {
+				expected = old
+			}
+			if err != nil || content != expected {
+				t.Fatalf("preview = %q, %v; want link %q", content, err, expected)
+			}
+			applied, err := NewPatcher(process.NewOSExecStarter()).ApplyDiff(ctx, target, result.UnifiedDiff, ApplyOptions{})
+			if err != nil || !applied.Success {
+				t.Fatalf("apply link: %+v, %v", applied, err)
+			}
+			if kind == types.ChangeTypeDeleted {
+				if _, err := os.Lstat(filepath.Join(target, rel)); !os.IsNotExist(err) {
+					t.Fatalf("deleted link remains: %v", err)
+				}
+			} else if got, err := os.Readlink(filepath.Join(target, rel)); err != nil || got != want {
+				t.Fatalf("applied link = %q, %v", got, err)
+			}
+		})
+	}
+}
+
+func TestEvidenceReadRefusesParentSymlinkEscape(t *testing.T) {
+	root, outside := t.TempDir(), t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "private"), []byte("not evidence"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "escape")); err != nil {
+		t.Fatal(err)
+	}
+	if bytes, _, err := ReadFileBytes(root, "escape/private"); err == nil || len(bytes) != 0 {
+		t.Fatalf("parent escape exposed bytes: %q, %v", bytes, err)
+	}
+}
+
 func TestBinaryChangesApplyExactBytes(t *testing.T) {
 	for _, gitRepo := range []bool{false, true} {
 		for _, kind := range []types.ChangeType{types.ChangeTypeAdded, types.ChangeTypeModified, types.ChangeTypeDeleted} {

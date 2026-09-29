@@ -189,3 +189,36 @@ func TestResolveShadowTargetAndNonLive(t *testing.T) {
 		t.Error("bare and @live targets should be live")
 	}
 }
+
+// TestVariantDependencyRoutingFollowsOwnVariant covers the presentation case:
+// a listed dependency is addressed at this instance's own variant, an unlisted
+// one stays live, and a live instance never follows the list at all.
+func TestVariantDependencyRoutingFollowsOwnVariant(t *testing.T) {
+	clearInstanceOverrides(t)
+	t.Setenv(EnvInstanceVariant, "presentation")
+	t.Setenv(EnvVariantDependencies, "vrooli-bridge,audio-tools")
+
+	if got := ResolveShadowTarget("vrooli-bridge"); got != "vrooli-bridge@presentation" {
+		t.Errorf("listed dependency target = %q, want vrooli-bridge@presentation", got)
+	}
+	if got := ResolveShadowTarget("integration-hub"); got != "integration-hub" {
+		t.Errorf("unlisted dependency target = %q, want live", got)
+	}
+	if !IsVariantDependency("audio-tools") || IsVariantDependency("integration-hub") {
+		t.Error("IsVariantDependency does not match the list")
+	}
+
+	// An explicit address still wins over the follow list.
+	if got := ResolveShadowTarget("vrooli-bridge@live"); got != "vrooli-bridge" {
+		t.Errorf("explicit live address = %q, want vrooli-bridge", got)
+	}
+
+	// A live instance ignores the list entirely.
+	t.Setenv(EnvInstanceVariant, "live")
+	if got := ResolveShadowTarget("vrooli-bridge"); got != "vrooli-bridge" {
+		t.Errorf("live instance followed the list: %q", got)
+	}
+	if IsVariantDependency("vrooli-bridge") {
+		t.Error("live instance reports a variant dependency")
+	}
+}

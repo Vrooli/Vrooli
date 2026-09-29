@@ -1846,9 +1846,11 @@ signals or logs.
 `WorkflowBudgets.enforcement = "metered-cancellation"` enables live inspection
 for sequential fresh-run graphs. An omitted value preserves existing revision
 behavior. Catalog validation and engine admission share the same qualification
-check. Hard ceilings, nested children, parallel branches, reused-session
-continuations and automatic schema-repair continuations are not qualified and
-are rejected in this mode.
+check. Deterministic qualification nodes are allowed after the metered agent
+runs; their owner-program receipt remains governed by the qualification
+accounting path. Hard ceilings, nested children, parallel branches,
+reused-session continuations and automatic schema-repair continuations are not
+qualified and are rejected in this mode.
 
 `workflowChildLauncher.InspectMetered` uses retained provider metrics and the
 canonical invocation accounting projection. Cache reads and cache creation count

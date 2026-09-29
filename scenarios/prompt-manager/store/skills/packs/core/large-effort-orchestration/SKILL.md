@@ -1,6 +1,6 @@
 ---
 name: large-effort-orchestration
-description: Preserve a large cross-scenario request, then coordinate a bounded planner tree with economical workers, durable handoffs, quota recovery and evidence review. Use for finite multi-plan efforts that must survive interruptions; use the ordinary plan skills for one bounded change.
+description: Preserve a large cross-scenario request, then coordinate owner-admitted boundaries with economical workers, durable handoffs, quota recovery and evidence review. Use for finite multi-shape efforts that must survive interruptions; use the ordinary plan skills for one bounded change.
 license: CC-BY-4.0
 metadata:
   kind: skill
@@ -9,23 +9,42 @@ metadata:
   tags: [orchestration, multi-agent, effort, continuity, recovery, planning]
   icon: network
   status: active
-  revision: 7
+  revision: 15
   createdAt: "2026-09-10T00:00:00Z"
-  updatedAt: "2026-09-14T00:00:00Z"
+  updatedAt: "2026-09-28T12:00:00Z"
   requires:
-    scenarios: [prompt-manager, plan-manager, agent-manager, program-runtime]
-    commands: [prompt-manager skill read, plan-manager, agent-manager, program-runtime]
+    scenarios: [prompt-manager, agent-manager, program-runtime]
+    commands: [prompt-manager skill read, agent-manager, program-runtime]
   origin:
     kind: authored
 ---
 
 ## Practice focus: Large effort orchestration
 
-Turn a large request into a finite, recoverable effort without losing its intent or spending the whole investment repairing infrastructure. Large efforts use one governed start model: a finite, effort-based Prompt Manager delivery team coordinates bounded work; Agent Manager owns runs and outcomes; Swarm Manager owns grants and dispositions; Plan Manager owns plans only when the selected work shape requires one. Preserve the destination, delegate coherent work, and close only against evidence for that destination.
+Turn a large request into a finite, recoverable effort without losing its intent or spending the whole investment repairing infrastructure. Large efforts use one governed start model: a finite, effort-based Prompt Manager delivery team coordinates bounded work; Agent Manager owns runs and outcomes; Swarm Manager owns grants and dispositions; Plan Manager is consulted only when the selected work shape requires a plan. Preserve the destination, delegate coherent work, and close only against evidence for that destination.
 
 This skill owns cross-round judgment, source preservation, and recovery policy. Plan Manager owns implementation plans and family admission. Agent Manager owns runs and supervision. Swarm Manager owns its work and grants when selected. The effort workspace joins those owners; it does not replace them.
 
-Use two agent responsibilities: planners own outcomes and decomposition; workers deliver bounded assignments. A planner may delegate a narrower planning branch. A finite team roster does not limit the coordinator's child-run capacity: an empty org beyond the coordinator still requires direct Agent Manager child delegation for bounded delivery. Keep process monitoring, dispatch admission, timers and retry accounting in deterministic owner code. A planning tree does not replace that runtime supervision tree.
+Use three separate responsibilities. The standing Sol supervisor selects the next
+ownership boundary and accepts or reopens its candidate. The economical Luna
+coordinator executes only the boundary already admitted by the owner and manages
+its child runs. Workers implement bounded assignments inside that boundary. A
+coordinator or worker must not choose, close, or replace the campaign boundary.
+The coordinator may report a proposed follow-up, but the owner must admit it
+before any new boundary starts. A finite team roster does not limit the
+coordinator's child-run capacity: an empty org beyond the coordinator still
+requires direct Agent Manager child delegation for bounded delivery. Keep process
+monitoring, dispatch admission, timers and retry accounting in deterministic owner
+code. A planning tree does not replace that runtime supervision tree.
+
+For an operator-selected continuous campaign, keep its persistence policy at the
+campaign owner. Workers receive coherent boundaries with finite handoffs; a
+compaction or one repaired defect does not close or replace the boundary. Select
+economical coordination separately from infrequent stronger review. A worker's
+editable progress file or guard input cannot enforce acceptance, qualification
+admission or scope. Use existing owner state and qualified enforcement. See
+`path:docs/agent-system/EFFORT_SUPERVISION.md#delivery-campaign-amendment--2026-09-26`
+for the BAS integration contract and its explicitly unverified runtime gates.
 
 Choose each assignment's shape with `docs/agent-system/SWARM_MANAGER_WORK.md` §"Work shapes" and write the assignment with `prompt-manager skill read harness-goal-authoring`. Read `prompt-manager skill read implementation-plan-authoring plan-family-orchestration` when creating plans or a family. Read `prompt-manager skill read agent-manager-plan-family-supervision program-runtime` before managed dispatch. For an approved scenario improvement mandate, use `scenario-improvement-campaign` and the scenario's improve skill inside that mandate.
 
@@ -47,13 +66,25 @@ Entry: the user supplies a large outcome or an existing effort reference.
 
 #### Canonical team-native start
 
-1. Create or resume one finite delivery team and one protected effort workspace. Record purpose, finite lifetime, mission, exact effort reference, leader, operating contract, serialized execution policy and acceptance revision. Team metadata describes coordination; it does not grant authority.
+1. Create or resume one finite delivery team and one protected effort workspace. The
+   team metadata MUST use `purpose: delivery`, `lifetime: finite`, and an
+   `effortRefs` entry containing the exact canonical effort reference. Record the
+   mission, leader, operating contract, serialized execution policy and acceptance
+   revision. Team metadata describes coordination; it does not grant authority.
 2. Register or verify the team's Source Ledger scope. Persist the coordinator goal and source references in the effort workspace; keep the workspace a recoverable index, never a second owner ledger.
 3. Qualify the exact team, runner, profile, model, owner route and recovery behavior with a disposable finite fixture. The fixture must exercise registration, contract validation, a disabled finite-leader binding, one controlled owner admission, identity/receipt reconciliation, lifecycle transitions and explicit recurrence/recovery limits.
 4. Provision the finite-leader binding disabled with exact effort, accepted revision, coordinator prompt and source references. Obtain one explicit operator activation for that exact effort revision, then enable the finite team. An enabled binding is an ongoing execution mandate inside the accepted destination; it is not permission to expand scope. Do not insert a second approval gate for ordinary in-boundary implementation, UX, documentation, validation or handoff work.
 5. When approved, enable only the finite team and its qualified member, admit the first run through the governed team execution route, and reconcile the PM admission identity with the Agent Manager task/run and handoff. Keep the UX effort inactive until this sequence and its approval gate are complete.
 
 The finite team's operating contract is the coordinator's recovery handoff. Team registration, heartbeat provisioning, owner-run admission, continuation authority and accepted completion are separate states. A completed run is not accepted work; an explicit revision-checked completion receipt is required. Recurring continuation and fresh-run recovery are separate gates: a heartbeat tick may observe a retained owner wait or recovery condition, but it cannot invent a continuation edge, replacement run, grant or approval. Uncertain dispatch retains its exact identity until the owner reconciles it; it never authorizes a speculative retry.
+
+Qualification is a separate owner boundary. Its preparation path MUST classify a
+durable candidate/review rejection or invalid authority as one terminal result;
+it MUST retain the exact identity and retry only transient owner, transport, or
+accounting failures. A supervisor or recovery loop must never spend the same
+candidate's allowance retrying a deterministic refusal. Record the terminal
+reason and reopen the same boundary only through the owner-controlled repair
+path.
 
 1. Discover related work and reusable programs through Search Hub before inventing another work owner.
 2. Resume the existing effort when its identity and destination match.
@@ -127,11 +158,33 @@ for a human. If the selected owner route is unavailable, use the qualified
 direct Agent Manager fallback and record the reduced guarantee; do not convert
 delivery into a human-in-the-loop backlog workflow.
 
-Persist work identity, admission, dispatch key, selected member context and expected result before spawning. Give each worker one assignment in one work shape: plan-backed, adaptive mandate, bounded task, or investigation. Write it as a harness goal per `harness-goal-authoring`: destination, proof, sources, boundary, dials, blocked, budget, handoff. Use existing plan-execution guidance for plan-backed work. When dispatching through Agent Manager, pass the destination clause as `until`; the engine delivers it natively where the runner declares support and as prompt text otherwise. A prompt saying "keep going" is not a persisted goal.
+Persist work identity, admission, dispatch key, selected member context and expected result before spawning. Give each worker one assignment in one work shape: plan-backed, adaptive mandate, owner-backed convergence, bounded task, or investigation. Write it as a harness goal per `harness-goal-authoring`: destination, proof, sources, boundary, dials, blocked, budget, handoff. Use existing plan-execution guidance only for plan-backed work. When dispatching through Agent Manager, pass the destination clause as `until`; the engine delivers it natively where the runner declares support and as prompt text otherwise. A prompt saying "keep going" is not a persisted goal.
 
 Choose the least expensive qualified profile for the assignment. Respect the user's worker-model and effort preferences; do not silently inherit a premium planner model. Reserve stronger profiles for ambiguous decomposition, consequential design decisions or an evidenced failed lower-cost attempt. Record the escalation reason and remaining allowance. Check the installed runner's exact model identifier, supported settings, account availability and current tariff before relying on a route; a public model listing does not prove local access or sufficient credits. Compare cost per accepted outcome, including the root planner, review, retries and rework, rather than token price alone. Unknown root usage is reserved, not omitted from the aggregate allowance.
 
 Persist selected runner/profile/model, credential-pool reference, policy revision, reserved usage and required capabilities with admission. Limit strong-model concurrency separately. Keep context bounded through source pointers and stable shared prompt sections. Use isolated worker checkouts when the owner supports them; still declare schema, generated-output, integration and live-service conflicts. Independent review remains a bounded worker assignment for material outcomes. Do not create a permanent judge or integration agent for every task.
+
+Treat worker efficiency as an admitted safety budget, not a hopeful prompt
+instruction. Give each worker an explicit writable-path allowlist,
+role-appropriate tool-call/retry and wall-time ceilings, and a structured
+handoff. Size those ceilings for a coherent ownership boundary and its focused
+proof, not for arbitrary micro-epochs; a compaction or checkpoint does not
+close the boundary. Workers must not repeat broad discovery, full-document
+reads, or an identical failed write; an unresolved or duplicate-call threshold
+ends the attempt for review instead of granting more context or retries. A
+valid-looking final message is not useful progress when the run exceeded its
+tool, token, or time budget.
+
+Before diagnosing a consumer compile, type-check, or runtime-contract failure,
+run the owning generated-artifact preflight when the error names a generated
+message, field, service, client, descriptor, or manifest. For protobuf consumers
+follow `path:docs/development/proto.md#consumer-compile-preflight`: verify the
+shared projection first, regenerate the affected closure only when drift is
+confirmed, then rerun the focused consumer check. Apply the same ordering to
+other generated projections using their owner health command. Never hand-edit a
+generated tree, add a compatibility shim, or spend worker budget debugging a
+consumer against an unverified projection; if the owner preflight still fails,
+record the exact source/output drift and route repair to that owner.
 
 The standing effort supervisor observes the team-native effort through the owner board and exact work references. It is not the finite coordinator, does not become a private scheduler, and cannot derive authority from its standing membership or a heartbeat. Legacy drivers and bespoke shell/tmux loops are migration evidence only; they are not a supported second start model.
 
@@ -225,7 +278,12 @@ If required outcomes remain, write the next action, pending owner IDs, blockers,
 
 If the effort is complete, retain deliverable and validation references, residual accepted limitations and reproducible use instructions. Disable its recurring heartbeat through Prompt Manager and verify the terminal state prevents another launch. Archive the finite team's context without deleting its evidence. Production teams that continue serving their own objectives remain active.
 
-The coordinator may edit this effort's evolving strategy, findings and handoffs within the granted workspace. Preserve approved source and acceptance revisions. That permission does not authorize changes to another team's plan of record or new product goals.
+The coordinator may update bounded handoffs and report findings within the granted
+workspace. It may not edit the accepted boundary, acceptance criteria, campaign
+controls, qualification state, or owner ledger. Preserve approved source and
+acceptance revisions. The owner selects any successor boundary after independent
+review; a coordinator proposal is not an admission. This permission does not
+authorize changes to another team's plan of record or new product goals.
 
 ### Anti-patterns and output
 

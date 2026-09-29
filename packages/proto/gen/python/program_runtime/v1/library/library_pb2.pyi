@@ -98,19 +98,25 @@ class SetCurrentLibraryResponse(_message.Message):
     def __init__(self, program: _Optional[_Union[_library_pb2.LibraryProgram, _Mapping]] = ...) -> None: ...
 
 class RunDeclaredProgramRequest(_message.Message):
-    __slots__ = ("name", "inputs", "provenance", "expected_digest", "caller")
+    __slots__ = ("name", "inputs", "provenance", "expected_digest", "caller", "idempotency_key", "admission_deadline", "grants")
     NAME_FIELD_NUMBER: _ClassVar[int]
     INPUTS_FIELD_NUMBER: _ClassVar[int]
     PROVENANCE_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_DIGEST_FIELD_NUMBER: _ClassVar[int]
     ASYNC_FIELD_NUMBER: _ClassVar[int]
     CALLER_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    ADMISSION_DEADLINE_FIELD_NUMBER: _ClassVar[int]
+    GRANTS_FIELD_NUMBER: _ClassVar[int]
     name: str
     inputs: _struct_pb2.Struct
     provenance: _programs_pb2.Provenance
     expected_digest: str
     caller: _programs_pb2.Caller
-    def __init__(self, name: _Optional[str] = ..., inputs: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., provenance: _Optional[_Union[_programs_pb2.Provenance, str]] = ..., expected_digest: _Optional[str] = ..., caller: _Optional[_Union[_programs_pb2.Caller, _Mapping]] = ..., **kwargs) -> None: ...
+    idempotency_key: str
+    admission_deadline: str
+    grants: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, name: _Optional[str] = ..., inputs: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., provenance: _Optional[_Union[_programs_pb2.Provenance, str]] = ..., expected_digest: _Optional[str] = ..., caller: _Optional[_Union[_programs_pb2.Caller, _Mapping]] = ..., idempotency_key: _Optional[str] = ..., admission_deadline: _Optional[str] = ..., grants: _Optional[_Iterable[str]] = ..., **kwargs) -> None: ...
 
 class RunDeclaredProgramResponse(_message.Message):
     __slots__ = ("program", "terminal", "waited_millis")
@@ -121,3 +127,21 @@ class RunDeclaredProgramResponse(_message.Message):
     terminal: bool
     waited_millis: int
     def __init__(self, program: _Optional[_Union[_programs_pb2.Program, _Mapping]] = ..., terminal: _Optional[bool] = ..., waited_millis: _Optional[int] = ...) -> None: ...
+
+class GetDeclaredExecutionRequest(_message.Message):
+    __slots__ = ("name", "idempotency_key")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    idempotency_key: str
+    def __init__(self, name: _Optional[str] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+
+class GetDeclaredExecutionResponse(_message.Message):
+    __slots__ = ("admission_contract_version", "found", "program")
+    ADMISSION_CONTRACT_VERSION_FIELD_NUMBER: _ClassVar[int]
+    FOUND_FIELD_NUMBER: _ClassVar[int]
+    PROGRAM_FIELD_NUMBER: _ClassVar[int]
+    admission_contract_version: int
+    found: bool
+    program: _programs_pb2.Program
+    def __init__(self, admission_contract_version: _Optional[int] = ..., found: _Optional[bool] = ..., program: _Optional[_Union[_programs_pb2.Program, _Mapping]] = ...) -> None: ...

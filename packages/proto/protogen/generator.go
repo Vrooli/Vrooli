@@ -696,8 +696,32 @@ func (g *Generator) resolveScope(all []string) ([]string, error) {
 		}
 		selected[scenario] = struct{}{}
 	}
+	// A scoped generation must include both sides of the ownership boundary:
+	// the requested schema owners' import closure (otherwise a consumer can be
+	// regenerated against stale generated dependencies) and the direct reverse
+	// dependents of the explicitly requested owners (otherwise a shared-schema
+	// edit leaves consumers stale). Keep the reverse-dependent rule anchored to
+	// the operator's request rather than recursively fanning out through every
+	// imported common schema; that preserves a useful bounded scope for a leaf
+	// regeneration such as test-genie -> scenario-validation.
+	requested := append([]string(nil), g.cfg.Scenarios...)
+	for _, scenario := range requested {
+		files, _, err := genmanifest.InputClosure(genmanifest.Options{RepoRoot: g.cfg.RepoRoot, ProtoRoot: g.cfg.ProtoRoot}, scenario)
+		if err != nil {
+			return nil, fmt.Errorf("resolve imports for %s: %w", scenario, err)
+		}
+		for _, file := range files {
+			parts := strings.Split(filepath.ToSlash(file), "/")
+			if len(parts) >= 3 && parts[0] == "schemas" && parts[1] != "" {
+				if _, ok := known[parts[1]]; ok {
+					selected[parts[1]] = struct{}{}
+				}
+			}
+		}
+	}
 	// A schema is a dependency of every scenario whose input closure contains
-	// it. Inverting the trusted lockfile closures keeps scoped output coherent.
+	// it. Inverting the trusted lockfile closures keeps scoped output coherent
+	// for an explicitly requested shared owner.
 	for _, scenario := range all {
 		files, _, err := genmanifest.InputClosure(genmanifest.Options{RepoRoot: g.cfg.RepoRoot, ProtoRoot: g.cfg.ProtoRoot}, scenario)
 		if err != nil {
@@ -878,11 +902,11 @@ func publishDirectory(source, target string) error {
 	if sameDigestTree(source, target) {
 		return os.RemoveAll(source)
 	}
-	if err := os.MkdirAll(target, 0o755); err != nil {
-		return err
-	}
 	staged, err := treeDigests(source)
 	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(target, 0o755); err != nil {
 		return err
 	}
 	if err := filepath.WalkDir(source, func(path string, entry fs.DirEntry, walkErr error) error {
@@ -969,6 +993,12 @@ func compareTrees(staged, committed string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The compatibility selection stamp is runtime state written beside the
+	// generated tree after an immutable artifact is selected. It is deliberately
+	// not committed generated output, so verification must not report it as an
+	// orphan/missing generated file.
+	delete(left, compatibilityStampName)
+	delete(right, compatibilityStampName)
 	keys := make(map[string]struct{}, len(left)+len(right))
 	for key := range left {
 		keys[key] = struct{}{}

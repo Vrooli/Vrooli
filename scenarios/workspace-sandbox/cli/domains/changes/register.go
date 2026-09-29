@@ -70,6 +70,9 @@ func runDiff(deps support.Dependencies, args []string) error {
 	summary := []string{
 		"Sandbox ID: " + diff.SandboxID,
 	}
+	if diff.PatchSHA256 != "" {
+		summary = append(summary, "Patch SHA-256: "+diff.PatchSHA256)
+	}
 	switch diff.ArchiveState {
 	case "":
 		summary = append(summary, "Source: live overlay")
@@ -109,13 +112,46 @@ func runDiff(deps support.Dependencies, args []string) error {
 }
 
 func runApprove(deps support.Dependencies, args []string) error {
-	var sandboxID, message string
+	var sandboxID, message, expectedPatch, reviewID, expectedReview string
 	var force, createCommit, overrideAcceptance, jsonOut bool
 
-	for i, arg := range args {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
 		switch {
+		case arg == "--review-request-id" || arg == "--expected-review-sha256":
+			if i+1 >= len(args) || args[i+1] == "" || strings.HasPrefix(args[i+1], "-") {
+				return fmt.Errorf("%s requires a value", arg)
+			}
+			i++
+			if arg == "--review-request-id" {
+				reviewID = args[i]
+			} else {
+				expectedReview = args[i]
+			}
+		case strings.HasPrefix(arg, "--review-request-id=") || strings.HasPrefix(arg, "--expected-review-sha256="):
+			name, value, _ := strings.Cut(arg, "=")
+			if value == "" {
+				return fmt.Errorf("%s requires a value", name)
+			}
+			if name == "--review-request-id" {
+				reviewID = value
+			} else {
+				expectedReview = value
+			}
 		case arg == "-m" && i+1 < len(args):
 			message = args[i+1]
+			i++
+		case arg == "--expected-patch-sha256":
+			if i+1 >= len(args) || args[i+1] == "" || strings.HasPrefix(args[i+1], "-") {
+				return fmt.Errorf("--expected-patch-sha256 requires a digest")
+			}
+			i++
+			expectedPatch = args[i]
+		case strings.HasPrefix(arg, "--expected-patch-sha256="):
+			expectedPatch = strings.TrimPrefix(arg, "--expected-patch-sha256=")
+			if expectedPatch == "" {
+				return fmt.Errorf("--expected-patch-sha256 requires a digest")
+			}
 		case strings.HasPrefix(arg, "-m="):
 			message = strings.TrimPrefix(arg, "-m=")
 		case strings.HasPrefix(arg, "--message="):
@@ -136,7 +172,7 @@ func runApprove(deps support.Dependencies, args []string) error {
 	}
 
 	if sandboxID == "" {
-		return fmt.Errorf("usage: %s change approve <sandbox-id> [-m MESSAGE] [--commit] [--force] [--override-acceptance] [--json]", support.CLIName)
+		return fmt.Errorf("usage: %s change approve <sandbox-id> [-m MESSAGE] [--commit] [--force] [--override-acceptance] [--expected-patch-sha256 DIGEST] [--json]", support.CLIName)
 	}
 
 	resolvedID, err := support.ResolveSandboxID(deps.ScenarioApp(), sandboxID)
@@ -145,6 +181,15 @@ func runApprove(deps support.Dependencies, args []string) error {
 	}
 
 	reqBody := map[string]any{"mode": "all"}
+	if reviewID != "" {
+		reqBody["reviewRequestId"] = reviewID
+	}
+	if expectedReview != "" {
+		reqBody["expectedReviewSha256"] = expectedReview
+	}
+	if expectedPatch != "" {
+		reqBody["expectedPatchSha256"] = expectedPatch
+	}
 	if message != "" {
 		reqBody["commitMessage"] = message
 	}

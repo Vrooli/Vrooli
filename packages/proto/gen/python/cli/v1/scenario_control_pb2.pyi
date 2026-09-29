@@ -1,5 +1,6 @@
 from cli.v1 import scenario_list_pb2 as _scenario_list_pb2
 from cli.v1 import scenario_status_pb2 as _scenario_status_pb2
+from cli.v1 import scenario_freshness_pb2 as _scenario_freshness_pb2
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from typing import ClassVar as _ClassVar, Optional as _Optional
@@ -13,6 +14,12 @@ class ListScenariosRequest(_message.Message):
     def __init__(self, include_ports: _Optional[bool] = ...) -> None: ...
 
 class GetScenarioStatusRequest(_message.Message):
+    __slots__ = ("name",)
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    def __init__(self, name: _Optional[str] = ...) -> None: ...
+
+class GetScenarioFreshnessRequest(_message.Message):
     __slots__ = ("name",)
     NAME_FIELD_NUMBER: _ClassVar[int]
     name: str

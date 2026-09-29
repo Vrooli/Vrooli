@@ -26,6 +26,14 @@ func TestDestructiveEffectRequiresGrant(t *testing.T) { // [REQ:PRT-P0-005]
 	if err := r.Authorize("program-runtime/ops/delete", []string{"records:delete"}, true); err != nil {
 		t.Fatal(err)
 	}
+	if err := r.Authorize("program-runtime/ops/delete", []string{"binding:program-runtime/ops/delete"}, true); err != nil {
+		t.Fatal("exact binding grant rejected:", err)
+	}
+	for _, grant := range []string{"binding:program-runtime/ops/*", "binding:other/ops/delete"} {
+		if err := r.Authorize("program-runtime/ops/delete", []string{grant}, true); err == nil {
+			t.Fatal("nonmatching grant admitted:", grant)
+		}
+	}
 }
 
 func TestGovernanceIsReadNotRedefined(t *testing.T) { // [REQ:PRT-P0-005]

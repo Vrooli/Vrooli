@@ -184,6 +184,83 @@ func TestCloseRecordingSession_Success(t *testing.T) {
 	}
 }
 
+func TestCloseRecordingSession_AlreadyGoneDetachesProfile(t *testing.T) {
+	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
+	defer os.RemoveAll(tempDir)
+
+	profile, err := handler.sessionProfileService.CreateProfile("Recoverable identity")
+	if err != nil {
+		t.Fatalf("create profile: %v", err)
+	}
+	const sessionID = "gone-session"
+	handler.sessionProfileService.SetActiveSession(sessionID, string(profile.ID))
+	mockService.GetStorageStateError = &driver.Error{Status: http.StatusNotFound, Message: "SESSION_NOT_FOUND"}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/session/"+sessionID+"/close", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("sessionId", sessionID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	rr := httptest.NewRecorder()
+
+	handler.CloseRecordingSession(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected idempotent close status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if !mockService.CloseSessionCalled {
+		t.Fatal("expected close to run after an absent storage session")
+	}
+	if got := handler.sessionProfileService.GetActiveSession(sessionID); got != "" {
+		t.Fatalf("active profile binding survived absent session: %q", got)
+	}
+	var response struct {
+		ProfilePersisted bool `json:"profile_persisted"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.ProfilePersisted {
+		t.Fatal("absent session was reported as profile-persisted")
+	}
+}
+
+func TestCloseRecordingSession_AbsentAfterSnapshotDetachesProfile(t *testing.T) {
+	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
+	defer os.RemoveAll(tempDir)
+
+	profile, err := handler.sessionProfileService.CreateProfile("Saved identity")
+	if err != nil {
+		t.Fatalf("create profile: %v", err)
+	}
+	const sessionID = "vanished-after-snapshot"
+	handler.sessionProfileService.SetActiveSession(sessionID, string(profile.ID))
+	mockService.CloseSessionError = &driver.Error{Status: http.StatusNotFound, Message: "SESSION_NOT_FOUND"}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/session/"+sessionID+"/close", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("sessionId", sessionID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	rr := httptest.NewRecorder()
+
+	handler.CloseRecordingSession(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected idempotent close status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if got := handler.sessionProfileService.GetActiveSession(sessionID); got != "" {
+		t.Fatalf("active profile binding survived absent close: %q", got)
+	}
+	var response struct {
+		ProfilePersisted bool `json:"profile_persisted"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !response.ProfilePersisted {
+		t.Fatal("successful snapshot was reported as not persisted")
+	}
+}
+
 func TestCloseRecordingSession_MissingSessionID(t *testing.T) {
 	handler, _, tempDir, _ := createTestHandlerWithRecordMode(t)
 	defer os.RemoveAll(tempDir)

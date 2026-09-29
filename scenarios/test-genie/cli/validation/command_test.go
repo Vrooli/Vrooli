@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -22,9 +23,19 @@ func (f *fakeValidationClient) receipt() *validationv1.ValidationReceipt {
 	return &validationv1.ValidationReceipt{ReceiptId: "receipt-1", LineageId: "lineage-1", State: validationv1.ReceiptState_RECEIPT_STATE_RUNNING, ReasonCode: validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_NONE, Revision: 2}
 }
 
+func (f *fakeValidationClient) ResolveSourceIdentity(context.Context, *connect.Request[validationv1.ResolveSourceIdentityRequest]) (*connect.Response[validationv1.ResolveSourceIdentityResponse], error) {
+	f.calls["resolve-identity"]++
+	return connect.NewResponse(&validationv1.ResolveSourceIdentityResponse{Identity: &validationv1.SourceIdentity{SchemaVersion: 1, Identity: "ci:v1:resolved"}}), nil
+}
+
 func (f *fakeValidationClient) CreateValidation(context.Context, *connect.Request[validationv1.CreateValidationRequest]) (*connect.Response[validationv1.CreateValidationResponse], error) {
 	f.calls["create"]++
 	return connect.NewResponse(&validationv1.CreateValidationResponse{Receipt: f.receipt()}), nil
+}
+
+func (f *fakeValidationClient) CreateEvidenceProduction(context.Context, *connect.Request[validationv1.CreateEvidenceProductionRequest]) (*connect.Response[validationv1.CreateEvidenceProductionResponse], error) {
+	f.calls["produce-evidence"]++
+	return connect.NewResponse(&validationv1.CreateEvidenceProductionResponse{Receipt: f.receipt()}), nil
 }
 
 func (f *fakeValidationClient) GetValidation(context.Context, *connect.Request[validationv1.GetValidationRequest]) (*connect.Response[validationv1.GetValidationResponse], error) {
@@ -76,15 +87,25 @@ func TestValidationCommandsCoverEveryLifecycleRPC(t *testing.T) {
 	if err := os.WriteFile(intentPath, []byte(`{"schemaVersion":1}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	productionPath := filepath.Join(t.TempDir(), "evidence-production.json")
+	if err := os.WriteFile(productionPath, []byte(`{"idempotencyKey":"k","provider":"owner","producer":"refresh","candidateScenario":"candidate"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	identityPath := filepath.Join(t.TempDir(), "source-identity.json")
+	if err := os.WriteFile(identityPath, []byte(`{"contentInputs":[{"name":"candidate","root":"scenarios/candidate"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	arguments := map[string][]string{
-		"create":       {"--intent-file", intentPath},
-		"get":          {"receipt-1"},
-		"wait":         {"--wait-id", "observer", "--timeout", "1s", "receipt-1"},
-		"list":         {},
-		"cancel-wait":  {"--wait-id", "observer", "receipt-1"},
-		"abort":        {"--reason", "operator", "--requested-by", "test", "receipt-1"},
-		"explain":      {"receipt-1"},
-		"shadows-list": {},
+		"resolve-identity": {"--request-file", identityPath},
+		"produce-evidence": {"--request-file", productionPath, "--yes"},
+		"create":           {"--intent-file", intentPath},
+		"get":              {"receipt-1"},
+		"wait":             {"--wait-id", "observer", "--timeout", "1s", "receipt-1"},
+		"list":             {},
+		"cancel-wait":      {"--wait-id", "observer", "receipt-1"},
+		"abort":            {"--reason", "operator", "--requested-by", "test", "receipt-1"},
+		"explain":          {"receipt-1"},
+		"shadows-list":     {},
 	}
 	for _, command := range group.Subcommands {
 		var stdout, stderr bytes.Buffer
@@ -104,4 +125,38 @@ func TestValidationCommandsCoverEveryLifecycleRPC(t *testing.T) {
 			t.Errorf("%s RPC calls = %d, want 1", name, fake.calls[name])
 		}
 	}
+}
+
+func TestEvidenceProductionRefusesUnconfirmedBeforeReadingOrDispatch(t *testing.T) {
+	manifest, err := os.ReadFile(filepath.Join("..", "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientCalls := 0
+	group, err := register(manifest, func() (validationconnect.ValidationServiceClient, error) {
+		clientCalls++
+		return &fakeValidationClient{calls: map[string]int{}}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, command := range group.Subcommands {
+		if command.Name != "produce-evidence" {
+			continue
+		}
+		var stdout, stderr bytes.Buffer
+		ctx, err := cliapp.NewTestRunContextFromArgs(command.Args, []string{"--request-file", filepath.Join(t.TempDir(), "not-read.json"), "--json"}, nil, &stdout, &stderr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = command.RunCtx(ctx)
+		if err == nil || !strings.Contains(err.Error(), "requires --yes") {
+			t.Fatalf("want confirmation refusal before file access, got %v", err)
+		}
+		if clientCalls != 0 {
+			t.Fatalf("unconfirmed request constructed %d clients", clientCalls)
+		}
+		return
+	}
+	t.Fatal("missing produce-evidence command")
 }

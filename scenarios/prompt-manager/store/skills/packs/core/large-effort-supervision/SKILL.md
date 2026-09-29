@@ -9,9 +9,9 @@ metadata:
   tags: [supervision, effort, efficiency, orchestration, evidence]
   icon: eye
   status: active
-  revision: 8
+  revision: 12
   createdAt: "2026-09-12T00:00:00Z"
-  updatedAt: "2026-09-14T00:00:00Z"
+  updatedAt: "2026-09-28T12:30:00Z"
   requires:
     scenarios: [agent-manager, prompt-manager, program-runtime]
     commands: [agent-manager, prompt-manager skill read, program-runtime]
@@ -63,6 +63,14 @@ systems, paid services, unapproved dependencies, host-remediation implementation
 or another effort's active control files. File or route a finding only when the
 repair is outside authority, protected by another owner, or requires a missing
 decision, credential, dependency, or effect grant.
+
+Boundary ownership is explicit: the standing Sol supervisor selects and admits
+the next ownership boundary, its baseline and acceptance gate, then accepts or
+reopens the returned candidate. The economical Luna coordinator executes only
+that admitted boundary and may propose a follow-up, but cannot choose, close or
+replace the campaign boundary. Workers implement bounded assignments inside it.
+Do not treat a coordinator handoff, green test or compaction checkpoint as
+boundary admission.
 
 ### 1. Observe a recoverable evidence cut
 
@@ -136,6 +144,43 @@ efficient. Repeated investigation without changed evidence is a stronger waste
 signal. Read `reviewing-agent-run-efficiency` for run interpretation and
 `scenario-work-ladder` when contract or repair ownership is uncertain.
 
+Inspect the full worker cost surface: model tokens, context residency, wall
+time, tool calls, repeated calls, unresolved calls, and retries. When measured
+friction crosses the admitted threshold, issue at most one concise corrective
+nudge through the owner directive channel (for example, stop broad validation
+and finish the bounded handoff); do not let a nudge become an unbounded extension.
+If the worker remains inefficient, stop/retain the attempt and repair its prompt,
+allowlist, runner budget, or owner route before dispatching another child.
+
+Before admitting a recurring supervisor, verify that Agent Manager's existing
+dispatch owner carries an explicit finite token and charge cap and can settle
+actual usage for every prior supervisor run. A wake-count allowance, profile
+`maxTurns`, timeout, provider estimate, or Prompt Manager-local sum is not that
+cap. If the owner cannot prove token and charge accounting, keep the supervisor
+disabled/observation-only and retain the exact integration gap; do not invent a
+second ledger or compensate with more frequent reviews. Unknown usage is
+unresolved, never zero, and must block the next admission until the owner
+reconciles it or the authorization is deliberately closed.
+
+Before classifying a model as unavailable or changing a route, require an
+authoritative live runner catalog and the requested/effective model receipt.
+A compatibility cache or stale policy snapshot is evidence of an unmeasured
+probe, not evidence that a model is absent; do not repeat broad setup or spend
+another review wake to compensate for that ambiguity. Keep stronger models
+restricted to their explicitly admitted supervision role.
+
+When a worker or owner check reports a missing generated message, field,
+service, client, descriptor, or manifest, treat generated-artifact drift as the
+first hypothesis across all consumers, not as a Test Genie-specific defect.
+Run the owning generator's verification/preflight before diagnosing the
+consumer; for protobuf consumers follow
+`path:docs/development/proto.md#consumer-compile-preflight`, regenerate only
+the affected closure when drift is confirmed, and then rerun the focused check.
+Never hand-edit generated output, add a compatibility shim, or spend a premium
+review wake repeating a consumer failure against an unverified projection.
+Retain the exact source/output drift and route an unresolved failure to the
+shared artifact owner.
+
 Exit: one decision names the affected outcome, supporting evidence, uncertainty
 and expected value of obtaining more evidence or acting.
 
@@ -189,6 +234,12 @@ Do not use NUDGE as restart permission.
 If owner recovery is absent, identify that capability defect and its next owner
 action instead of repeatedly classifying the repaired symptom as the blocker.
 Never edit an active driver's control files or create a competing scheduler.
+
+For qualification, distinguish a typed deterministic rejection (for example an
+unaccepted review or invalid candidate authority) from a transient owner or
+transport error. Do not nudge, restart, or retry a candidate after a durable
+rejection; retain the exact terminal reason and route repair through the same
+owner boundary. Only an owner-observed transient may justify another attempt.
 
 Treat a maintenance fence as its recorded owner's hold. Do not reopen another
 operation's fence because it prevents dispatch or looks old. Verify its release

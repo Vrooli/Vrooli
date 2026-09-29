@@ -8,13 +8,15 @@ import type { ScenarioListResponseSchema } from "./scenario_list_pb";
 import { file_cli_v1_scenario_list } from "./scenario_list_pb";
 import type { ScenarioLifecycleResponseSchema, ScenarioLogsResponseSchema, ScenarioSetupResponseSchema, ScenarioStatusSingleSchema } from "./scenario_status_pb";
 import { file_cli_v1_scenario_status } from "./scenario_status_pb";
+import type { ScenarioFreshnessResponseSchema } from "./scenario_freshness_pb";
+import { file_cli_v1_scenario_freshness } from "./scenario_freshness_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file cli/v1/scenario_control.proto.
  */
 export const file_cli_v1_scenario_control: GenFile = /*@__PURE__*/
-  fileDesc("Ch1jbGkvdjEvc2NlbmFyaW9fY29udHJvbC5wcm90bxINdnJvb2xpLmNsaS52MSItChRMaXN0U2NlbmFyaW9zUmVxdWVzdBIVCg1pbmNsdWRlX3BvcnRzGAEgASgIIigKGEdldFNjZW5hcmlvU3RhdHVzUmVxdWVzdBIMCgRuYW1lGAEgASgJIn4KFkdldFNjZW5hcmlvTG9nc1JlcXVlc3QSDAoEbmFtZRgBIAEoCRISCgp0YWlsX2xpbmVzGAIgASgFEgwKBHN0ZXAYAyABKAkSDwoHcnVudGltZRgEIAEoCBIRCglsaWZlY3ljbGUYBSABKAgSEAoIcHJldmlvdXMYBiABKAgi2gEKFFN0YXJ0U2NlbmFyaW9SZXF1ZXN0EgwKBG5hbWUYASABKAkSFwoPdGltZW91dF9zZWNvbmRzGAIgASgFEgwKBHBhdGgYAyABKAkSEwoLYmVzdF9lZmZvcnQYBCABKAgSEwoLY2xlYW5fc3RhbGUYBSABKAgSDQoFZm9yY2UYBiABKAgSHgoWYWNjZXB0X2NyZWRlbnRpYWxfbG9zcxgHIAEoCBIWCg5kZW1hbmRfbWFuYWdlZBgIIAEoCBIcChR2YXJpYW50X2RlcGVuZGVuY2llcxgJIAEoCSIjChNTdG9wU2NlbmFyaW9SZXF1ZXN0EgwKBG5hbWUYASABKAkimAIKFlJlc3RhcnRTY2VuYXJpb1JlcXVlc3QSDAoEbmFtZRgBIAEoCRIXCg90aW1lb3V0X3NlY29uZHMYAiABKAUSDAoEcGF0aBgDIAEoCRITCgtiZXN0X2VmZm9ydBgEIAEoCBITCgtjbGVhbl9zdGFsZRgFIAEoCBINCgVmb3JjZRgGIAEoCBIeChZhY2NlcHRfY3JlZGVudGlhbF9sb3NzGAcgASgIEhYKDmRlbWFuZF9tYW5hZ2VkGAggASgIEhcKD2ZvcmNlX2xpZmVjeWNsZRgJIAEoCBIhChlsaWZlY3ljbGVfb3ZlcnJpZGVfcmVhc29uGAogASgJEhwKFHZhcmlhbnRfZGVwZW5kZW5jaWVzGAsgASgJIjIKFFNldHVwU2NlbmFyaW9SZXF1ZXN0EgwKBG5hbWUYASABKAkSDAoEcGF0aBgCIAEoCTK4BQobU2NlbmFyaW9Db250cm9sUGxhbmVTZXJ2aWNlElkKDUxpc3RTY2VuYXJpb3MSIy52cm9vbGkuY2xpLnYxLkxpc3RTY2VuYXJpb3NSZXF1ZXN0GiMudnJvb2xpLmNsaS52MS5TY2VuYXJpb0xpc3RSZXNwb25zZRJhChFHZXRTY2VuYXJpb1N0YXR1cxInLnZyb29saS5jbGkudjEuR2V0U2NlbmFyaW9TdGF0dXNSZXF1ZXN0GiMudnJvb2xpLmNsaS52MS5TY2VuYXJpb1N0YXR1c1NpbmdsZRJdCg9HZXRTY2VuYXJpb0xvZ3MSJS52cm9vbGkuY2xpLnYxLkdldFNjZW5hcmlvTG9nc1JlcXVlc3QaIy52cm9vbGkuY2xpLnYxLlNjZW5hcmlvTG9nc1Jlc3BvbnNlEl4KDVN0YXJ0U2NlbmFyaW8SIy52cm9vbGkuY2xpLnYxLlN0YXJ0U2NlbmFyaW9SZXF1ZXN0GigudnJvb2xpLmNsaS52MS5TY2VuYXJpb0xpZmVjeWNsZVJlc3BvbnNlElwKDFN0b3BTY2VuYXJpbxIiLnZyb29saS5jbGkudjEuU3RvcFNjZW5hcmlvUmVxdWVzdBooLnZyb29saS5jbGkudjEuU2NlbmFyaW9MaWZlY3ljbGVSZXNwb25zZRJiCg9SZXN0YXJ0U2NlbmFyaW8SJS52cm9vbGkuY2xpLnYxLlJlc3RhcnRTY2VuYXJpb1JlcXVlc3QaKC52cm9vbGkuY2xpLnYxLlNjZW5hcmlvTGlmZWN5Y2xlUmVzcG9uc2USWgoNU2V0dXBTY2VuYXJpbxIjLnZyb29saS5jbGkudjEuU2V0dXBTY2VuYXJpb1JlcXVlc3QaJC52cm9vbGkuY2xpLnYxLlNjZW5hcmlvU2V0dXBSZXNwb25zZUI9WjtnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NsaS92MTtjbGl2MWIGcHJvdG8z", [file_cli_v1_scenario_list, file_cli_v1_scenario_status]);
+  fileDesc("Ch1jbGkvdjEvc2NlbmFyaW9fY29udHJvbC5wcm90bxINdnJvb2xpLmNsaS52MSItChRMaXN0U2NlbmFyaW9zUmVxdWVzdBIVCg1pbmNsdWRlX3BvcnRzGAEgASgIIigKGEdldFNjZW5hcmlvU3RhdHVzUmVxdWVzdBIMCgRuYW1lGAEgASgJIisKG0dldFNjZW5hcmlvRnJlc2huZXNzUmVxdWVzdBIMCgRuYW1lGAEgASgJIn4KFkdldFNjZW5hcmlvTG9nc1JlcXVlc3QSDAoEbmFtZRgBIAEoCRISCgp0YWlsX2xpbmVzGAIgASgFEgwKBHN0ZXAYAyABKAkSDwoHcnVudGltZRgEIAEoCBIRCglsaWZlY3ljbGUYBSABKAgSEAoIcHJldmlvdXMYBiABKAgi2gEKFFN0YXJ0U2NlbmFyaW9SZXF1ZXN0EgwKBG5hbWUYASABKAkSFwoPdGltZW91dF9zZWNvbmRzGAIgASgFEgwKBHBhdGgYAyABKAkSEwoLYmVzdF9lZmZvcnQYBCABKAgSEwoLY2xlYW5fc3RhbGUYBSABKAgSDQoFZm9yY2UYBiABKAgSHgoWYWNjZXB0X2NyZWRlbnRpYWxfbG9zcxgHIAEoCBIWCg5kZW1hbmRfbWFuYWdlZBgIIAEoCBIcChR2YXJpYW50X2RlcGVuZGVuY2llcxgJIAEoCSIjChNTdG9wU2NlbmFyaW9SZXF1ZXN0EgwKBG5hbWUYASABKAkimAIKFlJlc3RhcnRTY2VuYXJpb1JlcXVlc3QSDAoEbmFtZRgBIAEoCRIXCg90aW1lb3V0X3NlY29uZHMYAiABKAUSDAoEcGF0aBgDIAEoCRITCgtiZXN0X2VmZm9ydBgEIAEoCBITCgtjbGVhbl9zdGFsZRgFIAEoCBINCgVmb3JjZRgGIAEoCBIeChZhY2NlcHRfY3JlZGVudGlhbF9sb3NzGAcgASgIEhYKDmRlbWFuZF9tYW5hZ2VkGAggASgIEhcKD2ZvcmNlX2xpZmVjeWNsZRgJIAEoCBIhChlsaWZlY3ljbGVfb3ZlcnJpZGVfcmVhc29uGAogASgJEhwKFHZhcmlhbnRfZGVwZW5kZW5jaWVzGAsgASgJIjIKFFNldHVwU2NlbmFyaW9SZXF1ZXN0EgwKBG5hbWUYASABKAkSDAoEcGF0aBgCIAEoCTKmBgobU2NlbmFyaW9Db250cm9sUGxhbmVTZXJ2aWNlElkKDUxpc3RTY2VuYXJpb3MSIy52cm9vbGkuY2xpLnYxLkxpc3RTY2VuYXJpb3NSZXF1ZXN0GiMudnJvb2xpLmNsaS52MS5TY2VuYXJpb0xpc3RSZXNwb25zZRJhChFHZXRTY2VuYXJpb1N0YXR1cxInLnZyb29saS5jbGkudjEuR2V0U2NlbmFyaW9TdGF0dXNSZXF1ZXN0GiMudnJvb2xpLmNsaS52MS5TY2VuYXJpb1N0YXR1c1NpbmdsZRJsChRHZXRTY2VuYXJpb0ZyZXNobmVzcxIqLnZyb29saS5jbGkudjEuR2V0U2NlbmFyaW9GcmVzaG5lc3NSZXF1ZXN0GigudnJvb2xpLmNsaS52MS5TY2VuYXJpb0ZyZXNobmVzc1Jlc3BvbnNlEl0KD0dldFNjZW5hcmlvTG9ncxIlLnZyb29saS5jbGkudjEuR2V0U2NlbmFyaW9Mb2dzUmVxdWVzdBojLnZyb29saS5jbGkudjEuU2NlbmFyaW9Mb2dzUmVzcG9uc2USXgoNU3RhcnRTY2VuYXJpbxIjLnZyb29saS5jbGkudjEuU3RhcnRTY2VuYXJpb1JlcXVlc3QaKC52cm9vbGkuY2xpLnYxLlNjZW5hcmlvTGlmZWN5Y2xlUmVzcG9uc2USXAoMU3RvcFNjZW5hcmlvEiIudnJvb2xpLmNsaS52MS5TdG9wU2NlbmFyaW9SZXF1ZXN0GigudnJvb2xpLmNsaS52MS5TY2VuYXJpb0xpZmVjeWNsZVJlc3BvbnNlEmIKD1Jlc3RhcnRTY2VuYXJpbxIlLnZyb29saS5jbGkudjEuUmVzdGFydFNjZW5hcmlvUmVxdWVzdBooLnZyb29saS5jbGkudjEuU2NlbmFyaW9MaWZlY3ljbGVSZXNwb25zZRJaCg1TZXR1cFNjZW5hcmlvEiMudnJvb2xpLmNsaS52MS5TZXR1cFNjZW5hcmlvUmVxdWVzdBokLnZyb29saS5jbGkudjEuU2NlbmFyaW9TZXR1cFJlc3BvbnNlQj1aO2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY2xpL3YxO2NsaXYxYgZwcm90bzM", [file_cli_v1_scenario_list, file_cli_v1_scenario_status, file_cli_v1_scenario_freshness]);
 
 /**
  * Typed control-plane surface consumed by program-runtime. The request
@@ -53,6 +55,23 @@ export type GetScenarioStatusRequest = Message<"vrooli.cli.v1.GetScenarioStatusR
  */
 export const GetScenarioStatusRequestSchema: GenMessage<GetScenarioStatusRequest> = /*@__PURE__*/
   messageDesc(file_cli_v1_scenario_control, 1);
+
+/**
+ * @generated from message vrooli.cli.v1.GetScenarioFreshnessRequest
+ */
+export type GetScenarioFreshnessRequest = Message<"vrooli.cli.v1.GetScenarioFreshnessRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message vrooli.cli.v1.GetScenarioFreshnessRequest.
+ * Use `create(GetScenarioFreshnessRequestSchema)` to create a new message.
+ */
+export const GetScenarioFreshnessRequestSchema: GenMessage<GetScenarioFreshnessRequest> = /*@__PURE__*/
+  messageDesc(file_cli_v1_scenario_control, 2);
 
 /**
  * @generated from message vrooli.cli.v1.GetScenarioLogsRequest
@@ -94,7 +113,7 @@ export type GetScenarioLogsRequest = Message<"vrooli.cli.v1.GetScenarioLogsReque
  * Use `create(GetScenarioLogsRequestSchema)` to create a new message.
  */
 export const GetScenarioLogsRequestSchema: GenMessage<GetScenarioLogsRequest> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_control, 2);
+  messageDesc(file_cli_v1_scenario_control, 3);
 
 /**
  * @generated from message vrooli.cli.v1.StartScenarioRequest
@@ -157,7 +176,7 @@ export type StartScenarioRequest = Message<"vrooli.cli.v1.StartScenarioRequest">
  * Use `create(StartScenarioRequestSchema)` to create a new message.
  */
 export const StartScenarioRequestSchema: GenMessage<StartScenarioRequest> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_control, 3);
+  messageDesc(file_cli_v1_scenario_control, 4);
 
 /**
  * @generated from message vrooli.cli.v1.StopScenarioRequest
@@ -174,7 +193,7 @@ export type StopScenarioRequest = Message<"vrooli.cli.v1.StopScenarioRequest"> &
  * Use `create(StopScenarioRequestSchema)` to create a new message.
  */
 export const StopScenarioRequestSchema: GenMessage<StopScenarioRequest> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_control, 4);
+  messageDesc(file_cli_v1_scenario_control, 5);
 
 /**
  * @generated from message vrooli.cli.v1.RestartScenarioRequest
@@ -245,7 +264,7 @@ export type RestartScenarioRequest = Message<"vrooli.cli.v1.RestartScenarioReque
  * Use `create(RestartScenarioRequestSchema)` to create a new message.
  */
 export const RestartScenarioRequestSchema: GenMessage<RestartScenarioRequest> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_control, 5);
+  messageDesc(file_cli_v1_scenario_control, 6);
 
 /**
  * @generated from message vrooli.cli.v1.SetupScenarioRequest
@@ -267,7 +286,7 @@ export type SetupScenarioRequest = Message<"vrooli.cli.v1.SetupScenarioRequest">
  * Use `create(SetupScenarioRequestSchema)` to create a new message.
  */
 export const SetupScenarioRequestSchema: GenMessage<SetupScenarioRequest> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_control, 6);
+  messageDesc(file_cli_v1_scenario_control, 7);
 
 /**
  * @generated from service vrooli.cli.v1.ScenarioControlPlaneService
@@ -288,6 +307,14 @@ export const ScenarioControlPlaneService: GenService<{
     methodKind: "unary";
     input: typeof GetScenarioStatusRequestSchema;
     output: typeof ScenarioStatusSingleSchema;
+  },
+  /**
+   * @generated from rpc vrooli.cli.v1.ScenarioControlPlaneService.GetScenarioFreshness
+   */
+  getScenarioFreshness: {
+    methodKind: "unary";
+    input: typeof GetScenarioFreshnessRequestSchema;
+    output: typeof ScenarioFreshnessResponseSchema;
   },
   /**
    * @generated from rpc vrooli.cli.v1.ScenarioControlPlaneService.GetScenarioLogs

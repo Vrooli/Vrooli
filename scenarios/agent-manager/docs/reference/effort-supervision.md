@@ -221,6 +221,14 @@ issuance and dispatch refuse an empty or excluding ceiling. That declaration
 narrows the explicit owner grant; it cannot grant authority by itself. Finite
 leaders are a distinct purpose and must not reuse this dispatcher credential.
 
+Profile scope ceilings are fail-closed: both omitted and empty `declaredScopes`
+permit no delegated API capability. Protobuf/JSON transport must not turn an
+empty ceiling into inherited owner authority. A profile requiring API access
+must list its capabilities explicitly; adding that list still requires an owner
+grant. A genuinely absent profile retains the existing account/request
+intersection, not an implicit profile grant. Token minting, dispatch issuance
+and dispatch admission use the same profile-ceiling interpretation.
+
 Operator activation: first prepare
 `standing-enrollment.json` with the already-bound human owner subject:
 
@@ -253,12 +261,19 @@ agent-manager effort enroll --local-owner --request-file standing-enrollment.jso
   "expiresAt": "FUTURE_RFC3339_WITHIN_30_DAYS",
   "maximumRuns": 24,
   "minimumIntervalSeconds": 300,
+  "maxTokens": 400000,
+  "maxChargeMicroUsd": 20000000,
   "idempotencyKey": "standing-dispatch-v1"
 }
 ```
 
 The uppercase strings are operator-selected values, not literal valid inputs.
 Issuance requires the verified enrollment owner and held supervision scope.
+`maxTokens` and `maxChargeMicroUsd` are finite owner-issued aggregate budgets;
+both are required. Agent Manager settles each bound run from canonical
+accounting and refuses the next admission when usage is unknown or exhausted.
+The Prompt Manager diagnostic wake allowance is only an attempt bound and does
+not replace these fields.
 The human credential authorizes the standing enrollment once. Agent Manager's
 control plane renews that canonical standing lease while it remains active;
 Prompt Manager never mints or extends authority. The operator can revoke it at

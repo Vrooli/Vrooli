@@ -47,6 +47,7 @@ import (
 type FileTeamStore struct {
 	configRoot      string
 	runtimeDataRoot string
+	repoRoot        string
 	relationStore   RelationStore
 	routedRoots     *filerouting.RoutedRoots
 	ledger          *sourceledger.Client
@@ -114,6 +115,7 @@ func (s *FileTeamStore) forContext(ctx context.Context) *FileTeamStore {
 		return s
 	}
 	cloned := NewFileTeamStore(configRoot, runtimeRoot, s.relationStore)
+	cloned.repoRoot = s.repoRoot
 	cloned.ledger = s.ledger
 	cloned.eventsBase = s.eventsBase
 	cloned.corpus = s.corpus
@@ -142,6 +144,10 @@ func (s *FileTeamStore) teamsDir() string {
 func (s *FileTeamStore) StoreDir() string {
 	return s.configRoot
 }
+
+// RepoRoot is the repository selected by the storage composition root, not
+// an ancestor of Config (which may be relocated outside the repository).
+func (s *FileTeamStore) RepoRoot() string { return s.repoRoot }
 
 // TeamFileEntry represents a file or directory within a team's shared folder.
 type TeamFileEntry struct {
@@ -565,6 +571,7 @@ func (s *FileTeamStore) validateOperatingContractFindings(ctx context.Context, t
 		TeamID:    team.ID,
 		MemberIDs: memberIDs,
 		StoreDir:  s.configRoot,
+		RepoRoot:  s.repoRoot,
 	})
 }
 

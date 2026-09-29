@@ -317,6 +317,9 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 		if cmd == nil {
 			return fmt.Errorf("subcommand group %q declares DefaultSubcommand %q but no such subcommand exists", group.Name, group.DefaultSubcommand)
 		}
+		if restarted := a.checkStaleAndMaybeRebuild(originalArgs); restarted {
+			return nil
+		}
 		return a.dispatchCommand(strings.TrimSpace(a.opts.Name+" "+group.Name), *cmd, args)
 	}
 	if cmd == nil {
@@ -338,10 +341,8 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 	if cmd.NeedsAPIOverride != nil {
 		needsAPI = *cmd.NeedsAPIOverride
 	}
-	if needsAPI {
-		if restarted := a.checkStaleAndMaybeRebuild(originalArgs); restarted {
-			return nil
-		}
+	if restarted := a.checkStaleAndMaybeRebuild(originalArgs); restarted {
+		return nil
 	}
 
 	if a.opts.Preflight != nil {

@@ -33,6 +33,12 @@ payloads for both Git repositories and ordinary workspace directories. The
 `TestBinaryChangesApplyExactBytes` regression covers all three operations,
 scope-prefixed paths with spaces, executable modes and conflicting originals.
 
+Symlink evidence stores the link target and link mode, not the referenced file's
+contents. Dangling and external links remain reviewable, patchable and archivable
+without reading the referent. Diff previews and archive capture use root-scoped
+reads that refuse parent-directory escapes. Deleting a sandbox preserves link
+evidence before teardown; a dangling link does not require manual removal.
+
 ## Provenance schema additions
 
 - `runOutcome` ∈ {`success`, `failure`, `cancelled`, `timeout`} on `ProvenanceRunGroup` (run-level).
@@ -93,6 +99,57 @@ with a real commit hash is never eligible for that deletion.
 The contract required the nine behaviors in Finding 5 of the source-of-truth conclusion to pass on the agent-manager UI and swarm-manager queue spawn surfaces before the default flipped. They did, and Slice 4 of `execute/protected-sandbox-agent-launch` flipped the default to `protected`. See `execute/sandbox-runtime-e2e-verification` for the original readiness checklist; ongoing parity is enforced by the per-runner protected-mode coverage documented in [`agent-manager/docs/PROTECTED_MODE_RUNNERS.md`](../../agent-manager/docs/PROTECTED_MODE_RUNNERS.md).
 
 ## Protected-mode enforcement
+
+### Runtime workspace write policy
+
+`behavior.writePolicy` is persisted with the sandbox. Agent Manager supplies it
+from `sandboxConfig.writePolicy`. It is separate from apply-time acceptance.
+
+- Omitted policy preserves an unrestricted writable workspace. Present policy
+  with `paths: []` makes the workspace read-only.
+- Each entry grants an existing literal workspace-relative file or directory.
+  Directory grants include descendants. Root, globs, traversal, overlapping
+  entries, missing paths and symlink components in a grant are rejected.
+- Linux required containment mounts every workspace alias read-only, then
+  mounts only the granted paths writable. This includes `/workspace`, the
+  merged host path and the project path, even when ordinary mirroring is off.
+- Before launch, the backend scans granted trees and refuses existing regular
+  files with multiple hardlinks. Otherwise a writable alias could change an
+  owner file despite its read-only path. The scan does not follow symlinks.
+- Shared host PID namespaces and writable profile binds overlapping a workspace
+  alias are refused. Unsupported containment modes/platforms refuse the policy;
+  they never run it as advisory. Prefer directory grants for editor atomic-save
+  behavior; an individual file bind permits in-place writes, not replacement
+  of that mountpoint.
+
+The owner must select grants that exclude its controls and must not concurrently
+modify their mount topology or inode aliases during launch. This is a workspace
+write boundary, not a network, API-authority or host-read restriction. The
+`workspace-write-policy` capability advertises backend support; consumers must
+also check the actual sandbox's persisted policy. The live no-model regression
+is `TestLiveWorkspaceWritePolicy` with `-args -live-bwrap-aliases` in
+`api/internal/driver/exec`; it checks allowed writes and denied control edits,
+creation, deletion, rename, symlink escapes and Git metadata across all aliases.
+
+### Read-only launch policy files
+
+`/exec` and `/processes` accept `policyFiles`, each with absolute `source`,
+absolute `target`, and a hexadecimal `sha256`. Sources must be regular files
+below registered roots. Required Linux containment verifies content identity
+and mounts both paths read-only. It refuses symlink sources, multiply linked
+inodes, shared PID namespaces, overlapping policy aliases and collisions with
+workspace, writable-profile or masked paths. Other containment modes and
+platforms refuse these requests. Owners must keep source bytes and aliases stable
+through launch; this is not isolation from a concurrently mutating host owner.
+
+Consumers must require `read-only-policy-files` before sending policy-bearing
+requests. An older provider can ignore an unknown JSON field. The policy source
+belongs outside writable runtime directories. Workspace Sandbox does not compile
+runner-specific policy; the caller owns its content and consumer path. The
+no-model `TestLivePolicyFiles` check uses `-args -live-bwrap-aliases` and proves
+reads succeed while writes and deletion fail at both aliases.
+
+### Process isolation
 
 When a run's `SandboxConfig.Mode == protected`, agent-manager's runner launches the agent process tree through workspace-sandbox `/processes` instead of `os/exec` on the host. The same workspace that backs tracking-mode auditability now also enforces:
 

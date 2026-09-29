@@ -216,6 +216,25 @@ func TestOSExecStarter_KillProcessGroup_KillsChildren(t *testing.T) {
 	}
 }
 
+func TestRunObservedRefusesUntrackedProcessAndReapsIt(t *testing.T) {
+	skipNonLinux(t)
+	registrationErr := errors.New("registration unavailable")
+	pid := 0
+	_, err := process.RunObserved(t.Context(), process.NewOSExecStarter(), process.StartOpts{Path: requireBin(t, "sleep"), Args: []string{"30"}, SysProcAttr: process.NewProcessGroupSysProcAttr()}, func(handle process.Handle) error {
+		pid = handle.PID()
+		return registrationErr
+	})
+	if pid > 0 {
+		t.Cleanup(func() { _ = process.KillProcessGroupByPID(pid) })
+	}
+	if !errors.Is(err, registrationErr) || pid <= 0 {
+		t.Fatalf("registration failure lost: pid=%d, %v", pid, err)
+	}
+	if process.IsProcessRunning(pid) {
+		t.Fatal("untracked process survived registration failure")
+	}
+}
+
 func TestOSExecStarter_Start_RequiresPath(t *testing.T) {
 	s := process.NewOSExecStarter()
 	_, err := s.Start(context.Background(), process.StartOpts{})

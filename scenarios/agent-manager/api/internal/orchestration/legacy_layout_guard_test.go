@@ -3,7 +3,6 @@ package orchestration_test
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -14,7 +13,11 @@ import (
 // them, never as an active reader path. If a new reference appears outside the
 // allowlist, a reader for the old layout has crept back in and the test fails.
 func TestNoLegacyDeclarationLayoutReaders(t *testing.T) {
-	apiRoot := agentManagerAPIRoot(t)
+	// Go runs package tests from the package directory, including -trimpath builds.
+	apiRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Files that legitimately name the old directories to reject them.
 	allow := map[string]bool{
@@ -23,7 +26,7 @@ func TestNoLegacyDeclarationLayoutReaders(t *testing.T) {
 	}
 	legacyLiterals := []string{".vrooli/agent-profiles", ".vrooli/agent-workflows"}
 
-	err := filepath.WalkDir(apiRoot, func(path string, entry os.DirEntry, err error) error {
+	err = filepath.WalkDir(apiRoot, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -58,14 +61,4 @@ func TestNoLegacyDeclarationLayoutReaders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("walk agent-manager api tree: %v", err)
 	}
-}
-
-func agentManagerAPIRoot(t *testing.T) string {
-	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source path")
-	}
-	// file = <api>/internal/orchestration/legacy_layout_guard_test.go
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
 }

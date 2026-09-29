@@ -8,11 +8,32 @@
 package sandbox
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 
 	"agent-manager/internal/domain"
 )
+
+func TestEncodeBehaviorForWirePreservesWritePolicy(t *testing.T) {
+	for _, policy := range []*domain.WorkspaceWritePolicy{nil, {}, {Paths: []string{"src"}}} {
+		cfg := domain.DefaultSandboxConfig()
+		cfg.WritePolicy = policy
+		wire, err := json.Marshal(encodeBehaviorForWire(cfg))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var decoded struct {
+			WritePolicy *domain.WorkspaceWritePolicy `json:"writePolicy"`
+		}
+		if err := json.Unmarshal(wire, &decoded); err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(decoded.WritePolicy, policy) {
+			t.Fatalf("wire lost policy: %s", wire)
+		}
+	}
+}
 
 func TestEncodeBehaviorForWire_NilReturnsNil(t *testing.T) {
 	if got := encodeBehaviorForWire(nil); got != nil {

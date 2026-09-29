@@ -670,6 +670,13 @@ type RunnerError struct {
 	Cause       error
 	IsTransient bool   // true for timeouts, connection issues
 	Alternative string // alternative runner if available
+	// ExecutionStartedKnown/ExecutionStarted are set by runner adapters when
+	// they can prove whether a provider process was launched.  This is an
+	// accounting fact: a pre-launch refusal has authoritative zero usage, while
+	// a post-launch failure must retain usage as unresolved until a provider
+	// receipt arrives.
+	ExecutionStartedKnown bool
+	ExecutionStarted      bool
 }
 
 func (e *RunnerError) Error() string {
@@ -735,6 +742,10 @@ func (e *RunnerError) Details() map[string]interface{} {
 	}
 	if e.Alternative != "" {
 		d["alternative"] = e.Alternative
+	}
+	if e.ExecutionStartedKnown {
+		d["execution_started_known"] = true
+		d["execution_started"] = e.ExecutionStarted
 	}
 	return d
 }

@@ -29,15 +29,16 @@ import (
 	"github.com/google/uuid"
 )
 
-// baseCodec is embedded by every concrete codec. The binary-resolution
-// fields (binaryPath/available/message/installHint) are populated by
-// [resolveBinary]; the identity fields are set by each codec's *base()
-// helper so the real and *ForTest constructors share one definition.
+// baseCodec is embedded by every concrete codec. Production constructors bind
+// a command through resolveBinary, not a cached availability verdict. Fixed
+// paths and availability are the existing replay/test seam. The identity fields
+// are set by each codec's *base() helper.
 type baseCodec struct {
-	binaryPath  string
-	available   bool
-	message     string
-	installHint string
+	binaryCommand string
+	binaryPath    string
+	available     bool
+	message       string
+	installHint   string
 
 	runnerType     domain.RunnerType
 	binaryDesc     string
@@ -111,7 +112,18 @@ func (b *baseCodec) ExtractCommand(input map[string]any) CommandExtraction {
 }
 
 // BinaryPath satisfies [Codec].
-func (b *baseCodec) BinaryPath() string { return b.binaryPath }
+func (b *baseCodec) BinaryPath() string {
+	if b.binaryCommand == "" {
+		return b.binaryPath
+	}
+	path, err := exec.LookPath(b.binaryCommand)
+	if err != nil {
+		return ""
+	}
+	// AM already owns launch governance. Do not recursively invoke the
+	// operator-facing shim from inside its protected workspace.
+	return managedRunnerBinary(path, b.binaryCommand)
+}
 
 // BinaryDescription satisfies [Codec].
 func (b *baseCodec) BinaryDescription() string { return b.binaryDesc }
@@ -122,19 +134,20 @@ func (b *baseCodec) TagEnvKey() string { return b.tagEnvKey }
 // Labels satisfies [Codec].
 func (b *baseCodec) Labels() Labels { return b.labels }
 
-// Available satisfies [Codec]. Reports the construction-time failure (with
-// install hint) when the binary was never resolved, re-checks the resolved
-// path on disk otherwise, and yields a uniform "<desc> is available" on
-// success.
+// Available satisfies [Codec]. Re-resolve production commands so an install or
+// removal is observed without restarting AM. No mutable discovery cache is
+// shared between concurrent preflight, version and launch calls.
 func (b *baseCodec) Available(_ context.Context) (bool, string) {
-	if !b.available {
+	if b.binaryCommand == "" && !b.available {
 		msg := b.message
 		if b.installHint != "" {
 			msg += ". " + b.installHint
 		}
 		return false, msg
 	}
-	if _, err := os.Stat(b.binaryPath); os.IsNotExist(err) {
+	path := b.BinaryPath()
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Mode()&0o111 == 0 {
 		msg := b.binaryDesc + " not found"
 		if b.installHint != "" {
 			msg += ". " + b.installHint
@@ -150,12 +163,12 @@ func (b *baseCodec) Available(_ context.Context) (bool, string) {
 // An unavailable binary, a failed command, or an empty response returns an
 // error; callers record that absence truthfully instead of inventing a value.
 func (b *baseCodec) RuntimeVersion(ctx context.Context) (string, error) {
-	if !b.available || b.binaryPath == "" {
+	if available, _ := b.Available(ctx); !available {
 		return "", fmt.Errorf("%s is unavailable", b.binaryDesc)
 	}
 	versionCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(versionCtx, b.binaryPath, "--version").Output()
+	out, err := exec.CommandContext(versionCtx, b.BinaryPath(), "--version").Output()
 	if err != nil {
 		return "", fmt.Errorf("read %s version: %w", b.binaryDesc, err)
 	}
@@ -208,27 +221,10 @@ func (b *baseCodec) ParseTranscriptLine(runID uuid.UUID, line string) runner.Tra
 	return b.newParser().ParseTranscriptLine(runID, line)
 }
 
-// resolveBinary fills base's binary-resolution fields by looking cmd up on
-// PATH. base must already carry the identity fields (binaryDesc, installHint,
-// runnerType, …). It mirrors the "Available=false instead of error" contract
-// every constructor relied on so the registry can register a stub when the
-// binary is missing.
+// resolveBinary binds a command for lookup at preflight and launch time. A
+// missing command is unavailable, not a permanently missing registry entry.
 func resolveBinary(base baseCodec, cmd string) baseCodec {
-	path, err := exec.LookPath(cmd)
-	if err != nil {
-		base.available = false
-		base.message = base.binaryDesc + " not found in PATH"
-		return base
-	}
-	// Agent Manager is already the governed launch boundary. If PATH resolves
-	// a runner through Vrooli's operator-facing shim, launching that shim from
-	// a protected workspace creates a second launcher boundary: it attempts to
-	// write the host editor lease from inside the sandbox and then tries to
-	// create a host systemd scope. The sandbox must execute the real runner
-	// directly; `vrooli agent` remains the entry point for operator launches.
-	base.binaryPath = managedRunnerBinary(path, cmd)
-	base.available = true
-	base.message = base.binaryDesc + " available"
+	base.binaryCommand = cmd
 	return base
 }
 

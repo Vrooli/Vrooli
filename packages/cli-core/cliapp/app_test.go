@@ -312,6 +312,58 @@ func TestAppUnknownSubcommandChecksFreshnessBeforeReportingAbsence(t *testing.T)
 	}
 }
 
+func TestAppKnownNonAPISubcommandChecksFreshnessBeforeDispatch(t *testing.T) {
+	repoRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repoRoot, "packages", "cli-core"), 0o755); err != nil {
+		t.Fatalf("mkdir cli-core fixture: %v", err)
+	}
+	sourceRoot := filepath.Join(repoRoot, "resources", "demo", "cli")
+	if err := os.MkdirAll(sourceRoot, 0o755); err != nil {
+		t.Fatalf("mkdir source fixture: %v", err)
+	}
+	var rebuilt bool
+	var reexecArgs []string
+	stale := &cliutil.StaleChecker{
+		AppName:          "demo",
+		BuildFingerprint: "installed-old",
+		BuildSourceRoot:  sourceRoot,
+		FingerprintFunc: func(cliutil.FreshnessSpec) (string, error) {
+			return "source-with-new-policy-command", nil
+		},
+		LookPathFunc:  func(string) (string, error) { return "/usr/bin/go", nil },
+		CommandRunner: func(*exec.Cmd) error { rebuilt = true; return nil },
+		Reexec: func(_ string, args []string) error {
+			reexecArgs = append([]string(nil), args...)
+			return nil
+		},
+	}
+	dispatched := false
+	app := NewApp(AppOptions{
+		Name: "demo",
+		SubcommandGroups: []SubcommandGroup{{
+			Name: "policy",
+			Subcommands: []Command{{
+				Name: "resolve",
+				Run:  func([]string) error { dispatched = true; return nil },
+			}},
+		}},
+		StaleChecker: stale,
+	})
+
+	if err := app.Run([]string{"policy", "resolve", "--role", "code.delivery"}); err != nil {
+		t.Fatalf("stale known subcommand should rebuild instead of dispatching: %v", err)
+	}
+	if !rebuilt {
+		t.Fatal("known non-API subcommand did not trigger the stale binary rebuild")
+	}
+	if dispatched {
+		t.Fatal("known non-API subcommand dispatched before stale rebuild")
+	}
+	if got := strings.Join(reexecArgs, " "); got != "policy resolve --role code.delivery" {
+		t.Fatalf("reexec args = %q, want original command", got)
+	}
+}
+
 func TestAppUnknownCommandSuggestsNearest(t *testing.T) {
 	app := NewApp(AppOptions{
 		Name:    "demo",

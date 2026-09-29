@@ -48,6 +48,10 @@ type SupervisionState struct {
 	// them preserves the audit trail while allowing standing supervision to
 	// continue for other efforts.
 	UnresolvedWakes []*SupervisionWake `json:"unresolvedWakes,omitempty"`
+	// ReconciledWakes retain a bounded history of owner-authorized resolutions
+	// for uncertain dispatches. They are kept outside UnresolvedWakes so a
+	// resolved fence cannot silently look actionable on the next observation.
+	ReconciledWakes []*SupervisionWake `json:"reconciledWakes,omitempty"`
 }
 
 type SupervisedCut struct {
@@ -85,6 +89,9 @@ type SupervisionWake struct {
 	AssessmentError         string                         `json:"assessmentError,omitempty"`
 	TerminalStatus          string                         `json:"terminalStatus,omitempty"`
 	TerminalError           string                         `json:"terminalError,omitempty"`
+	RecoveryEvidenceRefs    []string                       `json:"recoveryEvidenceRefs,omitempty"`
+	RecoveryReason          string                         `json:"recoveryReason,omitempty"`
+	ReconciledAt            time.Time                      `json:"reconciledAt,omitempty"`
 }
 
 type SupervisionStateStore interface {

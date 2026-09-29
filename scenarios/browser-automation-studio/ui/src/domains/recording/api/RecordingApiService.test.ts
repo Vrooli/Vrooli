@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { visionNavigationClient } from '@/api/visionNavigation';
 import { RecordingApiService } from './RecordingApiService';
 
-vi.mock('@/api/visionNavigation', () => ({ visionNavigationClient: {} }));
+vi.mock('@/api/visionNavigation', () => ({ visionNavigationClient: { getNavigationStatus: vi.fn() } }));
 vi.mock('@/config', () => ({ getApiBase: () => 'http://fixture.invalid' }));
 
 const receipt = {
@@ -13,6 +14,20 @@ const response = (data: unknown, status = 200) => new Response(JSON.stringify(da
 
 describe('recording receipt fidelity [REQ:BAS-RH-J24]', () => {
   afterEach(() => vi.unstubAllGlobals());
+
+  it('passes the bounded server wait and abort signal to status recovery', async () => {
+    const getNavigationStatus = vi.mocked(visionNavigationClient.getNavigationStatus);
+    getNavigationStatus.mockResolvedValue({ status: 'completed', terminal: true } as never);
+    const signal = new AbortController().signal;
+
+    const result = await new RecordingApiService().getAINavigationStatus('nav-1', 1234, { signal });
+
+    expect(result.success).toBe(true);
+    expect(getNavigationStatus).toHaveBeenCalledWith(
+      { navigationId: 'nav-1', waitMillis: 1234n },
+      { signal },
+    );
+  });
 
   it('accepts the canonical completed receipt without losing identity or time', async () => {
     const terminal = { recording_id: receipt.recording_id, session_id: receipt.session_id, action_count: 7, completed_at: '2026-09-22T12:01:00.456Z' };

@@ -417,7 +417,7 @@ func (n *ClaudeCodeVisionNavigator) parseOutput(session *claudeCodeSession, stdo
 		switch event.Type {
 		case "assistant":
 			// Capture reasoning from assistant messages
-			lastReasoning = n.extractReasoning(event.Content)
+			lastReasoning = redactNavigationText(n.extractReasoning(event.Content))
 
 		case "tool_use":
 			// Track MCP Chrome tool calls
@@ -503,9 +503,16 @@ func (n *ClaudeCodeVisionNavigator) recordStep(
 	if len(event.Input) > 0 {
 		_ = json.Unmarshal(event.Input, &input)
 	}
+	safeAction := redactNavigationAction(map[string]interface{}{
+		"type":     actionType,
+		"selector": selector,
+		"input":    input,
+		"url":      url,
+	})
+	safeInput, _ := safeAction["input"].(map[string]interface{})
 	value := ""
 	for _, key := range []string{"text", "value", "key", "query"} {
-		if v, ok := input[key].(string); ok && v != "" {
+		if v, ok := safeInput[key].(string); ok && v != "" {
 			value = v
 			break
 		}
@@ -518,8 +525,8 @@ func (n *ClaudeCodeVisionNavigator) recordStep(
 		ActionType:  actionType,
 		Selector:    selector,
 		Value:       value,
-		URL:         url,
-		Description: reasoning,
+		URL:         redactNavigationURL(url),
+		Description: redactNavigationText(reasoning),
 		Success:     true,
 	})
 	session.mu.Unlock()
@@ -540,10 +547,10 @@ func (n *ClaudeCodeVisionNavigator) reportActionToRecording(
 
 	action := &RecordedNavigationAction{
 		ActionType: actionType,
-		URL:        url,
+		URL:        redactNavigationURL(url),
 		PageTitle:  "", // Not available from stream output
 		Selector:   selector,
-		Reasoning:  reasoning,
+		Reasoning:  redactNavigationText(reasoning),
 		StepNumber: stepNumber,
 		Timestamp:  time.Now().Format(time.RFC3339Nano),
 		Source:     "ai",
@@ -655,24 +662,27 @@ func (n *ClaudeCodeVisionNavigator) broadcastStep(
 		return
 	}
 
-	actionType, _, _ := n.mapMCPToolToAction(event)
+	actionType, url, selector := n.mapMCPToolToAction(event)
 
 	// Parse input for the action details
 	var input map[string]interface{}
 	if len(event.Input) > 0 {
 		_ = json.Unmarshal(event.Input, &input)
 	}
+	safeAction := redactNavigationAction(map[string]interface{}{
+		"type":     actionType,
+		"selector": selector,
+		"input":    input,
+		"url":      url,
+	})
 
 	wsEvent := map[string]interface{}{
 		"type":         "ai_navigation_step",
 		"navigationId": session.NavigationID,
 		"sessionId":    session.SessionID,
 		"stepNumber":   stepNumber,
-		"action": map[string]interface{}{
-			"type":  actionType,
-			"input": input,
-		},
-		"reasoning":    reasoning,
+		"action":       safeAction,
+		"reasoning":    redactNavigationText(reasoning),
 		"goalAchieved": false,
 		"timestamp":    time.Now().UTC().Format(time.RFC3339),
 	}

@@ -8,6 +8,7 @@ package validation_v1
 
 import (
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	v11 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
@@ -27,12 +28,13 @@ const (
 type ValidationPurpose int32
 
 const (
-	ValidationPurpose_VALIDATION_PURPOSE_UNSPECIFIED        ValidationPurpose = 0
-	ValidationPurpose_VALIDATION_PURPOSE_PHASE              ValidationPurpose = 1
-	ValidationPurpose_VALIDATION_PURPOSE_REGRESSION_BEFORE  ValidationPurpose = 2
-	ValidationPurpose_VALIDATION_PURPOSE_REGRESSION_CURRENT ValidationPurpose = 3
-	ValidationPurpose_VALIDATION_PURPOSE_CERTIFICATION      ValidationPurpose = 4
-	ValidationPurpose_VALIDATION_PURPOSE_INVESTIGATION      ValidationPurpose = 5
+	ValidationPurpose_VALIDATION_PURPOSE_UNSPECIFIED         ValidationPurpose = 0
+	ValidationPurpose_VALIDATION_PURPOSE_PHASE               ValidationPurpose = 1
+	ValidationPurpose_VALIDATION_PURPOSE_REGRESSION_BEFORE   ValidationPurpose = 2
+	ValidationPurpose_VALIDATION_PURPOSE_REGRESSION_CURRENT  ValidationPurpose = 3
+	ValidationPurpose_VALIDATION_PURPOSE_CERTIFICATION       ValidationPurpose = 4
+	ValidationPurpose_VALIDATION_PURPOSE_INVESTIGATION       ValidationPurpose = 5
+	ValidationPurpose_VALIDATION_PURPOSE_EVIDENCE_PRODUCTION ValidationPurpose = 6
 )
 
 // Enum value maps for ValidationPurpose.
@@ -44,14 +46,16 @@ var (
 		3: "VALIDATION_PURPOSE_REGRESSION_CURRENT",
 		4: "VALIDATION_PURPOSE_CERTIFICATION",
 		5: "VALIDATION_PURPOSE_INVESTIGATION",
+		6: "VALIDATION_PURPOSE_EVIDENCE_PRODUCTION",
 	}
 	ValidationPurpose_value = map[string]int32{
-		"VALIDATION_PURPOSE_UNSPECIFIED":        0,
-		"VALIDATION_PURPOSE_PHASE":              1,
-		"VALIDATION_PURPOSE_REGRESSION_BEFORE":  2,
-		"VALIDATION_PURPOSE_REGRESSION_CURRENT": 3,
-		"VALIDATION_PURPOSE_CERTIFICATION":      4,
-		"VALIDATION_PURPOSE_INVESTIGATION":      5,
+		"VALIDATION_PURPOSE_UNSPECIFIED":         0,
+		"VALIDATION_PURPOSE_PHASE":               1,
+		"VALIDATION_PURPOSE_REGRESSION_BEFORE":   2,
+		"VALIDATION_PURPOSE_REGRESSION_CURRENT":  3,
+		"VALIDATION_PURPOSE_CERTIFICATION":       4,
+		"VALIDATION_PURPOSE_INVESTIGATION":       5,
+		"VALIDATION_PURPOSE_EVIDENCE_PRODUCTION": 6,
 	}
 )
 
@@ -638,6 +642,102 @@ func (ChildOperationState) EnumDescriptor() ([]byte, []int) {
 	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{9}
 }
 
+type ResolveSourceIdentityRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Targets       []*v1.ValidationTarget `protobuf:"bytes,1,rep,name=targets,proto3" json:"targets,omitempty"`
+	ContentInputs []*ContentInputRoot    `protobuf:"bytes,2,rep,name=content_inputs,json=contentInputs,proto3" json:"content_inputs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveSourceIdentityRequest) Reset() {
+	*x = ResolveSourceIdentityRequest{}
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveSourceIdentityRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveSourceIdentityRequest) ProtoMessage() {}
+
+func (x *ResolveSourceIdentityRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveSourceIdentityRequest.ProtoReflect.Descriptor instead.
+func (*ResolveSourceIdentityRequest) Descriptor() ([]byte, []int) {
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ResolveSourceIdentityRequest) GetTargets() []*v1.ValidationTarget {
+	if x != nil {
+		return x.Targets
+	}
+	return nil
+}
+
+func (x *ResolveSourceIdentityRequest) GetContentInputs() []*ContentInputRoot {
+	if x != nil {
+		return x.ContentInputs
+	}
+	return nil
+}
+
+type ResolveSourceIdentityResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Identity      *SourceIdentity        `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveSourceIdentityResponse) Reset() {
+	*x = ResolveSourceIdentityResponse{}
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveSourceIdentityResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveSourceIdentityResponse) ProtoMessage() {}
+
+func (x *ResolveSourceIdentityResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveSourceIdentityResponse.ProtoReflect.Descriptor instead.
+func (*ResolveSourceIdentityResponse) Descriptor() ([]byte, []int) {
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ResolveSourceIdentityResponse) GetIdentity() *SourceIdentity {
+	if x != nil {
+		return x.Identity
+	}
+	return nil
+}
+
 type ReusePolicy struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Mode          ReuseMode              `protobuf:"varint,1,opt,name=mode,proto3,enum=vrooli.test_genie.v1.validation.ReuseMode" json:"mode,omitempty"`
@@ -648,7 +748,7 @@ type ReusePolicy struct {
 
 func (x *ReusePolicy) Reset() {
 	*x = ReusePolicy{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[0]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -660,7 +760,7 @@ func (x *ReusePolicy) String() string {
 func (*ReusePolicy) ProtoMessage() {}
 
 func (x *ReusePolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[0]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -673,7 +773,7 @@ func (x *ReusePolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReusePolicy.ProtoReflect.Descriptor instead.
 func (*ReusePolicy) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{0}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ReusePolicy) GetMode() ReuseMode {
@@ -700,7 +800,7 @@ type ConcurrencyPolicy struct {
 
 func (x *ConcurrencyPolicy) Reset() {
 	*x = ConcurrencyPolicy{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[1]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -712,7 +812,7 @@ func (x *ConcurrencyPolicy) String() string {
 func (*ConcurrencyPolicy) ProtoMessage() {}
 
 func (x *ConcurrencyPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[1]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -725,7 +825,7 @@ func (x *ConcurrencyPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConcurrencyPolicy.ProtoReflect.Descriptor instead.
 func (*ConcurrencyPolicy) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{1}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ConcurrencyPolicy) GetMode() ConcurrencyMode {
@@ -753,7 +853,7 @@ type DeadlinePolicy struct {
 
 func (x *DeadlinePolicy) Reset() {
 	*x = DeadlinePolicy{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[2]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -765,7 +865,7 @@ func (x *DeadlinePolicy) String() string {
 func (*DeadlinePolicy) ProtoMessage() {}
 
 func (x *DeadlinePolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[2]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -778,7 +878,7 @@ func (x *DeadlinePolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeadlinePolicy.ProtoReflect.Descriptor instead.
 func (*DeadlinePolicy) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{2}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *DeadlinePolicy) GetQueueBudget() *durationpb.Duration {
@@ -814,7 +914,7 @@ type EvidencePolicy struct {
 
 func (x *EvidencePolicy) Reset() {
 	*x = EvidencePolicy{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[3]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -826,7 +926,7 @@ func (x *EvidencePolicy) String() string {
 func (*EvidencePolicy) ProtoMessage() {}
 
 func (x *EvidencePolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[3]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -839,7 +939,7 @@ func (x *EvidencePolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvidencePolicy.ProtoReflect.Descriptor instead.
 func (*EvidencePolicy) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{3}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *EvidencePolicy) GetRequireBehavioralBefore() bool {
@@ -881,7 +981,7 @@ type ContentRootIdentity struct {
 
 func (x *ContentRootIdentity) Reset() {
 	*x = ContentRootIdentity{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[4]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -893,7 +993,7 @@ func (x *ContentRootIdentity) String() string {
 func (*ContentRootIdentity) ProtoMessage() {}
 
 func (x *ContentRootIdentity) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[4]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -906,7 +1006,7 @@ func (x *ContentRootIdentity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContentRootIdentity.ProtoReflect.Descriptor instead.
 func (*ContentRootIdentity) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{4}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ContentRootIdentity) GetName() string {
@@ -942,7 +1042,7 @@ type ContentFileIdentity struct {
 
 func (x *ContentFileIdentity) Reset() {
 	*x = ContentFileIdentity{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[5]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -954,7 +1054,7 @@ func (x *ContentFileIdentity) String() string {
 func (*ContentFileIdentity) ProtoMessage() {}
 
 func (x *ContentFileIdentity) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[5]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -967,7 +1067,7 @@ func (x *ContentFileIdentity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContentFileIdentity.ProtoReflect.Descriptor instead.
 func (*ContentFileIdentity) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{5}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ContentFileIdentity) GetPath() string {
@@ -1009,7 +1109,7 @@ type SourceIdentity struct {
 
 func (x *SourceIdentity) Reset() {
 	*x = SourceIdentity{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[6]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1021,7 +1121,7 @@ func (x *SourceIdentity) String() string {
 func (*SourceIdentity) ProtoMessage() {}
 
 func (x *SourceIdentity) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[6]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1034,7 +1134,7 @@ func (x *SourceIdentity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SourceIdentity.ProtoReflect.Descriptor instead.
 func (*SourceIdentity) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{6}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *SourceIdentity) GetSchemaVersion() uint32 {
@@ -1105,7 +1205,7 @@ type InputSelection struct {
 
 func (x *InputSelection) Reset() {
 	*x = InputSelection{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[7]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1117,7 +1217,7 @@ func (x *InputSelection) String() string {
 func (*InputSelection) ProtoMessage() {}
 
 func (x *InputSelection) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[7]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1130,7 +1230,7 @@ func (x *InputSelection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InputSelection.ProtoReflect.Descriptor instead.
 func (*InputSelection) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{7}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *InputSelection) GetGlob() string {
@@ -1161,7 +1261,7 @@ type ContentInputRoot struct {
 
 func (x *ContentInputRoot) Reset() {
 	*x = ContentInputRoot{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[8]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1173,7 +1273,7 @@ func (x *ContentInputRoot) String() string {
 func (*ContentInputRoot) ProtoMessage() {}
 
 func (x *ContentInputRoot) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[8]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1186,7 +1286,7 @@ func (x *ContentInputRoot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContentInputRoot.ProtoReflect.Descriptor instead.
 func (*ContentInputRoot) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{8}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ContentInputRoot) GetName() string {
@@ -1239,14 +1339,18 @@ type ValidationIntent struct {
 	// Behavioral evidence selection participates in compatibility, unlike attribution.
 	BehavioralPrior string `protobuf:"bytes,18,opt,name=behavioral_prior,json=behavioralPrior,proto3" json:"behavioral_prior,omitempty"`
 	// Explicit Test Genie phases. Empty preserves the requested strength preset.
-	Phases        []string `protobuf:"bytes,19,rep,name=phases,proto3" json:"phases,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Phases []string `protobuf:"bytes,19,rep,name=phases,proto3" json:"phases,omitempty"`
+	// Set only by CreateEvidenceProduction after resolving the authored declaration.
+	PinnedEvidenceProducer *PinnedEvidenceProducer `protobuf:"bytes,20,opt,name=pinned_evidence_producer,json=pinnedEvidenceProducer,proto3" json:"pinned_evidence_producer,omitempty"`
+	// Exact retained producer outputs admitted for a provider validation.
+	RetainedEvidenceSets []*v11.RetainedEvidenceSet `protobuf:"bytes,21,rep,name=retained_evidence_sets,json=retainedEvidenceSets,proto3" json:"retained_evidence_sets,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *ValidationIntent) Reset() {
 	*x = ValidationIntent{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[9]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1258,7 +1362,7 @@ func (x *ValidationIntent) String() string {
 func (*ValidationIntent) ProtoMessage() {}
 
 func (x *ValidationIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[9]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1271,7 +1375,7 @@ func (x *ValidationIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidationIntent.ProtoReflect.Descriptor instead.
 func (*ValidationIntent) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{9}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ValidationIntent) GetSchemaVersion() uint32 {
@@ -1407,6 +1511,280 @@ func (x *ValidationIntent) GetPhases() []string {
 	return nil
 }
 
+func (x *ValidationIntent) GetPinnedEvidenceProducer() *PinnedEvidenceProducer {
+	if x != nil {
+		return x.PinnedEvidenceProducer
+	}
+	return nil
+}
+
+func (x *ValidationIntent) GetRetainedEvidenceSets() []*v11.RetainedEvidenceSet {
+	if x != nil {
+		return x.RetainedEvidenceSets
+	}
+	return nil
+}
+
+type PinnedEvidenceProducer struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Provider            string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	Producer            string                 `protobuf:"bytes,2,opt,name=producer,proto3" json:"producer,omitempty"`
+	Argv                []string               `protobuf:"bytes,3,rep,name=argv,proto3" json:"argv,omitempty"`
+	WorkingDirectory    string                 `protobuf:"bytes,4,opt,name=working_directory,json=workingDirectory,proto3" json:"working_directory,omitempty"`
+	OutputRoot          string                 `protobuf:"bytes,5,opt,name=output_root,json=outputRoot,proto3" json:"output_root,omitempty"`
+	TimeoutMilliseconds uint64                 `protobuf:"varint,6,opt,name=timeout_milliseconds,json=timeoutMilliseconds,proto3" json:"timeout_milliseconds,omitempty"`
+	MaximumOutputBytes  uint64                 `protobuf:"varint,7,opt,name=maximum_output_bytes,json=maximumOutputBytes,proto3" json:"maximum_output_bytes,omitempty"`
+	MutatesLifecycle    bool                   `protobuf:"varint,8,opt,name=mutates_lifecycle,json=mutatesLifecycle,proto3" json:"mutates_lifecycle,omitempty"`
+	DescriptorDigest    string                 `protobuf:"bytes,9,opt,name=descriptor_digest,json=descriptorDigest,proto3" json:"descriptor_digest,omitempty"`
+	SourceIdentity      string                 `protobuf:"bytes,10,opt,name=source_identity,json=sourceIdentity,proto3" json:"source_identity,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *PinnedEvidenceProducer) Reset() {
+	*x = PinnedEvidenceProducer{}
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PinnedEvidenceProducer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PinnedEvidenceProducer) ProtoMessage() {}
+
+func (x *PinnedEvidenceProducer) ProtoReflect() protoreflect.Message {
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PinnedEvidenceProducer.ProtoReflect.Descriptor instead.
+func (*PinnedEvidenceProducer) Descriptor() ([]byte, []int) {
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *PinnedEvidenceProducer) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *PinnedEvidenceProducer) GetProducer() string {
+	if x != nil {
+		return x.Producer
+	}
+	return ""
+}
+
+func (x *PinnedEvidenceProducer) GetArgv() []string {
+	if x != nil {
+		return x.Argv
+	}
+	return nil
+}
+
+func (x *PinnedEvidenceProducer) GetWorkingDirectory() string {
+	if x != nil {
+		return x.WorkingDirectory
+	}
+	return ""
+}
+
+func (x *PinnedEvidenceProducer) GetOutputRoot() string {
+	if x != nil {
+		return x.OutputRoot
+	}
+	return ""
+}
+
+func (x *PinnedEvidenceProducer) GetTimeoutMilliseconds() uint64 {
+	if x != nil {
+		return x.TimeoutMilliseconds
+	}
+	return 0
+}
+
+func (x *PinnedEvidenceProducer) GetMaximumOutputBytes() uint64 {
+	if x != nil {
+		return x.MaximumOutputBytes
+	}
+	return 0
+}
+
+func (x *PinnedEvidenceProducer) GetMutatesLifecycle() bool {
+	if x != nil {
+		return x.MutatesLifecycle
+	}
+	return false
+}
+
+func (x *PinnedEvidenceProducer) GetDescriptorDigest() string {
+	if x != nil {
+		return x.DescriptorDigest
+	}
+	return ""
+}
+
+func (x *PinnedEvidenceProducer) GetSourceIdentity() string {
+	if x != nil {
+		return x.SourceIdentity
+	}
+	return ""
+}
+
+type CreateEvidenceProductionRequest struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	IdempotencyKey            string                 `protobuf:"bytes,1,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	Provider                  string                 `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
+	Producer                  string                 `protobuf:"bytes,3,opt,name=producer,proto3" json:"producer,omitempty"`
+	CandidateScenario         string                 `protobuf:"bytes,4,opt,name=candidate_scenario,json=candidateScenario,proto3" json:"candidate_scenario,omitempty"`
+	ExpectedCandidateIdentity *SourceIdentity        `protobuf:"bytes,5,opt,name=expected_candidate_identity,json=expectedCandidateIdentity,proto3" json:"expected_candidate_identity,omitempty"`
+	CallerScenario            string                 `protobuf:"bytes,6,opt,name=caller_scenario,json=callerScenario,proto3" json:"caller_scenario,omitempty"`
+	CallerExecutionId         string                 `protobuf:"bytes,7,opt,name=caller_execution_id,json=callerExecutionId,proto3" json:"caller_execution_id,omitempty"`
+	PlanId                    string                 `protobuf:"bytes,8,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *CreateEvidenceProductionRequest) Reset() {
+	*x = CreateEvidenceProductionRequest{}
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateEvidenceProductionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateEvidenceProductionRequest) ProtoMessage() {}
+
+func (x *CreateEvidenceProductionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateEvidenceProductionRequest.ProtoReflect.Descriptor instead.
+func (*CreateEvidenceProductionRequest) Descriptor() ([]byte, []int) {
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *CreateEvidenceProductionRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+func (x *CreateEvidenceProductionRequest) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *CreateEvidenceProductionRequest) GetProducer() string {
+	if x != nil {
+		return x.Producer
+	}
+	return ""
+}
+
+func (x *CreateEvidenceProductionRequest) GetCandidateScenario() string {
+	if x != nil {
+		return x.CandidateScenario
+	}
+	return ""
+}
+
+func (x *CreateEvidenceProductionRequest) GetExpectedCandidateIdentity() *SourceIdentity {
+	if x != nil {
+		return x.ExpectedCandidateIdentity
+	}
+	return nil
+}
+
+func (x *CreateEvidenceProductionRequest) GetCallerScenario() string {
+	if x != nil {
+		return x.CallerScenario
+	}
+	return ""
+}
+
+func (x *CreateEvidenceProductionRequest) GetCallerExecutionId() string {
+	if x != nil {
+		return x.CallerExecutionId
+	}
+	return ""
+}
+
+func (x *CreateEvidenceProductionRequest) GetPlanId() string {
+	if x != nil {
+		return x.PlanId
+	}
+	return ""
+}
+
+type CreateEvidenceProductionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Receipt       *ValidationReceipt     `protobuf:"bytes,1,opt,name=receipt,proto3" json:"receipt,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateEvidenceProductionResponse) Reset() {
+	*x = CreateEvidenceProductionResponse{}
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateEvidenceProductionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateEvidenceProductionResponse) ProtoMessage() {}
+
+func (x *CreateEvidenceProductionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateEvidenceProductionResponse.ProtoReflect.Descriptor instead.
+func (*CreateEvidenceProductionResponse) Descriptor() ([]byte, []int) {
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CreateEvidenceProductionResponse) GetReceipt() *ValidationReceipt {
+	if x != nil {
+		return x.Receipt
+	}
+	return nil
+}
+
 type EvidenceReference struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EvidenceId    string                 `protobuf:"bytes,1,opt,name=evidence_id,json=evidenceId,proto3" json:"evidence_id,omitempty"`
@@ -1421,7 +1799,7 @@ type EvidenceReference struct {
 
 func (x *EvidenceReference) Reset() {
 	*x = EvidenceReference{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[10]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1433,7 +1811,7 @@ func (x *EvidenceReference) String() string {
 func (*EvidenceReference) ProtoMessage() {}
 
 func (x *EvidenceReference) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[10]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1446,7 +1824,7 @@ func (x *EvidenceReference) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvidenceReference.ProtoReflect.Descriptor instead.
 func (*EvidenceReference) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{10}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *EvidenceReference) GetEvidenceId() string {
@@ -1506,7 +1884,7 @@ type ChildOperation struct {
 
 func (x *ChildOperation) Reset() {
 	*x = ChildOperation{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[11]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1518,7 +1896,7 @@ func (x *ChildOperation) String() string {
 func (*ChildOperation) ProtoMessage() {}
 
 func (x *ChildOperation) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[11]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1531,7 +1909,7 @@ func (x *ChildOperation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChildOperation.ProtoReflect.Descriptor instead.
 func (*ChildOperation) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{11}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ChildOperation) GetChildId() string {
@@ -1596,7 +1974,7 @@ type CompatibilityDecision struct {
 
 func (x *CompatibilityDecision) Reset() {
 	*x = CompatibilityDecision{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[12]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1608,7 +1986,7 @@ func (x *CompatibilityDecision) String() string {
 func (*CompatibilityDecision) ProtoMessage() {}
 
 func (x *CompatibilityDecision) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[12]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1621,7 +1999,7 @@ func (x *CompatibilityDecision) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompatibilityDecision.ProtoReflect.Descriptor instead.
 func (*CompatibilityDecision) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{12}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CompatibilityDecision) GetKind() CompatibilityKind {
@@ -1672,7 +2050,7 @@ type RetryDisposition struct {
 
 func (x *RetryDisposition) Reset() {
 	*x = RetryDisposition{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[13]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1684,7 +2062,7 @@ func (x *RetryDisposition) String() string {
 func (*RetryDisposition) ProtoMessage() {}
 
 func (x *RetryDisposition) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[13]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1697,7 +2075,7 @@ func (x *RetryDisposition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetryDisposition.ProtoReflect.Descriptor instead.
 func (*RetryDisposition) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{13}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *RetryDisposition) GetKind() RetryKind {
@@ -1748,7 +2126,7 @@ type Degradation struct {
 
 func (x *Degradation) Reset() {
 	*x = Degradation{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[14]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1760,7 +2138,7 @@ func (x *Degradation) String() string {
 func (*Degradation) ProtoMessage() {}
 
 func (x *Degradation) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[14]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1773,7 +2151,7 @@ func (x *Degradation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Degradation.ProtoReflect.Descriptor instead.
 func (*Degradation) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{14}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *Degradation) GetAuthorized() bool {
@@ -1832,13 +2210,16 @@ type ValidationReceipt struct {
 	UpdatedAt        *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	TerminalAt       *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=terminal_at,json=terminalAt,proto3" json:"terminal_at,omitempty"`
 	Revision         uint64                 `protobuf:"varint,19,opt,name=revision,proto3" json:"revision,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Set by Test Genie only after declared producer output and its persisted
+	// artifact catalog are complete and checksummed.
+	ProducedEvidenceSet *v11.RetainedEvidenceSet `protobuf:"bytes,20,opt,name=produced_evidence_set,json=producedEvidenceSet,proto3" json:"produced_evidence_set,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ValidationReceipt) Reset() {
 	*x = ValidationReceipt{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[15]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1850,7 +2231,7 @@ func (x *ValidationReceipt) String() string {
 func (*ValidationReceipt) ProtoMessage() {}
 
 func (x *ValidationReceipt) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[15]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1863,7 +2244,7 @@ func (x *ValidationReceipt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidationReceipt.ProtoReflect.Descriptor instead.
 func (*ValidationReceipt) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{15}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ValidationReceipt) GetSchemaVersion() uint32 {
@@ -1999,6 +2380,13 @@ func (x *ValidationReceipt) GetRevision() uint64 {
 	return 0
 }
 
+func (x *ValidationReceipt) GetProducedEvidenceSet() *v11.RetainedEvidenceSet {
+	if x != nil {
+		return x.ProducedEvidenceSet
+	}
+	return nil
+}
+
 type CreateValidationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Intent        *ValidationIntent      `protobuf:"bytes,1,opt,name=intent,proto3" json:"intent,omitempty"`
@@ -2008,7 +2396,7 @@ type CreateValidationRequest struct {
 
 func (x *CreateValidationRequest) Reset() {
 	*x = CreateValidationRequest{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[16]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2020,7 +2408,7 @@ func (x *CreateValidationRequest) String() string {
 func (*CreateValidationRequest) ProtoMessage() {}
 
 func (x *CreateValidationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[16]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2033,7 +2421,7 @@ func (x *CreateValidationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateValidationRequest.ProtoReflect.Descriptor instead.
 func (*CreateValidationRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{16}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CreateValidationRequest) GetIntent() *ValidationIntent {
@@ -2052,7 +2440,7 @@ type CreateValidationResponse struct {
 
 func (x *CreateValidationResponse) Reset() {
 	*x = CreateValidationResponse{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[17]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2064,7 +2452,7 @@ func (x *CreateValidationResponse) String() string {
 func (*CreateValidationResponse) ProtoMessage() {}
 
 func (x *CreateValidationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[17]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2077,7 +2465,7 @@ func (x *CreateValidationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateValidationResponse.ProtoReflect.Descriptor instead.
 func (*CreateValidationResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{17}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *CreateValidationResponse) GetReceipt() *ValidationReceipt {
@@ -2096,7 +2484,7 @@ type GetValidationRequest struct {
 
 func (x *GetValidationRequest) Reset() {
 	*x = GetValidationRequest{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[18]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2108,7 +2496,7 @@ func (x *GetValidationRequest) String() string {
 func (*GetValidationRequest) ProtoMessage() {}
 
 func (x *GetValidationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[18]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2121,7 +2509,7 @@ func (x *GetValidationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetValidationRequest.ProtoReflect.Descriptor instead.
 func (*GetValidationRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{18}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GetValidationRequest) GetReceiptId() string {
@@ -2140,7 +2528,7 @@ type GetValidationResponse struct {
 
 func (x *GetValidationResponse) Reset() {
 	*x = GetValidationResponse{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[19]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2152,7 +2540,7 @@ func (x *GetValidationResponse) String() string {
 func (*GetValidationResponse) ProtoMessage() {}
 
 func (x *GetValidationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[19]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2165,7 +2553,7 @@ func (x *GetValidationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetValidationResponse.ProtoReflect.Descriptor instead.
 func (*GetValidationResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{19}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *GetValidationResponse) GetReceipt() *ValidationReceipt {
@@ -2187,7 +2575,7 @@ type WaitValidationRequest struct {
 
 func (x *WaitValidationRequest) Reset() {
 	*x = WaitValidationRequest{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[20]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2199,7 +2587,7 @@ func (x *WaitValidationRequest) String() string {
 func (*WaitValidationRequest) ProtoMessage() {}
 
 func (x *WaitValidationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[20]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2212,7 +2600,7 @@ func (x *WaitValidationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitValidationRequest.ProtoReflect.Descriptor instead.
 func (*WaitValidationRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{20}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *WaitValidationRequest) GetReceiptId() string {
@@ -2254,7 +2642,7 @@ type WaitValidationResponse struct {
 
 func (x *WaitValidationResponse) Reset() {
 	*x = WaitValidationResponse{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[21]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2266,7 +2654,7 @@ func (x *WaitValidationResponse) String() string {
 func (*WaitValidationResponse) ProtoMessage() {}
 
 func (x *WaitValidationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[21]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2279,7 +2667,7 @@ func (x *WaitValidationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitValidationResponse.ProtoReflect.Descriptor instead.
 func (*WaitValidationResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{21}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *WaitValidationResponse) GetReceipt() *ValidationReceipt {
@@ -2317,7 +2705,7 @@ type ListValidationsRequest struct {
 
 func (x *ListValidationsRequest) Reset() {
 	*x = ListValidationsRequest{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[22]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2329,7 +2717,7 @@ func (x *ListValidationsRequest) String() string {
 func (*ListValidationsRequest) ProtoMessage() {}
 
 func (x *ListValidationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[22]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2342,7 +2730,7 @@ func (x *ListValidationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListValidationsRequest.ProtoReflect.Descriptor instead.
 func (*ListValidationsRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{22}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ListValidationsRequest) GetCallerScenario() string {
@@ -2397,7 +2785,7 @@ type ListValidationsResponse struct {
 
 func (x *ListValidationsResponse) Reset() {
 	*x = ListValidationsResponse{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[23]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2409,7 +2797,7 @@ func (x *ListValidationsResponse) String() string {
 func (*ListValidationsResponse) ProtoMessage() {}
 
 func (x *ListValidationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[23]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2422,7 +2810,7 @@ func (x *ListValidationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListValidationsResponse.ProtoReflect.Descriptor instead.
 func (*ListValidationsResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{23}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ListValidationsResponse) GetReceipts() []*ValidationReceipt {
@@ -2449,7 +2837,7 @@ type CancelValidationWaitRequest struct {
 
 func (x *CancelValidationWaitRequest) Reset() {
 	*x = CancelValidationWaitRequest{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[24]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2461,7 +2849,7 @@ func (x *CancelValidationWaitRequest) String() string {
 func (*CancelValidationWaitRequest) ProtoMessage() {}
 
 func (x *CancelValidationWaitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[24]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2474,7 +2862,7 @@ func (x *CancelValidationWaitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelValidationWaitRequest.ProtoReflect.Descriptor instead.
 func (*CancelValidationWaitRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{24}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *CancelValidationWaitRequest) GetReceiptId() string {
@@ -2501,7 +2889,7 @@ type CancelValidationWaitResponse struct {
 
 func (x *CancelValidationWaitResponse) Reset() {
 	*x = CancelValidationWaitResponse{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[25]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2513,7 +2901,7 @@ func (x *CancelValidationWaitResponse) String() string {
 func (*CancelValidationWaitResponse) ProtoMessage() {}
 
 func (x *CancelValidationWaitResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[25]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2526,7 +2914,7 @@ func (x *CancelValidationWaitResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelValidationWaitResponse.ProtoReflect.Descriptor instead.
 func (*CancelValidationWaitResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{25}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *CancelValidationWaitResponse) GetCancelled() bool {
@@ -2554,7 +2942,7 @@ type AbortValidationWorkRequest struct {
 
 func (x *AbortValidationWorkRequest) Reset() {
 	*x = AbortValidationWorkRequest{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[26]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2566,7 +2954,7 @@ func (x *AbortValidationWorkRequest) String() string {
 func (*AbortValidationWorkRequest) ProtoMessage() {}
 
 func (x *AbortValidationWorkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[26]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2579,7 +2967,7 @@ func (x *AbortValidationWorkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AbortValidationWorkRequest.ProtoReflect.Descriptor instead.
 func (*AbortValidationWorkRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{26}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *AbortValidationWorkRequest) GetReceiptId() string {
@@ -2612,7 +3000,7 @@ type AbortValidationWorkResponse struct {
 
 func (x *AbortValidationWorkResponse) Reset() {
 	*x = AbortValidationWorkResponse{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[27]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2624,7 +3012,7 @@ func (x *AbortValidationWorkResponse) String() string {
 func (*AbortValidationWorkResponse) ProtoMessage() {}
 
 func (x *AbortValidationWorkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[27]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2637,7 +3025,7 @@ func (x *AbortValidationWorkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AbortValidationWorkResponse.ProtoReflect.Descriptor instead.
 func (*AbortValidationWorkResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{27}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *AbortValidationWorkResponse) GetReceipt() *ValidationReceipt {
@@ -2656,7 +3044,7 @@ type ExplainValidationRequest struct {
 
 func (x *ExplainValidationRequest) Reset() {
 	*x = ExplainValidationRequest{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[28]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2668,7 +3056,7 @@ func (x *ExplainValidationRequest) String() string {
 func (*ExplainValidationRequest) ProtoMessage() {}
 
 func (x *ExplainValidationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[28]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2681,7 +3069,7 @@ func (x *ExplainValidationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainValidationRequest.ProtoReflect.Descriptor instead.
 func (*ExplainValidationRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{28}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ExplainValidationRequest) GetReceiptId() string {
@@ -2702,7 +3090,7 @@ type ExplainValidationResponse struct {
 
 func (x *ExplainValidationResponse) Reset() {
 	*x = ExplainValidationResponse{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[29]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2714,7 +3102,7 @@ func (x *ExplainValidationResponse) String() string {
 func (*ExplainValidationResponse) ProtoMessage() {}
 
 func (x *ExplainValidationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[29]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2727,7 +3115,7 @@ func (x *ExplainValidationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainValidationResponse.ProtoReflect.Descriptor instead.
 func (*ExplainValidationResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{29}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *ExplainValidationResponse) GetReceipt() *ValidationReceipt {
@@ -2760,7 +3148,7 @@ type ListValidationShadowsRequest struct {
 
 func (x *ListValidationShadowsRequest) Reset() {
 	*x = ListValidationShadowsRequest{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[30]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2772,7 +3160,7 @@ func (x *ListValidationShadowsRequest) String() string {
 func (*ListValidationShadowsRequest) ProtoMessage() {}
 
 func (x *ListValidationShadowsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[30]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2785,7 +3173,7 @@ func (x *ListValidationShadowsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListValidationShadowsRequest.ProtoReflect.Descriptor instead.
 func (*ListValidationShadowsRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{30}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *ListValidationShadowsRequest) GetPageSize() uint32 {
@@ -2804,7 +3192,7 @@ type ListValidationShadowsResponse struct {
 
 func (x *ListValidationShadowsResponse) Reset() {
 	*x = ListValidationShadowsResponse{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[31]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2816,7 +3204,7 @@ func (x *ListValidationShadowsResponse) String() string {
 func (*ListValidationShadowsResponse) ProtoMessage() {}
 
 func (x *ListValidationShadowsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[31]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2829,7 +3217,7 @@ func (x *ListValidationShadowsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListValidationShadowsResponse.ProtoReflect.Descriptor instead.
 func (*ListValidationShadowsResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{31}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *ListValidationShadowsResponse) GetComparisons() []*ValidationShadowComparison {
@@ -2859,7 +3247,7 @@ type ValidationShadowComparison struct {
 
 func (x *ValidationShadowComparison) Reset() {
 	*x = ValidationShadowComparison{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[32]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2871,7 +3259,7 @@ func (x *ValidationShadowComparison) String() string {
 func (*ValidationShadowComparison) ProtoMessage() {}
 
 func (x *ValidationShadowComparison) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[32]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2884,7 +3272,7 @@ func (x *ValidationShadowComparison) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidationShadowComparison.ProtoReflect.Descriptor instead.
 func (*ValidationShadowComparison) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{32}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ValidationShadowComparison) GetComparisonId() string {
@@ -2975,7 +3363,12 @@ var File_test_genie_v1_validation_validation_proto protoreflect.FileDescriptor
 
 const file_test_genie_v1_validation_validation_proto_rawDesc = "" +
 	"\n" +
-	")test-genie/v1/validation/validation.proto\x12\x1fvrooli.test_genie.v1.validation\x1a!common/v1/validation_target.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x89\x01\n" +
+	")test-genie/v1/validation/validation.proto\x12\x1fvrooli.test_genie.v1.validation\x1a!common/v1/validation_target.proto\x1a'scenario-validation/v1/validation.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xaf\x01\n" +
+	"\x1cResolveSourceIdentityRequest\x125\n" +
+	"\atargets\x18\x01 \x03(\v2\x1b.common.v1.ValidationTargetR\atargets\x12X\n" +
+	"\x0econtent_inputs\x18\x02 \x03(\v21.vrooli.test_genie.v1.validation.ContentInputRootR\rcontentInputs\"l\n" +
+	"\x1dResolveSourceIdentityResponse\x12K\n" +
+	"\bidentity\x18\x01 \x01(\v2/.vrooli.test_genie.v1.validation.SourceIdentityR\bidentity\"\x89\x01\n" +
 	"\vReusePolicy\x12>\n" +
 	"\x04mode\x18\x01 \x01(\x0e2*.vrooli.test_genie.v1.validation.ReuseModeR\x04mode\x12:\n" +
 	"\vmaximum_age\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\n" +
@@ -3026,8 +3419,7 @@ const file_test_genie_v1_validation_validation_proto_rawDesc = "" +
 	"selections\x12\x1e\n" +
 	"\n" +
 	"dependency\x18\x04 \x01(\bR\n" +
-	"dependency\"\x91\n" +
-	"\n" +
+	"dependency\"\xee\v\n" +
 	"\x10ValidationIntent\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\rR\rschemaVersion\x12\x1b\n" +
 	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12'\n" +
@@ -3048,10 +3440,36 @@ const file_test_genie_v1_validation_validation_proto_rawDesc = "" +
 	"\x11caller_attributes\x18\x10 \x03(\v2G.vrooli.test_genie.v1.validation.ValidationIntent.CallerAttributesEntryR\x10callerAttributes\x12X\n" +
 	"\x0econtent_inputs\x18\x11 \x03(\v21.vrooli.test_genie.v1.validation.ContentInputRootR\rcontentInputs\x12)\n" +
 	"\x10behavioral_prior\x18\x12 \x01(\tR\x0fbehavioralPrior\x12\x16\n" +
-	"\x06phases\x18\x13 \x03(\tR\x06phases\x1aC\n" +
+	"\x06phases\x18\x13 \x03(\tR\x06phases\x12q\n" +
+	"\x18pinned_evidence_producer\x18\x14 \x01(\v27.vrooli.test_genie.v1.validation.PinnedEvidenceProducerR\x16pinnedEvidenceProducer\x12h\n" +
+	"\x16retained_evidence_sets\x18\x15 \x03(\v22.vrooli.scenario_validation.v1.RetainedEvidenceSetR\x14retainedEvidenceSets\x1aC\n" +
 	"\x15CallerAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa7\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9a\x03\n" +
+	"\x16PinnedEvidenceProducer\x12\x1a\n" +
+	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x1a\n" +
+	"\bproducer\x18\x02 \x01(\tR\bproducer\x12\x12\n" +
+	"\x04argv\x18\x03 \x03(\tR\x04argv\x12+\n" +
+	"\x11working_directory\x18\x04 \x01(\tR\x10workingDirectory\x12\x1f\n" +
+	"\voutput_root\x18\x05 \x01(\tR\n" +
+	"outputRoot\x121\n" +
+	"\x14timeout_milliseconds\x18\x06 \x01(\x04R\x13timeoutMilliseconds\x120\n" +
+	"\x14maximum_output_bytes\x18\a \x01(\x04R\x12maximumOutputBytes\x12+\n" +
+	"\x11mutates_lifecycle\x18\b \x01(\bR\x10mutatesLifecycle\x12+\n" +
+	"\x11descriptor_digest\x18\t \x01(\tR\x10descriptorDigest\x12'\n" +
+	"\x0fsource_identity\x18\n" +
+	" \x01(\tR\x0esourceIdentity\"\x94\x03\n" +
+	"\x1fCreateEvidenceProductionRequest\x12'\n" +
+	"\x0fidempotency_key\x18\x01 \x01(\tR\x0eidempotencyKey\x12\x1a\n" +
+	"\bprovider\x18\x02 \x01(\tR\bprovider\x12\x1a\n" +
+	"\bproducer\x18\x03 \x01(\tR\bproducer\x12-\n" +
+	"\x12candidate_scenario\x18\x04 \x01(\tR\x11candidateScenario\x12o\n" +
+	"\x1bexpected_candidate_identity\x18\x05 \x01(\v2/.vrooli.test_genie.v1.validation.SourceIdentityR\x19expectedCandidateIdentity\x12'\n" +
+	"\x0fcaller_scenario\x18\x06 \x01(\tR\x0ecallerScenario\x12.\n" +
+	"\x13caller_execution_id\x18\a \x01(\tR\x11callerExecutionId\x12\x17\n" +
+	"\aplan_id\x18\b \x01(\tR\x06planId\"p\n" +
+	" CreateEvidenceProductionResponse\x12L\n" +
+	"\areceipt\x18\x01 \x01(\v22.vrooli.test_genie.v1.validation.ValidationReceiptR\areceipt\"\xa7\x01\n" +
 	"\x11EvidenceReference\x12\x1f\n" +
 	"\vevidence_id\x18\x01 \x01(\tR\n" +
 	"evidenceId\x12\x12\n" +
@@ -3092,7 +3510,8 @@ const file_test_genie_v1_validation_validation_proto_rawDesc = "" +
 	"\x14authorization_reason\x18\x03 \x01(\tR\x13authorizationReason\x124\n" +
 	"\x16missing_evidence_kinds\x18\x04 \x03(\tR\x14missingEvidenceKinds\x12V\n" +
 	"\vreason_code\x18\x05 \x01(\x0e25.vrooli.test_genie.v1.validation.ValidationReasonCodeR\n" +
-	"reasonCode\"\xcb\t\n" +
+	"reasonCode\"\xb3\n" +
+	"\n" +
 	"\x11ValidationReceipt\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\rR\rschemaVersion\x12\x1d\n" +
 	"\n" +
@@ -3119,7 +3538,8 @@ const file_test_genie_v1_validation_validation_proto_rawDesc = "" +
 	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12;\n" +
 	"\vterminal_at\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"terminalAt\x12\x1a\n" +
-	"\brevision\x18\x13 \x01(\x04R\brevision\"d\n" +
+	"\brevision\x18\x13 \x01(\x04R\brevision\x12f\n" +
+	"\x15produced_evidence_set\x18\x14 \x01(\v22.vrooli.scenario_validation.v1.RetainedEvidenceSetR\x13producedEvidenceSet\"d\n" +
 	"\x17CreateValidationRequest\x12I\n" +
 	"\x06intent\x18\x01 \x01(\v21.vrooli.test_genie.v1.validation.ValidationIntentR\x06intent\"h\n" +
 	"\x18CreateValidationResponse\x12L\n" +
@@ -3192,14 +3612,15 @@ const file_test_genie_v1_validation_validation_proto_rawDesc = "" +
 	" \x01(\rR\x13legacyEvidenceCount\x124\n" +
 	"\x16receipt_evidence_count\x18\v \x01(\rR\x14receiptEvidenceCount\x12;\n" +
 	"\vobserved_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"observedAt*\xf6\x01\n" +
+	"observedAt*\xa2\x02\n" +
 	"\x11ValidationPurpose\x12\"\n" +
 	"\x1eVALIDATION_PURPOSE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18VALIDATION_PURPOSE_PHASE\x10\x01\x12(\n" +
 	"$VALIDATION_PURPOSE_REGRESSION_BEFORE\x10\x02\x12)\n" +
 	"%VALIDATION_PURPOSE_REGRESSION_CURRENT\x10\x03\x12$\n" +
 	" VALIDATION_PURPOSE_CERTIFICATION\x10\x04\x12$\n" +
-	" VALIDATION_PURPOSE_INVESTIGATION\x10\x05*\xc8\x01\n" +
+	" VALIDATION_PURPOSE_INVESTIGATION\x10\x05\x12*\n" +
+	"&VALIDATION_PURPOSE_EVIDENCE_PRODUCTION\x10\x06*\xc8\x01\n" +
 	"\x12ValidationStrength\x12#\n" +
 	"\x1fVALIDATION_STRENGTH_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19VALIDATION_STRENGTH_SMOKE\x10\x01\x12 \n" +
@@ -3275,8 +3696,10 @@ const file_test_genie_v1_validation_validation_proto_rawDesc = "" +
 	"\x1dCHILD_OPERATION_STATE_RUNNING\x10\x02\x12#\n" +
 	"\x1fCHILD_OPERATION_STATE_SUCCEEDED\x10\x03\x12 \n" +
 	"\x1cCHILD_OPERATION_STATE_FAILED\x10\x04\x12#\n" +
-	"\x1fCHILD_OPERATION_STATE_CANCELLED\x10\x052\xf7\b\n" +
-	"\x11ValidationService\x12\x87\x01\n" +
+	"\x1fCHILD_OPERATION_STATE_CANCELLED\x10\x052\xb2\v\n" +
+	"\x11ValidationService\x12\x96\x01\n" +
+	"\x15ResolveSourceIdentity\x12=.vrooli.test_genie.v1.validation.ResolveSourceIdentityRequest\x1a>.vrooli.test_genie.v1.validation.ResolveSourceIdentityResponse\x12\x9f\x01\n" +
+	"\x18CreateEvidenceProduction\x12@.vrooli.test_genie.v1.validation.CreateEvidenceProductionRequest\x1aA.vrooli.test_genie.v1.validation.CreateEvidenceProductionResponse\x12\x87\x01\n" +
 	"\x10CreateValidation\x128.vrooli.test_genie.v1.validation.CreateValidationRequest\x1a9.vrooli.test_genie.v1.validation.CreateValidationResponse\x12~\n" +
 	"\rGetValidation\x125.vrooli.test_genie.v1.validation.GetValidationRequest\x1a6.vrooli.test_genie.v1.validation.GetValidationResponse\x12\x81\x01\n" +
 	"\x0eWaitValidation\x126.vrooli.test_genie.v1.validation.WaitValidationRequest\x1a7.vrooli.test_genie.v1.validation.WaitValidationResponse\x12\x84\x01\n" +
@@ -3299,135 +3722,153 @@ func file_test_genie_v1_validation_validation_proto_rawDescGZIP() []byte {
 }
 
 var file_test_genie_v1_validation_validation_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
-var file_test_genie_v1_validation_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
+var file_test_genie_v1_validation_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
 var file_test_genie_v1_validation_validation_proto_goTypes = []any{
-	(ValidationPurpose)(0),                // 0: vrooli.test_genie.v1.validation.ValidationPurpose
-	(ValidationStrength)(0),               // 1: vrooli.test_genie.v1.validation.ValidationStrength
-	(ReuseMode)(0),                        // 2: vrooli.test_genie.v1.validation.ReuseMode
-	(ConcurrencyMode)(0),                  // 3: vrooli.test_genie.v1.validation.ConcurrencyMode
-	(ReceiptState)(0),                     // 4: vrooli.test_genie.v1.validation.ReceiptState
-	(CompatibilityKind)(0),                // 5: vrooli.test_genie.v1.validation.CompatibilityKind
-	(RetryKind)(0),                        // 6: vrooli.test_genie.v1.validation.RetryKind
-	(ValidationReasonCode)(0),             // 7: vrooli.test_genie.v1.validation.ValidationReasonCode
-	(ChildOperationKind)(0),               // 8: vrooli.test_genie.v1.validation.ChildOperationKind
-	(ChildOperationState)(0),              // 9: vrooli.test_genie.v1.validation.ChildOperationState
-	(*ReusePolicy)(nil),                   // 10: vrooli.test_genie.v1.validation.ReusePolicy
-	(*ConcurrencyPolicy)(nil),             // 11: vrooli.test_genie.v1.validation.ConcurrencyPolicy
-	(*DeadlinePolicy)(nil),                // 12: vrooli.test_genie.v1.validation.DeadlinePolicy
-	(*EvidencePolicy)(nil),                // 13: vrooli.test_genie.v1.validation.EvidencePolicy
-	(*ContentRootIdentity)(nil),           // 14: vrooli.test_genie.v1.validation.ContentRootIdentity
-	(*ContentFileIdentity)(nil),           // 15: vrooli.test_genie.v1.validation.ContentFileIdentity
-	(*SourceIdentity)(nil),                // 16: vrooli.test_genie.v1.validation.SourceIdentity
-	(*InputSelection)(nil),                // 17: vrooli.test_genie.v1.validation.InputSelection
-	(*ContentInputRoot)(nil),              // 18: vrooli.test_genie.v1.validation.ContentInputRoot
-	(*ValidationIntent)(nil),              // 19: vrooli.test_genie.v1.validation.ValidationIntent
-	(*EvidenceReference)(nil),             // 20: vrooli.test_genie.v1.validation.EvidenceReference
-	(*ChildOperation)(nil),                // 21: vrooli.test_genie.v1.validation.ChildOperation
-	(*CompatibilityDecision)(nil),         // 22: vrooli.test_genie.v1.validation.CompatibilityDecision
-	(*RetryDisposition)(nil),              // 23: vrooli.test_genie.v1.validation.RetryDisposition
-	(*Degradation)(nil),                   // 24: vrooli.test_genie.v1.validation.Degradation
-	(*ValidationReceipt)(nil),             // 25: vrooli.test_genie.v1.validation.ValidationReceipt
-	(*CreateValidationRequest)(nil),       // 26: vrooli.test_genie.v1.validation.CreateValidationRequest
-	(*CreateValidationResponse)(nil),      // 27: vrooli.test_genie.v1.validation.CreateValidationResponse
-	(*GetValidationRequest)(nil),          // 28: vrooli.test_genie.v1.validation.GetValidationRequest
-	(*GetValidationResponse)(nil),         // 29: vrooli.test_genie.v1.validation.GetValidationResponse
-	(*WaitValidationRequest)(nil),         // 30: vrooli.test_genie.v1.validation.WaitValidationRequest
-	(*WaitValidationResponse)(nil),        // 31: vrooli.test_genie.v1.validation.WaitValidationResponse
-	(*ListValidationsRequest)(nil),        // 32: vrooli.test_genie.v1.validation.ListValidationsRequest
-	(*ListValidationsResponse)(nil),       // 33: vrooli.test_genie.v1.validation.ListValidationsResponse
-	(*CancelValidationWaitRequest)(nil),   // 34: vrooli.test_genie.v1.validation.CancelValidationWaitRequest
-	(*CancelValidationWaitResponse)(nil),  // 35: vrooli.test_genie.v1.validation.CancelValidationWaitResponse
-	(*AbortValidationWorkRequest)(nil),    // 36: vrooli.test_genie.v1.validation.AbortValidationWorkRequest
-	(*AbortValidationWorkResponse)(nil),   // 37: vrooli.test_genie.v1.validation.AbortValidationWorkResponse
-	(*ExplainValidationRequest)(nil),      // 38: vrooli.test_genie.v1.validation.ExplainValidationRequest
-	(*ExplainValidationResponse)(nil),     // 39: vrooli.test_genie.v1.validation.ExplainValidationResponse
-	(*ListValidationShadowsRequest)(nil),  // 40: vrooli.test_genie.v1.validation.ListValidationShadowsRequest
-	(*ListValidationShadowsResponse)(nil), // 41: vrooli.test_genie.v1.validation.ListValidationShadowsResponse
-	(*ValidationShadowComparison)(nil),    // 42: vrooli.test_genie.v1.validation.ValidationShadowComparison
-	nil,                                   // 43: vrooli.test_genie.v1.validation.SourceIdentity.ConfigurationEntry
-	nil,                                   // 44: vrooli.test_genie.v1.validation.SourceIdentity.ToolchainEntry
-	nil,                                   // 45: vrooli.test_genie.v1.validation.ValidationIntent.CallerAttributesEntry
-	(*durationpb.Duration)(nil),           // 46: google.protobuf.Duration
-	(*v1.ValidationTarget)(nil),           // 47: common.v1.ValidationTarget
-	(*timestamppb.Timestamp)(nil),         // 48: google.protobuf.Timestamp
+	(ValidationPurpose)(0),                   // 0: vrooli.test_genie.v1.validation.ValidationPurpose
+	(ValidationStrength)(0),                  // 1: vrooli.test_genie.v1.validation.ValidationStrength
+	(ReuseMode)(0),                           // 2: vrooli.test_genie.v1.validation.ReuseMode
+	(ConcurrencyMode)(0),                     // 3: vrooli.test_genie.v1.validation.ConcurrencyMode
+	(ReceiptState)(0),                        // 4: vrooli.test_genie.v1.validation.ReceiptState
+	(CompatibilityKind)(0),                   // 5: vrooli.test_genie.v1.validation.CompatibilityKind
+	(RetryKind)(0),                           // 6: vrooli.test_genie.v1.validation.RetryKind
+	(ValidationReasonCode)(0),                // 7: vrooli.test_genie.v1.validation.ValidationReasonCode
+	(ChildOperationKind)(0),                  // 8: vrooli.test_genie.v1.validation.ChildOperationKind
+	(ChildOperationState)(0),                 // 9: vrooli.test_genie.v1.validation.ChildOperationState
+	(*ResolveSourceIdentityRequest)(nil),     // 10: vrooli.test_genie.v1.validation.ResolveSourceIdentityRequest
+	(*ResolveSourceIdentityResponse)(nil),    // 11: vrooli.test_genie.v1.validation.ResolveSourceIdentityResponse
+	(*ReusePolicy)(nil),                      // 12: vrooli.test_genie.v1.validation.ReusePolicy
+	(*ConcurrencyPolicy)(nil),                // 13: vrooli.test_genie.v1.validation.ConcurrencyPolicy
+	(*DeadlinePolicy)(nil),                   // 14: vrooli.test_genie.v1.validation.DeadlinePolicy
+	(*EvidencePolicy)(nil),                   // 15: vrooli.test_genie.v1.validation.EvidencePolicy
+	(*ContentRootIdentity)(nil),              // 16: vrooli.test_genie.v1.validation.ContentRootIdentity
+	(*ContentFileIdentity)(nil),              // 17: vrooli.test_genie.v1.validation.ContentFileIdentity
+	(*SourceIdentity)(nil),                   // 18: vrooli.test_genie.v1.validation.SourceIdentity
+	(*InputSelection)(nil),                   // 19: vrooli.test_genie.v1.validation.InputSelection
+	(*ContentInputRoot)(nil),                 // 20: vrooli.test_genie.v1.validation.ContentInputRoot
+	(*ValidationIntent)(nil),                 // 21: vrooli.test_genie.v1.validation.ValidationIntent
+	(*PinnedEvidenceProducer)(nil),           // 22: vrooli.test_genie.v1.validation.PinnedEvidenceProducer
+	(*CreateEvidenceProductionRequest)(nil),  // 23: vrooli.test_genie.v1.validation.CreateEvidenceProductionRequest
+	(*CreateEvidenceProductionResponse)(nil), // 24: vrooli.test_genie.v1.validation.CreateEvidenceProductionResponse
+	(*EvidenceReference)(nil),                // 25: vrooli.test_genie.v1.validation.EvidenceReference
+	(*ChildOperation)(nil),                   // 26: vrooli.test_genie.v1.validation.ChildOperation
+	(*CompatibilityDecision)(nil),            // 27: vrooli.test_genie.v1.validation.CompatibilityDecision
+	(*RetryDisposition)(nil),                 // 28: vrooli.test_genie.v1.validation.RetryDisposition
+	(*Degradation)(nil),                      // 29: vrooli.test_genie.v1.validation.Degradation
+	(*ValidationReceipt)(nil),                // 30: vrooli.test_genie.v1.validation.ValidationReceipt
+	(*CreateValidationRequest)(nil),          // 31: vrooli.test_genie.v1.validation.CreateValidationRequest
+	(*CreateValidationResponse)(nil),         // 32: vrooli.test_genie.v1.validation.CreateValidationResponse
+	(*GetValidationRequest)(nil),             // 33: vrooli.test_genie.v1.validation.GetValidationRequest
+	(*GetValidationResponse)(nil),            // 34: vrooli.test_genie.v1.validation.GetValidationResponse
+	(*WaitValidationRequest)(nil),            // 35: vrooli.test_genie.v1.validation.WaitValidationRequest
+	(*WaitValidationResponse)(nil),           // 36: vrooli.test_genie.v1.validation.WaitValidationResponse
+	(*ListValidationsRequest)(nil),           // 37: vrooli.test_genie.v1.validation.ListValidationsRequest
+	(*ListValidationsResponse)(nil),          // 38: vrooli.test_genie.v1.validation.ListValidationsResponse
+	(*CancelValidationWaitRequest)(nil),      // 39: vrooli.test_genie.v1.validation.CancelValidationWaitRequest
+	(*CancelValidationWaitResponse)(nil),     // 40: vrooli.test_genie.v1.validation.CancelValidationWaitResponse
+	(*AbortValidationWorkRequest)(nil),       // 41: vrooli.test_genie.v1.validation.AbortValidationWorkRequest
+	(*AbortValidationWorkResponse)(nil),      // 42: vrooli.test_genie.v1.validation.AbortValidationWorkResponse
+	(*ExplainValidationRequest)(nil),         // 43: vrooli.test_genie.v1.validation.ExplainValidationRequest
+	(*ExplainValidationResponse)(nil),        // 44: vrooli.test_genie.v1.validation.ExplainValidationResponse
+	(*ListValidationShadowsRequest)(nil),     // 45: vrooli.test_genie.v1.validation.ListValidationShadowsRequest
+	(*ListValidationShadowsResponse)(nil),    // 46: vrooli.test_genie.v1.validation.ListValidationShadowsResponse
+	(*ValidationShadowComparison)(nil),       // 47: vrooli.test_genie.v1.validation.ValidationShadowComparison
+	nil,                                      // 48: vrooli.test_genie.v1.validation.SourceIdentity.ConfigurationEntry
+	nil,                                      // 49: vrooli.test_genie.v1.validation.SourceIdentity.ToolchainEntry
+	nil,                                      // 50: vrooli.test_genie.v1.validation.ValidationIntent.CallerAttributesEntry
+	(*v1.ValidationTarget)(nil),              // 51: common.v1.ValidationTarget
+	(*durationpb.Duration)(nil),              // 52: google.protobuf.Duration
+	(*v11.RetainedEvidenceSet)(nil),          // 53: vrooli.scenario_validation.v1.RetainedEvidenceSet
+	(*timestamppb.Timestamp)(nil),            // 54: google.protobuf.Timestamp
 }
 var file_test_genie_v1_validation_validation_proto_depIdxs = []int32{
-	2,  // 0: vrooli.test_genie.v1.validation.ReusePolicy.mode:type_name -> vrooli.test_genie.v1.validation.ReuseMode
-	46, // 1: vrooli.test_genie.v1.validation.ReusePolicy.maximum_age:type_name -> google.protobuf.Duration
-	3,  // 2: vrooli.test_genie.v1.validation.ConcurrencyPolicy.mode:type_name -> vrooli.test_genie.v1.validation.ConcurrencyMode
-	46, // 3: vrooli.test_genie.v1.validation.DeadlinePolicy.queue_budget:type_name -> google.protobuf.Duration
-	46, // 4: vrooli.test_genie.v1.validation.DeadlinePolicy.execution_budget:type_name -> google.protobuf.Duration
-	15, // 5: vrooli.test_genie.v1.validation.ContentRootIdentity.files:type_name -> vrooli.test_genie.v1.validation.ContentFileIdentity
-	14, // 6: vrooli.test_genie.v1.validation.SourceIdentity.roots:type_name -> vrooli.test_genie.v1.validation.ContentRootIdentity
-	43, // 7: vrooli.test_genie.v1.validation.SourceIdentity.configuration:type_name -> vrooli.test_genie.v1.validation.SourceIdentity.ConfigurationEntry
-	44, // 8: vrooli.test_genie.v1.validation.SourceIdentity.toolchain:type_name -> vrooli.test_genie.v1.validation.SourceIdentity.ToolchainEntry
-	17, // 9: vrooli.test_genie.v1.validation.ContentInputRoot.selections:type_name -> vrooli.test_genie.v1.validation.InputSelection
-	47, // 10: vrooli.test_genie.v1.validation.ValidationIntent.targets:type_name -> common.v1.ValidationTarget
-	0,  // 11: vrooli.test_genie.v1.validation.ValidationIntent.purpose:type_name -> vrooli.test_genie.v1.validation.ValidationPurpose
-	1,  // 12: vrooli.test_genie.v1.validation.ValidationIntent.required_strength:type_name -> vrooli.test_genie.v1.validation.ValidationStrength
-	10, // 13: vrooli.test_genie.v1.validation.ValidationIntent.reuse_policy:type_name -> vrooli.test_genie.v1.validation.ReusePolicy
-	11, // 14: vrooli.test_genie.v1.validation.ValidationIntent.concurrency_policy:type_name -> vrooli.test_genie.v1.validation.ConcurrencyPolicy
-	16, // 15: vrooli.test_genie.v1.validation.ValidationIntent.expected_identity:type_name -> vrooli.test_genie.v1.validation.SourceIdentity
-	13, // 16: vrooli.test_genie.v1.validation.ValidationIntent.evidence_policy:type_name -> vrooli.test_genie.v1.validation.EvidencePolicy
-	12, // 17: vrooli.test_genie.v1.validation.ValidationIntent.deadline_policy:type_name -> vrooli.test_genie.v1.validation.DeadlinePolicy
-	45, // 18: vrooli.test_genie.v1.validation.ValidationIntent.caller_attributes:type_name -> vrooli.test_genie.v1.validation.ValidationIntent.CallerAttributesEntry
-	18, // 19: vrooli.test_genie.v1.validation.ValidationIntent.content_inputs:type_name -> vrooli.test_genie.v1.validation.ContentInputRoot
-	8,  // 20: vrooli.test_genie.v1.validation.ChildOperation.kind:type_name -> vrooli.test_genie.v1.validation.ChildOperationKind
-	9,  // 21: vrooli.test_genie.v1.validation.ChildOperation.state:type_name -> vrooli.test_genie.v1.validation.ChildOperationState
-	7,  // 22: vrooli.test_genie.v1.validation.ChildOperation.reason_code:type_name -> vrooli.test_genie.v1.validation.ValidationReasonCode
-	5,  // 23: vrooli.test_genie.v1.validation.CompatibilityDecision.kind:type_name -> vrooli.test_genie.v1.validation.CompatibilityKind
-	7,  // 24: vrooli.test_genie.v1.validation.CompatibilityDecision.reason_code:type_name -> vrooli.test_genie.v1.validation.ValidationReasonCode
-	6,  // 25: vrooli.test_genie.v1.validation.RetryDisposition.kind:type_name -> vrooli.test_genie.v1.validation.RetryKind
-	7,  // 26: vrooli.test_genie.v1.validation.RetryDisposition.reason_code:type_name -> vrooli.test_genie.v1.validation.ValidationReasonCode
-	48, // 27: vrooli.test_genie.v1.validation.RetryDisposition.retry_at:type_name -> google.protobuf.Timestamp
-	7,  // 28: vrooli.test_genie.v1.validation.Degradation.reason_code:type_name -> vrooli.test_genie.v1.validation.ValidationReasonCode
-	4,  // 29: vrooli.test_genie.v1.validation.ValidationReceipt.state:type_name -> vrooli.test_genie.v1.validation.ReceiptState
-	1,  // 30: vrooli.test_genie.v1.validation.ValidationReceipt.achieved_strength:type_name -> vrooli.test_genie.v1.validation.ValidationStrength
-	16, // 31: vrooli.test_genie.v1.validation.ValidationReceipt.admitted_identity:type_name -> vrooli.test_genie.v1.validation.SourceIdentity
-	16, // 32: vrooli.test_genie.v1.validation.ValidationReceipt.observed_identity:type_name -> vrooli.test_genie.v1.validation.SourceIdentity
-	20, // 33: vrooli.test_genie.v1.validation.ValidationReceipt.evidence:type_name -> vrooli.test_genie.v1.validation.EvidenceReference
-	21, // 34: vrooli.test_genie.v1.validation.ValidationReceipt.children:type_name -> vrooli.test_genie.v1.validation.ChildOperation
-	22, // 35: vrooli.test_genie.v1.validation.ValidationReceipt.compatibility:type_name -> vrooli.test_genie.v1.validation.CompatibilityDecision
-	23, // 36: vrooli.test_genie.v1.validation.ValidationReceipt.retry:type_name -> vrooli.test_genie.v1.validation.RetryDisposition
-	24, // 37: vrooli.test_genie.v1.validation.ValidationReceipt.degradation:type_name -> vrooli.test_genie.v1.validation.Degradation
-	7,  // 38: vrooli.test_genie.v1.validation.ValidationReceipt.reason_code:type_name -> vrooli.test_genie.v1.validation.ValidationReasonCode
-	48, // 39: vrooli.test_genie.v1.validation.ValidationReceipt.created_at:type_name -> google.protobuf.Timestamp
-	48, // 40: vrooli.test_genie.v1.validation.ValidationReceipt.updated_at:type_name -> google.protobuf.Timestamp
-	48, // 41: vrooli.test_genie.v1.validation.ValidationReceipt.terminal_at:type_name -> google.protobuf.Timestamp
-	19, // 42: vrooli.test_genie.v1.validation.CreateValidationRequest.intent:type_name -> vrooli.test_genie.v1.validation.ValidationIntent
-	25, // 43: vrooli.test_genie.v1.validation.CreateValidationResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
-	25, // 44: vrooli.test_genie.v1.validation.GetValidationResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
-	46, // 45: vrooli.test_genie.v1.validation.WaitValidationRequest.timeout:type_name -> google.protobuf.Duration
-	25, // 46: vrooli.test_genie.v1.validation.WaitValidationResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
-	4,  // 47: vrooli.test_genie.v1.validation.ListValidationsRequest.state:type_name -> vrooli.test_genie.v1.validation.ReceiptState
-	25, // 48: vrooli.test_genie.v1.validation.ListValidationsResponse.receipts:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
-	25, // 49: vrooli.test_genie.v1.validation.CancelValidationWaitResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
-	25, // 50: vrooli.test_genie.v1.validation.AbortValidationWorkResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
-	25, // 51: vrooli.test_genie.v1.validation.ExplainValidationResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
-	42, // 52: vrooli.test_genie.v1.validation.ListValidationShadowsResponse.comparisons:type_name -> vrooli.test_genie.v1.validation.ValidationShadowComparison
-	4,  // 53: vrooli.test_genie.v1.validation.ValidationShadowComparison.receipt_state:type_name -> vrooli.test_genie.v1.validation.ReceiptState
-	48, // 54: vrooli.test_genie.v1.validation.ValidationShadowComparison.observed_at:type_name -> google.protobuf.Timestamp
-	26, // 55: vrooli.test_genie.v1.validation.ValidationService.CreateValidation:input_type -> vrooli.test_genie.v1.validation.CreateValidationRequest
-	28, // 56: vrooli.test_genie.v1.validation.ValidationService.GetValidation:input_type -> vrooli.test_genie.v1.validation.GetValidationRequest
-	30, // 57: vrooli.test_genie.v1.validation.ValidationService.WaitValidation:input_type -> vrooli.test_genie.v1.validation.WaitValidationRequest
-	32, // 58: vrooli.test_genie.v1.validation.ValidationService.ListValidations:input_type -> vrooli.test_genie.v1.validation.ListValidationsRequest
-	34, // 59: vrooli.test_genie.v1.validation.ValidationService.CancelValidationWait:input_type -> vrooli.test_genie.v1.validation.CancelValidationWaitRequest
-	36, // 60: vrooli.test_genie.v1.validation.ValidationService.AbortValidationWork:input_type -> vrooli.test_genie.v1.validation.AbortValidationWorkRequest
-	38, // 61: vrooli.test_genie.v1.validation.ValidationService.ExplainValidation:input_type -> vrooli.test_genie.v1.validation.ExplainValidationRequest
-	40, // 62: vrooli.test_genie.v1.validation.ValidationService.ListValidationShadows:input_type -> vrooli.test_genie.v1.validation.ListValidationShadowsRequest
-	27, // 63: vrooli.test_genie.v1.validation.ValidationService.CreateValidation:output_type -> vrooli.test_genie.v1.validation.CreateValidationResponse
-	29, // 64: vrooli.test_genie.v1.validation.ValidationService.GetValidation:output_type -> vrooli.test_genie.v1.validation.GetValidationResponse
-	31, // 65: vrooli.test_genie.v1.validation.ValidationService.WaitValidation:output_type -> vrooli.test_genie.v1.validation.WaitValidationResponse
-	33, // 66: vrooli.test_genie.v1.validation.ValidationService.ListValidations:output_type -> vrooli.test_genie.v1.validation.ListValidationsResponse
-	35, // 67: vrooli.test_genie.v1.validation.ValidationService.CancelValidationWait:output_type -> vrooli.test_genie.v1.validation.CancelValidationWaitResponse
-	37, // 68: vrooli.test_genie.v1.validation.ValidationService.AbortValidationWork:output_type -> vrooli.test_genie.v1.validation.AbortValidationWorkResponse
-	39, // 69: vrooli.test_genie.v1.validation.ValidationService.ExplainValidation:output_type -> vrooli.test_genie.v1.validation.ExplainValidationResponse
-	41, // 70: vrooli.test_genie.v1.validation.ValidationService.ListValidationShadows:output_type -> vrooli.test_genie.v1.validation.ListValidationShadowsResponse
-	63, // [63:71] is the sub-list for method output_type
-	55, // [55:63] is the sub-list for method input_type
-	55, // [55:55] is the sub-list for extension type_name
-	55, // [55:55] is the sub-list for extension extendee
-	0,  // [0:55] is the sub-list for field type_name
+	51, // 0: vrooli.test_genie.v1.validation.ResolveSourceIdentityRequest.targets:type_name -> common.v1.ValidationTarget
+	20, // 1: vrooli.test_genie.v1.validation.ResolveSourceIdentityRequest.content_inputs:type_name -> vrooli.test_genie.v1.validation.ContentInputRoot
+	18, // 2: vrooli.test_genie.v1.validation.ResolveSourceIdentityResponse.identity:type_name -> vrooli.test_genie.v1.validation.SourceIdentity
+	2,  // 3: vrooli.test_genie.v1.validation.ReusePolicy.mode:type_name -> vrooli.test_genie.v1.validation.ReuseMode
+	52, // 4: vrooli.test_genie.v1.validation.ReusePolicy.maximum_age:type_name -> google.protobuf.Duration
+	3,  // 5: vrooli.test_genie.v1.validation.ConcurrencyPolicy.mode:type_name -> vrooli.test_genie.v1.validation.ConcurrencyMode
+	52, // 6: vrooli.test_genie.v1.validation.DeadlinePolicy.queue_budget:type_name -> google.protobuf.Duration
+	52, // 7: vrooli.test_genie.v1.validation.DeadlinePolicy.execution_budget:type_name -> google.protobuf.Duration
+	17, // 8: vrooli.test_genie.v1.validation.ContentRootIdentity.files:type_name -> vrooli.test_genie.v1.validation.ContentFileIdentity
+	16, // 9: vrooli.test_genie.v1.validation.SourceIdentity.roots:type_name -> vrooli.test_genie.v1.validation.ContentRootIdentity
+	48, // 10: vrooli.test_genie.v1.validation.SourceIdentity.configuration:type_name -> vrooli.test_genie.v1.validation.SourceIdentity.ConfigurationEntry
+	49, // 11: vrooli.test_genie.v1.validation.SourceIdentity.toolchain:type_name -> vrooli.test_genie.v1.validation.SourceIdentity.ToolchainEntry
+	19, // 12: vrooli.test_genie.v1.validation.ContentInputRoot.selections:type_name -> vrooli.test_genie.v1.validation.InputSelection
+	51, // 13: vrooli.test_genie.v1.validation.ValidationIntent.targets:type_name -> common.v1.ValidationTarget
+	0,  // 14: vrooli.test_genie.v1.validation.ValidationIntent.purpose:type_name -> vrooli.test_genie.v1.validation.ValidationPurpose
+	1,  // 15: vrooli.test_genie.v1.validation.ValidationIntent.required_strength:type_name -> vrooli.test_genie.v1.validation.ValidationStrength
+	12, // 16: vrooli.test_genie.v1.validation.ValidationIntent.reuse_policy:type_name -> vrooli.test_genie.v1.validation.ReusePolicy
+	13, // 17: vrooli.test_genie.v1.validation.ValidationIntent.concurrency_policy:type_name -> vrooli.test_genie.v1.validation.ConcurrencyPolicy
+	18, // 18: vrooli.test_genie.v1.validation.ValidationIntent.expected_identity:type_name -> vrooli.test_genie.v1.validation.SourceIdentity
+	15, // 19: vrooli.test_genie.v1.validation.ValidationIntent.evidence_policy:type_name -> vrooli.test_genie.v1.validation.EvidencePolicy
+	14, // 20: vrooli.test_genie.v1.validation.ValidationIntent.deadline_policy:type_name -> vrooli.test_genie.v1.validation.DeadlinePolicy
+	50, // 21: vrooli.test_genie.v1.validation.ValidationIntent.caller_attributes:type_name -> vrooli.test_genie.v1.validation.ValidationIntent.CallerAttributesEntry
+	20, // 22: vrooli.test_genie.v1.validation.ValidationIntent.content_inputs:type_name -> vrooli.test_genie.v1.validation.ContentInputRoot
+	22, // 23: vrooli.test_genie.v1.validation.ValidationIntent.pinned_evidence_producer:type_name -> vrooli.test_genie.v1.validation.PinnedEvidenceProducer
+	53, // 24: vrooli.test_genie.v1.validation.ValidationIntent.retained_evidence_sets:type_name -> vrooli.scenario_validation.v1.RetainedEvidenceSet
+	18, // 25: vrooli.test_genie.v1.validation.CreateEvidenceProductionRequest.expected_candidate_identity:type_name -> vrooli.test_genie.v1.validation.SourceIdentity
+	30, // 26: vrooli.test_genie.v1.validation.CreateEvidenceProductionResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
+	8,  // 27: vrooli.test_genie.v1.validation.ChildOperation.kind:type_name -> vrooli.test_genie.v1.validation.ChildOperationKind
+	9,  // 28: vrooli.test_genie.v1.validation.ChildOperation.state:type_name -> vrooli.test_genie.v1.validation.ChildOperationState
+	7,  // 29: vrooli.test_genie.v1.validation.ChildOperation.reason_code:type_name -> vrooli.test_genie.v1.validation.ValidationReasonCode
+	5,  // 30: vrooli.test_genie.v1.validation.CompatibilityDecision.kind:type_name -> vrooli.test_genie.v1.validation.CompatibilityKind
+	7,  // 31: vrooli.test_genie.v1.validation.CompatibilityDecision.reason_code:type_name -> vrooli.test_genie.v1.validation.ValidationReasonCode
+	6,  // 32: vrooli.test_genie.v1.validation.RetryDisposition.kind:type_name -> vrooli.test_genie.v1.validation.RetryKind
+	7,  // 33: vrooli.test_genie.v1.validation.RetryDisposition.reason_code:type_name -> vrooli.test_genie.v1.validation.ValidationReasonCode
+	54, // 34: vrooli.test_genie.v1.validation.RetryDisposition.retry_at:type_name -> google.protobuf.Timestamp
+	7,  // 35: vrooli.test_genie.v1.validation.Degradation.reason_code:type_name -> vrooli.test_genie.v1.validation.ValidationReasonCode
+	4,  // 36: vrooli.test_genie.v1.validation.ValidationReceipt.state:type_name -> vrooli.test_genie.v1.validation.ReceiptState
+	1,  // 37: vrooli.test_genie.v1.validation.ValidationReceipt.achieved_strength:type_name -> vrooli.test_genie.v1.validation.ValidationStrength
+	18, // 38: vrooli.test_genie.v1.validation.ValidationReceipt.admitted_identity:type_name -> vrooli.test_genie.v1.validation.SourceIdentity
+	18, // 39: vrooli.test_genie.v1.validation.ValidationReceipt.observed_identity:type_name -> vrooli.test_genie.v1.validation.SourceIdentity
+	25, // 40: vrooli.test_genie.v1.validation.ValidationReceipt.evidence:type_name -> vrooli.test_genie.v1.validation.EvidenceReference
+	26, // 41: vrooli.test_genie.v1.validation.ValidationReceipt.children:type_name -> vrooli.test_genie.v1.validation.ChildOperation
+	27, // 42: vrooli.test_genie.v1.validation.ValidationReceipt.compatibility:type_name -> vrooli.test_genie.v1.validation.CompatibilityDecision
+	28, // 43: vrooli.test_genie.v1.validation.ValidationReceipt.retry:type_name -> vrooli.test_genie.v1.validation.RetryDisposition
+	29, // 44: vrooli.test_genie.v1.validation.ValidationReceipt.degradation:type_name -> vrooli.test_genie.v1.validation.Degradation
+	7,  // 45: vrooli.test_genie.v1.validation.ValidationReceipt.reason_code:type_name -> vrooli.test_genie.v1.validation.ValidationReasonCode
+	54, // 46: vrooli.test_genie.v1.validation.ValidationReceipt.created_at:type_name -> google.protobuf.Timestamp
+	54, // 47: vrooli.test_genie.v1.validation.ValidationReceipt.updated_at:type_name -> google.protobuf.Timestamp
+	54, // 48: vrooli.test_genie.v1.validation.ValidationReceipt.terminal_at:type_name -> google.protobuf.Timestamp
+	53, // 49: vrooli.test_genie.v1.validation.ValidationReceipt.produced_evidence_set:type_name -> vrooli.scenario_validation.v1.RetainedEvidenceSet
+	21, // 50: vrooli.test_genie.v1.validation.CreateValidationRequest.intent:type_name -> vrooli.test_genie.v1.validation.ValidationIntent
+	30, // 51: vrooli.test_genie.v1.validation.CreateValidationResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
+	30, // 52: vrooli.test_genie.v1.validation.GetValidationResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
+	52, // 53: vrooli.test_genie.v1.validation.WaitValidationRequest.timeout:type_name -> google.protobuf.Duration
+	30, // 54: vrooli.test_genie.v1.validation.WaitValidationResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
+	4,  // 55: vrooli.test_genie.v1.validation.ListValidationsRequest.state:type_name -> vrooli.test_genie.v1.validation.ReceiptState
+	30, // 56: vrooli.test_genie.v1.validation.ListValidationsResponse.receipts:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
+	30, // 57: vrooli.test_genie.v1.validation.CancelValidationWaitResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
+	30, // 58: vrooli.test_genie.v1.validation.AbortValidationWorkResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
+	30, // 59: vrooli.test_genie.v1.validation.ExplainValidationResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
+	47, // 60: vrooli.test_genie.v1.validation.ListValidationShadowsResponse.comparisons:type_name -> vrooli.test_genie.v1.validation.ValidationShadowComparison
+	4,  // 61: vrooli.test_genie.v1.validation.ValidationShadowComparison.receipt_state:type_name -> vrooli.test_genie.v1.validation.ReceiptState
+	54, // 62: vrooli.test_genie.v1.validation.ValidationShadowComparison.observed_at:type_name -> google.protobuf.Timestamp
+	10, // 63: vrooli.test_genie.v1.validation.ValidationService.ResolveSourceIdentity:input_type -> vrooli.test_genie.v1.validation.ResolveSourceIdentityRequest
+	23, // 64: vrooli.test_genie.v1.validation.ValidationService.CreateEvidenceProduction:input_type -> vrooli.test_genie.v1.validation.CreateEvidenceProductionRequest
+	31, // 65: vrooli.test_genie.v1.validation.ValidationService.CreateValidation:input_type -> vrooli.test_genie.v1.validation.CreateValidationRequest
+	33, // 66: vrooli.test_genie.v1.validation.ValidationService.GetValidation:input_type -> vrooli.test_genie.v1.validation.GetValidationRequest
+	35, // 67: vrooli.test_genie.v1.validation.ValidationService.WaitValidation:input_type -> vrooli.test_genie.v1.validation.WaitValidationRequest
+	37, // 68: vrooli.test_genie.v1.validation.ValidationService.ListValidations:input_type -> vrooli.test_genie.v1.validation.ListValidationsRequest
+	39, // 69: vrooli.test_genie.v1.validation.ValidationService.CancelValidationWait:input_type -> vrooli.test_genie.v1.validation.CancelValidationWaitRequest
+	41, // 70: vrooli.test_genie.v1.validation.ValidationService.AbortValidationWork:input_type -> vrooli.test_genie.v1.validation.AbortValidationWorkRequest
+	43, // 71: vrooli.test_genie.v1.validation.ValidationService.ExplainValidation:input_type -> vrooli.test_genie.v1.validation.ExplainValidationRequest
+	45, // 72: vrooli.test_genie.v1.validation.ValidationService.ListValidationShadows:input_type -> vrooli.test_genie.v1.validation.ListValidationShadowsRequest
+	11, // 73: vrooli.test_genie.v1.validation.ValidationService.ResolveSourceIdentity:output_type -> vrooli.test_genie.v1.validation.ResolveSourceIdentityResponse
+	24, // 74: vrooli.test_genie.v1.validation.ValidationService.CreateEvidenceProduction:output_type -> vrooli.test_genie.v1.validation.CreateEvidenceProductionResponse
+	32, // 75: vrooli.test_genie.v1.validation.ValidationService.CreateValidation:output_type -> vrooli.test_genie.v1.validation.CreateValidationResponse
+	34, // 76: vrooli.test_genie.v1.validation.ValidationService.GetValidation:output_type -> vrooli.test_genie.v1.validation.GetValidationResponse
+	36, // 77: vrooli.test_genie.v1.validation.ValidationService.WaitValidation:output_type -> vrooli.test_genie.v1.validation.WaitValidationResponse
+	38, // 78: vrooli.test_genie.v1.validation.ValidationService.ListValidations:output_type -> vrooli.test_genie.v1.validation.ListValidationsResponse
+	40, // 79: vrooli.test_genie.v1.validation.ValidationService.CancelValidationWait:output_type -> vrooli.test_genie.v1.validation.CancelValidationWaitResponse
+	42, // 80: vrooli.test_genie.v1.validation.ValidationService.AbortValidationWork:output_type -> vrooli.test_genie.v1.validation.AbortValidationWorkResponse
+	44, // 81: vrooli.test_genie.v1.validation.ValidationService.ExplainValidation:output_type -> vrooli.test_genie.v1.validation.ExplainValidationResponse
+	46, // 82: vrooli.test_genie.v1.validation.ValidationService.ListValidationShadows:output_type -> vrooli.test_genie.v1.validation.ListValidationShadowsResponse
+	73, // [73:83] is the sub-list for method output_type
+	63, // [63:73] is the sub-list for method input_type
+	63, // [63:63] is the sub-list for extension type_name
+	63, // [63:63] is the sub-list for extension extendee
+	0,  // [0:63] is the sub-list for field type_name
 }
 
 func init() { file_test_genie_v1_validation_validation_proto_init() }
@@ -3441,7 +3882,7 @@ func file_test_genie_v1_validation_validation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_test_genie_v1_validation_validation_proto_rawDesc), len(file_test_genie_v1_validation_validation_proto_rawDesc)),
 			NumEnums:      10,
-			NumMessages:   36,
+			NumMessages:   41,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

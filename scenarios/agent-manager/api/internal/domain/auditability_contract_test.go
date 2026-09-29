@@ -90,14 +90,14 @@ func TestSandboxMode_Effective(t *testing.T) {
 // layer (validation is about request shape, not deployment topology).
 func TestValidateSandboxConfig_ProtectedModeAccepted(t *testing.T) {
 	cfg := &SandboxConfig{Mode: SandboxModeProtected}
-	if err := validateSandboxConfig(cfg); err != nil {
+	if err := ValidateSandboxConfig(cfg); err != nil {
 		t.Fatalf("validateSandboxConfig(mode=protected) returned error %v; want nil", err)
 	}
 }
 
 func TestValidateSandboxConfig_UnknownMode(t *testing.T) {
 	cfg := &SandboxConfig{Mode: SandboxMode("bogus")}
-	err := validateSandboxConfig(cfg)
+	err := ValidateSandboxConfig(cfg)
 	if err == nil {
 		t.Fatal("validateSandboxConfig(mode=bogus) returned nil; want validation error")
 	}
@@ -105,14 +105,14 @@ func TestValidateSandboxConfig_UnknownMode(t *testing.T) {
 
 func TestValidateSandboxConfig_TrackingMode(t *testing.T) {
 	cfg := DefaultSandboxConfig()
-	if err := validateSandboxConfig(cfg); err != nil {
+	if err := ValidateSandboxConfig(cfg); err != nil {
 		t.Fatalf("default config rejected by validation: %v", err)
 	}
 }
 
 func TestValidateSandboxConfig_InvalidNetworkMode(t *testing.T) {
 	cfg := &SandboxConfig{NetworkMode: NetworkAccess("over-9000")}
-	err := validateSandboxConfig(cfg)
+	err := ValidateSandboxConfig(cfg)
 	if err == nil {
 		t.Fatal("validateSandboxConfig(networkMode=invalid) returned nil")
 	}

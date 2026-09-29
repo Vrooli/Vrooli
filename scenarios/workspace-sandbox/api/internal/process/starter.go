@@ -44,6 +44,7 @@ import (
 	"os"
 	osexec "os/exec"
 	"syscall"
+	"time"
 )
 
 // ErrBinaryNotFound is returned by Starter.LookPath when the named
@@ -159,12 +160,31 @@ type RunResult struct {
 // can distinguish "ran and exited non-zero" (err==nil, Exit.ExitCode!=0)
 // from "didn't run / was canceled" (err!=nil).
 func Run(ctx context.Context, s Starter, opts StartOpts) (RunResult, error) {
+	return RunObserved(ctx, s, opts, nil)
+}
+
+// RunObserved publishes the live handle before waiting. A failed registration
+// kills and reaps the command; it must not leave an untracked writer running.
+// Callers that publish handles must request an isolated process group.
+func RunObserved(ctx context.Context, s Starter, opts StartOpts, started func(Handle) error) (RunResult, error) {
 	var stdout, stderr bytes.Buffer
 	opts.Stdout = &stdout
 	opts.Stderr = &stderr
 	h, err := s.Start(ctx, opts)
 	if err != nil {
 		return RunResult{}, err
+	}
+	if started != nil {
+		if err := started(h); err != nil {
+			killErr := h.KillProcessGroup()
+			if killErr != nil {
+				killErr = errors.Join(killErr, h.Kill())
+			}
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			_, waitErr := h.Wait(cleanupCtx)
+			cancel()
+			return RunResult{}, fmt.Errorf("register started process: %w", errors.Join(err, killErr, waitErr))
+		}
 	}
 	exit, waitErr := h.Wait(ctx)
 	return RunResult{

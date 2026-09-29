@@ -232,6 +232,62 @@ func TestReconcilerRunOnceSynchronizesApprovedAndRejectedSandboxReviews(t *testi
 	}
 }
 
+func TestReconcilerRunOnceReclaimsOnlyOldEmptySandboxesWithMissingOwners(t *testing.T) {
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "sandbox orphan sweep", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	existingRun := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted}
+	if err := repos.Runs.Create(ctx, existingRun); err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Date(2026, 9, 28, 22, 0, 0, 0, time.UTC)
+	missingEmpty := uuid.New()
+	missingChanged := uuid.New()
+	existingEmpty := uuid.New()
+	recentEmpty := uuid.New()
+	old := now.Add(-time.Hour)
+	provider := mocks.NewFakeSandboxProvider()
+	provider.ListFunc = func(_ context.Context, status string) ([]*sandbox.Sandbox, error) {
+		if status != string(sandbox.SandboxStatusActive) {
+			t.Fatalf("list status = %q, want active", status)
+		}
+		return []*sandbox.Sandbox{
+			{ID: missingEmpty, Status: sandbox.SandboxStatusActive, CreatedAt: old, Metadata: map[string]string{sandbox.AgentManagerRunIDMetadataKey: uuid.New().String()}},
+			{ID: missingChanged, Status: sandbox.SandboxStatusActive, CreatedAt: old, Metadata: map[string]string{sandbox.AgentManagerRunIDMetadataKey: uuid.New().String()}},
+			{ID: existingEmpty, Status: sandbox.SandboxStatusActive, CreatedAt: old, Metadata: map[string]string{sandbox.AgentManagerRunIDMetadataKey: existingRun.ID.String()}},
+			{ID: recentEmpty, Status: sandbox.SandboxStatusActive, CreatedAt: now.Add(-time.Second), Metadata: map[string]string{sandbox.AgentManagerRunIDMetadataKey: uuid.New().String()}},
+		}, nil
+	}
+	provider.GetDiffFunc = func(_ context.Context, id uuid.UUID) (*sandbox.DiffResult, error) {
+		if id == missingChanged {
+			return &sandbox.DiffResult{SandboxID: id, Files: []sandbox.FileChange{{ID: uuid.New(), FilePath: "changed.txt", ChangeType: sandbox.FileChangeModified}}, UnifiedDiff: "diff --git a/changed.txt b/changed.txt", Stats: sandbox.DiffStats{FilesChanged: 1, TotalBytes: 10}}, nil
+		}
+		return &sandbox.DiffResult{SandboxID: id}, nil
+	}
+	reconciler := NewReconciler(repos.Runs, nil,
+		WithReconcilerSandbox(provider),
+		WithReconcilerClock(func() time.Time { return now }),
+		WithReconcilerConfig(ReconcilerConfig{OrphanGracePeriod: time.Minute}),
+	)
+
+	stats := reconciler.RunOnce(ctx)
+	if stats.SandboxOrphansChecked != 3 {
+		t.Fatalf("sandbox orphans checked = %d, want 3", stats.SandboxOrphansChecked)
+	}
+	if stats.SandboxOrphansReclaimed != 1 || stats.SandboxOrphansPreserved != 1 {
+		t.Fatalf("sandbox orphan stats = %+v, want reclaimed=1 preserved=1", stats)
+	}
+	deleted := provider.DeleteCallCount()
+	if deleted != 1 {
+		t.Fatalf("deleted sandbox count = %d, want 1", deleted)
+	}
+}
+
 func TestReconcilerRunOnceFailsStaleRunWhoseProcessHasExited(t *testing.T) {
 	repos, _, cleanup := testutil.SetupTestRepos(t)
 	t.Cleanup(cleanup)

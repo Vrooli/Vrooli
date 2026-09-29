@@ -574,7 +574,7 @@ class RunStatusDistributionResponse(_message.Message):
     def __init__(self, rows: _Optional[_Iterable[_Union[RunStatusCount, _Mapping]]] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ...) -> None: ...
 
 class RunBreakdownRow(_message.Message):
-    __slots__ = ("value", "run_count", "success_count", "failed_count", "total_cost_usd", "average_duration_ms", "total_tokens", "key", "total_charge_micro_usd", "consumption_per_successful_completion", "completion_rate")
+    __slots__ = ("value", "run_count", "success_count", "failed_count", "total_cost_usd", "average_duration_ms", "total_tokens", "key", "total_charge_micro_usd", "consumption_per_successful_completion", "completion_rate", "input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens")
     VALUE_FIELD_NUMBER: _ClassVar[int]
     RUN_COUNT_FIELD_NUMBER: _ClassVar[int]
     SUCCESS_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -586,6 +586,10 @@ class RunBreakdownRow(_message.Message):
     TOTAL_CHARGE_MICRO_USD_FIELD_NUMBER: _ClassVar[int]
     CONSUMPTION_PER_SUCCESSFUL_COMPLETION_FIELD_NUMBER: _ClassVar[int]
     COMPLETION_RATE_FIELD_NUMBER: _ClassVar[int]
+    INPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    CACHE_READ_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    CACHE_CREATION_TOKENS_FIELD_NUMBER: _ClassVar[int]
     value: str
     run_count: int
     success_count: int
@@ -597,7 +601,11 @@ class RunBreakdownRow(_message.Message):
     total_charge_micro_usd: int
     consumption_per_successful_completion: float
     completion_rate: float
-    def __init__(self, value: _Optional[str] = ..., run_count: _Optional[int] = ..., success_count: _Optional[int] = ..., failed_count: _Optional[int] = ..., total_cost_usd: _Optional[float] = ..., average_duration_ms: _Optional[float] = ..., total_tokens: _Optional[int] = ..., key: _Optional[str] = ..., total_charge_micro_usd: _Optional[int] = ..., consumption_per_successful_completion: _Optional[float] = ..., completion_rate: _Optional[float] = ...) -> None: ...
+    input_tokens: int
+    output_tokens: int
+    cache_read_tokens: int
+    cache_creation_tokens: int
+    def __init__(self, value: _Optional[str] = ..., run_count: _Optional[int] = ..., success_count: _Optional[int] = ..., failed_count: _Optional[int] = ..., total_cost_usd: _Optional[float] = ..., average_duration_ms: _Optional[float] = ..., total_tokens: _Optional[int] = ..., key: _Optional[str] = ..., total_charge_micro_usd: _Optional[int] = ..., consumption_per_successful_completion: _Optional[float] = ..., completion_rate: _Optional[float] = ..., input_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., cache_read_tokens: _Optional[int] = ..., cache_creation_tokens: _Optional[int] = ...) -> None: ...
 
 class RunnerBreakdownRequest(_message.Message):
     __slots__ = ("window", "filter")

@@ -6,7 +6,8 @@ import type { SessionState } from '../types';
 import { assertRecordingAcknowledged, removeRecordingBuffer } from '../recording';
 import { metrics } from '../utils';
 import { stopFrameStreaming } from '../frame-streaming';
-import { settlePageInput } from '../routes/record-mode/recording-input';
+import { settlePageInput } from './live-input';
+import { clearFrameCache } from './frame-cache';
 
 /** Retain progress on the session until every required teardown stage succeeds. */
 export async function teardownSessionResources(session: SessionState): Promise<string[]> {
@@ -23,6 +24,35 @@ export async function teardownSessionResources(session: SessionState): Promise<s
       throw new Error(`${operation}: ${cause instanceof Error ? cause.message : String(cause)}`, { cause });
     }
   };
+
+  // Snapshot owned pages and video handles before an interrupted page closes.
+  // Playwright can release a page's Video handle as part of close; retaining
+  // the handle first keeps the artifact flush retryable and lossless.
+  const pages = session.externalTarget ? [] : [...session.pages.entries()];
+  if (!session.externalTarget && !pages.some(([, page]) => page === session.page)) {
+    const nextIndex = pages.reduce((highest, [index]) => Math.max(highest, index), -1) + 1;
+    pages.push([nextIndex, session.page]);
+  }
+  const videos = new Map<number, Video>();
+  for (const [index, page] of pages) {
+    const video = page.video();
+    if (video) videos.set(index, video);
+  }
+
+  // An interrupted instruction must lose its browser effect before any
+  // secondary cleanup can wait on it. In particular, pipeline readiness and
+  // recording flushes may be independent of the active navigation; waiting for
+  // them first kept an external effect live during driver shutdown. The normal
+  // close path still performs the complete artifact-preserving teardown below.
+  if (session.instructionInterrupted && !session.externalTarget) {
+    const activePage = pages.find(([, page]) => page === session.page);
+    if (activePage) {
+      const [index, page] = activePage;
+      await once(`page_close:${index}`, async () => {
+        if (!page.isClosed()) await page.close();
+      });
+    }
+  }
 
   // A background AI navigator can still be awaiting a model, callback, or
   // human intervention while close begins. Its page owner must settle before
@@ -46,6 +76,16 @@ export async function teardownSessionResources(session: SessionState): Promise<s
     await once('pipeline_ready', async () => {
       await session.pipelineReadyPromise?.catch(() => undefined);
     });
+    // Navigation cleanup can admit a page after the initial snapshot. Include
+    // it in the same close/artifact inventory without reusing an index.
+    for (const [index, page] of session.pages.entries()) {
+      if (!pages.some(([, knownPage]) => knownPage === page)) pages.push([index, page]);
+    }
+    for (const [index, page] of pages) {
+      if (videos.has(index)) continue;
+      const video = page.video();
+      if (video) videos.set(index, video);
+    }
   }
   assertRecordingAcknowledged(session.id);
   await once('live_input_settle', async () => {
@@ -71,23 +111,13 @@ export async function teardownSessionResources(session: SessionState): Promise<s
     await once('cdp_detach', async () => session.browser.close());
     await session.instructionSettlement;
   } else {
-    const pages = [...session.pages.entries()];
-    if (!pages.some(([, page]) => page === session.page)) {
-      pages.push([pages.length, session.page]);
-    }
-    // Playwright may release the Video handle when its page closes. Capture
-    // the handles while the pages are still live, then close and flush the
-    // context before moving the completed files.
-    const videos = new Map<number, Video>();
-    for (const [index, page] of pages) {
-      const video = page.video();
-      if (video) videos.set(index, video);
-    }
     if (session.instructionInterrupted) {
       pages.sort((left, right) => Number(right[1] === session.page) - Number(left[1] === session.page));
     }
     for (const [index, page] of pages) {
-      await once(`page_close:${index}`, async () => { if (!page.isClosed()) await page.close(); });
+      await once(`page_close:${index}`, async () => {
+        if (!page.isClosed()) await page.close();
+      });
       if (session.instructionInterrupted && page === session.page) {
         await session.instructionSettlement;
       }
@@ -113,6 +143,7 @@ export async function teardownSessionResources(session: SessionState): Promise<s
   if (harPath) artifacts.push(harPath);
   await Promise.all(artifacts.map(readableArtifact));
   removeRecordingBuffer(session.id);
+  clearFrameCache(session.id);
   return videoPaths;
 }
 

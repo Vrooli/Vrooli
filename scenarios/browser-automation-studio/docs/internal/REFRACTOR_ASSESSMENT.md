@@ -587,11 +587,13 @@ protections as a shortcut.
 
 ### Reproduce and interpret this pass
 
-From the repository root:
-
-~~~bash
-node scenarios/browser-automation-studio/docs/internal/refactor_session_frame_probes.cjs
-~~~
+The historical session/frame probe has been retired after its assertions were
+cross-checked against maintained owner tests. Session admission/reset/teardown
+coverage now lives in `playwright-driver/tests/unit/session/manager.test.ts`,
+and viewer decode/cleanup coverage lives in
+`ui/src/domains/recording/capture/useFrameStream.test.ts` plus the maintained
+frame-streaming suites. The dated JSON remains the immutable diagnostic record;
+it is not a live producer.
 
 From `scenarios/browser-automation-studio/api`:
 
@@ -721,13 +723,15 @@ identity, target and evidence requested by its next owner. The
 10 desired-behavior mismatches and seven successful controls**, mapping to three
 new issues. This is a selected diagnostic corpus, not a live failure rate.
 
-The [probe](refactor_reuse_probes.cjs) executes the actual start route, session
-manager, reuse decisions, reset, artifact-path resolver, teardown and app-target
-validators. Contexts, storage markers, HTTP objects, capture handles, context
-construction and filesystem operations are synthetic. No real signed-in state,
-browser, network request, desktop renderer, Android device or artifact file was
-accessed. The source digest remains unchanged from the initial assessment;
-repository HEAD remains 629defb5414eac2a4904996ee6d235eea9d263ed.
+The historical reuse probe executed the actual start route, session manager,
+reuse decisions, reset, artifact-path resolver, teardown and app-target
+validators with synthetic contexts. It has been retired after its assertions
+were cross-checked against maintained owner tests in
+`playwright-driver/tests/unit/session/{manager,session-decisions}.test.ts`,
+`tests/unit/routes/session-{start,release,close}.test.ts`, and the capture
+route suites. The dated JSON remains the immutable diagnostic record; it is not
+a live producer. No real signed-in state, browser, network request, desktop
+renderer, Android device or artifact file was accessed.
 
 ### Reachability and controls
 
@@ -806,11 +810,8 @@ a different context. The next architecture experiment should measure that cost
 against session-readiness targets while preserving required evidence. No new
 performance number is inferred from these control-flow probes.
 
-From the repository root:
-
-~~~bash
-node scenarios/browser-automation-studio/docs/internal/refactor_reuse_probes.cjs
-~~~
+The maintained owner tests above are the current reproduction path for these
+controls; no standalone synthetic reuse producer remains.
 
 Exit 0 means the diagnostics completed; inspect expected_behavior_met. The dated
 snapshot includes all results, controls, source/probe hashes and reachability

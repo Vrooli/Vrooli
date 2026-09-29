@@ -11,14 +11,14 @@ import (
 func TestRunAdmissionRoundTrip(t *testing.T) {
 	want := &domain.RunAdmission{
 		RequestedRunner:   "codex",
-		RequestedModel:    "gpt-5.6-luna",
+		RequestedModel:    "gpt-6-luna",
 		RequestedRoleRef:  "code.default",
 		RequestedEffort:   "high",
 		RequestedTimeout:  45 * time.Minute,
 		RequestedMaxTurns: 12,
 		RequestedGoalMode: "until",
 		EffectiveRunner:   string(domain.RunnerTypeCodex),
-		EffectiveModel:    "gpt-5.6-luna",
+		EffectiveModel:    "gpt-6-luna",
 		EffectiveEffort:   string(domain.EffortMedium),
 		EffectiveTimeout:  time.Hour,
 		EffectiveMaxTurns: 20,
@@ -27,12 +27,12 @@ func TestRunAdmissionRoundTrip(t *testing.T) {
 		PolicyDigest:      "policy-def",
 		PolicyPath:        "resources/codex/model-policy.json",
 		SelectionReason:   "role_policy",
-		PassedControlArgs: []string{"-m", "gpt-5.6-luna", "-c", "model_reasoning_effort=medium"},
+		PassedControlArgs: []string{"-m", "gpt-6-luna", "-c", "model_reasoning_effort=medium"},
 		TranslationDiagnostics: []string{
-			"model: gpt-5.6-luna -> -m gpt-5.6-luna",
+			"model: gpt-6-luna -> -m gpt-6-luna",
 		},
 		RuntimeVersion:         "codex-cli 0.55.0",
-		ProviderAcknowledgment: []string{"provider accepted model=gpt-5.6-luna effort=medium"},
+		ProviderAcknowledgment: []string{"provider accepted model=gpt-6-luna effort=medium"},
 	}
 
 	got := RunAdmissionFromProto(RunAdmissionToProto(want))
@@ -48,9 +48,9 @@ func TestRunAdmissionRoundTrip(t *testing.T) {
 func TestRunAdmissionRuntimeAndProviderLayersStayTruthfullyEmpty(t *testing.T) {
 	want := &domain.RunAdmission{
 		EffectiveRunner:   string(domain.RunnerTypeCodex),
-		EffectiveModel:    "gpt-5.6-luna",
+		EffectiveModel:    "gpt-6-luna",
 		EffectiveEffort:   string(domain.EffortMedium),
-		PassedControlArgs: []string{"-m", "gpt-5.6-luna", "-c", "model_reasoning_effort=medium"},
+		PassedControlArgs: []string{"-m", "gpt-6-luna", "-c", "model_reasoning_effort=medium"},
 	}
 
 	got := RunAdmissionFromProto(RunAdmissionToProto(want))

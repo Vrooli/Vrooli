@@ -17,6 +17,11 @@ service WorkspaceSandboxService {
   // GetSandboxDiff returns a bounded, reviewable diff for a sandbox.
   rpc GetSandboxDiff(GetSandboxDiffRequest) returns (GetSandboxDiffResponse);
 
+  rpc CaptureReviewSnapshot(CaptureReviewSnapshotRequest) returns (ReviewSnapshotResponse);
+  rpc GetReviewSnapshot(GetReviewSnapshotRequest) returns (ReviewSnapshotResponse);
+  rpc MaterializeReviewSnapshot(MaterializeReviewSnapshotRequest) returns (ReviewWorkspace);
+  rpc GetReviewFile(GetReviewFileRequest) returns (GetReviewFileResponse);
+
   // PromoteSandbox applies an explicitly confirmed approved change set.
   rpc PromoteSandbox(PromoteSandboxRequest) returns (PromoteSandboxResponse);
 }
@@ -83,6 +88,8 @@ message GetSandboxDiffResponse {
   string unified_diff = 4;
   DiffStats stats = 5;
   string archive_state = 6;
+  // SHA-256 of exact unified_diff bytes; not a frozen source-tree identity.
+  string patch_sha256 = 7;
 }
 
 message PromoteSandboxRequest {
@@ -94,6 +101,10 @@ message PromoteSandboxRequest {
   bool force = 6;
   bool override_acceptance = 7;
   bool confirm = 8;
+  // If set, approve only this complete reviewed patch; force cannot bypass it.
+  string expected_patch_sha256 = 9;
+  string review_request_id = 10;
+  string expected_review_sha256 = 11;
 }
 
 message PromoteSandboxResponse {
@@ -106,4 +117,70 @@ message PromoteSandboxResponse {
   string commit_hash = 7;
   string error = 8;
   string diff_path = 9;
+  string applied_patch_sha256 = 10;
+}
+
+message CaptureReviewSnapshotRequest {
+  string sandbox_id = 1;
+  string request_id = 2;
+  repeated string paths = 3;
+}
+
+message GetReviewSnapshotRequest {
+  string sandbox_id = 1;
+  string request_id = 2;
+}
+
+message MaterializeReviewSnapshotRequest {
+  string sandbox_id = 1;
+  string request_id = 2;
+  string expected_sha256 = 3;
+}
+
+// Owner-derived input. Consumers must bind root read-only, not treat file modes
+// as containment. Contains before/, after/, changes.patch and snapshot.json.
+message ReviewWorkspace {
+  string root = 1;
+  string sha256 = 2;
+}
+
+message ReviewFile {
+  string path = 1;
+  string sha256 = 2;
+  int32 mode = 3;
+  int64 size = 4;
+}
+
+message ReviewSnapshot {
+  string id = 1;
+  string request_id = 2;
+  string sandbox_id = 3;
+  string sha256 = 4;
+  string created_at = 5;
+  string project_root = 6;
+  string scope_path = 7;
+  string owner = 8;
+  repeated string paths = 9;
+  repeated ReviewFile before = 10;
+  repeated ReviewFile after = 11;
+  string patch_sha256 = 12;
+  repeated DiffFile changes = 13;
+  DiffStats stats = 14;
+  int64 input_bytes = 15;
+}
+
+message ReviewSnapshotResponse {
+  ReviewSnapshot snapshot = 1;
+}
+
+message GetReviewFileRequest {
+  string sandbox_id = 1;
+  string request_id = 2;
+  // before, after, or patch. Patch reads require an empty path.
+  string side = 3;
+  string path = 4;
+}
+
+message GetReviewFileResponse {
+  bytes content = 1;
 }

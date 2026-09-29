@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
@@ -60,20 +61,16 @@ func TestValidateRejectsBuildMismatch(t *testing.T) {
 	provider := newProviderEvidenceFixture(t, "sha256:recorded")
 	provider.deps.BuildIdentity = func(context.Context) (string, error) { return "sha256:stale", nil }
 	findings := provider.validate(context.Background())
-	if len(findings) != 7 {
-		t.Fatalf("findings = %+v, want all seven owner capabilities rejected on build mismatch", findings)
+	if len(findings) != 6 {
+		t.Fatalf("findings = %+v, want the six local owner capabilities rejected on build mismatch", findings)
 	}
 }
 
-func TestValidateReportsEvidenceCompletenessFailureSeparately(t *testing.T) {
+func TestBoundEvidenceRequiresExplicitSelectedSet(t *testing.T) {
 	provider := newProviderEvidenceFixture(t, "sha256:test-current")
-	receiptPath := filepath.Join(provider.deps.ScenarioDir, evidencecompletenessqualification.EvidenceDir, "evidence-completeness-test.json")
-	if err := os.Remove(receiptPath); err != nil {
-		t.Fatal(err)
-	}
-	findings := provider.validate(context.Background())
-	if len(findings) != 1 || findings[0].Code != "EVIDENCE_COMPLETENESS_INVALID" {
-		t.Fatalf("findings = %+v, want only evidence-completeness evidence finding", findings)
+	findings := provider.validateBoundEvidence(context.Background(), nil)
+	if len(findings) != 1 || findings[0].Code != "EVIDENCE_COMPLETENESS_INVALID" || !strings.Contains(findings[0].Message, "exactly one retained evidence") {
+		t.Fatalf("bound evidence findings = %+v", findings)
 	}
 }
 

@@ -5,11 +5,32 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/repository"
 	"github.com/google/uuid"
 )
+
+// One hour gives the terminal-receipt sweep several 15-minute retry windows
+// while ensuring a restart is not held hostage for the full seven-day
+// on-disk run-state retention period.
+const defaultTerminalAccountingGracePeriod = time.Hour
+
+// terminalAccountingUnknownEligible is intentionally age-based and durable:
+// recent terminal executions remain recoverable so late receipts can still
+// settle them, while an old execution is allowed to reach a terminal
+// accounting-unknown state after every bounded source has been exhausted.
+func (e *Engine) terminalAccountingUnknownEligible(x *domain.WorkflowExecution) bool {
+	if x == nil || !x.Status.Terminal() || x.EndedAt == nil || x.EndedAt.IsZero() {
+		return false
+	}
+	grace := e.TerminalAccountingGracePeriod
+	if grace <= 0 {
+		grace = defaultTerminalAccountingGracePeriod
+	}
+	return !e.now().Before(x.EndedAt.Add(grace))
+}
 
 // TerminalAccountingInspector reads original children without advancing an
 // unfinished workflow. Normal workflow inspection may drive it; recovery must
@@ -39,19 +60,27 @@ func (e *Engine) recordIncompleteCleanup(ctx context.Context, x *domain.Workflow
 // original result, end time or execution identity, including successful work.
 func (e *Engine) ReconcileTerminalAccounting(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error) {
 	x, err := e.Store.Get(ctx, id)
-	if err != nil || x == nil || !x.Status.Terminal() || x.BudgetUsage.AccountingComplete {
+	if err != nil || x == nil || !x.Status.Terminal() || x.BudgetUsage.AccountingComplete || x.BudgetUsage.AccountingFinalizedUnknown {
 		return x, err
 	}
 	journal, err := e.Store.ListJournal(ctx, id, 0, 0)
 	if err != nil {
 		return x, err
 	}
-	attempts, _, err := e.reconcileOrdinaryCleanup(ctx, x, journal, false)
+	allowUnknown := e.terminalAccountingUnknownEligible(x)
+	attempts, _, err := e.reconcileOrdinaryCleanup(ctx, x, journal, allowUnknown)
 	if err != nil {
 		return x, err
 	}
+	if allowUnknown && !x.BudgetUsage.AccountingComplete {
+		x.BudgetUsage.AccountingFinalizedUnknown = true
+	}
 	now := e.now()
-	payload, _ := json.Marshal(map[string]any{"code": "terminal_accounting_reconciled", "usage": x.BudgetUsage})
+	code := "terminal_accounting_reconciled"
+	if x.BudgetUsage.AccountingFinalizedUnknown {
+		code = "terminal_accounting_finalized_unknown"
+	}
+	payload, _ := json.Marshal(map[string]any{"code": code, "usage": x.BudgetUsage})
 	entry := nextJournal(x.ID, journal, domain.WorkflowJournalDiagnostic, x.CurrentNodeID, nil, payload, now)
 	x.UpdatedAt, x.Version = now, x.Version+1
 	if ok, err := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Attempts: attempts, Journal: []*domain.WorkflowJournalEntry{entry}}); err != nil {
@@ -94,6 +123,29 @@ func (e *Engine) rebuildOrdinaryUsage(ctx context.Context, x *domain.WorkflowExe
 		}
 		var child domain.WorkflowBudgetUsage
 		switch {
+		case attempt.Strategy == domain.WorkflowAttemptQualification:
+			if e.Qualifications == nil {
+				return nil, nil, fmt.Errorf("qualification accounting owner is unavailable")
+			}
+			var req QualificationRequest
+			if err := json.Unmarshal(attempt.InputSnapshot, &req); err != nil || req.ExecutionID != x.ID || req.IdempotencyKey != attempt.IdempotencyKey {
+				return nil, nil, fmt.Errorf("qualification cleanup intent is invalid")
+			}
+			inspect := e.Qualifications.Observe
+			if requireComplete && x.Status != domain.WorkflowExecutionSucceeded {
+				inspect = e.Qualifications.CloseAdmission
+			}
+			state, err := inspect(ctx, req)
+			if err != nil {
+				return nil, nil, err
+			}
+			known := state.Terminal && state.BudgetUsage.AccountingComplete && state.BudgetUsage.ChargeMeasured
+			if state.ProgramID == "" || (requireComplete && !known && !(allowUnknown && state.Terminal)) {
+				return nil, nil, fmt.Errorf("qualification %s requires original terminal accounting before cleanup", attempt.ID)
+			}
+			child = state.BudgetUsage
+			usage.AccountingComplete = usage.AccountingComplete && known
+			usage.ChargeMeasured = usage.ChargeMeasured && state.BudgetUsage.ChargeMeasured
 		case attempt.ChildExecutionID != nil:
 			if seenWorkflows[*attempt.ChildExecutionID] {
 				break
@@ -148,14 +200,26 @@ func (e *Engine) rebuildOrdinaryUsage(ctx context.Context, x *domain.WorkflowExe
 			usage.AccountingComplete = usage.AccountingComplete && known
 			usage.ChargeMeasured = usage.ChargeMeasured && state.ChargeMeasured
 		default:
-			return nil, nil, fmt.Errorf("unbound attempt %s requires dispatch reconciliation before cleanup", attempt.ID)
+			if !allowUnknown {
+				return nil, nil, fmt.Errorf("unbound attempt %s requires dispatch reconciliation before cleanup", attempt.ID)
+			}
+			// There is no durable child identity left to inspect. Preserve the
+			// attempt and make the aggregate explicitly incomplete; never infer
+			// that the missing dispatch used zero tokens or charge.
+			attempt.ErrorCode = "accounting_unknown"
+			usage.AccountingComplete = false
+			usage.ChargeMeasured = false
+			child = domain.WorkflowBudgetUsage{}
 		}
 		if err := addCleanupUsage(&usage, child); err != nil {
 			return nil, nil, err
 		}
 		if requireComplete && attempt.Status != domain.WorkflowAttemptCompleted && attempt.Status != domain.WorkflowAttemptFailed {
 			now := e.now()
-			attempt.Status, attempt.ErrorCode = domain.WorkflowAttemptFailed, "cancelled"
+			attempt.Status = domain.WorkflowAttemptFailed
+			if attempt.ErrorCode == "" {
+				attempt.ErrorCode = "cancelled"
+			}
 			attempt.UpdatedAt, attempt.CompletedAt = now, &now
 			attempt.Version++
 			settled = append(settled, attempt)

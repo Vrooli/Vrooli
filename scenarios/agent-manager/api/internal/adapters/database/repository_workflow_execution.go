@@ -443,8 +443,8 @@ func (r *workflowExecutionRepository) ListJournal(ctx context.Context, id uuid.U
 func (r *workflowExecutionRepository) ListRecoverable(ctx context.Context, limit int) ([]*domain.WorkflowExecution, error) {
 	q := `SELECT e.id FROM workflow_executions e
 		WHERE e.status IN ('pending','running','waiting','cancelling')
-		   OR (e.status = 'succeeded' AND COALESCE(json_extract(e.budget_usage_json, '$.accountingComplete'), 0) = 0)
-		   OR (e.status IN ('failed','budget_exhausted','cancelled') AND (
+		   OR (e.status = 'succeeded' AND COALESCE(json_extract(e.budget_usage_json, '$.accountingFinalizedUnknown'), 0) = 0 AND COALESCE(json_extract(e.budget_usage_json, '$.accountingComplete'), 0) = 0)
+		   OR (e.status IN ('failed','budget_exhausted','cancelled') AND COALESCE(json_extract(e.budget_usage_json, '$.accountingFinalizedUnknown'), 0) = 0 AND (
 			COALESCE(json_extract(e.budget_usage_json, '$.accountingComplete'), 0) = 0 OR NOT EXISTS (
 			SELECT 1 FROM workflow_journal j
 			WHERE j.execution_id=e.id

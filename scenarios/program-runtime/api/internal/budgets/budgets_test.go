@@ -61,6 +61,29 @@ func TestKernelEnvelopeMirrorsTheLadder(t *testing.T) {
 	if envelope.Invoke != KernelInvoke.Seconds() {
 		t.Fatalf("invoke seconds drifted: %v vs %v", envelope.Invoke, KernelInvoke.Seconds())
 	}
+	if got := envelope.BindingInvokes["test-genie/validation/wait"]; got != OwnerWaitKernel.Seconds() {
+		t.Fatalf("owner wait profile = %v, want %v", got, OwnerWaitKernel.Seconds())
+	}
+	if got := BridgeForBinding("test-genie/validation/wait"); got != OwnerWaitBridge {
+		t.Fatalf("owner wait bridge = %s, want %s", got, OwnerWaitBridge)
+	}
+	for _, id := range []string{"test-genie/runs/get", "unknown/binding"} {
+		if got := BridgeForBinding(id); got != BridgeCall {
+			t.Fatalf("ordinary bridge profile for %q = %s, want %s", id, got, BridgeCall)
+		}
+	}
+}
+
+func TestOwnerWaitProfileFitsExistingServerCeilings(t *testing.T) {
+	if BridgeCall != 90*time.Second || KernelInvoke != 100*time.Second {
+		t.Fatalf("ordinary profile changed: bridge=%s kernel=%s", BridgeCall, KernelInvoke)
+	}
+	if OwnerWaitBridge != 12*time.Minute || OwnerWaitKernel != 13*time.Minute {
+		t.Fatalf("owner profile = %s/%s, want 12m/13m", OwnerWaitBridge, OwnerWaitKernel)
+	}
+	if OwnerWaitBridge >= OwnerWaitKernel || OwnerWaitKernel >= ServerWrite {
+		t.Fatalf("owner wait ladder is not nested under server write: %s < %s < %s", OwnerWaitBridge, OwnerWaitKernel, ServerWrite)
+	}
 }
 
 func TestBoundWait(t *testing.T) {

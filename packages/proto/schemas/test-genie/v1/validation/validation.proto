@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.test_genie.v1.validation;
 
 import "common/v1/validation_target.proto";
+import "scenario-validation/v1/validation.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -12,6 +13,12 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v
 // intent. Callers declare the evidence they need; Test Genie owns admission,
 // coalescing, scheduling, execution, retry, waiting, and terminalization.
 service ValidationService {
+  // ResolveSourceIdentity computes the current immutable source identity for
+  // the declared content roots without admitting validation work or creating
+  // a receipt. Owner workflows use it after a candidate has been promoted and
+  // before they bind evidence to that candidate.
+  rpc ResolveSourceIdentity(ResolveSourceIdentityRequest) returns (ResolveSourceIdentityResponse);
+  rpc CreateEvidenceProduction(CreateEvidenceProductionRequest) returns (CreateEvidenceProductionResponse);
   rpc CreateValidation(CreateValidationRequest) returns (CreateValidationResponse);
   rpc GetValidation(GetValidationRequest) returns (GetValidationResponse);
   rpc WaitValidation(WaitValidationRequest) returns (WaitValidationResponse);
@@ -24,6 +31,15 @@ service ValidationService {
   rpc ListValidationShadows(ListValidationShadowsRequest) returns (ListValidationShadowsResponse);
 }
 
+message ResolveSourceIdentityRequest {
+  repeated common.v1.ValidationTarget targets = 1;
+  repeated ContentInputRoot content_inputs = 2;
+}
+
+message ResolveSourceIdentityResponse {
+  SourceIdentity identity = 1;
+}
+
 enum ValidationPurpose {
   VALIDATION_PURPOSE_UNSPECIFIED = 0;
   VALIDATION_PURPOSE_PHASE = 1;
@@ -31,6 +47,7 @@ enum ValidationPurpose {
   VALIDATION_PURPOSE_REGRESSION_CURRENT = 3;
   VALIDATION_PURPOSE_CERTIFICATION = 4;
   VALIDATION_PURPOSE_INVESTIGATION = 5;
+  VALIDATION_PURPOSE_EVIDENCE_PRODUCTION = 6;
 }
 
 enum ValidationStrength {
@@ -213,7 +230,36 @@ message ValidationIntent {
   string behavioral_prior = 18;
   // Explicit Test Genie phases. Empty preserves the requested strength preset.
   repeated string phases = 19;
+  // Set only by CreateEvidenceProduction after resolving the authored declaration.
+  PinnedEvidenceProducer pinned_evidence_producer = 20;
+  // Exact retained producer outputs admitted for a provider validation.
+  repeated vrooli.scenario_validation.v1.RetainedEvidenceSet retained_evidence_sets = 21;
 }
+
+message PinnedEvidenceProducer {
+  string provider = 1;
+  string producer = 2;
+  repeated string argv = 3;
+  string working_directory = 4;
+  string output_root = 5;
+  uint64 timeout_milliseconds = 6;
+  uint64 maximum_output_bytes = 7;
+  bool mutates_lifecycle = 8;
+  string descriptor_digest = 9;
+  string source_identity = 10;
+}
+
+message CreateEvidenceProductionRequest {
+  string idempotency_key = 1;
+  string provider = 2;
+  string producer = 3;
+  string candidate_scenario = 4;
+  SourceIdentity expected_candidate_identity = 5;
+  string caller_scenario = 6;
+  string caller_execution_id = 7;
+  string plan_id = 8;
+}
+message CreateEvidenceProductionResponse { ValidationReceipt receipt = 1; }
 
 message EvidenceReference {
   string evidence_id = 1;
@@ -278,6 +324,9 @@ message ValidationReceipt {
   google.protobuf.Timestamp updated_at = 17;
   google.protobuf.Timestamp terminal_at = 18;
   uint64 revision = 19;
+  // Set by Test Genie only after declared producer output and its persisted
+  // artifact catalog are complete and checksummed.
+  vrooli.scenario_validation.v1.RetainedEvidenceSet produced_evidence_set = 20;
 }
 
 message CreateValidationRequest {

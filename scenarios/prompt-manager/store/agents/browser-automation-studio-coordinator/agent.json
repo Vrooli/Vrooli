@@ -1,0 +1,13 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "browser-automation-studio-coordinator",
+  "displayName": "Browser Automation Studio Coordinator",
+  "description": "Economical coordinator for BAS's independently accepted delivery boundaries.",
+  "status": "active",
+  "tags": ["delivery", "browser-automation-studio"],
+  "fileOrder": ["AGENT.md"],
+  "revision": 1,
+  "createdAt": "2026-09-27T00:00:00Z",
+  "updatedAt": "2026-09-27T00:00:00Z"
+}

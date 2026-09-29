@@ -2,7 +2,6 @@ package sessions
 
 import (
 	"context"
-	"errors"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
@@ -41,20 +40,11 @@ func TestTypedWorkspaceResolverLocalFallbackValidatesPath(t *testing.T) {
 	}
 }
 
-type fakeWorkspaceService struct{ root string }
+type fakeWorkspaceService struct {
+	workspaceconnect.UnimplementedWorkspaceSandboxServiceHandler
+	root string
+}
 
 func (f fakeWorkspaceService) ResolveWorkspace(_ context.Context, req *connect.Request[workspacev1.ResolveWorkspaceRequest]) (*connect.Response[workspacev1.ResolveWorkspaceResponse], error) {
 	return connect.NewResponse(&workspacev1.ResolveWorkspaceResponse{Success: true, SandboxId: req.Msg.GetSandboxId(), WorkspaceRoot: f.root, IsolationMode: "copy"}), nil
-}
-
-func (fakeWorkspaceService) CreateSandbox(context.Context, *connect.Request[workspacev1.CreateSandboxRequest]) (*connect.Response[workspacev1.CreateSandboxResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("not implemented"))
-}
-
-func (fakeWorkspaceService) GetSandboxDiff(context.Context, *connect.Request[workspacev1.GetSandboxDiffRequest]) (*connect.Response[workspacev1.GetSandboxDiffResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("not implemented"))
-}
-
-func (fakeWorkspaceService) PromoteSandbox(context.Context, *connect.Request[workspacev1.PromoteSandboxRequest]) (*connect.Response[workspacev1.PromoteSandboxResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("not implemented"))
 }

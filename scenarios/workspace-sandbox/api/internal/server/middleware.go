@@ -123,7 +123,7 @@ func (m Middleware) structuredLogging(next http.Handler) http.Handler {
 
 		next.ServeHTTP(wrapped, r)
 
-		duration := schedule.Since(start)
+		duration := m.Clock.Now().Sub(start)
 		m.Logger.APIRequest(r.Method, r.RequestURI, wrapped.statusCode, float64(duration.Milliseconds()))
 	})
 }

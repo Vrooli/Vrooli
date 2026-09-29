@@ -13,6 +13,10 @@ import "google/protobuf/struct.proto";
 service HeartbeatService {
   rpc ListHeartbeats(TeamRequest) returns (JsonResponse);
   rpc GetHeartbeat(MemberRequest) returns (JsonResponse);
+  // Refreshes the owner-derived standing-supervision cut without dispatch.
+  rpc RefreshSupervision(MemberRequest) returns (JsonResponse);
+  // Reconciles one owner-verified uncertain supervision dispatch without replay.
+  rpc ReconcileSupervision(MemberMutationRequest) returns (JsonResponse);
   rpc CreateHeartbeat(MemberMutationRequest) returns (JsonResponse);
   rpc UpdateHeartbeat(MemberMutationRequest) returns (JsonResponse);
   rpc DeleteHeartbeat(MemberRequest) returns (JsonResponse);

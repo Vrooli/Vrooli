@@ -6,7 +6,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -14,6 +16,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/browser-automation-studio/internal/cancellationqualification"
 	"github.com/vrooli/browser-automation-studio/internal/evidencecompletenessqualification"
 	"github.com/vrooli/browser-automation-studio/internal/interactivefeedbackqualification"
@@ -24,6 +27,7 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -33,8 +37,9 @@ const (
 )
 
 type deps struct {
-	ScenarioDir   string
-	BuildIdentity func(context.Context) (string, error)
+	ScenarioDir          string
+	BuildIdentity        func(context.Context) (string, error)
+	ReadRetainedArtifact func(context.Context, *scenariovalidationv1.RetainedEvidenceSet, *commonv1.EvidenceRef) ([]byte, error)
 }
 
 type cohort struct {
@@ -81,6 +86,23 @@ type provider struct {
 	spec *assessment.Spec
 }
 
+type retainedEvidenceHandler struct {
+	scenariovalidationv1connect.ScenarioValidationServiceHandler
+}
+
+func (h retainedEvidenceHandler) DescribeProvider(ctx context.Context, req *connect.Request[scenariovalidationv1.DescribeProviderRequest]) (*connect.Response[scenariovalidationv1.DescribeProviderResponse], error) {
+	response, err := h.ScenarioValidationServiceHandler.DescribeProvider(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	copy := proto.Clone(response.Msg).(*scenariovalidationv1.DescribeProviderResponse)
+	if copy.Capabilities == nil {
+		copy.Capabilities = &scenariovalidationv1.ProviderCapabilities{}
+	}
+	copy.Capabilities.SupportsRetainedEvidence = true
+	return connect.NewResponse(copy), nil
+}
+
 func Module(scenarioDir string) (scenariovalidationv1connect.ScenarioValidationServiceHandler, error) {
 	spec, err := assessment.LoadSpecFromScenario(scenarioDir)
 	if err != nil {
@@ -90,8 +112,8 @@ func Module(scenarioDir string) (scenariovalidationv1connect.ScenarioValidationS
 	if err != nil {
 		return nil, err
 	}
-	p := &provider{deps: deps{ScenarioDir: scenarioDir, BuildIdentity: liveBuildIdentity}, spec: spec}
-	return assessment.Serve(p, describer), nil
+	p := &provider{deps: deps{ScenarioDir: scenarioDir, BuildIdentity: liveBuildIdentity, ReadRetainedArtifact: readRetainedArtifact}, spec: spec}
+	return retainedEvidenceHandler{ScenarioValidationServiceHandler: assessment.Serve(p, describer)}, nil
 }
 
 func (p *provider) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
@@ -106,7 +128,79 @@ func (p *provider) ValidateScenario(ctx context.Context, req *connect.Request[sc
 	if !req.Msg.GetIncludeExecution() {
 		return p.response(scenario, nil, started)
 	}
-	return p.response(scenario, p.validate(ctx), started)
+	return p.response(scenario, p.validateBoundEvidence(ctx, req.Msg.GetRetainedEvidenceSets()), started)
+}
+
+func (p *provider) ValidateTarget(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateTargetRequest]) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error) {
+	target := req.Msg.GetTarget()
+	if target == nil || target.GetKind() != commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("BAS provider requires a scenario target"))
+	}
+	result, err := p.ValidateScenario(ctx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: target.GetId(), Path: req.Msg.GetPath(), IncludeExecution: req.Msg.GetIncludeExecution(), CapabilitySubset: append([]string(nil), req.Msg.GetCapabilitySubset()...), RetainedEvidenceSets: req.Msg.GetRetainedEvidenceSets()}))
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{Target: target, Status: result.Msg.GetStatus(), Assessment: result.Msg.GetAssessment(), NativeDetail: result.Msg.GetNativeDetail(), Metrics: result.Msg.GetMetrics(), FailureClassification: result.Msg.GetFailureClassification()}), nil
+}
+
+func (p *provider) validateBoundEvidence(ctx context.Context, sets []*scenariovalidationv1.RetainedEvidenceSet) []assessment.Finding {
+	filtered := p.validateExecution(ctx)
+	var err error
+	if len(sets) != 1 {
+		err = fmt.Errorf("exactly one retained evidence-completeness set is required")
+	} else {
+		set := sets[0]
+		if set == nil || set.GetTarget() != providerScenario || set.GetProducer() != "evidence-completeness" {
+			err = fmt.Errorf("retained evidence set does not identify the BAS evidence-completeness producer")
+		} else if p.deps.ReadRetainedArtifact == nil {
+			err = fmt.Errorf("Test Genie retained-artifact reader is unavailable")
+		} else {
+			root, rootErr := filepath.Abs(p.deps.ScenarioDir)
+			if rootErr != nil {
+				err = rootErr
+			} else {
+				build, buildErr := p.deps.BuildIdentity(ctx)
+				if buildErr != nil {
+					err = buildErr
+				} else {
+					err = evidencecompletenessqualification.ValidateRetained(root, build, set, func(ref *commonv1.EvidenceRef) ([]byte, error) { return p.deps.ReadRetainedArtifact(ctx, set, ref) })
+				}
+			}
+		}
+	}
+	if err != nil {
+		filtered = append(filtered, evidenceCompletenessFinding(err))
+	}
+	return filtered
+}
+
+func readRetainedArtifact(ctx context.Context, set *scenariovalidationv1.RetainedEvidenceSet, ref *commonv1.EvidenceRef) ([]byte, error) {
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "test-genie")
+	if err != nil {
+		return nil, fmt.Errorf("resolve Test Genie artifact service: %w", err)
+	}
+	artifactURL := strings.TrimRight(baseURL, "/") + "/api/v1/scenarios/" + url.PathEscape(set.GetTarget()) + "/runs/" + url.PathEscape(set.GetRunId()) + "/artifacts/" + url.PathEscape(ref.GetArtifactId())
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, artifactURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Test Genie artifact route returned %s", response.Status)
+	}
+	const maxArtifactBytes = 16 << 20
+	data, err := io.ReadAll(io.LimitReader(response.Body, maxArtifactBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxArtifactBytes || int64(len(data)) != ref.GetSizeBytes() {
+		return nil, fmt.Errorf("retained artifact exceeds the byte bound or declared size")
+	}
+	return data, nil
 }
 
 func (p *provider) response(scenario string, findings []assessment.Finding, started time.Time) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
@@ -126,15 +220,19 @@ func (p *provider) response(scenario string, findings []assessment.Finding, star
 }
 
 func (p *provider) validate(ctx context.Context) []assessment.Finding {
+	return p.validateExecution(ctx)
+}
+
+func (p *provider) validateExecution(ctx context.Context) []assessment.Finding {
 	root, err := filepath.Abs(p.deps.ScenarioDir)
 	if err != nil {
-		return []assessment.Finding{profileFinding(err), cancellationFinding(err), passiveFidelityFinding(err), resourceBudgetFinding(err), motionFinding(err), evidenceCompletenessFinding(err), interactiveFeedbackFinding(err)}
+		return validationSetupFindings(err)
 	}
 	build, err := p.deps.BuildIdentity(ctx)
 	if err != nil {
-		return []assessment.Finding{profileFinding(err), cancellationFinding(err), passiveFidelityFinding(err), resourceBudgetFinding(err), motionFinding(err), evidenceCompletenessFinding(err), interactiveFeedbackFinding(err)}
+		return validationSetupFindings(err)
 	}
-	findings := make([]assessment.Finding, 0, 7)
+	findings := make([]assessment.Finding, 0, 6)
 	if err := p.validateProfile(root, build); err != nil {
 		findings = append(findings, profileFinding(err))
 	}
@@ -150,13 +248,14 @@ func (p *provider) validate(ctx context.Context) []assessment.Finding {
 	if err := motionqualification.Validate(root, build); err != nil {
 		findings = append(findings, motionFinding(err))
 	}
-	if err := evidencecompletenessqualification.Validate(root, build); err != nil {
-		findings = append(findings, evidenceCompletenessFinding(err))
-	}
 	if err := interactivefeedbackqualification.Validate(root, build); err != nil {
 		findings = append(findings, interactiveFeedbackFinding(err))
 	}
 	return findings
+}
+
+func validationSetupFindings(err error) []assessment.Finding {
+	return []assessment.Finding{profileFinding(err), cancellationFinding(err), passiveFidelityFinding(err), resourceBudgetFinding(err), motionFinding(err), interactiveFeedbackFinding(err)}
 }
 
 func profileFinding(err error) assessment.Finding {
@@ -180,7 +279,7 @@ func motionFinding(err error) assessment.Finding {
 }
 
 func evidenceCompletenessFinding(err error) assessment.Finding {
-	return assessment.Finding{Code: "EVIDENCE_COMPLETENESS_INVALID", Severity: "SEVERITY_ERROR", Title: "Evidence-completeness owner tests are stale or invalid", Message: err.Error(), Location: evidencecompletenessqualification.EvidenceGlob, Remediation: "Run the focused screenshot, inline telemetry, external video/trace, and active-retention owners for the current BAS source and build."}
+	return assessment.Finding{Code: "EVIDENCE_COMPLETENESS_INVALID", Severity: "SEVERITY_ERROR", Title: "Evidence-completeness owner tests are stale or invalid", Message: err.Error(), Location: "retained-evidence-set", Remediation: "Admit the BAS evidence-completeness producer run and pass its exact retained artifact set to validation."}
 }
 
 func interactiveFeedbackFinding(err error) assessment.Finding {

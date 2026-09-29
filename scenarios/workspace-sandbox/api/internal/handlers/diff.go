@@ -14,20 +14,8 @@ import (
 	"workspace-sandbox/internal/types"
 )
 
-// GetDiff is the single front-door for both live and archived sandbox
-// diffs.
-//
-// Resolution by sandbox status:
-//   - Active or Stopped → serve from the live overlay via Service.GetDiff.
-//   - Approved, Rejected, or Deleted → serve from the durable archive
-//     via Service.GetArchive. The response carries ArchiveState so the
-//     UI can render an explicit "no diff captured" state for archives
-//     that were intentionally skipped (Error → Deleted).
-//   - Creating → 200 with empty diff and ArchiveState="not_captured"
-//     (the sandbox has no upper dir yet; this is not an error).
-//   - Error → fall through to live path; live GetDiff handles the
-//     missing-upper case by returning an empty diff. After Error has
-//     transitioned to Deleted, the archive path serves the row.
+// GetDiff renders the service-owned live or archived diff. Evidence selection
+// is shared with Connect; this handler only adds the requested live file view.
 //
 // Query parameters:
 //   - mode: View mode — "diff" (default), "full_diff", or "source".
@@ -51,60 +39,21 @@ func (h *Handlers) GetDiff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sandbox, err := h.Service.Get(r.Context(), id)
-	if h.HandleDomainError(w, err) {
-		return
-	}
-
-	// Archive-bearing terminal states: serve from the durable archive.
-	switch sandbox.Status {
-	case types.StatusApproved, types.StatusRejected, types.StatusDeleted:
-		if mode != types.ViewModeDiff {
+	var sandbox *types.Sandbox
+	if mode != types.ViewModeDiff {
+		sandbox, err = h.Service.Get(r.Context(), id)
+		if h.HandleDomainError(w, err) {
+			return
+		}
+		switch sandbox.Status {
+		case types.StatusApproved, types.StatusRejected, types.StatusDeleted:
 			h.JSONError(w,
 				"view modes 'full_diff' and 'source' require a live overlay; this sandbox has been archived",
 				http.StatusBadRequest)
 			return
 		}
-		archived, err := h.Service.GetArchive(r.Context(), id)
-		if h.HandleDomainError(w, err) {
-			return
-		}
-		if archived == nil {
-			// Status is terminal but no archive row exists. This is
-			// only possible for sandboxes that crossed terminal before
-			// the archive seam was wired (legacy data). Return a
-			// not_captured marker rather than 404 so the UI renders
-			// "no diff captured" instead of a hard error.
-			archived = &types.DiffResult{
-				SandboxID:    id,
-				Files:        []*types.FileChange{},
-				Generated:    sandbox.UpdatedAt,
-				ArchiveState: types.ArchiveStateNotCaptured,
-			}
-		}
-		archived.Mode = mode
-		h.JSONSuccess(w, archived)
-		return
 	}
 
-	// Pre-overlay states: nothing to diff yet. Live response with an
-	// empty Files list; ArchiveState stays empty (this is not an archive
-	// — there's just no data to show yet).
-	if sandbox.Status == types.StatusCreating {
-		h.JSONSuccess(w, &types.DiffResult{
-			SandboxID: id,
-			Files:     []*types.FileChange{},
-			Generated: sandbox.CreatedAt,
-			Mode:      mode,
-		})
-		return
-	}
-
-	// Active / Stopped / Error: live path. ArchiveState stays empty
-	// (zero value) to signal "live overlay" to consumers. The
-	// Error-with-missing-upper case yields an empty diff, also with
-	// ArchiveState empty — clients render it as "no diff" rather than
-	// "archived no_capture", which would be misleading.
 	diffResult, err := h.Service.GetDiff(r.Context(), id)
 	if h.HandleDomainError(w, err) {
 		return
@@ -174,6 +123,93 @@ func (h *Handlers) GetDiffFile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handlers) CaptureReviewSnapshot(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(mux.Vars(r)["id"])
+	if err != nil {
+		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+		return
+	}
+	var req *types.ReviewSnapshotRequest
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil || req == nil {
+		h.JSONError(w, "review request must be a JSON object", http.StatusBadRequest)
+		return
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		h.JSONError(w, "review request must contain one JSON object", http.StatusBadRequest)
+		return
+	}
+	req.SandboxID = id
+	snapshot, err := h.Service.CaptureReviewSnapshot(r.Context(), req)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+	h.JSONSuccess(w, snapshot)
+}
+
+func (h *Handlers) GetReviewSnapshot(w http.ResponseWriter, r *http.Request) {
+	id, requestID, err := reviewIDs(r)
+	if err != nil {
+		h.JSONError(w, "invalid sandbox or review request ID", http.StatusBadRequest)
+		return
+	}
+	snapshot, err := h.Service.GetReviewSnapshot(r.Context(), id, requestID)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+	h.JSONSuccess(w, snapshot)
+}
+
+func (h *Handlers) GetReviewFile(w http.ResponseWriter, r *http.Request) {
+	id, requestID, err := reviewIDs(r)
+	if err != nil {
+		h.JSONError(w, "invalid sandbox or review request ID", http.StatusBadRequest)
+		return
+	}
+	body, err := h.Service.FetchReviewFile(r.Context(), id, requestID, r.URL.Query().Get("side"), r.URL.Query().Get("path"))
+	if h.HandleDomainError(w, err) {
+		return
+	}
+	w.Header().Set("Content-Type", "application/octet-stream")
+	_, _ = w.Write(body)
+}
+
+func (h *Handlers) MaterializeReviewSnapshot(w http.ResponseWriter, r *http.Request) {
+	id, requestID, err := reviewIDs(r)
+	if err != nil {
+		h.JSONError(w, "invalid sandbox or review request ID", http.StatusBadRequest)
+		return
+	}
+	var req *struct {
+		ExpectedSHA256 string `json:"expectedSha256"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil || req == nil {
+		h.JSONError(w, "review workspace request must be a JSON object", http.StatusBadRequest)
+		return
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		h.JSONError(w, "review workspace request must contain one JSON object", http.StatusBadRequest)
+		return
+	}
+	workspace, err := h.Service.MaterializeReviewSnapshot(r.Context(), id, requestID, req.ExpectedSHA256)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+	h.JSONSuccess(w, workspace)
+}
+
+func reviewIDs(r *http.Request) (uuid.UUID, uuid.UUID, error) {
+	id, err := uuid.Parse(mux.Vars(r)["id"])
+	if err != nil {
+		return uuid.Nil, uuid.Nil, err
+	}
+	requestID, err := uuid.Parse(mux.Vars(r)["requestId"])
+	return id, requestID, err
+}
+
 // Approve handles approving sandbox changes.
 func (h *Handlers) Approve(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(mux.Vars(r)["id"])
@@ -182,14 +218,26 @@ func (h *Handlers) Approve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req types.ApprovalRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		// Allow empty body for default approval
-		req = types.ApprovalRequest{Mode: "all"}
+	req := &types.ApprovalRequest{Mode: "all"}
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil && err != io.EOF {
+		h.JSONError(w, "invalid approval request body", http.StatusBadRequest)
+		return
+	}
+	// Only an actually empty body may select defaults. Malformed, null or
+	// trailing JSON must never discard a caller's review precondition.
+	if req == nil {
+		h.JSONError(w, "approval request must be an object", http.StatusBadRequest)
+		return
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		h.JSONError(w, "approval request must contain one JSON object", http.StatusBadRequest)
+		return
 	}
 	req.SandboxID = id
 
-	result, err := h.Service.Approve(r.Context(), &req)
+	result, err := h.Service.Approve(r.Context(), req)
 	if h.HandleDomainError(w, err) {
 		return
 	}

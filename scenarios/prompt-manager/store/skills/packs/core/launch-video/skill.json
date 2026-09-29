@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-09-17T00:00:00Z",
-  "description": "Produce a short launch-video draft for one sellable Vrooli scenario from its official advertising sources and real captures of the running product, using the third-party brag method and the HyperFrames renderer.",
+  "description": "Direct, capture, compose, critique, and deliver a source-grounded launch-video draft with inexpensive teaser and deliberate flagship profiles, using real product evidence and local HyperFrames rendering.",
   "entry": "SKILL.md",
   "icon": "video",
   "id": "launch-video",
@@ -25,7 +25,7 @@
       "brand-manager"
     ]
   },
-  "revision": 11,
+  "revision": 15,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -33,5 +33,5 @@
     "video",
     "launch"
   ],
-  "updatedAt": "2026-09-19T16:00:00Z"
+  "updatedAt": "2026-09-22T00:00:00Z"
 }

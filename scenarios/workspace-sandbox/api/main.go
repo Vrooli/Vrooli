@@ -232,6 +232,10 @@ func NewServer() (*Server, error) {
 	// daemon-reaped events via WithMetrics; handlers reuse the same
 	// instance below, exposing it on /metrics.
 	metricsCollector := metrics.NewCollector()
+	processTracker := process.NewTrackerWithConfig(process.TrackerConfig{
+		GracePeriod: cfg.Lifecycle.ProcessGracePeriod,
+		KillWait:    cfg.Lifecycle.ProcessKillWait,
+	}, clk)
 
 	svc := sandbox.NewService(repo, driverSlot, svcCfg, clk, auditEmitter, starter,
 		sandbox.WithAttributionPolicy(attributionPolicy),
@@ -239,6 +243,7 @@ func NewServer() (*Server, error) {
 		sandbox.WithTeardownPolicy(teardownPolicy),
 		sandbox.WithMetrics(metricsCollector),
 		sandbox.WithArchive(archiveRepo, blobs),
+		sandbox.WithProcessDrainer(processTracker),
 	)
 	healCfg := sandbox.HealConfig{
 		IdleGracePeriod:        cfg.Lifecycle.AutoHealIdleGrace,
@@ -264,12 +269,6 @@ func NewServer() (*Server, error) {
 	}
 
 	lifecycleRecon := sandbox.DefaultRunner(svc, cfg.Lifecycle.GCInterval, cfg.Lifecycle.ManualReviewTTL, cfg.Lifecycle.CommitReconcileInterval, healCfg, retentionProvider)
-
-	// Initialize process tracker (OT-P0-008)
-	processTracker := process.NewTrackerWithConfig(process.TrackerConfig{
-		GracePeriod: cfg.Lifecycle.ProcessGracePeriod,
-		KillWait:    cfg.Lifecycle.ProcessKillWait,
-	}, clk)
 
 	// Initialize process logger (Phase 2)
 	processLogger := process.NewLogger(process.DefaultLogConfig(cfg.Driver.BaseDir), clk)

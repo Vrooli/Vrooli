@@ -72,19 +72,20 @@ func (a EffortActor) supervises(e *pb.EffortEnrollment) bool {
 }
 
 type EffortService struct {
-	repo              EffortRepository
-	controller        ActionController
-	policies          *PolicyStore
-	config            EffortDiscoveryConfig
-	now               func() time.Time
-	mu                sync.Mutex
-	nextScan          time.Time
-	directiveCursor   string
-	runRegistry       EffortRunRegistry
-	quotaStore        pricing.QuotaObservationRepository
-	dispatchSecret    []byte
-	dispatchProvision func(string) error
-	dispatchProfile   func(context.Context, string) error
+	repo               EffortRepository
+	controller         ActionController
+	policies           *PolicyStore
+	config             EffortDiscoveryConfig
+	now                func() time.Time
+	mu                 sync.Mutex
+	nextScan           time.Time
+	directiveCursor    string
+	runRegistry        EffortRunRegistry
+	quotaStore         pricing.QuotaObservationRepository
+	dispatchSecret     []byte
+	dispatchProvision  func(string) error
+	dispatchProfile    func(context.Context, string) error
+	dispatchAccounting DispatchAccountingReader
 }
 
 func NewEffortService(repo EffortRepository, controller ActionController, policies *PolicyStore, config EffortDiscoveryConfig) *EffortService {
@@ -813,6 +814,9 @@ func (s *EffortService) renewStandingDispatchLocked(ctx context.Context) error {
 	a := e.DispatchAuthorization
 	if e.AuthorizedBy == "" || e.SupervisorOwnerSubject != e.AuthorizedBy || e.SupervisorScope != SupervisorDispatchScope || a.OwnerSubject != e.AuthorizedBy || a.TeamId == "" || a.MemberId == "" || a.ProfileKey == "" {
 		return nil
+	}
+	if !validSupervisorBudget(a.MaxTokens, a.MaxChargeMicroUsd) {
+		return dispatchIssuanceRefusal("standing_budget_missing")
 	}
 	if err := s.dispatchProfile(ctx, a.ProfileKey); err != nil {
 		return fmt.Errorf("standing supervisor lease profile unavailable: %w", err)

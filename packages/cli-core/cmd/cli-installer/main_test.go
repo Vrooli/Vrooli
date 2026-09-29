@@ -76,6 +76,13 @@ func main() { fmt.Println("demo") }
 	if meta.ModulePath == "" {
 		t.Fatal("module_path should not be empty")
 	}
+	freshness, ok, err := cliutil.ReadFreshnessManifest(cliutil.FreshnessManifestPath(binaryPath))
+	if err != nil {
+		t.Fatalf("read freshness manifest: %v", err)
+	}
+	if !ok || freshness.Digest == "" || len(freshness.Files) == 0 {
+		t.Fatalf("freshness manifest = %+v, want populated manifest", freshness)
+	}
 }
 
 func TestBuildFreshnessSpecUsesDeclaredContextAndInputs(t *testing.T) {

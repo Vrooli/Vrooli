@@ -40,6 +40,9 @@ const (
 	// ScenarioControlPlaneServiceGetScenarioStatusProcedure is the fully-qualified name of the
 	// ScenarioControlPlaneService's GetScenarioStatus RPC.
 	ScenarioControlPlaneServiceGetScenarioStatusProcedure = "/vrooli.cli.v1.ScenarioControlPlaneService/GetScenarioStatus"
+	// ScenarioControlPlaneServiceGetScenarioFreshnessProcedure is the fully-qualified name of the
+	// ScenarioControlPlaneService's GetScenarioFreshness RPC.
+	ScenarioControlPlaneServiceGetScenarioFreshnessProcedure = "/vrooli.cli.v1.ScenarioControlPlaneService/GetScenarioFreshness"
 	// ScenarioControlPlaneServiceGetScenarioLogsProcedure is the fully-qualified name of the
 	// ScenarioControlPlaneService's GetScenarioLogs RPC.
 	ScenarioControlPlaneServiceGetScenarioLogsProcedure = "/vrooli.cli.v1.ScenarioControlPlaneService/GetScenarioLogs"
@@ -62,6 +65,7 @@ const (
 type ScenarioControlPlaneServiceClient interface {
 	ListScenarios(context.Context, *connect.Request[v1.ListScenariosRequest]) (*connect.Response[v1.ScenarioListResponse], error)
 	GetScenarioStatus(context.Context, *connect.Request[v1.GetScenarioStatusRequest]) (*connect.Response[v1.ScenarioStatusSingle], error)
+	GetScenarioFreshness(context.Context, *connect.Request[v1.GetScenarioFreshnessRequest]) (*connect.Response[v1.ScenarioFreshnessResponse], error)
 	GetScenarioLogs(context.Context, *connect.Request[v1.GetScenarioLogsRequest]) (*connect.Response[v1.ScenarioLogsResponse], error)
 	StartScenario(context.Context, *connect.Request[v1.StartScenarioRequest]) (*connect.Response[v1.ScenarioLifecycleResponse], error)
 	StopScenario(context.Context, *connect.Request[v1.StopScenarioRequest]) (*connect.Response[v1.ScenarioLifecycleResponse], error)
@@ -90,6 +94,12 @@ func NewScenarioControlPlaneServiceClient(httpClient connect.HTTPClient, baseURL
 			httpClient,
 			baseURL+ScenarioControlPlaneServiceGetScenarioStatusProcedure,
 			connect.WithSchema(scenarioControlPlaneServiceMethods.ByName("GetScenarioStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		getScenarioFreshness: connect.NewClient[v1.GetScenarioFreshnessRequest, v1.ScenarioFreshnessResponse](
+			httpClient,
+			baseURL+ScenarioControlPlaneServiceGetScenarioFreshnessProcedure,
+			connect.WithSchema(scenarioControlPlaneServiceMethods.ByName("GetScenarioFreshness")),
 			connect.WithClientOptions(opts...),
 		),
 		getScenarioLogs: connect.NewClient[v1.GetScenarioLogsRequest, v1.ScenarioLogsResponse](
@@ -127,13 +137,14 @@ func NewScenarioControlPlaneServiceClient(httpClient connect.HTTPClient, baseURL
 
 // scenarioControlPlaneServiceClient implements ScenarioControlPlaneServiceClient.
 type scenarioControlPlaneServiceClient struct {
-	listScenarios     *connect.Client[v1.ListScenariosRequest, v1.ScenarioListResponse]
-	getScenarioStatus *connect.Client[v1.GetScenarioStatusRequest, v1.ScenarioStatusSingle]
-	getScenarioLogs   *connect.Client[v1.GetScenarioLogsRequest, v1.ScenarioLogsResponse]
-	startScenario     *connect.Client[v1.StartScenarioRequest, v1.ScenarioLifecycleResponse]
-	stopScenario      *connect.Client[v1.StopScenarioRequest, v1.ScenarioLifecycleResponse]
-	restartScenario   *connect.Client[v1.RestartScenarioRequest, v1.ScenarioLifecycleResponse]
-	setupScenario     *connect.Client[v1.SetupScenarioRequest, v1.ScenarioSetupResponse]
+	listScenarios        *connect.Client[v1.ListScenariosRequest, v1.ScenarioListResponse]
+	getScenarioStatus    *connect.Client[v1.GetScenarioStatusRequest, v1.ScenarioStatusSingle]
+	getScenarioFreshness *connect.Client[v1.GetScenarioFreshnessRequest, v1.ScenarioFreshnessResponse]
+	getScenarioLogs      *connect.Client[v1.GetScenarioLogsRequest, v1.ScenarioLogsResponse]
+	startScenario        *connect.Client[v1.StartScenarioRequest, v1.ScenarioLifecycleResponse]
+	stopScenario         *connect.Client[v1.StopScenarioRequest, v1.ScenarioLifecycleResponse]
+	restartScenario      *connect.Client[v1.RestartScenarioRequest, v1.ScenarioLifecycleResponse]
+	setupScenario        *connect.Client[v1.SetupScenarioRequest, v1.ScenarioSetupResponse]
 }
 
 // ListScenarios calls vrooli.cli.v1.ScenarioControlPlaneService.ListScenarios.
@@ -144,6 +155,11 @@ func (c *scenarioControlPlaneServiceClient) ListScenarios(ctx context.Context, r
 // GetScenarioStatus calls vrooli.cli.v1.ScenarioControlPlaneService.GetScenarioStatus.
 func (c *scenarioControlPlaneServiceClient) GetScenarioStatus(ctx context.Context, req *connect.Request[v1.GetScenarioStatusRequest]) (*connect.Response[v1.ScenarioStatusSingle], error) {
 	return c.getScenarioStatus.CallUnary(ctx, req)
+}
+
+// GetScenarioFreshness calls vrooli.cli.v1.ScenarioControlPlaneService.GetScenarioFreshness.
+func (c *scenarioControlPlaneServiceClient) GetScenarioFreshness(ctx context.Context, req *connect.Request[v1.GetScenarioFreshnessRequest]) (*connect.Response[v1.ScenarioFreshnessResponse], error) {
+	return c.getScenarioFreshness.CallUnary(ctx, req)
 }
 
 // GetScenarioLogs calls vrooli.cli.v1.ScenarioControlPlaneService.GetScenarioLogs.
@@ -176,6 +192,7 @@ func (c *scenarioControlPlaneServiceClient) SetupScenario(ctx context.Context, r
 type ScenarioControlPlaneServiceHandler interface {
 	ListScenarios(context.Context, *connect.Request[v1.ListScenariosRequest]) (*connect.Response[v1.ScenarioListResponse], error)
 	GetScenarioStatus(context.Context, *connect.Request[v1.GetScenarioStatusRequest]) (*connect.Response[v1.ScenarioStatusSingle], error)
+	GetScenarioFreshness(context.Context, *connect.Request[v1.GetScenarioFreshnessRequest]) (*connect.Response[v1.ScenarioFreshnessResponse], error)
 	GetScenarioLogs(context.Context, *connect.Request[v1.GetScenarioLogsRequest]) (*connect.Response[v1.ScenarioLogsResponse], error)
 	StartScenario(context.Context, *connect.Request[v1.StartScenarioRequest]) (*connect.Response[v1.ScenarioLifecycleResponse], error)
 	StopScenario(context.Context, *connect.Request[v1.StopScenarioRequest]) (*connect.Response[v1.ScenarioLifecycleResponse], error)
@@ -200,6 +217,12 @@ func NewScenarioControlPlaneServiceHandler(svc ScenarioControlPlaneServiceHandle
 		ScenarioControlPlaneServiceGetScenarioStatusProcedure,
 		svc.GetScenarioStatus,
 		connect.WithSchema(scenarioControlPlaneServiceMethods.ByName("GetScenarioStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	scenarioControlPlaneServiceGetScenarioFreshnessHandler := connect.NewUnaryHandler(
+		ScenarioControlPlaneServiceGetScenarioFreshnessProcedure,
+		svc.GetScenarioFreshness,
+		connect.WithSchema(scenarioControlPlaneServiceMethods.ByName("GetScenarioFreshness")),
 		connect.WithHandlerOptions(opts...),
 	)
 	scenarioControlPlaneServiceGetScenarioLogsHandler := connect.NewUnaryHandler(
@@ -238,6 +261,8 @@ func NewScenarioControlPlaneServiceHandler(svc ScenarioControlPlaneServiceHandle
 			scenarioControlPlaneServiceListScenariosHandler.ServeHTTP(w, r)
 		case ScenarioControlPlaneServiceGetScenarioStatusProcedure:
 			scenarioControlPlaneServiceGetScenarioStatusHandler.ServeHTTP(w, r)
+		case ScenarioControlPlaneServiceGetScenarioFreshnessProcedure:
+			scenarioControlPlaneServiceGetScenarioFreshnessHandler.ServeHTTP(w, r)
 		case ScenarioControlPlaneServiceGetScenarioLogsProcedure:
 			scenarioControlPlaneServiceGetScenarioLogsHandler.ServeHTTP(w, r)
 		case ScenarioControlPlaneServiceStartScenarioProcedure:
@@ -263,6 +288,10 @@ func (UnimplementedScenarioControlPlaneServiceHandler) ListScenarios(context.Con
 
 func (UnimplementedScenarioControlPlaneServiceHandler) GetScenarioStatus(context.Context, *connect.Request[v1.GetScenarioStatusRequest]) (*connect.Response[v1.ScenarioStatusSingle], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.cli.v1.ScenarioControlPlaneService.GetScenarioStatus is not implemented"))
+}
+
+func (UnimplementedScenarioControlPlaneServiceHandler) GetScenarioFreshness(context.Context, *connect.Request[v1.GetScenarioFreshnessRequest]) (*connect.Response[v1.ScenarioFreshnessResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.cli.v1.ScenarioControlPlaneService.GetScenarioFreshness is not implemented"))
 }
 
 func (UnimplementedScenarioControlPlaneServiceHandler) GetScenarioLogs(context.Context, *connect.Request[v1.GetScenarioLogsRequest]) (*connect.Response[v1.ScenarioLogsResponse], error) {

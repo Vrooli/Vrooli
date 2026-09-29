@@ -85,6 +85,17 @@ import (
 
 const globalRequestTimeout = 15 * time.Minute
 
+// managedShutdownTimeout bounds the HTTP graceful-drain window during a
+// managed restart. Accepted executions are detached from their request and
+// persist their terminal state independently; waiting for a long-running HTTP
+// request here would delay browser interruption and process-boundary recovery.
+const managedShutdownTimeout = 250 * time.Millisecond
+
+// Cleanup has its own bounded budget. Managed restarts deliberately stop
+// waiting for long-poll requests quickly, but browser/sidecar/database teardown
+// must still have time to finish after that drain deadline expires.
+const managedCleanupTimeout = 15 * time.Second
+
 func main() {
 	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
@@ -1140,8 +1151,10 @@ func main() {
 	// Start server with graceful shutdown
 	// WriteTimeout is extended to allow long-running automation requests
 	if err := server.Run(server.Config{
-		Handler:      apihttp.TestModeMiddleware(r),
-		WriteTimeout: globalRequestTimeout + 30*time.Second,
+		Handler:         apihttp.TestModeMiddleware(r),
+		WriteTimeout:    globalRequestTimeout + 30*time.Second,
+		ShutdownTimeout: managedShutdownTimeout,
+		CleanupTimeout:  managedCleanupTimeout,
 		Cleanup: func(ctx context.Context) error {
 			cancelCheckpoints()
 			select {
@@ -1155,7 +1168,7 @@ func main() {
 			// Stop the scheduler first to prevent new executions
 			if schedulerSvc != nil {
 				log.Info("Stopping scheduler...")
-				if err := schedulerSvc.Stop(); err != nil {
+				if err := schedulerSvc.StopContext(ctx); err != nil {
 					log.WithError(err).Error("Failed to stop scheduler cleanly")
 				}
 			}

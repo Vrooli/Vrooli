@@ -353,6 +353,33 @@ func TestWorkflowExecutionRepositoryRecoveryUsesCurrentCleanupGeneration(t *test
 	}
 }
 
+func TestWorkflowExecutionRepositoryExcludesFinalizedUnknownAccounting(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	catalog := &workflowRepository{db: db, log: logrus.New()}
+	revision := workflowRevision("owner/flow", "sha256:finalized-unknown", "1.0.0")
+	if err := catalog.ActivateBatch(ctx, []*domain.WorkflowRevision{revision}); err != nil {
+		t.Fatal(err)
+	}
+	repo := &workflowExecutionRepository{db: db, log: logrus.New()}
+	now := time.Now().UTC()
+	execution := &domain.WorkflowExecution{
+		ID: uuid.New(), Owner: "owner", WorkflowKey: "owner/flow", DefinitionDigest: revision.Digest,
+		Status: domain.WorkflowExecutionFailed, CurrentNodeID: "start", Input: json.RawMessage(`{}`),
+		BudgetUsage:    domain.WorkflowBudgetUsage{AccountingFinalizedUnknown: true, AccountingComplete: false},
+		EdgeTraversals: map[string]int{}, Version: 1, IdempotencyKey: "finalized-unknown", CreatedAt: now, UpdatedAt: now, EndedAt: &now,
+	}
+	initial := &domain.WorkflowJournalEntry{ID: uuid.New(), ExecutionID: execution.ID, Sequence: 1, Kind: domain.WorkflowJournalInput, Payload: json.RawMessage(`{}`), CreatedAt: now}
+	if err := repo.Create(ctx, execution, initial); err != nil {
+		t.Fatal(err)
+	}
+	recoverable, err := repo.ListRecoverable(ctx, 10)
+	if err != nil || len(recoverable) != 0 {
+		t.Fatalf("finalized unknown execution remained recoverable: %+v err=%v", recoverable, err)
+	}
+}
+
 func workflowRevision(key, digest, version string) *domain.WorkflowRevision {
 	return &domain.WorkflowRevision{ID: uuid.New(), Owner: "owner", Key: key, SemanticVersion: version, Digest: digest, Definition: domain.WorkflowDefinition{SchemaVersion: domain.WorkflowSchemaVersionV1, Owner: "owner", Key: key, Version: version, InputSchema: json.RawMessage(`{}`), OutputSchema: json.RawMessage(`{}`)}, SourcePath: ".vrooli/agent-workflows/flow.json", SourceHash: digest, SourceUpdatedAt: time.Now().UTC(), CreatedAt: time.Now().UTC()}
 }

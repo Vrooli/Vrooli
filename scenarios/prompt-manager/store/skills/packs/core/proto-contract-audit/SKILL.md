@@ -12,9 +12,9 @@ metadata:
   targetDimensions: ["proto-health","contracts"]
   targetToolId: "run-agent"
   programmaticHome: "proto-health:proto"
-  revision: 2
+  revision: 3
   createdAt: "2026-06-11T00:00:00Z"
-  updatedAt: "2026-06-16T00:00:00Z"
+  updatedAt: "2026-09-28T00:00:00Z"
   requires:
     scenarios: ["prompt-manager", "scenario-dependency-analyzer", "test-genie", "vrooli"]
     commands: ["prompt-manager", "prompt-manager skill", "prompt-manager skill read", "scenario-dependency-analyzer for", "scenario-dependency-analyzer work", "test-genie execute", "test-genie phase", "vrooli"]
@@ -88,7 +88,7 @@ Walk these rows in order.
 
 | Signal | Primary action | Handoff |
 |---|---|---|
-| `proto.gen_out_of_sync` | Run `cd packages/proto && make generate`, then re-run `make verify-committed-gen` when preparing the commit/CI gate. | None |
+| `proto.gen_out_of_sync` | Run the governed scoped generator (`cd packages/proto && go run -mod=mod ./cmd/protogen generate --changed`), then re-run `go run -mod=mod ./cmd/protogen verify`. Use `make generate` only for an intentional full-fleet rebuild. | None |
 | `proto.package_mismatch` or `proto.version_naming` | Move/rename schema files to match `packages/proto/STYLE_GUIDE.md`; regenerate. | None |
 | `proto.cross_domain_import` | Move shared message(s) into `v1/shared/` or reconsider the domain boundary. | `screaming-architecture-audit` if code domains are also blurred |
 | `proto.unsupported_annotation` | Remove deprecated `@layer`, `@domain`, `@imports`, or unsupported tags; keep only registry-backed annotations. | None |
@@ -109,15 +109,25 @@ declaration-only proto-health finding.
 2. Inspect `packages/proto/schemas/{{TARGET}}/` and classify each file by version and domain.
 3. Confirm each served API method has a generated Connect handler or an explicit REST exception.
 4. Confirm API, CLI, and UI use generated contracts where the wire shape is proto-owned.
-5. Regenerate artifacts after schema edits:
+5. If a consumer reports a missing generated message, field, RPC, client, selector, or descriptor, treat generated-output drift as the first hypothesis. Do not edit `packages/proto/gen/` or add a compatibility type. Run the owner preflight before debugging the consumer:
 
 ```bash
 cd packages/proto
-make generate
-make verify-committed-gen
+go run -mod=mod ./cmd/protogen generate --changed
+go run -mod=mod ./cmd/protogen verify
 ```
 
-6. Update durable docs:
+The changed path repairs the complete import closure, direct reverse dependents, and edited or missing outputs recorded in the owner manifests. This applies to Go, Connect, TypeScript, Python, CLI, API, UI, and runtime consumers.
+
+6. Regenerate artifacts after schema edits:
+
+```bash
+cd packages/proto
+go run -mod=mod ./cmd/protogen generate --changed
+go run -mod=mod ./cmd/protogen verify
+```
+
+7. Update durable docs:
 - `scenarios/{{TARGET}}/docs/concepts/ARCHITECTURE.md` for proto/domain ownership and served surfaces.
 - `scenarios/{{TARGET}}/docs/internal/SEAMS.md` for descriptor, generated-client, or transport seams.
 - `scenarios/{{TARGET}}/docs/internal/PROBLEMS.md` for deferred warnings.
@@ -129,7 +139,8 @@ make verify-committed-gen
 | Symptom | First check | Likely cause | Fix |
 |---|---|---|---|
 | `proto-health validate scenario {{TARGET}}` cannot find or reach proto-health | `cd scenarios/proto-health && make status` | The producer scenario is stopped or unhealthy. | Start it through lifecycle with `cd scenarios/proto-health && make start`, then rerun validation. |
-| `proto.gen_out_of_sync` appears after schema edits | `cd packages/proto && make generate` | Generated artifacts under `packages/proto/gen/` do not match `packages/proto/schemas/`. | Regenerate, inspect the scoped `gen/` diff, and rerun `proto-health validate scenario {{TARGET}}`. |
+| `proto.gen_out_of_sync` appears after schema edits | `cd packages/proto && go run -mod=mod ./cmd/protogen generate --changed` | Generated artifacts under `packages/proto/gen/` do not match `packages/proto/schemas/`. | Regenerate, inspect the scoped `gen/` diff, and rerun `proto-health validate scenario {{TARGET}}`. |
+| A consumer reports a missing generated symbol after a schema or contract change | `cd packages/proto && go run -mod=mod ./cmd/protogen generate --changed` | The owner manifest or a dependent generated output is stale, edited, or missing. | Run the owner preflight and `go run -mod=mod ./cmd/protogen verify`; inspect the exact owner/dependent paths before rerunning the consumer. |
 | `cd packages/proto && make verify-committed-gen` fails while schema/generated changes are intentionally uncommitted | `git diff --stat -- packages/proto/gen packages/proto/schemas` | The check compares generated artifacts against the git index; it is a commit/CI gate, not a substitute for reviewing uncommitted generated diffs. | Confirm `make generate` is idempotent, include the generated artifacts in the same commit as schema changes, then rerun `make verify-committed-gen` from a clean or staged state. |
 | Only `proto.possibly_unused` or other WARNING/INFO findings remain | Inspect `scenarios/{{TARGET}}/docs/internal/PROBLEMS.md` | The scenario may be intentionally carrying advisory migration debt. | Document the reason and owner in durable docs; do not turn warning-tier maturity findings into blockers without a plan update. |
 

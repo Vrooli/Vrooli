@@ -47,6 +47,10 @@ type ServiceAPI interface {
 	// Get retrieves a sandbox by ID. Returns NotFoundError if not found.
 	Get(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
 
+	// BeginProcess holds admission against review/lifecycle changes until the
+	// caller registers the launched process (or abandons the launch).
+	BeginProcess(ctx context.Context, id uuid.UUID) (*types.Sandbox, func(), error)
+
 	// List retrieves sandboxes matching the filter.
 	List(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error)
 
@@ -67,6 +71,11 @@ type ServiceAPI interface {
 
 	// GetDiff generates a diff for the sandbox changes.
 	GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult, error)
+
+	CaptureReviewSnapshot(ctx context.Context, req *types.ReviewSnapshotRequest) (*types.ReviewSnapshot, error)
+	GetReviewSnapshot(ctx context.Context, sandboxID, requestID uuid.UUID) (*types.ReviewSnapshot, error)
+	MaterializeReviewSnapshot(ctx context.Context, sandboxID, requestID uuid.UUID, expectedSHA256 string) (*types.ReviewWorkspace, error)
+	FetchReviewFile(ctx context.Context, sandboxID, requestID uuid.UUID, side, path string) ([]byte, error)
 
 	// Approve applies sandbox changes to the canonical repo.
 	// Returns StateError if sandbox cannot be approved.
@@ -153,14 +162,17 @@ var _ ServiceAPI = (*Service)(nil)
 // distributed across service_*.go files by responsibility; the struct
 // itself only declares fields here.
 type Service struct {
-	repo        repository.Repository
-	archiveRepo repository.ArchiveRepository
-	blobs       blobstore.BlobStore
-	driver      driver.Driver
-	config      ServiceConfig
-	clock       schedule.Clock
-	audit       audit.Emitter
-	starter     process.Starter
+	repo           repository.Repository
+	archiveRepo    repository.ArchiveRepository
+	blobs          blobstore.BlobStore
+	driver         driver.Driver
+	config         ServiceConfig
+	clock          schedule.Clock
+	audit          audit.Emitter
+	starter        process.Starter
+	processDrainer interface {
+		Drain(context.Context, uuid.UUID) error
+	}
 
 	// Policies — volatile decision points wired via ServiceOption.
 	attributionPolicy policy.AttributionPolicy
@@ -291,6 +303,12 @@ func WithArchive(archiveRepo repository.ArchiveRepository, blobs blobstore.BlobS
 	}
 }
 
+func WithProcessDrainer(drainer interface {
+	Drain(context.Context, uuid.UUID) error
+}) ServiceOption {
+	return func(s *Service) { s.processDrainer = drainer }
+}
+
 // NewService creates a new sandbox service. clk and emitter are
 // required:
 //
@@ -301,8 +319,7 @@ func WithArchive(archiveRepo repository.ArchiveRepository, blobs blobstore.BlobS
 //   - emitter: every audit event (created, approved, rejected,
 //     auto-heal-failed, manual-review-ttl-expired, etc.) goes
 //     through it. Production wires audit.NewRepoEmitter(repo.LogAuditEvent, clk);
-//     tests wire mocks.NewFakeEmitter(clk) and assert via
-//     assertx.AssertAuditEvents.
+//     tests wire mocks.NewFakeEmitter(clk) and inspect its recorded Events().
 func NewService(repo repository.Repository, drv driver.Driver, cfg ServiceConfig, clk schedule.Clock, emitter audit.Emitter, starter process.Starter, opts ...ServiceOption) *Service {
 	if clk == nil {
 		panic("sandbox.NewService: clock is required")

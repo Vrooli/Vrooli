@@ -376,7 +376,7 @@ func TestNewStandardScenarioAppUsesStandardWiring(t *testing.T) {
 	if app.HTTPClient == nil || app.HTTPClient.Timeout() != 7*time.Second {
 		t.Fatalf("expected standard http timeout wiring, got %v", app.HTTPClient.Timeout())
 	}
-	if got := strings.Join(app.StaleChecker.FreshnessInputs, ","); got != "api/**,cli/**,.vrooli/service.json,../../packages/cli-core" {
+	if got := strings.Join(app.StaleChecker.FreshnessInputs, ","); got != "api/**,cli/**,.vrooli/service.json,../../packages/cli-core,../../packages/proto/gen/.vrooli-proto-artifact.json" {
 		t.Fatalf("freshness inputs = %q", got)
 	}
 

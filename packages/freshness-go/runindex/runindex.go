@@ -69,6 +69,9 @@ type PhaseRecord struct {
 type RunRecord struct {
 	RunID    string `json:"run_id"`
 	Scenario string `json:"scenario"`
+	// AdmissionIntentDigest binds an explicitly supplied run ID to its original request.
+	// Empty means the intent predates durable explicit-ID admission and cannot be replayed safely.
+	AdmissionIntentDigest string `json:"admission_intent_digest,omitempty"`
 	// TargetKind and TargetID are the durable identity. Scenario is retained as
 	// the legacy display/compatibility field and is populated for scenario runs.
 	TargetKind      string        `json:"target_kind,omitempty"`

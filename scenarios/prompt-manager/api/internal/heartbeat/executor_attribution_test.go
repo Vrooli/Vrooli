@@ -23,6 +23,9 @@ import (
 // operator-direct (the CLI's fallback when the env var is absent).
 func TestExecute_PropagatesAttributionInCreateRunEnv(t *testing.T) {
 	teamStore, agentStore, _ := setupExecutorTestEnv(t)
+	if err := teamStore.Update(context.Background(), "team-1", &store.Team{EffortRefs: []string{"effort:test"}}); err != nil {
+		t.Fatalf("set team effort identity: %v", err)
+	}
 
 	mockClient := newMockAgentClient().
 		WithCreateTaskResponse(&Task{ID: "task-100", Title: "test"}).
@@ -85,6 +88,15 @@ func TestExecute_PropagatesAttributionInCreateRunEnv(t *testing.T) {
 	// docs/agent-system/RUNTIME_ATTRIBUTION.md § Env-var bridge).
 	if info.RunID != nil {
 		t.Errorf("RunID = %v, want nil", info.RunID)
+	}
+	if got := runReq.Environment[workloadKindEnv]; got != "scheduled" {
+		t.Fatalf("workload kind = %q, want scheduled", got)
+	}
+	if got := runReq.Environment[workloadKeyEnv]; got != "effort:test" {
+		t.Fatalf("workload key = %q, want effort:test", got)
+	}
+	if got := runReq.Environment[workloadInstanceEnv]; got == "" {
+		t.Fatal("workload instance is missing")
 	}
 
 	// Drain the async-completion goroutine so t.TempDir cleanup doesn't race

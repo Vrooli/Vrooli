@@ -4,6 +4,7 @@ package vrooli.cli.v1;
 
 import "cli/v1/scenario_list.proto";
 import "cli/v1/scenario_status.proto";
+import "cli/v1/scenario_freshness.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
 
@@ -15,6 +16,10 @@ message ListScenariosRequest {
 }
 
 message GetScenarioStatusRequest {
+  string name = 1;
+}
+
+message GetScenarioFreshnessRequest {
   string name = 1;
 }
 
@@ -71,6 +76,7 @@ message SetupScenarioRequest {
 service ScenarioControlPlaneService {
   rpc ListScenarios(ListScenariosRequest) returns (ScenarioListResponse);
   rpc GetScenarioStatus(GetScenarioStatusRequest) returns (ScenarioStatusSingle);
+  rpc GetScenarioFreshness(GetScenarioFreshnessRequest) returns (ScenarioFreshnessResponse);
   rpc GetScenarioLogs(GetScenarioLogsRequest) returns (ScenarioLogsResponse);
   rpc StartScenario(StartScenarioRequest) returns (ScenarioLifecycleResponse);
   rpc StopScenario(StopScenarioRequest) returns (ScenarioLifecycleResponse);

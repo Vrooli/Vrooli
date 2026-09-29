@@ -222,7 +222,21 @@ Common utilities live in `internal/` to prevent duplication:
 
 ## Building
 
+The preferred path is the repository lifecycle, which refreshes the selected
+shared Proto artifact before installing the CLI:
+
 ```bash
+vrooli setup --scenarios test-genie
+```
+
+For a compile-only check, perform the shared generated-artifact preflight from
+the repository root first:
+
+```bash
+cd packages/proto
+go run -mod=mod ./cmd/protogen generate --changed
+go run -mod=mod ./cmd/protogen verify
+
 cd scenarios/test-genie/cli
 go build -o test-genie .
 ```

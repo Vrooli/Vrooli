@@ -97,6 +97,18 @@ type Provider interface {
 	ListProcesses(ctx context.Context, sandboxID uuid.UUID) ([]ProcessSnapshot, error)
 }
 
+// Inventory is the optional read-only inventory seam used by Agent Manager's
+// reconciler.  It deliberately stays separate from Provider so alternate
+// providers and existing test doubles do not have to implement a broad list
+// operation merely to support run execution.
+type Inventory interface {
+	List(ctx context.Context, status string) ([]*Sandbox, error)
+}
+
+// AgentManagerRunIDMetadataKey is the Workspace Sandbox metadata key that
+// binds a sandbox to its durable Agent Manager run owner.
+const AgentManagerRunIDMetadataKey = "agent_manager_run_id"
+
 // ProcessSnapshot is the provider's read-only observation of one launched
 // process. A non-nil ExitCode is authoritative terminal evidence; nil means
 // the provider still observes the process as running or cannot report its

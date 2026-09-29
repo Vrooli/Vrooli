@@ -2363,8 +2363,13 @@ type GetNavigationStatusResponse struct {
 	// Bounded named arrays extracted from the final page without replay.
 	ExtractedData     *structpb.Struct `protobuf:"bytes,11,opt,name=extracted_data,json=extractedData,proto3" json:"extracted_data,omitempty"`
 	VerificationError string           `protobuf:"bytes,12,opt,name=verification_error,json=verificationError,proto3" json:"verification_error,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Terminal completion details retained for reconnecting status readers.
+	FinalUrl        string `protobuf:"bytes,13,opt,name=final_url,json=finalUrl,proto3" json:"final_url,omitempty"`
+	Error           string `protobuf:"bytes,14,opt,name=error,proto3" json:"error,omitempty"`
+	Summary         string `protobuf:"bytes,15,opt,name=summary,proto3" json:"summary,omitempty"`
+	TotalDurationMs int64  `protobuf:"varint,16,opt,name=total_duration_ms,json=totalDurationMs,proto3" json:"total_duration_ms,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *GetNavigationStatusResponse) Reset() {
@@ -2479,6 +2484,34 @@ func (x *GetNavigationStatusResponse) GetVerificationError() string {
 		return x.VerificationError
 	}
 	return ""
+}
+
+func (x *GetNavigationStatusResponse) GetFinalUrl() string {
+	if x != nil {
+		return x.FinalUrl
+	}
+	return ""
+}
+
+func (x *GetNavigationStatusResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *GetNavigationStatusResponse) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *GetNavigationStatusResponse) GetTotalDurationMs() int64 {
+	if x != nil {
+		return x.TotalDurationMs
+	}
+	return 0
 }
 
 type AbortNavigationRequest struct {
@@ -2894,7 +2927,7 @@ const file_browser_automation_studio_v1_ai_ai_proto_rawDesc = "" +
 	"\vdescription\x18\x06 \x01(\tR\vdescription\x12\x18\n" +
 	"\asuccess\x18\a \x01(\bR\asuccess\x12\x14\n" +
 	"\x05error\x18\b \x01(\tR\x05error\x12*\n" +
-	"\x02at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\x02at\"\x9a\x04\n" +
+	"\x02at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\x02at\"\x93\x05\n" +
 	"\x1bGetNavigationStatusResponse\x12#\n" +
 	"\rnavigation_id\x18\x01 \x01(\tR\fnavigationId\x12\x1d\n" +
 	"\n" +
@@ -2911,7 +2944,11 @@ const file_browser_automation_studio_v1_ai_ai_proto_rawDesc = "" +
 	"\x10verified_success\x18\n" +
 	" \x01(\bR\x0fverifiedSuccess\x12>\n" +
 	"\x0eextracted_data\x18\v \x01(\v2\x17.google.protobuf.StructR\rextractedData\x12-\n" +
-	"\x12verification_error\x18\f \x01(\tR\x11verificationError\"F\n" +
+	"\x12verification_error\x18\f \x01(\tR\x11verificationError\x12\x1b\n" +
+	"\tfinal_url\x18\r \x01(\tR\bfinalUrl\x12\x14\n" +
+	"\x05error\x18\x0e \x01(\tR\x05error\x12\x18\n" +
+	"\asummary\x18\x0f \x01(\tR\asummary\x12*\n" +
+	"\x11total_duration_ms\x18\x10 \x01(\x03R\x0ftotalDurationMs\"F\n" +
 	"\x16AbortNavigationRequest\x12,\n" +
 	"\rnavigation_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fnavigationId\"p\n" +
 	"\x17AbortNavigationResponse\x12#\n" +

@@ -1141,8 +1141,8 @@ Layout:
   in Phase 5 once the encoder needed to live next to it; this
   package is now exclusively about the production middleware +
   router boot path.
-- `internal/testutil/assertx/` — domain assertions (`AssertStatus`,
-  `AssertHomeOverlayState`, `AssertSSEFrameSequence`, `AssertAuditEvents`).
+- `internal/testutil/assertx/` — the shared SSE frame-sequence assertion
+  (`AssertSSEFrameSequence`). Audit fakes expose their recorded `Events()`.
 
 Guarantees pinned by tests:
 

@@ -18,6 +18,7 @@ import (
 	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -25,23 +26,24 @@ import (
 const phaseSourceValidationProvider = "validation-provider"
 
 type Delegated struct {
-	Name             Name
-	ProviderScenario string
-	FindingSource    architecturev1.FindingSource
-	Emoji            string
-	SkipEnvVar       string
-	DetailCommand    string
-	Optional         bool
-	Timeout          time.Duration
-	DisplayName      string
-	Description      string
-	IncludeExecution bool
-	CapabilitySubset []string
-	Exclude          []string
-	DeliveryMode     string
-	GateEnvVar       string
-	DefaultGateMode  validationprovider.GateMode
-	Client           DelegatedClient
+	Name                 Name
+	ProviderScenario     string
+	FindingSource        architecturev1.FindingSource
+	Emoji                string
+	SkipEnvVar           string
+	DetailCommand        string
+	Optional             bool
+	Timeout              time.Duration
+	DisplayName          string
+	Description          string
+	IncludeExecution     bool
+	CapabilitySubset     []string
+	RetainedEvidenceSets []*scenariovalidationv1.RetainedEvidenceSet
+	Exclude              []string
+	DeliveryMode         string
+	GateEnvVar           string
+	DefaultGateMode      validationprovider.GateMode
+	Client               DelegatedClient
 }
 
 // seam: DelegatedClient lets catalog-declared delegated phases share the
@@ -166,19 +168,20 @@ func parseDescriptorDBIsolation(value string) runnability.DBIsolation {
 
 func (d Delegated) provider() validationprovider.Provider {
 	return validationprovider.Provider{
-		Phase:            d.Name.String(),
-		ProviderScenario: d.ProviderScenario,
-		FindingSource:    d.FindingSource,
-		Emoji:            d.Emoji,
-		DetailCommand:    d.DetailCommand,
-		Optional:         d.Optional,
-		Timeout:          d.Timeout,
-		IncludeExecution: d.IncludeExecution,
-		CapabilitySubset: append([]string(nil), d.CapabilitySubset...),
-		Exclude:          append([]string(nil), d.Exclude...),
-		DeliveryMode:     d.DeliveryMode,
-		GateEnvVar:       d.GateEnvVar,
-		DefaultGateMode:  d.DefaultGateMode,
+		Phase:                d.Name.String(),
+		ProviderScenario:     d.ProviderScenario,
+		FindingSource:        d.FindingSource,
+		Emoji:                d.Emoji,
+		DetailCommand:        d.DetailCommand,
+		Optional:             d.Optional,
+		Timeout:              d.Timeout,
+		IncludeExecution:     d.IncludeExecution,
+		CapabilitySubset:     append([]string(nil), d.CapabilitySubset...),
+		RetainedEvidenceSets: d.RetainedEvidenceSets,
+		Exclude:              append([]string(nil), d.Exclude...),
+		DeliveryMode:         d.DeliveryMode,
+		GateEnvVar:           d.GateEnvVar,
+		DefaultGateMode:      d.DefaultGateMode,
 	}
 }
 
@@ -188,6 +191,7 @@ func providerRunner(provider validationprovider.Provider, client DelegatedClient
 	}
 	return func(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
 		bound := provider
+		bound.RetainedEvidenceSets = env.RetainedEvidenceSets
 		if bound.DeliveryMode == "durable-run" {
 			bound.OnStarted = func(ref validationprovider.RunReference) {
 				writeDurableChildReference(env, bound.Phase, bound.ProviderScenario, ref, logWriter)
@@ -198,6 +202,7 @@ func providerRunner(provider validationprovider.Provider, client DelegatedClient
 }
 
 func defaultDelegatedClient(ctx context.Context, env workspace.Environment, _ io.Writer, provider validationprovider.Provider) *validationprovider.Result {
+	provider.RetainedEvidenceSets = env.RetainedEvidenceSets
 	// env.ScenarioDir is the resolved physical scenario directory; sending it as
 	// the request path lets providers validate scenarios that live outside the
 	// repo scenarios/ registry (e.g. deep template validation's temp scenario).

@@ -1354,6 +1354,11 @@ Create a new team.
 
 **operatingContract.documents.sharedState:** Internal JSON field for team working state. Use final `kind` values such as `charter`, `task-board`, `working-register`, `rolling-snapshot`, `append-only-event-log`, and `operator-input`. Agent-facing prompts render this category as team working state in the Storage Map.
 
+Document paths use typed bases such as `repo-root`, `team-root`, and
+`team-shared`. A read-only Plan Manager authority that remains outside the
+repository may use `base: external` with an absolute path; external bases are
+rejected from member write declarations.
+
 **operatingContract:** Required structured source of truth for team/member operating policy. Heartbeat prompts render member-specific contract data inside the generated `Operating Policy` section alongside runtime, coordination, and execution policy. Prompt rendering fails if required policy is missing or invalid.
 
 **Response:** Created team object with `201 Created`.

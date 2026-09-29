@@ -3,7 +3,8 @@ import type { SessionState } from '../types';
 import { cleanupSession } from '../infra';
 import { assertRecordingAcknowledged } from '../recording';
 import { stopFrameStreaming } from '../frame-streaming';
-import { resetPageInputState, settlePageInput } from '../routes/record-mode/recording-input';
+import { resetPageInputState, settlePageInput } from './live-input';
+import { clearFrameCache } from './frame-cache';
 import { resetKeyboardState } from '../handlers/keyboard';
 
 /** Clear managed context state; SessionManager owns admission and phase changes. */
@@ -24,6 +25,7 @@ export async function resetSessionState(session: SessionState): Promise<void> {
   session.pageLifecycleCleanup?.();
   session.pageLifecycleCleanup = undefined;
   await stopFrameStreaming(session.id);
+  clearFrameCache(session.id);
   await Promise.all([...new Set([...session.pages, session.page])].map(async (page) => {
     await settlePageInput(page);
     await resetPageInputState(page);

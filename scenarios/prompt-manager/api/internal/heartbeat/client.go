@@ -63,6 +63,7 @@ type Task struct {
 	Description string `json:"description"`            // Main prompt sent to the agent
 	ScopePath   string `json:"scope_path"`             // Working directory (required, non-empty)
 	ProjectRoot string `json:"project_root,omitempty"` // Optional project root
+	Status      string `json:"status,omitempty"`       // Owner lifecycle status, when returned
 }
 
 // CreateTaskRequest is the request for creating a task

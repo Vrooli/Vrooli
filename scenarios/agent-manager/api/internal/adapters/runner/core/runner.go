@@ -309,6 +309,10 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 		req.GetTag(), prompt, env, req.WorkingDir,
 	)
 	launchReq.RunID, launchReq.EventSink = req.RunID, req.EventSink
+	launchReq.PolicyFiles = req.PolicyFiles
+	if cfg := req.GetConfig(); cfg != nil && cfg.SandboxConfig != nil {
+		launchReq.NetworkMode = string(cfg.SandboxConfig.NetworkMode.Effective())
+	}
 
 	r.runnerLog().Info("agent launch",
 		obs.KeyRunID, req.RunID.String(),
@@ -328,9 +332,11 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 			obs.KeyError, err.Error(),
 		)
 		return nil, &domain.RunnerError{
-			RunnerType: r.codec.Type(),
-			Operation:  "execute",
-			Cause:      err,
+			RunnerType:            r.codec.Type(),
+			Operation:             "execute",
+			Cause:                 err,
+			ExecutionStartedKnown: true,
+			ExecutionStarted:      false,
 		}
 	}
 
@@ -356,7 +362,7 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 	var observedEvents []*domain.RunEvent
 	errorOutput := r.spawnStderrAccumulator(proc)
 
-	r.scanStream(ctx, scanInputs{
+	scanErr := r.scanStream(ctx, scanInputs{
 		runID:          req.RunID,
 		state:          state,
 		proc:           proc,
@@ -364,10 +370,15 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 		metrics:        &metrics,
 		lastAssistant:  &lastAssistantMessage,
 		observedEvents: &observedEvents,
+		maxToolCalls:   req.GetConfig().MaxToolCalls,
+		runnerType:     r.codec.Type(),
 	})
 
 	errorOutput.wait()
 	waitErr := proc.Wait()
+	if scanErr != nil {
+		waitErr = scanErr
+	}
 	stderr := errorOutput.String()
 
 	duration := time.Since(startTime)
@@ -507,12 +518,18 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 		tag, prompt, env, req.WorkingDir,
 	)
 	launchReq.RunID, launchReq.EventSink = req.RunID, req.EventSink
+	launchReq.PolicyFiles = req.PolicyFiles
+	if cfg := req.GetConfig(); cfg != nil && cfg.SandboxConfig != nil {
+		launchReq.NetworkMode = string(cfg.SandboxConfig.NetworkMode.Effective())
+	}
 	proc, err := launcher.Launch(ctx, launchReq)
 	if err != nil {
 		return nil, &domain.RunnerError{
-			RunnerType: r.codec.Type(),
-			Operation:  "continue",
-			Cause:      err,
+			RunnerType:            r.codec.Type(),
+			Operation:             "continue",
+			Cause:                 err,
+			ExecutionStartedKnown: true,
+			ExecutionStarted:      false,
 		}
 	}
 
@@ -526,7 +543,7 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 	var observedEvents []*domain.RunEvent
 	errorOutput := r.spawnStderrAccumulator(proc)
 
-	r.scanStream(ctx, scanInputs{
+	scanErr := r.scanStream(ctx, scanInputs{
 		runID:          req.RunID,
 		state:          state,
 		proc:           proc,
@@ -534,10 +551,15 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 		metrics:        &metrics,
 		lastAssistant:  &lastAssistantMessage,
 		observedEvents: &observedEvents,
+		maxToolCalls:   req.GetConfig().MaxToolCalls,
+		runnerType:     r.codec.Type(),
 	})
 
 	errorOutput.wait()
 	waitErr := proc.Wait()
+	if scanErr != nil {
+		waitErr = scanErr
+	}
 	stderr := errorOutput.String()
 
 	duration := time.Since(startTime)
@@ -588,13 +610,15 @@ type scanInputs struct {
 	metrics        *runner.ExecutionMetrics
 	lastAssistant  *string
 	observedEvents *[]*domain.RunEvent
+	maxToolCalls   int
+	runnerType     domain.RunnerType
 }
 
 // scanStream consumes proc.Stdout() line by line, dispatching to the
 // codec for decoding and emitting parsed events through sink. Honours
 // codec.OnEarlyTerminate for runners that signal completion via an
 // in-stream sentinel (e.g. OpenCode's step_finish).
-func (r *Runner) scanStream(ctx context.Context, in scanInputs) {
+func (r *Runner) scanStream(ctx context.Context, in scanInputs) error {
 	scanner := bufio.NewScanner(in.proc.Stdout())
 	scanner.Buffer(make([]byte, 0, 64*1024), config.DefaultLevers().Scanner.StdoutMaxLineBytes)
 
@@ -626,6 +650,14 @@ func (r *Runner) scanStream(ctx context.Context, in scanInputs) {
 			if in.sink != nil {
 				_ = in.sink.Emit(event)
 			}
+			if in.maxToolCalls > 0 && in.metrics.ToolCallCount >= in.maxToolCalls {
+				err := toolCallLimitError(in.runnerType, in.maxToolCalls)
+				if in.sink != nil {
+					_ = in.sink.Emit(domain.NewLogEvent(in.runID, "warn", err.Error()))
+				}
+				in.proc.Kill()
+				return err
+			}
 		}
 
 		// OnEarlyTerminate runs *after* the line's events are decoded
@@ -650,6 +682,18 @@ func (r *Runner) scanStream(ctx context.Context, in scanInputs) {
 			in.runID, "warn",
 			fmt.Sprintf("Scanner error (possible buffer overflow or I/O error): %v", scannerErr),
 		))
+	}
+	return nil
+}
+
+func toolCallLimitError(runnerType domain.RunnerType, limit int) error {
+	return &domain.RunnerError{
+		RunnerType:            runnerType,
+		Operation:             "execution",
+		Cause:                 fmt.Errorf("execution stopped: owner tool-call limit of %d reached", limit),
+		IsTransient:           false,
+		ExecutionStartedKnown: true,
+		ExecutionStarted:      true,
 	}
 }
 
@@ -856,6 +900,10 @@ func (r *Runner) executeWithDurableTranscript(
 		req.GetTag(), prompt, env, req.WorkingDir,
 	)
 	launchReq.RunID, launchReq.EventSink = req.RunID, req.EventSink
+	launchReq.PolicyFiles = req.PolicyFiles
+	if cfg := req.GetConfig(); cfg != nil && cfg.SandboxConfig != nil {
+		launchReq.NetworkMode = string(cfg.SandboxConfig.NetworkMode.Effective())
+	}
 	return r.runDurable(ctx, durableInputs{
 		runID:        req.RunID,
 		config:       req.GetConfig(),
@@ -914,6 +962,10 @@ func (r *Runner) continueWithDurableTranscript(
 		tag, prompt, env, req.WorkingDir,
 	)
 	launchReq.RunID, launchReq.EventSink = req.RunID, req.EventSink
+	launchReq.PolicyFiles = req.PolicyFiles
+	if cfg := req.GetConfig(); cfg != nil && cfg.SandboxConfig != nil {
+		launchReq.NetworkMode = string(cfg.SandboxConfig.NetworkMode.Effective())
+	}
 	result, err := r.runDurable(ctx, durableInputs{
 		runID:        req.RunID,
 		config:       req.GetConfig(),
@@ -1021,9 +1073,11 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 			obs.KeyError, err.Error(),
 		)
 		return nil, &domain.RunnerError{
-			RunnerType: r.codec.Type(),
-			Operation:  "execute",
-			Cause:      err,
+			RunnerType:            r.codec.Type(),
+			Operation:             "execute",
+			Cause:                 err,
+			ExecutionStartedKnown: true,
+			ExecutionStarted:      false,
 		}
 	}
 
@@ -1061,6 +1115,20 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 	var observedEvents []*domain.RunEvent
 	var errorOutput strings.Builder
 	var terminal *runner.TranscriptTerminal
+	toolLimitTriggered := make(chan struct{})
+	var toolLimitOnce sync.Once
+	stopForToolLimit := func() {
+		if in.config == nil || in.config.MaxToolCalls <= 0 || metrics.ToolCallCount < in.config.MaxToolCalls {
+			return
+		}
+		toolLimitOnce.Do(func() {
+			close(toolLimitTriggered)
+			if in.sink != nil {
+				_ = in.sink.Emit(domain.NewLogEvent(in.runID, "warn", toolCallLimitError(r.codec.Type(), in.config.MaxToolCalls).Error()))
+			}
+			proc.Kill()
+		})
+	}
 	// Durable replay parses with a fresh transcript parser rather than the
 	// live stdout state. Preserve its discovered session id explicitly so a
 	// recovered/persisted transcript has the same continuation identity as the
@@ -1142,6 +1210,7 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 				for _, evt := range events {
 					r.codec.UpdateMetrics(evt, &metrics, &lastAssistantMessage)
 					observedEvents = append(observedEvents, evt)
+					stopForToolLimit()
 				}
 			},
 		})
@@ -1161,6 +1230,11 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 	waitErr := proc.Wait()
 	cancelConsume()
 	<-liveDone
+	select {
+	case <-toolLimitTriggered:
+		waitErr = toolCallLimitError(r.codec.Type(), in.config.MaxToolCalls)
+	default:
+	}
 
 	// Final drain: catch up on any trailing bytes the live tail raced past.
 	finalCursor, finalTerminal, drainErr := runner.Consume(context.Background(), runner.ConsumeArgs{
@@ -1175,6 +1249,7 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 			for _, evt := range events {
 				r.codec.UpdateMetrics(evt, &metrics, &lastAssistantMessage)
 				observedEvents = append(observedEvents, evt)
+				stopForToolLimit()
 			}
 		},
 	})
@@ -1188,6 +1263,11 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 		if err := in.transcript.OnAdvance(finalCursor, 0); err != nil {
 			r.reportTranscriptError(in.runID, in.sink, "transcript cursor persistence", err)
 		}
+	}
+	select {
+	case <-toolLimitTriggered:
+		waitErr = toolCallLimitError(r.codec.Type(), in.config.MaxToolCalls)
+	default:
 	}
 
 	result := &runner.ExecuteResult{

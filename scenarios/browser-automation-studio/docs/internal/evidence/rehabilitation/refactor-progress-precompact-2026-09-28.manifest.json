@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "kind": "compressed_active_checkpoint",
+  "source": "docs/internal/REFRACTOR_PROGRESS.md",
+  "selection": "Previous active checkpoint preserved before bounded-view compaction; historical chronology is no longer resume input.",
+  "source_bytes": 17866,
+  "source_sha256": "f80cb239acc4a39e97e8a24b8cb0d6b79e783b2105b44dec638ba8d29c2e66da",
+  "archive": "refactor-progress-precompact-2026-09-28.md.gz",
+  "archive_bytes": 7638,
+  "archive_sha256": "2029afce04395c46ab6f6cdb6c48d197f6718466ecbd61dc79380594418788b3",
+  "retrieval": "gzip -cd <archive-path>"
+}

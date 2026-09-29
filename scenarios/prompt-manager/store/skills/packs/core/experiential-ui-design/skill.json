@@ -22,7 +22,7 @@
       "prompt-manager"
     ]
   },
-  "revision": 1,
+  "revision": 2,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -40,5 +40,5 @@
     "ui",
     "accessibility"
   ],
-  "updatedAt": "2026-09-21T00:00:00Z"
+  "updatedAt": "2026-09-21T12:00:00Z"
 }

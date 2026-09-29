@@ -556,13 +556,18 @@ func TestStartNavigationTaskContractRejectsUnsupportedNavigatorAndInvalidPolicy(
 }
 
 func TestNavigationStatusCarriesIndependentVerificationAndOutput(t *testing.T) {
-	session := &vision.NavigationSession{NavigationID: "nav", Status: vision.StatusCompleted, VerifiedSuccess: true, ExtractedData: map[string]interface{}{"subjects": []interface{}{"hello"}}}
+	session := &vision.NavigationSession{NavigationID: "nav", Status: vision.StatusCompleted, VerifiedSuccess: true, ExtractedData: map[string]interface{}{"subjects": []interface{}{"hello"}}, FinalURL: "https://example.com/done", Error: "", Summary: "done", TotalDurationMs: 1234}
 	result := navigationStatusToProto(session)
 	require.True(t, result.VerifiedSuccess)
 	require.Equal(t, "hello", result.ExtractedData.AsMap()["subjects"].([]interface{})[0])
+	require.Equal(t, "https://example.com/done", result.FinalUrl)
+	require.Equal(t, "done", result.Summary)
+	require.Equal(t, int64(1234), result.TotalDurationMs)
 	session.VerifiedSuccess = false
 	session.VerificationError = "postcondition_failed"
+	session.Error = "driver_failed"
 	result = navigationStatusToProto(session)
 	require.False(t, result.VerifiedSuccess)
 	require.Equal(t, "postcondition_failed", result.VerificationError)
+	require.Equal(t, "driver_failed", result.Error)
 }

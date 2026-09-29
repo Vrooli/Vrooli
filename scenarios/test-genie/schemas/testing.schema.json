@@ -648,6 +648,104 @@
       "type": "object",
       "description": "Performance validation phase configuration. Presence of this section enables performance testing. Individual checks can be enabled/disabled.",
       "properties": {
+        "workloads": {
+          "type": "object",
+          "description": "Repository-declared out-of-band workload producers owned by Performance Health. The performance phase only checks current retained evidence. Callers cannot override commands or budgets.",
+          "maxProperties": 16,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "command",
+              "directory",
+              "sources",
+              "contract",
+              "endpoints",
+              "samples",
+              "warmups",
+              "p95_max_ms",
+              "timeout_seconds",
+              "max_age_seconds"
+            ],
+            "properties": {
+              "command": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 32,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "directory": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sources": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 100,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "contract": {
+                "type": "string",
+                "minLength": 1
+              },
+              "endpoints": {
+                "type": "object",
+                "required": [
+                  "api_url"
+                ],
+                "properties": {
+                  "api_url": {
+                    "const": "API_PORT"
+                  }
+                },
+                "additionalProperties": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "samples": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10000
+              },
+              "warmups": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10
+              },
+              "p95_max_ms": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 3600000
+              },
+              "timeout_seconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 600
+              },
+              "max_age_seconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 604800
+              },
+              "min_cpu_cores": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "min_memory_bytes": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
         "budgets": {
           "type": "object",
           "description": "Per-scenario performance budgets \u2014 the single source of truth the performance-health budgets domain gates on (and that the benchmark runner reads for its build thresholds). All durations are milliseconds; sizes are bytes. Zero or absent means the axis is unset (never a violation). A breach of any declared axis fails baseline-diff exactly like any other health regression.",

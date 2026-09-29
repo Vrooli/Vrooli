@@ -315,9 +315,12 @@ func TestBeginDispatch_PersistsIntentBeforeRequest(t *testing.T) {
 	}
 
 	tec.BeginDispatch("agent-1", DispatchIntent{
-		IdempotencyKey: "prompt-manager-heartbeat:team-x:agent-1:attempt-1",
-		TaskID:         "task-1",
-		RunTag:         "heartbeat-team-x-agent-1",
+		IdempotencyKey:   "prompt-manager-heartbeat:team-x:agent-1:attempt-1",
+		TaskID:           "task-1",
+		RunTag:           "heartbeat-team-x-agent-1",
+		WorkloadKind:     "scheduled",
+		WorkloadKey:      "effort:test",
+		WorkloadInstance: "attempt-1",
 	})
 
 	persisted := readQueueFile(t, dir, "team-x")
@@ -413,9 +416,12 @@ func TestReconcileDispatch_ReplaysRecordedIntentAndBindsRun(t *testing.T) {
 		t.Fatalf("enqueue: %v", err)
 	}
 	tec.BeginDispatch("agent-1", DispatchIntent{
-		IdempotencyKey: "prompt-manager-heartbeat:team-x:agent-1:attempt-1",
-		TaskID:         "task-1",
-		RunTag:         "heartbeat-team-x-agent-1",
+		IdempotencyKey:   "prompt-manager-heartbeat:team-x:agent-1:attempt-1",
+		TaskID:           "task-1",
+		RunTag:           "heartbeat-team-x-agent-1",
+		WorkloadKind:     "scheduled",
+		WorkloadKey:      "effort:test",
+		WorkloadInstance: "attempt-1",
 	})
 
 	if err := tec.ReconcileDispatch(context.Background(), "agent-1"); err != nil {
@@ -431,6 +437,9 @@ func TestReconcileDispatch_ReplaysRecordedIntentAndBindsRun(t *testing.T) {
 	}
 	if req.TaskID != "task-1" {
 		t.Fatalf("expected replayed task preserved, got %q", req.TaskID)
+	}
+	if req.Environment[workloadKindEnv] != "scheduled" || req.Environment[workloadKeyEnv] != "effort:test" || req.Environment[workloadInstanceEnv] != "attempt-1" {
+		t.Fatalf("expected replayed workload identity preserved, got %+v", req.Environment)
 	}
 
 	status := tec.Status()

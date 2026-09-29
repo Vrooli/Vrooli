@@ -83,7 +83,7 @@ func (h *Handlers) Ensure(args []string) error {
 
 	model := strings.TrimSpace(getenv("CODEX_MODEL"))
 	if model == "" {
-		model = "gpt-5.6-luna"
+		model = "gpt-6-luna"
 	}
 	effort := strings.TrimSpace(getenv("CODEX_EFFORT"))
 	if effort == "" {

@@ -52,6 +52,14 @@ type Launcher interface {
 	Launch(ctx context.Context, req LaunchRequest) (LaunchedProcess, error)
 }
 
+// PolicyFile is an owner-created file that must be mounted read-only at both
+// its source and consumer paths. A launcher must refuse unsupported enforcement.
+type PolicyFile struct {
+	Source string `json:"source"`
+	Target string `json:"target"`
+	SHA256 string `json:"sha256"`
+}
+
 // LaunchRequest carries everything a runner needs to start its agent process.
 type LaunchRequest struct {
 	// RunID and EventSink allow infrastructure-level launch failures to be
@@ -74,6 +82,14 @@ type LaunchRequest struct {
 	// WorkingDir is the directory in which to start the process. For
 	// SandboxLauncher this must be inside the sandbox merged dir.
 	WorkingDir string
+
+	PolicyFiles []PolicyFile
+
+	// NetworkMode is the admitted sandbox network posture. The workspace
+	// sandbox keeps the vrooli-aware filesystem profile for protected agents,
+	// but must receive this value separately so `none` is not widened to the
+	// profile's localhost default.
+	NetworkMode string
 
 	// Stdin, when non-nil, is io.Copy'd to the process's stdin and then
 	// closed. Pass strings.NewReader(prompt) for runners that pipe a

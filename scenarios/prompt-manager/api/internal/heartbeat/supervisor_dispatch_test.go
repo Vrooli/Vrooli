@@ -87,6 +87,24 @@ func TestStandingSupervisorMissingCredentialFailsBeforeTaskWithoutFallback(t *te
 	}
 }
 
+func TestStandingSupervisorFreshDispatchRequiresExactRunIdentity(t *testing.T) {
+	f := newSupervisionFixture(t)
+	f.owner.rows = []EffortObservation{effort("effort:identity")}
+	f.agent.WithCreateRunResponse(&Run{ID: "unrelated-run", TaskID: "other-task", Tag: "wrong-tag", Status: "running"})
+	f.tick(t)
+
+	if _, err := f.s.Dispatch(context.Background(), "supervisors", "leader"); err == nil {
+		t.Fatal("fresh dispatch accepted an unrelated run identity")
+	}
+	state, err := f.s.State.Load("supervisors", "leader")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Pending == nil || state.Pending.RunID != "" || state.Error == "" || !state.Pending.DispatchStarted {
+		t.Fatalf("invalid owner response was not retained as uncertain: %+v", state)
+	}
+}
+
 func TestStandingSupervisorReplaysOnlyTheRetainedDelegatedBinding(t *testing.T) {
 	f := newSupervisionFixture(t)
 	agent := &supervisorDispatchFake{mockAgentClient: f.agent}
@@ -261,6 +279,55 @@ func TestStandingSupervisorBoundsDelegatedReplayAfterOwnerUncertainty(t *testing
 	}
 	if got.UnresolvedWakes[0].DispatchReplayError == "" || got.UnresolvedWakes[0].Disposition != "recovery-required" {
 		t.Fatal("bounded replay did not retain the owner uncertainty")
+	}
+}
+
+func TestStandingSupervisorOwnerReconcilesUnresolvedWakeWithoutReplay(t *testing.T) {
+	f := newSupervisionFixture(t)
+	wake := &SupervisionWake{
+		ID: "wake-owner-reconcile", TaskID: "task-owner-reconcile", DispatchStarted: true,
+		DispatchMode: "delegated", DispatchEffortRef: "service:standing", DispatchAuthorizationID: "old-grant",
+		DispatchReplayAttempts: 1, DispatchReplayError: "owner replay refused or uncertain",
+		Disposition: "recovery-required",
+	}
+	state := &SupervisionState{Version: 1, Status: "degraded", Efforts: map[string]SupervisedCut{}, UnresolvedWakes: []*SupervisionWake{wake}}
+	if err := f.s.State.Save("supervisors", "leader", state); err != nil {
+		t.Fatal(err)
+	}
+	got, err := f.s.ReconcileUnresolvedWake(context.Background(), "supervisors", "leader", ReconcileSupervisionRequest{
+		WakeID: "wake-owner-reconcile", EvidenceRefs: []string{"agent-manager:run-list@2026-09-29", "owner:dispatch-superseded"}, Reason: "Exact tag lookup returned no run and the old dispatch authorization is superseded.",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Pending != nil || len(got.UnresolvedWakes) != 0 || len(got.ReconciledWakes) != 1 || got.Status != "observation-only" {
+		t.Fatalf("owner reconciliation did not close only the retained fence: %+v", got)
+	}
+	if got.ReconciledWakes[0].Disposition != "owner-reconciled" || len(got.ReconciledWakes[0].RecoveryEvidenceRefs) != 2 || len(f.agent.createRunCalls) != 0 {
+		t.Fatalf("reconciliation lost receipt or replayed work: %+v lookups=%d creates=%d", got.ReconciledWakes[0], len(f.agent.listRunsCalls), len(f.agent.createRunCalls))
+	}
+	// The operation is idempotent and does not spend another owner call.
+	if _, err := f.s.ReconcileUnresolvedWake(context.Background(), "supervisors", "leader", ReconcileSupervisionRequest{WakeID: "wake-owner-reconcile", EvidenceRefs: []string{"different"}, Reason: "duplicate"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.agent.createRunCalls) != 0 {
+		t.Fatal("owner reconciliation replayed a dispatch")
+	}
+}
+
+func TestStandingSupervisorOwnerReconciliationPreservesExistingRunFence(t *testing.T) {
+	f := newSupervisionFixture(t)
+	f.agent.listRunsResp = &ListRunsResponse{Runs: []*Run{{ID: "existing-run", TaskID: "task-existing", Tag: "supervision-wake-existing", Status: "running"}}}
+	state := &SupervisionState{Version: 1, Status: "degraded", Efforts: map[string]SupervisedCut{}, UnresolvedWakes: []*SupervisionWake{{ID: "wake-existing", TaskID: "task-existing", DispatchStarted: true, Disposition: "recovery-required"}}}
+	if err := f.s.State.Save("supervisors", "leader", state); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.s.ReconcileUnresolvedWake(context.Background(), "supervisors", "leader", ReconcileSupervisionRequest{WakeID: "wake-existing", EvidenceRefs: []string{"owner:run-list"}, Reason: "check"}); err == nil || !strings.Contains(err.Error(), "exists") {
+		t.Fatal("existing owner run was not retained", err)
+	}
+	got, _ := f.s.State.Load("supervisors", "leader")
+	if len(got.UnresolvedWakes) != 1 || len(got.ReconciledWakes) != 0 {
+		t.Fatal("existing owner run fence was lost", got)
 	}
 }
 

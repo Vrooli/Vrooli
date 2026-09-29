@@ -61,6 +61,13 @@ does not duplicate the inventory or write Codex configuration.
 
 ## Permissions
 
+Linux namespace setup is owned by the control-plane `bubblewrap_userns`
+safeguard, declared in `resource.json`. Use the [host repair and no-model
+containment check](../../docs/configuration/host/safeguards.md#native-bubblewrap-namespaces).
+The dedicated executable profile follows the scoped approach in
+[OpenAI's sandbox guidance](https://learn.chatgpt.com/docs/sandboxing).
+Do not switch to unrestricted execution to hide a sandbox startup failure.
+
 Manage Codex bash-command patterns via the `permissions` subgroup. The adapter owns a Vrooli-namespaced `[vrooli.permissions]` section in `~/.codex/config.toml` (user scope) or `~/.codex/requirements.toml` (admin scope). All other Codex-native settings (`[profiles.*]`, `sandbox_mode`, `approval_policy`, …) round-trip untouched.
 
 ```bash
@@ -91,20 +98,51 @@ Upstream docs: <https://developers.openai.com/codex/permissions>.
 
 ## Model catalog operations
 
-The operator's 2026-09-12 quota policy excludes Astra and Sol from all configured
-role selections and fallback candidates. Codex work uses Luna; routine judgment
-heartbeats use medium effort. Keep legacy `model`/`fallbacks` and structured
-`models` candidates consistent. Pricing aliases for historical runs are not launch
-permissions. Validate the resource policy and reload Agent Manager's role policy
-after edits; inspect profile resolution to verify adoption without buying inference.
-Existing run snapshots and manually selected native sessions retain their original
-models. Stop an affected managed run through its owner before any replacement.
-Hard deny rules are declared in the catalog's root `excluded_models` list and are
-included in every `policy resolve --json` response for Agent Manager admission.
+The operator's amendment permits Sol for infrequent, explicitly admitted
+supervision through `judgment.supervision`. Ordinary roles still deny Sol; Astra
+remains globally excluded. The owner-validated Codex catalog exposes
+`gpt-6-luna` and `gpt-6-sol`, so `code.delivery` selects Luna medium and
+`judgment.supervision` selects Sol medium from the subscription catalog. The
+host can contain multiple Codex installations, so record the executable path
+and `--version` with every catalog observation. On the current host,
+`/usr/bin/codex` 0.156.1 lists GPT-6 Luna/Sol and the 5.6 models. The Vrooli
+PATH may resolve an attribution shim and a different user-local installation.
+Agent Manager's managed codec intentionally bypasses that shim and selects the
+installed system runner (`/usr/bin/codex` or `/bin/codex` on Linux); a direct
+shell `codex --version` is not managed-launch evidence. `~/.codex/models_cache.json`
+is used only as a compatibility fallback. Older caches can omit valid model slugs and are
+marked non-authoritative. The model-policy drift safeguard refuses to make
+availability claims from that fallback, so an unavailable live probe is
+reported as unmeasured rather than as a false missing-model finding. A measured
+runner listing is also not assumed exhaustive: it proves a model is offered when
+listed, but omission produces a non-blocking `unconfirmed_*` finding unless the
+runner explicitly marks the catalog `exhaustive`. Those warnings must never be
+reported as “GPT-6 is unavailable” or used to replace an owner-validated GPT-6
+role with GPT-5.6. Catalog validation is not execution qualification. Keep the delivery team
+disabled until its pilot succeeds and record the actual selected model.
+Operational Codex roles now resolve the owner-validated GPT-6 Luna family;
+`judgment.supervision` is the only ordinary role permitted to select GPT-6 Sol.
+Reserved legacy aliases remain only for historical compatibility and are not
+launch permissions. Keep legacy `model`/`fallbacks` and structured `models`
+candidates consistent. Validate the resource policy and reload Agent
+Manager's role policy after edits; inspect profile resolution to verify adoption
+without buying inference. Existing run snapshots and manually selected native
+sessions retain their original models. Stop an affected managed run through its
+owner before any replacement. Hard deny rules are declared in the catalog's root
+`excluded_models` list.
+`restricted_models` maps a model to the only resource roles that may select it.
+The resource resolves both rules into the existing `excluded_models` response,
+including aliases; global denial always wins. New ordinary roles remain denied
+without copying per-role lists. This controls model selection, not authority to
+assume a role: the execution owner must bind workers and supervisors to their
+admitted roles and enforce review cadence. Existing heartbeats do not become
+Sol runs just because the new role is available.
 Provider prices and subscription quota are separate measurements: do not invent
 token prices or treat an estimated zero-dollar charge as unused weekly allowance.
 
-`resource-codex models list --json` reads the Codex model cache without invoking a model. `resource-codex models resolve --model <id> --json` returns the resource-owned canonical pricing identity. Run `resource-codex policy validate --against-live --json` after a retarget. `observed_at` has a 14-day budget; aliases should remain runner-facing while pinned fallbacks must be refreshed from the same live evidence. Policy edits are reviewed explicitly and are never made by the drift safeguard.
+`resource-codex models list --json` queries `codex debug models` without invoking a model and falls back to the Codex model cache only when the runner probe is unavailable. A live result is authoritative evidence that listed models are offered, not an exhaustive inventory; only `exhaustive: true` permits an absent-model conclusion. Record the measured binary path/version and verify managed launch behavior through the codec's shim-bypass test and bounded runner probe; a direct PATH lookup is not sufficient evidence. Never downgrade owner-validated GPT-6 roles from a stale cache or partial surface. `resource-codex models resolve --model <id> --json` returns the resource-owned canonical pricing identity. Run `resource-codex policy validate --against-live --json` after a retarget. `observed_at` has a 14-day budget; aliases should remain runner-facing while pinned fallbacks must be refreshed from the same live evidence. Policy edits are reviewed explicitly and are never made by the drift safeguard.
+
+If this command reports an unexpectedly old partial catalog, rebuild the installed resource CLI from the current resource source before diagnosing model availability; a stale installed CLI can preserve obsolete discovery behavior.
 
 ## Notes
 

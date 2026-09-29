@@ -14,12 +14,12 @@ import {
   handleRecordStatus,
   handleRecordActions,
   handleValidateSelector,
-  cleanupSessionRecording,
 } from '../../src/routes/record-mode';
 import type { SessionManager } from '../../src/session';
 import type { Config } from '../../src/config';
 import { createTestConfig } from '../helpers/test-config';
 import { SessionNotFoundError } from '../../src/utils';
+import { removeRecordingBuffer } from '../../src/recording';
 
 // Helper to create mock request
 function createMockRequest(options: {
@@ -235,11 +235,11 @@ describe('Record Mode Routes', () => {
   beforeEach(() => {
     config = createTestConfig();
     // Clean up any leftover buffers
-    cleanupSessionRecording(sessionId);
+    removeRecordingBuffer(sessionId);
   });
 
   afterEach(() => {
-    cleanupSessionRecording(sessionId);
+    removeRecordingBuffer(sessionId);
   });
 
   describe('POST /session/:id/record/start', () => {
@@ -513,17 +513,4 @@ describe('Record Mode Routes', () => {
     });
   });
 
-  describe('cleanupSessionRecording', () => {
-    it('should clean up session buffer', () => {
-      // This should not throw
-      expect(() => cleanupSessionRecording(sessionId)).not.toThrow();
-    });
-
-    it('should be idempotent', () => {
-      cleanupSessionRecording(sessionId);
-      cleanupSessionRecording(sessionId);
-      // Should not throw
-      expect(true).toBe(true);
-    });
-  });
 });

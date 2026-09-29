@@ -90,6 +90,13 @@ type ownerCleanupApplyResponse struct {
 	Warnings       []string `json:"warnings,omitempty"`
 }
 
+type cleanupApplySelection struct {
+	executionIDs   []uuid.UUID
+	captureIDs     map[string]struct{}
+	recordingIDs   map[string]struct{}
+	estimatedBytes map[uuid.UUID]int64
+}
+
 type ownerCleanupService struct {
 	repo             database.Repository
 	root             string
@@ -632,24 +639,7 @@ func orphanRecordingCandidates(ctx context.Context, root string, protected map[s
 		candidate.Bytes = bytes
 		all = append(all, candidate)
 	}
-	sort.SliceStable(all, func(i, j int) bool { return all[i].ModifiedAt.After(all[j].ModifiedAt) })
-	for i := 0; i < len(all) && i < keepCount; i++ {
-		all[i].Protected = true
-	}
-	sort.SliceStable(all, func(i, j int) bool { return all[i].ModifiedAt.Before(all[j].ModifiedAt) })
-	selected := make([]captureCleanupItem, 0, len(all))
-	var total int64
-	for _, item := range all {
-		if item.Protected {
-			continue
-		}
-		if maxBytes > 0 && total+item.Bytes > maxBytes {
-			break
-		}
-		total += item.Bytes
-		selected = append(selected, item)
-	}
-	return selected, nil
+	return selectUnprotectedCleanupItems(all, keepCount, maxBytes), nil
 }
 
 // orphanRecordingWantedCandidates validates only IDs supplied by an existing
@@ -690,6 +680,15 @@ func orphanRecordingWantedCandidates(root string, protected map[string]struct{},
 		}
 		all = append(all, captureCleanupItem{ID: raw, Path: path, Bytes: bytes, AgeSeconds: ageSeconds(now, info.ModTime()), ModifiedAt: info.ModTime()})
 	}
+	return selectUnprotectedCleanupItems(all, keepCount, maxBytes), nil
+}
+
+// selectUnprotectedCleanupItems is the shared retention policy for orphaned
+// recordings. Both broad recovery scans and preview-directed selection must
+// keep the newest entries protected, then remove oldest eligible entries within
+// the byte cap; keeping that policy in one owner prevents the two paths from
+// drifting.
+func selectUnprotectedCleanupItems(all []captureCleanupItem, keepCount int, maxBytes int64) []captureCleanupItem {
 	sort.SliceStable(all, func(i, j int) bool { return all[i].ModifiedAt.After(all[j].ModifiedAt) })
 	for i := 0; i < len(all) && i < keepCount; i++ {
 		all[i].Protected = true
@@ -707,7 +706,7 @@ func orphanRecordingWantedCandidates(root string, protected map[string]struct{},
 		total += item.Bytes
 		selected = append(selected, item)
 	}
-	return selected, nil
+	return selected
 }
 
 func (s *ownerCleanupService) captureProtected(ctx context.Context, name, path string) bool {
@@ -757,6 +756,67 @@ func removeCapture(path, root string) error {
 	return nil
 }
 
+func parseCleanupApplySelection(items []ownerCleanupItem) (cleanupApplySelection, error) {
+	selection := cleanupApplySelection{
+		executionIDs:   make([]uuid.UUID, 0, len(items)),
+		captureIDs:     make(map[string]struct{}),
+		recordingIDs:   make(map[string]struct{}),
+		estimatedBytes: make(map[uuid.UUID]int64),
+	}
+	for _, item := range items {
+		if strings.HasPrefix(item.ID, "capture:") {
+			selection.captureIDs[item.ID] = struct{}{}
+			continue
+		}
+		if strings.HasPrefix(item.ID, "recording:") {
+			selection.recordingIDs[item.ID] = struct{}{}
+			if id, err := uuid.Parse(strings.TrimPrefix(item.ID, "recording:")); err == nil {
+				selection.estimatedBytes[id] = item.Bytes
+			}
+			continue
+		}
+		id, err := uuid.Parse(item.ID)
+		if err != nil {
+			return cleanupApplySelection{}, errors.New("preview contains an invalid item id")
+		}
+		selection.executionIDs = append(selection.executionIDs, id)
+		selection.estimatedBytes[id] = item.Bytes
+	}
+	return selection, nil
+}
+
+func cleanupApplyResponseFromReport(report *retention.Report) ownerCleanupApplyResponse {
+	result := ownerCleanupApplyResponse{
+		ReclaimedBytes: sumRemoved(report.Removed),
+		RemovedItemIDs: make([]string, 0, len(report.Removed)),
+		SkippedItemIDs: make([]string, 0, len(report.Skipped)),
+	}
+	for _, item := range report.Removed {
+		result.RemovedItemIDs = append(result.RemovedItemIDs, item.ExecutionID.String())
+	}
+	for _, item := range report.Skipped {
+		result.SkippedItemIDs = append(result.SkippedItemIDs, item.ExecutionID.String())
+	}
+	return result
+}
+
+func (s *ownerCleanupService) applyCaptureItems(result *ownerCleanupApplyResponse, captures []captureCleanupItem) {
+	for _, item := range captures {
+		if item.Protected {
+			result.SkippedItemIDs = append(result.SkippedItemIDs, item.ID)
+			result.Warnings = append(result.Warnings, "protected in-flight capture: "+item.ID)
+			continue
+		}
+		if err := removeCapture(item.Path, s.cleanupRoot(item.ID)); err != nil {
+			result.SkippedItemIDs = append(result.SkippedItemIDs, item.ID)
+			result.Warnings = append(result.Warnings, fmt.Sprintf("capture %s: %v", item.ID, err))
+			continue
+		}
+		result.ReclaimedBytes += item.Bytes
+		result.RemovedItemIDs = append(result.RemovedItemIDs, item.ID)
+	}
+}
+
 func (s *ownerCleanupService) apply(w http.ResponseWriter, r *http.Request) {
 	var req ownerCleanupApply
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.IdempotencyKey == "" {
@@ -785,61 +845,23 @@ func (s *ownerCleanupService) apply(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	defer release()
-	ids := make([]uuid.UUID, 0, len(req.Preview.Items))
-	captureIDs := make(map[string]struct{})
-	recordingIDs := make(map[string]struct{})
-	estimatedBytes := make(map[uuid.UUID]int64)
-	for _, item := range req.Preview.Items {
-		if strings.HasPrefix(item.ID, "capture:") {
-			captureIDs[item.ID] = struct{}{}
-			continue
-		}
-		if strings.HasPrefix(item.ID, "recording:") {
-			recordingIDs[item.ID] = struct{}{}
-			if id, parseErr := uuid.Parse(strings.TrimPrefix(item.ID, "recording:")); parseErr == nil {
-				estimatedBytes[id] = item.Bytes
-			}
-			continue
-		}
-		id, err := uuid.Parse(item.ID)
-		if err != nil {
-			http.Error(w, "preview contains an invalid item id", http.StatusBadRequest)
-			return
-		}
-		ids = append(ids, id)
-		estimatedBytes[id] = item.Bytes
+	selection, err := parseCleanupApplySelection(req.Preview.Items)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	r2 := r.Clone(r.Context())
 	q := r2.URL.Query()
 	q.Set("min_age_seconds", strconv.FormatInt(req.Preview.MinAgeSeconds, 10))
 	r2.URL.RawQuery = q.Encode()
 	recoveryOnly := r.Header.Get("X-Vrooli-Recovery-Only") == "true"
-	report, captures, _, _, _, err := s.sweep(r2, true, ids, captureIDs, recordingIDs, estimatedBytes, recoveryOnly)
+	report, captures, _, _, _, err := s.sweep(r2, true, selection.executionIDs, selection.captureIDs, selection.recordingIDs, selection.estimatedBytes, recoveryOnly)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	result := ownerCleanupApplyResponse{ReclaimedBytes: sumRemoved(report.Removed), RemovedItemIDs: make([]string, 0, len(report.Removed)), SkippedItemIDs: make([]string, 0, len(report.Skipped))}
-	for _, item := range report.Removed {
-		result.RemovedItemIDs = append(result.RemovedItemIDs, item.ExecutionID.String())
-	}
-	for _, item := range report.Skipped {
-		result.SkippedItemIDs = append(result.SkippedItemIDs, item.ExecutionID.String())
-	}
-	for _, item := range captures {
-		if item.Protected {
-			result.SkippedItemIDs = append(result.SkippedItemIDs, item.ID)
-			result.Warnings = append(result.Warnings, "protected in-flight capture: "+item.ID)
-			continue
-		}
-		if err := removeCapture(item.Path, s.cleanupRoot(item.ID)); err != nil {
-			result.SkippedItemIDs = append(result.SkippedItemIDs, item.ID)
-			result.Warnings = append(result.Warnings, fmt.Sprintf("capture %s: %v", item.ID, err))
-			continue
-		}
-		result.ReclaimedBytes += item.Bytes
-		result.RemovedItemIDs = append(result.RemovedItemIDs, item.ID)
-	}
+	result := cleanupApplyResponseFromReport(report)
+	s.applyCaptureItems(&result, captures)
 	if recoveryOnly {
 		// Advance the orphan candidate cache after this batch, but retain the
 		// protected execution index. Rebuilding that full index for every batch

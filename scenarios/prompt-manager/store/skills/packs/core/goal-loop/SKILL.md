@@ -9,7 +9,7 @@ metadata:
   tags: ["goal", "loop", "self-improvement", "setpoint", "heartbeat"]
   icon: "repeat"
   status: "active"
-  revision: 7
+  revision: 8
   createdAt: "2026-09-02T00:00:00Z"
   updatedAt: "2026-09-11T12:00:00Z"
   requires:
@@ -48,6 +48,13 @@ merely to run this skill. A Swarm goal is distinct from a harness goal: the
 Swarm goal points to the work package and grants nothing by itself; the harness
 goal, when the run has one, is composed by `harness-goal-authoring` and names the
 finish line. This skill reads both and selects the posture; it writes neither.
+
+For an owner-backed convergence engagement, the existing owner packet and finite
+delivery team are the engagement identity. Do not turn an intervention, defect,
+test, receipt, compaction, or context limit into a new epoch or replacement goal.
+Route the work to `scenario-improvement-campaign`, which preserves the owner's
+semantic boundary and leaves boundary selection, qualification, and evidence
+rotation with the deterministic controller.
 
 ### 2. Observe or perform authorized curation
 

@@ -88,6 +88,10 @@ func (c *capturingTargetClient) ValidateTarget(_ context.Context, req *connect.R
 	return connect.NewResponse(c.resp), nil
 }
 
+func (*capturingTargetClient) DescribeProvider(context.Context, *connect.Request[scenariovalidationv1.DescribeProviderRequest]) (*connect.Response[scenariovalidationv1.DescribeProviderResponse], error) {
+	return connect.NewResponse(&scenariovalidationv1.DescribeProviderResponse{Capabilities: &scenariovalidationv1.ProviderCapabilities{SupportsRetainedEvidence: true}}), nil
+}
+
 type capturingDurableClient struct {
 	start   *scenariovalidationv1.StartValidationRunRequest
 	wait    *scenariovalidationv1.WaitValidationRunRequest
@@ -117,6 +121,16 @@ func (c *capturingDurableClient) AbortValidationRun(_ context.Context, req *conn
 func (c *capturingClient) ValidateScenario(_ context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
 	c.got = req.Msg
 	return connect.NewResponse(c.resp), nil
+}
+
+func (*capturingClient) DescribeProvider(context.Context, *connect.Request[scenariovalidationv1.DescribeProviderRequest]) (*connect.Response[scenariovalidationv1.DescribeProviderResponse], error) {
+	return connect.NewResponse(&scenariovalidationv1.DescribeProviderResponse{Capabilities: &scenariovalidationv1.ProviderCapabilities{SupportsRetainedEvidence: true}}), nil
+}
+
+type unsupportedEvidenceClient struct{ capturingClient }
+
+func (*unsupportedEvidenceClient) DescribeProvider(context.Context, *connect.Request[scenariovalidationv1.DescribeProviderRequest]) (*connect.Response[scenariovalidationv1.DescribeProviderResponse], error) {
+	return connect.NewResponse(&scenariovalidationv1.DescribeProviderResponse{Capabilities: &scenariovalidationv1.ProviderCapabilities{}}), nil
 }
 
 // TestRunSendsScenarioPath proves Run forwards the physical scenario path as
@@ -158,9 +172,27 @@ func TestRunSendsCapabilitySubset(t *testing.T) {
 
 	provider := testProvider(false)
 	provider.CapabilitySubset = []string{"architecture", "contracts"}
+	provider.RetainedEvidenceSets = []*scenariovalidationv1.RetainedEvidenceSet{{ProducerReceiptId: "receipt-1", Producer: "evidence-completeness", Target: "demo", RunId: "run-1", CandidateIdentity: "sha256:candidate", CatalogDigest: "sha256:catalog"}}
 	Run(context.Background(), provider, "demo", "/tmp/demo")
 	if got := cap.got.GetCapabilitySubset(); len(got) != 2 || got[0] != "architecture" || got[1] != "contracts" {
 		t.Fatalf("capability subset = %v", got)
+	}
+	if len(cap.got.GetRetainedEvidenceSets()) != 1 || cap.got.GetRetainedEvidenceSets()[0].GetProducerReceiptId() != "receipt-1" {
+		t.Fatalf("retained evidence was not forwarded: %v", cap.got.GetRetainedEvidenceSets())
+	}
+}
+
+func TestBoundEvidenceRefusesProviderWithoutExplicitCapability(t *testing.T) {
+	prevResolve, prevClient := ResolveBaseURL, NewClient
+	cap := &unsupportedEvidenceClient{capturingClient: capturingClient{resp: &scenariovalidationv1.ValidateScenarioResponse{Scenario: "demo", Status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED, Assessment: testAssessment("")}}}
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	NewClient = func(time.Duration, string) Client { return cap }
+	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
+	provider := testProvider(false)
+	provider.RetainedEvidenceSets = []*scenariovalidationv1.RetainedEvidenceSet{{ProducerReceiptId: "receipt", Producer: "owner", Target: "demo", RunId: "run", CandidateIdentity: "candidate", CatalogDigest: "catalog"}}
+	result := Run(context.Background(), provider, "demo", "/tmp/demo")
+	if result.Success || cap.got != nil {
+		t.Fatalf("unsupported provider received bound evidence: result=%+v request=%+v", result, cap.got)
 	}
 }
 
@@ -176,6 +208,7 @@ func TestRunTargetSendsContractExcludes(t *testing.T) {
 
 	provider := testProvider(false)
 	provider.Exclude = []string{"internal/tools/*", "internal/safeguards/*"}
+	provider.RetainedEvidenceSets = []*scenariovalidationv1.RetainedEvidenceSet{{ProducerReceiptId: "receipt-2", Producer: "evidence-completeness", Target: "demo", RunId: "run-2", CandidateIdentity: "sha256:candidate", CatalogDigest: "sha256:catalog"}}
 	result := RunTarget(context.Background(), provider, &commonv1.ValidationTarget{
 		Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE,
 		Id:   "internal",
@@ -186,6 +219,9 @@ func TestRunTargetSendsContractExcludes(t *testing.T) {
 	}
 	if got := cap.got.GetExclude(); len(got) != 2 || got[0] != "internal/tools/*" || got[1] != "internal/safeguards/*" {
 		t.Fatalf("exclude = %v, want contract excludes", got)
+	}
+	if len(cap.got.GetRetainedEvidenceSets()) != 1 || cap.got.GetRetainedEvidenceSets()[0].GetProducerReceiptId() != "receipt-2" {
+		t.Fatalf("retained evidence was not forwarded: %v", cap.got.GetRetainedEvidenceSets())
 	}
 }
 

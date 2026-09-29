@@ -37,6 +37,9 @@ func NewHostLauncher() *HostLauncher { return &HostLauncher{} }
 //   - When ctx is cancelled, exec.CommandContext kills the leader; the
 //     managed-process goroutine then kills the rest of the group.
 func (l *HostLauncher) Launch(ctx context.Context, req LaunchRequest) (LaunchedProcess, error) {
+	if len(req.PolicyFiles) > 0 {
+		return nil, errors.New("launcher: policy files require read-only sandbox mounts")
+	}
 	if req.Command == "" {
 		return nil, errors.New("launcher: command is required")
 	}

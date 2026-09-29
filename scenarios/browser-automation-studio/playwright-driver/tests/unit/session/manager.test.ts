@@ -12,15 +12,20 @@ import { ServiceWorkerController } from '../../../src/service-worker';
 import { SessionNotFoundError, ResourceLimitError } from '../../../src/utils/errors';
 import { createDeferred, createMockBrowser, createMockContext, createMockPage, createTestConfig, createMockHttpRequest, createMockHttpResponse } from '../../helpers';
 
-jest.mock('../../../src/routes/record-mode/recording-input', () => {
-  const actual = jest.requireActual<typeof import('../../../src/routes/record-mode/recording-input')>('../../../src/routes/record-mode/recording-input');
+jest.mock('../../../src/session/live-input', () => {
+  const actual = jest.requireActual<typeof import('../../../src/session/live-input')>('../../../src/session/live-input');
   return {
     ...actual,
     settlePageInput: jest.fn().mockResolvedValue(undefined),
     resetPageInputState: jest.fn().mockResolvedValue(undefined),
   };
 });
-import * as recordingInput from '../../../src/routes/record-mode/recording-input';
+import * as liveInput from '../../../src/session/live-input';
+jest.mock('../../../src/session/frame-cache', () => {
+  const actual = jest.requireActual<typeof import('../../../src/session/frame-cache')>('../../../src/session/frame-cache');
+  return { ...actual, clearFrameCache: jest.fn() };
+});
+import * as frameCache from '../../../src/session/frame-cache';
 jest.mock('../../../src/handlers/keyboard', () => {
   const actual = jest.requireActual<typeof import('../../../src/handlers/keyboard')>('../../../src/handlers/keyboard');
   return { ...actual, resetKeyboardState: jest.fn().mockResolvedValue(undefined) };
@@ -102,11 +107,12 @@ describe('SessionManager', () => {
         execution_id: `input-settle-${operation}`, viewport: { width: 800, height: 600 },
         reuse_mode: 'fresh', required_capabilities: {},
       });
-      jest.mocked(recordingInput.settlePageInput).mockClear();
+      jest.mocked(liveInput.settlePageInput).mockClear();
       if (operation === 'reset') await manager.resetSession(sessionId);
       else await manager.closeSession(sessionId);
-      expect(recordingInput.settlePageInput).toHaveBeenCalledWith(mockPage);
-      if (operation === 'reset') expect(recordingInput.resetPageInputState).toHaveBeenCalledWith(mockPage);
+      expect(liveInput.settlePageInput).toHaveBeenCalledWith(mockPage);
+      expect(frameCache.clearFrameCache).toHaveBeenCalledWith(sessionId);
+      if (operation === 'reset') expect(liveInput.resetPageInputState).toHaveBeenCalledWith(mockPage);
       if (operation === 'reset') expect(keyboardHandler.resetKeyboardState).toHaveBeenCalledWith(mockPage);
     });
 
@@ -736,6 +742,38 @@ describe('SessionManager', () => {
       await closing;
       expect(mockPage.close).toHaveBeenCalledTimes(1);
       expect(mockContext.close).toHaveBeenCalledTimes(1);
+    });
+
+    it('retains an interrupted page video handle before closing the page', async () => {
+      const root = await fs.mkdtemp(path.join(os.tmpdir(), 'bas-interrupted-video-'));
+      const source = path.join(root, 'source.webm');
+      await fs.writeFile(source, 'interrupted video');
+      const video = { path: () => Promise.resolve(source) } as never;
+      try {
+        const { sessionId, leaseId } = await manager.startSession({
+          execution_id: 'close-recovery', workflow_id: 'fixture', base_url: 'about:blank',
+          viewport: { width: 800, height: 600 }, reuse_mode: 'fresh',
+          required_capabilities: { video: true }, artifact_paths: { video_dir: root },
+        });
+        const session = manager.getSession(sessionId);
+        session.instructionInFlight = true;
+        session.instructionSettlement = Promise.resolve();
+        session.page.video = jest.fn().mockReturnValue(video);
+        mockPage.close.mockImplementation(() => {
+          mockPage.isClosed.mockReturnValue(true);
+          session.page.video = jest.fn().mockReturnValue(null);
+          return Promise.resolve();
+        });
+
+        const response = await close(sessionId, leaseId);
+
+        expect(response.statusCode).toBe(200);
+        const videoPath = response.getJSON().video_paths?.[0] as string;
+        expect(videoPath).toBe(path.join(root, 'execution-close-recovery-page-1.webm'));
+        expect(await fs.readFile(videoPath, 'utf8')).toBe('interrupted video');
+      } finally {
+        await fs.rm(root, { recursive: true, force: true });
+      }
     });
 
     it('reports a trace flush failure and retains the context for an explicit retry', async () => {

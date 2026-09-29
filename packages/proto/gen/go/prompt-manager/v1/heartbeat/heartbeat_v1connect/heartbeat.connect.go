@@ -39,6 +39,12 @@ const (
 	// HeartbeatServiceGetHeartbeatProcedure is the fully-qualified name of the HeartbeatService's
 	// GetHeartbeat RPC.
 	HeartbeatServiceGetHeartbeatProcedure = "/vrooli.prompt_manager.v1.heartbeat.HeartbeatService/GetHeartbeat"
+	// HeartbeatServiceRefreshSupervisionProcedure is the fully-qualified name of the HeartbeatService's
+	// RefreshSupervision RPC.
+	HeartbeatServiceRefreshSupervisionProcedure = "/vrooli.prompt_manager.v1.heartbeat.HeartbeatService/RefreshSupervision"
+	// HeartbeatServiceReconcileSupervisionProcedure is the fully-qualified name of the
+	// HeartbeatService's ReconcileSupervision RPC.
+	HeartbeatServiceReconcileSupervisionProcedure = "/vrooli.prompt_manager.v1.heartbeat.HeartbeatService/ReconcileSupervision"
 	// HeartbeatServiceCreateHeartbeatProcedure is the fully-qualified name of the HeartbeatService's
 	// CreateHeartbeat RPC.
 	HeartbeatServiceCreateHeartbeatProcedure = "/vrooli.prompt_manager.v1.heartbeat.HeartbeatService/CreateHeartbeat"
@@ -194,6 +200,10 @@ const (
 type HeartbeatServiceClient interface {
 	ListHeartbeats(context.Context, *connect.Request[heartbeat.TeamRequest]) (*connect.Response[heartbeat.JsonResponse], error)
 	GetHeartbeat(context.Context, *connect.Request[heartbeat.MemberRequest]) (*connect.Response[heartbeat.JsonResponse], error)
+	// Refreshes the owner-derived standing-supervision cut without dispatch.
+	RefreshSupervision(context.Context, *connect.Request[heartbeat.MemberRequest]) (*connect.Response[heartbeat.JsonResponse], error)
+	// Reconciles one owner-verified uncertain supervision dispatch without replay.
+	ReconcileSupervision(context.Context, *connect.Request[heartbeat.MemberMutationRequest]) (*connect.Response[heartbeat.JsonResponse], error)
 	CreateHeartbeat(context.Context, *connect.Request[heartbeat.MemberMutationRequest]) (*connect.Response[heartbeat.JsonResponse], error)
 	UpdateHeartbeat(context.Context, *connect.Request[heartbeat.MemberMutationRequest]) (*connect.Response[heartbeat.JsonResponse], error)
 	DeleteHeartbeat(context.Context, *connect.Request[heartbeat.MemberRequest]) (*connect.Response[heartbeat.JsonResponse], error)
@@ -268,6 +278,18 @@ func NewHeartbeatServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+HeartbeatServiceGetHeartbeatProcedure,
 			connect.WithSchema(heartbeatServiceMethods.ByName("GetHeartbeat")),
+			connect.WithClientOptions(opts...),
+		),
+		refreshSupervision: connect.NewClient[heartbeat.MemberRequest, heartbeat.JsonResponse](
+			httpClient,
+			baseURL+HeartbeatServiceRefreshSupervisionProcedure,
+			connect.WithSchema(heartbeatServiceMethods.ByName("RefreshSupervision")),
+			connect.WithClientOptions(opts...),
+		),
+		reconcileSupervision: connect.NewClient[heartbeat.MemberMutationRequest, heartbeat.JsonResponse](
+			httpClient,
+			baseURL+HeartbeatServiceReconcileSupervisionProcedure,
+			connect.WithSchema(heartbeatServiceMethods.ByName("ReconcileSupervision")),
 			connect.WithClientOptions(opts...),
 		),
 		createHeartbeat: connect.NewClient[heartbeat.MemberMutationRequest, heartbeat.JsonResponse](
@@ -577,6 +599,8 @@ func NewHeartbeatServiceClient(httpClient connect.HTTPClient, baseURL string, op
 type heartbeatServiceClient struct {
 	listHeartbeats                   *connect.Client[heartbeat.TeamRequest, heartbeat.JsonResponse]
 	getHeartbeat                     *connect.Client[heartbeat.MemberRequest, heartbeat.JsonResponse]
+	refreshSupervision               *connect.Client[heartbeat.MemberRequest, heartbeat.JsonResponse]
+	reconcileSupervision             *connect.Client[heartbeat.MemberMutationRequest, heartbeat.JsonResponse]
 	createHeartbeat                  *connect.Client[heartbeat.MemberMutationRequest, heartbeat.JsonResponse]
 	updateHeartbeat                  *connect.Client[heartbeat.MemberMutationRequest, heartbeat.JsonResponse]
 	deleteHeartbeat                  *connect.Client[heartbeat.MemberRequest, heartbeat.JsonResponse]
@@ -637,6 +661,17 @@ func (c *heartbeatServiceClient) ListHeartbeats(ctx context.Context, req *connec
 // GetHeartbeat calls vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetHeartbeat.
 func (c *heartbeatServiceClient) GetHeartbeat(ctx context.Context, req *connect.Request[heartbeat.MemberRequest]) (*connect.Response[heartbeat.JsonResponse], error) {
 	return c.getHeartbeat.CallUnary(ctx, req)
+}
+
+// RefreshSupervision calls vrooli.prompt_manager.v1.heartbeat.HeartbeatService.RefreshSupervision.
+func (c *heartbeatServiceClient) RefreshSupervision(ctx context.Context, req *connect.Request[heartbeat.MemberRequest]) (*connect.Response[heartbeat.JsonResponse], error) {
+	return c.refreshSupervision.CallUnary(ctx, req)
+}
+
+// ReconcileSupervision calls
+// vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ReconcileSupervision.
+func (c *heartbeatServiceClient) ReconcileSupervision(ctx context.Context, req *connect.Request[heartbeat.MemberMutationRequest]) (*connect.Response[heartbeat.JsonResponse], error) {
+	return c.reconcileSupervision.CallUnary(ctx, req)
 }
 
 // CreateHeartbeat calls vrooli.prompt_manager.v1.heartbeat.HeartbeatService.CreateHeartbeat.
@@ -914,6 +949,10 @@ func (c *heartbeatServiceClient) PreviewPromptMatrix(ctx context.Context, req *c
 type HeartbeatServiceHandler interface {
 	ListHeartbeats(context.Context, *connect.Request[heartbeat.TeamRequest]) (*connect.Response[heartbeat.JsonResponse], error)
 	GetHeartbeat(context.Context, *connect.Request[heartbeat.MemberRequest]) (*connect.Response[heartbeat.JsonResponse], error)
+	// Refreshes the owner-derived standing-supervision cut without dispatch.
+	RefreshSupervision(context.Context, *connect.Request[heartbeat.MemberRequest]) (*connect.Response[heartbeat.JsonResponse], error)
+	// Reconciles one owner-verified uncertain supervision dispatch without replay.
+	ReconcileSupervision(context.Context, *connect.Request[heartbeat.MemberMutationRequest]) (*connect.Response[heartbeat.JsonResponse], error)
 	CreateHeartbeat(context.Context, *connect.Request[heartbeat.MemberMutationRequest]) (*connect.Response[heartbeat.JsonResponse], error)
 	UpdateHeartbeat(context.Context, *connect.Request[heartbeat.MemberMutationRequest]) (*connect.Response[heartbeat.JsonResponse], error)
 	DeleteHeartbeat(context.Context, *connect.Request[heartbeat.MemberRequest]) (*connect.Response[heartbeat.JsonResponse], error)
@@ -983,6 +1022,18 @@ func NewHeartbeatServiceHandler(svc HeartbeatServiceHandler, opts ...connect.Han
 		HeartbeatServiceGetHeartbeatProcedure,
 		svc.GetHeartbeat,
 		connect.WithSchema(heartbeatServiceMethods.ByName("GetHeartbeat")),
+		connect.WithHandlerOptions(opts...),
+	)
+	heartbeatServiceRefreshSupervisionHandler := connect.NewUnaryHandler(
+		HeartbeatServiceRefreshSupervisionProcedure,
+		svc.RefreshSupervision,
+		connect.WithSchema(heartbeatServiceMethods.ByName("RefreshSupervision")),
+		connect.WithHandlerOptions(opts...),
+	)
+	heartbeatServiceReconcileSupervisionHandler := connect.NewUnaryHandler(
+		HeartbeatServiceReconcileSupervisionProcedure,
+		svc.ReconcileSupervision,
+		connect.WithSchema(heartbeatServiceMethods.ByName("ReconcileSupervision")),
 		connect.WithHandlerOptions(opts...),
 	)
 	heartbeatServiceCreateHeartbeatHandler := connect.NewUnaryHandler(
@@ -1291,6 +1342,10 @@ func NewHeartbeatServiceHandler(svc HeartbeatServiceHandler, opts ...connect.Han
 			heartbeatServiceListHeartbeatsHandler.ServeHTTP(w, r)
 		case HeartbeatServiceGetHeartbeatProcedure:
 			heartbeatServiceGetHeartbeatHandler.ServeHTTP(w, r)
+		case HeartbeatServiceRefreshSupervisionProcedure:
+			heartbeatServiceRefreshSupervisionHandler.ServeHTTP(w, r)
+		case HeartbeatServiceReconcileSupervisionProcedure:
+			heartbeatServiceReconcileSupervisionHandler.ServeHTTP(w, r)
 		case HeartbeatServiceCreateHeartbeatProcedure:
 			heartbeatServiceCreateHeartbeatHandler.ServeHTTP(w, r)
 		case HeartbeatServiceUpdateHeartbeatProcedure:
@@ -1406,6 +1461,14 @@ func (UnimplementedHeartbeatServiceHandler) ListHeartbeats(context.Context, *con
 
 func (UnimplementedHeartbeatServiceHandler) GetHeartbeat(context.Context, *connect.Request[heartbeat.MemberRequest]) (*connect.Response[heartbeat.JsonResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.heartbeat.HeartbeatService.GetHeartbeat is not implemented"))
+}
+
+func (UnimplementedHeartbeatServiceHandler) RefreshSupervision(context.Context, *connect.Request[heartbeat.MemberRequest]) (*connect.Response[heartbeat.JsonResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.heartbeat.HeartbeatService.RefreshSupervision is not implemented"))
+}
+
+func (UnimplementedHeartbeatServiceHandler) ReconcileSupervision(context.Context, *connect.Request[heartbeat.MemberMutationRequest]) (*connect.Response[heartbeat.JsonResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.heartbeat.HeartbeatService.ReconcileSupervision is not implemented"))
 }
 
 func (UnimplementedHeartbeatServiceHandler) CreateHeartbeat(context.Context, *connect.Request[heartbeat.MemberMutationRequest]) (*connect.Response[heartbeat.JsonResponse], error) {

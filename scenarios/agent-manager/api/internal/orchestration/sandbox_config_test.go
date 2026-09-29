@@ -102,6 +102,20 @@ func TestNormalizeSandboxConfig_Nil(t *testing.T) {
 	}
 }
 
+func TestResolveSandboxConfig_WritePolicyRequiresProtectedMode(t *testing.T) {
+	for _, mode := range []domain.SandboxMode{domain.SandboxModeTracking, domain.SandboxModeOff} {
+		t.Run(string(mode), func(t *testing.T) {
+			o := &Orchestrator{}
+			_, err := o.resolveSandboxConfig(CreateRunRequest{SandboxConfig: &domain.SandboxConfig{
+				Mode: mode, WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{}},
+			}}, nil)
+			if err == nil {
+				t.Fatal("runtime write policy must not be admitted without protected execution")
+			}
+		})
+	}
+}
+
 // TestResolveSandboxConfig_AllInputsNil pins the never-nil contract:
 // resolveSandboxConfig must return a non-nil config so applyAtRunEnd has
 // something to consult. Before 2026-04-24 a chain of nil inputs cascaded
@@ -166,6 +180,7 @@ func TestResolveSandboxConfig_PartialInlineOverridePreservesProfileContract(t *t
 	profileCfg := domain.DefaultSandboxConfig()
 	profileCfg.Lifecycle.DeleteOn = []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTerminal}
 	profileCfg.Acceptance.Allow.PathGlobs = []string{"scenarios/agent-manager/**"}
+	profileCfg.WritePolicy = &domain.WorkspaceWritePolicy{Paths: []string{"src"}}
 	profile := &domain.AgentProfile{SandboxConfig: profileCfg, RoleRef: "code.default"}
 
 	cfg, err := o.resolveSandboxConfig(CreateRunRequest{SandboxConfig: &domain.SandboxConfig{ManualReview: true}}, profile)
@@ -180,5 +195,16 @@ func TestResolveSandboxConfig_PartialInlineOverridePreservesProfileContract(t *t
 	}
 	if got := cfg.Acceptance.Allow.PathGlobs; len(got) != 1 || got[0] != "scenarios/agent-manager/**" {
 		t.Fatalf("profile acceptance was lost: %v", got)
+	}
+	if cfg.WritePolicy == nil || len(cfg.WritePolicy.Paths) != 1 || cfg.WritePolicy.Paths[0] != "src" {
+		t.Fatal("sparse override lost runtime write grant")
+	}
+	cfg.WritePolicy.Paths[0] = "mutated"
+	if profileCfg.WritePolicy.Paths[0] != "src" {
+		t.Fatal("resolved write grant aliases the profile")
+	}
+	readOnly, err := o.resolveSandboxConfig(CreateRunRequest{SandboxConfig: &domain.SandboxConfig{WritePolicy: &domain.WorkspaceWritePolicy{}}}, profile)
+	if err != nil || readOnly.WritePolicy == nil || len(readOnly.WritePolicy.Paths) != 0 {
+		t.Fatalf("explicit read-only override lost: %+v %v", readOnly, err)
 	}
 }

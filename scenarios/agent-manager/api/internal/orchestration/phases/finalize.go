@@ -40,6 +40,9 @@ type FinalizeInput struct {
 	Run       *domain.Run
 	SandboxID *uuid.UUID
 	Sandbox   sandbox.Provider
+	// Event preserves a continuation's outcome even when manual review changes
+	// its projected status. Empty selects the ordinary run-terminal event.
+	Event domain.SandboxLifecycleEvent
 }
 
 // Finalize is the terminal seam: it advances the phase ladder to
@@ -72,6 +75,9 @@ func Finalize(in FinalizeInput) {
 	})
 
 	event := LifecycleEventForStatus(in.Run.Status)
+	if in.Event != "" {
+		event = in.Event
+	}
 	action := ApplySandboxLifecycle(ctx, ApplySandboxLifecycleInput{
 		Deps:      in.Deps,
 		Run:       in.Run,
@@ -175,7 +181,10 @@ func ApplySandboxLifecycle(ctx context.Context, in ApplySandboxLifecycleInput) s
 	events := []domain.SandboxLifecycleEvent{in.Event}
 	if in.Event == domain.SandboxLifecycleRunCompleted ||
 		in.Event == domain.SandboxLifecycleRunFailed ||
-		in.Event == domain.SandboxLifecycleRunCancelled {
+		in.Event == domain.SandboxLifecycleRunCancelled ||
+		in.Event == domain.SandboxLifecycleTurnCompleted ||
+		in.Event == domain.SandboxLifecycleTurnFailed ||
+		in.Event == domain.SandboxLifecycleTurnCancelled {
 		events = append(events, domain.SandboxLifecycleTerminal)
 	}
 
@@ -405,7 +414,7 @@ type postTurnApplyResult struct {
 }
 
 func applyOrCheckpointTurn(ctx context.Context, cfg *domain.SandboxConfig, in ApplyAtRunEndInput) (*postTurnApplyResult, error) {
-	turnEvent := turnLifecycleEventForOutcome(in.Outcome)
+	turnEvent := TurnLifecycleEventForOutcome(in.Outcome)
 	if HasLifecycleEvent(cfg.Lifecycle.CheckpointOn, []domain.SandboxLifecycleEvent{turnEvent}) {
 		req := sandbox.TurnCheckpointRequest{
 			SandboxID:      *in.SandboxID,
@@ -505,7 +514,9 @@ func postTurnSandboxOperation[T any](ctx context.Context, in ApplyAtRunEndInput,
 	return nil, lastErr
 }
 
-func turnLifecycleEventForOutcome(outcome domain.ContractRunOutcome) domain.SandboxLifecycleEvent {
+// TurnLifecycleEventForOutcome keeps checkpointing and terminal cleanup on the
+// original turn outcome, independently of the later approval-state projection.
+func TurnLifecycleEventForOutcome(outcome domain.ContractRunOutcome) domain.SandboxLifecycleEvent {
 	switch outcome {
 	case domain.ContractRunOutcomeFailure, domain.ContractRunOutcomeTimeout:
 		return domain.SandboxLifecycleTurnFailed

@@ -101,6 +101,10 @@ func (p *fakeProcess) Kill() {
 	p.mu.Lock()
 	p.killed = true
 	p.mu.Unlock()
+	// Closing the read ends mirrors a real killed process: writers blocked on
+	// an unread pipe must be released so the test cannot hide a stop deadlock.
+	_ = p.stdout.Close()
+	_ = p.stderr.Close()
 	p.once.Do(func() { close(p.done) })
 }
 
@@ -413,6 +417,40 @@ func newExecuteRequest(runID uuid.UUID, prompt string, sink runner.EventSink) ru
 	}
 }
 
+func TestPolicyFilesReachEveryLaunch(t *testing.T) {
+	for _, durable := range []bool{false, true} {
+		for _, continuation := range []bool{false, true} {
+			t.Run(fmt.Sprintf("durable=%v/continue=%v", durable, continuation), func(t *testing.T) {
+				launcher := &fakeLauncher{stdout: "{\"type\":\"message\",\"content\":\"done\"}\n"}
+				r := newRunnerForTest(t, newFakeCodec(), launcher)
+				req := newExecuteRequest(uuid.New(), "test", &recordingSink{})
+				file := runner.PolicyFile{Source: "/owner/policy", Target: "/etc/consumer/policy", SHA256: strings.Repeat("b", 64)}
+				req.PolicyFiles = []runner.PolicyFile{file}
+				if durable {
+					stdout, err := os.CreateTemp(t.TempDir(), "transcript-*.ndjson")
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer stdout.Close()
+					req.Transcript = &runner.TranscriptConfig{TranscriptPath: stdout.Name(), StdoutFile: stdout}
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				var err error
+				if continuation {
+					_, err = r.Continue(ctx, runner.ContinueRequest{RunID: req.RunID, SessionID: "session", Prompt: req.Prompt, WorkingDir: req.WorkingDir, EventSink: req.EventSink, ResolvedConfig: req.ResolvedConfig, Transcript: req.Transcript, PolicyFiles: req.PolicyFiles})
+				} else {
+					_, err = r.Execute(ctx, req)
+				}
+				actual := launcher.lastRequestSnapshot().PolicyFiles
+				if err != nil || len(actual) != 1 || actual[0] != file {
+					t.Fatalf("policy lost across launch path: %v, %v", actual, err)
+				}
+			})
+		}
+	}
+}
+
 func TestExecute_StreamingSuccess(t *testing.T) {
 	codec := newFakeCodec()
 	launcher := &fakeLauncher{
@@ -455,6 +493,61 @@ func TestExecute_StreamingSuccess(t *testing.T) {
 
 	if got := launcher.lastRequestSnapshot(); got.Command != "env" {
 		t.Fatalf("expected env-wrapped launch, got command=%q", got.Command)
+	}
+}
+
+func TestExecute_StopsAtOwnerToolCallLimit(t *testing.T) {
+	codec := newFakeCodec()
+	launcher := &fakeLauncher{
+		stdout: `{"type":"tool_call"}` + "\n" +
+			`{"type":"tool_call"}` + "\n" +
+			`{"type":"tool_call"}` + "\n",
+	}
+	r := newRunnerForTest(t, codec, launcher)
+	req := newExecuteRequest(uuid.New(), "bounded", &recordingSink{})
+	req.ResolvedConfig.MaxToolCalls = 2
+
+	res, err := r.Execute(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Execute returned transport error: %v", err)
+	}
+	if res.Success {
+		t.Fatalf("expected bounded execution to fail, got %+v", res)
+	}
+	if res.Metrics.ToolCallCount != 2 {
+		t.Fatalf("ToolCallCount = %d, want hard stop at 2", res.Metrics.ToolCallCount)
+	}
+	if !strings.Contains(res.ErrorMessage, "tool-call limit of 2") {
+		t.Fatalf("ErrorMessage = %q, want owner limit", res.ErrorMessage)
+	}
+}
+
+func TestExecute_DurableStopsAtOwnerToolCallLimit(t *testing.T) {
+	codec := newFakeCodec()
+	launcher := &fakeLauncher{
+		stdout: `{"type":"tool_call"}` + "\n" +
+			`{"type":"tool_call"}` + "\n" +
+			`{"type":"tool_call"}` + "\n",
+	}
+	r := newRunnerForTest(t, codec, launcher)
+	req := newExecuteRequest(uuid.New(), "bounded durable", &recordingSink{})
+	req.ResolvedConfig.MaxToolCalls = 2
+	transcript, err := os.CreateTemp(t.TempDir(), "bounded-*.ndjson")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer transcript.Close()
+	req.Transcript = &runner.TranscriptConfig{TranscriptPath: transcript.Name(), StdoutFile: transcript}
+
+	res, err := r.Execute(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Execute returned transport error: %v", err)
+	}
+	if res.Success {
+		t.Fatalf("expected durable bounded execution to fail, got %+v", res)
+	}
+	if !strings.Contains(res.ErrorMessage, "tool-call limit of 2") {
+		t.Fatalf("ErrorMessage = %q, want owner limit", res.ErrorMessage)
 	}
 }
 

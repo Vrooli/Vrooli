@@ -310,6 +310,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	effortConfig := effortDiscoveryConfig()
 	supervisionService.Efforts = supervision.NewEffortService(supervisionRepo, supervisionRunController{orchestrator: orch}, supervisionPolicies, effortConfig)
 	supervisionService.Efforts.SetRunRegistry(repos.Runs)
+	supervisionService.Efforts.SetDispatchAccountingReader(supervisionRunController{orchestrator: orch})
 	supervisionService.Efforts.SetQuotaObservationStore(quotaObservationStore)
 	supervisionService.Efforts.ConfigureDispatch(identitySecret, provisionSupervisorCredential, func(ctx context.Context, key string) error {
 		profile, err := repos.Profiles.GetByKey(ctx, key)
@@ -320,7 +321,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 			return fmt.Errorf("profile not found")
 		}
 		ceiling := []string{supervision.SupervisorDispatchScope}
-		if len(identity.IntersectScopes(ceiling, profile.DeclaredScopes, ceiling)) != 1 {
+		if len(identity.IntersectScopes(ceiling, profile.IdentityScopeCeiling(), ceiling)) != 1 {
 			return fmt.Errorf("profile does not permit the supervisor scope")
 		}
 		return nil

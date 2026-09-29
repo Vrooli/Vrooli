@@ -56,14 +56,29 @@ func (e *Engine) reconcileMeteredCleanup(ctx context.Context, x *domain.Workflow
 			continue
 		}
 		if a.RunID == nil {
-			return nil, nil, fmt.Errorf("unbound attempt %s requires dispatch reconciliation before cleanup", a.ID)
+			if !allowUnknown {
+				return nil, nil, fmt.Errorf("unbound attempt %s requires dispatch reconciliation before cleanup", a.ID)
+			}
+			a.Status, a.ErrorCode = domain.WorkflowAttemptFailed, "accounting_unknown"
+			now := e.now()
+			a.UpdatedAt, a.CompletedAt = now, &now
+			a.Version++
+			usage.AccountingComplete = false
+			usage.ChargeMeasured = false
+			settled = append(settled, a)
+			continue
 		}
 		state, err := meter.InspectMetered(ctx, *a.RunID)
 		if err != nil {
 			return nil, nil, err
 		}
-		if !state.Terminal || !state.TokensKnown {
+		if !state.Terminal || (!state.TokensKnown && !allowUnknown) {
 			return nil, nil, fmt.Errorf("child %s requires terminal usage before cleanup", a.RunID)
+		}
+		if allowUnknown && (!state.TokensKnown || !state.ChargeMeasured) {
+			a.ErrorCode = "accounting_unknown"
+			usage.AccountingComplete = false
+			usage.ChargeMeasured = false
 		}
 		remaining := r.Definition.Budgets.MaxTokens - usage.Tokens
 		overshoot := state.Tokens - remaining
@@ -86,7 +101,9 @@ func (e *Engine) reconcileMeteredCleanup(ctx context.Context, x *domain.Workflow
 		usage.Tokens += state.Tokens
 		usage.Turns += state.Turns
 		usage.ChargeMicroUSD += state.ChargeMicroUSD
-		usage.ChargeMeasured = usage.ChargeMeasured || state.ChargeMeasured
+		if state.ChargeMeasured {
+			usage.ChargeMeasured = usage.ChargeMeasured || state.ChargeMeasured
+		}
 		usage.AccountingComplete = usage.AccountingComplete && state.TokensKnown && state.ChargeMeasured
 		settled = append(settled, a)
 	}

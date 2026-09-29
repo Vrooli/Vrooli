@@ -36,3 +36,9 @@ func sysKill(pid int, _ syscall.Signal) error {
 	}
 	return p.Kill()
 }
+
+func sysOwnedProcessGroup(int, int) bool { return false }
+
+func sysProcessGroupExists(int) bool { return false }
+
+func sysCanSignalProcess(pid int) bool { return pid > 1 && pid != os.Getpid() }

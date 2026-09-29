@@ -3024,8 +3024,14 @@ type RunBreakdownRow struct {
 	TotalChargeMicroUsd                int64   `protobuf:"varint,9,opt,name=total_charge_micro_usd,json=totalChargeMicroUsd,proto3" json:"total_charge_micro_usd,omitempty"`
 	ConsumptionPerSuccessfulCompletion float64 `protobuf:"fixed64,10,opt,name=consumption_per_successful_completion,json=consumptionPerSuccessfulCompletion,proto3" json:"consumption_per_successful_completion,omitempty"`
 	CompletionRate                     float64 `protobuf:"fixed64,11,opt,name=completion_rate,json=completionRate,proto3" json:"completion_rate,omitempty"`
-	unknownFields                      protoimpl.UnknownFields
-	sizeCache                          protoimpl.SizeCache
+	// Token components make grouped efficiency evidence explain total_tokens;
+	// cache reads are usage, but must not be confused with generated output.
+	InputTokens         int64 `protobuf:"varint,12,opt,name=input_tokens,json=inputTokens,proto3" json:"input_tokens,omitempty"`
+	OutputTokens        int64 `protobuf:"varint,13,opt,name=output_tokens,json=outputTokens,proto3" json:"output_tokens,omitempty"`
+	CacheReadTokens     int64 `protobuf:"varint,14,opt,name=cache_read_tokens,json=cacheReadTokens,proto3" json:"cache_read_tokens,omitempty"`
+	CacheCreationTokens int64 `protobuf:"varint,15,opt,name=cache_creation_tokens,json=cacheCreationTokens,proto3" json:"cache_creation_tokens,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *RunBreakdownRow) Reset() {
@@ -3131,6 +3137,34 @@ func (x *RunBreakdownRow) GetConsumptionPerSuccessfulCompletion() float64 {
 func (x *RunBreakdownRow) GetCompletionRate() float64 {
 	if x != nil {
 		return x.CompletionRate
+	}
+	return 0
+}
+
+func (x *RunBreakdownRow) GetInputTokens() int64 {
+	if x != nil {
+		return x.InputTokens
+	}
+	return 0
+}
+
+func (x *RunBreakdownRow) GetOutputTokens() int64 {
+	if x != nil {
+		return x.OutputTokens
+	}
+	return 0
+}
+
+func (x *RunBreakdownRow) GetCacheReadTokens() int64 {
+	if x != nil {
+		return x.CacheReadTokens
+	}
+	return 0
+}
+
+func (x *RunBreakdownRow) GetCacheCreationTokens() int64 {
+	if x != nil {
+		return x.CacheCreationTokens
 	}
 	return 0
 }
@@ -6645,7 +6679,7 @@ const file_agent_manager_v1_measures_measures_proto_rawDesc = "" +
 	"\n" +
 	"provenance\x18e \x01(\v2,.agent_manager.v1.measures.MeasureProvenanceR\n" +
 	"provenance\x12#\n" +
-	"\rdefinition_id\x18f \x01(\tR\fdefinitionId\"\xc8\x03\n" +
+	"\rdefinition_id\x18f \x01(\tR\fdefinitionId\"\xf0\x04\n" +
 	"\x0fRunBreakdownRow\x12\x14\n" +
 	"\x05value\x18\x01 \x01(\tR\x05value\x12\x1b\n" +
 	"\trun_count\x18\x02 \x01(\x03R\brunCount\x12#\n" +
@@ -6658,7 +6692,11 @@ const file_agent_manager_v1_measures_measures_proto_rawDesc = "" +
 	"\x16total_charge_micro_usd\x18\t \x01(\x03R\x13totalChargeMicroUsd\x12Q\n" +
 	"%consumption_per_successful_completion\x18\n" +
 	" \x01(\x01R\"consumptionPerSuccessfulCompletion\x12'\n" +
-	"\x0fcompletion_rate\x18\v \x01(\x01R\x0ecompletionRate\"\x95\x01\n" +
+	"\x0fcompletion_rate\x18\v \x01(\x01R\x0ecompletionRate\x12!\n" +
+	"\finput_tokens\x18\f \x01(\x03R\vinputTokens\x12#\n" +
+	"\routput_tokens\x18\r \x01(\x03R\foutputTokens\x12*\n" +
+	"\x11cache_read_tokens\x18\x0e \x01(\x03R\x0fcacheReadTokens\x122\n" +
+	"\x15cache_creation_tokens\x18\x0f \x01(\x03R\x13cacheCreationTokens\"\x95\x01\n" +
 	"\x16RunnerBreakdownRequest\x126\n" +
 	"\x06window\x18\x01 \x01(\v2\x1e.vrooli.measures.v1.TimeWindowR\x06window\x12C\n" +
 	"\x06filter\x18\x02 \x01(\v2+.agent_manager.v1.measures.InvocationFilterR\x06filter\"\xbf\x02\n" +

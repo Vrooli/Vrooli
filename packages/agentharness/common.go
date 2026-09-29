@@ -32,7 +32,10 @@ type (
 	CatalogFreshness        = agentcatalog.CatalogFreshness
 )
 
-var ErrModelDiscoveryUnavailable = agentcatalog.ErrModelDiscoveryUnavailable
+var (
+	ErrModelDiscoveryUnavailable    = agentcatalog.ErrModelDiscoveryUnavailable
+	ErrModelCatalogNonAuthoritative = agentcatalog.ErrModelCatalogNonAuthoritative
+)
 
 func catalogStalenessFindings(c CodingRoleCatalog, now time.Time, againstLive bool) []PolicyValidationFinding {
 	return agentcatalog.CatalogStalenessFindings(c, now, againstLive)

@@ -29,6 +29,16 @@ type dispatchFixture struct {
 	provisionErr error
 }
 
+type dispatchAccountingFixture map[uuid.UUID]DispatchRunAccounting
+
+func (f dispatchAccountingFixture) RunAccounting(_ context.Context, id uuid.UUID) (DispatchRunAccounting, error) {
+	usage, ok := f[id]
+	if !ok {
+		return DispatchRunAccounting{}, errors.New("accounting fixture missing run")
+	}
+	return usage, nil
+}
+
 func newDispatchFixture(t *testing.T) *dispatchFixture {
 	t.Helper()
 	s, r, _ := effortFixture(t)
@@ -46,7 +56,7 @@ func newDispatchFixture(t *testing.T) *dispatchFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.req = &api.IssueSupervisorDispatchRequest{EffortRef: f.e.EffortRef, ExpectedRevision: f.e.Revision, TeamId: "supervisors", MemberId: "leader", ProfileKey: "qualified", ExpiresAt: timestamppb.New(f.now.Add(time.Hour)), MaximumRuns: 3, MinimumIntervalSeconds: 60, IdempotencyKey: "issue"}
+	f.req = &api.IssueSupervisorDispatchRequest{EffortRef: f.e.EffortRef, ExpectedRevision: f.e.Revision, TeamId: "supervisors", MemberId: "leader", ProfileKey: "qualified", ExpiresAt: timestamppb.New(f.now.Add(time.Hour)), MaximumRuns: 3, MinimumIntervalSeconds: 60, MaxTokens: 100000, MaxChargeMicroUsd: 1000000, IdempotencyKey: "issue"}
 	return f
 }
 
@@ -316,6 +326,39 @@ func TestSupervisorDispatchFutureWakesKeepRateAllowanceAcrossRestart(t *testing.
 	f.now = f.now.Add(time.Minute)
 	if _, err := f.s.AdmitDispatch(ctx, f.wake("exhausted"), f.token); err == nil {
 		t.Fatal("cumulative allowance widened")
+	}
+}
+
+func TestSupervisorDispatchSettlesOwnerBudgetBeforeNextAdmission(t *testing.T) {
+	f := newDispatchFixture(t)
+	f.issue(t)
+	accounting := dispatchAccountingFixture{}
+	f.s.SetDispatchAccountingReader(accounting)
+	first := f.wake("settled-first")
+	if _, err := f.s.AdmitDispatch(t.Context(), first, f.token); err != nil {
+		t.Fatal(err)
+	}
+	firstRun := uuid.New()
+	if err := f.s.BindDispatchRun(t.Context(), first, f.token, firstRun); err != nil {
+		t.Fatal(err)
+	}
+	f.now = f.now.Add(time.Minute)
+	if _, err := f.s.AdmitDispatch(t.Context(), f.wake("unresolved"), f.token); err == nil {
+		t.Fatal("unresolved owner accounting must block the next admission")
+	}
+	accounting[firstRun] = DispatchRunAccounting{Terminal: true, Tokens: 50_000, TokensKnown: true, ChargeMicroUSD: 500_000, ChargeMeasured: true}
+	second := f.wake("settled-second")
+	if _, err := f.s.AdmitDispatch(t.Context(), second, f.token); err != nil {
+		t.Fatal(err)
+	}
+	secondRun := uuid.New()
+	if err := f.s.BindDispatchRun(t.Context(), second, f.token, secondRun); err != nil {
+		t.Fatal(err)
+	}
+	accounting[secondRun] = accounting[firstRun]
+	f.now = f.now.Add(time.Minute)
+	if _, err := f.s.AdmitDispatch(t.Context(), f.wake("exhausted-budget"), f.token); err == nil {
+		t.Fatal("settled aggregate budget must refuse another admission")
 	}
 }
 

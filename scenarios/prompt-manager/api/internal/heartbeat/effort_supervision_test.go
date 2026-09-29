@@ -68,15 +68,16 @@ type supervisionFixture struct {
 func newSupervisionFixture(t *testing.T) *supervisionFixture {
 	t.Helper()
 	f := &supervisionFixture{owner: &effortOwnerFake{}, queue: &effortQueueFake{}, now: time.Date(2026, 9, 12, 0, 0, 0, 0, time.UTC)}
-	f.agent = newMockAgentClient().WithCreateTaskResponse(&Task{ID: "task-1"}).WithCreateRunResponse(&Run{ID: "wake-run-1", Status: "running"})
+	f.agent = newMockAgentClient().WithCreateTaskResponse(&Task{ID: "task-1"}).WithCreateRunResponse(&Run{ID: "wake-run-1", Status: "running"}).WithEchoRunIdentity()
 	f.agent.getRuns["wake-run-1"] = &Run{ID: "wake-run-1", Status: "running"}
 	f.agent.listRunsResp = &ListRunsResponse{}
 	f.cfg = &store.HeartbeatConfig{Enabled: true, ProfileKey: "qualified-role-profile", Supervision: &teamconfig.Supervision{DiscoveryLimit: 100, MaxEffortsPerWake: 1, MinWakeIntervalSeconds: 60}}
 	f.cfg.Supervision.DiagnosticAllowance = teamconfig.DiagnosticAllowance{MaxWakesPerWindow: 10, WindowSeconds: 3600, AccountingRef: "test:standing-supervision"}
 	f.s = &StandingSupervisor{
 		Owner: f.owner, State: FileSupervisionStateStore{Root: t.TempDir()}, Queue: f.queue, Agent: f.agent, Root: t.TempDir(), Now: func() time.Time { return f.now },
-		Config: func(context.Context, string, string) (*store.HeartbeatConfig, error) { return f.cfg, nil },
-		Prompt: func(context.Context, string, string) (string, error) { f.prompts++; return "team context", nil },
+		Config:            func(context.Context, string, string) (*store.HeartbeatConfig, error) { return f.cfg, nil },
+		ObservationConfig: func(context.Context, string, string) (*store.HeartbeatConfig, error) { return f.cfg, nil },
+		Prompt:            func(context.Context, string, string) (string, error) { f.prompts++; return "team context", nil },
 	}
 	return f
 }
@@ -127,6 +128,52 @@ func (f *supervisionFixture) receipt(t *testing.T, disposition string) {
 	}
 	for _, row := range state.Pending.Efforts {
 		f.owner.receipts[row.ID] = &SupervisionAssessment{ID: "assessment-" + state.Pending.ID, WakeID: state.Pending.ID, RunID: "wake-run-1", Disposition: disposition, TargetRevisions: map[string]string{row.ID: row.TargetRevision}}
+	}
+}
+
+func TestStandingSupervisorObservationRefreshBypassesDisabledScheduling(t *testing.T) {
+	f := newSupervisionFixture(t)
+	f.owner.rows = []EffortObservation{effort("owner-refresh")}
+	f.cfg.Enabled = false
+	state, err := f.s.Observe(context.Background(), "supervisors", "leader")
+	if err != nil {
+		t.Fatalf("observation-only refresh failed for disabled scheduling: %v", err)
+	}
+	if state.Status != "observation-only" || state.LastScanAt.IsZero() || state.LastSuccessAt.IsZero() {
+		t.Fatalf("refresh did not persist a timestamped owner cut: %+v", state)
+	}
+	if _, ok := state.Efforts["owner-refresh"]; !ok {
+		t.Fatalf("refresh did not persist the owner effort: %+v", state.Efforts)
+	}
+	if f.owner.calls != 1 || f.queue.enqueues != 0 || len(f.agent.createRunCalls) != 0 || f.prompts != 0 {
+		t.Fatalf("observation-only refresh admitted side effects: ownerCalls=%d enqueues=%d runs=%d prompts=%d", f.owner.calls, f.queue.enqueues, len(f.agent.createRunCalls), f.prompts)
+	}
+}
+
+func TestStandingSupervisorObservationRefreshReconcilesTerminalWake(t *testing.T) {
+	f := newSupervisionFixture(t)
+	f.cfg.Enabled = false
+	row := effort("terminal-wake")
+	f.owner.rows = []EffortObservation{row}
+	f.owner.receipts = map[string]*SupervisionAssessment{
+		row.ID: {ID: "assessment-1", WakeID: "wake-1", RunID: "run-1", Disposition: "quiet", TargetRevisions: map[string]string{row.ID: row.TargetRevision}},
+	}
+	f.agent.getRuns["run-1"] = &Run{ID: "run-1", Status: "complete"}
+	if err := f.s.State.Save("supervisors", "leader", &SupervisionState{
+		Version: 1, Status: "uncertain", Efforts: map[string]SupervisedCut{row.ID: {EffortObservation: row}},
+		Pending: &SupervisionWake{ID: "wake-1", TaskID: "task-1", RunID: "run-1", DispatchStarted: true, Efforts: []EffortObservation{row}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	state, err := f.s.Observe(context.Background(), "supervisors", "leader")
+	if err != nil {
+		t.Fatalf("terminal wake was not reconciled by observation refresh: %v", err)
+	}
+	if state.Pending != nil || state.LastWake == nil || state.LastWake.ID != "wake-1" || state.LastScanAt.IsZero() {
+		t.Fatalf("terminal wake was not released before owner refresh: %+v", state)
+	}
+	if f.queue.enqueues != 0 || len(f.agent.createRunCalls) != 0 || f.prompts != 0 {
+		t.Fatal("terminal wake observation admitted new work")
 	}
 }
 

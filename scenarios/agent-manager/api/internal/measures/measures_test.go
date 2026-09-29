@@ -48,6 +48,21 @@ func TestModelBreakdownKeepsImportedAndInteractiveRunsSeparate(t *testing.T) {
 	}
 }
 
+func TestProfileBreakdownPreservesTokenComponents(t *testing.T) {
+	store := &fakeStore{breakdowns: map[string][]invocationreadmodel.RunBreakdownRow{
+		"profile": {{Key: "profile-id", Value: "Profile", TotalTokens: 30, InputTokens: 15, OutputTokens: 7, CacheReadTokens: 3, CacheCreationTokens: 3}},
+	}}
+	handler := NewHandler(store, time.Now)
+	response, err := handler.ProfileBreakdown(context.Background(), connect.NewRequest(&measurepb.ProfileBreakdownRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := response.Msg.GetRows()
+	if len(rows) != 1 || rows[0].GetKey() != "profile-id" || rows[0].GetTotalTokens() != 30 || rows[0].GetInputTokens() != 15 || rows[0].GetOutputTokens() != 7 || rows[0].GetCacheReadTokens() != 3 || rows[0].GetCacheCreationTokens() != 3 {
+		t.Fatalf("profile breakdown = %+v", rows)
+	}
+}
+
 func (s *fakeStore) RunMetrics(_ context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.RunMetrics, error) {
 	s.filter = filter
 	return s.runMetrics, nil

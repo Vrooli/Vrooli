@@ -10,9 +10,9 @@ metadata:
   tags: [ui, ux, visual, mobile, responsive, design, mockup, layout]
   icon: sparkles
   status: active
-  revision: 1
+  revision: 2
   createdAt: "2026-09-21T00:00:00Z"
-  updatedAt: "2026-09-21T00:00:00Z"
+  updatedAt: "2026-09-21T12:00:00Z"
   requires:
     scenarios: [prompt-manager]
     commands: [prompt-manager skill read]
@@ -61,7 +61,7 @@ Out of scope (hand off to the named owner):
 
 Desktop composes in **space** (put things side by side); mobile composes in **sequence** (put things in order, reveal on demand, keep primary actions in the thumb zone). Hover, side-by-side panels, and always-visible toolbars map to bottom sheets, tabs or swipe, and a FAB or thumb-bar.
 
-**Model the content once, compose it twice.** List a surface's data and actions device-independently first, with no layout commitment. Both media must serve that whole list. Never remove content on mobile; re-sequence it. Rank the list by "what is the user here for, right now?" — the top one to three items must fit above the mobile fold without scrolling; demote the rest to scroll-below, a collapsed section, persistent chrome, or an on-demand sheet.
+**Model the content once, compose it twice.** List a surface's data and actions device-independently first, with no layout commitment. Both media must serve that whole list. Never remove content on mobile; re-sequence it. Rank the list by "what is the user here for, right now?" — the highest-ranked item, and where it fits the next one or two, must be reachable without scrolling on the mobile viewport that `ux` defines; the fold is a pressure to demote, not a countable gate. Demote the rest to scroll-below, a collapsed section, persistent chrome, or an on-demand sheet.
 
 **Compose with components, not only CSS.**
 
@@ -102,19 +102,23 @@ Walk this table per surface. Two agents reading the same surface must land in th
 
 Effort is proportional to the mismatch: dashboards and immersive tasks earn bespoke mobile trees; lists and stable forms do not. Recognizing which surfaces need less is part of the skill.
 
+A **primary surface** is a top-level route the user navigates to directly — an entry in the app's main navigation or router — not a modal, drawer, or sub-screen reached only by drill-in. The maturity ladder (§4) gates on primary surfaces.
+
 ### 4. Experiential maturity ladder
 
 This skill owns the ladder. Every rung is gated by a verifiable artifact, run against `scenarios/{{TARGET}}/`. Record the current rung and evidence in the durable doc (§6).
 
 | Rung | What exists (verify) | When to stop here |
 |---|---|---|
-| **L0 Reflow-only** | `rg -l "useBreakpoint\|useIsMobile\|useMediaQuery" scenarios/{{TARGET}}/ui/src` is empty **and** `scenarios/{{TARGET}}/docs/mockups/` is absent. One component tree, CSS media queries only. | Never — this is the disappointing baseline. |
-| **L1 Mockups + concept** | Side-by-side desktop and mobile mockups for every primary surface under `scenarios/{{TARGET}}/docs/mockups/`; the unifying concept is named in `scenarios/{{TARGET}}/docs/ARCHITECTURE.md` (or the scenario's design doc). | The design is agreed but not built. Stop here only to get the two human ratifications. |
-| **L2 Medium-composed** | The breakpoint hook exists (`rg "useBreakpoint\|useIsMobile" scenarios/{{TARGET}}/ui/src` is non-empty) and every Dashboard/Immersive/Table archetype surface renders distinct desktop and mobile component trees, not one reflowed tree. | Composition is real but the concept and assets are not yet applied everywhere. |
-| **L3 Concept + asset system** | The unifying concept is applied on every primary surface; the procedural visual layer is present in the UI source; an image brief exists at `scenarios/{{TARGET}}/docs/mockups/image-generation-brief.md` when illustration is used. | The world is coherent; visual parity is not yet verified against the mockups. |
+| **L0 Reflow-only** | `rg -l -e useBreakpoint -e useIsMobile -e useMediaQuery scenarios/{{TARGET}}/ui/src` is empty **and** `scenarios/{{TARGET}}/docs/mockups/` is absent. One component tree, CSS media queries only. | Never — this is the disappointing baseline. |
+| **L1 Mockups + concept** | Side-by-side desktop and mobile mockups for every primary surface under `scenarios/{{TARGET}}/docs/mockups/`; the unifying concept is named in the scenario's durable design doc (§6). | The design is agreed but not built. Stop here only to get the two human ratifications. |
+| **L2 Medium-composed** | The breakpoint hook exists (`rg -e useBreakpoint -e useIsMobile scenarios/{{TARGET}}/ui/src` is non-empty) and every Dashboard/Immersive/Table archetype surface renders distinct desktop and mobile component trees, not one reflowed tree. | Composition is real but the concept and assets are not yet applied everywhere. |
+| **L3 Concept + asset system** | The unifying concept is applied on every primary surface; the procedural visual layer exists as a dedicated component or stylesheet under `scenarios/{{TARGET}}/ui/src/` (for example a `*Backdrop`, `*Scene`, or `theme/*.css` module the primary surfaces render), confirmable by `rg` or `ls`; an image brief exists at `scenarios/{{TARGET}}/docs/mockups/image-generation-brief.md` when illustration is used. | The world is coherent; visual parity is not yet verified against the mockups. |
 | **L4 Beauty verified** | Desktop and mobile captures (and Day/Night when themed) exist and are compared to the mockups with no open parity or visual findings in the durable doc; the concept and mockups carry a human ratification. | Ceiling. Stop. Adding ornamentation past the concept is a regression (`improvement-do-and-dont`), not a higher rung. |
 
 The terminal "is it genuinely beautiful?" judgment has no mechanical oracle; it routes to the two human checkpoints (concept, mockups). L4 gates only the verifiable process artifacts around that judgment — captures exist, compare to the mockups, and leave no open findings.
+
+This L0–L4 ladder is the *experiential* axis; it is distinct from the R0–R4 scenario maturity ladder (`scenario-maturity-ladder`). A surface can be R3-mature yet L1 on experience.
 
 ### 5. Anti-gaming
 

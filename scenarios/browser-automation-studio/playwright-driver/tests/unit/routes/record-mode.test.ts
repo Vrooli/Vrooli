@@ -4,10 +4,12 @@ import { TimelineEntrySchema } from '../../../src/proto/recording';
 import { initRecordingBuffer, bufferTimelineEntry, getTimelineEntries, acknowledgeTimelineEntries, removeRecordingBuffer } from '../../../src/recording';
 import { handleRecordNavigate, handleRecordReload, handleRecordGoBack, handleRecordGoForward, handleRecordActions, handleRecordActionsAck, handleRecordStop } from '../../../src/routes/record-mode';
 import { handleRecordNavigationState, handleRecordNavigationStack } from '../../../src/routes/record-mode/recording-navigation';
-import * as frames from '../../../src/routes/record-mode/recording-frames';
+import * as frameCache from '../../../src/session/frame-cache';
 import * as pages from '../../../src/routes/record-mode/recording-pages';
 import { createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
 import { SessionManager } from '../../../src/session/manager';
+import { enqueuePageMutation } from '../../../src/session/live-input';
+import type { Page } from 'rebrowser-playwright';
 
 const mockHistoryCDP = { send: jest.fn(() => Promise.resolve({ currentIndex: 0, entries: [{ id: 1, url: 'https://example.com', title: 'Example' }] })), detach: jest.fn(() => Promise.resolve()) };
 
@@ -37,7 +39,7 @@ describe('recording navigation ownership and browser history [REQ:BAS-RH-J17] [R
   const config = createTestConfig({ history: { callbackUrl: '', thumbnailEnabled: false } });
   let clearCache: jest.SpyInstance, historyCallback: jest.SpyInstance;
   beforeEach(() => {
-    clearCache = jest.spyOn(frames, 'clearFrameCache');
+    clearCache = jest.spyOn(frameCache, 'clearFrameCache');
     historyCallback = jest.spyOn(pages, 'emitHistoryCallback');
   });
   afterEach(() => jest.restoreAllMocks());
@@ -173,7 +175,7 @@ describe('recording navigation ownership and browser history [REQ:BAS-RH-J17] [R
         proceed.resolve(); await call.pending;
         expect(call.response.statusCode).toBe(404);
         expect(f.page.screenshot).not.toHaveBeenCalled();
-        expect(clearCache).not.toHaveBeenCalled();
+        expect(clearCache).toHaveBeenCalledWith(f.id);
         expect(historyCallback).not.toHaveBeenCalled();
       } finally { proceed.resolve(); }
     });
@@ -188,7 +190,8 @@ describe('recording navigation ownership and browser history [REQ:BAS-RH-J17] [R
         await entered.promise; f.session.leaseId = 'replacement'; proceed.resolve(); await call.pending;
         expect(call.response.statusCode).toBe(404);
         expect(f.cdp.detach).toHaveBeenCalledTimes(1);
-        expect(clearCache).not.toHaveBeenCalled();
+        if (operation === 'navigate' || operation === 'reload') expect(clearCache).toHaveBeenCalledWith(f.id);
+        else expect(clearCache).not.toHaveBeenCalled();
         expect(historyCallback).not.toHaveBeenCalled();
         if (operation.startsWith('go-')) expect(f.page[methods[operation]]).not.toHaveBeenCalled();
       } finally { proceed.resolve(); }
@@ -209,13 +212,58 @@ describe('recording navigation ownership and browser history [REQ:BAS-RH-J17] [R
     });
   });
 
+  it('retires the frame epoch before a same-URL reload starts [REQ:BAS-RH-J22]', async () => {
+    const f = fixture('reload');
+    const entered = deferred();
+    const proceed = deferred();
+    f.page.reload.mockImplementationOnce(async () => {
+      entered.resolve();
+      await proceed.promise;
+      return {};
+    });
+    const call = f.call('reload');
+    try {
+      await entered.promise;
+      expect(clearCache).toHaveBeenCalledWith(f.id);
+      proceed.resolve();
+      await call.pending;
+      expect(call.response.statusCode).toBe(200);
+    } finally {
+      proceed.resolve();
+    }
+  });
+
+  it('waits behind an admitted page mutation before navigating [REQ:BAS-RH-J17]', async () => {
+    const f = fixture('reload');
+    const entered = deferred();
+    const proceed = deferred();
+    const pendingMutation = enqueuePageMutation(f.page as unknown as Page, async () => {
+      entered.resolve();
+      await proceed.promise;
+    });
+    await entered.promise;
+
+    const admitted = deferred();
+    f.manager.updateActivity = jest.fn(() => admitted.resolve()) as typeof f.manager.updateActivity;
+    const call = f.call('reload');
+    await admitted.promise;
+    await new Promise<void>(resolve => setImmediate(resolve));
+    expect(f.page.reload).not.toHaveBeenCalled();
+
+    proceed.resolve();
+    await pendingMutation;
+    await call.pending;
+    expect(call.response.statusCode).toBe(200);
+    expect(f.page.reload).toHaveBeenCalledTimes(1);
+  });
+
   it.each(['go-back', 'go-forward'] as const)('rejects %s when the browser did not move', async operation => {
     const f = fixture(operation), before = structuredClone(f.history);
     f.page[methods[operation]].mockResolvedValueOnce(null);
     const call = f.call(operation); await call.pending;
     expect(call.response.statusCode).toBe(400);
     expect(f.history).toEqual(before);
-    expect(clearCache).not.toHaveBeenCalled();
+    expect(clearCache).toHaveBeenCalledWith(f.id);
     expect(f.cdp.detach).toHaveBeenCalledTimes(2);
   });
 

@@ -15,6 +15,9 @@ stop, so a degraded dependency silently taught agents the fleet was empty.
 """
 import json
 import sys
+import threading
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
@@ -40,6 +43,15 @@ BINDINGS = [
         "scenario": "vrooli",
         "group": "scenario",
         "command": "status",
+        "effect": "read",
+        "reachable": True,
+    },
+    {
+        "id": "vrooli/scenario/freshness",
+        "namespace": "vrooli",
+        "scenario": "vrooli",
+        "group": "scenario",
+        "command": "freshness",
         "effect": "read",
         "reachable": True,
     },
@@ -168,6 +180,55 @@ def test_budgets_match_go_authority():
                     value = float(declared.split("*")[0].strip()) if "*" in declared else 1.0
                 assert value == seconds, f"{constant} is {value}s in Go but {seconds}s in the kernel fallback"
                 break
+
+
+def test_owner_wait_uses_go_profile_and_ordinary_or_unknown_binding_does_not():
+    """A simulated HTTP bridge proves timeout selection, not live TG adoption."""
+    previous = engine._Budgets.binding_invokes
+    previous_invoke = engine._Budgets.invoke
+    engine._Budgets.invoke = 0.04
+    engine._Budgets.binding_invokes = {"test-genie/validation/wait": 0.3}
+    arrivals = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            arrivals.append(self.path)
+            time.sleep(0.12)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b"{}")
+
+        def log_message(self, *_args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        base = f"http://127.0.0.1:{server.server_port}/bindings/"
+        owner = engine.BridgeBinding("test-genie/validation/wait", "read", "s", base, [])
+        ordinary = engine.BridgeBinding("test-genie/runs/get", "read", "s", base, [])
+        unknown = engine.BridgeBinding("future/unknown", "read", "s", base, [])
+        assert owner.invoke_timeout == 0.3
+        for binding in (ordinary, unknown):
+            assert binding.invoke_timeout == 0.04
+            try:
+                binding._invoke({}, False)
+            except Exception:
+                pass
+            else:
+                raise AssertionError("ordinary invocation unexpectedly outlasted its cap")
+        started = time.monotonic()
+        owner._invoke({}, False)
+        assert time.monotonic() - started >= 0.1, "owner wait did not outlast the scaled ordinary cap"
+        assert len(arrivals) == 3, "a timed-out call was replayed"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=1)
+        engine._Budgets.binding_invokes = previous
+        engine._Budgets.invoke = previous_invoke
 
 
 def test_budgets_load_overrides_the_fallbacks():

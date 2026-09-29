@@ -36,6 +36,20 @@ const (
 	// It is the ambient routing signal.
 	EnvShadowScenarios = "VROOLI_SHADOW_SCENARIOS"
 
+	// EnvVariantDependencies names the dependencies this instance resolves at
+	// its OWN variant instead of live (comma- or whitespace-separated bare
+	// scenario names). The lifecycle injects it when a non-live instance is
+	// started with dependencies that must not answer with live data — a
+	// presentation instance whose recordings would otherwise show the
+	// operator's real fleet. Routing to a dependency named here NEVER falls
+	// back to live: a missing instance is an error, because a silent fallback
+	// is exactly the leak this list exists to prevent.
+	EnvVariantDependencies = "VROOLI_VARIANT_DEPENDENCIES"
+
+	// EnvInstanceVariant carries this process's own variant. Mirrors
+	// api-core/storage's EnvVariant (separate module — cannot be imported).
+	EnvInstanceVariant = "VROOLI_VARIANT"
+
 	// DefaultVariant is the canonical live variant. Mirrors
 	// scenarioruntime.DefaultVariant (separate module — cannot be imported).
 	DefaultVariant = "live"
@@ -169,9 +183,39 @@ func instanceOverride(scenario string) (string, bool) {
 // names. Accepts comma- or whitespace-separated values and tolerates stray
 // "@variant" suffixes (reduced to the bare name).
 func ShadowedScenarios() map[string]struct{} {
+	return envScenarioSet(EnvShadowScenarios)
+}
+
+// IsShadowed reports whether a scenario is named in VROOLI_SHADOW_SCENARIOS.
+func IsShadowed(name string) bool {
+	_, ok := ShadowedScenarios()[BareScenarioName(name)]
+	return ok
+}
+
+// VariantDependencies parses EnvVariantDependencies into a set of bare scenario
+// names. Same accepted shapes as ShadowedScenarios.
+func VariantDependencies() map[string]struct{} {
+	return envScenarioSet(EnvVariantDependencies)
+}
+
+// OwnVariant returns this process's own variant, normalized.
+func OwnVariant() string {
+	return normalizeVariant(os.Getenv(EnvInstanceVariant))
+}
+
+// IsVariantDependency reports whether name must be resolved at this process's
+// own non-live variant. Callers use it to refuse a live fallback.
+func IsVariantDependency(name string) bool {
+	if OwnVariant() == DefaultVariant {
+		return false
+	}
+	_, ok := VariantDependencies()[BareScenarioName(name)]
+	return ok
+}
+
+func envScenarioSet(key string) map[string]struct{} {
 	out := map[string]struct{}{}
-	raw := os.Getenv(EnvShadowScenarios)
-	for _, field := range strings.FieldsFunc(raw, func(r rune) bool {
+	for _, field := range strings.FieldsFunc(os.Getenv(key), func(r rune) bool {
 		return r == ',' || r == ' ' || r == '\t' || r == '\n' || r == '\r'
 	}) {
 		if base := BareScenarioName(field); base != "" {
@@ -179,12 +223,6 @@ func ShadowedScenarios() map[string]struct{} {
 		}
 	}
 	return out
-}
-
-// IsShadowed reports whether a scenario is named in VROOLI_SHADOW_SCENARIOS.
-func IsShadowed(name string) bool {
-	_, ok := ShadowedScenarios()[BareScenarioName(name)]
-	return ok
 }
 
 // ResolveVariant returns the effective instance variant for a scenario name,
@@ -197,6 +235,9 @@ func ResolveVariant(name string) string {
 	}
 	if v, ok := instanceOverride(base); ok {
 		return v
+	}
+	if IsVariantDependency(base) {
+		return OwnVariant()
 	}
 	if IsShadowed(base) {
 		return ShadowVariant

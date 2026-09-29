@@ -36,8 +36,31 @@
     "schemaVersion": 1,
     "governance": {},
     "documents": {
-      "planOfRecord": ["/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-marketing-capability-maturity-2026-09-17/requirements.json"],
-      "sharedState": ["/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-marketing-capability-maturity-2026-09-17/README.md"]
+      "planOfRecord": [
+        {
+          "id": "aquila-marketing-capability-maturity-requirements",
+          "paths": [
+            {
+              "base": "external",
+              "path": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-marketing-capability-maturity-2026-09-17/requirements.json"
+            }
+          ],
+          "writePolicy": "Plan Manager owner-authorized; team members read and propose only.",
+          "consumers": ["aquila-launch-coordinator"],
+          "rationale": "Canonical requirements for the finite Aquila marketing and capability-maturity effort."
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "aquila-marketing-capability-maturity-plan-readme",
+          "path": {
+            "base": "external",
+            "path": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-marketing-capability-maturity-2026-09-17/README.md"
+          },
+          "kind": "rolling-snapshot",
+          "required": true
+        }
+      ]
     },
     "knowledgeTopics": {
       "effort-wake/*": {

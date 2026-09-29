@@ -30,6 +30,9 @@ const (
 	artifactLeaseSchemaVersion     = 1
 	defaultReaderLeaseTTL          = 2 * time.Minute
 	defaultSnapshotRetention       = 24 * time.Hour
+	// Keep consumer freshness cheap: hash this tiny selection stamp instead of
+	// walking the roughly 100 MB generated compatibility tree.
+	compatibilityStampName = ".vrooli-proto-artifact.json"
 )
 
 var (
@@ -656,6 +659,13 @@ func (s *Store) MaterializeCompatibilityView(ctx context.Context, snapshot *Snap
 	defer os.RemoveAll(tmp)
 	if err := copyTree(ctx, snapshot.GenRoot(), tmp); err != nil {
 		return fmt.Errorf("copy selected Proto snapshot: %w", err)
+	}
+	if err := writeJSON(filepath.Join(tmp, compatibilityStampName), map[string]any{
+		"schema_version": 1,
+		"artifact_id":    snapshot.Metadata.ArtifactID,
+		"source_digest":  snapshot.Metadata.SourceDigest,
+	}); err != nil {
+		return fmt.Errorf("write Proto compatibility stamp: %w", err)
 	}
 	backup := target + ".previous"
 	_ = os.RemoveAll(backup)
