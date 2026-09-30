@@ -9,9 +9,9 @@ metadata:
   tags: [orchestration, multi-agent, effort, epochs, continuity, recovery]
   icon: network
   status: active
-  revision: 18
+  revision: 21
   createdAt: "2026-09-10T00:00:00Z"
-  updatedAt: "2026-09-30T18:00:00Z"
+  updatedAt: "2026-09-30T12:00:00Z"
   requires:
     scenarios: [prompt-manager, agent-manager]
     commands: [prompt-manager skill read, agent-manager]
@@ -76,12 +76,17 @@ goal home, with backoff and a cap, when it has ended.
 
 **Waking the supervisor.** After recording a step-back, a workaround logged a
 second time, or a spend spike in the goal home, run
-`prompt-manager team heartbeat-trigger effort-supervision effort-supervisor`. It
-admits at most one event wake per day; the supervisor reads the goal home, so
-record the event there first.
+`prompt-manager team heartbeat-trigger effort-supervision effort-supervisor`
+(delivery members may wake a supervision member; at most one event wake per
+schedule window). The supervisor reads the goal home, so record the event first.
 
-When nothing is admissible (every remaining slice waits on an operator decision
-or an outside repair), park with `--timeout 12h` instead of ending; an ended run is
+**Children.** With the orchestrate scope you may `run stop`, `run wake` and
+`run continue --message` your own direct child runs; nothing wider.
+
+A parked epoch never idles the goal: after recording a park, switch or shrink,
+go straight to step 2 and admit the next slice. Only when `QUEUE.md` has no
+admissible slice left (every remaining one waits on an operator decision or an
+outside repair), park with `--timeout 12h` instead of ending; an ended run is
 relaunched and rereads the goal home for nothing. Never poll children in a loop.
 
 **Steering.** Append a directive to the epoch file's `## Directives`
@@ -122,7 +127,7 @@ An epoch finishes exactly one of:
 
 It normally runs several hours to about a day and spans many compactions. Reject
 a brief that is one defect, test, fence, sensor or receipt, or that is estimated
-under about 3 hours. Split an oversize brief along module boundaries. Compaction,
+under about 3 hours; fold small follow-ups into the next related slice instead. Split an oversize brief along module boundaries. Compaction,
 a status request, a green test or elapsed time is never an epoch boundary.
 
 #### 4.2 Epoch file
@@ -144,7 +149,8 @@ append-only sections.
 - Status: admitted | in-progress | parked | accepted
 
 ## Modules and budgets
-## Deletion list        (refactor: old paths, shims and callers gone at close)
+## Deletion list        (refactor: each concrete file, symbol or pattern from the
+                        QUEUE slice with its end state: deleted, generated, or ≤ N lines)
 ## Exit gate            (exact commands, affected journeys, growth budget)
 ## Non-goals
 ## Directives
@@ -168,22 +174,30 @@ the goal; park instead.
 
 Accept an epoch only when all of these hold:
 - the exit-gate commands and the affected journeys pass;
-- the growth budget is met and the deletion list has no remaining callers or
-  matches (a cleanup's retirement manifest, `improvement-do-and-dont` D7);
+- the growth budget is met and every deletion-list item has reached its stated
+  end state, checked item by item (file absent, symbol gone, size), with no
+  remaining callers or matches (`improvement-do-and-dont` D7);
 - test changes follow the test rules the worker card links: no new duplicate fakes,
   sleeps for state, or tests of private helpers, and any net test growth is
   explained by behavior newly covered;
 - validation targets marked `required` pass;
 - `epoch-check` reports no unacknowledged directive.
 
-Rerun the gate yourself; a worker's report is not evidence. Record
+Rerun the gate yourself; a worker's report is not evidence. The `QUEUE.md` slice
+is done only when its whole deletion list is done. If you accept an epoch with
+items left, put them back at the top of `QUEUE.md` as a named remainder slice,
+and state in the `ACCEPTED` line how the result compares with the brief's
+estimate. Never mark a slice done on partial work. Record
 `ACCEPTED <time> <summary>` as the final log line, with the changed files and a
 suggested commit message; the operator commits. That line is the denominator for
 cost per accepted epoch.
 
 Gates are set at admission. Amend one only with a recorded reason (too strict,
 incorrect, unverifiable); never lower a gate so a worker can pass, and steer a
-struggling worker toward a verifiable path instead.
+struggling worker toward a verifiable path instead. A gate whose tool is still
+unavailable after one authorized attempt to provide it is unverifiable: amend it
+to record the check as unverified, log the tool in `WORKAROUNDS.md`, and decide
+the epoch on its remaining gates. A missing tool never holds an epoch.
 
 ### 5. Infrastructure, installs and targets
 

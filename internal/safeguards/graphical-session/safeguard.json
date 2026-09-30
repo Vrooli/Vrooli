@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "graphical_session",
+  "description": "Report and, only with explicit opt-in, configure a persistent graphical login session for desktop validation",
+  "handler": "graphical_session",
+  "risk": "high",
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "graphical-session",
+  "capability_role": "control",
+  "platforms": ["linux", "macos", "windows"],
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "desktop_user": {"type": "string", "default": "", "description": "User that owns the persistent graphical session."},
+      "allow_enable_automatic_login": {"type": "boolean", "default": false, "description": "Permit changing host automatic-login settings."},
+      "allow_install_gui_launch_agent": {"type": "boolean", "default": false, "description": "Permit installing the macOS GUI-domain launch agent needed by unattended validation."},
+      "gui_launch_agent_program": {"type": "string", "default": "", "description": "Absolute program path for the explicitly authorized macOS GUI-domain launch agent."}
+    }
+  },
+  "platform_status": {
+    "linux": {"status": "unqualified", "evidence": null},
+    "macos": {"status": "unqualified", "evidence": null},
+    "windows": {"status": "unqualified", "evidence": null}
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "risk_class": "reload_live"
+}

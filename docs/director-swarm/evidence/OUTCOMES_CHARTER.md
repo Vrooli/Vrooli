@@ -64,11 +64,16 @@ Swarm Manager-level velocity: goal throughput, backlog burn-down, agent run succ
 
 ### Ledger — revenue & subscriptions
 
-The monetization outcomes surface. Subscription count, MRR, churn, conversion rates, services revenue.
+The monetization outcomes surface. Subscription count, MRR, churn, conversion rates,
+revenue by line, provider-reported AI cost, credit margin, and Money Ledger's
+default-alive posture.
 
 - Authoritative metrics: see §"Sensor map"
 - Cross-reference: [monetization/catalogs/revenue-lines/README.md](../../monetization/catalogs/revenue-lines/README.md) for the instrumentation contract each active revenue line must meet.
 - Phase note: until first paying user, most fields will show `gap` or `partial`. That is expected and correct; this is the dashboard whose gap-count most urgently needs to shrink once revenue starts.
+- Ledger does not treat authored samples as business evidence: producer readings
+  remain `IN-REACH` until promotion evidence exists, and margin is calculated at
+  read time from credit top-up revenue less provider cost.
 
 ### Broadcast — marketing & growth
 

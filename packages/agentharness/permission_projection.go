@@ -26,6 +26,10 @@ type PermissionPlanResult struct {
 	Drift              bool               `json:"drift"`
 	Changes            []string           `json:"changes"`
 	NativePaths        []string           `json:"native_paths"`
+	StateDrift         bool               `json:"state_drift,omitempty"`
+	RecoveryBackup     string             `json:"recovery_backup,omitempty"`
+	PreviewDigest      string             `json:"preview_digest,omitempty"`
+	Execution          *ExecutionPlan     `json:"execution,omitempty"`
 	Enforcement        EnforcementPosture `json:"enforcement"`
 }
 
@@ -38,7 +42,7 @@ func PlanPermissionProjection(runner string, document PermissionDocument, docume
 	paths := append([]string(nil), nativePaths...)
 	sort.Strings(paths)
 	return PermissionPlanResult{
-		SchemaVersion:      PermissionDocumentSchemaVersion,
+		SchemaVersion:      document.SchemaVersion,
 		Runner:             runner,
 		Scope:              document.Scope,
 		DesiredDigest:      PermissionDocumentDigest(documentBytes),

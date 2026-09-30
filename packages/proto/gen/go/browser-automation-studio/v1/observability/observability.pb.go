@@ -205,96 +205,6 @@ func (x *RefreshObservabilityResponse) GetResult() *structpb.Struct {
 	return nil
 }
 
-type RunDiagnosticsRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Free-form diagnostic request (type, session_id, options); shape is
-	// owned by playwright-driver.
-	Options       *structpb.Struct `protobuf:"bytes,1,opt,name=options,proto3" json:"options,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RunDiagnosticsRequest) Reset() {
-	*x = RunDiagnosticsRequest{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RunDiagnosticsRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RunDiagnosticsRequest) ProtoMessage() {}
-
-func (x *RunDiagnosticsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RunDiagnosticsRequest.ProtoReflect.Descriptor instead.
-func (*RunDiagnosticsRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *RunDiagnosticsRequest) GetOptions() *structpb.Struct {
-	if x != nil {
-		return x.Options
-	}
-	return nil
-}
-
-type RunDiagnosticsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Result        *structpb.Struct       `protobuf:"bytes,1,opt,name=result,proto3" json:"result,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RunDiagnosticsResponse) Reset() {
-	*x = RunDiagnosticsResponse{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RunDiagnosticsResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RunDiagnosticsResponse) ProtoMessage() {}
-
-func (x *RunDiagnosticsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RunDiagnosticsResponse.ProtoReflect.Descriptor instead.
-func (*RunDiagnosticsResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *RunDiagnosticsResponse) GetResult() *structpb.Struct {
-	if x != nil {
-		return x.Result
-	}
-	return nil
-}
-
 type GetSessionListRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -303,7 +213,7 @@ type GetSessionListRequest struct {
 
 func (x *GetSessionListRequest) Reset() {
 	*x = GetSessionListRequest{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[6]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -315,7 +225,7 @@ func (x *GetSessionListRequest) String() string {
 func (*GetSessionListRequest) ProtoMessage() {}
 
 func (x *GetSessionListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[6]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -328,7 +238,7 @@ func (x *GetSessionListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSessionListRequest.ProtoReflect.Descriptor instead.
 func (*GetSessionListRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{6}
+	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{4}
 }
 
 type GetSessionListResponse struct {
@@ -340,7 +250,7 @@ type GetSessionListResponse struct {
 
 func (x *GetSessionListResponse) Reset() {
 	*x = GetSessionListResponse{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[7]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -352,7 +262,7 @@ func (x *GetSessionListResponse) String() string {
 func (*GetSessionListResponse) ProtoMessage() {}
 
 func (x *GetSessionListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[7]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -365,90 +275,10 @@ func (x *GetSessionListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSessionListResponse.ProtoReflect.Descriptor instead.
 func (*GetSessionListResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{7}
+	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetSessionListResponse) GetResult() *structpb.Struct {
-	if x != nil {
-		return x.Result
-	}
-	return nil
-}
-
-type RunCleanupRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RunCleanupRequest) Reset() {
-	*x = RunCleanupRequest{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[8]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RunCleanupRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RunCleanupRequest) ProtoMessage() {}
-
-func (x *RunCleanupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[8]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RunCleanupRequest.ProtoReflect.Descriptor instead.
-func (*RunCleanupRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{8}
-}
-
-type RunCleanupResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Result        *structpb.Struct       `protobuf:"bytes,1,opt,name=result,proto3" json:"result,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RunCleanupResponse) Reset() {
-	*x = RunCleanupResponse{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RunCleanupResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RunCleanupResponse) ProtoMessage() {}
-
-func (x *RunCleanupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RunCleanupResponse.ProtoReflect.Descriptor instead.
-func (*RunCleanupResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *RunCleanupResponse) GetResult() *structpb.Struct {
 	if x != nil {
 		return x.Result
 	}
@@ -463,7 +293,7 @@ type GetMetricsRequest struct {
 
 func (x *GetMetricsRequest) Reset() {
 	*x = GetMetricsRequest{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[10]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -475,7 +305,7 @@ func (x *GetMetricsRequest) String() string {
 func (*GetMetricsRequest) ProtoMessage() {}
 
 func (x *GetMetricsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[10]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -488,7 +318,7 @@ func (x *GetMetricsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMetricsRequest.ProtoReflect.Descriptor instead.
 func (*GetMetricsRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{10}
+	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{6}
 }
 
 type GetMetricsResponse struct {
@@ -500,7 +330,7 @@ type GetMetricsResponse struct {
 
 func (x *GetMetricsResponse) Reset() {
 	*x = GetMetricsResponse{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[11]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -512,7 +342,7 @@ func (x *GetMetricsResponse) String() string {
 func (*GetMetricsResponse) ProtoMessage() {}
 
 func (x *GetMetricsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[11]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -525,98 +355,10 @@ func (x *GetMetricsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMetricsResponse.ProtoReflect.Descriptor instead.
 func (*GetMetricsResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{11}
+	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetMetricsResponse) GetResult() *structpb.Struct {
-	if x != nil {
-		return x.Result
-	}
-	return nil
-}
-
-type RunPipelineTestRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Options       *structpb.Struct       `protobuf:"bytes,1,opt,name=options,proto3" json:"options,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RunPipelineTestRequest) Reset() {
-	*x = RunPipelineTestRequest{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[12]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RunPipelineTestRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RunPipelineTestRequest) ProtoMessage() {}
-
-func (x *RunPipelineTestRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[12]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RunPipelineTestRequest.ProtoReflect.Descriptor instead.
-func (*RunPipelineTestRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{12}
-}
-
-func (x *RunPipelineTestRequest) GetOptions() *structpb.Struct {
-	if x != nil {
-		return x.Options
-	}
-	return nil
-}
-
-type RunPipelineTestResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Result        *structpb.Struct       `protobuf:"bytes,1,opt,name=result,proto3" json:"result,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RunPipelineTestResponse) Reset() {
-	*x = RunPipelineTestResponse{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RunPipelineTestResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RunPipelineTestResponse) ProtoMessage() {}
-
-func (x *RunPipelineTestResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RunPipelineTestResponse.ProtoReflect.Descriptor instead.
-func (*RunPipelineTestResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *RunPipelineTestResponse) GetResult() *structpb.Struct {
 	if x != nil {
 		return x.Result
 	}
@@ -631,7 +373,7 @@ type GetConfigRuntimeRequest struct {
 
 func (x *GetConfigRuntimeRequest) Reset() {
 	*x = GetConfigRuntimeRequest{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[14]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -643,7 +385,7 @@ func (x *GetConfigRuntimeRequest) String() string {
 func (*GetConfigRuntimeRequest) ProtoMessage() {}
 
 func (x *GetConfigRuntimeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[14]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -656,7 +398,7 @@ func (x *GetConfigRuntimeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConfigRuntimeRequest.ProtoReflect.Descriptor instead.
 func (*GetConfigRuntimeRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{14}
+	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{8}
 }
 
 type GetConfigRuntimeResponse struct {
@@ -668,7 +410,7 @@ type GetConfigRuntimeResponse struct {
 
 func (x *GetConfigRuntimeResponse) Reset() {
 	*x = GetConfigRuntimeResponse{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[15]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -680,7 +422,7 @@ func (x *GetConfigRuntimeResponse) String() string {
 func (*GetConfigRuntimeResponse) ProtoMessage() {}
 
 func (x *GetConfigRuntimeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[15]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -693,7 +435,7 @@ func (x *GetConfigRuntimeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConfigRuntimeResponse.ProtoReflect.Descriptor instead.
 func (*GetConfigRuntimeResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{15}
+	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetConfigRuntimeResponse) GetResult() *structpb.Struct {
@@ -716,7 +458,7 @@ type UpdateConfigRequest struct {
 
 func (x *UpdateConfigRequest) Reset() {
 	*x = UpdateConfigRequest{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[16]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -728,7 +470,7 @@ func (x *UpdateConfigRequest) String() string {
 func (*UpdateConfigRequest) ProtoMessage() {}
 
 func (x *UpdateConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[16]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -741,7 +483,7 @@ func (x *UpdateConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateConfigRequest.ProtoReflect.Descriptor instead.
 func (*UpdateConfigRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{16}
+	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UpdateConfigRequest) GetEnvVar() string {
@@ -767,7 +509,7 @@ type UpdateConfigResponse struct {
 
 func (x *UpdateConfigResponse) Reset() {
 	*x = UpdateConfigResponse{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[17]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -779,7 +521,7 @@ func (x *UpdateConfigResponse) String() string {
 func (*UpdateConfigResponse) ProtoMessage() {}
 
 func (x *UpdateConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[17]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -792,7 +534,7 @@ func (x *UpdateConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateConfigResponse.ProtoReflect.Descriptor instead.
 func (*UpdateConfigResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{17}
+	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *UpdateConfigResponse) GetResult() *structpb.Struct {
@@ -812,7 +554,7 @@ type ResetConfigRequest struct {
 
 func (x *ResetConfigRequest) Reset() {
 	*x = ResetConfigRequest{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[18]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -824,7 +566,7 @@ func (x *ResetConfigRequest) String() string {
 func (*ResetConfigRequest) ProtoMessage() {}
 
 func (x *ResetConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[18]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -837,7 +579,7 @@ func (x *ResetConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResetConfigRequest.ProtoReflect.Descriptor instead.
 func (*ResetConfigRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{18}
+	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ResetConfigRequest) GetEnvVar() string {
@@ -856,7 +598,7 @@ type ResetConfigResponse struct {
 
 func (x *ResetConfigResponse) Reset() {
 	*x = ResetConfigResponse{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[19]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -868,7 +610,7 @@ func (x *ResetConfigResponse) String() string {
 func (*ResetConfigResponse) ProtoMessage() {}
 
 func (x *ResetConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[19]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -881,7 +623,7 @@ func (x *ResetConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResetConfigResponse.ProtoReflect.Descriptor instead.
 func (*ResetConfigResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{19}
+	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ResetConfigResponse) GetResult() *structpb.Struct {
@@ -899,7 +641,7 @@ type GetDebugModeRequest struct {
 
 func (x *GetDebugModeRequest) Reset() {
 	*x = GetDebugModeRequest{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[20]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -911,7 +653,7 @@ func (x *GetDebugModeRequest) String() string {
 func (*GetDebugModeRequest) ProtoMessage() {}
 
 func (x *GetDebugModeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[20]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -924,7 +666,7 @@ func (x *GetDebugModeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDebugModeRequest.ProtoReflect.Descriptor instead.
 func (*GetDebugModeRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{20}
+	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{14}
 }
 
 type SetDebugModeRequest struct {
@@ -943,7 +685,7 @@ type SetDebugModeRequest struct {
 
 func (x *SetDebugModeRequest) Reset() {
 	*x = SetDebugModeRequest{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[21]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -955,7 +697,7 @@ func (x *SetDebugModeRequest) String() string {
 func (*SetDebugModeRequest) ProtoMessage() {}
 
 func (x *SetDebugModeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[21]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -968,7 +710,7 @@ func (x *SetDebugModeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetDebugModeRequest.ProtoReflect.Descriptor instead.
 func (*SetDebugModeRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{21}
+	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SetDebugModeRequest) GetEnabled() bool {
@@ -1009,7 +751,7 @@ type DebugModeState struct {
 
 func (x *DebugModeState) Reset() {
 	*x = DebugModeState{}
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[22]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1021,7 +763,7 @@ func (x *DebugModeState) String() string {
 func (*DebugModeState) ProtoMessage() {}
 
 func (x *DebugModeState) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[22]
+	mi := &file_browser_automation_studio_v1_observability_observability_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1034,7 +776,7 @@ func (x *DebugModeState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DebugModeState.ProtoReflect.Descriptor instead.
 func (*DebugModeState) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{22}
+	return file_browser_automation_studio_v1_observability_observability_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *DebugModeState) GetEnabled() bool {
@@ -1077,23 +819,12 @@ const file_browser_automation_studio_v1_observability_observability_proto_rawDes
 	"\bsnapshot\x18\x01 \x01(\v2\x17.google.protobuf.StructR\bsnapshot\"\x1d\n" +
 	"\x1bRefreshObservabilityRequest\"O\n" +
 	"\x1cRefreshObservabilityResponse\x12/\n" +
-	"\x06result\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06result\"J\n" +
-	"\x15RunDiagnosticsRequest\x121\n" +
-	"\aoptions\x18\x01 \x01(\v2\x17.google.protobuf.StructR\aoptions\"I\n" +
-	"\x16RunDiagnosticsResponse\x12/\n" +
 	"\x06result\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06result\"\x17\n" +
 	"\x15GetSessionListRequest\"I\n" +
 	"\x16GetSessionListResponse\x12/\n" +
 	"\x06result\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06result\"\x13\n" +
-	"\x11RunCleanupRequest\"E\n" +
-	"\x12RunCleanupResponse\x12/\n" +
-	"\x06result\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06result\"\x13\n" +
 	"\x11GetMetricsRequest\"E\n" +
 	"\x12GetMetricsResponse\x12/\n" +
-	"\x06result\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06result\"K\n" +
-	"\x16RunPipelineTestRequest\x121\n" +
-	"\aoptions\x18\x01 \x01(\v2\x17.google.protobuf.StructR\aoptions\"J\n" +
-	"\x17RunPipelineTestResponse\x12/\n" +
 	"\x06result\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06result\"\x19\n" +
 	"\x17GetConfigRuntimeRequest\"K\n" +
 	"\x18GetConfigRuntimeResponse\x12/\n" +
@@ -1121,17 +852,14 @@ const file_browser_automation_studio_v1_observability_observability_proto_rawDes
 	"components\x12\x1d\n" +
 	"\n" +
 	"expires_at\x18\x03 \x01(\tR\texpiresAt\x12%\n" +
-	"\x0eremaining_mins\x18\x04 \x01(\x05R\rremainingMins2\xb0\x0e\n" +
+	"\x0eremaining_mins\x18\x04 \x01(\x05R\rremainingMins2\xeb\n" +
+	"\n" +
 	"\x14ObservabilityService\x12\x9d\x01\n" +
 	"\x10GetObservability\x12C.browser_automation_studio.v1.observability.GetObservabilityRequest\x1aD.browser_automation_studio.v1.observability.GetObservabilityResponse\x12\xa9\x01\n" +
 	"\x14RefreshObservability\x12G.browser_automation_studio.v1.observability.RefreshObservabilityRequest\x1aH.browser_automation_studio.v1.observability.RefreshObservabilityResponse\x12\x97\x01\n" +
-	"\x0eRunDiagnostics\x12A.browser_automation_studio.v1.observability.RunDiagnosticsRequest\x1aB.browser_automation_studio.v1.observability.RunDiagnosticsResponse\x12\x97\x01\n" +
 	"\x0eGetSessionList\x12A.browser_automation_studio.v1.observability.GetSessionListRequest\x1aB.browser_automation_studio.v1.observability.GetSessionListResponse\x12\x8b\x01\n" +
 	"\n" +
-	"RunCleanup\x12=.browser_automation_studio.v1.observability.RunCleanupRequest\x1a>.browser_automation_studio.v1.observability.RunCleanupResponse\x12\x8b\x01\n" +
-	"\n" +
-	"GetMetrics\x12=.browser_automation_studio.v1.observability.GetMetricsRequest\x1a>.browser_automation_studio.v1.observability.GetMetricsResponse\x12\x9a\x01\n" +
-	"\x0fRunPipelineTest\x12B.browser_automation_studio.v1.observability.RunPipelineTestRequest\x1aC.browser_automation_studio.v1.observability.RunPipelineTestResponse\x12\x9d\x01\n" +
+	"GetMetrics\x12=.browser_automation_studio.v1.observability.GetMetricsRequest\x1a>.browser_automation_studio.v1.observability.GetMetricsResponse\x12\x9d\x01\n" +
 	"\x10GetConfigRuntime\x12C.browser_automation_studio.v1.observability.GetConfigRuntimeRequest\x1aD.browser_automation_studio.v1.observability.GetConfigRuntimeResponse\x12\x91\x01\n" +
 	"\fUpdateConfig\x12?.browser_automation_studio.v1.observability.UpdateConfigRequest\x1a@.browser_automation_studio.v1.observability.UpdateConfigResponse\x12\x8e\x01\n" +
 	"\vResetConfig\x12>.browser_automation_studio.v1.observability.ResetConfigRequest\x1a?.browser_automation_studio.v1.observability.ResetConfigResponse\x12\x8b\x01\n" +
@@ -1150,75 +878,58 @@ func file_browser_automation_studio_v1_observability_observability_proto_rawDesc
 	return file_browser_automation_studio_v1_observability_observability_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_observability_observability_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_browser_automation_studio_v1_observability_observability_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_browser_automation_studio_v1_observability_observability_proto_goTypes = []any{
 	(*GetObservabilityRequest)(nil),      // 0: browser_automation_studio.v1.observability.GetObservabilityRequest
 	(*GetObservabilityResponse)(nil),     // 1: browser_automation_studio.v1.observability.GetObservabilityResponse
 	(*RefreshObservabilityRequest)(nil),  // 2: browser_automation_studio.v1.observability.RefreshObservabilityRequest
 	(*RefreshObservabilityResponse)(nil), // 3: browser_automation_studio.v1.observability.RefreshObservabilityResponse
-	(*RunDiagnosticsRequest)(nil),        // 4: browser_automation_studio.v1.observability.RunDiagnosticsRequest
-	(*RunDiagnosticsResponse)(nil),       // 5: browser_automation_studio.v1.observability.RunDiagnosticsResponse
-	(*GetSessionListRequest)(nil),        // 6: browser_automation_studio.v1.observability.GetSessionListRequest
-	(*GetSessionListResponse)(nil),       // 7: browser_automation_studio.v1.observability.GetSessionListResponse
-	(*RunCleanupRequest)(nil),            // 8: browser_automation_studio.v1.observability.RunCleanupRequest
-	(*RunCleanupResponse)(nil),           // 9: browser_automation_studio.v1.observability.RunCleanupResponse
-	(*GetMetricsRequest)(nil),            // 10: browser_automation_studio.v1.observability.GetMetricsRequest
-	(*GetMetricsResponse)(nil),           // 11: browser_automation_studio.v1.observability.GetMetricsResponse
-	(*RunPipelineTestRequest)(nil),       // 12: browser_automation_studio.v1.observability.RunPipelineTestRequest
-	(*RunPipelineTestResponse)(nil),      // 13: browser_automation_studio.v1.observability.RunPipelineTestResponse
-	(*GetConfigRuntimeRequest)(nil),      // 14: browser_automation_studio.v1.observability.GetConfigRuntimeRequest
-	(*GetConfigRuntimeResponse)(nil),     // 15: browser_automation_studio.v1.observability.GetConfigRuntimeResponse
-	(*UpdateConfigRequest)(nil),          // 16: browser_automation_studio.v1.observability.UpdateConfigRequest
-	(*UpdateConfigResponse)(nil),         // 17: browser_automation_studio.v1.observability.UpdateConfigResponse
-	(*ResetConfigRequest)(nil),           // 18: browser_automation_studio.v1.observability.ResetConfigRequest
-	(*ResetConfigResponse)(nil),          // 19: browser_automation_studio.v1.observability.ResetConfigResponse
-	(*GetDebugModeRequest)(nil),          // 20: browser_automation_studio.v1.observability.GetDebugModeRequest
-	(*SetDebugModeRequest)(nil),          // 21: browser_automation_studio.v1.observability.SetDebugModeRequest
-	(*DebugModeState)(nil),               // 22: browser_automation_studio.v1.observability.DebugModeState
-	(*structpb.Struct)(nil),              // 23: google.protobuf.Struct
+	(*GetSessionListRequest)(nil),        // 4: browser_automation_studio.v1.observability.GetSessionListRequest
+	(*GetSessionListResponse)(nil),       // 5: browser_automation_studio.v1.observability.GetSessionListResponse
+	(*GetMetricsRequest)(nil),            // 6: browser_automation_studio.v1.observability.GetMetricsRequest
+	(*GetMetricsResponse)(nil),           // 7: browser_automation_studio.v1.observability.GetMetricsResponse
+	(*GetConfigRuntimeRequest)(nil),      // 8: browser_automation_studio.v1.observability.GetConfigRuntimeRequest
+	(*GetConfigRuntimeResponse)(nil),     // 9: browser_automation_studio.v1.observability.GetConfigRuntimeResponse
+	(*UpdateConfigRequest)(nil),          // 10: browser_automation_studio.v1.observability.UpdateConfigRequest
+	(*UpdateConfigResponse)(nil),         // 11: browser_automation_studio.v1.observability.UpdateConfigResponse
+	(*ResetConfigRequest)(nil),           // 12: browser_automation_studio.v1.observability.ResetConfigRequest
+	(*ResetConfigResponse)(nil),          // 13: browser_automation_studio.v1.observability.ResetConfigResponse
+	(*GetDebugModeRequest)(nil),          // 14: browser_automation_studio.v1.observability.GetDebugModeRequest
+	(*SetDebugModeRequest)(nil),          // 15: browser_automation_studio.v1.observability.SetDebugModeRequest
+	(*DebugModeState)(nil),               // 16: browser_automation_studio.v1.observability.DebugModeState
+	(*structpb.Struct)(nil),              // 17: google.protobuf.Struct
 }
 var file_browser_automation_studio_v1_observability_observability_proto_depIdxs = []int32{
-	23, // 0: browser_automation_studio.v1.observability.GetObservabilityResponse.snapshot:type_name -> google.protobuf.Struct
-	23, // 1: browser_automation_studio.v1.observability.RefreshObservabilityResponse.result:type_name -> google.protobuf.Struct
-	23, // 2: browser_automation_studio.v1.observability.RunDiagnosticsRequest.options:type_name -> google.protobuf.Struct
-	23, // 3: browser_automation_studio.v1.observability.RunDiagnosticsResponse.result:type_name -> google.protobuf.Struct
-	23, // 4: browser_automation_studio.v1.observability.GetSessionListResponse.result:type_name -> google.protobuf.Struct
-	23, // 5: browser_automation_studio.v1.observability.RunCleanupResponse.result:type_name -> google.protobuf.Struct
-	23, // 6: browser_automation_studio.v1.observability.GetMetricsResponse.result:type_name -> google.protobuf.Struct
-	23, // 7: browser_automation_studio.v1.observability.RunPipelineTestRequest.options:type_name -> google.protobuf.Struct
-	23, // 8: browser_automation_studio.v1.observability.RunPipelineTestResponse.result:type_name -> google.protobuf.Struct
-	23, // 9: browser_automation_studio.v1.observability.GetConfigRuntimeResponse.result:type_name -> google.protobuf.Struct
-	23, // 10: browser_automation_studio.v1.observability.UpdateConfigResponse.result:type_name -> google.protobuf.Struct
-	23, // 11: browser_automation_studio.v1.observability.ResetConfigResponse.result:type_name -> google.protobuf.Struct
-	0,  // 12: browser_automation_studio.v1.observability.ObservabilityService.GetObservability:input_type -> browser_automation_studio.v1.observability.GetObservabilityRequest
-	2,  // 13: browser_automation_studio.v1.observability.ObservabilityService.RefreshObservability:input_type -> browser_automation_studio.v1.observability.RefreshObservabilityRequest
-	4,  // 14: browser_automation_studio.v1.observability.ObservabilityService.RunDiagnostics:input_type -> browser_automation_studio.v1.observability.RunDiagnosticsRequest
-	6,  // 15: browser_automation_studio.v1.observability.ObservabilityService.GetSessionList:input_type -> browser_automation_studio.v1.observability.GetSessionListRequest
-	8,  // 16: browser_automation_studio.v1.observability.ObservabilityService.RunCleanup:input_type -> browser_automation_studio.v1.observability.RunCleanupRequest
-	10, // 17: browser_automation_studio.v1.observability.ObservabilityService.GetMetrics:input_type -> browser_automation_studio.v1.observability.GetMetricsRequest
-	12, // 18: browser_automation_studio.v1.observability.ObservabilityService.RunPipelineTest:input_type -> browser_automation_studio.v1.observability.RunPipelineTestRequest
-	14, // 19: browser_automation_studio.v1.observability.ObservabilityService.GetConfigRuntime:input_type -> browser_automation_studio.v1.observability.GetConfigRuntimeRequest
-	16, // 20: browser_automation_studio.v1.observability.ObservabilityService.UpdateConfig:input_type -> browser_automation_studio.v1.observability.UpdateConfigRequest
-	18, // 21: browser_automation_studio.v1.observability.ObservabilityService.ResetConfig:input_type -> browser_automation_studio.v1.observability.ResetConfigRequest
-	20, // 22: browser_automation_studio.v1.observability.ObservabilityService.GetDebugMode:input_type -> browser_automation_studio.v1.observability.GetDebugModeRequest
-	21, // 23: browser_automation_studio.v1.observability.ObservabilityService.SetDebugMode:input_type -> browser_automation_studio.v1.observability.SetDebugModeRequest
-	1,  // 24: browser_automation_studio.v1.observability.ObservabilityService.GetObservability:output_type -> browser_automation_studio.v1.observability.GetObservabilityResponse
-	3,  // 25: browser_automation_studio.v1.observability.ObservabilityService.RefreshObservability:output_type -> browser_automation_studio.v1.observability.RefreshObservabilityResponse
-	5,  // 26: browser_automation_studio.v1.observability.ObservabilityService.RunDiagnostics:output_type -> browser_automation_studio.v1.observability.RunDiagnosticsResponse
-	7,  // 27: browser_automation_studio.v1.observability.ObservabilityService.GetSessionList:output_type -> browser_automation_studio.v1.observability.GetSessionListResponse
-	9,  // 28: browser_automation_studio.v1.observability.ObservabilityService.RunCleanup:output_type -> browser_automation_studio.v1.observability.RunCleanupResponse
-	11, // 29: browser_automation_studio.v1.observability.ObservabilityService.GetMetrics:output_type -> browser_automation_studio.v1.observability.GetMetricsResponse
-	13, // 30: browser_automation_studio.v1.observability.ObservabilityService.RunPipelineTest:output_type -> browser_automation_studio.v1.observability.RunPipelineTestResponse
-	15, // 31: browser_automation_studio.v1.observability.ObservabilityService.GetConfigRuntime:output_type -> browser_automation_studio.v1.observability.GetConfigRuntimeResponse
-	17, // 32: browser_automation_studio.v1.observability.ObservabilityService.UpdateConfig:output_type -> browser_automation_studio.v1.observability.UpdateConfigResponse
-	19, // 33: browser_automation_studio.v1.observability.ObservabilityService.ResetConfig:output_type -> browser_automation_studio.v1.observability.ResetConfigResponse
-	22, // 34: browser_automation_studio.v1.observability.ObservabilityService.GetDebugMode:output_type -> browser_automation_studio.v1.observability.DebugModeState
-	22, // 35: browser_automation_studio.v1.observability.ObservabilityService.SetDebugMode:output_type -> browser_automation_studio.v1.observability.DebugModeState
-	24, // [24:36] is the sub-list for method output_type
-	12, // [12:24] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	17, // 0: browser_automation_studio.v1.observability.GetObservabilityResponse.snapshot:type_name -> google.protobuf.Struct
+	17, // 1: browser_automation_studio.v1.observability.RefreshObservabilityResponse.result:type_name -> google.protobuf.Struct
+	17, // 2: browser_automation_studio.v1.observability.GetSessionListResponse.result:type_name -> google.protobuf.Struct
+	17, // 3: browser_automation_studio.v1.observability.GetMetricsResponse.result:type_name -> google.protobuf.Struct
+	17, // 4: browser_automation_studio.v1.observability.GetConfigRuntimeResponse.result:type_name -> google.protobuf.Struct
+	17, // 5: browser_automation_studio.v1.observability.UpdateConfigResponse.result:type_name -> google.protobuf.Struct
+	17, // 6: browser_automation_studio.v1.observability.ResetConfigResponse.result:type_name -> google.protobuf.Struct
+	0,  // 7: browser_automation_studio.v1.observability.ObservabilityService.GetObservability:input_type -> browser_automation_studio.v1.observability.GetObservabilityRequest
+	2,  // 8: browser_automation_studio.v1.observability.ObservabilityService.RefreshObservability:input_type -> browser_automation_studio.v1.observability.RefreshObservabilityRequest
+	4,  // 9: browser_automation_studio.v1.observability.ObservabilityService.GetSessionList:input_type -> browser_automation_studio.v1.observability.GetSessionListRequest
+	6,  // 10: browser_automation_studio.v1.observability.ObservabilityService.GetMetrics:input_type -> browser_automation_studio.v1.observability.GetMetricsRequest
+	8,  // 11: browser_automation_studio.v1.observability.ObservabilityService.GetConfigRuntime:input_type -> browser_automation_studio.v1.observability.GetConfigRuntimeRequest
+	10, // 12: browser_automation_studio.v1.observability.ObservabilityService.UpdateConfig:input_type -> browser_automation_studio.v1.observability.UpdateConfigRequest
+	12, // 13: browser_automation_studio.v1.observability.ObservabilityService.ResetConfig:input_type -> browser_automation_studio.v1.observability.ResetConfigRequest
+	14, // 14: browser_automation_studio.v1.observability.ObservabilityService.GetDebugMode:input_type -> browser_automation_studio.v1.observability.GetDebugModeRequest
+	15, // 15: browser_automation_studio.v1.observability.ObservabilityService.SetDebugMode:input_type -> browser_automation_studio.v1.observability.SetDebugModeRequest
+	1,  // 16: browser_automation_studio.v1.observability.ObservabilityService.GetObservability:output_type -> browser_automation_studio.v1.observability.GetObservabilityResponse
+	3,  // 17: browser_automation_studio.v1.observability.ObservabilityService.RefreshObservability:output_type -> browser_automation_studio.v1.observability.RefreshObservabilityResponse
+	5,  // 18: browser_automation_studio.v1.observability.ObservabilityService.GetSessionList:output_type -> browser_automation_studio.v1.observability.GetSessionListResponse
+	7,  // 19: browser_automation_studio.v1.observability.ObservabilityService.GetMetrics:output_type -> browser_automation_studio.v1.observability.GetMetricsResponse
+	9,  // 20: browser_automation_studio.v1.observability.ObservabilityService.GetConfigRuntime:output_type -> browser_automation_studio.v1.observability.GetConfigRuntimeResponse
+	11, // 21: browser_automation_studio.v1.observability.ObservabilityService.UpdateConfig:output_type -> browser_automation_studio.v1.observability.UpdateConfigResponse
+	13, // 22: browser_automation_studio.v1.observability.ObservabilityService.ResetConfig:output_type -> browser_automation_studio.v1.observability.ResetConfigResponse
+	16, // 23: browser_automation_studio.v1.observability.ObservabilityService.GetDebugMode:output_type -> browser_automation_studio.v1.observability.DebugModeState
+	16, // 24: browser_automation_studio.v1.observability.ObservabilityService.SetDebugMode:output_type -> browser_automation_studio.v1.observability.DebugModeState
+	16, // [16:25] is the sub-list for method output_type
+	7,  // [7:16] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_observability_observability_proto_init() }
@@ -1232,7 +943,7 @@ func file_browser_automation_studio_v1_observability_observability_proto_init() 
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_observability_observability_proto_rawDesc), len(file_browser_automation_studio_v1_observability_observability_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

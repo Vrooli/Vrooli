@@ -221,6 +221,8 @@ flowchart LR
   TOOLCHAINAUD[(toolchain-audit/*)]
   %% @node TV member:toolchain-validator
   TV[Toolchain Validator]
+  %% @node EFFORTSUPERV team:effort-supervision
+  EFFORTSUPERV[[effort-supervision]]
 
   OP --> DC
   OP --> RI
@@ -250,6 +252,7 @@ flowchart LR
   TV --> TOOLCHAINAUD
   OWN --> ACCEPT
   DIR --> FRICTIONINBO
+  EFFORTSUPERV --> FRICTIONINBO
   INFRA --> FRICTIONINBO
   MKT --> FRICTIONINBO
   MON --> FRICTIONINBO

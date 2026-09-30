@@ -39,21 +39,12 @@ const (
 	// ObservabilityServiceRefreshObservabilityProcedure is the fully-qualified name of the
 	// ObservabilityService's RefreshObservability RPC.
 	ObservabilityServiceRefreshObservabilityProcedure = "/browser_automation_studio.v1.observability.ObservabilityService/RefreshObservability"
-	// ObservabilityServiceRunDiagnosticsProcedure is the fully-qualified name of the
-	// ObservabilityService's RunDiagnostics RPC.
-	ObservabilityServiceRunDiagnosticsProcedure = "/browser_automation_studio.v1.observability.ObservabilityService/RunDiagnostics"
 	// ObservabilityServiceGetSessionListProcedure is the fully-qualified name of the
 	// ObservabilityService's GetSessionList RPC.
 	ObservabilityServiceGetSessionListProcedure = "/browser_automation_studio.v1.observability.ObservabilityService/GetSessionList"
-	// ObservabilityServiceRunCleanupProcedure is the fully-qualified name of the ObservabilityService's
-	// RunCleanup RPC.
-	ObservabilityServiceRunCleanupProcedure = "/browser_automation_studio.v1.observability.ObservabilityService/RunCleanup"
 	// ObservabilityServiceGetMetricsProcedure is the fully-qualified name of the ObservabilityService's
 	// GetMetrics RPC.
 	ObservabilityServiceGetMetricsProcedure = "/browser_automation_studio.v1.observability.ObservabilityService/GetMetrics"
-	// ObservabilityServiceRunPipelineTestProcedure is the fully-qualified name of the
-	// ObservabilityService's RunPipelineTest RPC.
-	ObservabilityServiceRunPipelineTestProcedure = "/browser_automation_studio.v1.observability.ObservabilityService/RunPipelineTest"
 	// ObservabilityServiceGetConfigRuntimeProcedure is the fully-qualified name of the
 	// ObservabilityService's GetConfigRuntime RPC.
 	ObservabilityServiceGetConfigRuntimeProcedure = "/browser_automation_studio.v1.observability.ObservabilityService/GetConfigRuntime"
@@ -80,19 +71,11 @@ type ObservabilityServiceClient interface {
 	GetObservability(context.Context, *connect.Request[observability.GetObservabilityRequest]) (*connect.Response[observability.GetObservabilityResponse], error)
 	// RefreshObservability invalidates the playwright-driver cache.
 	RefreshObservability(context.Context, *connect.Request[observability.RefreshObservabilityRequest]) (*connect.Response[observability.RefreshObservabilityResponse], error)
-	// RunDiagnostics triggers a manual diagnostic run with the supplied
-	// options. The request/response shapes are owned by playwright-driver
-	// and round-tripped via google.protobuf.Struct.
-	RunDiagnostics(context.Context, *connect.Request[observability.RunDiagnosticsRequest]) (*connect.Response[observability.RunDiagnosticsResponse], error)
 	// GetSessionList returns the inventory of browser sessions held by
 	// playwright-driver.
 	GetSessionList(context.Context, *connect.Request[observability.GetSessionListRequest]) (*connect.Response[observability.GetSessionListResponse], error)
-	// RunCleanup triggers manual idle-session cleanup.
-	RunCleanup(context.Context, *connect.Request[observability.RunCleanupRequest]) (*connect.Response[observability.RunCleanupResponse], error)
 	// GetMetrics returns the JSON-parsed Prometheus metrics snapshot.
 	GetMetrics(context.Context, *connect.Request[observability.GetMetricsRequest]) (*connect.Response[observability.GetMetricsResponse], error)
-	// RunPipelineTest runs an autonomous end-to-end recording pipeline test.
-	RunPipelineTest(context.Context, *connect.Request[observability.RunPipelineTestRequest]) (*connect.Response[observability.RunPipelineTestResponse], error)
 	// GetConfigRuntime returns the current state of all runtime config
 	// overrides held by playwright-driver.
 	GetConfigRuntime(context.Context, *connect.Request[observability.GetConfigRuntimeRequest]) (*connect.Response[observability.GetConfigRuntimeResponse], error)
@@ -131,34 +114,16 @@ func NewObservabilityServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithSchema(observabilityServiceMethods.ByName("RefreshObservability")),
 			connect.WithClientOptions(opts...),
 		),
-		runDiagnostics: connect.NewClient[observability.RunDiagnosticsRequest, observability.RunDiagnosticsResponse](
-			httpClient,
-			baseURL+ObservabilityServiceRunDiagnosticsProcedure,
-			connect.WithSchema(observabilityServiceMethods.ByName("RunDiagnostics")),
-			connect.WithClientOptions(opts...),
-		),
 		getSessionList: connect.NewClient[observability.GetSessionListRequest, observability.GetSessionListResponse](
 			httpClient,
 			baseURL+ObservabilityServiceGetSessionListProcedure,
 			connect.WithSchema(observabilityServiceMethods.ByName("GetSessionList")),
 			connect.WithClientOptions(opts...),
 		),
-		runCleanup: connect.NewClient[observability.RunCleanupRequest, observability.RunCleanupResponse](
-			httpClient,
-			baseURL+ObservabilityServiceRunCleanupProcedure,
-			connect.WithSchema(observabilityServiceMethods.ByName("RunCleanup")),
-			connect.WithClientOptions(opts...),
-		),
 		getMetrics: connect.NewClient[observability.GetMetricsRequest, observability.GetMetricsResponse](
 			httpClient,
 			baseURL+ObservabilityServiceGetMetricsProcedure,
 			connect.WithSchema(observabilityServiceMethods.ByName("GetMetrics")),
-			connect.WithClientOptions(opts...),
-		),
-		runPipelineTest: connect.NewClient[observability.RunPipelineTestRequest, observability.RunPipelineTestResponse](
-			httpClient,
-			baseURL+ObservabilityServiceRunPipelineTestProcedure,
-			connect.WithSchema(observabilityServiceMethods.ByName("RunPipelineTest")),
 			connect.WithClientOptions(opts...),
 		),
 		getConfigRuntime: connect.NewClient[observability.GetConfigRuntimeRequest, observability.GetConfigRuntimeResponse](
@@ -198,11 +163,8 @@ func NewObservabilityServiceClient(httpClient connect.HTTPClient, baseURL string
 type observabilityServiceClient struct {
 	getObservability     *connect.Client[observability.GetObservabilityRequest, observability.GetObservabilityResponse]
 	refreshObservability *connect.Client[observability.RefreshObservabilityRequest, observability.RefreshObservabilityResponse]
-	runDiagnostics       *connect.Client[observability.RunDiagnosticsRequest, observability.RunDiagnosticsResponse]
 	getSessionList       *connect.Client[observability.GetSessionListRequest, observability.GetSessionListResponse]
-	runCleanup           *connect.Client[observability.RunCleanupRequest, observability.RunCleanupResponse]
 	getMetrics           *connect.Client[observability.GetMetricsRequest, observability.GetMetricsResponse]
-	runPipelineTest      *connect.Client[observability.RunPipelineTestRequest, observability.RunPipelineTestResponse]
 	getConfigRuntime     *connect.Client[observability.GetConfigRuntimeRequest, observability.GetConfigRuntimeResponse]
 	updateConfig         *connect.Client[observability.UpdateConfigRequest, observability.UpdateConfigResponse]
 	resetConfig          *connect.Client[observability.ResetConfigRequest, observability.ResetConfigResponse]
@@ -222,32 +184,15 @@ func (c *observabilityServiceClient) RefreshObservability(ctx context.Context, r
 	return c.refreshObservability.CallUnary(ctx, req)
 }
 
-// RunDiagnostics calls
-// browser_automation_studio.v1.observability.ObservabilityService.RunDiagnostics.
-func (c *observabilityServiceClient) RunDiagnostics(ctx context.Context, req *connect.Request[observability.RunDiagnosticsRequest]) (*connect.Response[observability.RunDiagnosticsResponse], error) {
-	return c.runDiagnostics.CallUnary(ctx, req)
-}
-
 // GetSessionList calls
 // browser_automation_studio.v1.observability.ObservabilityService.GetSessionList.
 func (c *observabilityServiceClient) GetSessionList(ctx context.Context, req *connect.Request[observability.GetSessionListRequest]) (*connect.Response[observability.GetSessionListResponse], error) {
 	return c.getSessionList.CallUnary(ctx, req)
 }
 
-// RunCleanup calls browser_automation_studio.v1.observability.ObservabilityService.RunCleanup.
-func (c *observabilityServiceClient) RunCleanup(ctx context.Context, req *connect.Request[observability.RunCleanupRequest]) (*connect.Response[observability.RunCleanupResponse], error) {
-	return c.runCleanup.CallUnary(ctx, req)
-}
-
 // GetMetrics calls browser_automation_studio.v1.observability.ObservabilityService.GetMetrics.
 func (c *observabilityServiceClient) GetMetrics(ctx context.Context, req *connect.Request[observability.GetMetricsRequest]) (*connect.Response[observability.GetMetricsResponse], error) {
 	return c.getMetrics.CallUnary(ctx, req)
-}
-
-// RunPipelineTest calls
-// browser_automation_studio.v1.observability.ObservabilityService.RunPipelineTest.
-func (c *observabilityServiceClient) RunPipelineTest(ctx context.Context, req *connect.Request[observability.RunPipelineTestRequest]) (*connect.Response[observability.RunPipelineTestResponse], error) {
-	return c.runPipelineTest.CallUnary(ctx, req)
 }
 
 // GetConfigRuntime calls
@@ -285,19 +230,11 @@ type ObservabilityServiceHandler interface {
 	GetObservability(context.Context, *connect.Request[observability.GetObservabilityRequest]) (*connect.Response[observability.GetObservabilityResponse], error)
 	// RefreshObservability invalidates the playwright-driver cache.
 	RefreshObservability(context.Context, *connect.Request[observability.RefreshObservabilityRequest]) (*connect.Response[observability.RefreshObservabilityResponse], error)
-	// RunDiagnostics triggers a manual diagnostic run with the supplied
-	// options. The request/response shapes are owned by playwright-driver
-	// and round-tripped via google.protobuf.Struct.
-	RunDiagnostics(context.Context, *connect.Request[observability.RunDiagnosticsRequest]) (*connect.Response[observability.RunDiagnosticsResponse], error)
 	// GetSessionList returns the inventory of browser sessions held by
 	// playwright-driver.
 	GetSessionList(context.Context, *connect.Request[observability.GetSessionListRequest]) (*connect.Response[observability.GetSessionListResponse], error)
-	// RunCleanup triggers manual idle-session cleanup.
-	RunCleanup(context.Context, *connect.Request[observability.RunCleanupRequest]) (*connect.Response[observability.RunCleanupResponse], error)
 	// GetMetrics returns the JSON-parsed Prometheus metrics snapshot.
 	GetMetrics(context.Context, *connect.Request[observability.GetMetricsRequest]) (*connect.Response[observability.GetMetricsResponse], error)
-	// RunPipelineTest runs an autonomous end-to-end recording pipeline test.
-	RunPipelineTest(context.Context, *connect.Request[observability.RunPipelineTestRequest]) (*connect.Response[observability.RunPipelineTestResponse], error)
 	// GetConfigRuntime returns the current state of all runtime config
 	// overrides held by playwright-driver.
 	GetConfigRuntime(context.Context, *connect.Request[observability.GetConfigRuntimeRequest]) (*connect.Response[observability.GetConfigRuntimeResponse], error)
@@ -331,34 +268,16 @@ func NewObservabilityServiceHandler(svc ObservabilityServiceHandler, opts ...con
 		connect.WithSchema(observabilityServiceMethods.ByName("RefreshObservability")),
 		connect.WithHandlerOptions(opts...),
 	)
-	observabilityServiceRunDiagnosticsHandler := connect.NewUnaryHandler(
-		ObservabilityServiceRunDiagnosticsProcedure,
-		svc.RunDiagnostics,
-		connect.WithSchema(observabilityServiceMethods.ByName("RunDiagnostics")),
-		connect.WithHandlerOptions(opts...),
-	)
 	observabilityServiceGetSessionListHandler := connect.NewUnaryHandler(
 		ObservabilityServiceGetSessionListProcedure,
 		svc.GetSessionList,
 		connect.WithSchema(observabilityServiceMethods.ByName("GetSessionList")),
 		connect.WithHandlerOptions(opts...),
 	)
-	observabilityServiceRunCleanupHandler := connect.NewUnaryHandler(
-		ObservabilityServiceRunCleanupProcedure,
-		svc.RunCleanup,
-		connect.WithSchema(observabilityServiceMethods.ByName("RunCleanup")),
-		connect.WithHandlerOptions(opts...),
-	)
 	observabilityServiceGetMetricsHandler := connect.NewUnaryHandler(
 		ObservabilityServiceGetMetricsProcedure,
 		svc.GetMetrics,
 		connect.WithSchema(observabilityServiceMethods.ByName("GetMetrics")),
-		connect.WithHandlerOptions(opts...),
-	)
-	observabilityServiceRunPipelineTestHandler := connect.NewUnaryHandler(
-		ObservabilityServiceRunPipelineTestProcedure,
-		svc.RunPipelineTest,
-		connect.WithSchema(observabilityServiceMethods.ByName("RunPipelineTest")),
 		connect.WithHandlerOptions(opts...),
 	)
 	observabilityServiceGetConfigRuntimeHandler := connect.NewUnaryHandler(
@@ -397,16 +316,10 @@ func NewObservabilityServiceHandler(svc ObservabilityServiceHandler, opts ...con
 			observabilityServiceGetObservabilityHandler.ServeHTTP(w, r)
 		case ObservabilityServiceRefreshObservabilityProcedure:
 			observabilityServiceRefreshObservabilityHandler.ServeHTTP(w, r)
-		case ObservabilityServiceRunDiagnosticsProcedure:
-			observabilityServiceRunDiagnosticsHandler.ServeHTTP(w, r)
 		case ObservabilityServiceGetSessionListProcedure:
 			observabilityServiceGetSessionListHandler.ServeHTTP(w, r)
-		case ObservabilityServiceRunCleanupProcedure:
-			observabilityServiceRunCleanupHandler.ServeHTTP(w, r)
 		case ObservabilityServiceGetMetricsProcedure:
 			observabilityServiceGetMetricsHandler.ServeHTTP(w, r)
-		case ObservabilityServiceRunPipelineTestProcedure:
-			observabilityServiceRunPipelineTestHandler.ServeHTTP(w, r)
 		case ObservabilityServiceGetConfigRuntimeProcedure:
 			observabilityServiceGetConfigRuntimeHandler.ServeHTTP(w, r)
 		case ObservabilityServiceUpdateConfigProcedure:
@@ -434,24 +347,12 @@ func (UnimplementedObservabilityServiceHandler) RefreshObservability(context.Con
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.observability.ObservabilityService.RefreshObservability is not implemented"))
 }
 
-func (UnimplementedObservabilityServiceHandler) RunDiagnostics(context.Context, *connect.Request[observability.RunDiagnosticsRequest]) (*connect.Response[observability.RunDiagnosticsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.observability.ObservabilityService.RunDiagnostics is not implemented"))
-}
-
 func (UnimplementedObservabilityServiceHandler) GetSessionList(context.Context, *connect.Request[observability.GetSessionListRequest]) (*connect.Response[observability.GetSessionListResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.observability.ObservabilityService.GetSessionList is not implemented"))
 }
 
-func (UnimplementedObservabilityServiceHandler) RunCleanup(context.Context, *connect.Request[observability.RunCleanupRequest]) (*connect.Response[observability.RunCleanupResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.observability.ObservabilityService.RunCleanup is not implemented"))
-}
-
 func (UnimplementedObservabilityServiceHandler) GetMetrics(context.Context, *connect.Request[observability.GetMetricsRequest]) (*connect.Response[observability.GetMetricsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.observability.ObservabilityService.GetMetrics is not implemented"))
-}
-
-func (UnimplementedObservabilityServiceHandler) RunPipelineTest(context.Context, *connect.Request[observability.RunPipelineTestRequest]) (*connect.Response[observability.RunPipelineTestResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.observability.ObservabilityService.RunPipelineTest is not implemented"))
 }
 
 func (UnimplementedObservabilityServiceHandler) GetConfigRuntime(context.Context, *connect.Request[observability.GetConfigRuntimeRequest]) (*connect.Response[observability.GetConfigRuntimeResponse], error) {

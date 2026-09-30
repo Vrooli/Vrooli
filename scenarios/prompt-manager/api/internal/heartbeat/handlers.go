@@ -674,13 +674,35 @@ func (h *Handlers) TriggerHeartbeat(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	engagementEvent, err := h.operatorEngagementEventFromRequest(r, teamID, "heartbeat-manual-trigger")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	crossTeamWake := false
+	if info, err := parseAttributionHeader(r.Header.Get(attributionHeaderName)); err == nil && info.TeamID != nil && *info.TeamID != teamID {
+		if !h.deliveryMemberWakesSupervisor(ctx, r, teamID) {
+			http.Error(w, fmt.Sprintf("attribution: team_mismatch — header team_id=%q, URL team_id=%q; only a delivery team member may wake a supervision team member", *info.TeamID, teamID), http.StatusForbidden)
+			return
+		}
+		crossTeamWake = true
+	}
+	var engagementEvent *HumanEngagementEvent
+	if !crossTeamWake {
+		event, err := h.operatorEngagementEventFromRequest(r, teamID, "heartbeat-manual-trigger")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		engagementEvent = event
+	}
+	// force bypasses the once-per-schedule-window manual-trigger dedup. Only an
+	// operator may force: an agent-attributed request keeps the dedup, so an
+	// agent cannot buy extra runs of an expensive member.
+	force := r.URL.Query().Get("force") == "true"
+	if force {
+		if _, isHuman, _ := attributionFromRequest(r, teamID); r.Header.Get(attributionHeaderName) != "" && !isHuman {
+			http.Error(w, "force is reserved for operator triggers", http.StatusForbidden)
+			return
+		}
 	}
 
-	resp, status, err := h.triggerHeartbeatMember(ctx, teamID, agentID)
+	resp, status, err := h.triggerHeartbeatMember(ctx, teamID, agentID, force)
 	if err != nil {
 		http.Error(w, err.Error(), status)
 		return
@@ -695,7 +717,7 @@ func (h *Handlers) TriggerHeartbeat(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-func (h *Handlers) triggerHeartbeatMember(ctx context.Context, teamID, agentID string) (*TriggerHeartbeatResponse, int, error) {
+func (h *Handlers) triggerHeartbeatMember(ctx context.Context, teamID, agentID string, force bool) (*TriggerHeartbeatResponse, int, error) {
 	if h.executor == nil {
 		return nil, http.StatusServiceUnavailable, errors.New("Executor not configured")
 	}
@@ -757,7 +779,7 @@ func (h *Handlers) triggerHeartbeatMember(ctx context.Context, teamID, agentID s
 				return nil, http.StatusConflict, &MemberAlreadyQueuedError{TeamID: teamID, AgentID: agentID}
 			}
 		}
-		if config != nil && withinManualTriggerWindow(config, time.Now().UTC()) {
+		if !force && config != nil && withinManualTriggerWindow(config, time.Now().UTC()) {
 			return &TriggerHeartbeatResponse{TeamID: teamID, AgentID: agentID, Status: "deduplicated"}, http.StatusAccepted, nil
 		}
 
@@ -806,6 +828,23 @@ func (h *Handlers) triggerHeartbeatMember(ctx context.Context, teamID, agentID s
 		Status:  result.Status,
 		LogPath: result.LogPath,
 	}, http.StatusAccepted, nil
+}
+
+// deliveryMemberWakesSupervisor admits the one cross-team trigger the epoch
+// model needs: a member of a delivery team waking a member of a supervision
+// team after recording a step-back or repeated workaround in its goal home.
+// It is a trigger, not a write, and it keeps the manual-trigger dedup.
+func (h *Handlers) deliveryMemberWakesSupervisor(ctx context.Context, r *http.Request, targetTeamID string) bool {
+	info, err := parseAttributionHeader(r.Header.Get(attributionHeaderName))
+	if err != nil || info.Kind != store.KnowledgeKindAgentMember || info.TeamID == nil || *info.TeamID == targetTeamID {
+		return false
+	}
+	target, err := h.teamStore.Get(ctx, targetTeamID)
+	if err != nil || target == nil || target.Purpose != teamconfig.PurposeSupervision {
+		return false
+	}
+	caller, err := h.teamStore.Get(ctx, *info.TeamID)
+	return err == nil && caller != nil && caller.Purpose == teamconfig.PurposeDelivery
 }
 
 // withinManualTriggerWindow reports whether a manual trigger happened before
@@ -908,7 +947,7 @@ func (h *Handlers) RetryRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, status, err := h.triggerHeartbeatMember(r.Context(), teamID, agentID)
+	resp, status, err := h.triggerHeartbeatMember(r.Context(), teamID, agentID, false)
 	if err != nil {
 		http.Error(w, err.Error(), status)
 		return

@@ -30,8 +30,8 @@ func TestNewAppConfiguresResourceApp(t *testing.T) {
 	if app.StaleChecker.ManifestSourcePath != "resource.json" {
 		t.Fatalf("ManifestSourcePath = %q, want %q", app.StaleChecker.ManifestSourcePath, "resource.json")
 	}
-	if len(app.StaleChecker.FreshnessInputs) != 3 {
-		t.Fatalf("FreshnessInputs len = %d, want 3", len(app.StaleChecker.FreshnessInputs))
+	if len(app.StaleChecker.FreshnessInputs) != 4 {
+		t.Fatalf("FreshnessInputs len = %d, want 4", len(app.StaleChecker.FreshnessInputs))
 	}
 	if got, want := app.StaleChecker.FreshnessInputs[0], "cli/**"; got != want {
 		t.Fatalf("FreshnessInputs[0] = %q, want %q", got, want)
@@ -41,5 +41,8 @@ func TestNewAppConfiguresResourceApp(t *testing.T) {
 	}
 	if got, want := app.StaleChecker.FreshnessInputs[2], "../../packages/cli-core"; got != want {
 		t.Fatalf("FreshnessInputs[2] = %q, want %q", got, want)
+	}
+	if got, want := app.StaleChecker.FreshnessInputs[3], "../../packages/proto/gen/.vrooli-proto-artifact.json"; got != want {
+		t.Fatalf("FreshnessInputs[3] = %q, want %q", got, want)
 	}
 }

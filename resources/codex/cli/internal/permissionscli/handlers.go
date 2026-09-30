@@ -77,13 +77,14 @@ func (h *Handlers) shared() *agentharness.PermissionHandlers {
 			return bridge(a), nil
 		},
 		ScopeDefault: string(permissions.ScopeUser),
-		ScopeHelp:    "Config scope: user (~/.codex/config.toml) or admin (~/.codex/requirements.toml)",
+		ScopeHelp:    "Config scope: user (~/.codex/config.toml) or admin (system requirements.toml)",
 		Description:  "View and manage Codex permissions (~/.codex/config.toml [vrooli.permissions])",
 		CommandDescriptions: map[string]string{
 			"show":        "Print the full config file (raw or pretty)",
 			"deny":        "Add a bash deny pattern (mutating)",
 			"allow":       "Add a bash allow pattern (mutating)",
 			"ask":         "Add a bash ask pattern (mutating)",
+			"reset":       "Clear Vrooli-managed Bash rules; retain native execution profile",
 			"drift-check": "Compare current config fingerprint to last Vrooli write",
 			"doctor":      "Check installed codex version and explain enforcement caveats",
 		},
@@ -92,10 +93,24 @@ func (h *Handlers) shared() *agentharness.PermissionHandlers {
 		VersionCommand: h.VersionCommand, VersionRunner: h.VersionRunner, DetectCaller: h.DetectCaller,
 		Policy: h.Policy, Stdout: h.Stdout, Stderr: h.Stderr,
 		ExclusivePatterns: true,
-		DoctorExtra: func(stdout, _ io.Writer, _ agentharness.PermissionAdapter) error {
+		DoctorExtra: func(stdout, _ io.Writer, shared agentharness.PermissionAdapter) error {
 			_, _ = fmt.Fprintln(stdout, "note: Codex does NOT enforce per-command-pattern deny/allow/ask natively today.")
 			_, _ = fmt.Fprintln(stdout, "      The `[vrooli.permissions]` section records Vrooli's intent for cross-agent")
-			_, _ = fmt.Fprintln(stdout, "      uniformity; for hard enforcement use sandbox_mode/approval_policy.")
+			_, _ = fmt.Fprintln(stdout, "      uniformity; native filesystem/network/approval settings are managed by v2 execution documents.")
+			a, err := h.adapter(shared.Scope())
+			if err != nil {
+				return err
+			}
+			p, err := a.Load()
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(stdout, "execution: configured=%t active_intent=%t effective_runtime=unverified\n", p.Execution != nil, p.ExecutionActive)
+			if p.Execution != nil {
+				fmt.Fprintf(stdout, "native_projection_matches=%t\n", p.NativeFingerprint == permissions.DesiredExecutionFingerprint(p.Execution, p.ExecutionActive))
+			}
+			fmt.Fprintf(stdout, "hook_registration_matches=%t\n", p.HookFingerprint == a.DesiredHookFingerprint(p))
+			fmt.Fprintln(stdout, "Higher-precedence config, launch flags and managed requirements may override this file; verify a fresh desktop session separately.")
 			return nil
 		},
 	})
@@ -111,20 +126,41 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 	})
 }
 
-func (h *Handlers) List(args []string) error       { return h.shared().List(args) }
-func (h *Handlers) Show(args []string) error       { return h.shared().Show(args) }
-func (h *Handlers) DriftCheck(args []string) error { return h.shared().DriftCheck(args) }
-func (h *Handlers) Doctor(args []string) error     { return h.shared().Doctor(args) }
-func (h *Handlers) Deny(args []string) error       { return h.shared().Deny(args) }
-func (h *Handlers) Allow(args []string) error      { return h.shared().Allow(args) }
-func (h *Handlers) Ask(args []string) error        { return h.shared().Ask(args) }
-func (h *Handlers) Remove(args []string) error     { return h.shared().Remove(args) }
-func (h *Handlers) Reset(args []string) error      { return h.shared().Reset(args) }
+func (h *Handlers) List(args []string) error { return h.shared().List(args) }
+func (h *Handlers) Show(args []string) error { return h.shared().Show(args) }
+func (h *Handlers) DriftCheck(args []string) error {
+	fs, scope := h.flagSet("permissions drift-check")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	a, err := h.adapter(*scope)
+	if err != nil {
+		return err
+	}
+	p, err := a.Load()
+	if err != nil {
+		return err
+	}
+	if p.HookFingerprint != a.DesiredHookFingerprint(p) {
+		return errors.New("managed hook registration drift detected")
+	}
+	if p.NativeFingerprint != permissions.DesiredExecutionFingerprint(p.Execution, p.ExecutionActive) {
+		return errors.New("native execution projection drift detected")
+	}
+	return h.shared().DriftCheck(args)
+}
+
+func (h *Handlers) Doctor(args []string) error { return h.shared().Doctor(args) }
+func (h *Handlers) Deny(args []string) error   { return h.shared().Deny(args) }
+func (h *Handlers) Allow(args []string) error  { return h.shared().Allow(args) }
+func (h *Handlers) Ask(args []string) error    { return h.shared().Ask(args) }
+func (h *Handlers) Remove(args []string) error { return h.shared().Remove(args) }
+func (h *Handlers) Reset(args []string) error  { return h.shared().Reset(args) }
 
 func (h *Handlers) flagSet(name string) (*flag.FlagSet, *string) {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(h.Stderr)
-	scope := fs.String("scope", string(permissions.ScopeUser), "Config scope: user (~/.codex/config.toml) or admin (~/.codex/requirements.toml)")
+	scope := fs.String("scope", string(permissions.ScopeUser), "Config scope: user (~/.codex/config.toml) or admin (system requirements.toml)")
 	return fs, scope
 }
 
@@ -139,7 +175,7 @@ func HookCommands(h *Handlers) cliapp.SubcommandGroup {
 	return agentharness.HookCommands(agentharness.HookCommandConfig{
 		Agent: "codex", Description: "Reconcile Codex hooks through the shared Vrooli hook broker",
 		ScopeDefault: string(permissions.ScopeUser),
-		ScopeHelp:    "Hook scope: user (~/.codex/hooks.json) or admin (~/.codex/hooks.json)",
+		ScopeHelp:    "Hook scope: user (~/.codex/hooks.json) or admin (unsupported)",
 		Target: func(scope string) (agentharness.HookTarget, error) {
 			a, err := h.adapter(scope)
 			if err != nil {
@@ -155,15 +191,15 @@ func bridge(a *permissions.Adapter) agentharness.PermissionAdapter {
 	return agentharness.PermissionAdapterFuncs{
 		LoadFunc: func() (agentharness.PermissionPolicy, error) {
 			p, err := a.Load()
-			return agentharness.PermissionPolicy{BashDeny: p.BashDeny, BashAsk: p.BashAsk, BashAllow: p.BashAllow, SettingsPath: a.SettingsPath}, err
+			return agentharness.PermissionPolicy{BashDeny: p.BashDeny, BashAsk: p.BashAsk, BashAllow: p.BashAllow, NativeFingerprint: p.NativeFingerprint, HookFingerprint: p.HookFingerprint, SnapshotDigest: p.SnapshotDigest, SettingsPath: a.SettingsPath}, err
 		},
 		SaveFunc: func(p agentharness.PermissionPolicy) error {
-			return a.Save(permissions.Policy{BashDeny: p.BashDeny, BashAsk: p.BashAsk, BashAllow: p.BashAllow})
+			return a.Save(permissions.Policy{BashDeny: p.BashDeny, BashAsk: p.BashAsk, BashAllow: p.BashAllow, NativeFingerprint: p.NativeFingerprint, HookFingerprint: p.HookFingerprint, SnapshotDigest: p.SnapshotDigest})
 		},
 		SettingsPathFunc: func() string { return a.SettingsPath },
 		ScopeFunc:        func() string { return string(a.Scope) },
 		FingerprintFunc: func(p agentharness.PermissionPolicy) string {
-			return permissions.Fingerprint(permissions.Policy{BashDeny: p.BashDeny, BashAsk: p.BashAsk, BashAllow: p.BashAllow})
+			return permissions.Fingerprint(permissions.Policy{BashDeny: p.BashDeny, BashAsk: p.BashAsk, BashAllow: p.BashAllow, NativeFingerprint: p.NativeFingerprint, HookFingerprint: p.HookFingerprint, SnapshotDigest: p.SnapshotDigest})
 		},
 		LoadStateFunc: func() (*agentharness.PermissionState, error) { return a.LoadState() },
 		WriteStateFunc: func(p agentharness.PermissionPolicy, version string) error {

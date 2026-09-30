@@ -8,7 +8,7 @@ import "google/protobuf/struct.proto";
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/observability;observability";
 
 // =============================================================================
-// OBSERVABILITY DOMAIN — health/diagnostics/metrics/config proxy + debug mode.
+// OBSERVABILITY DOMAIN — health/session/metrics/config proxy + debug mode.
 // =============================================================================
 //
 // @stability beta
@@ -23,7 +23,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 //
 // USAGE CONTEXTS:
 //   - API:  api/handlers/observability/service.go
-//   - UI:   ui/src/api/observability.ts (diagnostics tab)
 //   - CLI:  bas observability ...
 // =============================================================================
 
@@ -36,23 +35,12 @@ service ObservabilityService {
   // RefreshObservability invalidates the playwright-driver cache.
   rpc RefreshObservability(RefreshObservabilityRequest) returns (RefreshObservabilityResponse);
 
-  // RunDiagnostics triggers a manual diagnostic run with the supplied
-  // options. The request/response shapes are owned by playwright-driver
-  // and round-tripped via google.protobuf.Struct.
-  rpc RunDiagnostics(RunDiagnosticsRequest) returns (RunDiagnosticsResponse);
-
   // GetSessionList returns the inventory of browser sessions held by
   // playwright-driver.
   rpc GetSessionList(GetSessionListRequest) returns (GetSessionListResponse);
 
-  // RunCleanup triggers manual idle-session cleanup.
-  rpc RunCleanup(RunCleanupRequest) returns (RunCleanupResponse);
-
   // GetMetrics returns the JSON-parsed Prometheus metrics snapshot.
   rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse);
-
-  // RunPipelineTest runs an autonomous end-to-end recording pipeline test.
-  rpc RunPipelineTest(RunPipelineTestRequest) returns (RunPipelineTestResponse);
 
   // GetConfigRuntime returns the current state of all runtime config
   // overrides held by playwright-driver.
@@ -102,20 +90,6 @@ message RefreshObservabilityResponse {
 }
 
 // ---------------------------------------------------------------------------
-// RunDiagnostics
-// ---------------------------------------------------------------------------
-
-message RunDiagnosticsRequest {
-  // Free-form diagnostic request (type, session_id, options); shape is
-  // owned by playwright-driver.
-  google.protobuf.Struct options = 1;
-}
-
-message RunDiagnosticsResponse {
-  google.protobuf.Struct result = 1;
-}
-
-// ---------------------------------------------------------------------------
 // Sessions
 // ---------------------------------------------------------------------------
 
@@ -126,34 +100,12 @@ message GetSessionListResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Cleanup
-// ---------------------------------------------------------------------------
-
-message RunCleanupRequest {}
-
-message RunCleanupResponse {
-  google.protobuf.Struct result = 1;
-}
-
-// ---------------------------------------------------------------------------
 // Metrics
 // ---------------------------------------------------------------------------
 
 message GetMetricsRequest {}
 
 message GetMetricsResponse {
-  google.protobuf.Struct result = 1;
-}
-
-// ---------------------------------------------------------------------------
-// Pipeline test
-// ---------------------------------------------------------------------------
-
-message RunPipelineTestRequest {
-  google.protobuf.Struct options = 1;
-}
-
-message RunPipelineTestResponse {
   google.protobuf.Struct result = 1;
 }
 

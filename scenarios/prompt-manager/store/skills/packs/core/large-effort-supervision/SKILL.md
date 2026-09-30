@@ -9,7 +9,7 @@ metadata:
   tags: [supervision, effort, efficiency, orchestration, evidence]
   icon: eye
   status: active
-  revision: 15
+  revision: 20
   createdAt: "2026-09-12T00:00:00Z"
   updatedAt: "2026-09-30T18:00:00Z"
   requires:
@@ -35,14 +35,14 @@ Model: Sol. Every wake costs about 10× a Luna wake, so each wake needs a reason
 | Wake | Trigger | Work |
 |---|---|---|
 | Daily check | Supervisor team heartbeat, once a day | §2 for every active goal. |
-| Step-back | An orchestrator's manual trigger after a `STEP_BACK` or a park/switch/shrink entry in `QUEUE.md` | Audit it (§4). |
+| Step-back | An orchestrator's trigger after a `STEP_BACK` or park/switch/shrink entry in `QUEUE.md` | Audit it (§4). |
 | Repeated workaround | The same `WORKAROUNDS.md` failure logged twice, or by two goals | Repair it (§3). |
 | Spend spike | A goal's weighted tokens per day above twice its 7-day median | Find the cause; steer or repair. |
 
-Event wakes arrive as manual heartbeat triggers (at most one per day); find the
-event in each goal home. Never wake on unchanged state, and never start a
-judgment while your previous run is still live. A wake with nothing actionable records a one-line quiet disposition
-and ends. With no active goal, stay idle.
+Event wakes arrive as manual heartbeat triggers from orchestrators; find the
+event in the goal home. Never wake on unchanged state, and never start a
+judgment while your previous run is still live. A wake with no open workaround and nothing due records a one-line
+quiet disposition and ends. With no active goal, stay idle.
 
 ### 2. Daily check
 
@@ -58,6 +58,9 @@ For each active goal home:
    slices, open workarounds, and whether the exit metric moved.
 4. Confirm the orchestrator is running or parked. A repeated heartbeat relaunch
    within a day is a repair target, not a reason to relaunch again.
+5. Repair (§3) the open workaround that costs delivery the most, every daily
+   check. A report without a repair or a named reason it could not be done is an
+   incomplete check.
 
 ### 3. Repair shared infrastructure
 
@@ -73,7 +76,10 @@ credential, dependency approval or production effect you do not hold.
 Audit every 3rd accepted epoch per goal and every step-back. Read the epoch file,
 deletion list and changed files, then rerun the exit-gate commands and affected
 journeys. Check that the gates match those set at admission (or each amendment
-has a recorded reason), the growth budget and deletion list hold, test changes
+has a recorded reason), the deletion list names concrete items from the
+`QUEUE.md` slice and each reached its end state (a slice marked done on partial
+work is a failed audit: its remainder goes back to the queue), the growth budget
+holds, test changes
 follow `path:docs/testing/UNIT-TEST-AUTHORING.md#mature-a-suite-instead-of-growing-it`
 (net test lines and new fakes are the first thing to check), and a step-back
 chose park, switch or shrink for a stated reason.
@@ -82,6 +88,8 @@ chose park, switch or shrink for a stated reason.
 
 Stay out of product work and epoch files. Steer an orchestrator only through a
 `FEEDBACK.md` entry marked `supervisor` or `supervisor-audit`, which it translates
-into directives. A failed audit becomes such an entry and reopens the epoch only
-when an exit gate actually fails. A qualification failure becomes a `QUEUE.md`
+into directives. A failed audit becomes such an entry. It reopens the epoch
+when an exit gate fails; when a slice was marked done with deletion-list items
+left, the entry names those items and tells the orchestrator to put them back at
+the top of `QUEUE.md` as a remainder slice. A qualification failure becomes a `QUEUE.md`
 item through the orchestrator.

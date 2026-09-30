@@ -17,12 +17,16 @@ import (
 	"strings"
 )
 
-const PermissionDocumentSchemaVersion = "v1"
+const (
+	PermissionDocumentSchemaVersion          = "v1"
+	ExecutionPermissionDocumentSchemaVersion = "v2"
+)
 
 type PermissionDocument struct {
-	SchemaVersion string           `json:"schema_version"`
-	Scope         string           `json:"scope,omitempty"`
-	Rules         []PermissionRule `json:"rules"`
+	SchemaVersion string                `json:"schema_version"`
+	Scope         string                `json:"scope,omitempty"`
+	Rules         []PermissionRule      `json:"rules"`
+	Execution     *ExecutionPermissions `json:"execution,omitempty"`
 }
 
 type PermissionRule struct {
@@ -86,11 +90,17 @@ func parsePermissionDocument(data []byte, path string) (PermissionDocument, erro
 
 func ValidatePermissionDocument(document PermissionDocument) error {
 	var problems []error
-	if document.SchemaVersion != PermissionDocumentSchemaVersion {
-		problems = append(problems, fmt.Errorf("schema_version must be %q", PermissionDocumentSchemaVersion))
+	if document.SchemaVersion != PermissionDocumentSchemaVersion && document.SchemaVersion != ExecutionPermissionDocumentSchemaVersion {
+		problems = append(problems, fmt.Errorf("schema_version must be v1 or v2"))
 	}
 	if document.Scope != "" && document.Scope != "user" && document.Scope != "admin" {
 		problems = append(problems, fmt.Errorf("scope must be user or admin when set"))
+	}
+	if document.Execution != nil {
+		if document.SchemaVersion != ExecutionPermissionDocumentSchemaVersion {
+			problems = append(problems, errors.New("execution requires schema_version v2"))
+		}
+		problems = append(problems, ValidateExecutionPermissions(document.Execution))
 	}
 	seen := make(map[string]struct{}, len(document.Rules))
 	seenMatchers := make(map[string]struct{}, len(document.Rules))

@@ -10,11 +10,7 @@ absent or terminal. Follow `large-effort-orchestration` §2 with these BAS value
   that profile resolves to. Pass the epoch file path and the worker card path in
   `--prompt`.
 - Running BAS and daily qualification: `TARGETS.md`.
-- Supervisor event wake (step-back, repeated workaround, spend spike): record the
-  event in the goal home first, then
-  `prompt-manager team heartbeat-trigger effort-supervision effort-supervisor`.
-  Cross-team messages are rejected (WORKAROUNDS.md); the supervisor reads the
-  goal home on wake.
+- Supervisor wake: `large-effort-orchestration` §2 "Waking the supervisor".
 
 ## Run Decision
 

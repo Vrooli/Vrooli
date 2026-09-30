@@ -56,7 +56,7 @@ func (h *Handlers) Reconcile(args []string) error {
 }
 
 func (h *Handlers) planDocument(path string) (agentharness.PermissionPlanResult, permissions.Policy, error) {
-	document, data, err := agentharness.LoadPermissionDocument(path, h.Stdin)
+	document, data, err := agentharness.LoadPermissionDocumentForRunner(path, h.Stdin, "opencode")
 	if err != nil {
 		return agentharness.PermissionPlanResult{}, permissions.Policy{}, err
 	}

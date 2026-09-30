@@ -380,6 +380,10 @@ func (b *HookBroker) withDocumentLock(path string, fn func(map[string]any) error
 		return err
 	}
 	defer unlock()
+	snapshot, err := ReadPermissionFile(path)
+	if err != nil {
+		return err
+	}
 	document, err := readHookDocument(path)
 	if err != nil {
 		return err
@@ -396,6 +400,13 @@ func (b *HookBroker) withDocumentLock(path string, fn func(map[string]any) error
 		return nil
 	}
 	if len(document) == 0 {
+		current, err := ReadPermissionFile(path)
+		if err != nil {
+			return err
+		}
+		if PermissionFilesDigest(current) != PermissionFilesDigest(snapshot) {
+			return fmt.Errorf("hook file changed during reconciliation: %s", path)
+		}
 		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return err
 		}
@@ -405,7 +416,7 @@ func (b *HookBroker) withDocumentLock(path string, fn func(map[string]any) error
 	if err != nil {
 		return err
 	}
-	return atomicWriteHookDocument(path, pretty)
+	return atomicWriteHookDocument(snapshot, pretty)
 }
 
 // WithLock serializes a non-broker native projection with broker operations
@@ -465,24 +476,14 @@ func readHookDocument(path string) (map[string]any, error) {
 	if err := json.Unmarshal(data, &document); err != nil {
 		return nil, fmt.Errorf("parse hook document %s: %w", path, err)
 	}
+	if document == nil {
+		return nil, fmt.Errorf("hook document %s must be a JSON object", path)
+	}
 	return document, nil
 }
 
-func atomicWriteHookDocument(path string, data []byte) error {
-	data = append(data, '\n')
-	mode := fs.FileMode(0o644)
-	if info, err := os.Stat(path); err == nil {
-		mode = info.Mode().Perm()
-	}
-	tmp := fmt.Sprintf("%s.vrooli-tmp-%d-%d", path, os.Getpid(), time.Now().UnixNano())
-	if err := os.WriteFile(tmp, data, mode); err != nil {
-		return err
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		_ = os.Remove(tmp)
-		return err
-	}
-	return nil
+func atomicWriteHookDocument(before PermissionFileSnapshot, data []byte) error {
+	return PublishPermissionFile(before, append(data, '\n'))
 }
 
 func validateHookRequest(target HookTarget, registration HookRegistration) error {

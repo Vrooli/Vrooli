@@ -32,18 +32,6 @@ class RefreshObservabilityResponse(_message.Message):
     result: _struct_pb2.Struct
     def __init__(self, result: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
-class RunDiagnosticsRequest(_message.Message):
-    __slots__ = ("options",)
-    OPTIONS_FIELD_NUMBER: _ClassVar[int]
-    options: _struct_pb2.Struct
-    def __init__(self, options: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
-
-class RunDiagnosticsResponse(_message.Message):
-    __slots__ = ("result",)
-    RESULT_FIELD_NUMBER: _ClassVar[int]
-    result: _struct_pb2.Struct
-    def __init__(self, result: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
-
 class GetSessionListRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
@@ -54,33 +42,11 @@ class GetSessionListResponse(_message.Message):
     result: _struct_pb2.Struct
     def __init__(self, result: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
-class RunCleanupRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
-
-class RunCleanupResponse(_message.Message):
-    __slots__ = ("result",)
-    RESULT_FIELD_NUMBER: _ClassVar[int]
-    result: _struct_pb2.Struct
-    def __init__(self, result: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
-
 class GetMetricsRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
 class GetMetricsResponse(_message.Message):
-    __slots__ = ("result",)
-    RESULT_FIELD_NUMBER: _ClassVar[int]
-    result: _struct_pb2.Struct
-    def __init__(self, result: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
-
-class RunPipelineTestRequest(_message.Message):
-    __slots__ = ("options",)
-    OPTIONS_FIELD_NUMBER: _ClassVar[int]
-    options: _struct_pb2.Struct
-    def __init__(self, options: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
-
-class RunPipelineTestResponse(_message.Message):
     __slots__ = ("result",)
     RESULT_FIELD_NUMBER: _ClassVar[int]
     result: _struct_pb2.Struct

@@ -18,7 +18,7 @@
   "effortRefs": [
     "effort:browser-automation-studio-rehabilitation"
   ],
-  "enabled": false,
+  "enabled": true,
   "execution": {
     "queuePolicy": "serialized",
     "maxConcurrentRuns": 1
@@ -203,10 +203,10 @@
     }
   },
   "purpose": "delivery",
-  "revision": 9,
+  "revision": 10,
   "runtime": {
     "mode": "multi-process"
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-09-30T00:00:00Z"
+  "updatedAt": "2026-09-30T01:40:12Z"
 }

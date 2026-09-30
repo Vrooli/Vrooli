@@ -11,7 +11,8 @@ directives, and the scenario docs the brief names.
 
 **Loop.**
 1. Make one change and run its focused checks. A change whose checks pass is a
-   work unit.
+   work unit. Size units as meaningful steps (a module, an owner or a whole
+   pattern across a package), not single edits; the overrun trigger counts them.
 2. Append one line to `## Slice log`:
    `<ISO time> | <what changed> | exit metric=<value> | net runtime lines=<±n> | net test lines=<±n> | ack=<directive IDs or ->`
    Net lines are the unit's delta from before/after inventory snapshots of the

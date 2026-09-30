@@ -2352,18 +2352,23 @@ func cmdHeartbeatDisable(ctx appctx.Context, args []string) error {
 func cmdHeartbeatTrigger(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("heartbeat-trigger", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
+	force := fs.Bool("force", false, "Operator only: run even if a manual trigger already ran in this schedule window")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: team heartbeat-trigger <team-id> <agent-id>")
+		return fmt.Errorf("usage: team heartbeat-trigger <team-id> <agent-id> [--force]")
 	}
 	teamID := fs.Arg(0)
 	agentID := fs.Arg(1)
 
+	path := fmt.Sprintf("/teams/%s/heartbeats/%s/trigger", teamID, agentID)
+	if *force {
+		path += "?force=true"
+	}
 	var resp TriggerResponse
-	if err := ctx.Post(fmt.Sprintf("/teams/%s/heartbeats/%s/trigger", teamID, agentID), nil, &resp); err != nil {
+	if err := ctx.Post(path, nil, &resp); err != nil {
 		return fmt.Errorf("failed to trigger heartbeat: %w", err)
 	}
 

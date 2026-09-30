@@ -2,9 +2,7 @@ package agentharness
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -31,13 +29,15 @@ type PermissionState struct {
 
 // LoadPermissionState reads a sidecar. A missing sidecar is not an error.
 func LoadPermissionState(path string) (*PermissionState, error) {
-	data, err := os.ReadFile(path)
+	snapshot, err := ReadPermissionFile(path)
+	data := snapshot.Data
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, nil
-		}
 		return nil, fmt.Errorf("read state: %w", err)
 	}
+	if !snapshot.Exists {
+		return nil, nil
+	}
+
 	var state PermissionState
 	if err := json.Unmarshal(data, &state); err != nil {
 		return nil, fmt.Errorf("parse state: %w", err)
@@ -69,7 +69,13 @@ func WritePermissionState(path string, policy PermissionPolicy, fingerprint, wri
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("mkdir state dir: %w", err)
 	}
-	return os.WriteFile(path, data, 0o644)
+	return NewHookBroker().WithLock(path, func() error {
+		before, err := ReadPermissionFile(path)
+		if err != nil {
+			return err
+		}
+		return PublishPermissionFile(before, data)
+	})
 }
 
 // PermissionStateSettingsPath is kept separate from the state writer because

@@ -20,10 +20,13 @@ import (
 // permissions command surface. Native adapters remain responsible for mapping
 // these three buckets into their JSON/TOML schemas.
 type PermissionPolicy struct {
-	BashDeny  []string
-	BashAsk   []string
-	BashAllow []string
-	Hooks     bool
+	BashDeny          []string
+	BashAsk           []string
+	BashAllow         []string
+	Hooks             bool
+	NativeFingerprint string `json:"-"`
+	HookFingerprint   string `json:"-"`
+	SnapshotDigest    string `json:"-"`
 	// SettingsPath is metadata used only while writing the shared sidecar.
 	SettingsPath string `json:"-"`
 }
@@ -148,6 +151,7 @@ func (h *PermissionHandlers) Commands(extras []cliapp.Command) cliapp.Subcommand
 		return fallback
 	}
 	commands := []cliapp.Command{
+		{Name: "capabilities", Description: "Report native execution projection support (JSON)", Run: h.Capabilities},
 		{Name: "list", Description: command("list", "List managed permission patterns"), Run: h.List},
 		{Name: "show", Description: command("show", "Print the full config file (raw or pretty)"), Run: h.Show},
 		{Name: "deny", Description: command("deny", "Add a deny pattern (mutating)"), Run: h.Deny},
@@ -534,4 +538,16 @@ func defaultPermissionVersionRunner(ctx context.Context, args []string) (string,
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	out, err := cmd.Output()
 	return strings.TrimSpace(string(out)), err
+}
+
+func (h *PermissionHandlers) Capabilities(args []string) error {
+	fs := h.flagSet("permissions capabilities")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		return errors.New("capabilities takes no positional arguments")
+	}
+	runner := strings.TrimPrefix(h.cfg.ResourceLabel, "resource-")
+	return json.NewEncoder(h.cfg.Stdout).Encode(PermissionExecutionCapability(runner))
 }

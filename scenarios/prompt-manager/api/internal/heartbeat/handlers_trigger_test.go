@@ -10,6 +10,7 @@ import (
 
 	"prompt-manager/internal/paths"
 	"prompt-manager/internal/store"
+	"prompt-manager/internal/teamconfig"
 
 	"github.com/gorilla/mux"
 )
@@ -163,8 +164,8 @@ func TestTriggerHeartbeat_DeduplicatesCompletedManualTriggerWithinScheduleWindow
 	teamExecStore := NewTeamExecutionStore(teamStore, &captureExecutor{}, t.TempDir(), nil)
 	handlers := NewHandlers(HandlersDeps{TeamStore: teamStore, AgentStore: agentStore, RelationStore: relationStore, Executor: executor, TeamExecStore: teamExecStore})
 
-	trigger := func() *httptest.ResponseRecorder {
-		req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
+	trigger := func(query ...string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger"+strings.Join(query, ""), nil)
 		req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
 		w := httptest.NewRecorder()
 		handlers.TriggerHeartbeat(w, req)
@@ -177,6 +178,11 @@ func TestTriggerHeartbeat_DeduplicatesCompletedManualTriggerWithinScheduleWindow
 	second := trigger()
 	if second.Code != http.StatusAccepted || !strings.Contains(second.Body.String(), `"status":"deduplicated"`) {
 		t.Fatalf("second trigger: status=%d body=%s", second.Code, second.Body.String())
+	}
+	// An operator force bypasses the window while the team iterates.
+	forced := trigger("?force=true")
+	if forced.Code != http.StatusAccepted || strings.Contains(forced.Body.String(), `"status":"deduplicated"`) {
+		t.Fatalf("forced trigger: status=%d body=%s", forced.Code, forced.Body.String())
 	}
 }
 
@@ -464,5 +470,51 @@ func TestEffectiveExecutionStateReportsArchivedTeamAndBlocksTrigger(t *testing.T
 	handlers.TriggerHeartbeat(w, req)
 	if w.Code != http.StatusConflict {
 		t.Fatalf("expected archived team trigger status 409, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// A delivery team's orchestrator may wake a supervision team's member (its
+// step-back route); any other cross-team trigger stays rejected.
+func TestTriggerHeartbeat_DeliveryMemberMayWakeSupervisor(t *testing.T) {
+	roots := paths.RootsForTest(t)
+	fileStore := newFileStore(t, roots)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	relationStore := fileStore.Relations()
+	ctx := context.Background()
+	for id, purpose := range map[string]string{"supervision": teamconfig.PurposeSupervision, "delivery": teamconfig.PurposeDelivery, "other": ""} {
+		team := newIndependentTestTeam(id, id)
+		team.Purpose = purpose
+		if err := teamStore.Create(ctx, team); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Supervisor"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := relationStore.SetTeamMember(ctx, &store.TeamMemberRelation{TeamID: "supervision", AgentID: "agent-1", Status: store.MemberStatusActive}); err != nil {
+		t.Fatal(err)
+	}
+	if err := teamStore.SetHeartbeatConfig(ctx, "supervision", "agent-1", &store.HeartbeatConfig{TeamID: "supervision", AgentID: "agent-1", Schedule: "0 13 * * *", Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
+	teamExecStore := NewTeamExecutionStore(teamStore, &captureExecutor{}, t.TempDir(), nil)
+	handlers := NewHandlers(HandlersDeps{TeamStore: teamStore, AgentStore: agentStore, RelationStore: relationStore, Executor: executor, TeamExecStore: teamExecStore})
+
+	trigger := func(fromTeam string) *httptest.ResponseRecorder {
+		member := "orchestrator"
+		req := httptest.NewRequest(http.MethodPost, "/teams/supervision/heartbeats/agent-1/trigger", nil)
+		req.Header.Set(attributionHeaderName, encodeAttribution(t, store.AttributionInfo{Kind: store.KnowledgeKindAgentMember, SpawnOrigin: store.SpawnOriginHeartbeat, TeamID: &fromTeam, MemberID: &member}))
+		req = mux.SetURLVars(req, map[string]string{"id": "supervision", "agentId": "agent-1"})
+		w := httptest.NewRecorder()
+		handlers.TriggerHeartbeat(w, req)
+		return w
+	}
+	if got := trigger("other"); got.Code != http.StatusForbidden {
+		t.Fatalf("non-delivery cross-team trigger: status=%d body=%s", got.Code, got.Body.String())
+	}
+	if got := trigger("delivery"); got.Code != http.StatusAccepted {
+		t.Fatalf("delivery wake of supervisor: status=%d body=%s", got.Code, got.Body.String())
 	}
 }

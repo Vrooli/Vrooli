@@ -12,7 +12,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/observability/observability.proto.
  */
 export const file_browser_automation_studio_v1_observability_observability: GenFile = /*@__PURE__*/
-  fileDesc("Cj5icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL29ic2VydmFiaWxpdHkvb2JzZXJ2YWJpbGl0eS5wcm90bxIqYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5IjoKF0dldE9ic2VydmFiaWxpdHlSZXF1ZXN0Eg0KBWRlcHRoGAEgASgJEhAKCG5vX2NhY2hlGAIgASgIIkUKGEdldE9ic2VydmFiaWxpdHlSZXNwb25zZRIpCghzbmFwc2hvdBgBIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QiHQobUmVmcmVzaE9ic2VydmFiaWxpdHlSZXF1ZXN0IkcKHFJlZnJlc2hPYnNlcnZhYmlsaXR5UmVzcG9uc2USJwoGcmVzdWx0GAEgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCJBChVSdW5EaWFnbm9zdGljc1JlcXVlc3QSKAoHb3B0aW9ucxgBIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QiQQoWUnVuRGlhZ25vc3RpY3NSZXNwb25zZRInCgZyZXN1bHQYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IhcKFUdldFNlc3Npb25MaXN0UmVxdWVzdCJBChZHZXRTZXNzaW9uTGlzdFJlc3BvbnNlEicKBnJlc3VsdBgBIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QiEwoRUnVuQ2xlYW51cFJlcXVlc3QiPQoSUnVuQ2xlYW51cFJlc3BvbnNlEicKBnJlc3VsdBgBIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QiEwoRR2V0TWV0cmljc1JlcXVlc3QiPQoSR2V0TWV0cmljc1Jlc3BvbnNlEicKBnJlc3VsdBgBIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QiQgoWUnVuUGlwZWxpbmVUZXN0UmVxdWVzdBIoCgdvcHRpb25zGAEgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCJCChdSdW5QaXBlbGluZVRlc3RSZXNwb25zZRInCgZyZXN1bHQYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IhkKF0dldENvbmZpZ1J1bnRpbWVSZXF1ZXN0IkMKGEdldENvbmZpZ1J1bnRpbWVSZXNwb25zZRInCgZyZXN1bHQYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ij4KE1VwZGF0ZUNvbmZpZ1JlcXVlc3QSGAoHZW52X3ZhchgBIAEoCUIHukgEcgIQARINCgV2YWx1ZRgCIAEoCSI/ChRVcGRhdGVDb25maWdSZXNwb25zZRInCgZyZXN1bHQYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ii4KElJlc2V0Q29uZmlnUmVxdWVzdBIYCgdlbnZfdmFyGAEgASgJQge6SARyAhABIj4KE1Jlc2V0Q29uZmlnUmVzcG9uc2USJwoGcmVzdWx0GAEgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCIVChNHZXREZWJ1Z01vZGVSZXF1ZXN0IlQKE1NldERlYnVnTW9kZVJlcXVlc3QSDwoHZW5hYmxlZBgBIAEoCBISCgpjb21wb25lbnRzGAIgAygJEhgKEGR1cmF0aW9uX21pbnV0ZXMYAyABKAUiYQoORGVidWdNb2RlU3RhdGUSDwoHZW5hYmxlZBgBIAEoCBISCgpjb21wb25lbnRzGAIgAygJEhIKCmV4cGlyZXNfYXQYAyABKAkSFgoOcmVtYWluaW5nX21pbnMYBCABKAUysA4KFE9ic2VydmFiaWxpdHlTZXJ2aWNlEp0BChBHZXRPYnNlcnZhYmlsaXR5EkMuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkdldE9ic2VydmFiaWxpdHlSZXF1ZXN0GkQuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkdldE9ic2VydmFiaWxpdHlSZXNwb25zZRKpAQoUUmVmcmVzaE9ic2VydmFiaWxpdHkSRy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuUmVmcmVzaE9ic2VydmFiaWxpdHlSZXF1ZXN0GkguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LlJlZnJlc2hPYnNlcnZhYmlsaXR5UmVzcG9uc2USlwEKDlJ1bkRpYWdub3N0aWNzEkEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LlJ1bkRpYWdub3N0aWNzUmVxdWVzdBpCLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5SdW5EaWFnbm9zdGljc1Jlc3BvbnNlEpcBCg5HZXRTZXNzaW9uTGlzdBJBLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5HZXRTZXNzaW9uTGlzdFJlcXVlc3QaQi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuR2V0U2Vzc2lvbkxpc3RSZXNwb25zZRKLAQoKUnVuQ2xlYW51cBI9LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5SdW5DbGVhbnVwUmVxdWVzdBo+LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5SdW5DbGVhbnVwUmVzcG9uc2USiwEKCkdldE1ldHJpY3MSPS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuR2V0TWV0cmljc1JlcXVlc3QaPi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuR2V0TWV0cmljc1Jlc3BvbnNlEpoBCg9SdW5QaXBlbGluZVRlc3QSQi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuUnVuUGlwZWxpbmVUZXN0UmVxdWVzdBpDLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5SdW5QaXBlbGluZVRlc3RSZXNwb25zZRKdAQoQR2V0Q29uZmlnUnVudGltZRJDLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5HZXRDb25maWdSdW50aW1lUmVxdWVzdBpELmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5HZXRDb25maWdSdW50aW1lUmVzcG9uc2USkQEKDFVwZGF0ZUNvbmZpZxI/LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5VcGRhdGVDb25maWdSZXF1ZXN0GkAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LlVwZGF0ZUNvbmZpZ1Jlc3BvbnNlEo4BCgtSZXNldENvbmZpZxI+LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5SZXNldENvbmZpZ1JlcXVlc3QaPy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuUmVzZXRDb25maWdSZXNwb25zZRKLAQoMR2V0RGVidWdNb2RlEj8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkdldERlYnVnTW9kZVJlcXVlc3QaOi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuRGVidWdNb2RlU3RhdGUSiwEKDFNldERlYnVnTW9kZRI/LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5TZXREZWJ1Z01vZGVSZXF1ZXN0GjouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkRlYnVnTW9kZVN0YXRlQmlaZ2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MS9vYnNlcnZhYmlsaXR5O29ic2VydmFiaWxpdHliBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_struct]);
+  fileDesc("Cj5icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL29ic2VydmFiaWxpdHkvb2JzZXJ2YWJpbGl0eS5wcm90bxIqYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5IjoKF0dldE9ic2VydmFiaWxpdHlSZXF1ZXN0Eg0KBWRlcHRoGAEgASgJEhAKCG5vX2NhY2hlGAIgASgIIkUKGEdldE9ic2VydmFiaWxpdHlSZXNwb25zZRIpCghzbmFwc2hvdBgBIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QiHQobUmVmcmVzaE9ic2VydmFiaWxpdHlSZXF1ZXN0IkcKHFJlZnJlc2hPYnNlcnZhYmlsaXR5UmVzcG9uc2USJwoGcmVzdWx0GAEgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCIXChVHZXRTZXNzaW9uTGlzdFJlcXVlc3QiQQoWR2V0U2Vzc2lvbkxpc3RSZXNwb25zZRInCgZyZXN1bHQYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IhMKEUdldE1ldHJpY3NSZXF1ZXN0Ij0KEkdldE1ldHJpY3NSZXNwb25zZRInCgZyZXN1bHQYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IhkKF0dldENvbmZpZ1J1bnRpbWVSZXF1ZXN0IkMKGEdldENvbmZpZ1J1bnRpbWVSZXNwb25zZRInCgZyZXN1bHQYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ij4KE1VwZGF0ZUNvbmZpZ1JlcXVlc3QSGAoHZW52X3ZhchgBIAEoCUIHukgEcgIQARINCgV2YWx1ZRgCIAEoCSI/ChRVcGRhdGVDb25maWdSZXNwb25zZRInCgZyZXN1bHQYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ii4KElJlc2V0Q29uZmlnUmVxdWVzdBIYCgdlbnZfdmFyGAEgASgJQge6SARyAhABIj4KE1Jlc2V0Q29uZmlnUmVzcG9uc2USJwoGcmVzdWx0GAEgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCIVChNHZXREZWJ1Z01vZGVSZXF1ZXN0IlQKE1NldERlYnVnTW9kZVJlcXVlc3QSDwoHZW5hYmxlZBgBIAEoCBISCgpjb21wb25lbnRzGAIgAygJEhgKEGR1cmF0aW9uX21pbnV0ZXMYAyABKAUiYQoORGVidWdNb2RlU3RhdGUSDwoHZW5hYmxlZBgBIAEoCBISCgpjb21wb25lbnRzGAIgAygJEhIKCmV4cGlyZXNfYXQYAyABKAkSFgoOcmVtYWluaW5nX21pbnMYBCABKAUy6woKFE9ic2VydmFiaWxpdHlTZXJ2aWNlEp0BChBHZXRPYnNlcnZhYmlsaXR5EkMuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkdldE9ic2VydmFiaWxpdHlSZXF1ZXN0GkQuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkdldE9ic2VydmFiaWxpdHlSZXNwb25zZRKpAQoUUmVmcmVzaE9ic2VydmFiaWxpdHkSRy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuUmVmcmVzaE9ic2VydmFiaWxpdHlSZXF1ZXN0GkguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LlJlZnJlc2hPYnNlcnZhYmlsaXR5UmVzcG9uc2USlwEKDkdldFNlc3Npb25MaXN0EkEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkdldFNlc3Npb25MaXN0UmVxdWVzdBpCLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5HZXRTZXNzaW9uTGlzdFJlc3BvbnNlEosBCgpHZXRNZXRyaWNzEj0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkdldE1ldHJpY3NSZXF1ZXN0Gj4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkdldE1ldHJpY3NSZXNwb25zZRKdAQoQR2V0Q29uZmlnUnVudGltZRJDLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5HZXRDb25maWdSdW50aW1lUmVxdWVzdBpELmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5HZXRDb25maWdSdW50aW1lUmVzcG9uc2USkQEKDFVwZGF0ZUNvbmZpZxI/LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5VcGRhdGVDb25maWdSZXF1ZXN0GkAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LlVwZGF0ZUNvbmZpZ1Jlc3BvbnNlEo4BCgtSZXNldENvbmZpZxI+LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5SZXNldENvbmZpZ1JlcXVlc3QaPy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuUmVzZXRDb25maWdSZXNwb25zZRKLAQoMR2V0RGVidWdNb2RlEj8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkdldERlYnVnTW9kZVJlcXVlc3QaOi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuRGVidWdNb2RlU3RhdGUSiwEKDFNldERlYnVnTW9kZRI/LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5TZXREZWJ1Z01vZGVSZXF1ZXN0GjouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkRlYnVnTW9kZVN0YXRlQmlaZ2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MS9vYnNlcnZhYmlsaXR5O29ic2VydmFiaWxpdHliBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_struct]);
 
 /**
  * @generated from message browser_automation_studio.v1.observability.GetObservabilityRequest
@@ -94,43 +94,6 @@ export const RefreshObservabilityResponseSchema: GenMessage<RefreshObservability
   messageDesc(file_browser_automation_studio_v1_observability_observability, 3);
 
 /**
- * @generated from message browser_automation_studio.v1.observability.RunDiagnosticsRequest
- */
-export type RunDiagnosticsRequest = Message<"browser_automation_studio.v1.observability.RunDiagnosticsRequest"> & {
-  /**
-   * Free-form diagnostic request (type, session_id, options); shape is
-   * owned by playwright-driver.
-   *
-   * @generated from field: google.protobuf.Struct options = 1;
-   */
-  options?: JsonObject | undefined;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.observability.RunDiagnosticsRequest.
- * Use `create(RunDiagnosticsRequestSchema)` to create a new message.
- */
-export const RunDiagnosticsRequestSchema: GenMessage<RunDiagnosticsRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 4);
-
-/**
- * @generated from message browser_automation_studio.v1.observability.RunDiagnosticsResponse
- */
-export type RunDiagnosticsResponse = Message<"browser_automation_studio.v1.observability.RunDiagnosticsResponse"> & {
-  /**
-   * @generated from field: google.protobuf.Struct result = 1;
-   */
-  result?: JsonObject | undefined;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.observability.RunDiagnosticsResponse.
- * Use `create(RunDiagnosticsResponseSchema)` to create a new message.
- */
-export const RunDiagnosticsResponseSchema: GenMessage<RunDiagnosticsResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 5);
-
-/**
  * @generated from message browser_automation_studio.v1.observability.GetSessionListRequest
  */
 export type GetSessionListRequest = Message<"browser_automation_studio.v1.observability.GetSessionListRequest"> & {
@@ -141,7 +104,7 @@ export type GetSessionListRequest = Message<"browser_automation_studio.v1.observ
  * Use `create(GetSessionListRequestSchema)` to create a new message.
  */
 export const GetSessionListRequestSchema: GenMessage<GetSessionListRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 6);
+  messageDesc(file_browser_automation_studio_v1_observability_observability, 4);
 
 /**
  * @generated from message browser_automation_studio.v1.observability.GetSessionListResponse
@@ -158,37 +121,7 @@ export type GetSessionListResponse = Message<"browser_automation_studio.v1.obser
  * Use `create(GetSessionListResponseSchema)` to create a new message.
  */
 export const GetSessionListResponseSchema: GenMessage<GetSessionListResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 7);
-
-/**
- * @generated from message browser_automation_studio.v1.observability.RunCleanupRequest
- */
-export type RunCleanupRequest = Message<"browser_automation_studio.v1.observability.RunCleanupRequest"> & {
-};
-
-/**
- * Describes the message browser_automation_studio.v1.observability.RunCleanupRequest.
- * Use `create(RunCleanupRequestSchema)` to create a new message.
- */
-export const RunCleanupRequestSchema: GenMessage<RunCleanupRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 8);
-
-/**
- * @generated from message browser_automation_studio.v1.observability.RunCleanupResponse
- */
-export type RunCleanupResponse = Message<"browser_automation_studio.v1.observability.RunCleanupResponse"> & {
-  /**
-   * @generated from field: google.protobuf.Struct result = 1;
-   */
-  result?: JsonObject | undefined;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.observability.RunCleanupResponse.
- * Use `create(RunCleanupResponseSchema)` to create a new message.
- */
-export const RunCleanupResponseSchema: GenMessage<RunCleanupResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 9);
+  messageDesc(file_browser_automation_studio_v1_observability_observability, 5);
 
 /**
  * @generated from message browser_automation_studio.v1.observability.GetMetricsRequest
@@ -201,7 +134,7 @@ export type GetMetricsRequest = Message<"browser_automation_studio.v1.observabil
  * Use `create(GetMetricsRequestSchema)` to create a new message.
  */
 export const GetMetricsRequestSchema: GenMessage<GetMetricsRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 10);
+  messageDesc(file_browser_automation_studio_v1_observability_observability, 6);
 
 /**
  * @generated from message browser_automation_studio.v1.observability.GetMetricsResponse
@@ -218,41 +151,7 @@ export type GetMetricsResponse = Message<"browser_automation_studio.v1.observabi
  * Use `create(GetMetricsResponseSchema)` to create a new message.
  */
 export const GetMetricsResponseSchema: GenMessage<GetMetricsResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 11);
-
-/**
- * @generated from message browser_automation_studio.v1.observability.RunPipelineTestRequest
- */
-export type RunPipelineTestRequest = Message<"browser_automation_studio.v1.observability.RunPipelineTestRequest"> & {
-  /**
-   * @generated from field: google.protobuf.Struct options = 1;
-   */
-  options?: JsonObject | undefined;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.observability.RunPipelineTestRequest.
- * Use `create(RunPipelineTestRequestSchema)` to create a new message.
- */
-export const RunPipelineTestRequestSchema: GenMessage<RunPipelineTestRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 12);
-
-/**
- * @generated from message browser_automation_studio.v1.observability.RunPipelineTestResponse
- */
-export type RunPipelineTestResponse = Message<"browser_automation_studio.v1.observability.RunPipelineTestResponse"> & {
-  /**
-   * @generated from field: google.protobuf.Struct result = 1;
-   */
-  result?: JsonObject | undefined;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.observability.RunPipelineTestResponse.
- * Use `create(RunPipelineTestResponseSchema)` to create a new message.
- */
-export const RunPipelineTestResponseSchema: GenMessage<RunPipelineTestResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 13);
+  messageDesc(file_browser_automation_studio_v1_observability_observability, 7);
 
 /**
  * @generated from message browser_automation_studio.v1.observability.GetConfigRuntimeRequest
@@ -265,7 +164,7 @@ export type GetConfigRuntimeRequest = Message<"browser_automation_studio.v1.obse
  * Use `create(GetConfigRuntimeRequestSchema)` to create a new message.
  */
 export const GetConfigRuntimeRequestSchema: GenMessage<GetConfigRuntimeRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 14);
+  messageDesc(file_browser_automation_studio_v1_observability_observability, 8);
 
 /**
  * @generated from message browser_automation_studio.v1.observability.GetConfigRuntimeResponse
@@ -282,7 +181,7 @@ export type GetConfigRuntimeResponse = Message<"browser_automation_studio.v1.obs
  * Use `create(GetConfigRuntimeResponseSchema)` to create a new message.
  */
 export const GetConfigRuntimeResponseSchema: GenMessage<GetConfigRuntimeResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 15);
+  messageDesc(file_browser_automation_studio_v1_observability_observability, 9);
 
 /**
  * @generated from message browser_automation_studio.v1.observability.UpdateConfigRequest
@@ -309,7 +208,7 @@ export type UpdateConfigRequest = Message<"browser_automation_studio.v1.observab
  * Use `create(UpdateConfigRequestSchema)` to create a new message.
  */
 export const UpdateConfigRequestSchema: GenMessage<UpdateConfigRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 16);
+  messageDesc(file_browser_automation_studio_v1_observability_observability, 10);
 
 /**
  * @generated from message browser_automation_studio.v1.observability.UpdateConfigResponse
@@ -326,7 +225,7 @@ export type UpdateConfigResponse = Message<"browser_automation_studio.v1.observa
  * Use `create(UpdateConfigResponseSchema)` to create a new message.
  */
 export const UpdateConfigResponseSchema: GenMessage<UpdateConfigResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 17);
+  messageDesc(file_browser_automation_studio_v1_observability_observability, 11);
 
 /**
  * @generated from message browser_automation_studio.v1.observability.ResetConfigRequest
@@ -345,7 +244,7 @@ export type ResetConfigRequest = Message<"browser_automation_studio.v1.observabi
  * Use `create(ResetConfigRequestSchema)` to create a new message.
  */
 export const ResetConfigRequestSchema: GenMessage<ResetConfigRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 18);
+  messageDesc(file_browser_automation_studio_v1_observability_observability, 12);
 
 /**
  * @generated from message browser_automation_studio.v1.observability.ResetConfigResponse
@@ -362,7 +261,7 @@ export type ResetConfigResponse = Message<"browser_automation_studio.v1.observab
  * Use `create(ResetConfigResponseSchema)` to create a new message.
  */
 export const ResetConfigResponseSchema: GenMessage<ResetConfigResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 19);
+  messageDesc(file_browser_automation_studio_v1_observability_observability, 13);
 
 /**
  * @generated from message browser_automation_studio.v1.observability.GetDebugModeRequest
@@ -375,7 +274,7 @@ export type GetDebugModeRequest = Message<"browser_automation_studio.v1.observab
  * Use `create(GetDebugModeRequestSchema)` to create a new message.
  */
 export const GetDebugModeRequestSchema: GenMessage<GetDebugModeRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 20);
+  messageDesc(file_browser_automation_studio_v1_observability_observability, 14);
 
 /**
  * @generated from message browser_automation_studio.v1.observability.SetDebugModeRequest
@@ -410,7 +309,7 @@ export type SetDebugModeRequest = Message<"browser_automation_studio.v1.observab
  * Use `create(SetDebugModeRequestSchema)` to create a new message.
  */
 export const SetDebugModeRequestSchema: GenMessage<SetDebugModeRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 21);
+  messageDesc(file_browser_automation_studio_v1_observability_observability, 15);
 
 /**
  * DebugModeState is the canonical readout returned by GetDebugMode and
@@ -450,7 +349,7 @@ export type DebugModeState = Message<"browser_automation_studio.v1.observability
  * Use `create(DebugModeStateSchema)` to create a new message.
  */
 export const DebugModeStateSchema: GenMessage<DebugModeState> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 22);
+  messageDesc(file_browser_automation_studio_v1_observability_observability, 16);
 
 /**
  * @generated from service browser_automation_studio.v1.observability.ObservabilityService
@@ -479,18 +378,6 @@ export const ObservabilityService: GenService<{
     output: typeof RefreshObservabilityResponseSchema;
   },
   /**
-   * RunDiagnostics triggers a manual diagnostic run with the supplied
-   * options. The request/response shapes are owned by playwright-driver
-   * and round-tripped via google.protobuf.Struct.
-   *
-   * @generated from rpc browser_automation_studio.v1.observability.ObservabilityService.RunDiagnostics
-   */
-  runDiagnostics: {
-    methodKind: "unary";
-    input: typeof RunDiagnosticsRequestSchema;
-    output: typeof RunDiagnosticsResponseSchema;
-  },
-  /**
    * GetSessionList returns the inventory of browser sessions held by
    * playwright-driver.
    *
@@ -502,16 +389,6 @@ export const ObservabilityService: GenService<{
     output: typeof GetSessionListResponseSchema;
   },
   /**
-   * RunCleanup triggers manual idle-session cleanup.
-   *
-   * @generated from rpc browser_automation_studio.v1.observability.ObservabilityService.RunCleanup
-   */
-  runCleanup: {
-    methodKind: "unary";
-    input: typeof RunCleanupRequestSchema;
-    output: typeof RunCleanupResponseSchema;
-  },
-  /**
    * GetMetrics returns the JSON-parsed Prometheus metrics snapshot.
    *
    * @generated from rpc browser_automation_studio.v1.observability.ObservabilityService.GetMetrics
@@ -520,16 +397,6 @@ export const ObservabilityService: GenService<{
     methodKind: "unary";
     input: typeof GetMetricsRequestSchema;
     output: typeof GetMetricsResponseSchema;
-  },
-  /**
-   * RunPipelineTest runs an autonomous end-to-end recording pipeline test.
-   *
-   * @generated from rpc browser_automation_studio.v1.observability.ObservabilityService.RunPipelineTest
-   */
-  runPipelineTest: {
-    methodKind: "unary";
-    input: typeof RunPipelineTestRequestSchema;
-    output: typeof RunPipelineTestResponseSchema;
   },
   /**
    * GetConfigRuntime returns the current state of all runtime config

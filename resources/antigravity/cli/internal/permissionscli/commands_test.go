@@ -201,3 +201,13 @@ func TestDoctorReportsVersionAndEnforcement(t *testing.T) {
 		t.Errorf("expected enforcement description in stdout: %s", stdout.String())
 	}
 }
+
+func TestExecutionCapabilityIsExplicitlyUnsupported(t *testing.T) {
+	h, out, _ := newTestHandlers(t, cliutil.CallerKindHuman)
+	if err := h.shared().Capabilities(nil); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), `"status":"unsupported"`) || !strings.Contains(out.String(), `"runner":"antigravity"`) {
+		t.Fatalf("unexpected capabilities: %s", out.String())
+	}
+}

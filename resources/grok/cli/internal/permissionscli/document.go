@@ -64,7 +64,7 @@ func (h *Handlers) planDocument(path, scopeRaw string) (agentharness.PermissionP
 	if err != nil {
 		return agentharness.PermissionPlanResult{}, permissions.Policy{}, nil, err
 	}
-	document, data, err := agentharness.LoadPermissionDocument(path, h.Stdin)
+	document, data, err := agentharness.LoadPermissionDocumentForRunner(path, h.Stdin, "grok")
 	if err != nil {
 		return agentharness.PermissionPlanResult{}, permissions.Policy{}, nil, err
 	}
