@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	contractvalues "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -13,7 +14,6 @@ import (
 	autodriver "github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/credits"
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
@@ -586,13 +586,13 @@ func mergeSeedState(params **basexecution.ExecutionParameters, seedState map[str
 		if _, exists := (*params).InitialParams[key]; exists {
 			continue
 		}
-		(*params).InitialParams[key] = typeconv.AnyToJsonValue(value)
+		(*params).InitialParams[key] = contractvalues.AnyToJsonValue(value)
 	}
 	if (*params).Env == nil {
 		(*params).Env = map[string]*commonv1.JsonValue{}
 	}
 	if _, exists := (*params).Env["seed_applied"]; !exists {
-		(*params).Env["seed_applied"] = typeconv.AnyToJsonValue(true)
+		(*params).Env["seed_applied"] = contractvalues.AnyToJsonValue(true)
 	}
 }
 

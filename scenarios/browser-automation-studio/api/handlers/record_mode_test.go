@@ -184,80 +184,56 @@ func TestCloseRecordingSession_Success(t *testing.T) {
 	}
 }
 
-func TestCloseRecordingSession_AlreadyGoneDetachesProfile(t *testing.T) {
-	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
-	defer os.RemoveAll(tempDir)
+func TestCloseRecordingSessionAbsentProfileRecovery(t *testing.T) {
+	cases := []struct {
+		name                 string
+		storageStateError    error
+		closeSessionError    error
+		wantProfilePersisted bool
+	}{
+		{name: "driver absent before snapshot", storageStateError: &driver.Error{Status: http.StatusNotFound, Message: "SESSION_NOT_FOUND"}},
+		{name: "driver disappears after snapshot", closeSessionError: &driver.Error{Status: http.StatusNotFound, Message: "SESSION_NOT_FOUND"}, wantProfilePersisted: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
+			t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
 
-	profile, err := handler.sessionProfileService.CreateProfile("Recoverable identity")
-	if err != nil {
-		t.Fatalf("create profile: %v", err)
-	}
-	const sessionID = "gone-session"
-	handler.sessionProfileService.SetActiveSession(sessionID, string(profile.ID))
-	mockService.GetStorageStateError = &driver.Error{Status: http.StatusNotFound, Message: "SESSION_NOT_FOUND"}
+			profile, err := handler.sessionProfileService.CreateProfile("Recoverable identity")
+			if err != nil {
+				t.Fatalf("create profile: %v", err)
+			}
+			const sessionID = "recovery-session"
+			handler.sessionProfileService.SetActiveSession(sessionID, string(profile.ID))
+			mockService.GetStorageStateError = tc.storageStateError
+			mockService.CloseSessionError = tc.closeSessionError
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/session/"+sessionID+"/close", nil)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("sessionId", sessionID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/session/"+sessionID+"/close", nil)
+			rctx := chi.NewRouteContext()
+			rctx.URLParams.Add("sessionId", sessionID)
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			recorder := httptest.NewRecorder()
+			handler.CloseRecordingSession(recorder, req)
 
-	handler.CloseRecordingSession(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected idempotent close status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-	if !mockService.CloseSessionCalled {
-		t.Fatal("expected close to run after an absent storage session")
-	}
-	if got := handler.sessionProfileService.GetActiveSession(sessionID); got != "" {
-		t.Fatalf("active profile binding survived absent session: %q", got)
-	}
-	var response struct {
-		ProfilePersisted bool `json:"profile_persisted"`
-	}
-	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if response.ProfilePersisted {
-		t.Fatal("absent session was reported as profile-persisted")
-	}
-}
-
-func TestCloseRecordingSession_AbsentAfterSnapshotDetachesProfile(t *testing.T) {
-	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
-	defer os.RemoveAll(tempDir)
-
-	profile, err := handler.sessionProfileService.CreateProfile("Saved identity")
-	if err != nil {
-		t.Fatalf("create profile: %v", err)
-	}
-	const sessionID = "vanished-after-snapshot"
-	handler.sessionProfileService.SetActiveSession(sessionID, string(profile.ID))
-	mockService.CloseSessionError = &driver.Error{Status: http.StatusNotFound, Message: "SESSION_NOT_FOUND"}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/session/"+sessionID+"/close", nil)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("sessionId", sessionID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
-
-	handler.CloseRecordingSession(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected idempotent close status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-	if got := handler.sessionProfileService.GetActiveSession(sessionID); got != "" {
-		t.Fatalf("active profile binding survived absent close: %q", got)
-	}
-	var response struct {
-		ProfilePersisted bool `json:"profile_persisted"`
-	}
-	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if !response.ProfilePersisted {
-		t.Fatal("successful snapshot was reported as not persisted")
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("idempotent close status = %d: %s", recorder.Code, recorder.Body.String())
+			}
+			if !mockService.CloseSessionCalled {
+				t.Fatal("expected close to run for absent driver session")
+			}
+			if got := handler.sessionProfileService.GetActiveSession(sessionID); got != "" {
+				t.Fatalf("active profile binding survived absent session: %q", got)
+			}
+			var response struct {
+				ProfilePersisted bool `json:"profile_persisted"`
+			}
+			if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if response.ProfilePersisted != tc.wantProfilePersisted {
+				t.Errorf("profile_persisted = %v, want %v", response.ProfilePersisted, tc.wantProfilePersisted)
+			}
+		})
 	}
 }
 
@@ -302,76 +278,40 @@ func TestCloseRecordingSession_NotFound(t *testing.T) {
 // StartLiveRecording Tests
 // ============================================================================
 
-func TestStartLiveRecording_Success(t *testing.T) {
-	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
-	defer os.RemoveAll(tempDir)
-
-	body := `{"session_id": "test-session-123"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/start", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	handler.StartLiveRecording(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	if !mockService.StartRecordingCalled {
-		t.Fatal("expected StartRecording to be called")
-	}
-}
-
-func TestStartLiveRecording_MissingSessionID(t *testing.T) {
-	handler, _, tempDir, _ := createTestHandlerWithRecordMode(t)
-	defer os.RemoveAll(tempDir)
-
-	body := `{}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/start", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	handler.StartLiveRecording(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("expected status 400, got %d", rr.Code)
-	}
-}
-
-func TestStartLiveRecording_InvalidJSON(t *testing.T) {
-	handler, _, tempDir, _ := createTestHandlerWithRecordMode(t)
-	defer os.RemoveAll(tempDir)
-
-	body := `{invalid`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/start", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	handler.StartLiveRecording(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("expected status 400, got %d", rr.Code)
-	}
-}
-
-func TestStartLiveRecording_RecordingInProgress(t *testing.T) {
-	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
-	defer os.RemoveAll(tempDir)
-
-	mockService.StartRecordingError = &driver.Error{
-		Status:  409,
-		Message: "RECORDING_IN_PROGRESS",
-	}
-
-	body := `{"session_id": "test-session-123"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/start", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	handler.StartLiveRecording(rr, req)
-
-	if rr.Code != http.StatusConflict {
-		t.Fatalf("expected status 409, got %d: %s", rr.Code, rr.Body.String())
+func TestStartLiveRecordingOutcomes(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		body          string
+		serviceError  *driver.Error
+		status        int
+		serviceCalled bool
+	}{
+		{name: "success", body: `{"session_id":"test-session-123"}`, status: http.StatusOK, serviceCalled: true},
+		{name: "missing session ID", body: `{}`, status: http.StatusBadRequest},
+		{name: "invalid JSON", body: `{invalid`, status: http.StatusBadRequest},
+		{
+			name: "recording already in progress", body: `{"session_id":"test-session-123"}`,
+			serviceError: &driver.Error{Status: http.StatusConflict, Message: "RECORDING_IN_PROGRESS"},
+			status:       http.StatusConflict, serviceCalled: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
+			t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
+			if tc.serviceError != nil {
+				mockService.StartRecordingError = tc.serviceError
+			}
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/start", strings.NewReader(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			response := httptest.NewRecorder()
+			handler.StartLiveRecording(response, req)
+			if response.Code != tc.status {
+				t.Errorf("status = %d, want %d: %s", response.Code, tc.status, response.Body.String())
+			}
+			if mockService.StartRecordingCalled != tc.serviceCalled {
+				t.Errorf("StartRecording called = %t, want %t", mockService.StartRecordingCalled, tc.serviceCalled)
+			}
+		})
 	}
 }
 
@@ -379,71 +319,50 @@ func TestStartLiveRecording_RecordingInProgress(t *testing.T) {
 // StopLiveRecording Tests
 // ============================================================================
 
-func TestStopLiveRecording_Success(t *testing.T) {
-	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
-	defer os.RemoveAll(tempDir)
-
-	sessionID := "test-session-123"
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/"+sessionID+"/stop", nil)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("sessionId", sessionID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
-
-	handler.StopLiveRecording(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	if !mockService.StopRecordingCalled {
-		t.Fatal("expected StopRecording to be called")
-	}
-
-	var response driver.StopRecordingResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
-
-	if response.SessionID != sessionID {
-		t.Fatalf("expected session_id %q, got %q", sessionID, response.SessionID)
-	}
-}
-
-func TestStopLiveRecording_MissingSessionID(t *testing.T) {
-	handler, _, tempDir, _ := createTestHandlerWithRecordMode(t)
-	defer os.RemoveAll(tempDir)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live//stop", nil)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("sessionId", "")
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
-
-	handler.StopLiveRecording(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("expected status 400, got %d", rr.Code)
-	}
-}
-
-func TestStopLiveRecording_NotFound(t *testing.T) {
-	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
-	defer os.RemoveAll(tempDir)
-
-	mockService.StopRecordingError = &driver.Error{Status: 404, Message: "no recording"}
-
-	sessionID := "nonexistent-session"
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/"+sessionID+"/stop", nil)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("sessionId", sessionID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
-
-	handler.StopLiveRecording(rr, req)
-
-	if rr.Code != http.StatusNotFound {
-		t.Fatalf("expected status 404, got %d: %s", rr.Code, rr.Body.String())
+func TestStopLiveRecordingOutcomes(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		sessionID     string
+		serviceError  *driver.Error
+		status        int
+		serviceCalled bool
+	}{
+		{name: "success", sessionID: "test-session-123", status: http.StatusOK, serviceCalled: true},
+		{name: "missing session ID", status: http.StatusBadRequest},
+		{
+			name: "not found", sessionID: "nonexistent-session",
+			serviceError: &driver.Error{Status: http.StatusNotFound, Message: "no recording"},
+			status:       http.StatusNotFound, serviceCalled: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
+			t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
+			if tc.serviceError != nil {
+				mockService.StopRecordingError = tc.serviceError
+			}
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/"+tc.sessionID+"/stop", nil)
+			routeContext := chi.NewRouteContext()
+			routeContext.URLParams.Add("sessionId", tc.sessionID)
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeContext))
+			response := httptest.NewRecorder()
+			handler.StopLiveRecording(response, req)
+			if response.Code != tc.status {
+				t.Errorf("status = %d, want %d: %s", response.Code, tc.status, response.Body.String())
+			}
+			if mockService.StopRecordingCalled != tc.serviceCalled {
+				t.Errorf("StopRecording called = %t, want %t", mockService.StopRecordingCalled, tc.serviceCalled)
+			}
+			if tc.name == "success" {
+				var result driver.StopRecordingResponse
+				if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+					t.Fatalf("decode response: %v", err)
+				}
+				if result.SessionID != tc.sessionID {
+					t.Errorf("session ID = %q, want %q", result.SessionID, tc.sessionID)
+				}
+			}
+		})
 	}
 }
 
@@ -451,58 +370,44 @@ func TestStopLiveRecording_NotFound(t *testing.T) {
 // GetRecordingStatus Tests
 // ============================================================================
 
-func TestGetRecordingStatus_Success(t *testing.T) {
-	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
-	defer os.RemoveAll(tempDir)
-
-	mockService.MockClient().RecordingStatusResponse = &driver.RecordingStatusResponse{
-		SessionID:   "test-session-123",
-		IsRecording: true,
-		ActionCount: 5,
-		FrameCount:  100,
-		StartedAt:   "2025-01-01T00:00:00Z",
-	}
-
-	sessionID := "test-session-123"
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/recordings/live/"+sessionID+"/status", nil)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("sessionId", sessionID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
-
-	handler.GetRecordingStatus(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	var response driver.RecordingStatusResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
-
-	if !response.IsRecording {
-		t.Fatal("expected is_recording to be true")
-	}
-	if response.ActionCount != 5 {
-		t.Fatalf("expected action_count 5, got %d", response.ActionCount)
-	}
-}
-
-func TestGetRecordingStatus_MissingSessionID(t *testing.T) {
-	handler, _, tempDir, _ := createTestHandlerWithRecordMode(t)
-	defer os.RemoveAll(tempDir)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/recordings/live//status", nil)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("sessionId", "")
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
-
-	handler.GetRecordingStatus(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("expected status 400, got %d", rr.Code)
+func TestGetRecordingStatusOutcomes(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		sessionID string
+		status    int
+		expected  *driver.RecordingStatusResponse
+	}{
+		{
+			name: "success", sessionID: "test-session-123", status: http.StatusOK,
+			expected: &driver.RecordingStatusResponse{SessionID: "test-session-123", IsRecording: true, ActionCount: 5, FrameCount: 0, StartedAt: "2025-01-01T00:00:00Z"},
+		},
+		{name: "missing session ID", status: http.StatusBadRequest},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
+			t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
+			if tc.expected != nil {
+				mockService.MockClient().RecordingStatusResponse = tc.expected
+			}
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/recordings/live/"+tc.sessionID+"/status", nil)
+			routeContext := chi.NewRouteContext()
+			routeContext.URLParams.Add("sessionId", tc.sessionID)
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeContext))
+			response := httptest.NewRecorder()
+			handler.GetRecordingStatus(response, req)
+			if response.Code != tc.status {
+				t.Fatalf("status = %d, want %d: %s", response.Code, tc.status, response.Body.String())
+			}
+			if tc.expected != nil {
+				var got driver.RecordingStatusResponse
+				if err := json.Unmarshal(response.Body.Bytes(), &got); err != nil {
+					t.Fatalf("decode response: %v", err)
+				}
+				if !got.IsRecording || got.ActionCount != tc.expected.ActionCount || got.FrameCount != tc.expected.FrameCount || got.SessionID != tc.expected.SessionID || got.StartedAt != tc.expected.StartedAt {
+					t.Errorf("recording status = %+v, want %+v", got, tc.expected)
+				}
+			}
+		})
 	}
 }
 
@@ -510,56 +415,54 @@ func TestGetRecordingStatus_MissingSessionID(t *testing.T) {
 // GetRecordedActions Tests
 // ============================================================================
 
-func TestGetRecordedActions_Success(t *testing.T) {
-	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
-	defer os.RemoveAll(tempDir)
-
-	mockService.MockClient().RecordedActionsResponse = &driver.GetActionsResponse{
-		SessionID:   "test-session-123",
-		IsRecording: false,
-		Actions: []driver.RecordedAction{
-			{ID: "action-1", ActionType: "click"},
-			{ID: "action-2", ActionType: "type"},
-		},
-	}
-
-	sessionID := "test-session-123"
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/recordings/live/"+sessionID+"/actions", nil)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("sessionId", sessionID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
-
-	handler.GetRecordedActions(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	if !mockService.MockClient().GetRecordedActionsCalled {
-		t.Fatal("expected GetRecordedActions to be called")
-	}
-}
-
-func TestGetRecordedActions_WithClearRequiresOwnedSession(t *testing.T) {
-	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
-	defer os.RemoveAll(tempDir)
-
-	sessionID := "test-session-123"
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/recordings/live/"+sessionID+"/actions?clear=true", nil)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("sessionId", sessionID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
-
-	handler.GetRecordedActions(rr, req)
-
-	if rr.Code != http.StatusNotFound {
-		t.Fatalf("expected status 404 for unowned clear, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	if mockService.MockClient().GetRecordedActionsCalled {
-		t.Fatal("unowned destructive pull must be rejected before reading entries")
+func TestGetRecordedActionsOutcomes(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		clear            bool
+		wantStatus       int
+		wantClientCalled bool
+	}{
+		{name: "success", wantStatus: http.StatusOK, wantClientCalled: true},
+		{name: "clear requires owned session", clear: true, wantStatus: http.StatusNotFound},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
+			t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
+			mockService.MockClient().RecordedActionsResponse = &driver.GetActionsResponse{
+				SessionID:   "test-session-123",
+				IsRecording: false,
+				Actions: []driver.RecordedAction{
+					{ID: "action-1", ActionType: "click"},
+					{ID: "action-2", ActionType: "type"},
+				},
+			}
+			query := ""
+			if tc.clear {
+				query = "?clear=true"
+			}
+			sessionID := "test-session-123"
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/recordings/live/"+sessionID+"/actions"+query, nil)
+			routeContext := chi.NewRouteContext()
+			routeContext.URLParams.Add("sessionId", sessionID)
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeContext))
+			response := httptest.NewRecorder()
+			handler.GetRecordedActions(response, req)
+			if response.Code != tc.wantStatus {
+				t.Fatalf("status = %d, want %d: %s", response.Code, tc.wantStatus, response.Body.String())
+			}
+			if got := mockService.MockClient().GetRecordedActionsCalled; got != tc.wantClientCalled {
+				t.Errorf("driver call = %t, want %t", got, tc.wantClientCalled)
+			}
+			if tc.wantClientCalled {
+				var got GetActionsResponse
+				if err := json.Unmarshal(response.Body.Bytes(), &got); err != nil {
+					t.Fatalf("decode actions response: %v", err)
+				}
+				if got.SessionID != sessionID || got.Count != 2 || len(got.Actions) != 2 || got.Actions[0].ID != "action-1" || got.Actions[1].ID != "action-2" {
+					t.Errorf("actions response = %+v, want session %q and two ordered actions", got, sessionID)
+				}
+			}
+		})
 	}
 }
 
@@ -567,43 +470,30 @@ func TestGetRecordedActions_WithClearRequiresOwnedSession(t *testing.T) {
 // ValidateSelector Tests
 // ============================================================================
 
-func TestValidateSelector_Success(t *testing.T) {
-	handler, _, tempDir, _ := createTestHandlerWithRecordMode(t)
-	defer os.RemoveAll(tempDir)
-
-	sessionID := "test-session-123"
-	body := `{"selector": "#my-button"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/"+sessionID+"/validate-selector", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("sessionId", sessionID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
-
-	handler.ValidateSelector(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-}
-
-func TestValidateSelector_MissingSelector(t *testing.T) {
-	handler, _, tempDir, _ := createTestHandlerWithRecordMode(t)
-	defer os.RemoveAll(tempDir)
-
-	sessionID := "test-session-123"
-	body := `{"selector": ""}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/"+sessionID+"/validate-selector", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("sessionId", sessionID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
-
-	handler.ValidateSelector(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("expected status 400, got %d", rr.Code)
+func TestValidateSelectorOutcomes(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		body       string
+		wantStatus int
+	}{
+		{name: "valid selector", body: `{"selector": "#my-button"}`, wantStatus: http.StatusOK},
+		{name: "missing selector", body: `{"selector": ""}`, wantStatus: http.StatusBadRequest},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			handler, _, tempDir, _ := createTestHandlerWithRecordMode(t)
+			t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
+			sessionID := "test-session-123"
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/"+sessionID+"/validate-selector", strings.NewReader(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			routeContext := chi.NewRouteContext()
+			routeContext.URLParams.Add("sessionId", sessionID)
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeContext))
+			response := httptest.NewRecorder()
+			handler.ValidateSelector(response, req)
+			if response.Code != tc.wantStatus {
+				t.Errorf("status = %d, want %d: %s", response.Code, tc.wantStatus, response.Body.String())
+			}
+		})
 	}
 }
 

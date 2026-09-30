@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -236,7 +235,7 @@ func TestRequireProTierBlocksFreeTier(t *testing.T) {
 		r = r.WithContext(entitlement.WithEntitlement(r.Context(), freeEnt))
 		mount.Handler.ServeHTTP(w, r)
 	}))
-	srv := httptest.NewServer(mux)
+	srv := testutil.StartHTTPServer(t, mux)
 	t.Cleanup(srv.Close)
 	client := uxmetricsconnect.NewUXMetricsServiceClient(srv.Client(), srv.URL)
 

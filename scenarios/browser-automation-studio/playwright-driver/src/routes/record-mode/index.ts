@@ -10,7 +10,8 @@
  * - recording-frames: Frame capture and screenshots
  * - recording-input: Pointer, keyboard, wheel, viewport input
  * - recording-pages: Multi-tab page management
- * - recording-diagnostics-routes: Debug endpoints, pipeline testing
+ * - recording-stream-settings-route: Recording stream configuration
+ * - recording-diagnostics-routes: Debug and external URL injection checks
  */
 
 // Types
@@ -50,11 +51,12 @@ export {
   handleRecordActionsAck,
 } from './recording-lifecycle';
 
-// Recording diagnostics handlers (stream settings, debug, testing)
+// Recording stream configuration
+export { handleStreamSettings } from './recording-stream-settings-route';
+
+// Recording diagnostics handlers (debug, testing)
 export {
-  handleStreamSettings,
   handleRecordDebug,
-  handleRecordPipelineTest,
   handleRecordExternalUrlTest,
 } from './recording-diagnostics-routes';
 

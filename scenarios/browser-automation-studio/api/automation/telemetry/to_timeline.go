@@ -1,9 +1,9 @@
 package telemetry
 
 import (
+	"github.com/vrooli/browser-automation-studio/automation/compiler"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
@@ -94,55 +94,55 @@ func setTypedParams(def *basactions.ActionDefinition, actionType basactions.Acti
 	switch actionType {
 	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
 		def.Params = &basactions.ActionDefinition_Navigate{
-			Navigate: typeconv.BuildNavigateParams(params),
+			Navigate: compiler.BuildNavigateParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_CLICK:
 		def.Params = &basactions.ActionDefinition_Click{
-			Click: typeconv.BuildClickParams(params),
+			Click: compiler.BuildClickParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_INPUT:
 		def.Params = &basactions.ActionDefinition_Input{
-			Input: typeconv.BuildInputParams(params),
+			Input: compiler.BuildInputParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_SCROLL:
 		def.Params = &basactions.ActionDefinition_Scroll{
-			Scroll: typeconv.BuildScrollParams(params),
+			Scroll: compiler.BuildScrollParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_HOVER:
 		def.Params = &basactions.ActionDefinition_Hover{
-			Hover: typeconv.BuildHoverParams(params),
+			Hover: compiler.BuildHoverParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_FOCUS:
 		def.Params = &basactions.ActionDefinition_Focus{
-			Focus: typeconv.BuildFocusParams(params),
+			Focus: compiler.BuildFocusParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_BLUR:
 		def.Params = &basactions.ActionDefinition_Blur{
-			Blur: typeconv.BuildBlurParams(params),
+			Blur: compiler.BuildBlurParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_SELECT:
 		def.Params = &basactions.ActionDefinition_SelectOption{
-			SelectOption: typeconv.BuildSelectParams(params),
+			SelectOption: compiler.BuildSelectParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_KEYBOARD:
 		def.Params = &basactions.ActionDefinition_Keyboard{
-			Keyboard: typeconv.BuildKeyboardParams(params),
+			Keyboard: compiler.BuildKeyboardParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_WAIT:
 		def.Params = &basactions.ActionDefinition_Wait{
-			Wait: typeconv.BuildWaitParams(params),
+			Wait: compiler.BuildWaitParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_ASSERT:
 		def.Params = &basactions.ActionDefinition_Assert{
-			Assert: typeconv.BuildAssertParams(params),
+			Assert: compiler.BuildAssertParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_SCREENSHOT:
 		def.Params = &basactions.ActionDefinition_Screenshot{
-			Screenshot: typeconv.BuildScreenshotParams(params),
+			Screenshot: compiler.BuildScreenshotParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_EVALUATE:
 		def.Params = &basactions.ActionDefinition_Evaluate{
-			Evaluate: typeconv.BuildEvaluateParams(params),
+			Evaluate: compiler.BuildEvaluateParams(params),
 		}
 	default:
 		// Don't set params for unknown types
@@ -211,7 +211,7 @@ func buildEventContext(tel *ActionTelemetry) *basbase.EventContext {
 			Configured:     origin.Attempt > 0,
 		}
 
-		ctx.Condition = typeconv.ConditionOutcomeToProto(origin.Condition)
+		ctx.Condition = contracts.ConditionOutcomeToProto(origin.Condition)
 
 		// Assertion result
 		if origin.Assertion != nil {
@@ -226,10 +226,10 @@ func buildEventContext(tel *ActionTelemetry) *basbase.EventContext {
 				ctx.Assertion.Message = &origin.Assertion.Message
 			}
 			if origin.Assertion.Expected != nil {
-				ctx.Assertion.Expected = typeconv.AnyToJsonValue(origin.Assertion.Expected)
+				ctx.Assertion.Expected = contracts.AnyToJsonValue(origin.Assertion.Expected)
 			}
 			if origin.Assertion.Actual != nil {
-				ctx.Assertion.Actual = typeconv.AnyToJsonValue(origin.Assertion.Actual)
+				ctx.Assertion.Actual = contracts.AnyToJsonValue(origin.Assertion.Actual)
 			}
 		}
 
@@ -237,7 +237,7 @@ func buildEventContext(tel *ActionTelemetry) *basbase.EventContext {
 		if len(origin.ExtractedData) > 0 {
 			ctx.ExtractedData = make(map[string]*commonv1.JsonValue, len(origin.ExtractedData))
 			for k, v := range origin.ExtractedData {
-				if jsonVal := typeconv.AnyToJsonValue(v); jsonVal != nil {
+				if jsonVal := contracts.AnyToJsonValue(v); jsonVal != nil {
 					ctx.ExtractedData[k] = jsonVal
 				}
 			}

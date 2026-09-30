@@ -14,6 +14,38 @@ exact wording.
 
 ## Open directives
 
+### BAS-FB-059 — widen the journey net before S1 (2026-09-30, operator)
+
+> Before S1 (the session broker), add an epoch that widens the journey suite against the local fixture site: J03 (same selector across tabs/frames), J04 (redirect, SPA, popup, shadow DOM, service worker), J13 (shortcuts, drag, scroll), J15 (session capacity and reuse), J17 (loops and retries) and J18 (cancel failure evidence). S1 and S5 rewrite the session and recording core, so they need this net first.
+
+Status: open. Queue it as a feature slice immediately after S4 (E8) and before
+S1, with each journey as a deletion-list-style item (journey file present and
+passing against the shadow).
+
+### BAS-FB-058 — S3 targets every existing V1 workflow (2026-09-30, operator)
+
+> S3's intent is every V1 workflow that exists, not a count of 14. The scan result is authoritative: migrate every V1 workflow found (done), leave the Test Genie HTTP cases alone because they aren't workflows, and accept E6 once the V1 code path is deleted and its gates pass. Migrating the ~700 short-form playbooks stays a separate later slice.
+
+Status: resolved 2026-09-30. E6's S3 gate now follows the scan: all six existing
+V1 workflows migrated, BAS has zero V1 arrays, and GCT HTTP cases stay unchanged;
+E6 accepted with BAS workflow-health recorded unverified after its queued-provider
+timeout.
+
+### BAS-FB-057 — S2 is not done (2026-09-30, operator)
+
+> S2 is not done: the hand-written action vocabulary files (`actionBuilder.ts`, `actionParams.ts`, `nodeUtils.ts`, `execution_params.go`, `driver_convert.go`, `typeconv`, driver `params.ts` and `action-type-utils.ts`) still exist. Requeue the remainder at the top of the queue with a deletion list naming each file's end state, and hold future slices to their full queue scope.
+
+Status: resolved 2026-09-30. S2 remainder was requeued with eight named paths and
+accepted as E7 only after all eight were verified absent and its full gates passed.
+
+### BAS-FB-056 — missing tools never hold an epoch (2026-09-30, operator)
+
+> Missing tools never hold an epoch: record Gremlins as unverified, decide E2 on the passing coverage gates, and continue with the next slice.
+
+Status: open. For the orchestrator: amend E2's mutation gate to unverified with
+this entry as the recorded reason, decide E2 on its passing `go test`/coverage
+gates, requeue further Go test maturation as a later slice, and admit S2.
+
 ### BAS-FB-036 — test-code quality
 
 Professional test infrastructure with less duplication, drift and code volume.

@@ -6,14 +6,13 @@
  * This module provides factory functions to create vision model clients.
  * It abstracts the creation of different client implementations based on:
  * - Provider-neutral AI Gateway route profiles
- * - Testing mode (mock vs real clients)
+ * - Provider-neutral client construction
  *
- * TESTING SEAM: Use createMockVisionClient() in tests instead of real clients.
+ * Tests provide a local fake at the VisionModelClient boundary.
  */
 
 import type { VisionModelClient, VisionModelSpec } from './types';
 import { AIGatewayVisionClient, normalizeGatewayProfile } from './gateway';
-import { MockVisionClient, type MockVisionClientConfig } from './mock';
 
 /**
  * Configuration for creating a vision client.
@@ -61,30 +60,6 @@ export function createVisionClient(config: VisionClientConfig): VisionModelClien
     profile,
     timeoutMs: config.timeoutMs,
   });
-}
-
-/**
- * Create a mock vision client for testing.
- *
- * Use this in unit and integration tests to avoid real API calls.
- *
- * @param config - Optional mock configuration
- * @returns A MockVisionClient instance
- *
- * @example
- * ```typescript
- * const mock = createMockClient();
- * mock.queueResponse({
- *   action: { type: 'click', elementId: 5 },
- *   reasoning: 'Clicking login button',
- *   goalAchieved: false,
- * });
- *
- * const agent = createVisionAgent({ client: mock });
- * ```
- */
-export function createMockClient(config?: MockVisionClientConfig): MockVisionClient {
-  return new MockVisionClient(config);
 }
 
 /**

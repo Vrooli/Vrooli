@@ -583,7 +583,7 @@ established during the 2025-01 architecture audit.
 
 | Module | Functions | Notes |
 |--------|-----------|-------|
-| `proto/action-type-utils` | `actionTypeToString`, `stringToActionType` | Enum conversions |
+| `recording/action-types` | `actionTypeToString`, `stringToActionType` | Generated enum conversion and recording-boundary aliases |
 | `outcome/outcome-builder` | `buildStepOutcome`, `toDriverOutcome` | Result transformation |
 | `execution/instruction-executor` | `validateInstruction` | Validation logic |
 | `browser-profile/human-behavior` | `HumanBehavior` class methods | Timing/path calculations |

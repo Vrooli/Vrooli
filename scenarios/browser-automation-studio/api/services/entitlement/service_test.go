@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -54,7 +54,7 @@ func signedLeaseFixture(t *testing.T, identity, tier string) (string, []byte) {
 
 func TestGetEntitlementBindsAuthorityQueryAndResponseIdentity(t *testing.T) {
 	lease, jwks := signedLeaseFixture(t, "alice@example.com", "pro")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/.well-known/jwks.json" {
 			w.Write(jwks)
 			return
@@ -68,7 +68,6 @@ func TestGetEntitlementBindsAuthorityQueryAndResponseIdentity(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"lease":"` + lease + `"}`))
 	}))
-	defer server.Close()
 	svc := createTestService(t)
 	svc.cfg.ServiceURL = server.URL
 	svc.httpClient = server.Client()
@@ -84,7 +83,7 @@ func TestGetEntitlementBindsAuthorityQueryAndResponseIdentity(t *testing.T) {
 
 func TestGetEntitlementRejectsAuthorityIdentityMismatchWithoutCredits(t *testing.T) {
 	lease, jwks := signedLeaseFixture(t, "bob@example.com", "business")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Path == "/.well-known/jwks.json" {
 			w.Write(jwks)
@@ -92,7 +91,6 @@ func TestGetEntitlementRejectsAuthorityIdentityMismatchWithoutCredits(t *testing
 		}
 		_, _ = w.Write([]byte(`{"lease":"` + lease + `"}`))
 	}))
-	defer server.Close()
 	svc := createTestService(t)
 	svc.cfg.ServiceURL = server.URL
 	svc.httpClient = server.Client()
@@ -104,11 +102,10 @@ func TestGetEntitlementRejectsAuthorityIdentityMismatchWithoutCredits(t *testing
 }
 
 func TestGetEntitlementRejectsAuthorityResponseWithoutIdentity(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"lease":""}`))
 	}))
-	defer server.Close()
 	svc := createTestService(t)
 	svc.cfg.ServiceURL = server.URL
 	svc.httpClient = server.Client()

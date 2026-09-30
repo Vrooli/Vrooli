@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/hubmocks"
 )
 
 func TestRedactNavigationActionPreservesStructureAndRemovesSensitiveValues(t *testing.T) {
@@ -97,7 +98,7 @@ func TestPlaywrightCallbacksRedactLiveAndRecoveredNavigationData(t *testing.T) {
 	const secret = "BAS_SYNTHETIC_NAV_SECRET_2c91"
 	log := logrus.New()
 	log.SetOutput(io.Discard)
-	wsHub := &mockWSHub{}
+	wsHub := hubmocks.New()
 	nav := NewPlaywrightVisionNavigator(log, WithPlaywrightHub(wsHub))
 	session := &NavigationSession{
 		NavigationID: "nav_redaction",
@@ -137,7 +138,7 @@ func TestPlaywrightCallbacksRedactLiveAndRecoveredNavigationData(t *testing.T) {
 			t.Fatalf("step history leaked secret: %q", got)
 		}
 	}
-	wire, err := json.Marshal(wsHub.lastEnvelope)
+	wire, err := json.Marshal(wsHub.LastBroadcastEnvelope())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +165,7 @@ func TestPlaywrightCallbacksRedactLiveAndRecoveredNavigationData(t *testing.T) {
 	if snapshot.ExtractedData["safe"] != "ok" {
 		t.Fatalf("safe extracted data changed: %v", snapshot.ExtractedData["safe"])
 	}
-	wire, err = json.Marshal(wsHub.lastEnvelope)
+	wire, err = json.Marshal(wsHub.LastBroadcastEnvelope())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +178,7 @@ func TestClaudeCodeBroadcastRedactsToolInput(t *testing.T) {
 	const secret = "BAS_SYNTHETIC_CLAUDE_SECRET_58d1"
 	log := logrus.New()
 	log.SetOutput(io.Discard)
-	wsHub := &mockWSHub{}
+	wsHub := hubmocks.New()
 	nav := NewClaudeCodeVisionNavigator(log, WithClaudeCodeHub(wsHub))
 	session := &claudeCodeSession{NavigationSession: &NavigationSession{
 		NavigationID: "nav_claude_redaction",
@@ -189,10 +190,10 @@ func TestClaudeCodeBroadcastRedactsToolInput(t *testing.T) {
 		Input: json.RawMessage(`{"ref":"#password","text":"` + secret + `"}`),
 	}, 1, "enter password="+secret)
 
-	if wsHub.broadcastCount != 1 {
-		t.Fatalf("broadcast count = %d, want 1", wsHub.broadcastCount)
+	if wsHub.BroadcastEnvelopeCount() != 1 {
+		t.Fatalf("broadcast count = %d, want 1", wsHub.BroadcastEnvelopeCount())
 	}
-	wire, err := json.Marshal(wsHub.lastEnvelope)
+	wire, err := json.Marshal(wsHub.LastBroadcastEnvelope())
 	if err != nil {
 		t.Fatal(err)
 	}

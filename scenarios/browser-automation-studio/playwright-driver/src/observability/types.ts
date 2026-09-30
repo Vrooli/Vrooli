@@ -285,37 +285,6 @@ export interface ObservabilityResponse {
 // Diagnostic Run Types
 // =============================================================================
 
-/**
- * Request to run diagnostics manually.
- */
-export interface DiagnosticRunRequest {
-  /** Type of diagnostic to run */
-  type: 'recording' | 'audio' | 'browser' | 'all';
-  /** Optional session ID for session-specific diagnostics */
-  session_id?: string;
-  /** Diagnostic options */
-  options?: {
-    /** Diagnostic level (quick, standard, full) */
-    level?: 'quick' | 'standard' | 'full';
-    /** Timeout in milliseconds */
-    timeout_ms?: number;
-  };
-}
-
-/**
- * UI-friendly diagnostic issue format.
- */
-export interface RecordingDiagnosticIssue {
-  severity: 'error' | 'warning' | 'info';
-  category: string;
-  message: string;
-  suggestion?: string;
-  docs_link?: string;
-}
-
-/**
- * Recording diagnostics formatted for UI consumption.
- */
 export interface RecordingDiagnostics {
   ready: boolean;
   timestamp: string;
@@ -323,7 +292,13 @@ export interface RecordingDiagnostics {
   level: 'quick' | 'standard' | 'full';
   /** All checks performed with their status for breakdown display */
   checks?: DiagnosticCheck[];
-  issues: RecordingDiagnosticIssue[];
+  issues: Array<{
+    severity: 'error' | 'warning' | 'info';
+    category: string;
+    message: string;
+    suggestion?: string;
+    docs_link?: string;
+  }>;
   provider?: {
     name: string;
     evaluateIsolated: boolean;
@@ -331,39 +306,6 @@ export interface RecordingDiagnostics {
   };
   /** Event flow test result with detailed diagnostics (FULL level only) */
   eventFlowTest?: EventFlowTestResult;
-}
-
-/** Browser-session proof for the real-time Web Audio output path. */
-export interface AudioCapabilityDiagnostics {
-  available: boolean;
-  current_time_delta: number;
-  callback_count: number;
-  output_latency: number | null;
-  state: string;
-  duration_ms: number;
-  finding?: string;
-  audio_strategy?: 'host_device' | 'synthetic_sink';
-  host_audio_outcome?: 'device_available' | 'no_device' | 'detection_failed';
-  host_audio_reason?: string;
-}
-
-export interface DiagnosticRunResults {
-  recording?: RecordingDiagnostics;
-  audio?: AudioCapabilityDiagnostics;
-}
-
-/**
- * Response from a diagnostic run.
- */
-export interface DiagnosticRunResponse {
-  /** When the diagnostic started */
-  started_at: string;
-  /** When the diagnostic completed */
-  completed_at: string;
-  /** How long the diagnostic took */
-  duration_ms: number;
-  /** Results of the diagnostic run */
-  results: DiagnosticRunResults;
 }
 
 // =============================================================================

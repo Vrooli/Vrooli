@@ -532,7 +532,7 @@ export class RecordingPipelineManager {
             `Script loaded: ${verification.scriptLoaded}, ready: ${verification.scriptReady}, ` +
             `MAIN context: ${verification.inMainContext}, handlers: ${verification.handlersCount}. ` +
             (error ? `Error: ${error.code} - ${error.message}` : '') +
-            ` Run /record/pipeline-test for detailed diagnostics.`
+            ` Inspect driver diagnostics and event-flow telemetry for details.`
         );
       }
 

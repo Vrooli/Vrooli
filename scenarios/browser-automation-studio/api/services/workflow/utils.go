@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	contractvalues "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 )
 
 const (
@@ -204,7 +204,7 @@ func parseFlexibleInt(value any) int {
 	return 0
 }
 
-// ToInterfaceSlice delegates to typeconv.ToInterfaceSlice for consistency.
+// ToInterfaceSlice delegates to the existing automation contract value converter.
 // This wrapper handles database.JSONMap as a special case since the typeconv
 // package doesn't depend on the database package.
 func ToInterfaceSlice(value any) []any {
@@ -217,5 +217,5 @@ func ToInterfaceSlice(value any) []any {
 		return result
 	}
 	// Delegate to the general-purpose implementation
-	return typeconv.ToInterfaceSlice(value)
+	return contractvalues.ToInterfaceSlice(value)
 }

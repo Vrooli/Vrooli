@@ -17,6 +17,7 @@ import (
 
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/databasemocks"
 	project_filesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/project_files"
 	project_filesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/project_files/project_filesconnect"
 )
@@ -25,57 +26,8 @@ import (
 // fakes
 // ---------------------------------------------------------------------------
 
-type fakeRepo struct {
-	mu          sync.Mutex
-	projects    map[uuid.UUID]*database.ProjectIndex
-	workflows   map[uuid.UUID][]*database.WorkflowIndex
-	assets      map[uuid.UUID][]*database.AssetIndex
-	createErr   error
-	createCalls int
-}
-
-func newFakeRepo() *fakeRepo {
-	return &fakeRepo{
-		projects:  map[uuid.UUID]*database.ProjectIndex{},
-		workflows: map[uuid.UUID][]*database.WorkflowIndex{},
-		assets:    map[uuid.UUID][]*database.AssetIndex{},
-	}
-}
-
-func (f *fakeRepo) GetProject(_ context.Context, id uuid.UUID) (*database.ProjectIndex, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	p, ok := f.projects[id]
-	if !ok {
-		return nil, database.ErrNotFound
-	}
-	return p, nil
-}
-
-func (f *fakeRepo) ListWorkflowsByProject(_ context.Context, id uuid.UUID, _, _ int) ([]*database.WorkflowIndex, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.workflows[id], nil
-}
-
-func (f *fakeRepo) ListAssetsByProject(_ context.Context, id uuid.UUID, _, _ int) ([]*database.AssetIndex, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.assets[id], nil
-}
-
-func (f *fakeRepo) CreateWorkflow(_ context.Context, w *database.WorkflowIndex) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.createCalls++
-	if f.createErr != nil {
-		return f.createErr
-	}
-	if w.ProjectID == nil {
-		return errors.New("project id required")
-	}
-	f.workflows[*w.ProjectID] = append(f.workflows[*w.ProjectID], w)
-	return nil
+func newFakeRepo() *databasemocks.MockRepository {
+	return databasemocks.NewMockRepository()
 }
 
 type fakeCatalog struct {
@@ -139,17 +91,17 @@ func newTestClient(t *testing.T, d clientDeps) project_filesconnect.ProjectFiles
 	return project_filesconnect.NewProjectFilesServiceClient(srv.Client(), srv.URL)
 }
 
-func makeProject(t *testing.T, repo *fakeRepo) (uuid.UUID, string) {
+func makeProject(t *testing.T, repo *databasemocks.MockRepository) (uuid.UUID, string) {
 	t.Helper()
 	id := uuid.New()
 	dir := t.TempDir()
-	repo.projects[id] = &database.ProjectIndex{
+	repo.AddProject(&database.ProjectIndex{
 		ID:         id,
 		Name:       "test",
 		FolderPath: dir,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
-	}
+	})
 	return id, dir
 }
 
@@ -273,12 +225,12 @@ func TestGetProjectFileTree_HappyPath(t *testing.T) {
 
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "subdir"), 0o755))
 	wfID := uuid.New()
-	repo.workflows[projectID] = []*database.WorkflowIndex{{
+	repo.AddWorkflow(&database.WorkflowIndex{
 		ID: wfID, ProjectID: &projectID, Name: "wf", FolderPath: "/", FilePath: "wf.json", Version: 1,
-	}}
-	repo.assets[projectID] = []*database.AssetIndex{{
+	})
+	repo.AddAsset(&database.AssetIndex{
 		ID: uuid.New(), ProjectID: projectID, FilePath: "subdir/x.png", MimeType: "image/png", FileSize: 1,
-	}}
+	})
 
 	resp, err := c.GetProjectFileTree(context.Background(), connect.NewRequest(&project_filesv1.GetProjectFileTreeRequest{
 		ProjectId: projectID.String(),
@@ -351,7 +303,7 @@ func TestWriteAndReadWorkflowFile_RoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "hello.json", writeResp.Msg.GetPath())
 	require.NotEmpty(t, writeResp.Msg.GetWorkflowId())
-	require.Equal(t, 1, repo.createCalls)
+	require.Equal(t, 1, repo.CreateWorkflowCalls)
 
 	readResp, err := c.ReadProjectFile(context.Background(), connect.NewRequest(&project_filesv1.ReadProjectFileRequest{
 		ProjectId: projectID.String(),
@@ -475,8 +427,8 @@ func TestResyncProjectFiles_HappyPath(t *testing.T) {
 	cat := &fakeCatalog{}
 	c := newTestClient(t, clientDeps{repo: repo, catalog: cat})
 	projectID, dir := makeProject(t, repo)
-	repo.workflows[projectID] = []*database.WorkflowIndex{{ID: uuid.New(), ProjectID: &projectID, FilePath: "w.json"}}
-	repo.assets[projectID] = []*database.AssetIndex{{ID: uuid.New(), ProjectID: projectID, FilePath: "a.png"}}
+	repo.AddWorkflow(&database.WorkflowIndex{ID: uuid.New(), ProjectID: &projectID, FilePath: "w.json"})
+	repo.AddAsset(&database.AssetIndex{ID: uuid.New(), ProjectID: projectID, FilePath: "a.png"})
 
 	resp, err := c.ResyncProjectFiles(context.Background(), connect.NewRequest(&project_filesv1.ResyncProjectFilesRequest{
 		ProjectId: projectID.String(),

@@ -2,8 +2,8 @@ package ai
 
 import (
 	"context"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -27,7 +27,7 @@ func (r *chainSubscriptionResolver) ResolveAt(_ context.Context, baseURL string)
 
 func TestAIProviderChainResolvesSharedSubscriptionTokenForVrooliProvider(t *testing.T) {
 	var gotAuthorization string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuthorization = r.Header.Get("Authorization")
 		if r.URL.Path == "/api/v1/ai/health" {
 			w.WriteHeader(http.StatusOK)
@@ -36,7 +36,6 @@ func TestAIProviderChainResolvesSharedSubscriptionTokenForVrooliProvider(t *test
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"content":"ok","model":"policy","prompt_tokens":1,"completion_tokens":1}`))
 	}))
-	defer server.Close()
 	resolver := &chainSubscriptionResolver{token: "consumer-access"}
 	chain := NewAIProviderChain(AIProviderChainOptions{
 		Logger:       logrus.New(),

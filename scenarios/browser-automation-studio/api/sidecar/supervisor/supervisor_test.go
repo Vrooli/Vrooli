@@ -186,15 +186,12 @@ func TestProcessSupervisor_AutoRestart(t *testing.T) {
 				state := sup.State()
 				return state == StateRunning || state == StateUnrecoverable
 			})
-
 			// If we've reached unrecoverable, no need to crash more
 			if sup.State() == StateUnrecoverable {
 				break
 			}
 
-			// Small delay to ensure state has fully settled before crashing
 			time.Sleep(20 * time.Millisecond)
-
 			// Trigger crash
 			mock.TriggerCrash()
 		}
@@ -235,7 +232,6 @@ func TestProcessSupervisor_Restart(t *testing.T) {
 		// Let the monitor arm its exit-channel wait before exercising the
 		// intentional stop performed by Restart.
 		time.Sleep(20 * time.Millisecond)
-
 		require.NoError(t, sup.Restart(context.Background()))
 		// Give a monitor that misclassified the intentional stop enough time to
 		// schedule and perform its automatic restart.
@@ -269,15 +265,12 @@ func TestProcessSupervisor_Restart(t *testing.T) {
 				state := sup.State()
 				return state == StateRunning || state == StateUnrecoverable
 			})
-
 			// If we've reached unrecoverable, no need to crash more
 			if sup.State() == StateUnrecoverable {
 				break
 			}
 
-			// Small delay to ensure state has fully settled before crashing
 			time.Sleep(20 * time.Millisecond)
-
 			// Trigger crash
 			mock.TriggerCrash()
 		}

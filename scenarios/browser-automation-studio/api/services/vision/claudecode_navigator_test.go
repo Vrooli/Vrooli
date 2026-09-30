@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/hubmocks"
 )
 
 // mockCommandRunner implements CommandRunner for testing.
@@ -77,7 +78,7 @@ func TestNewClaudeCodeVisionNavigator(t *testing.T) {
 	})
 
 	t.Run("applies options", func(t *testing.T) {
-		wsHub := &mockWSHub{}
+		wsHub := hubmocks.New()
 		cmdRunner := &mockCommandRunner{}
 		var recordedActions []*RecordedNavigationAction
 		callback := func(sessionID string, action *RecordedNavigationAction) {
@@ -619,11 +620,7 @@ func TestClaudeCodeNavigationHandle(t *testing.T) {
 			session:   testSession,
 		}
 
-		// Close done channel in background
-		go func() {
-			time.Sleep(10 * time.Millisecond)
-			close(testSession.doneChan)
-		}()
+		close(testSession.doneChan)
 
 		err := testHandle.Wait(context.Background())
 		if err != nil {
@@ -719,7 +716,7 @@ func TestClaudeCodeVisionNavigator_ParseOutput(t *testing.T) {
 		recordedActions = append(recordedActions, action)
 	}
 
-	wsHub := &mockWSHub{}
+	wsHub := hubmocks.New()
 	nav := NewClaudeCodeVisionNavigator(log,
 		WithClaudeCodeActionRecordCallback(callback),
 		WithClaudeCodeHub(wsHub),
@@ -761,7 +758,7 @@ func TestClaudeCodeVisionNavigator_ParseOutput(t *testing.T) {
 	}
 
 	// Verify WebSocket broadcasts
-	if wsHub.broadcastCount < 1 {
+	if wsHub.BroadcastEnvelopeCount() < 1 {
 		t.Error("expected at least one WebSocket broadcast")
 	}
 

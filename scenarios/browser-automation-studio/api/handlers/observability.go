@@ -210,38 +210,14 @@ func (h *Handler) FetchObservabilityRefresh(ctx context.Context) (map[string]any
 	return h.fetchObservabilityJSON(ctx, http.MethodPost, "/observability/refresh", nil, nil, 10*time.Second)
 }
 
-// FetchObservabilityDiagnostics proxies POST /observability/diagnostics/run.
-// options is JSON-encoded and forwarded as the request body.
-func (h *Handler) FetchObservabilityDiagnostics(ctx context.Context, options map[string]any) (map[string]any, error) {
-	body, err := encodeJSONBody(options)
-	if err != nil {
-		return nil, err
-	}
-	return h.fetchObservabilityJSON(ctx, http.MethodPost, "/observability/diagnostics/run", nil, body, 60*time.Second)
-}
-
 // FetchObservabilitySessions proxies GET /observability/sessions.
 func (h *Handler) FetchObservabilitySessions(ctx context.Context) (map[string]any, error) {
 	return h.fetchObservabilityJSON(ctx, http.MethodGet, "/observability/sessions", nil, nil, 10*time.Second)
 }
 
-// FetchObservabilityCleanup proxies POST /observability/cleanup/run.
-func (h *Handler) FetchObservabilityCleanup(ctx context.Context) (map[string]any, error) {
-	return h.fetchObservabilityJSON(ctx, http.MethodPost, "/observability/cleanup/run", nil, nil, 30*time.Second)
-}
-
 // FetchObservabilityMetrics proxies GET /observability/metrics.
 func (h *Handler) FetchObservabilityMetrics(ctx context.Context) (map[string]any, error) {
 	return h.fetchObservabilityJSON(ctx, http.MethodGet, "/observability/metrics", nil, nil, 10*time.Second)
-}
-
-// FetchObservabilityPipelineTest proxies POST /observability/pipeline-test.
-func (h *Handler) FetchObservabilityPipelineTest(ctx context.Context, options map[string]any) (map[string]any, error) {
-	body, err := encodeJSONBody(options)
-	if err != nil {
-		return nil, err
-	}
-	return h.fetchObservabilityJSON(ctx, http.MethodPost, "/observability/pipeline-test", nil, body, 120*time.Second)
 }
 
 // FetchObservabilityConfigRuntime proxies GET /observability/config/runtime.

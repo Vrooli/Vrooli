@@ -13,7 +13,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/export"
 )
 
@@ -366,7 +365,7 @@ func main() {
 		reflect.TypeOf(export.ExportNormalizedRect{}):    "ReplayMovieNormalizedRect",
 		reflect.TypeOf(export.ExportResilience{}):        "ReplayMovieResilience",
 		reflect.TypeOf(export.ExportFrame{}):             "ReplayMovieFrame",
-		reflect.TypeOf(typeconv.RetryHistoryEntry{}):     "ReplayMovieRetryHistoryEntry",
+		reflect.TypeOf(export.RetryHistoryEntry{}):       "ReplayMovieRetryHistoryEntry",
 		reflect.TypeOf(contracts.HighlightRegion{}):      "ReplayMovieRegion",
 		reflect.TypeOf(contracts.MaskRegion{}):           "ReplayMovieRegion",
 		reflect.TypeOf(contracts.ElementFocus{}):         "ReplayMovieFocusedElement",

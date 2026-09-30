@@ -20,6 +20,7 @@ import (
 type stubHub struct {
 	mu      sync.Mutex
 	updates []any
+	changed chan struct{}
 }
 
 type closingHub struct {
@@ -39,6 +40,14 @@ func (s *stubHub) BroadcastEnvelope(event any) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.updates = append(s.updates, event)
+	s.signalUpdateLocked()
+}
+
+func (s *stubHub) signalUpdateLocked() {
+	if s.changed != nil {
+		close(s.changed)
+		s.changed = nil
+	}
 }
 
 func (s *stubHub) Updates() []any {
@@ -270,6 +279,7 @@ type blockingHub struct {
 	mu      sync.Mutex
 	updates []any
 	unblock chan struct{}
+	changed chan struct{}
 }
 
 func newBlockingHub() *blockingHub {
@@ -321,6 +331,10 @@ func (b *blockingHub) BroadcastEnvelope(event any) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.updates = append(b.updates, event)
+	if b.changed != nil {
+		close(b.changed)
+		b.changed = nil
+	}
 }
 
 func TestWSHubSinkDropsTelemetryWhenBufferFull(t *testing.T) {
@@ -616,16 +630,43 @@ func TestWSHubSinkCloseDrainsAcceptedEvents(t *testing.T) {
 }
 
 type updatesReader interface {
-	Updates() []any
+	waitForUpdates(expected int, timeout time.Duration) []any
+}
+
+func (s *stubHub) waitForUpdates(expected int, timeout time.Duration) []any {
+	return waitForUpdateSignal(&s.mu, &s.updates, &s.changed, expected, timeout)
+}
+
+func (b *blockingHub) waitForUpdates(expected int, timeout time.Duration) []any {
+	return waitForUpdateSignal(&b.mu, &b.updates, &b.changed, expected, timeout)
+}
+
+func waitForUpdateSignal(mu *sync.Mutex, updates *[]any, changed *chan struct{}, expected int, timeout time.Duration) []any {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	for {
+		mu.Lock()
+		if len(*updates) >= expected {
+			cp := append([]any(nil), (*updates)...)
+			mu.Unlock()
+			return cp
+		}
+		if *changed == nil {
+			*changed = make(chan struct{})
+		}
+		ch := *changed
+		mu.Unlock()
+		select {
+		case <-ch:
+		case <-timer.C:
+			mu.Lock()
+			cp := append([]any(nil), (*updates)...)
+			mu.Unlock()
+			return cp
+		}
+	}
 }
 
 func waitForUpdates(h updatesReader, expected int, timeout time.Duration) []any {
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		if updates := h.Updates(); len(updates) >= expected {
-			return updates
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	return h.Updates()
+	return h.waitForUpdates(expected, timeout)
 }

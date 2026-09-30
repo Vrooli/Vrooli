@@ -67,7 +67,7 @@ import {
 } from '@vrooli/proto-types/browser-automation-studio/v1/base/geometry_pb';
 
 // Import the canonical ACTION_TYPE_MAP from the single source of truth
-import { ACTION_TYPE_MAP } from './action-type-utils';
+import { ACTION_TYPE_MAP } from '../recording/action-types';
 
 const SENSITIVE_AUTOCOMPLETE_TOKENS = new Set([
   'current-password',
@@ -159,7 +159,7 @@ export interface ConversionContext {
 // ENUM CONVERSION MAPS
 // =============================================================================
 
-// NOTE: ACTION_TYPE_MAP is imported from './action-type-utils' (single source of truth)
+// NOTE: ACTION_TYPE_MAP is imported from '../recording/action-types' (single source of truth)
 
 /**
  * Map string selector type to proto SelectorType enum.

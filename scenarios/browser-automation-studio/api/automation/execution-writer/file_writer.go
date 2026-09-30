@@ -25,7 +25,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/evidence"
 	"github.com/vrooli/browser-automation-studio/storage"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
@@ -320,7 +319,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	}
 	// Validate the whole core payload before changing the execution accumulators.
 	// Retain its structured projection so the large outcome is encoded only once.
-	outcomeValue, err := typeconv.EncodeJsonValue(outcome)
+	outcomeValue, err := contracts.EncodeJsonValue(outcome)
 	if err != nil {
 		return RecordResult{}, fmt.Errorf("project step outcome: %w", err)
 	}
@@ -766,7 +765,7 @@ func (r *FileWriter) appendProtoTimelineEntry(
 	// frames carry it. (ExtractedData is already nil here when the profile
 	// disables collection — see RecordStepOutcome.)
 	if len(outcome.ExtractedData) > 0 {
-		entry.Aggregates.ExtractedDataPreview, err = typeconv.EncodeJsonValue(outcome.ExtractedData)
+		entry.Aggregates.ExtractedDataPreview, err = contracts.EncodeJsonValue(outcome.ExtractedData)
 		if err != nil {
 			return fmt.Errorf("project extracted data: %w", err)
 		}
@@ -846,7 +845,7 @@ func artifactDataToProto(a *ArtifactData) (*bastimeline.TimelineArtifact, error)
 	}
 	if a.Payload != nil {
 		for k, v := range a.Payload {
-			value, err := typeconv.EncodeJsonValue(v)
+			value, err := contracts.EncodeJsonValue(v)
 			if err != nil {
 				return nil, fmt.Errorf("project artifact %s field %q: %w", a.ArtifactType, k, err)
 			}
@@ -882,7 +881,7 @@ func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 	success := outcome.Success
 	ctx := &basbase.EventContext{
 		Success:   &success,
-		Condition: typeconv.ConditionOutcomeToProto(outcome.Condition),
+		Condition: contracts.ConditionOutcomeToProto(outcome.Condition),
 	}
 	if outcome.Failure != nil && strings.TrimSpace(outcome.Failure.Message) != "" {
 		msg := outcome.Failure.Message
@@ -906,13 +905,13 @@ func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 			assertionResult.Message = &outcome.Assertion.Message
 		}
 		if outcome.Assertion.Expected != nil {
-			assertionResult.Expected, err = typeconv.EncodeJsonValue(outcome.Assertion.Expected)
+			assertionResult.Expected, err = contracts.EncodeJsonValue(outcome.Assertion.Expected)
 			if err != nil {
 				return nil, fmt.Errorf("project assertion expected: %w", err)
 			}
 		}
 		if outcome.Assertion.Actual != nil {
-			assertionResult.Actual, err = typeconv.EncodeJsonValue(outcome.Assertion.Actual)
+			assertionResult.Actual, err = contracts.EncodeJsonValue(outcome.Assertion.Actual)
 			if err != nil {
 				return nil, fmt.Errorf("project assertion actual: %w", err)
 			}

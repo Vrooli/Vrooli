@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -44,7 +45,7 @@ func newTestServer(t *testing.T, deps Deps) (captureconnect.CaptureServiceClient
 	mount := Module(deps)
 	mux := http.NewServeMux()
 	mux.Handle(mount.Path, mount.Handler)
-	srv := httptest.NewServer(mux)
+	srv := testutil.StartHTTPServer(t, mux)
 	t.Cleanup(srv.Close)
 	client := captureconnect.NewCaptureServiceClient(srv.Client(), srv.URL)
 	return client, srv

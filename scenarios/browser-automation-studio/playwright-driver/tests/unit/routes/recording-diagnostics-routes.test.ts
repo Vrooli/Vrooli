@@ -1,11 +1,10 @@
 import type { BrowserContext } from 'rebrowser-playwright';
 import type { SessionManager } from '../../../src/session';
 import {
-  handleStreamSettings,
   handleRecordDebug,
-  handleRecordPipelineTest,
   handleRecordExternalUrlTest,
 } from '../../../src/routes/record-mode/recording-diagnostics-routes';
+import { handleStreamSettings } from '../../../src/routes/record-mode/recording-stream-settings-route';
 import {
   createMockHttpRequest,
   createMockHttpResponse,
@@ -20,11 +19,9 @@ jest.mock('../../../src/frame-streaming', () => ({
   getFrameStreamSettings: (...args: unknown[]) => getFrameStreamSettings(...args),
 }));
 
-const runRecordingPipelineTest = jest.fn();
 const runExternalUrlInjectionTest = jest.fn();
 
-jest.mock('../../../src/recording', () => ({
-  runRecordingPipelineTest: (...args: unknown[]) => runRecordingPipelineTest(...args),
+jest.mock('../../../src/recording/testing/external-url-injection-test', () => ({
   runExternalUrlInjectionTest: (...args: unknown[]) => runExternalUrlInjectionTest(...args),
 }));
 
@@ -34,7 +31,6 @@ describe('recording diagnostics routes', () => {
   beforeEach(() => {
     updateFrameStreamSettings.mockClear();
     getFrameStreamSettings.mockClear();
-    runRecordingPipelineTest.mockClear();
     runExternalUrlInjectionTest.mockClear();
   });
 
@@ -221,72 +217,6 @@ describe('recording diagnostics routes', () => {
 
     const payload = res.getJSON();
     expect(payload.browser_script).toBeNull();
-  });
-
-  it('returns errors when pipeline prerequisites are missing', async () => {
-    const sessionManager: Pick<SessionManager, 'getSession'> = {
-      getSession: () => ({ page: { url: jest.fn().mockReturnValue('about:blank') } } as ReturnType<SessionManager['getSession']>),
-    };
-
-    const req = createMockHttpRequest({
-      method: 'POST',
-      url: '/session/test/record/pipeline-test',
-      body: {},
-    });
-    const res = createMockHttpResponse();
-
-    await handleRecordPipelineTest(req, res, 'test', sessionManager as SessionManager, config);
-
-    expect(res.statusCode).toBe(500);
-    expect(res.getJSON().error).toBe('MISSING_INITIALIZER');
-  });
-
-  it('runs pipeline test and returns response', async () => {
-    runRecordingPipelineTest.mockResolvedValue({
-      success: true,
-      timestamp: '2026-01-01T00:00:00.000Z',
-      durationMs: 100,
-      steps: [{ name: 'step', passed: true, durationMs: 50 }],
-      diagnostics: {
-        testPageUrl: 'https://example.com',
-        testPageInjected: true,
-        scriptStatusBefore: null,
-        scriptStatusAfter: null,
-        telemetryBefore: null,
-        telemetryAfter: null,
-        routeStatsBefore: null,
-        routeStatsAfter: null,
-        eventsCaptured: 2,
-        consoleMessages: [],
-      },
-    });
-
-    const page = {
-      url: jest.fn().mockReturnValue('https://example.com'),
-      goto: jest.fn().mockResolvedValue(undefined),
-    };
-
-    const sessionManager: Pick<SessionManager, 'getSession'> = {
-      getSession: () => ({
-        page,
-        context: {} as BrowserContext,
-        recordingInitializer: {},
-        pipelineManager: {},
-      } as ReturnType<SessionManager['getSession']>),
-    };
-
-    const req = createMockHttpRequest({
-      method: 'POST',
-      url: '/session/test/record/pipeline-test',
-      body: {},
-    });
-    const res = createMockHttpResponse();
-
-    await handleRecordPipelineTest(req, res, 'test', sessionManager as SessionManager, config);
-
-    expect(res.statusCode).toBe(200);
-    expect(res.getJSON().success).toBe(true);
-    expect(page.goto).toHaveBeenCalled();
   });
 
   it('returns errors when external URL test prerequisites are missing', async () => {

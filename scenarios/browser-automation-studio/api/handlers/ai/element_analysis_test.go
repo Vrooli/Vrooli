@@ -6,11 +6,11 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"image"
 	"image/png"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"os/exec"
 	"strings"
@@ -140,7 +140,7 @@ func TestExtractPageElements_Integration(t *testing.T) {
 
 	t.Run("[REQ:BAS-RF-017] masks synthetic secret values before the AI screenshot", func(t *testing.T) {
 		var requestCount atomic.Int32
-		fixture := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fixture := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/" {
 				http.NotFound(w, r)
 				return

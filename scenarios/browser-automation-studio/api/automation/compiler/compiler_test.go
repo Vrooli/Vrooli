@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/scenarioport"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
@@ -1380,9 +1381,16 @@ func TestCompileWorkflowToContractsUsesCompiledTypedActions(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, instructions, 1)
 	require.NotNil(t, instructions[0].Action)
-	assert.Equal(t, int32(4321), instructions[0].Action.GetWait().GetDurationMs())
+	assert.Equal(t, contracts.ExecutionPlanSchemaVersionV2, plan.SchemaVersion)
+	require.Len(t, plan.Pages, 1)
+	assert.True(t, plan.Pages[0].IsInitial)
+	require.NotNil(t, instructions[0].PageID)
 	require.NotNil(t, plan.Graph)
 	require.Len(t, plan.Graph.Steps, 1)
+	require.NotNil(t, plan.Graph.Steps[0].PageID)
+	assert.Equal(t, plan.Pages[0].ID, *instructions[0].PageID)
+	assert.Equal(t, plan.Pages[0].ID, *plan.Graph.Steps[0].PageID)
+	assert.Equal(t, int32(4321), instructions[0].Action.GetWait().GetDurationMs())
 	require.NotNil(t, plan.Graph.Steps[0].Action)
 	assert.Equal(t, int32(4321), plan.Graph.Steps[0].Action.GetWait().GetDurationMs())
 }

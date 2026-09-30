@@ -25,7 +25,7 @@ import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
 import type { BaseExecutionResult, SelectorError } from '../outcome/types';
 import { ActionType } from '../proto';
-import { actionTypeToString, stringToActionType } from '../proto/action-type-utils';
+import { actionTypeToString, stringToActionType } from './action-types';
 import { handlerRegistry } from '../handlers/registry';
 import { loadConfig } from '../config';
 import { createNoOpLogger } from '../utils/logger';
@@ -94,7 +94,7 @@ export function timelineEntryToHandlerInstruction(entry: TimelineEntry): Handler
   };
 }
 
-// NOTE: actionTypeToString is now imported from ../proto/action-type-utils (single source of truth)
+// NOTE: actionTypeToString is now imported from ./action-types (shared compatibility owner)
 
 // =============================================================================
 // Context Creation
@@ -250,4 +250,4 @@ export function getHandlerSupportedActionTypes(): ActionType[] {
   return actionTypes;
 }
 
-// NOTE: stringToActionType is now imported from ../proto/action-type-utils (single source of truth)
+// NOTE: stringToActionType is now imported from ./action-types (shared compatibility owner)

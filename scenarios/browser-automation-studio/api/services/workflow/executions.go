@@ -23,7 +23,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/readiness"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
@@ -404,7 +403,7 @@ func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[s
 }
 
 func jsonValueToAny(v *commonv1.JsonValue) any {
-	return typeconv.JsonValueToAny(v)
+	return autocontracts.JsonValueToAny(v)
 }
 
 // navigateWaitEventToString converts the NavigateWaitEvent enum to a string value.

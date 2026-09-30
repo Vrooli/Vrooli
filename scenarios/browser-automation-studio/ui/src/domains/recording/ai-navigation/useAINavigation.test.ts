@@ -27,15 +27,35 @@ const terminalStatus = (navigationId: string) => ({
   extractedData: {},
 });
 
+function mockSuccessfulStart(navigationId: string): void {
+  vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
+    success: true,
+    data: { navigationId },
+  } as never);
+}
+
+function keepStatusObservationPending(): void {
+  vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
+}
+
+function emitHumanHandoff(navigationId: string, reason: string): (message: unknown) => void {
+  const callback = vi.mocked(useWebSocketMessage).mock.calls[0][0] as (message: unknown) => void;
+  act(() => callback({
+    type: 'ai_navigation_awaiting_human',
+    navigationId,
+    sessionId: 'session-1',
+    reason,
+    timestamp: '2026-09-26T22:40:00.000Z',
+  }));
+  return callback;
+}
+
 describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('publishes the accepted navigation identity before status observation', async () => {
     const order: string[] = [];
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-ordered' },
-    } as never);
+    mockSuccessfulStart('nav-ordered');
     vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => {
       order.push('observe');
       return Promise.resolve({ success: true, data: terminalStatus('nav-ordered') } as never);
@@ -57,7 +77,7 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
 
   it('rejects a second start while the first request is in flight', async () => {
     let resolveStart: ((value: unknown) => void) | undefined;
-    vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
+    keepStatusObservationPending();
     vi.mocked(recordingApi.startAINavigation).mockImplementationOnce(() => new Promise((resolve) => {
       resolveStart = resolve;
     }) as never);
@@ -101,10 +121,7 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
   });
 
   it('keeps navigation recoverable when status observation fails', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-status-failure' },
-    } as never);
+    mockSuccessfulStart('nav-status-failure');
     vi.mocked(recordingApi.getAINavigationStatus).mockResolvedValueOnce({
       success: false,
       error: 'status unavailable',
@@ -120,10 +137,7 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
   });
 
   it('keeps navigation recoverable when status observation throws', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-status-throw' },
-    } as never);
+    mockSuccessfulStart('nav-status-throw');
     vi.mocked(recordingApi.getAINavigationStatus).mockRejectedValueOnce(new Error('socket closed'));
     const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1' }));
 
@@ -136,10 +150,7 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
   });
 
   it('restores active status when a live step proves observation recovered', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-live-recovered' },
-    } as never);
+    mockSuccessfulStart('nav-live-recovered');
     vi.mocked(recordingApi.getAINavigationStatus).mockResolvedValueOnce({
       success: false,
       error: 'status unavailable',
@@ -171,10 +182,7 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
   });
 
   it('allows an observed navigation to be stopped after the status connection is lost', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-observation-abort' },
-    } as never);
+    mockSuccessfulStart('nav-observation-abort');
     vi.mocked(recordingApi.getAINavigationStatus)
       .mockResolvedValueOnce({ success: false, error: 'status unavailable' } as never)
       .mockResolvedValueOnce({
@@ -225,10 +233,7 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
   });
 
   it('fails closed when status recovery returns an unknown status', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-invalid-status' },
-    } as never);
+    mockSuccessfulStart('nav-invalid-status');
     vi.mocked(recordingApi.getAINavigationStatus).mockResolvedValueOnce({
       success: true,
       data: { ...terminalStatus('nav-invalid-status'), status: 'future_status' },
@@ -246,11 +251,8 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
   });
 
   it('ignores completion events with unknown statuses', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-invalid-complete' },
-    } as never);
-    vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
+    mockSuccessfulStart('nav-invalid-complete');
+    keepStatusObservationPending();
     const onComplete = vi.fn();
     const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1', onComplete }));
 
@@ -273,11 +275,8 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
   });
 
   it('ignores same-navigation events from a different session', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-session-fence' },
-    } as never);
-    vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
+    mockSuccessfulStart('nav-session-fence');
+    keepStatusObservationPending();
     const onComplete = vi.fn();
     const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1', onComplete }));
 
@@ -344,11 +343,8 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
   });
 
   it('pauses live navigation while awaiting human intervention', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-awaiting-human' },
-    } as never);
-    vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
+    mockSuccessfulStart('nav-awaiting-human');
+    keepStatusObservationPending();
     const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1' }));
 
     await act(async () => { await result.current.startNavigation('human handoff', 'local_first'); });
@@ -376,10 +372,7 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
   });
 
   it('restores active state when human intervention resumes navigation', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-resume-state' },
-    } as never);
+    mockSuccessfulStart('nav-resume-state');
     vi.mocked(recordingApi.getAINavigationStatus)
       .mockImplementationOnce(() => new Promise(() => {}))
       .mockResolvedValueOnce({
@@ -394,14 +387,7 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
     const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1' }));
 
     await act(async () => { await result.current.startNavigation('resume state', 'local_first'); });
-    const websocketCallback = vi.mocked(useWebSocketMessage).mock.calls[0][0] as (message: unknown) => void;
-    act(() => websocketCallback({
-      type: 'ai_navigation_awaiting_human',
-      navigationId: 'nav-resume-state',
-      sessionId: 'session-1',
-      reason: 'Verification required',
-      timestamp: '2026-09-26T22:40:00.000Z',
-    }));
+    const websocketCallback = emitHumanHandoff('nav-resume-state', 'Verification required');
     expect(result.current.state.isNavigating).toBe(false);
 
     await act(async () => { await result.current.resumeNavigation(); });
@@ -421,24 +407,14 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
   });
 
   it('admits resume from a stale callback after human handoff arrives', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-resume-stale' },
-    } as never);
-    vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
+    mockSuccessfulStart('nav-resume-stale');
+    keepStatusObservationPending();
     vi.mocked(recordingApi.resumeAINavigation).mockResolvedValueOnce({ success: true } as never);
     const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1' }));
 
     await act(async () => { await result.current.startNavigation('resume stale', 'local_first'); });
     const staleResume = result.current.resumeNavigation;
-    const websocketCallback = vi.mocked(useWebSocketMessage).mock.calls[0][0] as (message: unknown) => void;
-    act(() => websocketCallback({
-      type: 'ai_navigation_awaiting_human',
-      navigationId: 'nav-resume-stale',
-      sessionId: 'session-1',
-      reason: 'Verification required',
-      timestamp: '2026-09-26T22:40:00.000Z',
-    }));
+    const websocketCallback = emitHumanHandoff('nav-resume-stale', 'Verification required');
 
     await act(async () => {
       expect(await staleResume()).toBe(true);
@@ -447,23 +423,13 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
   });
 
   it('keeps abort cleanup active and clears terminal navigation identity', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-abort-human' },
-    } as never);
-    vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
+    mockSuccessfulStart('nav-abort-human');
+    keepStatusObservationPending();
     vi.mocked(recordingApi.abortAINavigation).mockResolvedValueOnce({ success: true } as never);
     const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1' }));
 
     await act(async () => { await result.current.startNavigation('abort handoff', 'local_first'); });
-    const websocketCallback = vi.mocked(useWebSocketMessage).mock.calls[0][0] as (message: unknown) => void;
-    act(() => websocketCallback({
-      type: 'ai_navigation_awaiting_human',
-      navigationId: 'nav-abort-human',
-      sessionId: 'session-1',
-      reason: 'Login required',
-      timestamp: '2026-09-26T22:40:00.000Z',
-    }));
+    const websocketCallback = emitHumanHandoff('nav-abort-human', 'Login required');
 
     await act(async () => { await result.current.abortNavigation(); });
     expect(recordingApi.abortAINavigation).toHaveBeenCalledWith('nav-abort-human', expect.anything());
@@ -487,221 +453,132 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
     expect(vi.mocked(recordingApi.getAINavigationStatus).mock.calls[0][2]?.signal?.aborted).toBe(true);
   });
 
-  it('keeps a failed abort retryable during human handoff', async () => {
+  it.each([
+    { command: 'abort', navigationId: 'nav-abort-retry', reason: 'Login required', error: 'abort unavailable' },
+    { command: 'resume', navigationId: 'nav-resume-retry', reason: 'Verification required', error: 'resume unavailable' },
+  ] as const)('keeps a failed $command retryable during human handoff', async ({ command, navigationId, reason, error }) => {
     vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
       success: true,
-      data: { navigationId: 'nav-abort-retry' },
+      data: { navigationId },
     } as never);
-    vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
-    vi.mocked(recordingApi.abortAINavigation)
-      .mockResolvedValueOnce({ success: false, error: 'abort unavailable' } as never)
+    keepStatusObservationPending();
+    const api = command === 'abort' ? recordingApi.abortAINavigation : recordingApi.resumeAINavigation;
+    vi.mocked(api)
+      .mockResolvedValueOnce({ success: false, error } as never)
       .mockResolvedValueOnce({ success: true } as never);
     const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1' }));
 
-    await act(async () => { await result.current.startNavigation('abort retry', 'local_first'); });
-    const websocketCallback = vi.mocked(useWebSocketMessage).mock.calls[0][0] as (message: unknown) => void;
-    act(() => websocketCallback({
-      type: 'ai_navigation_awaiting_human',
-      navigationId: 'nav-abort-retry',
-      sessionId: 'session-1',
-      reason: 'Login required',
-      timestamp: '2026-09-26T22:40:00.000Z',
-    }));
+    await act(async () => { await result.current.startNavigation(`${command} retry`, 'local_first'); });
+    const websocketCallback = emitHumanHandoff(navigationId, reason);
 
-    await act(async () => { await result.current.abortNavigation(); });
+    const sendCommand = () => command === 'abort'
+      ? result.current.abortNavigation()
+      : result.current.resumeNavigation();
+    await act(async () => { await sendCommand(); });
     expect(result.current.state.status).toBe('awaiting_human');
     expect(result.current.state.isNavigating).toBe(false);
-    expect(result.current.state.error).toBe('abort unavailable');
+    expect(result.current.state.error).toBe(error);
 
-    await act(async () => { await result.current.abortNavigation(); });
-    expect(result.current.state.status).toBe('aborting');
-    expect(result.current.state.isNavigating).toBe(true);
+    await act(async () => { await sendCommand(); });
+    expect(api).toHaveBeenCalledTimes(2);
     expect(result.current.state.error).toBeNull();
+    if (command === 'abort') {
+      expect(result.current.state.status).toBe('aborting');
+      expect(result.current.state.isNavigating).toBe(true);
+    }
   });
 
-  it('keeps a failed resume retryable during human handoff', async () => {
+  it.each([
+    { command: 'abort', navigationId: 'nav-abort-race', reason: 'Login required', failure: 'late abort failure' },
+    { command: 'resume', navigationId: 'nav-resume-race', reason: 'Verification required', failure: 'late resume failure' },
+  ] as const)('ignores a late $command failure after navigation resumes', async ({ command, navigationId, reason, failure }) => {
+    let resolveCommand: ((value: unknown) => void) | undefined;
     vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
       success: true,
-      data: { navigationId: 'nav-resume-retry' },
+      data: { navigationId },
     } as never);
-    vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
-    vi.mocked(recordingApi.resumeAINavigation)
-      .mockResolvedValueOnce({ success: false, error: 'resume unavailable' } as never)
-      .mockResolvedValueOnce({ success: true } as never);
+    keepStatusObservationPending();
+    const pendingCommand = new Promise((resolve) => { resolveCommand = resolve; });
+    if (command === 'abort') {
+      vi.mocked(recordingApi.abortAINavigation).mockImplementationOnce(() => pendingCommand as never);
+    } else {
+      vi.mocked(recordingApi.resumeAINavigation).mockImplementationOnce(() => pendingCommand as never);
+    }
     const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1' }));
 
-    await act(async () => { await result.current.startNavigation('resume retry', 'local_first'); });
-    const websocketCallback = vi.mocked(useWebSocketMessage).mock.calls[0][0] as (message: unknown) => void;
-    act(() => websocketCallback({
-      type: 'ai_navigation_awaiting_human',
-      navigationId: 'nav-resume-retry',
-      sessionId: 'session-1',
-      reason: 'Verification required',
-      timestamp: '2026-09-26T22:40:00.000Z',
-    }));
+    await act(async () => { await result.current.startNavigation(`${command} race`, 'local_first'); });
+    const websocketCallback = emitHumanHandoff(navigationId, reason);
 
-    await act(async () => { await result.current.resumeNavigation(); });
-    expect(result.current.state.status).toBe('awaiting_human');
-    expect(result.current.state.isNavigating).toBe(false);
-    expect(result.current.state.error).toBe('resume unavailable');
-
-    await act(async () => { await result.current.resumeNavigation(); });
-    expect(recordingApi.resumeAINavigation).toHaveBeenCalledTimes(2);
-    expect(result.current.state.error).toBeNull();
-  });
-
-  it('ignores a late abort failure after navigation resumes', async () => {
-    let resolveAbort: ((value: unknown) => void) | undefined;
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-abort-race' },
-    } as never);
-    vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
-    vi.mocked(recordingApi.abortAINavigation).mockImplementationOnce(() => new Promise((resolve) => {
-      resolveAbort = resolve;
-    }) as never);
-    const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1' }));
-
-    await act(async () => { await result.current.startNavigation('abort race', 'local_first'); });
-    const websocketCallback = vi.mocked(useWebSocketMessage).mock.calls[0][0] as (message: unknown) => void;
-    act(() => websocketCallback({
-      type: 'ai_navigation_awaiting_human',
-      navigationId: 'nav-abort-race',
-      sessionId: 'session-1',
-      reason: 'Login required',
-      timestamp: '2026-09-26T22:40:00.000Z',
-    }));
-
-    let abortPromise: Promise<void> | undefined;
-    act(() => { abortPromise = result.current.abortNavigation(); });
-    act(() => websocketCallback({
-      type: 'ai_navigation_resumed',
-      navigationId: 'nav-abort-race',
-      sessionId: 'session-1',
-      timestamp: '2026-09-26T22:41:00.000Z',
-    }));
-    resolveAbort?.({ success: false, error: 'late abort failure' });
-    await act(async () => { await abortPromise; });
-
-    expect(result.current.state.status).toBe('navigating');
-    expect(result.current.state.isNavigating).toBe(true);
-    expect(result.current.state.error).toBeNull();
-  });
-
-  it('ignores a late resume failure after navigation resumes', async () => {
-    let resolveResume: ((value: unknown) => void) | undefined;
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-resume-race' },
-    } as never);
-    vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
-    vi.mocked(recordingApi.resumeAINavigation).mockImplementationOnce(() => new Promise((resolve) => {
-      resolveResume = resolve;
-    }) as never);
-    const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1' }));
-
-    await act(async () => { await result.current.startNavigation('resume race', 'local_first'); });
-    const websocketCallback = vi.mocked(useWebSocketMessage).mock.calls[0][0] as (message: unknown) => void;
-    act(() => websocketCallback({
-      type: 'ai_navigation_awaiting_human',
-      navigationId: 'nav-resume-race',
-      sessionId: 'session-1',
-      reason: 'Verification required',
-      timestamp: '2026-09-26T22:40:00.000Z',
-    }));
-
-    let resumePromise: Promise<void> | undefined;
-    act(() => { resumePromise = result.current.resumeNavigation(); });
-    act(() => websocketCallback({
-      type: 'ai_navigation_resumed',
-      navigationId: 'nav-resume-race',
-      sessionId: 'session-1',
-      timestamp: '2026-09-26T22:41:00.000Z',
-    }));
-    resolveResume?.({ success: false, error: 'late resume failure' });
-    await act(async () => { await resumePromise; });
-
-    expect(result.current.state.status).toBe('navigating');
-    expect(result.current.state.isNavigating).toBe(true);
-    expect(result.current.state.error).toBeNull();
-  });
-
-  it('admits only one concurrent resume command for a handoff', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-resume-duplicate' },
-    } as never);
-    vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
-    vi.mocked(recordingApi.resumeAINavigation).mockResolvedValueOnce({ success: true } as never);
-    const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1' }));
-
-    await act(async () => { await result.current.startNavigation('resume duplicate', 'local_first'); });
-    const websocketCallback = vi.mocked(useWebSocketMessage).mock.calls[0][0] as (message: unknown) => void;
-    act(() => websocketCallback({
-      type: 'ai_navigation_awaiting_human',
-      navigationId: 'nav-resume-duplicate',
-      sessionId: 'session-1',
-      reason: 'Verification required',
-      timestamp: '2026-09-26T22:40:00.000Z',
-    }));
-
-    let firstResume: Promise<void> | undefined;
-    let secondResume: Promise<void> | undefined;
+    let commandPromise: Promise<void> | undefined;
     act(() => {
-      firstResume = result.current.resumeNavigation();
-      secondResume = result.current.resumeNavigation();
+      commandPromise = command === 'abort'
+        ? result.current.abortNavigation()
+        : result.current.resumeNavigation();
     });
-    await act(async () => { await Promise.all([firstResume, secondResume]); });
-
-    expect(recordingApi.resumeAINavigation).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not resend resume after the API succeeds before the resumed event', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-resume-ack' },
-    } as never);
-    vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
-    vi.mocked(recordingApi.resumeAINavigation).mockResolvedValueOnce({ success: true } as never);
-    const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1' }));
-
-    await act(async () => { await result.current.startNavigation('resume acknowledgement', 'local_first'); });
-    const websocketCallback = vi.mocked(useWebSocketMessage).mock.calls[0][0] as (message: unknown) => void;
     act(() => websocketCallback({
-      type: 'ai_navigation_awaiting_human',
-      navigationId: 'nav-resume-ack',
+      type: 'ai_navigation_resumed',
+      navigationId,
       sessionId: 'session-1',
-      reason: 'Verification required',
-      timestamp: '2026-09-26T22:40:00.000Z',
+      timestamp: '2026-09-26T22:41:00.000Z',
     }));
+    resolveCommand?.({ success: false, error: failure });
+    await act(async () => { await commandPromise; });
 
-    await act(async () => { await result.current.resumeNavigation(); });
-    await act(async () => { await result.current.resumeNavigation(); });
-
-    expect(recordingApi.resumeAINavigation).toHaveBeenCalledTimes(1);
+    expect(result.current.state.status).toBe('navigating');
+    expect(result.current.state.isNavigating).toBe(true);
+    expect(result.current.state.error).toBeNull();
   });
 
-  it('does not resend abort after the API succeeds before completion', async () => {
+  it.each([
+    { command: 'resume', navigationId: 'nav-resume-duplicate', reason: 'Verification required' },
+    { command: 'abort', navigationId: 'nav-abort-duplicate', reason: 'Login required' },
+  ] as const)('admits only one concurrent $command command for a handoff', async ({ command, navigationId, reason }) => {
     vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
       success: true,
-      data: { navigationId: 'nav-abort-ack' },
+      data: { navigationId },
     } as never);
-    vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
-    vi.mocked(recordingApi.abortAINavigation).mockResolvedValueOnce({ success: true } as never);
+    keepStatusObservationPending();
+    const api = command === 'abort' ? recordingApi.abortAINavigation : recordingApi.resumeAINavigation;
+    vi.mocked(api).mockResolvedValueOnce({ success: true } as never);
     const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1' }));
 
-    await act(async () => { await result.current.startNavigation('abort acknowledgement', 'local_first'); });
-    await act(async () => { await result.current.abortNavigation(); });
-    await act(async () => { await result.current.abortNavigation(); });
+    await act(async () => { await result.current.startNavigation(`${command} duplicate`, 'local_first'); });
+    const websocketCallback = emitHumanHandoff(navigationId, reason);
 
-    expect(recordingApi.abortAINavigation).toHaveBeenCalledTimes(1);
+    let firstCommand: Promise<void> | undefined;
+    let secondCommand: Promise<void> | undefined;
+    act(() => {
+      firstCommand = command === 'abort' ? result.current.abortNavigation() : result.current.resumeNavigation();
+      secondCommand = command === 'abort' ? result.current.abortNavigation() : result.current.resumeNavigation();
+    });
+    await act(async () => { await Promise.all([firstCommand, secondCommand]); });
+
+    expect(api).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { command: 'resume', navigationId: 'nav-resume-ack', reason: 'Verification required' },
+    { command: 'abort', navigationId: 'nav-abort-ack' },
+  ] as const)('does not resend $command after API acknowledgement', async ({ command, navigationId, reason }) => {
+    mockSuccessfulStart(navigationId);
+    keepStatusObservationPending();
+    const api = command === 'abort' ? recordingApi.abortAINavigation : recordingApi.resumeAINavigation;
+    vi.mocked(api).mockResolvedValueOnce({ success: true } as never);
+    const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1' }));
+
+    await act(async () => { await result.current.startNavigation(`${command} acknowledgement`, 'local_first'); });
+    if (reason) emitHumanHandoff(navigationId, reason);
+    const sendCommand = () => command === 'abort'
+      ? result.current.abortNavigation()
+      : result.current.resumeNavigation();
+    await act(async () => { await sendCommand(); });
+    await act(async () => { await sendCommand(); });
+
+    expect(api).toHaveBeenCalledTimes(1);
   });
 
   it('recovers an acknowledged abort when the completion event is missed', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-abort-recovery' },
-    } as never);
+    mockSuccessfulStart('nav-abort-recovery');
     vi.mocked(recordingApi.getAINavigationStatus)
       .mockImplementationOnce(() => new Promise(() => {}))
       .mockResolvedValueOnce({
@@ -728,36 +605,6 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
     expect(result.current.state.isNavigating).toBe(false);
   });
 
-  it('admits only one concurrent abort command for a handoff', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-abort-duplicate' },
-    } as never);
-    vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
-    vi.mocked(recordingApi.abortAINavigation).mockResolvedValueOnce({ success: true } as never);
-    const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1' }));
-
-    await act(async () => { await result.current.startNavigation('abort duplicate', 'local_first'); });
-    const websocketCallback = vi.mocked(useWebSocketMessage).mock.calls[0][0] as (message: unknown) => void;
-    act(() => websocketCallback({
-      type: 'ai_navigation_awaiting_human',
-      navigationId: 'nav-abort-duplicate',
-      sessionId: 'session-1',
-      reason: 'Login required',
-      timestamp: '2026-09-26T22:40:00.000Z',
-    }));
-
-    let firstAbort: Promise<void> | undefined;
-    let secondAbort: Promise<void> | undefined;
-    act(() => {
-      firstAbort = result.current.abortNavigation();
-      secondAbort = result.current.abortNavigation();
-    });
-    await act(async () => { await Promise.all([firstAbort, secondAbort]); });
-
-    expect(recordingApi.abortAINavigation).toHaveBeenCalledTimes(1);
-  });
-
   it('does not let an old command release a new navigation handoff guard', async () => {
     const resumeResolvers: Array<(value: unknown) => void> = [];
     vi.mocked(recordingApi.startAINavigation)
@@ -770,14 +617,7 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
     const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1' }));
 
     await act(async () => { await result.current.startNavigation('old handoff', 'local_first'); });
-    const websocketCallback = vi.mocked(useWebSocketMessage).mock.calls[0][0] as (message: unknown) => void;
-    act(() => websocketCallback({
-      type: 'ai_navigation_awaiting_human',
-      navigationId: 'nav-old',
-      sessionId: 'session-1',
-      reason: 'Old verification',
-      timestamp: '2026-09-26T22:40:00.000Z',
-    }));
+    const websocketCallback = emitHumanHandoff('nav-old', 'Old verification');
 
     let oldResume: Promise<boolean> | undefined;
     act(() => { oldResume = result.current.resumeNavigation(); });
@@ -807,22 +647,12 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
   });
 
   it('ignores resumed events after reset fences the handoff', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-reset-handoff' },
-    } as never);
-    vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
+    mockSuccessfulStart('nav-reset-handoff');
+    keepStatusObservationPending();
     const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1' }));
 
     await act(async () => { await result.current.startNavigation('reset handoff', 'local_first'); });
-    const websocketCallback = vi.mocked(useWebSocketMessage).mock.calls[0][0] as (message: unknown) => void;
-    act(() => websocketCallback({
-      type: 'ai_navigation_awaiting_human',
-      navigationId: 'nav-reset-handoff',
-      sessionId: 'session-1',
-      reason: 'Verification required',
-      timestamp: '2026-09-26T22:40:00.000Z',
-    }));
+    const websocketCallback = emitHumanHandoff('nav-reset-handoff', 'Verification required');
     act(() => result.current.reset());
 
     act(() => websocketCallback({
@@ -838,11 +668,8 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
   });
 
   it('ignores live steps without a valid one-based step number', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-invalid-step' },
-    } as never);
-    vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
+    mockSuccessfulStart('nav-invalid-step');
+    keepStatusObservationPending();
     const onStep = vi.fn();
     const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1', onStep }));
 
@@ -876,10 +703,7 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
 
   it('preserves richer live steps when recovery returns an equal-length snapshot', async () => {
     let resolveStatus: ((value: unknown) => void) | undefined;
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-merge-details' },
-    } as never);
+    mockSuccessfulStart('nav-merge-details');
     vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise((resolve) => {
       resolveStatus = resolve;
     }) as never);
@@ -973,11 +797,8 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
   });
 
   it('aborts the owned status wait when the hook unmounts', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-unmount' },
-    } as never);
-    vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
+    mockSuccessfulStart('nav-unmount');
+    keepStatusObservationPending();
     const { result, unmount } = renderHook(() => useAINavigation({ sessionId: 'session-1' }));
 
     await act(async () => { await result.current.startNavigation('unmount', 'local_first'); });
@@ -1006,10 +827,7 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
   });
 
   it('preserves recovered selector and value details for actionable steps', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-details' },
-    } as never);
+    mockSuccessfulStart('nav-details');
     vi.mocked(recordingApi.getAINavigationStatus).mockResolvedValueOnce({
       success: true,
       data: {
@@ -1078,11 +896,8 @@ describe('useAINavigation recovery [REQ:BAS-RH-J24]', () => {
   });
 
   it('preserves selector and value details from live WebSocket actions', async () => {
-    vi.mocked(recordingApi.startAINavigation).mockResolvedValueOnce({
-      success: true,
-      data: { navigationId: 'nav-live-details' },
-    } as never);
-    vi.mocked(recordingApi.getAINavigationStatus).mockImplementationOnce(() => new Promise(() => {}));
+    mockSuccessfulStart('nav-live-details');
+    keepStatusObservationPending();
     const onStep = vi.fn();
     const { result } = renderHook(() => useAINavigation({ sessionId: 'session-1', onStep }));
     await act(async () => { await result.current.startNavigation('live details', 'local_first'); });

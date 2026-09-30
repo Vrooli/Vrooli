@@ -300,14 +300,14 @@ interface StepTelemetry {
 | File | Boundary | Can Change | Cannot Change |
 |------|----------|------------|---------------|
 | `index.ts` | Central hub | Re-exports | Proto type definitions |
-| `params.ts` | Param extraction | Extractor implementations | Function signatures |
+| `instruction.ts` | Instruction and generated action access | Handler conversion and enum presentation | Proto schema |
 | `utils.ts` | JSON utilities | Helper functions | Parse/serialize contracts |
 | `recording.ts` | Timeline conversion | Browser event handling | TimelineEntry schema |
 
 ### Change Axes
 
-1. **Adding a new action type param extractor**
-   - Add to `params.ts`
+1. **Adding a new action type param conversion**
+   - Add access through the generated `ActionDefinition.params` oneof in `instruction.ts`
    - Export from `index.ts`
    - No other files need changes
 
@@ -371,7 +371,7 @@ export class MyHandler extends BaseHandler {
    - Create new handler file
    - Implement `InstructionHandler`
    - Register in `server.ts`
-   - Add param extractor in `proto/params.ts`
+   - Add a generated `ActionDefinition.params` case conversion in `proto/instruction.ts`
    - Use operation tracker for deduplication
 
 2. **Modifying handler behavior**
@@ -500,7 +500,7 @@ This eliminates direct imports from session layer into handler modules.
 | Concept | Single Source | Location |
 |---------|---------------|----------|
 | Action type mapping | `ACTION_TYPE_MAP` | `recording/action-types.ts` |
-| Param extractors | `get*Params()` functions | `proto/params.ts` |
+| Param accessors | `get*Params()` functions | `proto/instruction.ts` |
 | Error code classification | `ERROR_CODE_TO_FAILURE_KIND` | `outcome/types.ts` |
 | Wire format conversion | `toHandlerInstruction()` | `proto/index.ts` |
 | **Action execution** | `handlers/*.ts` | `handlers/` (canonical) |

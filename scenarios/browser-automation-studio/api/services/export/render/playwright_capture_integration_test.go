@@ -5,7 +5,6 @@ package render
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -21,7 +20,7 @@ func TestPlaywrightCaptureIntegration(t *testing.T) {
 	os.Unsetenv("BROWSERLESS_URL")
 
 	// Minimal export page that listens for bas:render and advances a timer.
-	exportPage := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	exportPage := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`
 <!doctype html>

@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"strconv"
 	"testing"
 
@@ -16,7 +15,7 @@ import (
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/automation/state"
 	"github.com/vrooli/browser-automation-studio/config"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/enginemocks"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -25,7 +24,9 @@ import (
 func TestExecuteGraphReturnsNewSessionWhenItsFirstStepFails(t *testing.T) {
 	t.Parallel()
 
-	session := &failingEngineSession{}
+	session := &enginemocks.Session{RunFunc: func(context.Context, contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+		return contracts.StepOutcome{}, assert.AnError
+	}}
 	executor := NewSimpleExecutor(nil)
 	plan := contracts.ExecutionPlan{
 		ExecutionID: uuid.New(),
@@ -63,7 +64,9 @@ func TestExecuteGraphCompletesWhenAFailedStepIsConfiguredToContinue(t *testing.T
 	t.Parallel()
 
 	continueOnError := true
-	session := &failingEngineSession{}
+	session := &enginemocks.Session{RunFunc: func(context.Context, contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+		return contracts.StepOutcome{}, assert.AnError
+	}}
 	plan := contracts.ExecutionPlan{
 		ExecutionID: uuid.New(),
 		WorkflowID:  uuid.New(),
@@ -116,7 +119,9 @@ func TestExecuteGraphHonorsContinueOnErrorCompiledFromWorkflow(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	session := &failingEngineSession{}
+	session := &enginemocks.Session{RunFunc: func(context.Context, contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+		return contracts.StepOutcome{}, assert.AnError
+	}}
 	returned, err := NewSimpleExecutor(nil).executeGraph(
 		context.Background(),
 		Request{Plan: plan, Recorder: &stubExecutionWriter{}},
@@ -135,7 +140,9 @@ func TestExecuteGraphHonorsContinueOnErrorCompiledFromWorkflow(t *testing.T) {
 func TestExecuteGraphAcceptsPersistedSnakeCaseContinueOnError(t *testing.T) {
 	t.Parallel()
 
-	session := &failingEngineSession{}
+	session := &enginemocks.Session{RunFunc: func(context.Context, contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+		return contracts.StepOutcome{}, assert.AnError
+	}}
 	plan := contracts.ExecutionPlan{
 		ExecutionID: uuid.New(),
 		WorkflowID:  uuid.New(),
@@ -179,7 +186,7 @@ func TestExecutePlanStep_SubflowInterpolatesArgsBeforeExecution(t *testing.T) {
 			Params: &basactions.ActionDefinition_Subflow{
 				Subflow: &basactions.SubflowParams{
 					Target: &basactions.SubflowParams_WorkflowId{WorkflowId: childWorkflowID.String()},
-					Args: typeconv.ToJsonValueMap(map[string]any{
+					Args: contracts.ToJsonValueMap(map[string]any{
 						"command": "${@params/command}",
 					}),
 				},
@@ -233,7 +240,13 @@ func TestExecutePlanStep_SubflowInterpolatesArgsBeforeExecution(t *testing.T) {
 		"command": expectedCommand,
 	}, nil)
 
-	stubEngine := &stubAutomationEngine{session: &stubEngineSession{}}
+	var lastInputValue string
+	stubEngine := &stubAutomationEngine{session: &enginemocks.Session{RunFunc: func(_ context.Context, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+		if input := instruction.Action.GetInput(); input != nil {
+			lastInputValue = input.GetValue()
+		}
+		return contracts.StepOutcome{Success: true}, nil
+	}}}
 	executor := NewSimpleExecutor(nil)
 	outcome, _, err := executor.executePlanStep(
 		context.Background(),
@@ -248,7 +261,7 @@ func TestExecutePlanStep_SubflowInterpolatesArgsBeforeExecution(t *testing.T) {
 	)
 	require.NoError(t, err)
 	assert.True(t, outcome.Success)
-	assert.Equal(t, expectedCommand, stubEngine.session.lastInputValue)
+	assert.Equal(t, expectedCommand, lastInputValue)
 }
 
 type stubWorkflowResolver struct {
@@ -271,11 +284,11 @@ func (s *stubWorkflowResolver) GetWorkflowByProjectPath(_ context.Context, _ uui
 }
 
 type stubAutomationEngine struct {
-	session *stubEngineSession
+	session *enginemocks.Session
 }
 
 type failingAutomationEngine struct {
-	session *failingEngineSession
+	session *enginemocks.Session
 }
 
 func (e *failingAutomationEngine) Name() string { return "failing" }
@@ -296,42 +309,9 @@ func (s *stubAutomationEngine) Capabilities(context.Context) (contracts.EngineCa
 
 func (s *stubAutomationEngine) StartSession(context.Context, engine.SessionSpec) (engine.EngineSession, error) {
 	if s.session == nil {
-		s.session = &stubEngineSession{}
+		s.session = &enginemocks.Session{}
 	}
 	return s.session, nil
-}
-
-type stubEngineSession struct {
-	lastInputValue string
-}
-
-type failingEngineSession struct{}
-
-func (*failingEngineSession) Run(context.Context, contracts.CompiledInstruction) (contracts.StepOutcome, error) {
-	return contracts.StepOutcome{}, assert.AnError
-}
-
-func (*failingEngineSession) Reset(context.Context) error { return nil }
-
-func (*failingEngineSession) Close(context.Context) error { return nil }
-
-func (*failingEngineSession) GetStorageState(context.Context) (json.RawMessage, error) {
-	return nil, nil
-}
-
-func (s *stubEngineSession) Run(_ context.Context, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
-	if input := instruction.Action.GetInput(); input != nil {
-		s.lastInputValue = input.GetValue()
-	}
-	return contracts.StepOutcome{Success: true}, nil
-}
-
-func (s *stubEngineSession) Reset(context.Context) error { return nil }
-
-func (s *stubEngineSession) Close(context.Context) error { return nil }
-
-func (s *stubEngineSession) GetStorageState(context.Context) (json.RawMessage, error) {
-	return nil, nil
 }
 
 type stubExecutionWriter struct{}
@@ -367,11 +347,11 @@ var (
 	_ executionwriter.ExecutionWriter = (*stubExecutionWriter)(nil)
 	_ WorkflowResolver                = (*stubWorkflowResolver)(nil)
 	_ engine.AutomationEngine         = (*stubAutomationEngine)(nil)
-	_ engine.EngineSession            = (*stubEngineSession)(nil)
+	_ engine.EngineSession            = (*enginemocks.Session)(nil)
 )
 
 type checkpointEffectSession struct {
-	stubEngineSession
+	enginemocks.Session
 	effects []string
 }
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http/httptest"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"path/filepath"
 	"testing"
 	"time"
@@ -144,7 +144,7 @@ func newTestService(t *testing.T, exec Executor, sched SeedScheduler) (apiconnec
 	log := logrus.New()
 	log.SetLevel(logrus.ErrorLevel)
 	mount := Module(Deps{Executor: exec, SeedScheduler: sched, Logger: log})
-	srv := httptest.NewServer(mount.Handler)
+	srv := testutil.StartHTTPServer(t, mount.Handler)
 	client := apiconnect.NewExecutionsServiceClient(srv.Client(), srv.URL)
 	return client, srv.Close
 }

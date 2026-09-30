@@ -7,7 +7,12 @@
 package workflows
 
 import (
+	"bytes"
 	"context"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -104,4 +109,33 @@ func Module(d Deps) connectx.ServiceMount {
 	}
 	path, handler := apiconnect.NewWorkflowsServiceHandler(&service{deps: d})
 	return connectx.ServiceMount{Path: path, Handler: normalizeAdhocRequest(handler)}
+}
+
+const adhocRequestBodyLimit = 16 << 20
+
+// normalizeAdhocRequest applies the V2 schema normalizer before Connect decodes
+// an ad hoc execution request. Short-form metadata and settings remain accepted
+// where the V2 workflow schema defines them.
+func normalizeAdhocRequest(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/ExecuteAdhocWorkflow") || !strings.Contains(strings.ToLower(r.Header.Get("Content-Type")), "json") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, adhocRequestBodyLimit))
+		if err != nil {
+			http.Error(w, "adhoc workflow request is too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		normalized, err := workflowservice.NormalizeExecuteAdhocRequest(body)
+		if err != nil {
+			http.Error(w, "invalid adhoc workflow request: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		r.Body = io.NopCloser(bytes.NewReader(normalized))
+		r.ContentLength = int64(len(normalized))
+		r.Header.Set("Content-Length", strconv.Itoa(len(normalized)))
+		next.ServeHTTP(w, r)
+	})
 }

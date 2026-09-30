@@ -399,8 +399,9 @@ func TestResumeNavigation_HappyPath(t *testing.T) {
 // lockedTracker mirrors the production trackers: it owns a lock, mutates the
 // live session under it, and hands out Snapshot copies.
 type lockedTracker struct {
-	mu      sync.Mutex
-	session *vision.NavigationSession
+	mu          sync.Mutex
+	session     *vision.NavigationSession
+	getObserved chan struct{}
 }
 
 func (l *lockedTracker) GetSession(string) (*vision.NavigationSession, bool) {
@@ -409,7 +410,12 @@ func (l *lockedTracker) GetSession(string) (*vision.NavigationSession, bool) {
 	if l.session == nil {
 		return nil, false
 	}
-	return l.session.Snapshot(), true
+	snapshot := l.session.Snapshot()
+	if l.getObserved != nil {
+		close(l.getObserved)
+		l.getObserved = nil
+	}
+	return snapshot, true
 }
 
 func (l *lockedTracker) AbortNavigation(context.Context, string) error  { return nil }
@@ -467,40 +473,54 @@ func TestGetNavigationStatus_NonTerminalWithoutWaitReturnsImmediately(t *testing
 }
 
 func TestGetNavigationStatus_WaitReturnsEarlyOnTerminalTransition(t *testing.T) {
-	tracker := &lockedTracker{session: newNavigatingSession()}
+	tracker := &lockedTracker{session: newNavigatingSession(), getObserved: make(chan struct{})}
 	client := newTestClient(t, Deps{Registry: newTestRegistry(t), Tracker: tracker})
 
+	type outcome struct {
+		resp *connect.Response[aiv1.GetNavigationStatusResponse]
+		err  error
+	}
+	result := make(chan outcome, 1)
 	go func() {
-		time.Sleep(100 * time.Millisecond)
-		tracker.transition(vision.StatusCompleted)
+		resp, err := client.GetNavigationStatus(context.Background(), connect.NewRequest(&aiv1.GetNavigationStatusRequest{NavigationId: "nav-w", WaitMillis: 10_000}))
+		result <- outcome{resp, err}
 	}()
-
-	start := time.Now()
-	resp, err := client.GetNavigationStatus(context.Background(), connect.NewRequest(&aiv1.GetNavigationStatusRequest{
-		NavigationId: "nav-w",
-		WaitMillis:   10_000,
-	}))
-	elapsed := time.Since(start)
+	<-tracker.getObserved
+	tracker.transition(vision.StatusCompleted)
+	var got outcome
+	select {
+	case got = <-result:
+	case <-time.After(2 * time.Second):
+		t.Fatal("status wait did not wake on terminal transition")
+	}
+	resp, err := got.resp, got.err
 	require.NoError(t, err)
 	require.True(t, resp.Msg.Terminal)
 	require.Equal(t, "completed", resp.Msg.Status)
-	require.GreaterOrEqual(t, elapsed, 90*time.Millisecond, "should have blocked until the transition")
-	require.Less(t, elapsed, 5*time.Second, "should not have waited for the full wait_millis")
 }
 
 func TestGetNavigationStatus_WaitWakesOnAwaitingHuman(t *testing.T) {
-	tracker := &lockedTracker{session: newNavigatingSession()}
+	tracker := &lockedTracker{session: newNavigatingSession(), getObserved: make(chan struct{})}
 	client := newTestClient(t, Deps{Registry: newTestRegistry(t), Tracker: tracker})
 
+	type outcome struct {
+		resp *connect.Response[aiv1.GetNavigationStatusResponse]
+		err  error
+	}
+	result := make(chan outcome, 1)
 	go func() {
-		time.Sleep(50 * time.Millisecond)
-		tracker.transition(vision.StatusAwaitingHuman)
+		resp, err := client.GetNavigationStatus(context.Background(), connect.NewRequest(&aiv1.GetNavigationStatusRequest{NavigationId: "nav-w", WaitMillis: 10_000}))
+		result <- outcome{resp, err}
 	}()
-
-	resp, err := client.GetNavigationStatus(context.Background(), connect.NewRequest(&aiv1.GetNavigationStatusRequest{
-		NavigationId: "nav-w",
-		WaitMillis:   10_000,
-	}))
+	<-tracker.getObserved
+	tracker.transition(vision.StatusAwaitingHuman)
+	var got outcome
+	select {
+	case got = <-result:
+	case <-time.After(2 * time.Second):
+		t.Fatal("status wait did not wake on awaiting_human transition")
+	}
+	resp, err := got.resp, got.err
 	require.NoError(t, err)
 	require.True(t, resp.Msg.Terminal)
 	require.Equal(t, "awaiting_human", resp.Msg.Status)

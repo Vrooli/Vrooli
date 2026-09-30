@@ -1,5 +1,5 @@
 import { handleRecordStart, handleRecordStop } from '../../src/routes/record-mode/recording-lifecycle';
-import { handleStreamSettings } from '../../src/routes/record-mode/recording-diagnostics-routes';
+import { handleStreamSettings } from '../../src/routes/record-mode/recording-stream-settings-route';
 import { appendFile, mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 /**
@@ -9,7 +9,7 @@ import { dirname } from 'node:path';
  * - Self-contained (no external server needed)
  * - Tests all event types (click, input, scroll, focus, navigation)
  * - Validates TimelineEntry structure
- * - Mirrors the diagnostic pipeline test logic from self-test.ts
+ * - Exercises the recording pipeline directly through the driver integration harness
  *
  * These tests ensure the recording pipeline works correctly and can be
  * run as part of `pnpm test` in CI environments.

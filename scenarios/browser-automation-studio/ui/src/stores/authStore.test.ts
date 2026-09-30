@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { act } from '@testing-library/react';
+import { act, waitFor } from '@testing-library/react';
 import { useAuthStore, setupAuthListener, type AuthUser } from './authStore';
 
 // Mock the desktop API
@@ -187,7 +187,7 @@ describe('authStore [REQ:BAS-AUTH]', () => {
       vi.stubGlobal('fetch', fetchMock);
 
       setupAuthListener();
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(true));
 
       const state = useAuthStore.getState();
       expect(state.isAuthenticated).toBe(true);
@@ -212,7 +212,7 @@ describe('authStore [REQ:BAS-AUTH]', () => {
       vi.stubGlobal('fetch', fetchMock);
 
       setupAuthListener();
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await waitFor(() => expect(useAuthStore.getState().isLoading).toBe(false));
 
       expect(fetchMock).not.toHaveBeenCalledWith('/api/v1/auth/subscription/session', expect.anything());
       expect(useAuthStore.getState().isAuthenticated).toBe(false);
@@ -410,8 +410,7 @@ describe('authStore [REQ:BAS-AUTH]', () => {
       // The callback is async, so we need to wait
       await act(async () => {
         authChangedCallback('tokens-received');
-        // Wait for the async getUser call
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        await waitFor(() => expect(useAuthStore.getState().user?.email).toBe('newuser@example.com'));
       });
     });
 

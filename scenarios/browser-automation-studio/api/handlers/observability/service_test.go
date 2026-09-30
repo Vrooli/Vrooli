@@ -3,14 +3,13 @@ package observability
 import (
 	"context"
 	"errors"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/vrooli/browser-automation-studio/handlers"
 	observabilityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/observability"
@@ -25,8 +24,6 @@ type recordingProxy struct {
 
 	gotDepth   string
 	gotNoCache bool
-	gotDiag    map[string]any
-	gotPipe    map[string]any
 	gotUpdate  struct {
 		envVar string
 		value  string
@@ -44,25 +41,11 @@ func (r *recordingProxy) FetchObservabilityRefresh(context.Context) (map[string]
 	return r.snapshot, r.err
 }
 
-func (r *recordingProxy) FetchObservabilityDiagnostics(_ context.Context, opts map[string]any) (map[string]any, error) {
-	r.gotDiag = opts
-	return r.snapshot, r.err
-}
-
 func (r *recordingProxy) FetchObservabilitySessions(context.Context) (map[string]any, error) {
 	return r.snapshot, r.err
 }
 
-func (r *recordingProxy) FetchObservabilityCleanup(context.Context) (map[string]any, error) {
-	return r.snapshot, r.err
-}
-
 func (r *recordingProxy) FetchObservabilityMetrics(context.Context) (map[string]any, error) {
-	return r.snapshot, r.err
-}
-
-func (r *recordingProxy) FetchObservabilityPipelineTest(_ context.Context, opts map[string]any) (map[string]any, error) {
-	r.gotPipe = opts
 	return r.snapshot, r.err
 }
 
@@ -86,7 +69,7 @@ func newClientForTest(t *testing.T, proxy Proxy) observabilityconnect.Observabil
 	mount := Module(Deps{Proxy: proxy, Logger: discardLog()})
 	mux := http.NewServeMux()
 	mux.Handle(mount.Path, mount.Handler)
-	srv := httptest.NewServer(mux)
+	srv := testutil.StartHTTPServer(t, mux)
 	t.Cleanup(srv.Close)
 	return observabilityconnect.NewObservabilityServiceClient(srv.Client(), srv.URL)
 }
@@ -150,24 +133,6 @@ func TestService_RefreshObservability_Happy(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// RunDiagnostics
-// ---------------------------------------------------------------------------
-
-func TestService_RunDiagnostics_ForwardsOptions(t *testing.T) {
-	proxy := &recordingProxy{snapshot: map[string]any{"duration_ms": 12.0}}
-	client := newClientForTest(t, proxy)
-
-	opts, err := structpb.NewStruct(map[string]any{"type": "recording", "options": map[string]any{"level": "full"}})
-	require.NoError(t, err)
-
-	resp, err := client.RunDiagnostics(context.Background(), connect.NewRequest(&observabilityv1.RunDiagnosticsRequest{Options: opts}))
-	require.NoError(t, err)
-	fields := resp.Msg.GetResult().AsMap()
-	assert.Equal(t, 12.0, fields["duration_ms"])
-	assert.Equal(t, "recording", proxy.gotDiag["type"])
-}
-
-// ---------------------------------------------------------------------------
 // Sessions / cleanup / metrics
 // ---------------------------------------------------------------------------
 
@@ -179,37 +144,12 @@ func TestService_GetSessionList_Happy(t *testing.T) {
 	require.NotNil(t, resp.Msg.GetResult())
 }
 
-func TestService_RunCleanup_Happy(t *testing.T) {
-	proxy := &recordingProxy{snapshot: map[string]any{"success": true}}
-	client := newClientForTest(t, proxy)
-	resp, err := client.RunCleanup(context.Background(), connect.NewRequest(&observabilityv1.RunCleanupRequest{}))
-	require.NoError(t, err)
-	fields := resp.Msg.GetResult().AsMap()
-	assert.Equal(t, true, fields["success"])
-}
-
 func TestService_GetMetrics_Happy(t *testing.T) {
 	proxy := &recordingProxy{snapshot: map[string]any{"summary": map[string]any{"total_metrics": 3.0}}}
 	client := newClientForTest(t, proxy)
 	resp, err := client.GetMetrics(context.Background(), connect.NewRequest(&observabilityv1.GetMetricsRequest{}))
 	require.NoError(t, err)
 	require.NotNil(t, resp.Msg.GetResult())
-}
-
-// ---------------------------------------------------------------------------
-// RunPipelineTest
-// ---------------------------------------------------------------------------
-
-func TestService_RunPipelineTest_ForwardsOptions(t *testing.T) {
-	proxy := &recordingProxy{snapshot: map[string]any{"success": true}}
-	client := newClientForTest(t, proxy)
-	opts, err := structpb.NewStruct(map[string]any{"timeout_ms": 30000.0})
-	require.NoError(t, err)
-	resp, err := client.RunPipelineTest(context.Background(), connect.NewRequest(&observabilityv1.RunPipelineTestRequest{Options: opts}))
-	require.NoError(t, err)
-	fields := resp.Msg.GetResult().AsMap()
-	assert.Equal(t, true, fields["success"])
-	assert.Equal(t, 30000.0, proxy.gotPipe["timeout_ms"])
 }
 
 // ---------------------------------------------------------------------------

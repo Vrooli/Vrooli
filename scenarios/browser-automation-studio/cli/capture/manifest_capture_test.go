@@ -2,6 +2,8 @@ package capture
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -19,7 +21,10 @@ import (
 // execution path. Connect-RPC domains are manifest-dispatched via
 // internal/protodispatch where this parity is guaranteed structurally.
 func TestCaptureArgSchemaCoversManifestFlags(t *testing.T) {
-	manifest := readBASManifest(t)
+	manifest, err := os.ReadFile(filepath.Join("..", "manifest.json"))
+	if err != nil {
+		t.Fatalf("read manifest: %v", err)
+	}
 
 	var doc struct {
 		Groups []struct {

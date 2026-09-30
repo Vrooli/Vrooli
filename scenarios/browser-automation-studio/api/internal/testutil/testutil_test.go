@@ -1,10 +1,30 @@
 package testutil
 
 import (
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+func TestStartHTTPServer(t *testing.T) {
+	server := StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, "ready")
+	}))
+	response, err := http.Get(server.URL)
+	if err != nil {
+		t.Fatalf("GET test server: %v", err)
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatalf("read test server response: %v", err)
+	}
+	if response.StatusCode != http.StatusOK || string(body) != "ready" {
+		t.Fatalf("response = %d %q, want 200 %q", response.StatusCode, body, "ready")
+	}
+}
 
 func TestCopyFilesCopiesNestedSourcesAndReturnsDestinations(t *testing.T) {
 	sourceRoot := t.TempDir()

@@ -126,20 +126,46 @@ func CompileWorkflowToContracts(ctx context.Context, executionID uuid.UUID, work
 	if len(metadata) == 0 {
 		metadata = nil
 	}
+	pageID := uuid.New()
+	startURL := ""
+	if metadata != nil {
+		if url, ok := metadata["startUrl"].(string); ok {
+			startURL = strings.TrimSpace(url)
+		}
+	}
+	for i := range instructions {
+		instructions[i].PageID = &pageID
+		if startURL == "" && instructions[i].Action != nil && instructions[i].Action.GetNavigate() != nil {
+			startURL = instructions[i].Action.GetNavigate().GetUrl()
+		}
+	}
+	graph := toContractsGraph(plan)
+	assignGraphPage(graph, pageID)
 
 	// Build the contracts.ExecutionPlan with both flat and graph representations
 	contractPlan := contracts.ExecutionPlan{
-		SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
+		SchemaVersion:  contracts.ExecutionPlanSchemaVersionV2,
 		PayloadVersion: contracts.PayloadVersion,
 		ExecutionID:    executionID,
 		WorkflowID:     workflowID,
 		Instructions:   instructions,
-		Graph:          toContractsGraph(plan),
+		Graph:          graph,
+		Pages:          []contracts.PageDefinition{{ID: pageID, IsInitial: true, StartURL: startURL}},
 		Metadata:       metadata,
 		CreatedAt:      time.Now().UTC(),
 	}
 
 	return contractPlan, instructions, nil
+}
+
+func assignGraphPage(graph *contracts.PlanGraph, pageID uuid.UUID) {
+	if graph == nil {
+		return
+	}
+	for i := range graph.Steps {
+		graph.Steps[i].PageID = &pageID
+		assignGraphPage(graph.Steps[i].Loop, pageID)
+	}
 }
 
 // toContractsGraph converts the compiler's ExecutionPlan into a contracts.PlanGraph.

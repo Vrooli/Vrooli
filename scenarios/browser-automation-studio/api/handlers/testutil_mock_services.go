@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
 	"github.com/minio/minio-go/v7"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	autosession "github.com/vrooli/browser-automation-studio/automation/session"
@@ -23,7 +22,6 @@ import (
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
-	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
@@ -539,7 +537,18 @@ func (m *MockExecutionService) ListExecutions(ctx context.Context, query databas
 			executions = append(executions, &copy)
 		}
 	}
-	return applyPagination(executions, query.Limit, query.Offset), len(executions), nil
+	return applyTestPagination(executions, query.Limit, query.Offset), len(executions), nil
+}
+
+func applyTestPagination[T any](items []*T, limit, offset int) []*T {
+	if offset >= len(items) {
+		return []*T{}
+	}
+	items = items[offset:]
+	if limit > 0 && limit < len(items) {
+		items = items[:limit]
+	}
+	return items
 }
 
 func (m *MockExecutionService) GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
@@ -681,92 +690,6 @@ func (m *MockExecutionService) AddExecution(execution *database.ExecutionIndex) 
 	copy := *execution
 	m.executions[execution.ID] = &copy
 }
-
-// ============================================================================
-// Mock WebSocket Hub
-// ============================================================================
-
-// MockHub is a test mock for wsHub.HubInterface
-type MockHub struct {
-	mu sync.RWMutex
-
-	ClientCount               int
-	ExecutionFrameSubscribers map[string]bool
-	RecordingSubscribers      map[string]bool
-
-	// Call tracking
-	BroadcastEnvelopeCalled bool
-	LastBroadcastedEvent    any
-}
-
-func NewMockHub() *MockHub {
-	return &MockHub{
-		ExecutionFrameSubscribers: make(map[string]bool),
-		RecordingSubscribers:      make(map[string]bool),
-	}
-}
-
-// Compile-time interface check
-var _ wsHub.HubInterface = (*MockHub)(nil)
-
-func (m *MockHub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID) {}
-
-func (m *MockHub) BroadcastEnvelope(event any) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.BroadcastEnvelopeCalled = true
-	m.LastBroadcastedEvent = event
-}
-
-func (m *MockHub) BroadcastTimelineEntry(sessionID string, entry *bastimeline.TimelineEntry) wsHub.BroadcastResult {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	subscriberCount := 0
-	if m.RecordingSubscribers[sessionID] {
-		subscriberCount = 1
-	}
-
-	return wsHub.BroadcastResult{
-		SubscriberCount: subscriberCount,
-		SentCount:       subscriberCount,
-		DroppedCount:    0,
-	}
-}
-
-func (m *MockHub) BroadcastBinaryFrame(sessionID string, jpegData []byte) {}
-
-func (m *MockHub) HasRecordingFrameSubscribers(sessionID string) bool {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.RecordingSubscribers[sessionID]
-}
-
-func (m *MockHub) BroadcastPerfStats(sessionID string, stats any) {}
-
-func (m *MockHub) BroadcastPageEvent(sessionID string, event any) {}
-
-func (m *MockHub) BroadcastPageSwitch(sessionID, activePageID string) {}
-
-func (m *MockHub) HasExecutionFrameSubscribers(executionID string) bool {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.ExecutionFrameSubscribers[executionID]
-}
-
-func (m *MockHub) BroadcastExecutionFrame(executionID string, frame *wsHub.ExecutionFrame) {}
-
-func (m *MockHub) GetClientCount() int {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.ClientCount
-}
-
-func (m *MockHub) Run() {}
-
-func (m *MockHub) CloseExecution(executionID uuid.UUID) {}
-
-func (m *MockHub) BroadcastExportProgress(progress *wsHub.ExportProgress) {}
 
 // ============================================================================
 // Mock Storage
@@ -1450,28 +1373,4 @@ func (m *MockRecordModeService) GetTimeline(ctx context.Context, sessionID strin
 		HasMore:      false,
 		TotalEntries: 0,
 	}, nil
-}
-
-// ============================================================================
-// Test Handler Factory
-// ============================================================================
-
-// NewTestHandler creates a Handler with all mock dependencies for testing.
-// Returns the handler and all mocks for test assertions.
-func NewTestHandler() (*Handler, *MockCatalogService, *MockExecutionService, *MockRepository, *MockHub, *MockStorage) {
-	repo := NewMockRepository()
-	hub := NewMockHub()
-	catalogSvc := NewMockCatalogService()
-	execSvc := NewMockExecutionService()
-	storageMock := NewMockStorage()
-
-	handler := &Handler{
-		catalogService:   catalogSvc,
-		executionService: execSvc,
-		repo:             repo,
-		wsHub:            hub,
-		storage:          storageMock,
-	}
-
-	return handler, catalogSvc, execSvc, repo, hub, storageMock
 }

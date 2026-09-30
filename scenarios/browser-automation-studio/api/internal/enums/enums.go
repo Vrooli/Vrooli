@@ -10,6 +10,7 @@ package enums
 
 import (
 	"strings"
+	"unicode"
 
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
@@ -23,117 +24,83 @@ import (
 // Handles various aliases for each action type (e.g., "goto" -> NAVIGATE, "fill"/"type" -> INPUT).
 // Returns ACTION_TYPE_UNSPECIFIED for unrecognized types.
 func StringToActionType(actionType string) basactions.ActionType {
-	switch strings.ToLower(strings.TrimSpace(actionType)) {
-	case "navigate", "goto":
-		return basactions.ActionType_ACTION_TYPE_NAVIGATE
-	case "click":
-		return basactions.ActionType_ACTION_TYPE_CLICK
-	case "input", "type", "fill":
-		return basactions.ActionType_ACTION_TYPE_INPUT
-	case "wait":
-		return basactions.ActionType_ACTION_TYPE_WAIT
-	case "assert":
-		return basactions.ActionType_ACTION_TYPE_ASSERT
-	case "scroll":
-		return basactions.ActionType_ACTION_TYPE_SCROLL
-	case "select", "selectoption":
-		return basactions.ActionType_ACTION_TYPE_SELECT
-	case "evaluate", "eval":
-		return basactions.ActionType_ACTION_TYPE_EVALUATE
-	case "keyboard", "keypress", "press":
-		return basactions.ActionType_ACTION_TYPE_KEYBOARD
-	case "hover":
-		return basactions.ActionType_ACTION_TYPE_HOVER
-	case "screenshot":
-		return basactions.ActionType_ACTION_TYPE_SCREENSHOT
-	case "focus":
-		return basactions.ActionType_ACTION_TYPE_FOCUS
-	case "blur":
-		return basactions.ActionType_ACTION_TYPE_BLUR
-	case "subflow":
-		return basactions.ActionType_ACTION_TYPE_SUBFLOW
-	case "setvariable", "set_variable":
-		return basactions.ActionType_ACTION_TYPE_SET_VARIABLE
-	case "loop":
-		return basactions.ActionType_ACTION_TYPE_LOOP
-	case "conditional":
-		return basactions.ActionType_ACTION_TYPE_CONDITIONAL
-	case "extract":
-		return basactions.ActionType_ACTION_TYPE_EXTRACT
-	case "shortcut":
-		return basactions.ActionType_ACTION_TYPE_SHORTCUT
-	case "dragdrop", "drag_drop":
-		return basactions.ActionType_ACTION_TYPE_DRAG_DROP
-	case "gesture", "swipe", "pinch", "zoom":
-		return basactions.ActionType_ACTION_TYPE_GESTURE
-	default:
-		return basactions.ActionType_ACTION_TYPE_UNSPECIFIED
+	normalized := strings.ToLower(strings.TrimSpace(actionType))
+	aliases := map[string]string{
+		"goto":         "NAVIGATE",
+		"type":         "INPUT",
+		"fill":         "INPUT",
+		"eval":         "EVALUATE",
+		"keypress":     "KEYBOARD",
+		"press":        "KEYBOARD",
+		"selectoption": "SELECT",
+		"setvariable":  "SET_VARIABLE",
+		"swipe":        "GESTURE",
+		"pinch":        "GESTURE",
+		"zoom":         "GESTURE",
 	}
+	if name, ok := aliases[normalized]; ok {
+		normalized = strings.ToLower(name)
+	}
+
+	// Match the generated enum names without duplicating the action vocabulary.
+	// Removing underscores also preserves camelCase callers such as setVariable.
+	compact := strings.ReplaceAll(normalized, "_", "")
+	for name, value := range basactions.ActionType_value {
+		name = strings.TrimPrefix(name, "ACTION_TYPE_")
+		if strings.EqualFold(strings.ReplaceAll(name, "_", ""), compact) {
+			return basactions.ActionType(value)
+		}
+	}
+	return basactions.ActionType_ACTION_TYPE_UNSPECIFIED
 }
 
 // ActionTypeToString converts an ActionType enum to a proto-aligned string representation.
 // Returns "unknown" for unrecognized types.
 func ActionTypeToString(actionType basactions.ActionType) string {
-	switch actionType {
-	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
-		return "navigate"
-	case basactions.ActionType_ACTION_TYPE_CLICK:
-		return "click"
-	case basactions.ActionType_ACTION_TYPE_INPUT:
-		return "input"
-	case basactions.ActionType_ACTION_TYPE_WAIT:
-		return "wait"
-	case basactions.ActionType_ACTION_TYPE_ASSERT:
-		return "assert"
-	case basactions.ActionType_ACTION_TYPE_SCROLL:
-		return "scroll"
-	case basactions.ActionType_ACTION_TYPE_SELECT:
-		return "select"
-	case basactions.ActionType_ACTION_TYPE_EVALUATE:
-		return "evaluate"
-	case basactions.ActionType_ACTION_TYPE_KEYBOARD:
-		return "keyboard"
-	case basactions.ActionType_ACTION_TYPE_HOVER:
-		return "hover"
-	case basactions.ActionType_ACTION_TYPE_SCREENSHOT:
-		return "screenshot"
-	case basactions.ActionType_ACTION_TYPE_FOCUS:
-		return "focus"
-	case basactions.ActionType_ACTION_TYPE_BLUR:
-		return "blur"
-	case basactions.ActionType_ACTION_TYPE_SUBFLOW:
-		return "subflow"
-	case basactions.ActionType_ACTION_TYPE_EXTRACT:
-		return "extract"
-	case basactions.ActionType_ACTION_TYPE_UPLOAD_FILE:
-		return "uploadFile"
-	case basactions.ActionType_ACTION_TYPE_DOWNLOAD:
-		return "download"
-	case basactions.ActionType_ACTION_TYPE_FRAME_SWITCH:
-		return "frameSwitch"
-	case basactions.ActionType_ACTION_TYPE_TAB_SWITCH:
-		return "tabSwitch"
-	case basactions.ActionType_ACTION_TYPE_COOKIE_STORAGE:
+	if actionType == basactions.ActionType_ACTION_TYPE_COOKIE_STORAGE {
 		return "setCookie"
-	case basactions.ActionType_ACTION_TYPE_SHORTCUT:
-		return "shortcut"
-	case basactions.ActionType_ACTION_TYPE_DRAG_DROP:
-		return "dragDrop"
-	case basactions.ActionType_ACTION_TYPE_GESTURE:
-		return "gesture"
-	case basactions.ActionType_ACTION_TYPE_NETWORK_MOCK:
-		return "networkMock"
-	case basactions.ActionType_ACTION_TYPE_ROTATE:
-		return "rotate"
-	case basactions.ActionType_ACTION_TYPE_SET_VARIABLE:
-		return "setVariable"
-	case basactions.ActionType_ACTION_TYPE_LOOP:
-		return "loop"
-	case basactions.ActionType_ACTION_TYPE_CONDITIONAL:
-		return "conditional"
-	default:
+	}
+	name, ok := basactions.ActionType_name[int32(actionType)]
+	if !ok || actionType == basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
 		return "unknown"
 	}
+	name = strings.TrimPrefix(name, "ACTION_TYPE_")
+	parts := strings.Split(strings.ToLower(name), "_")
+	for i := 1; i < len(parts); i++ {
+		parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
+	}
+	return strings.Join(parts, "")
+}
+
+// ActionTypeParamsField returns the generated JSON field name from the
+// ActionDefinition params oneof that corresponds to actionType.
+func ActionTypeParamsField(actionType basactions.ActionType) string {
+	actionName, ok := basactions.ActionType_name[int32(actionType)]
+	if !ok || actionType == basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
+		return ""
+	}
+
+	definition := basactions.File_browser_automation_studio_v1_actions_action_proto.Messages().ByName("ActionDefinition")
+	params := definition.Oneofs().ByName("params")
+	if params == nil {
+		return ""
+	}
+	fields := params.Fields()
+	for i := 0; i < fields.Len(); i++ {
+		field := fields.Get(i)
+		messageName := strings.TrimSuffix(string(field.Message().Name()), "Params")
+		var enumSuffix strings.Builder
+		for index, r := range messageName {
+			if index > 0 && unicode.IsUpper(r) {
+				enumSuffix.WriteByte('_')
+			}
+			enumSuffix.WriteRune(unicode.ToUpper(r))
+		}
+		if actionName == "ACTION_TYPE_"+enumSuffix.String() {
+			return string(field.JSONName())
+		}
+	}
+	return ""
 }
 
 // =============================================================================

@@ -21,7 +21,7 @@ CDP is used for:
 | `Page.startScreencast` | Frame streaming | `cdp-screencast.ts` | For streaming only |
 | `Page.captureScreenshot` | Polling fallback | `polling.ts` | For polling mode |
 | `ServiceWorker.*` | SW management | `controller.ts` | For SW scenarios |
-| `Input.dispatch*` | Test simulations | `self-test.ts`, `diagnostics.ts` | Testing only |
+| `Input.dispatch*` | Test simulations | `pipeline-e2e.test.ts`, `diagnostics.ts` | Testing only |
 
 ## When to Use CDP
 

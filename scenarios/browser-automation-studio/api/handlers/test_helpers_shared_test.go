@@ -2,7 +2,12 @@ package handlers
 
 import (
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/hubmocks"
 )
+
+type MockHub = hubmocks.Hub
+
+func NewMockHub() *MockHub { return hubmocks.New() }
 
 // createTestHandler returns a Handler with mock dependencies wired for unit
 // tests in this package. It used to live in the (now-deleted) executions
@@ -27,4 +32,8 @@ func createTestHandler() (*Handler, *MockCatalogService, *MockExecutionService, 
 	}
 
 	return handler, catalogSvc, execSvc, repo, hub, storageMock
+}
+
+func NewTestHandler() (*Handler, *MockCatalogService, *MockExecutionService, *MockRepository, *MockHub, *MockStorage) {
+	return createTestHandler()
 }

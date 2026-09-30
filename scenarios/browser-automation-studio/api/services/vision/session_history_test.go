@@ -3,9 +3,11 @@ package vision
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -164,44 +166,53 @@ func TestPlaywrightVisionNavigator_RecordsStepHistory(t *testing.T) {
 }
 
 func TestPlaywrightVisionNavigator_CompleteCallbackWakesWaiter(t *testing.T) {
-	log := logrus.New()
-	log.SetOutput(io.Discard)
-	nav := NewPlaywrightVisionNavigator(log)
+	synctest.Test(t, func(t *testing.T) {
+		log := logrus.New()
+		log.SetOutput(io.Discard)
+		nav := NewPlaywrightVisionNavigator(log)
 
-	nav.mu.Lock()
-	nav.activeNavigations["nav_wait"] = &NavigationSession{NavigationID: "nav_wait", SessionID: "s", Status: StatusNavigating}
-	nav.mu.Unlock()
+		nav.mu.Lock()
+		nav.activeNavigations["nav_wait"] = &NavigationSession{NavigationID: "nav_wait", SessionID: "s", Status: StatusNavigating}
+		nav.mu.Unlock()
 
-	snap, _ := nav.GetSession("nav_wait")
-	if snap.Status.Terminal() {
-		t.Fatal("should start non-terminal")
-	}
+		snap, _ := nav.GetSession("nav_wait")
+		if snap.Status.Terminal() {
+			t.Fatal("should start non-terminal")
+		}
+		canceled, cancel := context.WithCancel(context.Background())
+		cancel()
+		if err := (&playwrightNavigationHandle{navigator: nav, session: snap}).Wait(canceled); !errors.Is(err, context.Canceled) {
+			t.Fatalf("Wait with canceled context = %v, want context.Canceled", err)
+		}
 
-	done := make(chan error, 1)
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		done <- (&playwrightNavigationHandle{navigator: nav, session: snap}).Wait(ctx)
-	}()
+		done := make(chan error, 1)
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			done <- (&playwrightNavigationHandle{navigator: nav, session: snap}).Wait(ctx)
+		}()
+		// Ensure Wait has reached its channel wait before completing the session.
+		synctest.Wait()
 
-	time.Sleep(20 * time.Millisecond)
-	if err := nav.HandleCompleteCallback(context.Background(), &NavigationResult{NavigationID: "nav_wait", Status: StatusCompleted, TotalSteps: 2}); err != nil {
-		t.Fatal(err)
-	}
-
-	select {
-	case err := <-done:
-		if err != nil {
+		if err := nav.HandleCompleteCallback(context.Background(), &NavigationResult{NavigationID: "nav_wait", Status: StatusCompleted, TotalSteps: 2}); err != nil {
+			t.Fatal(err)
+		}
+		synctest.Wait()
+		if err := <-done; err != nil {
 			t.Fatalf("Wait returned %v", err)
 		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("handle.Wait did not return after completion callback")
-	}
-	select {
-	case <-snap.Changed():
-	default:
-		t.Fatal("snapshot channel not closed by completion")
-	}
+		select {
+		case <-snap.Changed():
+		default:
+			t.Fatal("snapshot channel not closed by completion")
+		}
+		// Complete the navigator's scheduled five-minute cleanup timer in virtual time.
+		time.Sleep(5 * time.Minute)
+		synctest.Wait()
+		if err := (&playwrightNavigationHandle{navigator: nav, session: snap}).Wait(context.Background()); err != nil {
+			t.Fatalf("Wait after cleanup = %v, want nil", err)
+		}
+	})
 }
 
 // ---- Claude Code navigator records history --------------------------------

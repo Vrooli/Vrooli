@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"sync"
 	"testing"
@@ -252,7 +252,7 @@ func newTestServer(t *testing.T, repo SessionProfileRepo, rm RecordModeService) 
 	mount := Module(Deps{Repo: repo, RecordMode: rm, Logger: log})
 	mux := http.NewServeMux()
 	mux.Handle(mount.Path, mount.Handler)
-	srv := httptest.NewServer(mux)
+	srv := testutil.StartHTTPServer(t, mux)
 	client := recordingsconnect.NewRecordingsServiceClient(srv.Client(), srv.URL)
 	return client, srv.Close
 }
@@ -722,7 +722,7 @@ func TestNavigateToHistoryURL_HappyPath(t *testing.T) {
 	repo.sessions["p"] = "sess-1"
 	owner := uuid.New()
 	requests := make(chan map[string]any, 1)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/session/start" {
 			_, _ = w.Write([]byte(`{"session_id":"sess-1","lease_id":"history-lease"}`))
 			return
@@ -733,7 +733,6 @@ func TestNavigateToHistoryURL_HappyPath(t *testing.T) {
 		requests <- body
 		_, _ = w.Write([]byte(`{"driver_page_id":"initial-driver-page","url":"https://x","title":"X","can_go_back":true}`))
 	}))
-	defer server.Close()
 	driverClient, err := autodriver.NewClientWithURL(server.URL, autodriver.WithoutCircuitBreaker())
 	require.NoError(t, err)
 	session, err := autosession.NewManagerWithClient(driverClient).Create(context.Background(), autosession.Spec{ExecutionID: owner, Mode: autosession.ModeRecording})

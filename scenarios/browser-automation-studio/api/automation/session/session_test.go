@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -26,75 +26,62 @@ func completedTerminal() *terminalOperation {
 	return &terminalOperation{done: done}
 }
 
-func TestCloseWithArtifacts(t *testing.T) {
-	handler := http.NewServeMux()
-	handler.HandleFunc("/session/sess-123/close", func(w http.ResponseWriter, r *http.Request) {
-		_ = r.Body.Close()
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"success":     true,
-			"video_paths": []string{"/tmp/video-1.webm", "/tmp/video-2.webm"},
+func TestCloseWithArtifactsOutcomes(t *testing.T) {
+	cases := []struct {
+		name           string
+		status         int
+		wantVideoPaths int
+		wantTerminal   bool
+	}{
+		{name: "closed with artifacts", status: http.StatusOK, wantVideoPaths: 2},
+		{name: "already absent is terminal", status: http.StatusNotFound, wantTerminal: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			handler := http.NewServeMux()
+			handler.HandleFunc("/session/test-session/close", func(w http.ResponseWriter, r *http.Request) {
+				_ = r.Body.Close()
+				if tc.status == http.StatusNotFound {
+					http.Error(w, `{"error":"session not found"}`, tc.status)
+					return
+				}
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"success":     true,
+					"video_paths": []string{"/tmp/video-1.webm", "/tmp/video-2.webm"},
+				})
+			})
+			server := testutil.StartHTTPServer(t, handler)
+			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+			if err != nil {
+				t.Fatalf("client: %v", err)
+			}
+
+			terminalCalls := 0
+			sess := &Session{
+				id:         "test-session",
+				mode:       ModeExecution,
+				client:     client,
+				onTerminal: func() { terminalCalls++ },
+			}
+			artifacts, err := sess.CloseWithArtifacts(context.Background())
+			if err != nil {
+				t.Fatalf("close: %v", err)
+			}
+			if tc.wantVideoPaths > 0 {
+				if artifacts == nil || len(artifacts.VideoPaths) != tc.wantVideoPaths {
+					t.Fatalf("close artifacts = %#v, want %d video paths", artifacts, tc.wantVideoPaths)
+				}
+			}
+			if tc.wantTerminal {
+				if artifacts != nil {
+					t.Fatalf("expected no artifacts for absent session, got %#v", artifacts)
+				}
+				if terminalCalls != 1 || !sess.isClosed() {
+					t.Fatalf("absent session terminal state = calls:%d closed:%v", terminalCalls, sess.isClosed())
+				}
+			}
 		})
-	})
-
-	srv := httptest.NewServer(handler)
-	defer srv.Close()
-
-	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
-	if err != nil {
-		t.Fatalf("client: %v", err)
-	}
-
-	sess := &Session{
-		id:     "sess-123",
-		mode:   ModeExecution,
-		client: client,
-	}
-
-	resp, err := sess.CloseWithArtifacts(context.Background())
-	if err != nil {
-		t.Fatalf("close: %v", err)
-	}
-
-	if resp == nil || len(resp.VideoPaths) != 2 {
-		t.Fatalf("expected 2 video paths, got %#v", resp)
-	}
-}
-
-func TestCloseWithArtifacts_TreatsAbsentDriverSessionAsTerminal(t *testing.T) {
-	handler := http.NewServeMux()
-	handler.HandleFunc("/session/sess-absent/close", func(w http.ResponseWriter, r *http.Request) {
-		_ = r.Body.Close()
-		http.Error(w, `{"error":"session not found"}`, http.StatusNotFound)
-	})
-
-	srv := httptest.NewServer(handler)
-	defer srv.Close()
-
-	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
-	if err != nil {
-		t.Fatalf("client: %v", err)
-	}
-
-	terminalCalls := 0
-	sess := &Session{
-		id:         "sess-absent",
-		mode:       ModeExecution,
-		client:     client,
-		onTerminal: func() { terminalCalls++ },
-	}
-
-	artifacts, err := sess.CloseWithArtifacts(context.Background())
-	if err != nil {
-		t.Fatalf("close absent session: %v", err)
-	}
-	if artifacts != nil {
-		t.Fatalf("expected no artifacts for already-absent session, got %#v", artifacts)
-	}
-	if terminalCalls != 1 {
-		t.Fatalf("expected one terminal callback, got %d", terminalCalls)
-	}
-	if !sess.isClosed() {
-		t.Fatal("expected absent session to remain terminal")
 	}
 }
 
@@ -102,58 +89,67 @@ func TestCloseWithArtifacts_TreatsAbsentDriverSessionAsTerminal(t *testing.T) {
 // Mode Guard Tests
 // =============================================================================
 
-func TestSession_Run_RejectsRecordingMode(t *testing.T) {
-	t.Parallel()
-
-	sess := &Session{
-		id:   "test-session",
-		mode: ModeRecording,
+func TestSessionModeGuards(t *testing.T) {
+	cases := []struct {
+		name      string
+		mode      Mode
+		invoke    func(*Session) error
+		wantError string
+	}{
+		{name: "run in recording mode", mode: ModeRecording, wantError: "recording-only mode", invoke: func(s *Session) error {
+			_, err := s.Run(context.Background(), contracts.CompiledInstruction{})
+			return err
+		}},
+		{name: "forward input in execution mode", mode: ModeExecution, wantError: "execution-only mode", invoke: func(s *Session) error { _, err := s.ForwardInput(context.Background(), []byte("{}")); return err }},
+		{name: "start recording in execution mode", mode: ModeExecution, wantError: "execution-only mode", invoke: func(s *Session) error {
+			_, err := s.StartRecording(context.Background(), &driver.StartRecordingRequest{})
+			return err
+		}},
 	}
 
-	_, err := sess.Run(context.Background(), contracts.CompiledInstruction{})
-	if err == nil {
-		t.Error("expected error when running in recording mode")
-	}
-
-	if !strings.Contains(err.Error(), "recording-only mode") {
-		t.Errorf("expected error message about recording-only mode, got: %v", err)
-	}
-}
-
-func TestSession_ForwardInput_RejectsExecutionMode(t *testing.T) {
-	t.Parallel()
-
-	sess := &Session{
-		id:   "test-session",
-		mode: ModeExecution,
-	}
-
-	_, err := sess.ForwardInput(context.Background(), []byte("{}"))
-	if err == nil {
-		t.Error("expected error when forwarding input in execution mode")
-	}
-
-	if !strings.Contains(err.Error(), "execution-only mode") {
-		t.Errorf("expected error message about execution-only mode, got: %v", err)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.invoke(&Session{id: "test-session", mode: tc.mode})
+			if err == nil || !strings.Contains(err.Error(), tc.wantError) {
+				t.Fatalf("error = %v, want message containing %q", err, tc.wantError)
+			}
+		})
 	}
 }
 
-func TestSession_Navigate_RejectsClosedSession(t *testing.T) {
-	t.Parallel()
-
-	sess := &Session{
-		id:       "test-session",
-		mode:     ModeRecording,
-		terminal: completedTerminal(),
+func TestSessionClosedOperationsRejectUse(t *testing.T) {
+	operations := []struct {
+		name              string
+		invoke            func(*Session) error
+		wantClosedMessage bool
+	}{
+		{name: "navigate", wantClosedMessage: true, invoke: func(s *Session) error { _, err := s.Navigate(context.Background(), "https://example.com"); return err }},
+		{name: "start_recording", wantClosedMessage: true, invoke: func(s *Session) error {
+			_, err := s.StartRecording(context.Background(), &driver.StartRecordingRequest{})
+			return err
+		}},
+		{name: "stop_recording", invoke: func(s *Session) error { _, err := s.StopRecording(context.Background()); return err }},
+		{name: "get_recording_status", invoke: func(s *Session) error { _, err := s.GetRecordingStatus(context.Background()); return err }},
+		{name: "capture_screenshot", invoke: func(s *Session) error { _, err := s.CaptureScreenshot(context.Background()); return err }},
+		{name: "get_storage_state", invoke: func(s *Session) error { _, err := s.GetStorageState(context.Background()); return err }},
+		{name: "update_viewport", invoke: func(s *Session) error {
+			_, err := s.UpdateViewport(context.Background(), 1920, 1080, "page")
+			return err
+		}},
+		{name: "reset", invoke: func(s *Session) error { return s.Reset(context.Background()) }},
 	}
 
-	_, err := sess.Navigate(context.Background(), "https://example.com")
-	if err == nil {
-		t.Error("expected error when navigating in closed session")
-	}
-
-	if !strings.Contains(err.Error(), "session closed") {
-		t.Errorf("expected error message about closed session, got: %v", err)
+	for _, tc := range operations {
+		t.Run(tc.name, func(t *testing.T) {
+			sess := &Session{id: "closed-session", mode: ModeRecording, terminal: completedTerminal()}
+			err := tc.invoke(sess)
+			if err == nil {
+				t.Fatal("operation succeeded on a closed session")
+			}
+			if tc.wantClosedMessage && !strings.Contains(err.Error(), "session closed") {
+				t.Fatalf("error = %v, want closed-session error", err)
+			}
+		})
 	}
 }
 
@@ -300,8 +296,7 @@ func TestSession_HybridMode_AllowsRunAndForwardInput(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	srv := httptest.NewServer(handler)
-	defer srv.Close()
+	srv := testutil.StartHTTPServer(t, handler)
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -391,8 +386,7 @@ func TestSession_StartRecording_Success(t *testing.T) {
 		})
 	})
 
-	srv := httptest.NewServer(handler)
-	defer srv.Close()
+	srv := testutil.StartHTTPServer(t, handler)
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -418,45 +412,6 @@ func TestSession_StartRecording_Success(t *testing.T) {
 	}
 }
 
-func TestSession_StartRecording_RejectsExecutionMode(t *testing.T) {
-	t.Parallel()
-
-	sess := &Session{
-		id:   "exec-session",
-		mode: ModeExecution,
-	}
-
-	_, err := sess.StartRecording(context.Background(), &driver.StartRecordingRequest{})
-
-	if err == nil {
-		t.Error("expected error when starting recording in execution mode")
-	}
-
-	if !strings.Contains(err.Error(), "execution-only mode") {
-		t.Errorf("expected error about execution-only mode, got: %v", err)
-	}
-}
-
-func TestSession_StartRecording_RejectsClosedSession(t *testing.T) {
-	t.Parallel()
-
-	sess := &Session{
-		id:       "closed-session",
-		mode:     ModeRecording,
-		terminal: completedTerminal(),
-	}
-
-	_, err := sess.StartRecording(context.Background(), &driver.StartRecordingRequest{})
-
-	if err == nil {
-		t.Error("expected error when starting recording on closed session")
-	}
-
-	if !strings.Contains(err.Error(), "session closed") {
-		t.Errorf("expected error about session closed, got: %v", err)
-	}
-}
-
 func TestSession_StopRecording_Success(t *testing.T) {
 	t.Parallel()
 
@@ -473,8 +428,7 @@ func TestSession_StopRecording_Success(t *testing.T) {
 		})
 	})
 
-	srv := httptest.NewServer(handler)
-	defer srv.Close()
+	srv := testutil.StartHTTPServer(t, handler)
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -495,26 +449,10 @@ func TestSession_StopRecording_Success(t *testing.T) {
 	}
 }
 
-func TestSession_StopRecording_RejectsClosedSession(t *testing.T) {
-	t.Parallel()
-
-	sess := &Session{
-		id:       "closed-session",
-		mode:     ModeRecording,
-		terminal: completedTerminal(),
-	}
-
-	_, err := sess.StopRecording(context.Background())
-
-	if err == nil {
-		t.Error("expected error when stopping recording on closed session")
-	}
-}
-
 // [REQ:BAS-RH-J17] Committed entries are acknowledged only under this Session's lease.
 func TestSession_AcknowledgeRecordedActions_Ownership(t *testing.T) {
 	var calls atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		require.Equal(t, "/session/session/record/actions/ack", r.URL.Path)
 		var body map[string]any
@@ -522,7 +460,6 @@ func TestSession_AcknowledgeRecordedActions_Ownership(t *testing.T) {
 		require.Equal(t, map[string]any{"execution_id": "owner", "lease_id": "lease", "entry_ids": []any{"committed"}}, body)
 		_, _ = w.Write([]byte(`{"entry_ids":["committed"]}`))
 	}))
-	defer server.Close()
 	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 	require.NoError(t, err)
 	sess := &Session{id: "session", executionID: "owner", leaseID: "lease", client: client, mode: ModeRecording}
@@ -545,8 +482,7 @@ func TestSession_GetRecordingStatus_Success(t *testing.T) {
 		})
 	})
 
-	srv := httptest.NewServer(handler)
-	defer srv.Close()
+	srv := testutil.StartHTTPServer(t, handler)
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -577,22 +513,6 @@ func TestSession_GetRecordingStatus_Success(t *testing.T) {
 	}
 }
 
-func TestSession_GetRecordingStatus_RejectsClosedSession(t *testing.T) {
-	t.Parallel()
-
-	sess := &Session{
-		id:       "closed-session",
-		mode:     ModeRecording,
-		terminal: completedTerminal(),
-	}
-
-	_, err := sess.GetRecordingStatus(context.Background())
-
-	if err == nil {
-		t.Error("expected error when getting status of closed session")
-	}
-}
-
 func TestSession_GetRecordedActions_Success(t *testing.T) {
 	t.Parallel()
 
@@ -607,8 +527,7 @@ func TestSession_GetRecordedActions_Success(t *testing.T) {
 		})
 	})
 
-	srv := httptest.NewServer(handler)
-	defer srv.Close()
+	srv := testutil.StartHTTPServer(t, handler)
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -649,8 +568,7 @@ func TestSession_CaptureScreenshot_Success(t *testing.T) {
 		})
 	})
 
-	srv := httptest.NewServer(handler)
-	defer srv.Close()
+	srv := testutil.StartHTTPServer(t, handler)
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -689,22 +607,6 @@ func TestSession_CaptureScreenshot_Success(t *testing.T) {
 	}
 }
 
-func TestSession_CaptureScreenshot_RejectsClosedSession(t *testing.T) {
-	t.Parallel()
-
-	sess := &Session{
-		id:       "closed-session",
-		mode:     ModeRecording,
-		terminal: completedTerminal(),
-	}
-
-	_, err := sess.CaptureScreenshot(context.Background())
-
-	if err == nil {
-		t.Error("expected error when capturing screenshot of closed session")
-	}
-}
-
 func TestSession_GetStorageState_Success(t *testing.T) {
 	t.Parallel()
 
@@ -724,8 +626,7 @@ func TestSession_GetStorageState_Success(t *testing.T) {
 		})
 	})
 
-	srv := httptest.NewServer(handler)
-	defer srv.Close()
+	srv := testutil.StartHTTPServer(t, handler)
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -759,22 +660,6 @@ func TestSession_GetStorageState_Success(t *testing.T) {
 	}
 }
 
-func TestSession_GetStorageState_RejectsClosedSession(t *testing.T) {
-	t.Parallel()
-
-	sess := &Session{
-		id:       "closed-session",
-		mode:     ModeRecording,
-		terminal: completedTerminal(),
-	}
-
-	_, err := sess.GetStorageState(context.Background())
-
-	if err == nil {
-		t.Error("expected error when getting storage state of closed session")
-	}
-}
-
 // =============================================================================
 // DownloadArtifact Tests
 // =============================================================================
@@ -796,8 +681,7 @@ func TestSession_DownloadArtifact_Success(t *testing.T) {
 		_, _ = w.Write([]byte("video-data!!"))
 	})
 
-	srv := httptest.NewServer(handler)
-	defer srv.Close()
+	srv := testutil.StartHTTPServer(t, handler)
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -821,64 +705,42 @@ func TestSession_DownloadArtifact_Success(t *testing.T) {
 	}
 }
 
-func TestSession_DownloadArtifact_EmptyPath(t *testing.T) {
-	t.Parallel()
-
-	handler := http.NewServeMux()
-	srv := httptest.NewServer(handler)
-	defer srv.Close()
-
-	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
+func TestSessionDownloadArtifactRejectsInvalidInputs(t *testing.T) {
+	client, err := driver.NewClientWithURL("http://127.0.0.1:39400", driver.WithoutCircuitBreaker())
 	if err != nil {
 		t.Fatalf("client: %v", err)
 	}
-
-	sess := &Session{
-		id:     "artifact-session",
-		mode:   ModeExecution,
-		client: client,
+	cases := []struct {
+		name      string
+		invoke    func() error
+		wantError string
+	}{
+		{name: "nil session", invoke: func() error {
+			var s *Session
+			_, err := s.DownloadArtifact(context.Background(), "/path/to/video.webm")
+			return err
+		}},
+		{name: "empty path", wantError: "path required", invoke: func() error {
+			s := &Session{id: "artifact-session", mode: ModeExecution, client: client}
+			_, err := s.DownloadArtifact(context.Background(), "")
+			return err
+		}},
+		{name: "nil client", wantError: "client unavailable", invoke: func() error {
+			s := &Session{id: "no-client-session", mode: ModeExecution}
+			_, err := s.DownloadArtifact(context.Background(), "/path/to/video.webm")
+			return err
+		}},
 	}
-
-	_, err = sess.DownloadArtifact(context.Background(), "")
-
-	if err == nil {
-		t.Error("expected error when path is empty")
-	}
-
-	if !strings.Contains(err.Error(), "path required") {
-		t.Errorf("expected error about path required, got: %v", err)
-	}
-}
-
-func TestSession_DownloadArtifact_NilSession(t *testing.T) {
-	t.Parallel()
-
-	var sess *Session = nil
-
-	_, err := sess.DownloadArtifact(context.Background(), "/path/to/video.webm")
-
-	if err == nil {
-		t.Error("expected error when session is nil")
-	}
-}
-
-func TestSession_DownloadArtifact_NilClient(t *testing.T) {
-	t.Parallel()
-
-	sess := &Session{
-		id:     "no-client-session",
-		mode:   ModeExecution,
-		client: nil,
-	}
-
-	_, err := sess.DownloadArtifact(context.Background(), "/path/to/video.webm")
-
-	if err == nil {
-		t.Error("expected error when client is nil")
-	}
-
-	if !strings.Contains(err.Error(), "client unavailable") {
-		t.Errorf("expected error about client unavailable, got: %v", err)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.invoke()
+			if err == nil {
+				t.Fatal("DownloadArtifact accepted invalid setup")
+			}
+			if tc.wantError != "" && !strings.Contains(err.Error(), tc.wantError) {
+				t.Fatalf("error = %v, want message containing %q", err, tc.wantError)
+			}
+		})
 	}
 }
 
@@ -899,8 +761,7 @@ func TestSession_UpdateViewport_Success(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"session_id": "vp-session", "driver_page_id": "page", "width": 1920, "height": 1080})
 	})
 
-	srv := httptest.NewServer(handler)
-	defer srv.Close()
+	srv := testutil.StartHTTPServer(t, handler)
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -920,22 +781,6 @@ func TestSession_UpdateViewport_Success(t *testing.T) {
 	}
 }
 
-func TestSession_UpdateViewport_RejectsClosedSession(t *testing.T) {
-	t.Parallel()
-
-	sess := &Session{
-		id:       "closed-session",
-		mode:     ModeRecording,
-		terminal: completedTerminal(),
-	}
-
-	_, err := sess.UpdateViewport(context.Background(), 1920, 1080, "page")
-
-	if err == nil {
-		t.Error("expected error when updating viewport of closed session")
-	}
-}
-
 func TestSession_ValidateSelector_Success(t *testing.T) {
 	t.Parallel()
 
@@ -948,8 +793,7 @@ func TestSession_ValidateSelector_Success(t *testing.T) {
 		})
 	})
 
-	srv := httptest.NewServer(handler)
-	defer srv.Close()
+	srv := testutil.StartHTTPServer(t, handler)
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -996,8 +840,7 @@ func TestSession_Reset_Success(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
 	})
 
-	srv := httptest.NewServer(handler)
-	defer srv.Close()
+	srv := testutil.StartHTTPServer(t, handler)
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -1022,10 +865,9 @@ func TestSession_ResetRequiresAcknowledgment(t *testing.T) {
 	t.Parallel()
 	for _, response := range []string{`{}`, `{"success":false}`} {
 		t.Run(response, func(t *testing.T) {
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			srv := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				_, _ = w.Write([]byte(response))
 			}))
-			defer srv.Close()
 			client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 			if err != nil {
 				t.Fatal(err)
@@ -1035,22 +877,6 @@ func TestSession_ResetRequiresAcknowledgment(t *testing.T) {
 				t.Fatal("reset without acknowledgment reported success")
 			}
 		})
-	}
-}
-
-func TestSession_Reset_RejectsClosedSession(t *testing.T) {
-	t.Parallel()
-
-	sess := &Session{
-		id:       "closed-session",
-		mode:     ModeRecording,
-		terminal: completedTerminal(),
-	}
-
-	err := sess.Reset(context.Background())
-
-	if err == nil {
-		t.Error("expected error when resetting closed session")
 	}
 }
 
@@ -1070,8 +896,7 @@ func TestSession_SetActivePage_Success(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
 	})
 
-	srv := httptest.NewServer(handler)
-	defer srv.Close()
+	srv := testutil.StartHTTPServer(t, handler)
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -1196,12 +1021,11 @@ func TestTerminalOperationWaiterCancellation(t *testing.T) {
 			}
 			t.Run(name, func(t *testing.T) {
 				entered, release := make(chan struct{}), make(chan struct{})
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					close(entered)
 					<-release
 					_ = json.NewEncoder(w).Encode(map[string]any{"success": true, "video_paths": []string{"/owned/video.webm"}})
 				}))
-				defer server.Close()
 				client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 				if err != nil {
 					t.Fatal(err)
@@ -1258,7 +1082,7 @@ func TestTerminalOperationSharesAcknowledgedResult(t *testing.T) {
 			entered, release := make(chan struct{}), make(chan struct{})
 			var unblock sync.Once
 			var requests, notifications atomic.Int32
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				first := requests.Add(1) == 1
 				if first {
 					close(entered)
@@ -1270,7 +1094,6 @@ func TestTerminalOperationSharesAcknowledgedResult(t *testing.T) {
 				}
 				_ = json.NewEncoder(w).Encode(acknowledged)
 			}))
-			defer server.Close()
 			defer unblock.Do(func() { close(release) })
 			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 			require.NoError(t, err)
@@ -1332,14 +1155,13 @@ func TestTerminalOperationRejectsMissingAcknowledgment(t *testing.T) {
 		for _, body := range []string{`{}`, `{"success":false}`, `{"success":false,"trace_path":"/partial/trace.zip"}`} {
 			t.Run(operation+"/"+body, func(t *testing.T) {
 				var requests, notifications atomic.Int32
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					if requests.Add(1) == 1 {
 						_, _ = w.Write([]byte(body))
 						return
 					}
 					_, _ = w.Write([]byte(`{"success":true}`))
 				}))
-				defer server.Close()
 				client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 				require.NoError(t, err)
 				sess := &Session{id: "fixture", client: client, onTerminal: func() { notifications.Add(1) }}
@@ -1370,13 +1192,12 @@ func TestTerminalOperationRejectsMissingAcknowledgment(t *testing.T) {
 
 func TestRunTransportsAdmittedExecutionLease(t *testing.T) {
 	var bodies []map[string]any
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 		bodies = append(bodies, body)
 		_, _ = w.Write([]byte(`{"success":true}`))
 	}))
-	defer server.Close()
 	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 	require.NoError(t, err)
 	current := &Session{id: "leased-session", executionID: "execution-current", leaseID: "lease-current", mode: ModeExecution, client: client}
@@ -1395,13 +1216,12 @@ func TestRunTransportsAdmittedExecutionLease(t *testing.T) {
 
 func TestRunAllocatesDistinctTransportOperations(t *testing.T) {
 	var bodies []map[string]any
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 		bodies = append(bodies, body)
 		_, _ = w.Write([]byte(`{"success":true}`))
 	}))
-	defer server.Close()
 	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 	require.NoError(t, err)
 	current := &Session{id: "session", executionID: "execution", leaseID: "lease", mode: ModeExecution, client: client}
@@ -1422,12 +1242,11 @@ func TestRunAmbiguousResponseCannotAuthorizeNewAttempt(t *testing.T) {
 	for _, status := range []int{http.StatusOK, http.StatusInternalServerError} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
 			effects := 0
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				effects++
 				w.WriteHeader(status)
 				_, _ = w.Write([]byte(`{"success":`)) // Effect occurred, response cannot establish its outcome.
 			}))
-			defer server.Close()
 			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 			require.NoError(t, err)
 			current := &Session{id: "session", executionID: "execution", leaseID: "lease", mode: ModeExecution, client: client}
@@ -1443,7 +1262,7 @@ func TestRunAmbiguousResponseCannotAuthorizeNewAttempt(t *testing.T) {
 
 // [REQ:BAS-RH-J17] Live input carries the immutable lease already held by Session.
 func TestSession_ForwardInputCarriesOwnership(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var input map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 			t.Error(err)
@@ -1457,7 +1276,6 @@ func TestSession_ForwardInputCarriesOwnership(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok", "applied_sequence": 1, "coalesced_count": 0})
 	}))
-	defer srv.Close()
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
 		t.Fatal(err)
@@ -1473,7 +1291,7 @@ func TestSessionNavigationCarriesImmutableLease(t *testing.T) {
 	for _, operation := range []driver.HistoryNavigation{"navigate", driver.HistoryReload, driver.HistoryBack, driver.HistoryForward} {
 		t.Run(string(operation), func(t *testing.T) {
 			var calls atomic.Int32
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				calls.Add(1)
 				require.Equal(t, "/session/owned/record/"+string(operation), r.URL.Path)
 				var body map[string]any
@@ -1486,7 +1304,6 @@ func TestSessionNavigationCarriesImmutableLease(t *testing.T) {
 				require.Equal(t, expected, body)
 				_, _ = w.Write([]byte(`{"driver_page_id":"initial-driver-page","session_id":"owned","url":"https://fixture.test","title":"fixture","can_go_back":true,"can_go_forward":false}`))
 			}))
-			defer server.Close()
 			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 			require.NoError(t, err)
 			session := &Session{id: "owned", executionID: "owner", leaseID: "lease", mode: ModeRecording, client: client}
@@ -1550,7 +1367,7 @@ func TestSessionHistoryReadCarriesImmutableLease(t *testing.T) {
 	for _, stack := range []bool{false, true} {
 		t.Run(fmt.Sprint(stack), func(t *testing.T) {
 			var calls atomic.Int32
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				calls.Add(1)
 				require.Equal(t, http.MethodGet, r.Method)
 				require.Equal(t, "owner&value", r.URL.Query().Get("execution_id"))
@@ -1558,7 +1375,6 @@ func TestSessionHistoryReadCarriesImmutableLease(t *testing.T) {
 				require.Equal(t, "page&value", r.URL.Query().Get("expected_page_id"))
 				_, _ = w.Write([]byte(`{"session_id":"owned","can_go_back":true,"back_stack":[]}`))
 			}))
-			defer server.Close()
 			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 			require.NoError(t, err)
 			owner := &Session{id: "owned", executionID: "owner&value", leaseID: "lease&value", mode: ModeRecording, client: client}

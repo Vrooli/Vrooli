@@ -14,9 +14,8 @@ import (
 var ErrInvalidWorkflowFormat = errors.New("invalid workflow format: nodes must have 'action' field with typed action definitions")
 
 // BuildFlowDefinitionV2ForWrite is the map-shaped ingress for newly-authored
-// workflows. It deliberately accepts only V2 protojson: V1 conversion belongs
-// to the explicit external-workflow migration path (ConvertExternalWorkflow),
-// never to an ordinary write. No execution code consumes this map
+// workflows. It deliberately accepts only V2 protojson: callers must provide
+// typed actions, and no execution code consumes this map
 // representation.
 func BuildFlowDefinitionV2ForWrite(flow map[string]any, metadata map[string]any, settings map[string]any) (*basworkflows.WorkflowDefinitionV2, error) {
 	if flow == nil {

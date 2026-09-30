@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/http/httptest"
-	"sync"
 	"testing"
 	"time"
 
@@ -15,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	sessionprofilesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/session_profiles"
 	sessionprofilesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/session_profiles/session_profilesconnect"
@@ -22,83 +21,53 @@ import (
 
 // fakeRepo implements Repo for handler tests.
 type fakeRepo struct {
-	mu       sync.Mutex
-	items    map[sessionprofilepersistence.ProfileID]*sessionprofilepersistence.SessionProfile
-	listErr  error
-	createOv func(name string) (*sessionprofilepersistence.SessionProfile, error)
+	*sessionprofilepersistence.MockRepository
 }
 
 func newFakeRepo() *fakeRepo {
-	return &fakeRepo{items: map[sessionprofilepersistence.ProfileID]*sessionprofilepersistence.SessionProfile{}}
+	return &fakeRepo{MockRepository: sessionprofilepersistence.NewMockRepository()}
 }
 
 func (f *fakeRepo) ListProfiles() ([]sessionprofilepersistence.SessionProfile, error) {
-	if f.listErr != nil {
-		return nil, f.listErr
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	out := make([]sessionprofilepersistence.SessionProfile, 0, len(f.items))
-	for _, p := range f.items {
-		out = append(out, *p)
-	}
-	return out, nil
+	return f.List()
 }
 
 func (f *fakeRepo) CreateProfile(name string) (*sessionprofilepersistence.SessionProfile, error) {
-	if f.createOv != nil {
-		return f.createOv(name)
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	now := time.Now().UTC()
-	id := sessionprofilepersistence.ProfileID(uuid.NewString())
 	if name == "" {
 		name = "Session 1"
 	}
+	now := time.Now().UTC()
 	p := &sessionprofilepersistence.SessionProfile{
-		ID:         id,
+		ID:         sessionprofilepersistence.ProfileID(uuid.NewString()),
 		Name:       name,
 		CreatedAt:  now,
 		UpdatedAt:  now,
 		LastUsedAt: now,
 	}
-	f.items[id] = p
+	if err := f.Create(p); err != nil {
+		return nil, err
+	}
 	return p, nil
 }
 
 func (f *fakeRepo) RenameProfile(id sessionprofilepersistence.ProfileID, name string) (*sessionprofilepersistence.SessionProfile, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	p, ok := f.items[id]
-	if !ok {
-		return nil, errors.New("profile not found")
-	}
-	p.Name = name
-	p.UpdatedAt = time.Now().UTC()
-	return p, nil
+	return f.Update(id, func(p *sessionprofilepersistence.SessionProfile) error {
+		p.Name = name
+		p.UpdatedAt = time.Now().UTC()
+		return nil
+	})
 }
 
 func (f *fakeRepo) UpdateBrowserProfile(id sessionprofilepersistence.ProfileID, bp *sessionprofilepersistence.BrowserProfile) (*sessionprofilepersistence.SessionProfile, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	p, ok := f.items[id]
-	if !ok {
-		return nil, errors.New("profile not found")
-	}
-	p.BrowserProfile = bp
-	p.UpdatedAt = time.Now().UTC()
-	return p, nil
+	return f.Update(id, func(p *sessionprofilepersistence.SessionProfile) error {
+		p.BrowserProfile = bp
+		p.UpdatedAt = time.Now().UTC()
+		return nil
+	})
 }
 
 func (f *fakeRepo) DeleteProfile(id sessionprofilepersistence.ProfileID) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if _, ok := f.items[id]; !ok {
-		return errors.New("profile not found")
-	}
-	delete(f.items, id)
-	return nil
+	return f.Delete(id)
 }
 
 // newTestServer wires the handler into an httptest server and returns a Connect client.
@@ -109,7 +78,7 @@ func newTestServer(t *testing.T, repo Repo) (sessionprofilesconnect.SessionProfi
 	mount := Module(Deps{Repo: repo, Logger: log})
 	mux := http.NewServeMux()
 	mux.Handle(mount.Path, mount.Handler)
-	srv := httptest.NewServer(mux)
+	srv := testutil.StartHTTPServer(t, mux)
 	client := sessionprofilesconnect.NewSessionProfilesServiceClient(srv.Client(), srv.URL)
 	return client, srv.Close
 }
@@ -148,9 +117,17 @@ func TestList_Empty(t *testing.T) {
 func TestList_PopulatedAndStorageFlag(t *testing.T) {
 	repo := newFakeRepo()
 	p, _ := repo.CreateProfile("Alpha")
-	p.StorageState = []byte(`{"cookies":[{"name":"x"}],"origins":[]}`)
+	_, err := repo.Update(p.ID, func(profile *sessionprofilepersistence.SessionProfile) error {
+		profile.StorageState = []byte(`{"cookies":[{"name":"x"}],"origins":[]}`)
+		return nil
+	})
+	require.NoError(t, err)
 	q, _ := repo.CreateProfile("Beta")
-	q.StorageState = []byte(`{"cookies":[],"origins":[]}`)
+	_, err = repo.Update(q.ID, func(profile *sessionprofilepersistence.SessionProfile) error {
+		profile.StorageState = []byte(`{"cookies":[],"origins":[]}`)
+		return nil
+	})
+	require.NoError(t, err)
 
 	client, cleanup := newTestServer(t, repo)
 	defer cleanup()
@@ -169,7 +146,7 @@ func TestList_PopulatedAndStorageFlag(t *testing.T) {
 
 func TestList_RepoError(t *testing.T) {
 	repo := newFakeRepo()
-	repo.listErr = errors.New("boom")
+	repo.ListErr = errors.New("boom")
 	client, cleanup := newTestServer(t, repo)
 	defer cleanup()
 
@@ -203,9 +180,7 @@ func TestCreate_NamedAndPropagatesError(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "Mine", resp.Msg.GetProfile().GetName())
 
-	repo.createOv = func(string) (*sessionprofilepersistence.SessionProfile, error) {
-		return nil, errors.New("disk full")
-	}
+	repo.CreateErr = errors.New("disk full")
 	_, err = client.Create(context.Background(), connect.NewRequest(&sessionprofilesv1.CreateSessionProfileRequest{}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
@@ -319,5 +294,5 @@ func TestDelete_HappyPath(t *testing.T) {
 	resp, err := client.Delete(context.Background(), connect.NewRequest(&sessionprofilesv1.DeleteSessionProfileRequest{Id: string(p.ID)}))
 	require.NoError(t, err)
 	require.Equal(t, string(p.ID), resp.Msg.GetId())
-	require.Empty(t, repo.items)
+	require.Zero(t, repo.Count())
 }

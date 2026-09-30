@@ -23,23 +23,11 @@ func (s *stubProxy) FetchObservabilityRefresh(context.Context) (map[string]any, 
 	return s.snapshot, s.err
 }
 
-func (s *stubProxy) FetchObservabilityDiagnostics(context.Context, map[string]any) (map[string]any, error) {
-	return s.snapshot, s.err
-}
-
 func (s *stubProxy) FetchObservabilitySessions(context.Context) (map[string]any, error) {
 	return s.snapshot, s.err
 }
 
-func (s *stubProxy) FetchObservabilityCleanup(context.Context) (map[string]any, error) {
-	return s.snapshot, s.err
-}
-
 func (s *stubProxy) FetchObservabilityMetrics(context.Context) (map[string]any, error) {
-	return s.snapshot, s.err
-}
-
-func (s *stubProxy) FetchObservabilityPipelineTest(context.Context, map[string]any) (map[string]any, error) {
 	return s.snapshot, s.err
 }
 

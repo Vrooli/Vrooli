@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/state"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
@@ -32,7 +31,7 @@ func TestVariableConditionUsesExecutionStore(t *testing.T) {
 			t.Run(tc.operator.String()+map[bool]string{true: "/negated", false: "/positive"}[negated], func(t *testing.T) {
 				store := state.NewFromStore(map[string]any{"answer": tc.actual})
 				name := "answer"
-				condition, err := evaluateVariableCondition(&basactions.ConditionalParams{Variable: &name, Operator: &tc.operator, Value: typeconv.AnyToJsonValue(tc.expected), Negate: &negated}, store)
+				condition, err := evaluateVariableCondition(&basactions.ConditionalParams{Variable: &name, Operator: &tc.operator, Value: contracts.AnyToJsonValue(tc.expected), Negate: &negated}, store)
 				require.NoError(t, err)
 				require.NotNil(t, condition)
 				assert.Equal(t, tc.truth != negated, condition.Outcome)
@@ -52,14 +51,14 @@ func TestVariableConditionErrorsCannotBeNegated(t *testing.T) {
 		nil,
 		{Variable: stringPtr("missing"), Negate: &negated},
 		{Variable: &name, Operator: &badOperator, Negate: &negated},
-		{Variable: &name, Operator: &gt, Value: typeconv.AnyToJsonValue(1), Negate: &negated},
-		{Variable: &name, Operator: &gt, Value: typeconv.AnyToJsonValue("NaN"), Negate: &negated},
+		{Variable: &name, Operator: &gt, Value: contracts.AnyToJsonValue(1), Negate: &negated},
+		{Variable: &name, Operator: &gt, Value: contracts.AnyToJsonValue("NaN"), Negate: &negated},
 	} {
 		condition, err := evaluateVariableCondition(params, state.NewFromStore(map[string]any{"answer": "not numeric"}))
 		require.Error(t, err)
 		assert.Nil(t, condition)
 	}
-	condition, err := evaluateVariableCondition(&basactions.ConditionalParams{Variable: &name, Value: typeconv.AnyToJsonValue(false)}, state.NewFromStore(map[string]any{"answer": false}))
+	condition, err := evaluateVariableCondition(&basactions.ConditionalParams{Variable: &name, Value: contracts.AnyToJsonValue(false)}, state.NewFromStore(map[string]any{"answer": false}))
 	require.NoError(t, err)
 	assert.True(t, condition.Outcome, "an omitted operator defaults to equals")
 }

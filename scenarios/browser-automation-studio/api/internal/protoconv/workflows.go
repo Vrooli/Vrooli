@@ -5,7 +5,8 @@ import (
 	"fmt"
 
 	"github.com/vrooli/browser-automation-studio/database"
-	workflowingress "github.com/vrooli/browser-automation-studio/internal/compat"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
+	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	workflowvalidator "github.com/vrooli/browser-automation-studio/workflow/validator"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -24,7 +25,7 @@ func FlowDefinitionToProto(definition database.JSONMap) (*basworkflows.WorkflowD
 	if err != nil {
 		return nil, fmt.Errorf("marshal flow_definition: %w", err)
 	}
-	raw, err = workflowingress.NormalizeWorkflowDefinitionV2Bytes(raw)
+	raw, err = workflowservice.NormalizeWorkflowDefinitionV2Bytes(raw)
 	if err != nil {
 		return nil, fmt.Errorf("normalize legacy flow_definition: %w", err)
 	}
@@ -47,7 +48,7 @@ func WorkflowValidationResultToProto(result *workflowvalidator.Result) *basapi.W
 			Code:     issue.Code,
 			Message:  issue.Message,
 			NodeId:   issue.NodeID,
-			NodeType: StringToActionType(issue.NodeType),
+			NodeType: enums.StringToActionType(issue.NodeType),
 			Field:    issue.Field,
 			Pointer:  issue.Pointer,
 			Hint:     issue.Hint,

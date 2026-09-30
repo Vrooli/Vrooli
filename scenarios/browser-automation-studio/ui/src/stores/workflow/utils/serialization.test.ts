@@ -10,8 +10,8 @@ import {
   sanitizeEdgesForPersistence,
 } from './serialization';
 
-// Mock actionBuilder
-vi.mock('../../../utils/actionBuilder', () => ({
+// Mock the workflow schema normalizer's action builder.
+vi.mock('../../../domains/workflows/utils/normalizers', () => ({
   buildActionDefinition: vi.fn((type, data) => ({ type, ...data })),
 }));
 

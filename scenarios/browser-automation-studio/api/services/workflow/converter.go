@@ -12,7 +12,6 @@ import (
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
-	workflowingress "github.com/vrooli/browser-automation-studio/internal/compat"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -189,7 +188,7 @@ func marshalToFlowDefinition(defMap map[string]any) (*basworkflows.WorkflowDefin
 	if err != nil {
 		return nil, err
 	}
-	raw, err = workflowingress.NormalizeExternalWorkflowDefinitionBytes(raw)
+	raw, err = NormalizeWorkflowDefinitionV2Bytes(raw)
 	if err != nil {
 		return nil, err
 	}

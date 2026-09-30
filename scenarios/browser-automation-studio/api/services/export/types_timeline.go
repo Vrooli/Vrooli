@@ -5,7 +5,6 @@ import (
 
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 )
 
 // ExecutionTimeline represents the replay-friendly view of an execution.
@@ -56,12 +55,38 @@ type TimelineFrame struct {
 	RetryHistory         []RetryHistoryEntry              `json:"retry_history,omitempty"`
 }
 
-// Type aliases for backward compatibility with existing code.
-type (
-	RetryHistoryEntry  = typeconv.RetryHistoryEntry
-	TimelineScreenshot = typeconv.TimelineScreenshot
-	TimelineArtifact   = typeconv.TimelineArtifact
-)
+// RetryHistoryEntry captures one step retry attempt in the exported timeline.
+type RetryHistoryEntry struct {
+	Attempt        int    `json:"attempt"`
+	Success        bool   `json:"success"`
+	DurationMs     int    `json:"duration_ms,omitempty"`
+	CallDurationMs int    `json:"call_duration_ms,omitempty"`
+	Error          string `json:"error,omitempty"`
+}
+
+// TimelineScreenshot describes screenshot metadata attached to an exported frame.
+type TimelineScreenshot struct {
+	ArtifactID   string `json:"artifact_id"`
+	URL          string `json:"url,omitempty"`
+	ThumbnailURL string `json:"thumbnail_url,omitempty"`
+	Width        int    `json:"width,omitempty"`
+	Height       int    `json:"height,omitempty"`
+	ContentType  string `json:"content_type,omitempty"`
+	SizeBytes    *int64 `json:"size_bytes,omitempty"`
+}
+
+// TimelineArtifact describes a non-screenshot artifact attached to a frame.
+type TimelineArtifact struct {
+	ID           string         `json:"id"`
+	Type         string         `json:"type"`
+	Label        string         `json:"label,omitempty"`
+	StorageURL   string         `json:"storage_url,omitempty"`
+	ThumbnailURL string         `json:"thumbnail_url,omitempty"`
+	ContentType  string         `json:"content_type,omitempty"`
+	SizeBytes    *int64         `json:"size_bytes,omitempty"`
+	StepIndex    *int           `json:"step_index,omitempty"`
+	Payload      map[string]any `json:"payload,omitempty"`
+}
 
 // TimelineLog captures execution log output for replay consumers.
 type TimelineLog struct {

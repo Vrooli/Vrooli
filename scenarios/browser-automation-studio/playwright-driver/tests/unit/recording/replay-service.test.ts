@@ -4,6 +4,7 @@ import {
   type TimelineEntry,
 } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
 import type { Page } from 'rebrowser-playwright';
+import { createMockPage } from '../../helpers';
 
 jest.mock('../../../src/recording/action-executor', () => ({
   executeTimelineEntry: jest.fn(),
@@ -28,18 +29,13 @@ const mockValidateSelectorOnPage = validateSelectorOnPage as jest.MockedFunction
 const createEntry = (id: string, sequenceNum: number): TimelineEntry =>
   create(TimelineEntrySchema, { id, sequenceNum });
 
-const createMockPage = (): jest.Mocked<Page> =>
-  ({
-    screenshot: jest.fn().mockResolvedValue(Buffer.from('screenshot-bytes')),
-  }) as unknown as jest.Mocked<Page>;
-
 describe('ReplayPreviewService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   it('replays entries and stops on failure by default', async () => {
-    const page = createMockPage();
+    const page = createMockPage({ screenshot: jest.fn().mockResolvedValue(Buffer.from('screenshot-bytes')) });
     const service = new ReplayPreviewService(page);
     const entries = [createEntry('entry-1', 1), createEntry('entry-2', 2), createEntry('entry-3', 3)];
 
@@ -59,7 +55,7 @@ describe('ReplayPreviewService', () => {
   });
 
   it('continues replay when stopOnFailure is false', async () => {
-    const page = createMockPage();
+    const page = createMockPage({ screenshot: jest.fn().mockResolvedValue(Buffer.from('screenshot-bytes')) });
     const service = createReplayPreviewService(page);
     const entries = [createEntry('entry-1', 1), createEntry('entry-2', 2), createEntry('entry-3', 3)];
 
@@ -76,7 +72,7 @@ describe('ReplayPreviewService', () => {
   });
 
   it('respects limit and does not execute additional entries', async () => {
-    const page = createMockPage();
+    const page = createMockPage({ screenshot: jest.fn().mockResolvedValue(Buffer.from('screenshot-bytes')) });
     const service = new ReplayPreviewService(page);
     const entries = [createEntry('entry-1', 1), createEntry('entry-2', 2)];
 
@@ -89,7 +85,7 @@ describe('ReplayPreviewService', () => {
   });
 
   it('deduplicates concurrent replay requests with identical entries', async () => {
-    const page = createMockPage();
+    const page = createMockPage({ screenshot: jest.fn().mockResolvedValue(Buffer.from('screenshot-bytes')) });
     const service = new ReplayPreviewService(page);
     const entries = [createEntry('entry-1', 1)];
 
@@ -116,7 +112,7 @@ describe('ReplayPreviewService', () => {
   });
 
   it('ignores screenshot failures on action errors', async () => {
-    const page = createMockPage();
+    const page = createMockPage({ screenshot: jest.fn().mockResolvedValue(Buffer.from('screenshot-bytes')) });
     page.screenshot.mockRejectedValueOnce(new Error('screenshot failed'));
     const service = new ReplayPreviewService(page);
     const entries = [createEntry('entry-1', 1)];
@@ -130,7 +126,7 @@ describe('ReplayPreviewService', () => {
   });
 
   it('delegates selector validation to selector service', async () => {
-    const page = createMockPage();
+    const page = createMockPage({ screenshot: jest.fn().mockResolvedValue(Buffer.from('screenshot-bytes')) });
     const service = new ReplayPreviewService(page);
 
     mockValidateSelectorOnPage.mockResolvedValue({ valid: true, matchCount: 2, selector: '.cta' });

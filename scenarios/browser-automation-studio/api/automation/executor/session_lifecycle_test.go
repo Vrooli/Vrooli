@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/enginemocks"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -94,7 +96,7 @@ func navigationFor(prior priorNavigationState) *navigationState {
 
 // These faults cross the public Execute boundary, not just the cleanup helper.
 type finalizationSession struct {
-	stubEngineSession
+	enginemocks.Session
 	closeErr        error
 	closeCtx        context.Context
 	closeContextErr error
@@ -114,7 +116,7 @@ func (s *finalizationSession) Run(ctx context.Context, instruction contracts.Com
 		s.cancel()
 		return contracts.StepOutcome{}, ctx.Err()
 	}
-	return s.stubEngineSession.Run(ctx, instruction)
+	return s.Session.Run(ctx, instruction)
 }
 
 type finalizationArtifacts struct {
@@ -483,7 +485,7 @@ func TestExecutePreservesInvocationAndTransportOwnership(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			var mu sync.Mutex
 			var packets []map[string]any
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				mu.Lock()
 				defer mu.Unlock()
 				switch {
@@ -520,7 +522,6 @@ func TestExecutePreservesInvocationAndTransportOwnership(t *testing.T) {
 					io.WriteString(w, `{"success":true}`)
 				}
 			}))
-			defer server.Close()
 			eng, err := engine.NewPlaywrightEngineWithHTTPClient(server.URL, server.Client(), nil)
 			require.NoError(t, err)
 			action := &basactions.ActionDefinition{
@@ -581,7 +582,7 @@ func TestExecuteTimeoutDuringLiveInstructionClosesSessionWithoutReplay(t *testin
 	resourcesBeforeClose := 0
 	inputStoppedAt := time.Time{}
 	runCanceled := make(chan struct{})
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/health":
 			w.WriteHeader(http.StatusOK)
@@ -616,7 +617,6 @@ func TestExecuteTimeoutDuringLiveInstructionClosesSessionWithoutReplay(t *testin
 			http.NotFound(w, r)
 		}
 	}))
-	defer server.Close()
 
 	eng, err := engine.NewPlaywrightEngineWithHTTPClient(server.URL, server.Client(), nil)
 	require.NoError(t, err)
@@ -688,7 +688,7 @@ func TestExecuteDriverDeathRetainsUncertainEffectWithoutReplay(t *testing.T) {
 	resourcesBeforeDeath := 0
 	processDeathAt := time.Time{}
 	var server *httptest.Server
-	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server = testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/health":
 			w.WriteHeader(http.StatusOK)
@@ -722,7 +722,6 @@ func TestExecuteDriverDeathRetainsUncertainEffectWithoutReplay(t *testing.T) {
 			http.NotFound(w, r)
 		}
 	}))
-	defer server.Close()
 
 	eng, err := engine.NewPlaywrightEngineWithHTTPClient(server.URL, server.Client(), nil)
 	require.NoError(t, err)
@@ -774,7 +773,7 @@ func TestExecuteDriverDeathRetainsUncertainEffectWithoutReplay(t *testing.T) {
 }
 
 type checkpointFixtureSession struct {
-	stubEngineSession
+	enginemocks.Session
 	observed string
 }
 

@@ -11,7 +11,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/automation/state"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
@@ -255,7 +254,7 @@ func evaluateLoopCondition(condition *basactions.LoopCondition, execState *state
 			return false
 		}
 		op := strings.ToLower(strings.TrimPrefix(condition.GetOperator().String(), "LOOP_CONDITION_OPERATOR_"))
-		return state.CompareValues(current, typeconv.JsonValueToAny(condition.GetValue()), op)
+		return state.CompareValues(current, contracts.JsonValueToAny(condition.GetValue()), op)
 	case basactions.LoopConditionType_LOOP_CONDITION_TYPE_EXPRESSION:
 		result, ok := state.NewInterpolator(execState).EvaluateExpression(strings.TrimSpace(condition.GetExpression()))
 		return ok && result

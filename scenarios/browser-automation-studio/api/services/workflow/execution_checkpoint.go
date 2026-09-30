@@ -11,7 +11,6 @@ import (
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -156,7 +155,7 @@ func (s *WorkflowService) readExecutionTimelineForCheckpoint(resultPath string) 
 func jsonValueMapToAnyMap(protoMap map[string]*commonv1.JsonValue) map[string]any {
 	result := make(map[string]any)
 	for k, v := range protoMap {
-		result[k] = typeconv.JsonValueToAny(v)
+		result[k] = autocontracts.JsonValueToAny(v)
 	}
 	return result
 }
@@ -165,7 +164,7 @@ func jsonValueMapToAnyMap(protoMap map[string]*commonv1.JsonValue) map[string]an
 func convertParamsToProto(params map[string]any) map[string]*commonv1.JsonValue {
 	result := make(map[string]*commonv1.JsonValue)
 	for k, v := range params {
-		result[k] = typeconv.AnyToJsonValue(v)
+		result[k] = autocontracts.AnyToJsonValue(v)
 	}
 	return result
 }

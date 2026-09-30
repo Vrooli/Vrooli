@@ -4,8 +4,8 @@
  * STABILITY: STABLE CONTRACT
  *
  * This module defines the interface for vision model clients.
- * Implementations include the AI Gateway client, Claude Computer Use, and Mock
- * (for testing).
+ * The production implementation is the AI Gateway client; tests provide local
+ * fakes at the client boundary.
  *
  * TESTING SEAM: Mock this interface for unit tests to avoid real LLM calls.
  */
@@ -91,11 +91,11 @@ export interface VisionModelSpec {
   displayName: string;
   /** Owning execution boundary. */
   provider: 'ai-gateway' | 'anthropic' | 'ollama' | 'mock';
-  /** Optional provider metadata retained only for the Claude exception. */
+  /** Optional provider metadata retained for alternate test/consumer clients. */
   apiModelId?: string;
-  /** Optional provider metadata retained only for the Claude exception. */
+  /** Optional provider metadata retained for alternate test/consumer clients. */
   maxContextTokens?: number;
-  /** Claude-specific feature */
+  /** Whether this client exposes native computer-use tools. */
   supportsComputerUse: boolean;
   /** Can use numbered labels */
   supportsElementLabels: boolean;

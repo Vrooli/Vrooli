@@ -2,17 +2,18 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/enginemocks"
 )
 
 // fakeTelemetrySession is a minimal EngineSession whose Run returns a
 // successful outcome, letting us assert the telemetry seam fires.
 type fakeTelemetrySession struct {
+	enginemocks.Session
 	runs int
 }
 
@@ -20,13 +21,9 @@ func (s *fakeTelemetrySession) Run(_ context.Context, _ contracts.CompiledInstru
 	s.runs++
 	return contracts.StepOutcome{Success: true}, nil
 }
-func (s *fakeTelemetrySession) Reset(context.Context) error { return nil }
-func (s *fakeTelemetrySession) Close(context.Context) error { return nil }
-func (s *fakeTelemetrySession) GetStorageState(context.Context) (json.RawMessage, error) {
-	return nil, nil
-}
 
 type retryableFailureSession struct {
+	enginemocks.Session
 	runs              int
 	remainingFailures int
 }
@@ -38,11 +35,6 @@ func (s *retryableFailureSession) Run(_ context.Context, _ contracts.CompiledIns
 		return contracts.StepOutcome{Failure: &contracts.StepFailure{Retryable: true, Message: "transient"}}, errors.New("transient")
 	}
 	return contracts.StepOutcome{Success: true}, nil
-}
-func (s *retryableFailureSession) Reset(context.Context) error { return nil }
-func (s *retryableFailureSession) Close(context.Context) error { return nil }
-func (s *retryableFailureSession) GetStorageState(context.Context) (json.RawMessage, error) {
-	return nil, nil
 }
 
 // recordingCollector captures hook invocations to verify ordering.

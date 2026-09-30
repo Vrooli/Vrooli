@@ -3,8 +3,8 @@ package workflows
 import (
 	"context"
 	"errors"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -200,7 +200,7 @@ func newServerAndClient(t *testing.T, deps Deps) (apiconnect.WorkflowsServiceCli
 	mount := Module(deps)
 	mux := http.NewServeMux()
 	mux.Handle(mount.Path, mount.Handler)
-	srv := httptest.NewServer(mux)
+	srv := testutil.StartHTTPServer(t, mux)
 	client := apiconnect.NewWorkflowsServiceClient(srv.Client(), srv.URL)
 	return client, srv.Close
 }
@@ -569,8 +569,7 @@ func TestExecuteAdhocWorkflow_PreservesTestModeContextFromConnectHeader(t *testi
 	mount := Module(deps)
 	mux := http.NewServeMux()
 	mux.Handle(mount.Path, mount.Handler)
-	srv := httptest.NewServer(apihttp.TestModeMiddleware(mux))
-	defer srv.Close()
+	srv := testutil.StartHTTPServer(t, apihttp.TestModeMiddleware(mux))
 
 	client := apiconnect.NewWorkflowsServiceClient(srv.Client(), srv.URL)
 	request := connect.NewRequest(&basexecution.ExecuteAdhocRequest{FlowDefinition: &basworkflows.WorkflowDefinitionV2{}})

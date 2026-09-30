@@ -109,3 +109,12 @@ func StartConnectServer(t testing.TB, path string, handler http.Handler) *httpte
 	t.Cleanup(server.Close)
 	return server
 }
+
+// StartHTTPServer runs a handler on a real local HTTP server and closes it
+// during test cleanup. Use it when the contract depends on socket transport.
+func StartHTTPServer(t testing.TB, handler http.Handler) *httptest.Server {
+	t.Helper()
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	return server
+}

@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -108,12 +108,11 @@ func TestBuildInstructionPayloadPreservesTypedActionVariants(t *testing.T) {
 }
 
 func TestUpdateStreamSettingsPreservesFractionalCurrentFPS(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, http.MethodPost, r.Method)
 		require.Equal(t, "/session/session/record/stream-settings", r.URL.Path)
 		_, _ = w.Write([]byte(`{"session_id":"session","quality":65,"fps":30,"current_fps":22.28,"scale":"css","is_streaming":true}`))
 	}))
-	defer server.Close()
 
 	client, err := NewClientWithURL(server.URL)
 	require.NoError(t, err)
@@ -125,7 +124,7 @@ func TestUpdateStreamSettingsPreservesFractionalCurrentFPS(t *testing.T) {
 func TestRecordingPullTransportRequiresMatchingAcknowledgement(t *testing.T) {
 	for _, response := range []string{`{}`, `{"entry_ids":["different"]}`, `{"entry_ids":["entry"]}`} {
 		t.Run(response, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				require.Equal(t, http.MethodPost, r.Method)
 				require.Equal(t, "/session/session/record/actions/ack", r.URL.Path)
 				var request struct {
@@ -139,7 +138,6 @@ func TestRecordingPullTransportRequiresMatchingAcknowledgement(t *testing.T) {
 				assert.Equal(t, "lease", request.LeaseID)
 				_, _ = w.Write([]byte(response))
 			}))
-			defer server.Close()
 			client, err := NewClientWithURL(server.URL)
 			require.NoError(t, err)
 			err = client.AcknowledgeRecordedActions(context.Background(), "session", "owner", "lease", []string{"entry"})
@@ -153,12 +151,11 @@ func TestRecordingPullTransportRequiresMatchingAcknowledgement(t *testing.T) {
 }
 
 func TestRecordingPullRejectsMalformedTimelineWithoutDestructiveRead(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, http.MethodGet, r.Method)
 		require.Empty(t, r.URL.RawQuery)
 		_, _ = w.Write([]byte(`{"session_id":"session","entries":[{"id":"entry","unknown_field":1}]}`))
 	}))
-	defer server.Close()
 	client, err := NewClientWithURL(server.URL)
 	require.NoError(t, err)
 	_, err = client.GetRecordedActions(context.Background(), "session")
@@ -167,8 +164,7 @@ func TestRecordingPullRejectsMalformedTimelineWithoutDestructiveRead(t *testing.
 
 func TestRecordingCommandsRejectMissingOwnershipBeforeHTTP(t *testing.T) {
 	calls := 0
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; w.WriteHeader(http.StatusOK) }))
-	defer srv.Close()
+	srv := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; w.WriteHeader(http.StatusOK) }))
 	client, err := NewClientWithURL(srv.URL, WithoutCircuitBreaker())
 	require.NoError(t, err)
 	for _, identity := range [][2]string{{"", "lease"}, {"owner", " "}} {
@@ -186,8 +182,7 @@ func TestRecordingCommandsRejectMissingOwnershipBeforeHTTP(t *testing.T) {
 
 func TestInputRejectsInvalidEnvelopesBeforeHTTP(t *testing.T) {
 	calls := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; w.WriteHeader(http.StatusOK) }))
-	defer server.Close()
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; w.WriteHeader(http.StatusOK) }))
 	client, err := NewClientWithURL(server.URL, WithoutCircuitBreaker())
 	require.NoError(t, err)
 	for _, identity := range [][2]string{{"", "lease"}, {"owner", " "}} {
@@ -203,8 +198,7 @@ func TestInputRejectsInvalidEnvelopesBeforeHTTP(t *testing.T) {
 
 func TestNavigationCommandsRejectUnownedOrUnsupportedRequestsBeforeHTTP(t *testing.T) {
 	calls := make(chan struct{}, 8)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls <- struct{}{}; w.WriteHeader(200) }))
-	defer server.Close()
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls <- struct{}{}; w.WriteHeader(200) }))
 	client, err := NewClientWithURL(server.URL, WithoutCircuitBreaker())
 	require.NoError(t, err)
 	for _, identity := range [][2]string{{"", "lease"}, {"owner", " "}} {
@@ -227,10 +221,9 @@ func TestNavigationCommandsRequirePageReceipt(t *testing.T) {
 	for _, operation := range []HistoryNavigation{"navigate", HistoryReload, HistoryBack, HistoryForward} {
 		for _, pageID := range []string{"", "  ", "registered-page"} {
 			t.Run(string(operation)+"/"+pageID, func(t *testing.T) {
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					_ = json.NewEncoder(w).Encode(map[string]string{"url": "https://fixture.test", "driver_page_id": pageID})
 				}))
-				defer server.Close()
 				client, err := NewClientWithURL(server.URL, WithoutCircuitBreaker())
 				require.NoError(t, err)
 				var received string
@@ -271,11 +264,10 @@ func TestCreatePageRequiresCompletedIdentityReceipt(t *testing.T) {
 		{"failed", http.StatusServiceUnavailable, "created-page", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(tc.status)
 				_ = json.NewEncoder(w).Encode(map[string]string{"driver_page_id": tc.pageID, "url": "https://fixture.test"})
 			}))
-			defer server.Close()
 			client, err := NewClientWithURL(server.URL, WithoutCircuitBreaker())
 			require.NoError(t, err)
 			receipt, err := client.CreatePage(context.Background(), "session", "owner", "lease", "https://fixture.test")
@@ -308,8 +300,7 @@ func TestGetFrameRejectsInvalidReceipts(t *testing.T) {
 		t.Run(tc.field+"_"+fmt.Sprint(tc.value), func(t *testing.T) {
 			frame := map[string]any{"session_id": "preview", "image": "data:image/jpeg;base64,/9j/2Q==", "mime": "image/jpeg", "width": 640, "height": 480, "captured_at": "2026-09-23T03:00:00Z", "content_hash": "fixture-hash"}
 			frame[tc.field] = tc.value
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _ = json.NewEncoder(w).Encode(frame) }))
-			defer server.Close()
+			server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _ = json.NewEncoder(w).Encode(frame) }))
 			client, err := NewClientWithURL(server.URL, WithoutCircuitBreaker())
 			require.NoError(t, err)
 			result, err := client.GetFrame(context.Background(), "preview", "")

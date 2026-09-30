@@ -29,8 +29,6 @@ export interface InspectFolderResponse {
   workflow_count?: number;
   /** Relative paths to detected workflow files */
   workflow_locations?: string[];
-  /** Number of V1 format workflows that will be converted */
-  v1_workflow_count?: number;
 }
 
 export interface ImportProjectRequest {
@@ -75,7 +73,6 @@ const isInspectFolderResponse = (value: unknown): value is InspectFolderResponse
   if (!isBoolean(value.already_indexed)) return false;
   if (value.workflow_count !== undefined && !isNumber(value.workflow_count)) return false;
   if (value.workflow_locations !== undefined && !isStringArray(value.workflow_locations)) return false;
-  if (value.v1_workflow_count !== undefined && !isNumber(value.v1_workflow_count)) return false;
   return true;
 };
 

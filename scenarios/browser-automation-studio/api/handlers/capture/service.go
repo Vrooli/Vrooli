@@ -21,7 +21,6 @@ import (
 
 	"github.com/vrooli/browser-automation-studio/automation/compiler"
 	"github.com/vrooli/browser-automation-studio/config"
-	"github.com/vrooli/browser-automation-studio/internal/compat"
 	"github.com/vrooli/browser-automation-studio/services/retention"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/viewport"
@@ -851,9 +850,9 @@ type splicedFlow struct {
 // node set is a typed error.
 func spliceInteractionFlow(navigateNodeID, raw string) (splicedFlow, error) {
 	// Apply the same compat normalization the `execute-adhoc --flow-file` path
-	// uses so a raw bas/flows body (short-form execution_mode, viewport
-	// settings, V1 node shape) parses identically here.
-	normalized, err := compat.NormalizeWorkflowDefinitionV2Bytes([]byte(raw))
+	// uses so a raw bas/flows body (short-form execution_mode and viewport
+	// settings) parses identically here.
+	normalized, err := workflow.NormalizeWorkflowDefinitionV2Bytes([]byte(raw))
 	if err != nil {
 		return splicedFlow{}, fmt.Errorf("interaction_flow_json is not valid JSON: %w", err)
 	}

@@ -25,7 +25,7 @@ import (
 "github.com/vrooli/api-core/uimanifest"
 	"path/filepath"
 
-	bascompat "github.com/vrooli/browser-automation-studio/compat"
+	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	apiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api/apiconnect"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
@@ -81,7 +81,7 @@ func normalizeAdhocFlowFile(body []byte) ([]byte, error) {
 			break
 		}
 	}
-	return bascompat.NormalizeWorkflowDefinitionV2Bytes(body)
+	return workflowservice.NormalizeWorkflowDefinitionV2Bytes(body)
 }
 
 func runAdhoc(ctx cliapp.RunContext) error {

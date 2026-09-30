@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -64,8 +64,7 @@ func TestPlaywrightEngine_Run_DecodesScreenshotAndDOM(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
 	})
 
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	server := testutil.StartHTTPServer(t, handler)
 
 	log := logrus.New()
 	engine, err := newPlaywrightEngineForServer(server.URL, server.Client(), log)
@@ -124,8 +123,7 @@ func TestPlaywrightEngine_Capabilities(t *testing.T) {
 		_ = r.Body.Close()
 		w.WriteHeader(http.StatusOK)
 	})
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	server := testutil.StartHTTPServer(t, handler)
 
 	engine, err := newPlaywrightEngineForServer(server.URL, server.Client(), nil)
 	if err != nil {
@@ -755,8 +753,7 @@ func TestPlaywrightEngine_Run_VideoAndTracePaths(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(resp)
 	})
 
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	server := testutil.StartHTTPServer(t, handler)
 
 	log := logrus.New()
 	engine, err := newPlaywrightEngineForServer(server.URL, server.Client(), log)
@@ -864,8 +861,7 @@ func TestPlaywrightEngine_Run_SetsSchemaVersions(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
 	})
 
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	server := testutil.StartHTTPServer(t, handler)
 
 	engine, err := newPlaywrightEngineForServer(server.URL, server.Client(), nil)
 	if err != nil {
@@ -902,8 +898,7 @@ func TestPlaywrightEngine_Capabilities_AllFieldsPopulated(t *testing.T) {
 		_ = r.Body.Close()
 		w.WriteHeader(http.StatusOK)
 	})
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	server := testutil.StartHTTPServer(t, handler)
 
 	engine, err := newPlaywrightEngineForServer(server.URL, server.Client(), nil)
 	if err != nil {

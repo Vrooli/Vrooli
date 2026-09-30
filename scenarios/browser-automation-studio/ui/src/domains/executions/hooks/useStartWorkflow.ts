@@ -7,7 +7,7 @@ import {
   type FrameStreamingConfig,
 } from '../store';
 import { usePromptDialog } from '@hooks/usePromptDialog';
-import { workflowStartsWithNavigate } from '@utils/nodeUtils';
+import { workflowStartsWithNavigate } from '@/domains/workflows/utils/normalizers';
 import { toJson } from '@bufbuild/protobuf';
 import { WorkflowDefinitionV2Schema } from '@vrooli/proto-types/browser-automation-studio/v1/workflows/definition_pb';
 import { getWorkflowViaApi } from '@/domains/workflows/services/workflowApi';

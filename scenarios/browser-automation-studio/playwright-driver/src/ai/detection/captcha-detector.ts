@@ -306,17 +306,6 @@ function formatCaptchaType(type: string): string {
 }
 
 /**
- * Create a mock detector for testing.
- */
-export function createMockCaptchaDetector(
-  mockResult: CaptchaDetectionResult
-): { detect: (page: Page) => Promise<CaptchaDetectionResult> } {
-  return {
-    detect: () => Promise.resolve(mockResult),
-  };
-}
-
-/**
  * No CAPTCHA detected result (for reuse).
  */
 export const NO_CAPTCHA_RESULT: CaptchaDetectionResult = {

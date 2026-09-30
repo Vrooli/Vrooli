@@ -2,13 +2,12 @@
 // handler.
 //
 // ObservabilityService is BAS's facade onto playwright-driver's
-// /observability surface (status snapshots, diagnostics, session
-// inventory, metrics, runtime config, pipeline self-test) plus the
-// in-process debug-mode toggle consumed by the diagnostics UI.
+// /observability surface (status snapshots, session inventory, metrics,
+// runtime config) plus the in-process debug-mode toggle.
 //
 // This package is a thin Connect adapter onto the transport-agnostic
 // Fetch* methods exposed by the parent handlers package
-// (FetchObservability, FetchObservabilityDiagnostics, ...) and the
+// (FetchObservability, ...) and the
 // GetDebugModeSnapshot / SetDebugModeState helpers for the debug-mode
 // toggle. Wire-format payloads from playwright-driver are owned by the
 // downstream process; they are round-tripped via google.protobuf.Struct
@@ -31,11 +30,8 @@ import (
 type Proxy interface {
 	FetchObservability(ctx context.Context, depth string, noCache bool) (map[string]any, error)
 	FetchObservabilityRefresh(ctx context.Context) (map[string]any, error)
-	FetchObservabilityDiagnostics(ctx context.Context, options map[string]any) (map[string]any, error)
 	FetchObservabilitySessions(ctx context.Context) (map[string]any, error)
-	FetchObservabilityCleanup(ctx context.Context) (map[string]any, error)
 	FetchObservabilityMetrics(ctx context.Context) (map[string]any, error)
-	FetchObservabilityPipelineTest(ctx context.Context, options map[string]any) (map[string]any, error)
 	FetchObservabilityConfigRuntime(ctx context.Context) (map[string]any, error)
 	UpdateObservabilityConfig(ctx context.Context, envVar, value string) (map[string]any, error)
 	ResetObservabilityConfig(ctx context.Context, envVar string) (map[string]any, error)

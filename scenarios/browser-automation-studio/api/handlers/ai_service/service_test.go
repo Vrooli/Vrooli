@@ -3,9 +3,9 @@ package ai_service
 import (
 	"context"
 	"errors"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -53,7 +53,7 @@ func newServiceForTest(t *testing.T, runner aihandlers.AutomationRunner) (aiconn
 
 	mux := http.NewServeMux()
 	mux.Handle(mount.Path, mount.Handler)
-	srv := httptest.NewServer(mux)
+	srv := testutil.StartHTTPServer(t, mux)
 	t.Cleanup(srv.Close)
 	return aiconnect.NewAIServiceClient(srv.Client(), srv.URL), spy
 }

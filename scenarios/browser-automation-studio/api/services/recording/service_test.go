@@ -876,13 +876,13 @@ func TestJournalSameIDRetryRecoversAcrossServiceProcessDeath(t *testing.T) {
 		}
 	}
 	writePassiveFidelityCrashObservation(t, map[string]any{
-		"case":                          "recording-service-process-death",
-		"actionsBeforeCrash":           actionCount,
-		"committedBeforeAcknowledgment": true,
-		"childTerminatedAbruptly":       true,
-		"reopenedTotal":                 actionCount + 1,
-		"retriedSameEventId":            true,
-		"totalAfterRetry":               actionCount + 1,
+		"case":                           "recording-service-process-death",
+		"actionsBeforeCrash":             actionCount,
+		"committedBeforeAcknowledgment":  true,
+		"childTerminatedAbruptly":        true,
+		"reopenedTotal":                  actionCount + 1,
+		"retriedSameEventId":             true,
+		"totalAfterRetry":                actionCount + 1,
 		"expectedPrefixIntactAndOrdered": true,
 	})
 }

@@ -27,8 +27,7 @@
  * │     └─ selector-config.ts       - Selector scoring config               │
  * │     └─ replay-service.ts        - Replay preview service                │
  * │     └─ verification.ts          - Script injection verification         │
- * │   testing/           - Diagnostics and self-testing                     │
- * │     └─ self-test.ts             - Automated pipeline testing            │
+ * │   testing/           - Recording diagnostics and verification            │
  * │     └─ diagnostics.ts           - Comprehensive diagnostics             │
  * │                                                                         │
  * │ ROOT FILES (shared utilities):                                          │
@@ -39,7 +38,7 @@
  * │                                                                         │
  * │ ADDING A NEW ACTION TYPE (e.g., 'drag'):                                │
  * │   1. packages/proto/schemas/.../action.proto - Add to ActionType enum   │
- * │   2. ../proto/action-type-utils.ts - Add string ↔ enum mappings         │
+ * │   2. ./action-types.ts - Add required browser event aliases         │
  * │   3. ../handlers/*.ts - Implement handler (preferred)                   │
  * │      OR action-executor.ts - Add executor (if handler not suitable)     │
  * │                                                                         │
@@ -172,8 +171,8 @@ export type {
 // =============================================================================
 // ACTION TYPES UTILITIES
 // =============================================================================
-// NOTE: Action type utilities have been consolidated in proto/action-type-utils.ts
-// Import from '../proto/action-type-utils' for: ACTION_TYPE_MAP, SELECTOR_OPTIONAL_ACTIONS,
+// NOTE: Shared action-type compatibility helpers are owned by recording/action-types.ts
+// Import from './action-types' for: ACTION_TYPE_MAP, SELECTOR_OPTIONAL_ACTIONS,
 // normalizeToProtoActionType, actionTypeToString, stringToActionType, etc.
 
 // Recording-specific function (not in proto module)
@@ -345,20 +344,13 @@ export type {
 } from './validation/verification';
 
 // =============================================================================
-// SELF-TEST (Automated Pipeline Testing)
+// External URL injection verification
 // =============================================================================
 
 export {
-  runRecordingPipelineTest,
   runExternalUrlInjectionTest,
-  TEST_PAGE_HTML,
-  DEFAULT_TEST_URL,
-} from './testing/self-test';
+} from './testing/external-url-injection-test';
 
 export type {
-  PipelineTestResult,
-  PipelineFailurePoint,
-  PipelineStepResult,
-  PipelineTestDiagnostics,
   ExternalUrlTestResult,
-} from './testing/self-test';
+} from './testing/external-url-injection-test';

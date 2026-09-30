@@ -14,6 +14,7 @@ import (
 
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/executormocks"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
 	projectsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects/projectsconnect"
@@ -206,22 +207,6 @@ func (f *fakeCatalog) ListWorkflows(_ context.Context, req *basapi.ListWorkflows
 	return &basapi.ListWorkflowsResponse{Workflows: out}, nil
 }
 
-type fakeExecutor struct {
-	mu       sync.Mutex
-	executed []uuid.UUID
-	err      error
-}
-
-func (f *fakeExecutor) ExecuteWorkflow(_ context.Context, id uuid.UUID, _ map[string]any) (*database.ExecutionIndex, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if f.err != nil {
-		return nil, f.err
-	}
-	f.executed = append(f.executed, id)
-	return &database.ExecutionIndex{ID: uuid.New(), Status: "pending"}, nil
-}
-
 type fakePaths struct {
 	mu         sync.Mutex
 	prepared   []string
@@ -272,7 +257,7 @@ func newTestClient(t *testing.T, d clientDeps) projectsconnect.ProjectsServiceCl
 		d.paths = &fakePaths{}
 	}
 	if d.executor == nil {
-		d.executor = &fakeExecutor{}
+		d.executor = &executormocks.Executor{}
 	}
 	mount := Module(Deps{Catalog: d.catalog, Executor: d.executor, Paths: d.paths, Logger: logger})
 	srv := testutil.StartConnectServer(t, mount.Path, mount.Handler)
@@ -571,7 +556,7 @@ func TestExecuteAllMixedResults(t *testing.T) {
 		{ID: uuid.New(), Name: "wf1"},
 		{ID: uuid.New(), Name: "wf2"},
 	}
-	exec := &fakeExecutor{}
+	exec := &executormocks.Executor{}
 	c := newTestClient(t, clientDeps{catalog: cat, executor: exec})
 	resp, err := c.ExecuteAllProjectWorkflows(context.Background(), connect.NewRequest(&basprojects.ExecuteAllProjectWorkflowsRequest{
 		ProjectId: id.String(),
@@ -582,7 +567,7 @@ func TestExecuteAllMixedResults(t *testing.T) {
 		require.Equal(t, "pending", r.GetStatus())
 		require.NotEmpty(t, r.GetExecutionId())
 	}
-	require.Len(t, exec.executed, 2)
+	require.Len(t, exec.Calls(), 2)
 }
 
 func TestExecuteAllReportsPerWorkflowFailure(t *testing.T) {
@@ -590,7 +575,7 @@ func TestExecuteAllReportsPerWorkflowFailure(t *testing.T) {
 	id := uuid.New()
 	cat.projects[id] = &database.ProjectIndex{ID: id}
 	cat.workflows[id] = []*database.WorkflowIndex{{ID: uuid.New(), Name: "wf"}}
-	exec := &fakeExecutor{err: errors.New("boom")}
+	exec := &executormocks.Executor{Err: errors.New("boom")}
 	c := newTestClient(t, clientDeps{catalog: cat, executor: exec})
 	resp, err := c.ExecuteAllProjectWorkflows(context.Background(), connect.NewRequest(&basprojects.ExecuteAllProjectWorkflowsRequest{
 		ProjectId: id.String(),

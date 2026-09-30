@@ -1,13 +1,12 @@
 /**
  * Observability Route Handler
  *
- * Provides unified observability endpoint for health, monitoring, and diagnostics.
+ * Provides the unified health, monitoring, metrics, session, and runtime-config endpoints.
  *
  * ## Endpoints
  *
  * - `GET /observability` - Get observability data
  * - `POST /observability/refresh` - Force cache refresh
- * - `POST /observability/diagnostics/run` - Run specific diagnostics
  */
 
 import type { IncomingMessage, ServerResponse } from 'http';
@@ -31,15 +30,9 @@ import type {
   RecordingStats,
 } from './types';
 import { VERSION } from '../constants';
-import {
-  runRecordingPipelineTest,
-} from '../recording';
-export { handleDiagnosticsRun } from './diagnostics-run';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
-const isString = (value: unknown): value is string => typeof value === 'string';
-const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 const parseJsonObject = (body: string): Record<string, unknown> => {
   try { const value: unknown = JSON.parse(body || '{}'); return isRecord(value) ? value : {}; } catch { return {}; }
 };
@@ -367,66 +360,6 @@ export function handleSessionList(
 }
 
 /**
- * POST /observability/cleanup/run
- *
- * Trigger manual cleanup of idle sessions.
- * Returns the number of sessions cleaned up.
- */
-export async function handleCleanupRun(
-  _req: IncomingMessage,
-  res: ServerResponse,
-  deps: ObservabilityRouteDependencies
-): Promise<void> {
-  const startedAt = new Date();
-
-  logger.info(scopedLog(LogContext.HEALTH, 'manual cleanup triggered'));
-
-  try {
-    // Preserve per-session age before cleanup so a zero-reclaim result remains
-    // diagnosable rather than success-shaped.
-    const beforeSessions = deps.sessionManager.getSessionList();
-    const beforeCount = beforeSessions.length;
-
-    // Run cleanup
-    await deps.sessionManager.cleanupIdleSessions();
-
-    const remainingSessions = deps.sessionManager.getSessionList();
-    const afterCount = remainingSessions.length;
-    const cleanedUp = beforeCount - afterCount;
-
-    const completedAt = new Date();
-
-    sendJson(res, 200, {
-      success: true,
-      cleaned_up: cleanedUp,
-      remaining_sessions: afterCount,
-      sessions_before: beforeSessions.map((session) => ({
-        id: session.id,
-        age_ms: startedAt.getTime() - new Date(session.created_at).getTime(),
-        last_used_at: session.last_used_at,
-      })),
-      surviving_sessions: remainingSessions.map((session) => ({
-        id: session.id,
-        age_ms: Date.now() - new Date(session.created_at).getTime(),
-        last_used_at: session.last_used_at,
-      })),
-      started_at: startedAt.toISOString(),
-      completed_at: completedAt.toISOString(),
-      duration_ms: completedAt.getTime() - startedAt.getTime(),
-    });
-  } catch (error) {
-    logger.error(scopedLog(LogContext.HEALTH, 'manual cleanup failed'), {
-      error: error instanceof Error ? error.message : String(error),
-    });
-
-    sendJson(res, 500, {
-      error: 'Failed to run cleanup',
-      message: error instanceof Error ? error.message : String(error),
-    });
-  }
-}
-
-/**
  * GET /observability/metrics
  *
  * Get metrics in JSON format (as opposed to Prometheus text format).
@@ -676,199 +609,4 @@ export function handleConfigRuntime(
       message: error instanceof Error ? error.message : String(error),
     });
   }
-}
-
-/**
- * POST /observability/pipeline-test
- *
- * Run an automated end-to-end test of the recording pipeline.
- * This is fully autonomous - it creates a temporary session if needed.
- *
- * Request body (optional):
- * {
- *   "test_url": "https://example.com",  // External URL to test (default: example.com)
- *   "timeout_ms": 30000,                // Test timeout (default: 30000)
- * }
- *
- * Response: PipelineTestResponse (same format as session-specific endpoint)
- */
-export function handlePipelineTest(
-  req: IncomingMessage,
-  res: ServerResponse,
-  deps: ObservabilityRouteDependencies
-): void {
-  // Read request body
-  let body = '';
-  req.on('data', (chunk: Buffer) => {
-    body += chunk.toString();
-  });
-
-  const handleEnd = async (): Promise<void> => {
-    const startTime = Date.now();
-    let tempSessionId: string | undefined;
-    let createdTempSession = false;
-
-    try {
-      const request = parseJsonObject(body);
-      const testUrl = isString(request.test_url) ? request.test_url : undefined;
-      const timeoutMs = isNumber(request.timeout_ms) ? request.timeout_ms : 30000;
-
-      logger.info(scopedLog(LogContext.HEALTH, 'autonomous pipeline test starting'), {
-        testUrl: testUrl || 'default (example.com)',
-        timeoutMs,
-      });
-
-      // Try to find an existing session to use, otherwise create a temporary one
-      const existingSessionIds = deps.sessionManager.getAllSessionIds();
-      let session;
-
-      if (existingSessionIds.length > 0) {
-        // Use an existing session
-        const existingSessionId = existingSessionIds[0];
-        if (!existingSessionId) {
-          throw new Error('No session available for pipeline test');
-        }
-        tempSessionId = existingSessionId;
-        session = deps.sessionManager.getSession(existingSessionId);
-        logger.debug(scopedLog(LogContext.HEALTH, 'using existing session for pipeline test'), {
-          sessionId: tempSessionId,
-        });
-      } else {
-        // Create a temporary session
-        logger.info(scopedLog(LogContext.HEALTH, 'creating temporary session for pipeline test'));
-
-        const result = await deps.sessionManager.startSession({
-          execution_id: `pipeline-test-${Date.now()}`,
-          workflow_id: 'pipeline-test',
-          viewport: { width: 1280, height: 720 },
-          reuse_mode: 'fresh',
-        });
-
-        tempSessionId = result.sessionId;
-        createdTempSession = true;
-        session = deps.sessionManager.getSession(tempSessionId);
-
-        logger.debug(scopedLog(LogContext.HEALTH, 'temporary session created'), {
-          sessionId: tempSessionId,
-        });
-      }
-
-      if (!session) {
-        throw new Error('No session available for pipeline test');
-      }
-
-      // Ensure we have a recording initializer and pipeline manager
-      if (!session.recordingInitializer) {
-        throw new Error('Recording initializer not set on session - context may not have been initialized properly');
-      }
-      if (!session.pipelineManager) {
-        throw new Error('Pipeline manager not set on session - context may not have been initialized properly');
-      }
-
-      // Run the pipeline test using the REAL recording path
-      const result = await runRecordingPipelineTest(
-        session.page,
-        session.context,
-        session.pipelineManager,
-        session.recordingInitializer,
-        {
-          testUrl,
-          timeoutMs,
-          captureConsole: true,
-        }
-      );
-
-      // Clean up temporary session if we created one
-      if (createdTempSession && tempSessionId) {
-        try {
-          await deps.sessionManager.closeSession(tempSessionId);
-          logger.debug(scopedLog(LogContext.HEALTH, 'temporary session cleaned up'), {
-            sessionId: tempSessionId,
-          });
-        } catch (cleanupError) {
-          logger.warn(scopedLog(LogContext.HEALTH, 'failed to clean up temporary session'), {
-            sessionId: tempSessionId,
-            error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
-          });
-        }
-      }
-
-      // Log result summary
-      const durationMs = Date.now() - startTime;
-      if (result.success) {
-        logger.info(scopedLog(LogContext.HEALTH, 'autonomous pipeline test PASSED'), {
-          durationMs,
-          usedTempSession: createdTempSession,
-          stepsCompleted: result.steps.filter(s => s.passed).length,
-          totalSteps: result.steps.length,
-        });
-      } else {
-        logger.warn(scopedLog(LogContext.HEALTH, 'autonomous pipeline test FAILED'), {
-          durationMs,
-          usedTempSession: createdTempSession,
-          failurePoint: result.failurePoint,
-          failureMessage: result.failureMessage,
-        });
-      }
-
-      // Build response (same format as session-specific endpoint)
-      const response = {
-        success: result.success,
-        timestamp: result.timestamp,
-        duration_ms: result.durationMs,
-        failure_point: result.failurePoint,
-        failure_message: result.failureMessage,
-        suggestions: result.suggestions,
-        steps: result.steps.map(step => ({
-          name: step.name,
-          passed: step.passed,
-          duration_ms: step.durationMs,
-          error: step.error,
-          details: step.details,
-        })),
-        diagnostics: {
-          test_page_url: result.diagnostics.testPageUrl,
-          test_page_injected: result.diagnostics.testPageInjected,
-          script_status_before: result.diagnostics.scriptStatusBefore,
-          script_status_after: result.diagnostics.scriptStatusAfter,
-          telemetry_before: result.diagnostics.telemetryBefore,
-          telemetry_after: result.diagnostics.telemetryAfter,
-          route_stats_before: result.diagnostics.routeStatsBefore,
-          route_stats_after: result.diagnostics.routeStatsAfter,
-          events_captured: result.diagnostics.eventsCaptured,
-          console_messages: result.diagnostics.consoleMessages.slice(0, 50),
-        },
-        // Extra info for autonomous mode
-        used_temp_session: createdTempSession,
-        session_id: tempSessionId,
-      };
-
-      sendJson(res, 200, response);
-    } catch (error) {
-      // Clean up on error if we created a temp session
-      if (createdTempSession && tempSessionId) {
-        try {
-          await deps.sessionManager.closeSession(tempSessionId);
-        } catch {
-          // Ignore cleanup errors on failure path
-        }
-      }
-
-      logger.error(scopedLog(LogContext.HEALTH, 'autonomous pipeline test failed'), {
-        error: error instanceof Error ? error.message : String(error),
-        durationMs: Date.now() - startTime,
-      });
-
-      sendJson(res, 500, {
-        success: false,
-        error: 'Pipeline test failed',
-        message: error instanceof Error ? error.message : String(error),
-        hint: 'Check browser connectivity and ensure the driver is running correctly',
-      });
-    }
-  };
-
-  req.on('end', () => {
-    void handleEnd();
-  });
 }

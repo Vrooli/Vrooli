@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -111,7 +111,7 @@ func TestService_GenerateWorkflow_WithActions(t *testing.T) {
 }
 
 func TestService_GenerateWorkflowUsesTrackedPageBindings(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/session/start":
 			_, _ = w.Write([]byte(`{"session_id":"capture-tabs","lease_id":"capture-lease","active_page_id":"main-page"}`))
@@ -121,7 +121,6 @@ func TestService_GenerateWorkflowUsesTrackedPageBindings(t *testing.T) {
 			http.NotFound(w, r)
 		}
 	}))
-	defer server.Close()
 
 	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 	require.NoError(t, err)
@@ -371,7 +370,7 @@ func TestCreateSessionJournalFailureReleasesBrowser(t *testing.T) {
 	for _, response := range []string{`{"success":true}`, `{}`, `{"success":false}`} {
 		t.Run(response, func(t *testing.T) {
 			var closed atomic.Int32
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				switch r.URL.Path {
 				case "/session/start":
@@ -384,7 +383,6 @@ func TestCreateSessionJournalFailureReleasesBrowser(t *testing.T) {
 					w.WriteHeader(404)
 				}
 			}))
-			defer server.Close()
 			t.Setenv(driver.PlaywrightDriverEnv, server.URL)
 			manager, err := autosession.NewManager()
 			require.NoError(t, err)
@@ -411,7 +409,7 @@ func TestService_RecordingUsesOwnedSession(t *testing.T) {
 	const lease = "record-lease"
 	const recordingID = "9c45d4a0-5333-4b36-8197-bdba6b6c8f36"
 	var effects atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Path == "/session/start" {
 			_ = json.NewEncoder(w).Encode(map[string]any{"session_id": "record-session", "lease_id": lease})
@@ -444,7 +442,6 @@ func TestService_RecordingUsesOwnedSession(t *testing.T) {
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"session_id": "record-session", "recording_id": recordingID, "action_count": 7, "started_at": "2026-09-22T12:00:00.123Z", "stopped_at": "2026-09-22T12:01:00.456Z"})
 	}))
-	defer srv.Close()
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	require.NoError(t, err)
 	manager := autosession.NewManagerWithClient(client)
@@ -476,7 +473,7 @@ func TestService_RecordingUsesOwnedSession(t *testing.T) {
 func TestRestoreTabsInitialNavigationCarriesOwnership(t *testing.T) {
 	owner := uuid.New()
 	var calls atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/session/start" {
 			_, _ = w.Write([]byte(`{"session_id":"restored","lease_id":"saved-tab-lease","active_page_id":"initial-driver-page"}`))
 			return
@@ -488,7 +485,6 @@ func TestRestoreTabsInitialNavigationCarriesOwnership(t *testing.T) {
 		require.Equal(t, map[string]any{"execution_id": owner.String(), "lease_id": "saved-tab-lease", "url": "https://saved.test"}, body)
 		_, _ = w.Write([]byte(`{"driver_page_id":"initial-driver-page","url":"https://saved.test","title":"saved tab"}`))
 	}))
-	defer server.Close()
 	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 	require.NoError(t, err)
 	manager := autosession.NewManagerWithClient(client)
@@ -513,7 +509,7 @@ func TestCreatePageRegistersReceiptBeforeRecording(t *testing.T) {
 	for _, callbackFirst := range []bool{false, true} {
 		t.Run(fmt.Sprint(callbackFirst), func(t *testing.T) {
 			executionID := uuid.New()
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/session/start" {
 					_, _ = w.Write([]byte(`{"session_id":"tabs","lease_id":"lease","active_page_id":"initial-driver"}`))
 					return
@@ -525,7 +521,6 @@ func TestCreatePageRegistersReceiptBeforeRecording(t *testing.T) {
 				w.WriteHeader(http.StatusCreated)
 				_, _ = w.Write([]byte(`{"driver_page_id":"second-driver","url":"https://second.test","title":"second","favicon_url":"https://second.test/custom.svg"}`))
 			}))
-			defer server.Close()
 			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 			require.NoError(t, err)
 			manager := autosession.NewManagerWithClient(client)
@@ -581,7 +576,7 @@ func TestRestoreTabsPreservesLocationsAndSelection(t *testing.T) {
 			var active atomic.Value
 			active.Store("page-0")
 			var created, switches atomic.Int32
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
 				case "/session/start":
 					_ = json.NewEncoder(w).Encode(map[string]string{"session_id": "restore", "lease_id": "lease", "active_page_id": "page-0"})
@@ -616,7 +611,6 @@ func TestRestoreTabsPreservesLocationsAndSelection(t *testing.T) {
 					w.WriteHeader(404)
 				}
 			}))
-			defer server.Close()
 			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 			require.NoError(t, err)
 			manager := autosession.NewManagerWithClient(client)
@@ -684,7 +678,7 @@ func TestTabTransactionKeepsAdmittedSession(t *testing.T) {
 			var manager *autosession.Manager
 			var starts, additional atomic.Int32
 			var replacement atomic.Pointer[autosession.Session]
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/session/start" {
 					n := starts.Add(1)
 					_ = json.NewEncoder(w).Encode(map[string]string{"session_id": "same", "lease_id": fmt.Sprintf("lease-%d", n), "active_page_id": fmt.Sprintf("page-%d", n)})
@@ -710,7 +704,6 @@ func TestTabTransactionKeepsAdmittedSession(t *testing.T) {
 					_, _ = w.Write([]byte(`{}`))
 				}
 			}))
-			defer server.Close()
 			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 			require.NoError(t, err)
 			manager = autosession.NewManagerWithClient(client)
@@ -747,7 +740,7 @@ func TestCreateSessionInitialNavigationReceipt(t *testing.T) {
 			defer cancel()
 			var closed, navigated atomic.Int32
 			var execution atomic.Value
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
 				case "/session/start":
 					var body map[string]any
@@ -784,7 +777,6 @@ func TestCreateSessionInitialNavigationReceipt(t *testing.T) {
 					w.WriteHeader(404)
 				}
 			}))
-			defer server.Close()
 			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 			require.NoError(t, err)
 			manager := autosession.NewManagerWithClient(client)
@@ -829,11 +821,10 @@ func TestCreateSessionInitialNavigationReceipt(t *testing.T) {
 
 // [REQ:BAS-RH-J01] Profile and API reads capture detached pages and selection together.
 func TestPageReadSnapshots(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/session/start", r.URL.Path)
 		_, _ = w.Write([]byte(`{"session_id":"snapshot","lease_id":"lease","active_page_id":"initial-driver"}`))
 	}))
-	defer server.Close()
 	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 	require.NoError(t, err)
 	manager := autosession.NewManagerWithClient(client)

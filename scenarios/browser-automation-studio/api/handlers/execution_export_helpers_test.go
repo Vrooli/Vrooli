@@ -32,7 +32,7 @@ func TestLoadRecordedVideoUsesVideoMediaType(t *testing.T) {
 		t.Fatal(err)
 	}
 	repo := NewMockRepository()
-	repo.executions[id] = &database.ExecutionIndex{ID: id, ResultPath: "result.json"}
+	repo.AddExecution(&database.ExecutionIndex{ID: id, ResultPath: "result.json"})
 	h := &Handler{repo: repo, recordingsRoot: root}
 	video, err := h.loadRecordedVideo(context.Background(), id)
 	if err != nil {

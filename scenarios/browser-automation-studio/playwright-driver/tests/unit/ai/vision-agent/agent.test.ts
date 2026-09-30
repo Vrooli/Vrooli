@@ -31,6 +31,7 @@ import {
 import type { BrowserAction, ScrollAction } from '../../../../src/ai/action/types';
 import type { ElementLabel, TokenUsage } from '../../../../src/ai/vision-client/types';
 import type { Page } from 'rebrowser-playwright';
+import { createMockPage } from '../../../helpers';
 import { formatElementLabelsForPrompt } from '../../../../src/ai/screenshot/annotate';
 
 // =============================================================================
@@ -246,17 +247,6 @@ function createMockStepEmitter(): StepEmitterInterface & {
 }
 
 /**
- * Create a mock Playwright page.
- */
-function createMockPage(): Page {
-  return {
-    url: () => 'https://example.com',
-    viewportSize: () => ({ width: 1280, height: 720 }),
-    evaluate: () => Promise.resolve([]),
-  } as unknown as Page;
-}
-
-/**
  * Create a basic navigation config.
  */
 function createNavConfig(overrides?: Partial<NavigationConfig>): NavigationConfig {
@@ -264,7 +254,11 @@ function createNavConfig(overrides?: Partial<NavigationConfig>): NavigationConfi
 
   return {
     prompt: 'Test goal',
-    page: createMockPage(),
+    page: createMockPage({
+      url: jest.fn().mockReturnValue('https://example.com'),
+      viewportSize: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
+      evaluate: jest.fn().mockResolvedValue([]),
+    }),
     maxSteps: 10,
     model: 'mock-model',
     navigationId: 'nav-test-123',

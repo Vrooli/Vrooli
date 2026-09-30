@@ -1,6 +1,6 @@
 import type { Node, Edge } from 'reactflow';
 import type { ExecutionViewportSettings } from '../types';
-import type { ActionDefinition } from '../../../utils/actionBuilder';
+import type { ActionDefinition } from '../../../domains/workflows/utils/normalizers';
 import { isPlainObject } from './viewport';
 
 // ============================================================================

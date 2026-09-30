@@ -3,10 +3,10 @@ package exports_service
 import (
 	"context"
 	"errors"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/databasemocks"
 	"net/http"
-	"net/http/httptest"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -24,105 +24,8 @@ import (
 // Test fakes
 // =============================================================================
 
-type fakeRepo struct {
-	rows map[uuid.UUID]*database.ExportIndex
-
-	createErr error
-	getErr    error
-	updateErr error
-	deleteErr error
-	listErr   error
-}
-
-func newFakeRepo() *fakeRepo {
-	return &fakeRepo{rows: map[uuid.UUID]*database.ExportIndex{}}
-}
-
-func (f *fakeRepo) CreateExport(_ context.Context, e *database.ExportIndex) error {
-	if f.createErr != nil {
-		return f.createErr
-	}
-	if e.ID == uuid.Nil {
-		e.ID = uuid.New()
-	}
-	now := time.Now()
-	if e.CreatedAt.IsZero() {
-		e.CreatedAt = now
-	}
-	e.UpdatedAt = now
-	f.rows[e.ID] = e
-	return nil
-}
-
-func (f *fakeRepo) GetExport(_ context.Context, id uuid.UUID) (*database.ExportIndex, error) {
-	if f.getErr != nil {
-		return nil, f.getErr
-	}
-	row, ok := f.rows[id]
-	if !ok {
-		return nil, database.ErrNotFound
-	}
-	return row, nil
-}
-
-func (f *fakeRepo) UpdateExport(_ context.Context, e *database.ExportIndex) error {
-	if f.updateErr != nil {
-		return f.updateErr
-	}
-	if _, ok := f.rows[e.ID]; !ok {
-		return database.ErrNotFound
-	}
-	e.UpdatedAt = time.Now()
-	f.rows[e.ID] = e
-	return nil
-}
-
-func (f *fakeRepo) DeleteExport(_ context.Context, id uuid.UUID) error {
-	if f.deleteErr != nil {
-		return f.deleteErr
-	}
-	if _, ok := f.rows[id]; !ok {
-		return database.ErrNotFound
-	}
-	delete(f.rows, id)
-	return nil
-}
-
-func (f *fakeRepo) ListExports(_ context.Context, _, _ int) ([]*database.ExportIndex, error) {
-	if f.listErr != nil {
-		return nil, f.listErr
-	}
-	out := make([]*database.ExportIndex, 0, len(f.rows))
-	for _, r := range f.rows {
-		out = append(out, r)
-	}
-	return out, nil
-}
-
-func (f *fakeRepo) ListExportsByExecution(_ context.Context, execID uuid.UUID) ([]*database.ExportIndex, error) {
-	if f.listErr != nil {
-		return nil, f.listErr
-	}
-	out := []*database.ExportIndex{}
-	for _, r := range f.rows {
-		if r.ExecutionID == execID {
-			out = append(out, r)
-		}
-	}
-	return out, nil
-}
-
-func (f *fakeRepo) ListExportsByWorkflow(_ context.Context, wfID uuid.UUID, _, _ int) ([]*database.ExportIndex, error) {
-	if f.listErr != nil {
-		return nil, f.listErr
-	}
-	out := []*database.ExportIndex{}
-	for _, r := range f.rows {
-		if r.WorkflowID != nil && *r.WorkflowID == wfID {
-			out = append(out, r)
-		}
-	}
-	return out, nil
+func newFakeRepo() *databasemocks.MockRepository {
+	return databasemocks.NewMockRepository()
 }
 
 type fakeExecutor struct {
@@ -184,7 +87,7 @@ type testWriter struct{ t *testing.T }
 func (w testWriter) Write(p []byte) (int, error) { w.t.Log(string(p)); return len(p), nil }
 
 type harness struct {
-	repo     *fakeRepo
+	repo     *databasemocks.MockRepository
 	executor *fakeExecutor
 	opener   *fakeOpener
 	factory  *fakeAIFactory
@@ -211,7 +114,7 @@ func newHarness(t *testing.T) *harness {
 	})
 	mux := http.NewServeMux()
 	mux.Handle(mount.Path, mount.Handler)
-	srv := httptest.NewServer(mux)
+	srv := testutil.StartHTTPServer(t, mux)
 	t.Cleanup(srv.Close)
 	client := exportsconnect.NewExportsServiceClient(srv.Client(), srv.URL)
 	return &harness{repo: repo, executor: executor, opener: opener, factory: factory, client: client}
@@ -432,6 +335,7 @@ func TestRevealExport_NoStoragePath(t *testing.T) {
 	h := newHarness(t)
 	row := seedExport(t, h, "demo")
 	row.StorageURL = ""
+	require.NoError(t, h.repo.UpdateExport(context.Background(), row))
 	_, err := h.client.RevealExport(context.Background(), connect.NewRequest(&exportsv1.RevealExportRequest{Id: row.ID.String()}))
 	require.Error(t, err)
 	var connectErr *connect.Error

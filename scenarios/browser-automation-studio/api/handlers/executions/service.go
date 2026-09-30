@@ -3,6 +3,7 @@ package executions
 import (
 	"context"
 	"errors"
+	contractvalues "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,7 +16,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
@@ -305,7 +305,7 @@ func jsonObjectToMap(o *commonv1.JsonObject) map[string]any {
 	if o == nil {
 		return nil
 	}
-	return typeconv.JsonValueMapToAny(o.GetFields())
+	return contractvalues.JsonValueMapToAny(o.GetFields())
 }
 
 // ---------------------------------------------------------------------------
@@ -428,7 +428,7 @@ func fileArtifactToProto(f workflowservice.ExecutionFileArtifact) *basapi.Execut
 		out.SizeBytes = &v
 	}
 	if len(f.Payload) > 0 {
-		out.Payload = typeconv.ToJsonObject(f.Payload)
+		out.Payload = contractvalues.ToJsonObject(f.Payload)
 	}
 	return out
 }

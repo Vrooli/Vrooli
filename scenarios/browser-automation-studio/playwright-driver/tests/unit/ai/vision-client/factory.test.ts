@@ -2,13 +2,11 @@
 
 import {
   createVisionClient,
-  createMockClient,
   getModelInfo,
   isModelSupported,
   getSupportedModelIds,
 } from '../../../../src/ai/vision-client/factory';
 import { AIGatewayVisionClient } from '../../../../src/ai/vision-client/gateway';
-import { MockVisionClient } from '../../../../src/ai/vision-client/mock';
 
 describe('factory', () => {
   it('creates the AI Gateway client for the local-first profile', () => {
@@ -26,12 +24,6 @@ describe('factory', () => {
   it('rejects concrete provider model identifiers', () => {
     expect(() => createVisionClient({ modelId: 'gpt-4o', gatewayUrl: 'http://gateway.test' })).toThrow();
     expect(() => getModelInfo('qwen3-vl-30b')).toThrow();
-  });
-
-  it('creates the testing client without a provider credential', () => {
-    const mock = createMockClient({ modelId: 'remote_only' });
-    expect(mock).toBeInstanceOf(MockVisionClient);
-    expect(mock.getModelSpec()).toMatchObject({ id: 'remote_only', provider: 'mock', tier: 'mock' });
   });
 
   it('reports only provider-neutral profiles as supported', () => {

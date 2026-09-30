@@ -3,9 +3,10 @@ package schedules
 import (
 	"context"
 	"errors"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/executormocks"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/schedulemocks"
 	"net/http"
-	"net/http/httptest"
-	"sync"
 	"testing"
 	"time"
 
@@ -22,102 +23,8 @@ import (
 	schedulesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/schedules/schedulesconnect"
 )
 
-// fakeRepo implements the Repo seam for handler tests.
-type fakeRepo struct {
-	mu      sync.Mutex
-	items   map[uuid.UUID]*database.ScheduleIndex
-	listErr error
-	getErr  error
-	putErr  error
-	delErr  error
-	lastRun map[uuid.UUID]time.Time
-}
-
-func newFakeRepo() *fakeRepo {
-	return &fakeRepo{items: make(map[uuid.UUID]*database.ScheduleIndex), lastRun: make(map[uuid.UUID]time.Time)}
-}
-
-func (f *fakeRepo) CreateSchedule(_ context.Context, s *database.ScheduleIndex) error {
-	if f.putErr != nil {
-		return f.putErr
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if s.ID == uuid.Nil {
-		s.ID = uuid.New()
-	}
-	if s.CreatedAt.IsZero() {
-		s.CreatedAt = time.Now()
-	}
-	s.UpdatedAt = time.Now()
-	f.items[s.ID] = s
-	return nil
-}
-
-func (f *fakeRepo) GetSchedule(_ context.Context, id uuid.UUID) (*database.ScheduleIndex, error) {
-	if f.getErr != nil {
-		return nil, f.getErr
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	s, ok := f.items[id]
-	if !ok {
-		return nil, database.ErrNotFound
-	}
-	return s, nil
-}
-
-func (f *fakeRepo) UpdateSchedule(_ context.Context, s *database.ScheduleIndex) error {
-	if f.putErr != nil {
-		return f.putErr
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	s.UpdatedAt = time.Now()
-	f.items[s.ID] = s
-	return nil
-}
-
-func (f *fakeRepo) DeleteSchedule(_ context.Context, id uuid.UUID) error {
-	if f.delErr != nil {
-		return f.delErr
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if _, ok := f.items[id]; !ok {
-		return database.ErrNotFound
-	}
-	delete(f.items, id)
-	return nil
-}
-
-func (f *fakeRepo) ListSchedules(_ context.Context, workflowID *uuid.UUID, activeOnly bool, _, _ int) ([]*database.ScheduleIndex, error) {
-	if f.listErr != nil {
-		return nil, f.listErr
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	var out []*database.ScheduleIndex
-	for _, s := range f.items {
-		if workflowID != nil && s.WorkflowID != *workflowID {
-			continue
-		}
-		if activeOnly && !s.IsActive {
-			continue
-		}
-		out = append(out, s)
-	}
-	return out, nil
-}
-
-func (f *fakeRepo) UpdateScheduleLastRun(_ context.Context, id uuid.UUID, lastRun time.Time) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.lastRun[id] = lastRun
-	if s, ok := f.items[id]; ok {
-		s.LastRunAt = &lastRun
-	}
-	return nil
+func newFakeRepo() *schedulemocks.Repository {
+	return schedulemocks.NewRepository()
 }
 
 // fakeCatalog implements the Catalog seam.
@@ -137,48 +44,28 @@ func (c *fakeCatalog) GetWorkflow(_ context.Context, id uuid.UUID) (*basapi.Work
 	return w, nil
 }
 
-// fakeExecutor implements Executor.
-type fakeExecutor struct {
-	lastWorkflowID uuid.UUID
-	lastParams     map[string]any
-	out            *database.ExecutionIndex
-	err            error
-}
-
-func (e *fakeExecutor) ExecuteWorkflow(_ context.Context, wfID uuid.UUID, params map[string]any) (*database.ExecutionIndex, error) {
-	e.lastWorkflowID = wfID
-	e.lastParams = params
-	if e.err != nil {
-		return nil, e.err
-	}
-	if e.out != nil {
-		return e.out, nil
-	}
-	return &database.ExecutionIndex{ID: uuid.New(), WorkflowID: wfID}, nil
-}
-
 type testWriter struct{ t *testing.T }
 
 func (w testWriter) Write(p []byte) (int, error) { w.t.Log(string(p)); return len(p), nil }
 
 type harness struct {
 	client   schedulesconnect.SchedulesServiceClient
-	repo     *fakeRepo
+	repo     *schedulemocks.Repository
 	catalog  *fakeCatalog
-	executor *fakeExecutor
+	executor *executormocks.Executor
 }
 
 func newHarness(t *testing.T) *harness {
 	t.Helper()
 	repo := newFakeRepo()
 	catalog := &fakeCatalog{workflows: make(map[uuid.UUID]*basapi.WorkflowSummary)}
-	executor := &fakeExecutor{}
+	executor := &executormocks.Executor{}
 	logger := logrus.New()
 	logger.SetOutput(testWriter{t})
 	mount := Module(Deps{Repo: repo, Catalog: catalog, Executor: executor, Logger: logger})
 	mux := http.NewServeMux()
 	mux.Handle(mount.Path, mount.Handler)
-	srv := httptest.NewServer(mux)
+	srv := testutil.StartHTTPServer(t, mux)
 	t.Cleanup(srv.Close)
 	return &harness{
 		client:   schedulesconnect.NewSchedulesServiceClient(srv.Client(), srv.URL),
@@ -391,12 +278,14 @@ func TestTriggerExecutesAndUpdatesLastRun(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, res.Msg.GetExecutionId())
 	require.Equal(t, wfID.String(), res.Msg.GetWorkflowId())
-	require.Equal(t, wfID, h.executor.lastWorkflowID)
-	require.Equal(t, "bar", h.executor.lastParams["foo"])
-	require.Equal(t, "manual_schedule_trigger", h.executor.lastParams["_trigger_type"])
-	require.Equal(t, s.ID.String(), h.executor.lastParams["_schedule_id"])
+	calls := h.executor.Calls()
+	require.Len(t, calls, 1)
+	require.Equal(t, wfID, calls[0].WorkflowID)
+	require.Equal(t, "bar", calls[0].Parameters["foo"])
+	require.Equal(t, "manual_schedule_trigger", calls[0].Parameters["_trigger_type"])
+	require.Equal(t, s.ID.String(), calls[0].Parameters["_schedule_id"])
 
-	_, ok := h.repo.lastRun[s.ID]
+	_, ok := h.repo.LastRun(s.ID)
 	require.True(t, ok)
 }
 
@@ -406,7 +295,7 @@ func TestTriggerExecutorFailure(t *testing.T) {
 	h.catalog.workflows[wfID] = &basapi.WorkflowSummary{Name: "wf"}
 	s := &database.ScheduleIndex{WorkflowID: wfID, Name: "n", CronExpression: "0 * * * *", Timezone: "UTC", IsActive: true}
 	require.NoError(t, h.repo.CreateSchedule(context.Background(), s))
-	h.executor.err = errors.New("boom")
+	h.executor.Err = errors.New("boom")
 
 	_, err := h.client.Trigger(context.Background(), connect.NewRequest(&schedulesv1.TriggerScheduleRequest{ScheduleId: s.ID.String()}))
 	require.Error(t, err)

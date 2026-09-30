@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -353,8 +353,6 @@ func TestSynchronousExecutionWaitsForOwnedTeardown(t *testing.T) {
 				result := make(chan completionResult, 1)
 				go func() { result <- invoke(context.Background(), true) }()
 				synctest.Wait()
-				time.Sleep(300 * time.Millisecond)
-				synctest.Wait()
 				returned := false
 				select {
 				case got := <-result:
@@ -483,7 +481,7 @@ func TestStopExecutionRetainsUncertainOutcomeAndJoinsLeasedDriverClose(t *testin
 	var startedExecution atomic.Value
 	var effects atomic.Int32
 	var liveSessions atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/session/start":
 			var request struct {
@@ -538,7 +536,6 @@ func TestStopExecutionRetainsUncertainOutcomeAndJoinsLeasedDriverClose(t *testin
 			http.NotFound(w, r)
 		}
 	}))
-	defer server.Close()
 
 	playwright, err := engine.NewPlaywrightEngineWithHTTPClient(server.URL, server.Client(), logrus.New())
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/enginemocks"
 	"image"
 	"image/png"
 	"os"
@@ -170,7 +171,7 @@ func TestCheckpointProfileDisablesAutomaticFramesButRetainsExplicitImages(t *tes
 }
 
 type screenshotOutcomeSession struct {
-	stubEngineSession
+	enginemocks.Session
 	calls          int
 	failures       int
 	transportError bool

@@ -9,13 +9,12 @@ import (
 )
 
 const (
-	// ExecutionPlanSchemaVersion tracks the shape of ExecutionPlan and PlanGraph payloads.
-	// Bump when plan or graph fields change so executors and engines can assert compatibility.
-	ExecutionPlanSchemaVersion = "automation-plan-v1"
+	// ExecutionPlanSchemaVersion tracks the current shape of ExecutionPlan and PlanGraph.
+	ExecutionPlanSchemaVersion = "automation-plan-v2"
 
-	// ExecutionPlanSchemaVersionV2 is the schema version for multi-page aware plans.
-	// V2 plans include page definitions and page IDs on instructions.
-	ExecutionPlanSchemaVersionV2 = "automation-plan-v2"
+	// ExecutionPlanSchemaVersionV2 is retained as a descriptive alias for callers
+	// that need to name the multi-page-aware contract explicitly.
+	ExecutionPlanSchemaVersionV2 = ExecutionPlanSchemaVersion
 )
 
 // =============================================================================
@@ -164,59 +163,6 @@ type PlanEdge struct {
 }
 
 // =============================================================================
-// PLAN MIGRATION HELPERS
-// =============================================================================
-
-// MigratePlanV1ToV2 upgrades a v1 plan (no page tracking) to v2 format by
-// adding a single implicit page definition and assigning all instructions to it.
-// This maintains backward compatibility with workflows recorded before multi-page support.
-func MigratePlanV1ToV2(plan *ExecutionPlan) *ExecutionPlan {
-	if plan == nil {
-		return nil
-	}
-	// Already v2?
-	if plan.SchemaVersion == ExecutionPlanSchemaVersionV2 {
-		return plan
-	}
-	// Create implicit page for all instructions
-	implicitPageID := uuid.New()
-	implicitPage := PageDefinition{
-		ID:        implicitPageID,
-		IsInitial: true,
-		StartURL:  extractStartURL(plan),
-	}
-	plan.Pages = []PageDefinition{implicitPage}
-	// Assign all instructions to the implicit page
-	for i := range plan.Instructions {
-		plan.Instructions[i].PageID = &implicitPageID
-	}
-	// Assign all graph steps to the implicit page
-	if plan.Graph != nil {
-		for i := range plan.Graph.Steps {
-			plan.Graph.Steps[i].PageID = &implicitPageID
-		}
-	}
-	plan.SchemaVersion = ExecutionPlanSchemaVersionV2
-	return plan
-}
-
-// extractStartURL extracts the start URL from plan metadata or first navigate instruction.
-func extractStartURL(plan *ExecutionPlan) string {
-	// Try metadata first
-	if plan.Metadata != nil {
-		if url, ok := plan.Metadata["startUrl"].(string); ok && url != "" {
-			return url
-		}
-	}
-	// Look for first navigate instruction
-	for _, instr := range plan.Instructions {
-		if instr.Action != nil && instr.Action.GetNavigate() != nil {
-			return instr.Action.GetNavigate().GetUrl()
-		}
-	}
-	return ""
-}
-
 // IsMultiPagePlan returns true if the plan has multiple pages defined.
 func IsMultiPagePlan(plan *ExecutionPlan) bool {
 	return plan != nil && len(plan.Pages) > 1

@@ -7,7 +7,7 @@
  * Other recording functionality has been split into:
  * - callback-streaming.ts: Acknowledged callback delivery
  * - page-events.ts: Multi-tab page event handling
- * - recording-diagnostics-routes.ts: Debug and test endpoints
+ * - recording-diagnostics-routes.ts: Debug and external URL injection checks
  */
 
 import type { IncomingMessage, ServerResponse } from 'http';

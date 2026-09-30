@@ -13,7 +13,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/automation/state"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 )
@@ -567,7 +566,7 @@ func (e *SimpleExecutor) executeWorkflowStateAction(ctx context.Context, req Req
 			runErr = fmt.Errorf("set_variable node %s requires a name", instruction.NodeID)
 		} else {
 			valueType := strings.TrimPrefix(strings.ToLower(params.GetValueType().String()), "set_variable_value_type_")
-			execState.Set(name, state.NormalizeVariableValue(typeconv.JsonValueToAny(params.GetValue()), valueType))
+			execState.Set(name, state.NormalizeVariableValue(contracts.JsonValueToAny(params.GetValue()), valueType))
 		}
 	} else {
 		outcome.Condition, runErr = evaluateVariableCondition(instruction.Action.GetConditional(), execState)
@@ -598,7 +597,7 @@ func evaluateVariableCondition(params *basactions.ConditionalParams, execState *
 	if operator < basactions.ConditionalOperator_CONDITIONAL_OPERATOR_EQUALS || operator > basactions.ConditionalOperator_CONDITIONAL_OPERATOR_LTE {
 		return nil, fmt.Errorf("unsupported conditional operator %d", operator)
 	}
-	expected := typeconv.JsonValueToAny(params.GetValue())
+	expected := contracts.JsonValueToAny(params.GetValue())
 	if operator >= basactions.ConditionalOperator_CONDITIONAL_OPERATOR_GT {
 		_, actualNumeric := state.ToFloat(actual)
 		_, expectedNumeric := state.ToFloat(expected)
@@ -638,7 +637,7 @@ func parseSubflowSpec(step contracts.PlanStep) (subflowSpec, error) {
 		converted := int(version)
 		spec.workflowVersion = &converted
 	}
-	spec.params = typeconv.JsonValueMapToAny(sub.GetArgs())
+	spec.params = contracts.JsonValueMapToAny(sub.GetArgs())
 	if spec.workflowID == nil && spec.workflowPath == "" {
 		return spec, fmt.Errorf("subflow %s must define workflow_id or workflow_path", step.NodeID)
 	}

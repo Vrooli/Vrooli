@@ -53,25 +53,6 @@ func (s *service) RefreshObservability(
 }
 
 // ---------------------------------------------------------------------------
-// Diagnostics
-// ---------------------------------------------------------------------------
-
-func (s *service) RunDiagnostics(
-	ctx context.Context,
-	req *connect.Request[observabilityv1.RunDiagnosticsRequest],
-) (*connect.Response[observabilityv1.RunDiagnosticsResponse], error) {
-	payload, err := s.deps.Proxy.FetchObservabilityDiagnostics(ctx, structToMap(req.Msg.GetOptions()))
-	if err != nil {
-		return nil, s.mapProxyError(err)
-	}
-	pb, err := mapToStruct(payload)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	return connect.NewResponse(&observabilityv1.RunDiagnosticsResponse{Result: pb}), nil
-}
-
-// ---------------------------------------------------------------------------
 // Sessions / cleanup / metrics
 // ---------------------------------------------------------------------------
 
@@ -90,21 +71,6 @@ func (s *service) GetSessionList(
 	return connect.NewResponse(&observabilityv1.GetSessionListResponse{Result: pb}), nil
 }
 
-func (s *service) RunCleanup(
-	ctx context.Context,
-	_ *connect.Request[observabilityv1.RunCleanupRequest],
-) (*connect.Response[observabilityv1.RunCleanupResponse], error) {
-	payload, err := s.deps.Proxy.FetchObservabilityCleanup(ctx)
-	if err != nil {
-		return nil, s.mapProxyError(err)
-	}
-	pb, err := mapToStruct(payload)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	return connect.NewResponse(&observabilityv1.RunCleanupResponse{Result: pb}), nil
-}
-
 func (s *service) GetMetrics(
 	ctx context.Context,
 	_ *connect.Request[observabilityv1.GetMetricsRequest],
@@ -118,25 +84,6 @@ func (s *service) GetMetrics(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&observabilityv1.GetMetricsResponse{Result: pb}), nil
-}
-
-// ---------------------------------------------------------------------------
-// Pipeline test
-// ---------------------------------------------------------------------------
-
-func (s *service) RunPipelineTest(
-	ctx context.Context,
-	req *connect.Request[observabilityv1.RunPipelineTestRequest],
-) (*connect.Response[observabilityv1.RunPipelineTestResponse], error) {
-	payload, err := s.deps.Proxy.FetchObservabilityPipelineTest(ctx, structToMap(req.Msg.GetOptions()))
-	if err != nil {
-		return nil, s.mapProxyError(err)
-	}
-	pb, err := mapToStruct(payload)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	return connect.NewResponse(&observabilityv1.RunPipelineTestResponse{Result: pb}), nil
 }
 
 // ---------------------------------------------------------------------------

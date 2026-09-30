@@ -2,8 +2,8 @@ package driver
 
 import (
 	"encoding/json"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -67,14 +67,13 @@ func TestGetRecordedActionsRedactsBufferedTimelineAndKeepsLegacyEntrySafe(t *tes
 	}
 	entryJSON, err := protojson.Marshal(entry)
 	require.NoError(t, err)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		require.NoError(t, json.NewEncoder(w).Encode(map[string]interface{}{
 			"session_id": "synthetic-session",
 			"entries":    []json.RawMessage{entryJSON},
 		}))
 	}))
-	defer server.Close()
 	client, err := NewClientWithURL(server.URL, WithoutCircuitBreaker())
 	require.NoError(t, err)
 

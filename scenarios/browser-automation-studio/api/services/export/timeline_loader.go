@@ -15,7 +15,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	bastelemetry "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
@@ -238,7 +237,7 @@ func timelineEntryToFrame(entry *bastimeline.TimelineEntry) TimelineFrame {
 		}
 	}
 	if entry.Context != nil {
-		frame.Condition = typeconv.ProtoToConditionOutcome(entry.Context.Condition)
+		frame.Condition = autocontracts.ProtoToConditionOutcome(entry.Context.Condition)
 		if entry.Context.Success != nil {
 			frame.Success = *entry.Context.Success
 		}
@@ -257,10 +256,10 @@ func timelineEntryToFrame(entry *bastimeline.TimelineEntry) TimelineFrame {
 				frame.Assertion.Message = *entry.Context.Assertion.Message
 			}
 			if entry.Context.Assertion.Expected != nil {
-				frame.Assertion.Expected = typeconv.JsonValueToAny(entry.Context.Assertion.Expected)
+				frame.Assertion.Expected = autocontracts.JsonValueToAny(entry.Context.Assertion.Expected)
 			}
 			if entry.Context.Assertion.Actual != nil {
-				frame.Assertion.Actual = typeconv.JsonValueToAny(entry.Context.Assertion.Actual)
+				frame.Assertion.Actual = autocontracts.JsonValueToAny(entry.Context.Assertion.Actual)
 			}
 		}
 	}
@@ -312,7 +311,7 @@ func timelineEntryToFrame(entry *bastimeline.TimelineEntry) TimelineFrame {
 			frame.NetworkEventCount = int(entry.Aggregates.NetworkEventCount)
 		}
 		if entry.Aggregates.ExtractedDataPreview != nil {
-			frame.ExtractedDataPreview = typeconv.JsonValueToAny(entry.Aggregates.ExtractedDataPreview)
+			frame.ExtractedDataPreview = autocontracts.JsonValueToAny(entry.Aggregates.ExtractedDataPreview)
 		}
 		if entry.Aggregates.FocusedElement != nil {
 			frame.FocusedElement = entry.Aggregates.FocusedElement

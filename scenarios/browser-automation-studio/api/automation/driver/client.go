@@ -18,7 +18,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/internal/resilience"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -973,7 +972,7 @@ func buildInstructionPayload(instruction contracts.CompiledInstruction) (map[str
 	if len(instruction.Context) > 0 {
 		context := make(map[string]any, len(instruction.Context))
 		for key, value := range instruction.Context {
-			context[key] = typeconv.WrapJsonValue(value)
+			context[key] = contracts.WrapJsonValue(value)
 		}
 		wire["context"] = context
 	}
@@ -1027,7 +1026,7 @@ func decodeStepOutcome(r io.Reader) (contracts.StepOutcome, error) {
 		if err := protojson.Unmarshal(resp.ConditionWire, &condition); err != nil {
 			return contracts.StepOutcome{}, fmt.Errorf("decode condition outcome: %w", err)
 		}
-		out.Condition = typeconv.ProtoToConditionOutcome(&condition)
+		out.Condition = contracts.ProtoToConditionOutcome(&condition)
 	}
 
 	if resp.ScreenshotBase64 != "" {
@@ -1118,7 +1117,7 @@ func decodeStepOutcome(r io.Reader) (contracts.StepOutcome, error) {
 			"step_type":      out.StepType,
 		}).Debug("Checking ExtractedData for assertion")
 		if assertionRaw, ok := out.ExtractedData["assertion"]; ok {
-			out.Assertion = typeconv.ToAssertionOutcome(assertionRaw)
+			out.Assertion = contracts.ToAssertionOutcome(assertionRaw)
 			logrus.WithFields(logrus.Fields{
 				"assertion_raw": assertionRaw,
 				"assertion":     out.Assertion,

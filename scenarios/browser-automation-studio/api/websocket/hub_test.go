@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"fmt"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"io"
 	"net"
 	"net/http"
@@ -45,6 +46,51 @@ func waitForMessage(t *testing.T, ch <-chan any) any {
 		t.Fatal("timed out waiting for update")
 	}
 	return nil
+}
+
+func waitForClientCount(t *testing.T, hub *Hub, want int) {
+	t.Helper()
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if got := hub.GetClientCount(); got == want {
+			return
+		}
+		select {
+		case <-ticker.C:
+		case <-timer.C:
+			t.Fatalf("timed out waiting for %d clients; got %d", want, hub.GetClientCount())
+		}
+	}
+}
+
+func waitForClientSubscription(t *testing.T, hub *Hub, subscribed func(*Client) bool) {
+	t.Helper()
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for {
+		hub.mu.RLock()
+		found := false
+		for client := range hub.clients {
+			if subscribed(client) {
+				found = true
+				break
+			}
+		}
+		hub.mu.RUnlock()
+		if found {
+			return
+		}
+		select {
+		case <-ticker.C:
+		case <-timer.C:
+			t.Fatal("timed out waiting for client subscription state")
+		}
+	}
 }
 
 func TestHubBroadcastsToRegisteredClients(t *testing.T) {
@@ -232,7 +278,8 @@ func TestHubDropsUnresponsiveClient(t *testing.T) {
 		}
 
 		hub.register <- client
-		time.Sleep(50 * time.Millisecond) // allow welcome message to fill buffer
+		welcome := waitForMessage(t, client.Send)
+		client.Send <- welcome // Keep the one-slot buffer full for the backpressure case.
 
 		blockedUpdate := contracts.EventEnvelope{
 			SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
@@ -244,11 +291,7 @@ func TestHubDropsUnresponsiveClient(t *testing.T) {
 		}
 
 		hub.BroadcastEnvelope(blockedUpdate)
-		time.Sleep(50 * time.Millisecond) // allow hub to process removal
-
-		if count := hub.GetClientCount(); count != 0 {
-			t.Fatalf("expected hub to drop unresponsive client, still have %d", count)
-		}
+		waitForClientCount(t, hub, 0)
 
 		select {
 		case _, ok := <-client.Send:
@@ -265,7 +308,6 @@ func TestServeWSSubscribeFiltersMessages(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] websocket subscription filters non-matching executions", func(t *testing.T) {
 		hub := newTestHub(t)
 		server := startTestWebSocketServer(t, hub)
-		defer server.Close()
 
 		conn := dialTestWebSocket(t, server)
 		defer conn.Close()
@@ -279,7 +321,9 @@ func TestServeWSSubscribeFiltersMessages(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("failed to send subscribe message: %v", err)
 		}
-		time.Sleep(50 * time.Millisecond)
+		waitForClientSubscription(t, hub, func(client *Client) bool {
+			return client.ExecutionID != nil && *client.ExecutionID == executionID
+		})
 
 		matching := contracts.EventEnvelope{
 			SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
@@ -325,7 +369,6 @@ func TestServeWSUnsubscribeRestoresBroadcasts(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] unsubscribe removes execution filter", func(t *testing.T) {
 		hub := newTestHub(t)
 		server := startTestWebSocketServer(t, hub)
-		defer server.Close()
 
 		conn := dialTestWebSocket(t, server)
 		defer conn.Close()
@@ -339,12 +382,14 @@ func TestServeWSUnsubscribeRestoresBroadcasts(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("failed to send subscribe message: %v", err)
 		}
-		time.Sleep(50 * time.Millisecond)
+		waitForClientSubscription(t, hub, func(client *Client) bool {
+			return client.ExecutionID != nil && *client.ExecutionID == executionID
+		})
 
 		if err := conn.WriteJSON(map[string]any{"type": "unsubscribe"}); err != nil {
 			t.Fatalf("failed to send unsubscribe message: %v", err)
 		}
-		time.Sleep(50 * time.Millisecond)
+		waitForClientSubscription(t, hub, func(client *Client) bool { return client.ExecutionID == nil })
 
 		event := contracts.EventEnvelope{
 			SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
@@ -384,7 +429,7 @@ func startTestWebSocketServer(t *testing.T, hub *Hub) *httptest.Server {
 		hub.ServeWS(conn, nil)
 	})
 
-	return httptest.NewServer(handler)
+	return testutil.StartHTTPServer(t, handler)
 }
 
 func dialTestWebSocket(t *testing.T, server *httptest.Server) *websocket.Conn {
@@ -427,25 +472,15 @@ func TestGetClientCount(t *testing.T) {
 		}
 
 		hub.register <- client1
-		time.Sleep(50 * time.Millisecond)
-
-		if count := hub.GetClientCount(); count != 1 {
-			t.Fatalf("expected 1 client after registration, got %d", count)
-		}
+		_ = waitForMessage(t, client1.Send)
+		waitForClientCount(t, hub, 1)
 
 		hub.register <- client2
-		time.Sleep(50 * time.Millisecond)
-
-		if count := hub.GetClientCount(); count != 2 {
-			t.Fatalf("expected 2 clients after second registration, got %d", count)
-		}
+		_ = waitForMessage(t, client2.Send)
+		waitForClientCount(t, hub, 2)
 
 		hub.unregister <- client1
-		time.Sleep(50 * time.Millisecond)
-
-		if count := hub.GetClientCount(); count != 1 {
-			t.Fatalf("expected 1 client after unregister, got %d", count)
-		}
+		waitForClientCount(t, hub, 1)
 	})
 }
 
@@ -542,20 +577,11 @@ func TestHubCleanupOnClientDisconnect(t *testing.T) {
 		}
 
 		hub.register <- client
-		time.Sleep(50 * time.Millisecond)
-
-		initialCount := hub.GetClientCount()
-		if initialCount != 1 {
-			t.Fatalf("expected 1 client after registration, got %d", initialCount)
-		}
+		_ = waitForMessage(t, client.Send)
+		waitForClientCount(t, hub, 1)
 
 		hub.unregister <- client
-		time.Sleep(50 * time.Millisecond)
-
-		finalCount := hub.GetClientCount()
-		if finalCount != 0 {
-			t.Errorf("expected 0 clients after unregister, got %d", finalCount)
-		}
+		waitForClientCount(t, hub, 0)
 
 		// Verify the client is removed from the hub - channel closing is implementation detail
 		// that's handled asynchronously, so we just verify client count decreased
@@ -663,7 +689,6 @@ func TestRecordingSubscriptionViaWebSocket(t *testing.T) {
 	t.Run("[REQ:BAS-RECORD-MODE] websocket subscribe_recording enables recording action streaming", func(t *testing.T) {
 		hub := newTestHub(t)
 		server := startTestWebSocketServer(t, hub)
-		defer server.Close()
 
 		conn := dialTestWebSocket(t, server)
 		defer conn.Close()
@@ -692,8 +717,9 @@ func TestRecordingSubscriptionViaWebSocket(t *testing.T) {
 			t.Errorf("expected session_id '%s', got %v", sessionID, confirmation["session_id"])
 		}
 
-		// Allow subscription to be processed
-		time.Sleep(50 * time.Millisecond)
+		waitForClientSubscription(t, hub, func(client *Client) bool {
+			return client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID
+		})
 
 		// Broadcast a recording entry
 		hub.BroadcastTimelineEntry(sessionID, testEntry("action-2", basactions.ActionType_ACTION_TYPE_INPUT))
@@ -717,7 +743,6 @@ func TestRecordingUnsubscriptionViaWebSocket(t *testing.T) {
 	t.Run("[REQ:BAS-RECORD-MODE] websocket unsubscribe_recording stops recording action streaming", func(t *testing.T) {
 		hub := newTestHub(t)
 		server := startTestWebSocketServer(t, hub)
-		defer server.Close()
 
 		conn := dialTestWebSocket(t, server)
 		defer conn.Close()
@@ -739,7 +764,9 @@ func TestRecordingUnsubscriptionViaWebSocket(t *testing.T) {
 		if err := conn.ReadJSON(&confirmation); err != nil {
 			t.Fatalf("failed to read confirmation: %v", err)
 		}
-		time.Sleep(50 * time.Millisecond)
+		waitForClientSubscription(t, hub, func(client *Client) bool {
+			return client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID
+		})
 
 		// Now unsubscribe
 		if err := conn.WriteJSON(map[string]any{
@@ -747,7 +774,7 @@ func TestRecordingUnsubscriptionViaWebSocket(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("failed to send unsubscribe_recording: %v", err)
 		}
-		time.Sleep(50 * time.Millisecond)
+		waitForClientSubscription(t, hub, func(client *Client) bool { return client.RecordingSessionID == nil })
 
 		// Broadcast a recording action
 		hub.BroadcastTimelineEntry(sessionID, testEntry("action-3", basactions.ActionType_ACTION_TYPE_CLICK))
@@ -858,9 +885,6 @@ func TestBroadcastRecordingEntryWithFullBuffer(t *testing.T) {
 		hub.BroadcastTimelineEntry(sessionID, testEntry("action-2", basactions.ActionType_ACTION_TYPE_CLICK))
 		hub.BroadcastTimelineEntry(sessionID, testEntry("action-3", basactions.ActionType_ACTION_TYPE_CLICK))
 
-		// Should complete without hanging (test will timeout if it blocks)
-		time.Sleep(50 * time.Millisecond)
-
 		// Client count should still be correct (we don't drop clients for recording, just skip)
 		// Note: The implementation skips full buffers rather than dropping clients for recording
 		// This is different from execution broadcasts which drop unresponsive clients
@@ -910,9 +934,6 @@ func TestBroadcastBinaryFrameDropsWithFullBuffer(t *testing.T) {
 		hub.BroadcastBinaryFrame(sessionID, testFrame)
 		hub.BroadcastBinaryFrame(sessionID, testFrame) // Should be dropped
 		hub.BroadcastBinaryFrame(sessionID, testFrame) // Should be dropped
-
-		// Allow time for processing
-		time.Sleep(100 * time.Millisecond)
 
 		// At least 2 frames should have been dropped
 		droppedCount := hub.GetDroppedFrameCount()
@@ -1095,7 +1116,7 @@ func TestRecordingInputPreservesConnectionOrder(t *testing.T) {
 		return &driver.ForwardInputResponse{Status: "ok", AppliedSequence: uint64(n), InputID: fmt.Sprintf("input-%d", n)}, nil
 	})
 	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			t.Error(err)
@@ -1103,7 +1124,6 @@ func TestRecordingInputPreservesConnectionOrder(t *testing.T) {
 		}
 		hub.ServeWS(conn, nil)
 	}))
-	defer server.Close()
 	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http"), nil)
 	if err != nil {
 		t.Fatal(err)

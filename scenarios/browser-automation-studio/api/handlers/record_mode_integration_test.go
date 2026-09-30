@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -313,7 +314,7 @@ func TestReceiveRecordingActionRedactsBeforePersistenceAndBroadcast(t *testing.T
 func createOwnedNavigationSession(t *testing.T, sessionID string, response any, observe func(*http.Request, map[string]any), statuses ...int) *autosession.Session {
 	t.Helper()
 	owner := uuid.New()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/session/start" {
 			_ = json.NewEncoder(w).Encode(map[string]string{"session_id": sessionID, "lease_id": "navigation-lease"})
 			return
@@ -435,7 +436,7 @@ func TestPullRecordingActionsCommitBeforeAcknowledgement(t *testing.T) {
 			var failAck atomic.Bool
 			var currentOwner atomic.Value
 			failAck.Store(failure == "ack")
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
 				case "/session/start":
 					var body struct {
@@ -482,7 +483,6 @@ func TestPullRecordingActionsCommitBeforeAcknowledgement(t *testing.T) {
 					w.WriteHeader(http.StatusNotFound)
 				}
 			}))
-			defer server.Close()
 			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 			require.NoError(t, err)
 			manager := autosession.NewManagerWithClient(client)
@@ -749,7 +749,7 @@ func TestCloseRecordingPageBrowserReceipt(t *testing.T) {
 			ctx := context.Background()
 			var closeCalls atomic.Int32
 			executionID := uuid.New()
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/session/start" {
 					_, _ = w.Write([]byte(`{"session_id":"tab-close","lease_id":"close-lease","active_page_id":"initial"}`))
 					return
@@ -774,7 +774,6 @@ func TestCloseRecordingPageBrowserReceipt(t *testing.T) {
 				}
 				_ = json.NewEncoder(w).Encode(map[string]string{"closed_page_id": closed, "active_page_id": selected})
 			}))
-			defer server.Close()
 			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 			require.NoError(t, err)
 			manager := autosession.NewManagerWithClient(client)
@@ -834,7 +833,7 @@ func TestCloseRecordingPageBrowserReceipt(t *testing.T) {
 // [REQ:BAS-RH-J03] Preview tab creation returns a canonical page before callbacks exist.
 func TestCreateRecordingPageCanonicalReceipt(t *testing.T) {
 	executionID := uuid.New()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/session/start" {
 			_, _ = w.Write([]byte(`{"session_id":"admission","lease_id":"lease","active_page_id":"initial"}`))
 			return
@@ -846,7 +845,6 @@ func TestCreateRecordingPageCanonicalReceipt(t *testing.T) {
 		w.WriteHeader(201)
 		_, _ = w.Write([]byte(`{"driver_page_id":"created","url":"https://actual.test","title":"Actual"}`))
 	}))
-	defer server.Close()
 	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 	require.NoError(t, err)
 	manager := autosession.NewManagerWithClient(client)
@@ -887,7 +885,7 @@ func TestLiveFrameBridgePreservesDriverPixels(t *testing.T) {
 		"width": float64(640), "height": float64(480), "captured_at": "2026-09-23T03:00:00Z",
 		"content_hash": "fixture-hash", "page_title": "Independent fixture", "page_url": "https://fixture.test",
 	}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/session/start" {
 			_ = json.NewEncoder(w).Encode(map[string]string{"session_id": "preview", "lease_id": "preview-lease"})
 			return
@@ -897,7 +895,6 @@ func TestLiveFrameBridgePreservesDriverPixels(t *testing.T) {
 		assert.Equal(t, "55", r.URL.Query().Get("quality"))
 		_ = json.NewEncoder(w).Encode(frame)
 	}))
-	defer server.Close()
 	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 	require.NoError(t, err)
 	manager := autosession.NewManagerWithClient(client)

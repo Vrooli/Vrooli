@@ -354,7 +354,10 @@ export default defineConfig(({ mode }): UserConfig => {
         test: {
           ...PROJECT_BASE_TEST_CONFIG,
           name: 'workflow-builder',
-          include: ['src/domains/workflows/builder/WorkflowBuilder.test.tsx'],
+          include: [
+            'src/domains/workflows/builder/WorkflowBuilder.test.tsx',
+            'src/domains/workflows/nodes/ActionNode.test.tsx',
+          ],
           pool: 'forks',
           poolOptions: FORKS_ONE,
           reuseWorkers: false,

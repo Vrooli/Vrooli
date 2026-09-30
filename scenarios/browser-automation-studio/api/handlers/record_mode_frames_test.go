@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -39,7 +40,7 @@ func ownedFrameFixture(t *testing.T) (*Handler, *MockRecordModeService, *autoses
 	t.Cleanup(func() { _ = os.RemoveAll(dir) })
 	owner := uuid.New()
 	source := map[string]string{"session_id": "frame-session", "execution_id": owner.String(), "lease_id": "frame-lease", "page_id": "driver-red"}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]string{"session_id": source["session_id"], "lease_id": source["lease_id"]})
 	}))
 	t.Cleanup(server.Close)
@@ -64,8 +65,7 @@ func TestDriverFrameSourceAdmission(t *testing.T) {
 			router := chi.NewRouter()
 			done := make(chan struct{})
 			router.Get("/{sessionId}", func(w http.ResponseWriter, r *http.Request) { defer close(done); h.HandleDriverFrameStream(w, r) })
-			server := httptest.NewServer(router)
-			defer server.Close()
+			server := testutil.StartHTTPServer(t, router)
 			conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http")+"/frame-session", nil)
 			require.NoError(t, err)
 			defer conn.Close()
@@ -149,8 +149,7 @@ func TestDriverFrameStatsExcludeIdleSocketWait(t *testing.T) {
 		defer close(done)
 		h.HandleDriverFrameStream(w, r)
 	})
-	server := httptest.NewServer(r)
-	defer server.Close()
+	server := testutil.StartHTTPServer(t, r)
 	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http")+"/frame-session", nil)
 	require.NoError(t, err)
 	defer conn.Close()

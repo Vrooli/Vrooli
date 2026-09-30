@@ -337,19 +337,12 @@ function setupRoutes(
     observability.handleObservabilityRefresh(req, res);
     return Promise.resolve();
   });
-  router.post('/observability/diagnostics/run', (req, res) => {
-    observability.handleDiagnosticsRun(req, res, observabilityDeps);
-    return Promise.resolve();
-  });
   router.get('/observability/metrics', async (req, res) => {
     await observability.handleMetrics(req, res, observabilityDeps);
   });
   router.get('/observability/sessions', (req, res) => {
     observability.handleSessionList(req, res, observabilityDeps);
     return Promise.resolve();
-  });
-  router.post('/observability/cleanup/run', async (req, res) => {
-    await observability.handleCleanupRun(req, res, observabilityDeps);
   });
   // Runtime configuration management
   router.get('/observability/config/runtime', (req, res) => {
@@ -370,11 +363,6 @@ function setupRoutes(
       return Promise.resolve();
     }
     observability.handleConfigReset(req, res, envVar);
-    return Promise.resolve();
-  });
-  // Autonomous pipeline test (creates temp session if needed)
-  router.post('/observability/pipeline-test', (req, res) => {
-    observability.handlePipelineTest(req, res, observabilityDeps);
     return Promise.resolve();
   });
   router.post('/test-control/faults/arm', async (req, res) => routes.handleFaultArm(req, res, config, faultController));
@@ -512,13 +500,6 @@ function setupRoutes(
       return;
     }
     await routes.handleRecordDebug(req, res, sessionId, sessionManager);
-  });
-  router.post('/session/:id/record/pipeline-test', async (req, res, params) => {
-    const sessionId = requireRouteParam(res, params, 'id');
-    if (!sessionId) {
-      return;
-    }
-    await routes.handleRecordPipelineTest(req, res, sessionId, sessionManager, config);
   });
   router.post('/session/:id/record/external-url-test', async (req, res, params) => {
     const sessionId = requireRouteParam(res, params, 'id');

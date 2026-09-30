@@ -3102,7 +3102,7 @@
     },
     {
       "name": "observability",
-      "description": "Status, diagnostics, metrics, runtime config, and pipeline self-test for the playwright-driver, plus the in-process debug-mode toggle.",
+      "description": "Status, sessions, metrics, runtime config, and the in-process debug-mode toggle for the playwright-driver.",
       "commands": [
         {
           "name": "status",
@@ -3148,32 +3148,6 @@
           }
         },
         {
-          "name": "diagnostics",
-          "description": "Trigger a manual diagnostic run. Pass --options-file with a JSON body matching playwright-driver's DiagnosticRunRequest.",
-          "flags": [
-            {
-              "name": "options-file",
-              "description": "Path to a JSON file with the diagnostic options body",
-              "bind": {
-                "field": "options",
-                "kind": "json_file"
-              }
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ObservabilityService",
-            "method": "RunDiagnostics"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
           "name": "sessions",
           "description": "List active playwright-driver browser sessions.",
           "binding": {
@@ -3190,22 +3164,6 @@
           }
         },
         {
-          "name": "cleanup",
-          "description": "Trigger manual idle-session cleanup.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ObservabilityService",
-            "method": "RunCleanup"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
           "name": "metrics",
           "description": "Fetch the JSON-parsed Prometheus metrics snapshot.",
           "binding": {
@@ -3215,32 +3173,6 @@
           },
           "governance": {
             "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "pipeline-test",
-          "description": "Run the autonomous end-to-end recording-pipeline self-test.",
-          "flags": [
-            {
-              "name": "options-file",
-              "description": "Path to a JSON file with the pipeline test options",
-              "bind": {
-                "field": "options",
-                "kind": "json_file"
-              }
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ObservabilityService",
-            "method": "RunPipelineTest"
-          },
-          "governance": {
-            "effect": "write",
             "run_eligible": true,
             "permissions": [
               "network:internal"

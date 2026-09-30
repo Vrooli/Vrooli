@@ -170,14 +170,21 @@ func TestPageTracker_SnapshotAll(t *testing.T) {
 
 	pt := NewPageTracker("session-123", "https://example.com")
 
-	// Add more pages with staggered creation times
+	// Add pages with explicit creation times to verify chronological ordering.
+	initialPages, _ := pt.Snapshot(false)
+	if len(initialPages) != 1 {
+		t.Fatalf("expected one initial page, got %d", len(initialPages))
+	}
+	baseCreatedAt := initialPages[0].CreatedAt
+	expectedIDs := []uuid.UUID{initialPages[0].ID}
 	for i := 0; i < 3; i++ {
-		time.Sleep(1 * time.Millisecond) // Ensure different timestamps
+		pageID := uuid.New()
+		expectedIDs = append(expectedIDs, pageID)
 		pt.AddPage(&domain.Page{
-			ID:        uuid.New(),
+			ID:        pageID,
 			SessionID: "session-123",
 			URL:       "https://example.com/page",
-			CreatedAt: time.Now(),
+			CreatedAt: baseCreatedAt.Add(time.Duration(i+1) * time.Second),
 			Status:    domain.PageStatusActive,
 		})
 	}
@@ -191,6 +198,11 @@ func TestPageTracker_SnapshotAll(t *testing.T) {
 	for i := 1; i < len(pages); i++ {
 		if pages[i].CreatedAt.Before(pages[i-1].CreatedAt) {
 			t.Error("pages should be sorted by creation time")
+		}
+	}
+	for i, wantID := range expectedIDs {
+		if pages[i].ID != wantID {
+			t.Errorf("page %d ID = %s, want chronological page %s", i, pages[i].ID, wantID)
 		}
 	}
 }

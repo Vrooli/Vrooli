@@ -5,70 +5,39 @@ import (
 	"fmt"
 
 	"github.com/vrooli/browser-automation-studio/internal/enums"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// actionDefinitionBuilder builds the typed parameter oneof for an executable
-// action. Keeping enum dispatch in this table makes the supported action set
-// and its sole parameter builder explicit.
-type actionDefinitionBuilder func(map[string]any) *basactions.ActionDefinition
+type actionParamsBuilder func(map[string]any) proto.Message
 
-var actionDefinitionBuilders = map[basactions.ActionType]actionDefinitionBuilder{
-	basactions.ActionType_ACTION_TYPE_NAVIGATE: func(params map[string]any) *basactions.ActionDefinition {
-		return &basactions.ActionDefinition{Params: &basactions.ActionDefinition_Navigate{Navigate: typeconv.BuildNavigateParams(params)}}
-	},
-	basactions.ActionType_ACTION_TYPE_CLICK: func(params map[string]any) *basactions.ActionDefinition {
-		return &basactions.ActionDefinition{Params: &basactions.ActionDefinition_Click{Click: typeconv.BuildClickParams(params)}}
-	},
-	basactions.ActionType_ACTION_TYPE_INPUT: func(params map[string]any) *basactions.ActionDefinition {
-		return &basactions.ActionDefinition{Params: &basactions.ActionDefinition_Input{Input: typeconv.BuildInputParams(params)}}
-	},
-	basactions.ActionType_ACTION_TYPE_WAIT: func(params map[string]any) *basactions.ActionDefinition {
-		return &basactions.ActionDefinition{Params: &basactions.ActionDefinition_Wait{Wait: typeconv.BuildWaitParams(params)}}
-	},
-	basactions.ActionType_ACTION_TYPE_ASSERT: func(params map[string]any) *basactions.ActionDefinition {
-		return &basactions.ActionDefinition{Params: &basactions.ActionDefinition_Assert{Assert: typeconv.BuildAssertParams(params)}}
-	},
-	basactions.ActionType_ACTION_TYPE_SCROLL: func(params map[string]any) *basactions.ActionDefinition {
-		return &basactions.ActionDefinition{Params: &basactions.ActionDefinition_Scroll{Scroll: typeconv.BuildScrollParams(params)}}
-	},
-	basactions.ActionType_ACTION_TYPE_SELECT: func(params map[string]any) *basactions.ActionDefinition {
-		return &basactions.ActionDefinition{Params: &basactions.ActionDefinition_SelectOption{SelectOption: typeconv.BuildSelectParams(params)}}
-	},
-	basactions.ActionType_ACTION_TYPE_EVALUATE: func(params map[string]any) *basactions.ActionDefinition {
-		return &basactions.ActionDefinition{Params: &basactions.ActionDefinition_Evaluate{Evaluate: typeconv.BuildEvaluateParams(params)}}
-	},
-	basactions.ActionType_ACTION_TYPE_KEYBOARD: func(params map[string]any) *basactions.ActionDefinition {
-		return &basactions.ActionDefinition{Params: &basactions.ActionDefinition_Keyboard{Keyboard: typeconv.BuildKeyboardParams(params)}}
-	},
-	basactions.ActionType_ACTION_TYPE_DRAG_DROP: func(params map[string]any) *basactions.ActionDefinition {
-		return &basactions.ActionDefinition{Params: &basactions.ActionDefinition_DragDrop{DragDrop: typeconv.BuildDragDropParams(params)}}
-	},
-	basactions.ActionType_ACTION_TYPE_HOVER: func(params map[string]any) *basactions.ActionDefinition {
-		return &basactions.ActionDefinition{Params: &basactions.ActionDefinition_Hover{Hover: typeconv.BuildHoverParams(params)}}
-	},
-	basactions.ActionType_ACTION_TYPE_SCREENSHOT: func(params map[string]any) *basactions.ActionDefinition {
-		return &basactions.ActionDefinition{Params: &basactions.ActionDefinition_Screenshot{Screenshot: typeconv.BuildScreenshotParams(params)}}
-	},
-	basactions.ActionType_ACTION_TYPE_FOCUS: func(params map[string]any) *basactions.ActionDefinition {
-		return &basactions.ActionDefinition{Params: &basactions.ActionDefinition_Focus{Focus: typeconv.BuildFocusParams(params)}}
-	},
-	basactions.ActionType_ACTION_TYPE_BLUR: func(params map[string]any) *basactions.ActionDefinition {
-		return &basactions.ActionDefinition{Params: &basactions.ActionDefinition_Blur{Blur: typeconv.BuildBlurParams(params)}}
-	},
-	basactions.ActionType_ACTION_TYPE_SUBFLOW: func(params map[string]any) *basactions.ActionDefinition {
-		return &basactions.ActionDefinition{Params: &basactions.ActionDefinition_Subflow{Subflow: typeconv.BuildSubflowParams(params)}}
-	},
-	basactions.ActionType_ACTION_TYPE_EXTRACT: func(params map[string]any) *basactions.ActionDefinition {
-		return &basactions.ActionDefinition{Params: &basactions.ActionDefinition_Extract{Extract: typeconv.BuildExtractParams(params)}}
-	},
-	basactions.ActionType_ACTION_TYPE_SHORTCUT: func(params map[string]any) *basactions.ActionDefinition {
-		return &basactions.ActionDefinition{Params: &basactions.ActionDefinition_Shortcut{Shortcut: typeconv.BuildShortcutParams(params)}}
-	},
-	basactions.ActionType_ACTION_TYPE_GESTURE: func(params map[string]any) *basactions.ActionDefinition {
-		return &basactions.ActionDefinition{Params: &basactions.ActionDefinition_Gesture{Gesture: typeconv.BuildGestureParams(params)}}
-	},
+func adaptActionParamsBuilder[T proto.Message](build func(map[string]any) T) actionParamsBuilder {
+	return func(params map[string]any) proto.Message { return build(params) }
+}
+
+// Parameter conversion remains explicit because each action accepts different
+// legacy aliases. The proto JSON field names and oneof relationship are resolved
+// from the generated descriptor rather than repeated in this registry.
+var actionParamsBuilders = map[string]actionParamsBuilder{
+	"navigate":     adaptActionParamsBuilder(BuildNavigateParams),
+	"click":        adaptActionParamsBuilder(BuildClickParams),
+	"input":        adaptActionParamsBuilder(BuildInputParams),
+	"wait":         adaptActionParamsBuilder(BuildWaitParams),
+	"assert":       adaptActionParamsBuilder(BuildAssertParams),
+	"scroll":       adaptActionParamsBuilder(BuildScrollParams),
+	"selectOption": adaptActionParamsBuilder(BuildSelectParams),
+	"evaluate":     adaptActionParamsBuilder(BuildEvaluateParams),
+	"keyboard":     adaptActionParamsBuilder(BuildKeyboardParams),
+	"dragDrop":     adaptActionParamsBuilder(BuildDragDropParams),
+	"hover":        adaptActionParamsBuilder(BuildHoverParams),
+	"screenshot":   adaptActionParamsBuilder(BuildScreenshotParams),
+	"focus":        adaptActionParamsBuilder(BuildFocusParams),
+	"blur":         adaptActionParamsBuilder(BuildBlurParams),
+	"subflow":      adaptActionParamsBuilder(BuildSubflowParams),
+	"extract":      adaptActionParamsBuilder(BuildExtractParams),
+	"shortcut":     adaptActionParamsBuilder(BuildShortcutParams),
+	"gesture":      adaptActionParamsBuilder(BuildGestureParams),
 }
 
 // BuildActionDefinition creates a typed ActionDefinition proto from step type and params.
@@ -82,13 +51,19 @@ func BuildActionDefinition(stepType string, params map[string]any) (*basactions.
 		return nil, fmt.Errorf("unknown action type: %q", stepType)
 	}
 
-	build, ok := actionDefinitionBuilders[actionType]
+	paramsField := enums.ActionTypeParamsField(actionType)
+	build, ok := actionParamsBuilders[paramsField]
 	if !ok {
 		return nil, fmt.Errorf("no params builder for action type %q (enum: %s)", stepType, actionType.String())
 	}
 
-	action := build(params)
-	action.Type = actionType
-	action.Metadata = typeconv.BuildActionMetadata(params)
+	paramsMessage := build(params)
+	action := &basactions.ActionDefinition{Type: actionType}
+	field := action.ProtoReflect().Descriptor().Fields().ByJSONName(paramsField)
+	if field == nil {
+		return nil, fmt.Errorf("no params field for action type %q (enum: %s)", stepType, actionType.String())
+	}
+	action.ProtoReflect().Set(field, protoreflect.ValueOfMessage(paramsMessage.ProtoReflect()))
+	action.Metadata = BuildActionMetadata(params)
 	return action, nil
 }

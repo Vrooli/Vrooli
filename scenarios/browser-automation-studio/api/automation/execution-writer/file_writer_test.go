@@ -25,7 +25,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/storage"
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
@@ -446,7 +445,7 @@ func TestFailedScreenshotStorageDurationSurvivesOutcome(t *testing.T) {
 			var savedOutcome map[string]any
 			for _, artifact := range timeline.Entries[0].GetAggregates().GetArtifacts() {
 				if value := artifact.GetPayload()["outcome"]; value != nil {
-					savedOutcome, _ = typeconv.JsonValueToAny(value).(map[string]any)
+					savedOutcome, _ = contracts.JsonValueToAny(value).(map[string]any)
 				}
 			}
 			require.NotNil(t, savedOutcome)
@@ -786,7 +785,7 @@ func TestStructuredOutcomeSurvivesDiskProjection(t *testing.T) {
 			var saved any
 			for _, artifact := range entry.GetAggregates().GetArtifacts() {
 				if value, ok := artifact.Payload["outcome"]; ok {
-					saved = typeconv.JsonValueToAny(value)
+					saved = contracts.JsonValueToAny(value)
 				}
 			}
 			require.IsType(t, map[string]any{}, saved, "core outcome must remain a structured object")
@@ -805,7 +804,7 @@ func TestStructuredOutcomeSurvivesDiskProjection(t *testing.T) {
 			require.Equal(t, expected, actual)
 			valueJSON, err := json.Marshal(tc.value)
 			require.NoError(t, err)
-			for _, projected := range []any{typeconv.JsonValueToAny(entry.Context.Assertion.Expected), typeconv.JsonValueToAny(entry.Context.Assertion.Actual), typeconv.JsonValueToAny(entry.Aggregates.ExtractedDataPreview).(map[string]any)["value"]} {
+			for _, projected := range []any{contracts.JsonValueToAny(entry.Context.Assertion.Expected), contracts.JsonValueToAny(entry.Context.Assertion.Actual), contracts.JsonValueToAny(entry.Aggregates.ExtractedDataPreview).(map[string]any)["value"]} {
 				encoded, err := json.Marshal(projected)
 				require.NoError(t, err)
 				require.Equal(t, string(valueJSON), string(encoded), "assertion/extraction must retain exact values")

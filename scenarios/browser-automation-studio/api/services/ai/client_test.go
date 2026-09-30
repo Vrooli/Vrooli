@@ -142,8 +142,8 @@ func TestExecutePrompt_ContextCancellation(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 		defer cancel()
 
-		// Give context time to expire
-		time.Sleep(5 * time.Millisecond)
+		// Wait for the deadline itself so this test doesn't depend on scheduler timing.
+		<-ctx.Done()
 
 		_, err := client.ExecutePrompt(ctx, "Generate a workflow for testing google.com")
 		if err == nil {
