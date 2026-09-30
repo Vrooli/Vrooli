@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {"kind": "scenario-experience", "schema": "scenario-experience-spec/v1"},
+  "schemaVersion": "1.0.0",
+  "scenario": "source-ledger",
+  "description": "L0 experience contract for the corpus-first Source Ledger operator surface.",
+  "pages": [
+    {"id": "dashboard", "path": "pages/dashboard.json", "title": "Ledger list", "status": "draft"},
+    {"id": "scope-detail", "path": "pages/scope-detail.json", "title": "Scope detail", "status": "draft"},
+    {"id": "vocabulary", "path": "pages/vocabulary.json", "title": "Vocabulary editor", "status": "draft"},
+    {"id": "search", "path": "pages/search.json", "title": "Cross-scope search", "status": "draft"},
+    {"id": "settings", "path": "pages/settings.json", "title": "Settings", "status": "draft"}
+  ],
+  "journeys": [
+    {"id": "inspect-scope-health", "path": "journeys/inspect-scope-health.json", "title": "Inspect a scope and its maintenance health", "status": "draft"}
+  ]
+}

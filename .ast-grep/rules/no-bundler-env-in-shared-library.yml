@@ -1,0 +1,46 @@
+id: no-bundler-env-in-shared-library
+language: Tsx
+severity: error
+message: >-
+  Published library source must not read bundler-injected environment; derive
+  behavior from a runtime-observable signal instead of import.meta.env.
+note: >-
+  Library sources ship to every consumer bundler and to plain Node. Vite
+  replaces the literal token `import.meta.env`, so aliasing it through a local
+  defeats the substitution and the minifier re-emits a member read that is
+  undefined in a browser. Consumers see a render-time TypeError that no Vitest
+  run reproduces, because vite-node materializes import.meta.env and browsers
+  never do.
+files:
+  - "scenarios/react-component-library/library/**/*.tsx"
+  - "packages/**/*.tsx"
+  - "!**/node_modules/**"
+  - "!**/*.spec.tsx"
+  - "!**/*.test.tsx"
+rule:
+  any:
+    - pattern: import.meta.env
+    - pattern: import.meta as $T
+    - pattern: const $M = import.meta
+---
+id: no-bundler-env-in-shared-library-ts
+language: TypeScript
+severity: error
+message: >-
+  Published library source must not read bundler-injected environment; derive
+  behavior from a runtime-observable signal instead of import.meta.env.
+note: >-
+  Same contract as no-bundler-env-in-shared-library, for the non-JSX sources
+  (foundations, hooks, services) that ship from the same catalog.
+files:
+  - "scenarios/react-component-library/library/**/*.ts"
+  - "packages/**/*.ts"
+  - "!**/node_modules/**"
+  - "!**/*.spec.ts"
+  - "!**/*.test.ts"
+  - "!**/*.d.ts"
+rule:
+  any:
+    - pattern: import.meta.env
+    - pattern: import.meta as $T
+    - pattern: const $M = import.meta

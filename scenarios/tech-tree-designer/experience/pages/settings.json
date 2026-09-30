@@ -1,0 +1,120 @@
+{
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Design workspace settings",
+    "routes": [
+      "/settings"
+    ],
+    "purpose": "Inspect presentation preferences and qualified source, storage and runtime limitations.",
+    "prd_refs": [
+      "OT-P0-007",
+      "OT-P0-008",
+      "OT-P1-002"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Separate preferences from authority; settings cannot grant effects."
+    },
+    {
+      "statement": "Explain qualified limits, source freshness and retention policy."
+    },
+    {
+      "statement": "Keep keyboard access and readable compact layouts."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Show the current selection and available next actions."
+    },
+    {
+      "id": "loading",
+      "description": "Identify pending work without implying an empty result."
+    },
+    {
+      "id": "submitting",
+      "description": "Show the submitted operation and prevent accidental duplicate effects."
+    },
+    {
+      "id": "saving",
+      "description": "Keep unsaved and persisted revision identity distinct."
+    },
+    {
+      "id": "syncing",
+      "description": "Identify the source being synchronized and keep usable context."
+    },
+    {
+      "id": "refreshing",
+      "description": "Retain usable previous content with freshness labels."
+    },
+    {
+      "id": "empty",
+      "description": "Explain a confirmed empty result and a relevant next step."
+    },
+    {
+      "id": "partial",
+      "description": "Show usable content and the omitted or failed portion."
+    },
+    {
+      "id": "stale",
+      "description": "Show source age and the consequences of stale evidence."
+    },
+    {
+      "id": "success",
+      "description": "Show the completed operation and its exact result identity."
+    },
+    {
+      "id": "validation-error",
+      "description": "Identify actionable findings while preserving draft content."
+    },
+    {
+      "id": "request-error",
+      "description": "Explain failed work without discarding context."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Identify the unmet authority boundary without suggesting bypass."
+    },
+    {
+      "id": "offline",
+      "description": "Retain available context and identify unavailable operations."
+    },
+    {
+      "id": "retry",
+      "description": "Retry safely with operation identity and visible progress."
+    }
+  ],
+  "claims": [
+    {
+      "id": "settings-priority-1",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Separate preferences from authority; settings cannot grant effects.",
+      "rationale": "Documentation-first target; runtime bindings and evidence remain to be implemented and qualified."
+    },
+    {
+      "id": "settings-priority-2",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Explain qualified limits, source freshness and retention policy.",
+      "rationale": "Documentation-first target; runtime bindings and evidence remain to be implemented and qualified."
+    },
+    {
+      "id": "settings-priority-3",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Keep keyboard access and readable compact layouts.",
+      "rationale": "Documentation-first target; runtime bindings and evidence remain to be implemented and qualified."
+    },
+    {
+      "id": "settings-accessible-recovery",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Given keyboard or compact-device use, when work is incomplete or fails, then the user can understand status and reach an appropriate next action without relying on graph geometry or color alone.",
+      "rationale": "Documentation-first target; runtime bindings and evidence remain to be implemented and qualified."
+    }
+  ]
+}

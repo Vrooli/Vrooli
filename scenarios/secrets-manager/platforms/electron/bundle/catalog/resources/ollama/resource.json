@@ -1,0 +1,346 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "ollama",
+  "display_name": "Ollama",
+  "description": "Managed Ollama model-serving runtime for local inference workloads.",
+  "storage": {
+    "entries": {
+      "models": {
+        "rung": "pinned",
+        "path": "$USER_DATA_DIR/vrooli/resources/ollama/models",
+        "kind": "dir",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "90423MiB",
+          "rationale": "Measured at 47407507702 bytes on 2026-08-03; ceiling is two times observed size."
+        },
+        "relocation": { "key": "OLLAMA_MODELS", "scope": "process-tree" },
+        "rationale": "Model weights are large, durable host state; the resource mounts this directory into the managed Ollama service."
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "resource-ollama",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-ollama_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-ollama"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json",
+        "model-policy.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "template": "docker-service",
+  "driver": "docker-service",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker images, storage, and networking remain host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        }
+      }
+    }
+  },
+  "companions": [
+    {
+      "name": "capacity-sync",
+      "command": "resource-ollama",
+      "args": [
+        "capacity-sync"
+      ]
+    }
+  ],
+  "portability_tier": "partial",
+  "category": "ai",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 11434,
+      "host": 11434
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:11434/api/tags",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "runtime": {
+    "image": "ollama/ollama:0.30.10",
+    "container_name": "ollama",
+    "memory_limit": "12g",
+    "env": {
+      "OLLAMA_HOST": "0.0.0.0:11434",
+      "OLLAMA_NUM_PARALLEL": "4",
+      "OLLAMA_MAX_LOADED_MODELS": "3",
+      "OLLAMA_FLASH_ATTENTION": "1",
+      "OLLAMA_KEEP_ALIVE": "5m",
+      "OLLAMA_CONTEXT_LENGTH": "8192",
+      "OLLAMA_ORIGINS": "*"
+    },
+    "volumes": [
+      {
+        "source": "${RESOURCE_DATA_DIR}",
+        "target": "/root/.ollama"
+      }
+    ]
+  },
+  "gpu": {
+    "probe": "nvidia",
+    "env_overrides": {
+      "NVIDIA_VISIBLE_DEVICES": "all"
+    }
+  },
+  "hostSafeguards": [
+    {
+      "name": "nvidia_driver",
+      "required": true,
+      "when": [
+        "setup"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Repair and validate the host NVIDIA kernel driver when NVIDIA hardware is present; GPU containers require a working host driver.",
+      "notes": "No-op on hosts without NVIDIA display hardware. On Ubuntu, setup repairs the current-kernel module package and its installed kernel meta package, then reports a required reboot."
+    }
+  ],
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific Ollama dependency settings.",
+    "properties": {
+      "model": {
+        "type": "string",
+        "description": "Deprecated singular concrete model reference. Prefer model_roles; use models only for documented direct exceptions."
+      },
+      "model_roles": {
+        "type": "array",
+        "description": "Logical Ollama model roles resolved through resources/ollama/model-policy.json.",
+        "items": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "required": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "role"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "models": {
+        "type": "array",
+        "description": "Concrete model exceptions. Prefer model_roles; object entries should include reason and owner.",
+        "items": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "tag": {
+                  "type": "string"
+                },
+                "size": {
+                  "type": "string"
+                },
+                "quantization": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "owner": {
+                  "type": "string"
+                },
+                "review_after": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "required": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "configuration": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "cli_integration": {
+        "type": "boolean"
+      },
+      "fallback": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "environment_exports": {
+    "static": {
+      "OLLAMA_HOST": "localhost"
+    },
+    "from_ports": {
+      "OLLAMA_PORT": "http"
+    },
+    "from_runtime_env": [
+      "OLLAMA_NUM_PARALLEL",
+      "OLLAMA_MAX_LOADED_MODELS",
+      "OLLAMA_FLASH_ATTENTION",
+      "OLLAMA_CONTEXT_LENGTH",
+      "OLLAMA_ORIGINS"
+    ],
+    "derived": {
+      "OLLAMA_URL": {
+        "template": "http://${OLLAMA_HOST}:${OLLAMA_PORT}"
+      },
+      "OLLAMA_BASE_URL": {
+        "template": "${OLLAMA_URL}"
+      },
+      "OLLAMA_API_TAGS": {
+        "template": "${OLLAMA_URL}/api/tags"
+      },
+      "OLLAMA_API_CHAT": {
+        "template": "${OLLAMA_URL}/api/chat"
+      },
+      "OLLAMA_API_GENERATE": {
+        "template": "${OLLAMA_URL}/api/generate"
+      },
+      "OLLAMA_API_PULL": {
+        "template": "${OLLAMA_URL}/api/pull"
+      },
+      "OLLAMA_API_SHOW": {
+        "template": "${OLLAMA_URL}/api/show"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 700,
+    "startup_timeout_seconds": 60,
+    "startup_time_estimate": "15-30s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 60,
+    "stop_timeout_seconds": 30,
+    "retries": 5
+  },
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true,
+    "supports_ensure": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
+}

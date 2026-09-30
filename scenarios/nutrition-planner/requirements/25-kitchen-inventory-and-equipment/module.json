@@ -1,0 +1,207 @@
+{
+  "_metadata": {
+    "description": "Kitchen: optional exact or qualitative dated inventory by storage, equipment as devices exposing capabilities through tiles and an interactive scene, and grouped preferences.",
+    "module": "kitchen-inventory-and-equipment",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "KIT-001",
+      "title": "Inventory amounts keep their honest mode",
+      "status": "planned",
+      "prd_ref": "OT-P0-020",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "The scenario shall record inventory amounts as exact, estimated, qualitative, out, or unknown, display wording such as About half a bag, Some left, or Amount not set, store the original expression separately from any reviewed quantity mapping, never infer numeric confidence percentages, and never subtract an invented quantity from a qualitative assertion.",
+      "tags": [
+        "inventory",
+        "amounts",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: marking Have some rice leaves the grocery requirement as a pantry check rather than subtracting grams (AT-036, ACT-051)."
+        }
+      ]
+    },
+    {
+      "id": "KIT-002",
+      "title": "On hand groups by storage with evidence-based freshness",
+      "status": "planned",
+      "prd_ref": "OT-P0-020",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Kitchen On hand shall offer Add ingredient, search, and All, Fridge, Freezer, and Pantry filters, group rows by storage with amount, status, and a menu, support multiple lots without requiring lot tracking, derive Use soon from user flags or recorded dates under a disclosed policy that is not a food-safety claim, update Last checked only from recorded evidence, and open Explore with the relevant ingredients from Find meals.",
+      "tags": [
+        "inventory",
+        "storage",
+        "use-soon"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: opening the page does not change Last checked, and Use soon states its source (R15.1)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: Find meals opens Explore with the use-soon ingredients and active dietary rules as context (R15.1, R11.2)."
+        }
+      ]
+    },
+    {
+      "id": "KIT-003",
+      "title": "Inventory stays optional",
+      "status": "planned",
+      "prd_ref": "OT-P0-020",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "The scenario shall let the user skip inventory or track only staples, keep planning useful with unknown stock and full grocery requirements, ask short targeted stock checks only when uncertainty materially changes a recommendation, and suppress or let the user adjust repeatedly dismissed prompts.",
+      "tags": [
+        "inventory",
+        "optional",
+        "low-effort"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: with inventory skipped, a plan and grocery list are produced with all requirements listed and no stock prompt (R15.4)."
+        }
+      ]
+    },
+    {
+      "id": "KIT-004",
+      "title": "Devices expose capabilities",
+      "status": "planned",
+      "prd_ref": "OT-P0-020",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "The scenario shall model equipment types with stable ids and categories separately from physical kitchen devices that expose selected capabilities, count, and capacity, so a range can provide cooktop and oven, a multicooker only its enabled functions, and a blender not every processor capability, and recipe eligibility shall require one complete viable preparation method.",
+      "tags": [
+        "equipment",
+        "capabilities",
+        "devices",
+        "eligibility"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: removing only the oven capability from a combined range keeps the cooktop and flags oven-only future methods (AT-038); a multicooker with only pressure enabled does not satisfy slow cooking (R27.3)."
+        }
+      ]
+    },
+    {
+      "id": "KIT-005",
+      "title": "Equipment tiles are the complete selection interface",
+      "status": "planned",
+      "prd_ref": "OT-P0-020",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Equipment shall present semantic toggle tiles with labels and selected indicators under Appliances, Cookware, and Tools categories reachable at every width, update the visual state immediately while persisting with visible pending and error reconciliation, open details from scene markers instead of silently removing equipment, and involve no generation or provider call on toggles.",
+      "tags": [
+        "equipment",
+        "tiles",
+        "accessibility"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: every scene marker action is available through the tile and detail flow by keyboard (AT-039); the phone layout renders the category selector (R29.3)."
+        }
+      ]
+    },
+    {
+      "id": "KIT-006",
+      "title": "The kitchen scene reflects selection within fixed slots",
+      "status": "planned",
+      "prd_ref": "OT-P0-020",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The equipment scene shall use a fixed artboard with normalized coordinates, predefined slots with anchors, boxes, z-order, masks, and accepted types, cabinet infill where a deselected integrated appliance would be, a bounded countertop with deterministic priority and a More selected label, and a compact vignette on phones, never deselecting equipment because art space ran out.",
+      "tags": [
+        "equipment",
+        "scene",
+        "layers"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: zero, one, four, and all selected, plus a missing layer image, render correctly in both appearances at narrow and wide widths while tile state stays exact (AT-037, R27.3)."
+        },
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned: captures are compared with docs/reference/mockups/kitchen-equipment-light.png and hotspot alignment is recorded in docs/internal/REDESIGN_LEDGER.md."
+        }
+      ]
+    },
+    {
+      "id": "KIT-007",
+      "title": "Zero equipment is valid and removal is previewed",
+      "status": "planned",
+      "prd_ref": "OT-P0-020",
+      "category": "service",
+      "criticality": "P0",
+      "description": "The scenario shall accept zero appliances and then suggest viable assembly or ready-to-eat methods without implying a microwave, and removing an appliance shall preview affected future meal methods and alternatives while leaving recorded history intact.",
+      "tags": [
+        "equipment",
+        "zero-state",
+        "preview"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: with no appliances selected, only assembly and ready-to-eat methods are eligible (ACT-005, R26); removing the microwave previews the affected future occurrences (R15.2)."
+        }
+      ]
+    },
+    {
+      "id": "KIT-008",
+      "title": "Preferences are grouped and required rules preview conflicts",
+      "status": "planned",
+      "prd_ref": "OT-P0-020",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Kitchen Preferences shall organize Food rules, Household and servings, Time and effort, Variety and favorites, Planning routine, Nutrition targets and supplements, and Shopping preferences, keep allergies and exclusions separate from dislikes and soft priorities, preview conflicts before a required-rule change applies, and never multiply one person's targets by household servings.",
+      "tags": [
+        "preferences",
+        "rules",
+        "household"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: adding an allergy that conflicts with a locked future meal previews the conflict and leaves history unchanged (ACT-007, R26)."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: setting two household servings leaves the individual's nutrition targets unchanged (R15.3, R23)."
+        }
+      ]
+    }
+  ]
+}

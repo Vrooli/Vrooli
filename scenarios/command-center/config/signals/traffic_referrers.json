@@ -1,0 +1,70 @@
+{
+  "id": "traffic_referrers",
+  "label": "Traffic by referrer",
+  "description": "Ranked referrer-kind breakdown of landing-page visitors.",
+  "unit": "count",
+  "format": "integer",
+  "kind": "panel",
+  "shape": "rows",
+  "columns": {
+    "key": {
+      "type": "string"
+    },
+    "value": {
+      "type": "number"
+    },
+    "share": {
+      "type": "number"
+    },
+    "label": {
+      "type": "string",
+      "optional": true
+    },
+    "detail": {
+      "type": "string",
+      "optional": true
+    }
+  },
+  "source": {
+    "team": "marketing-crew",
+    "binding": "scenario:landing-page-business-suite",
+    "read": "/landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown?dimension=referrer_kind&limit=6&window_days=30",
+    "select": "traffic_referrers",
+    "ttlSeconds": 300,
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "featureId": "traffic_referrers",
+    "contractVersion": "analytics-traffic.v1",
+    "selector": "traffic_referrers",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "IN-REACH",
+  "sample": {
+    "value": 100,
+    "series": [
+      100
+    ],
+    "rows": [
+      {
+        "key": "search",
+        "label": "Search",
+        "value": 45,
+        "share": 0.45
+      },
+      {
+        "key": "referral",
+        "label": "Referral",
+        "value": 30,
+        "share": 0.3
+      },
+      {
+        "key": "direct",
+        "label": "Direct",
+        "value": 25,
+        "share": 0.25
+      }
+    ],
+    "basis": "hand-authored structural sample, reviewed 2026-09-03"
+  }
+}

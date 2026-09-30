@@ -1,0 +1,207 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "nutrition-planner",
+    "displayName": "Nooch",
+    "description": "Nooch — plan what to eat, shop, and cook around your diet, kitchen, effort, budget, and nutrition goals, with honest unknowns and grocery lists.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "5.0.0"
+    },
+    "generated_at": "2026-09-18T03:58:12Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "5b6c7d6becb3a9c5cd815a9cacf5a43119f52c8ea4b4578bfdfd776518a37be6",
+    "content_sha": "b942bb5b43a7caa0b9b9b658bb852c16a86647c5791913ab24b66ad48381703b"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "nutrition-planner",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "nutrition-planner"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "port": 20002
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "cwd": "api",
+        "port": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {}
+  },
+  "storage": {
+    "entries": {
+      "nutrition-planner-db": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "nutrition-planner.db",
+        "format": "sqlite",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "2GiB",
+          "rationale": "Durable workspace, recipe, profile, plan, catalog, feedback, and shopping state."
+        },
+        "rationale": "Primary scenario SQLite database."
+      },
+      "nutrition-planner-db-wal": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "nutrition-planner.db-wal",
+        "format": "sqlite",
+        "regenerable": true,
+        "budget": {
+          "max_bytes": "2GiB",
+          "rationale": "SQLite WAL sidecar is bounded by the primary database ceiling."
+        },
+        "rationale": "SQLite write-ahead log sidecar."
+      },
+      "nutrition-planner-db-shm": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "nutrition-planner.db-shm",
+        "format": "sqlite",
+        "regenerable": true,
+        "budget": {
+          "max_bytes": "64MiB",
+          "rationale": "SQLite shared-memory sidecar is regenerable and bounded."
+        },
+        "rationale": "SQLite shared-memory sidecar."
+      },
+      "deployment-report": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "deployment/deployment-report.json",
+        "format": "json",
+        "regenerable": false,
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Retain recent deployment evidence for operations."
+        },
+        "rationale": "Lifecycle deployment evidence."
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "subpath": "retention/enforcement-receipt.json",
+        "format": "json",
+        "regenerable": true,
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "The shared retention engine replaces this compact operational receipt on each run."
+        },
+        "rationale": "Shared storage retention enforcement receipt."
+      }
+    }
+  },
+  "credentials": {},
+  "branding": {
+    "brand": "nutrition-planner",
+    "targets": [
+      "web-public-v1"
+    ]
+  }
+}

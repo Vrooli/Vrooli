@@ -2,10 +2,9 @@
  * RunInvestigationTab - Investigation agent tab.
  *
  * Flow:
- * - Discover investigations linked to this run via investigates_run_id filter
- * - "Investigate" starts a new investigation run
- * - Follow-up supports both continue current run and start-new-investigation
- * - "Apply" starts investigation-apply run from selected investigation
+ * - Discover owner-preserved typed investigations linked to this run
+ * - "Investigate" starts a finite diagnosis-only investigation
+ * - Historical legacy runs remain readable for retained follow-up/apply work
  */
 
 import { useState, useEffect, useCallback } from 'react'
@@ -14,8 +13,10 @@ import { Search as SearchIcon, Loader2, Play, MessageSquare, Wrench, ChevronDown
 import { cn } from '@/lib/utils'
 import { EventsDisplay } from '@/components/shared/EventsDisplay'
 import {
-  createInvestigationRun,
+  createTypedInvestigationRun,
+  listTypedInvestigations,
   createInvestigationApplyRun,
+  type TypedInvestigation,
   continueRun,
   listRuns,
   getRunDetails,
@@ -49,9 +50,17 @@ function formatRunLabel(run: RunDetails, index: number): string {
   return `Investigation ${index + 1} · ${parsed.toLocaleString()}`
 }
 
+function formatTypedCoverage(item: TypedInvestigation): string {
+  const coverage = item.result?.coverage ?? []
+  if (coverage.length === 0) return 'not yet available'
+  return coverage.map((plane) => `${plane.plane ?? 'plane'}: ${plane.state ?? 'unknown'}`).join(' · ')
+}
+
 export function RunInvestigationTab({ runId, className }: RunInvestigationTabProps) {
   const [investigations, setInvestigations] = useState<RunDetails[]>([])
+  const [typedInvestigations, setTypedInvestigations] = useState<TypedInvestigation[]>([])
   const [selectedInvestigationId, setSelectedInvestigationId] = useState<string | null>(null)
+  const [selectedTypedInvestigationId, setSelectedTypedInvestigationId] = useState<string | null>(null)
   const [applyRun, setApplyRun] = useState<RunDetails | null>(null)
 
   const [depth, setDepth] = useState<DepthOption>('standard')
@@ -69,6 +78,7 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
   const [systemContextOpen, setSystemContextOpen] = useState(false)
 
   const selectedInvestigation = investigations.find((r) => r.id === selectedInvestigationId) ?? null
+  const selectedTypedInvestigation = typedInvestigations.find((item) => item.investigationId === selectedTypedInvestigationId) ?? null
 
   const loadInvestigations = useCallback(async (showSpinner = false) => {
     if (showSpinner) setIsRefreshing(true)
@@ -77,8 +87,13 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
         investigatesRunId: runId,
         limit: 50,
       })
+      const typed = await listTypedInvestigations(runId)
       const runs = response.runs
       setInvestigations(runs)
+      setTypedInvestigations(typed)
+      if (typed.length > 0 && (!selectedTypedInvestigationId || !typed.some((item) => item.investigationId === selectedTypedInvestigationId))) {
+        setSelectedTypedInvestigationId(typed[0]?.investigationId ?? null)
+      }
       if (runs.length === 0) {
         setSelectedInvestigationId(null)
       } else if (!selectedInvestigationId || !runs.some((r) => r.id === selectedInvestigationId)) {
@@ -94,19 +109,24 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
     } finally {
       if (showSpinner) setIsRefreshing(false)
     }
-  }, [runId, selectedInvestigationId])
+  }, [runId, selectedInvestigationId, selectedTypedInvestigationId])
 
   useEffect(() => {
     const controller = new AbortController()
     void (async () => {
       try {
-        const response = await listRuns({
+        const [response, typed] = await Promise.all([
+          listRuns({
           investigatesRunId: runId,
           limit: 50,
-        })
+          }),
+          listTypedInvestigations(runId),
+        ])
         if (controller.signal.aborted) return
         const runs = response.runs
         setInvestigations(runs)
+        setTypedInvestigations(typed)
+        setSelectedTypedInvestigationId(typed[0]?.investigationId ?? null)
         setSelectedInvestigationId(runs[0]?.id ?? null)
       } catch {
         // Start with idle state if lookup fails
@@ -153,12 +173,13 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
     setIsStarting(true)
     setError(null)
     try {
-      const invRun = await createInvestigationRun([runId], {
+      const typed = await createTypedInvestigationRun([runId], {
         depth,
         customContext: message ?? (customContext || undefined),
       })
-      setInvestigations((prev) => [invRun, ...prev])
-      setSelectedInvestigationId(invRun.id)
+      setTypedInvestigations((prev) => [typed, ...prev.filter((item) => item.investigationId !== typed.investigationId)])
+      setSelectedTypedInvestigationId(typed.investigationId)
+      setSelectedInvestigationId(null)
       if (!message) {
         setCustomContext('')
       }
@@ -239,6 +260,38 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
     return (
       <div className={cn('flex items-center justify-center py-12', className)}>
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (selectedTypedInvestigation) {
+    const diagnosis = selectedTypedInvestigation.result?.diagnosis
+    return (
+      <div className={cn('flex flex-col gap-4', className)}>
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-medium text-foreground">Typed diagnosis</p>
+            <p className="text-xs text-muted-foreground" title={selectedTypedInvestigation.investigationId}>{selectedTypedInvestigation.operationStatus} · {selectedTypedInvestigation.investigationId}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadInvestigations(true)}
+            aria-label="Refresh investigations"
+            className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
+            <span>Refresh</span>
+          </button>
+        </div>
+        {error && <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3"><p className="text-sm text-red-400">{error}</p></div>}
+        <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
+          <p className="text-sm font-medium">{diagnosis ? `${diagnosis.condition ?? 'unknown'} · ${diagnosis.disposition ?? 'inconclusive'}` : 'Diagnosis pending'}</p>
+          {diagnosis?.summary && <p className="text-sm text-muted-foreground">{diagnosis.summary}</p>}
+          <p className="text-xs text-muted-foreground">Coverage: {formatTypedCoverage(selectedTypedInvestigation)}</p>
+          <p className="text-xs text-muted-foreground">Applicability: {selectedTypedInvestigation.result?.applicability?.state ?? 'not yet available'}</p>
+          {diagnosis?.unprovenPredicates && diagnosis.unprovenPredicates.length > 0 && <div><p className="text-xs font-medium text-foreground">Unproven predicates</p><ul className="list-disc pl-5 text-xs text-muted-foreground">{diagnosis.unprovenPredicates.map((predicate) => <li key={predicate}>{predicate}</li>)}</ul></div>}
+          <p className="text-xs text-muted-foreground">This is a diagnosis-only operation. Applying a recommendation requires a separate authorized repair workflow.</p>
+        </div>
       </div>
     )
   }

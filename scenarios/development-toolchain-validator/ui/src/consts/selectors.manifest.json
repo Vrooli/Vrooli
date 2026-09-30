@@ -1,0 +1,544 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "goldens.card": {
+      "testId": "goldens-card",
+      "selector": "[data-testid=\"goldens-card\"]"
+    },
+    "goldens.list": {
+      "testId": "goldens-list",
+      "selector": "[data-testid=\"goldens-list\"]"
+    },
+    "goldens.loading": {
+      "testId": "goldens-loading",
+      "selector": "[data-testid=\"goldens-loading\"]"
+    },
+    "goldens.empty": {
+      "testId": "goldens-empty",
+      "selector": "[data-testid=\"goldens-empty\"]"
+    },
+    "goldens.error": {
+      "testId": "goldens-error",
+      "selector": "[data-testid=\"goldens-error\"]"
+    },
+    "goldens.row": {
+      "testId": "goldens-row",
+      "selector": "[data-testid=\"goldens-row\"]"
+    },
+    "goldens.indexHeading": {
+      "testId": "goldens-index-heading",
+      "selector": "[data-testid=\"goldens-index-heading\"]"
+    },
+    "goldens.detailHeading": {
+      "testId": "goldens-detail-heading",
+      "selector": "[data-testid=\"goldens-detail-heading\"]"
+    },
+    "goldens.detailBack": {
+      "testId": "goldens-detail-back",
+      "selector": "[data-testid=\"goldens-detail-back\"]"
+    },
+    "goldens.registerOpen": {
+      "testId": "goldens-register-open",
+      "selector": "[data-testid=\"goldens-register-open\"]"
+    },
+    "goldens.registerSheet": {
+      "testId": "goldens-register-sheet",
+      "selector": "[data-testid=\"goldens-register-sheet\"]"
+    },
+    "goldens.registerForm": {
+      "testId": "goldens-register-form",
+      "selector": "[data-testid=\"goldens-register-form\"]"
+    },
+    "goldens.registerSlug": {
+      "testId": "goldens-register-slug",
+      "selector": "[data-testid=\"goldens-register-slug\"]"
+    },
+    "goldens.registerTemplate": {
+      "testId": "goldens-register-template",
+      "selector": "[data-testid=\"goldens-register-template\"]"
+    },
+    "goldens.registerVersion": {
+      "testId": "goldens-register-version",
+      "selector": "[data-testid=\"goldens-register-version\"]"
+    },
+    "goldens.registerPath": {
+      "testId": "goldens-register-path",
+      "selector": "[data-testid=\"goldens-register-path\"]"
+    },
+    "goldens.registerSubmit": {
+      "testId": "goldens-register-submit",
+      "selector": "[data-testid=\"goldens-register-submit\"]"
+    },
+    "goldens.registerError": {
+      "testId": "goldens-register-error",
+      "selector": "[data-testid=\"goldens-register-error\"]"
+    },
+    "goldens.detail": {
+      "testId": "goldens-detail",
+      "selector": "[data-testid=\"goldens-detail\"]"
+    },
+    "goldens.detailRegenerate": {
+      "testId": "goldens-detail-regenerate",
+      "selector": "[data-testid=\"goldens-detail-regenerate\"]"
+    },
+    "goldens.detailDelete": {
+      "testId": "goldens-detail-delete",
+      "selector": "[data-testid=\"goldens-detail-delete\"]"
+    },
+    "goldens.detailClose": {
+      "testId": "goldens-detail-close",
+      "selector": "[data-testid=\"goldens-detail-close\"]"
+    },
+    "goldens.detailStatus": {
+      "testId": "goldens-detail-status",
+      "selector": "[data-testid=\"goldens-detail-status\"]"
+    },
+    "goldens.skillsGrid": {
+      "testId": "goldens-skills-grid",
+      "selector": "[data-testid=\"goldens-skills-grid\"]"
+    },
+    "goldens.toolsGrid": {
+      "testId": "goldens-tools-grid",
+      "selector": "[data-testid=\"goldens-tools-grid\"]"
+    },
+    "goldens.rowVerdictSummary": {
+      "testId": "goldens-row-verdict-summary",
+      "selector": "[data-testid=\"goldens-row-verdict-summary\"]"
+    },
+    "goldens.tupleDetail": {
+      "testId": "goldens-tuple-detail",
+      "selector": "[data-testid=\"goldens-tuple-detail\"]"
+    },
+    "goldens.tupleDetailBack": {
+      "testId": "goldens-tuple-back",
+      "selector": "[data-testid=\"goldens-tuple-back\"]"
+    },
+    "goldens.tupleDetailHeading": {
+      "testId": "goldens-tuple-detail-heading",
+      "selector": "[data-testid=\"goldens-tuple-detail-heading\"]"
+    },
+    "goldens.tupleDetailRunSummary": {
+      "testId": "goldens-tuple-run-summary",
+      "selector": "[data-testid=\"goldens-tuple-run-summary\"]"
+    },
+    "goldens.tupleDetailTabs": {
+      "testId": "goldens-tuple-tabs",
+      "selector": "[data-testid=\"goldens-tuple-tabs\"]"
+    },
+    "goldens.tupleDetailDiff": {
+      "testId": "goldens-tuple-diff",
+      "selector": "[data-testid=\"goldens-tuple-diff\"]"
+    },
+    "goldens.tupleDetailManifest": {
+      "testId": "goldens-tuple-manifest",
+      "selector": "[data-testid=\"goldens-tuple-manifest\"]"
+    },
+    "goldens.tupleDetailHistory": {
+      "testId": "goldens-tuple-history",
+      "selector": "[data-testid=\"goldens-tuple-history\"]"
+    },
+    "goldens.tupleRow": {
+      "testId": "goldens-tuple-row",
+      "selector": "[data-testid=\"goldens-tuple-row\"]"
+    },
+    "skills.surface": {
+      "testId": "skills-surface",
+      "selector": "[data-testid=\"skills-surface\"]"
+    },
+    "skills.list": {
+      "testId": "skills-list",
+      "selector": "[data-testid=\"skills-list\"]"
+    },
+    "skills.loading": {
+      "testId": "skills-loading",
+      "selector": "[data-testid=\"skills-loading\"]"
+    },
+    "skills.empty": {
+      "testId": "skills-empty",
+      "selector": "[data-testid=\"skills-empty\"]"
+    },
+    "skills.error": {
+      "testId": "skills-error",
+      "selector": "[data-testid=\"skills-error\"]"
+    },
+    "skills.row": {
+      "testId": "skills-row",
+      "selector": "[data-testid=\"skills-row\"]"
+    },
+    "skills.detail": {
+      "testId": "skills-detail",
+      "selector": "[data-testid=\"skills-detail\"]"
+    },
+    "skills.detailBack": {
+      "testId": "skills-detail-back",
+      "selector": "[data-testid=\"skills-detail-back\"]"
+    },
+    "skills.detailHeading": {
+      "testId": "skills-detail-heading",
+      "selector": "[data-testid=\"skills-detail-heading\"]"
+    },
+    "manifests.surface": {
+      "testId": "manifests-surface",
+      "selector": "[data-testid=\"manifests-surface\"]"
+    },
+    "manifests.list": {
+      "testId": "manifests-list",
+      "selector": "[data-testid=\"manifests-list\"]"
+    },
+    "manifests.loading": {
+      "testId": "manifests-loading",
+      "selector": "[data-testid=\"manifests-loading\"]"
+    },
+    "manifests.empty": {
+      "testId": "manifests-empty",
+      "selector": "[data-testid=\"manifests-empty\"]"
+    },
+    "manifests.error": {
+      "testId": "manifests-error",
+      "selector": "[data-testid=\"manifests-error\"]"
+    },
+    "manifests.row": {
+      "testId": "manifests-row",
+      "selector": "[data-testid=\"manifests-row\"]"
+    },
+    "manifests.editor": {
+      "testId": "manifests-editor",
+      "selector": "[data-testid=\"manifests-editor\"]"
+    },
+    "manifests.editorBack": {
+      "testId": "manifests-editor-back",
+      "selector": "[data-testid=\"manifests-editor-back\"]"
+    },
+    "manifests.editorHeading": {
+      "testId": "manifests-editor-heading",
+      "selector": "[data-testid=\"manifests-editor-heading\"]"
+    },
+    "manifests.editorAllowedPaths": {
+      "testId": "manifests-editor-allowed-paths",
+      "selector": "[data-testid=\"manifests-editor-allowed-paths\"]"
+    },
+    "manifests.editorWildcardAllowed": {
+      "testId": "manifests-editor-wildcard-allowed",
+      "selector": "[data-testid=\"manifests-editor-wildcard-allowed\"]"
+    },
+    "manifests.editorConvergence": {
+      "testId": "manifests-editor-convergence",
+      "selector": "[data-testid=\"manifests-editor-convergence\"]"
+    },
+    "manifests.editorContentRules": {
+      "testId": "manifests-editor-content-rules",
+      "selector": "[data-testid=\"manifests-editor-content-rules\"]"
+    },
+    "manifests.editorSave": {
+      "testId": "manifests-editor-save",
+      "selector": "[data-testid=\"manifests-editor-save\"]"
+    },
+    "manifests.editorClearStale": {
+      "testId": "manifests-editor-clear-stale",
+      "selector": "[data-testid=\"manifests-editor-clear-stale\"]"
+    },
+    "manifests.editorStatus": {
+      "testId": "manifests-editor-status",
+      "selector": "[data-testid=\"manifests-editor-status\"]"
+    },
+    "runs.surface": {
+      "testId": "runs-surface",
+      "selector": "[data-testid=\"runs-surface\"]"
+    },
+    "runs.list": {
+      "testId": "runs-list",
+      "selector": "[data-testid=\"runs-list\"]"
+    },
+    "runs.loading": {
+      "testId": "runs-loading",
+      "selector": "[data-testid=\"runs-loading\"]"
+    },
+    "runs.empty": {
+      "testId": "runs-empty",
+      "selector": "[data-testid=\"runs-empty\"]"
+    },
+    "runs.error": {
+      "testId": "runs-error",
+      "selector": "[data-testid=\"runs-error\"]"
+    },
+    "runs.row": {
+      "testId": "runs-row",
+      "selector": "[data-testid=\"runs-row\"]"
+    },
+    "runs.startCard": {
+      "testId": "runs-start-card",
+      "selector": "[data-testid=\"runs-start-card\"]"
+    },
+    "runs.startForm": {
+      "testId": "runs-start-form",
+      "selector": "[data-testid=\"runs-start-form\"]"
+    },
+    "runs.startKind": {
+      "testId": "runs-start-kind",
+      "selector": "[data-testid=\"runs-start-kind\"]"
+    },
+    "runs.startSubject": {
+      "testId": "runs-start-subject",
+      "selector": "[data-testid=\"runs-start-subject\"]"
+    },
+    "runs.startGolden": {
+      "testId": "runs-start-golden",
+      "selector": "[data-testid=\"runs-start-golden\"]"
+    },
+    "runs.startForce": {
+      "testId": "runs-start-force",
+      "selector": "[data-testid=\"runs-start-force\"]"
+    },
+    "runs.startSubmit": {
+      "testId": "runs-start-submit",
+      "selector": "[data-testid=\"runs-start-submit\"]"
+    },
+    "runs.startError": {
+      "testId": "runs-start-error",
+      "selector": "[data-testid=\"runs-start-error\"]"
+    },
+    "runs.detail": {
+      "testId": "runs-detail",
+      "selector": "[data-testid=\"runs-detail\"]"
+    },
+    "runs.detailBack": {
+      "testId": "runs-detail-back",
+      "selector": "[data-testid=\"runs-detail-back\"]"
+    },
+    "runs.detailHeading": {
+      "testId": "runs-detail-heading",
+      "selector": "[data-testid=\"runs-detail-heading\"]"
+    },
+    "runs.detailStatus": {
+      "testId": "runs-detail-status",
+      "selector": "[data-testid=\"runs-detail-status\"]"
+    },
+    "runs.detailVerdict": {
+      "testId": "runs-detail-verdict",
+      "selector": "[data-testid=\"runs-detail-verdict\"]"
+    },
+    "runs.detailError": {
+      "testId": "runs-detail-error",
+      "selector": "[data-testid=\"runs-detail-error\"]"
+    },
+    "runs.runValidation": {
+      "testId": "runs-run-validation",
+      "selector": "[data-testid=\"runs-run-validation\"]"
+    },
+    "nav.sidebar": {
+      "testId": "nav-sidebar",
+      "selector": "[data-testid=\"nav-sidebar\"]"
+    },
+    "nav.sidebarLogo": {
+      "testId": "nav-sidebar-logo",
+      "selector": "[data-testid=\"nav-sidebar-logo\"]"
+    },
+    "nav.sidebarCollapseToggle": {
+      "testId": "nav-sidebar-collapse",
+      "selector": "[data-testid=\"nav-sidebar-collapse\"]"
+    },
+    "nav.sidebarItemGoldens": {
+      "testId": "nav-sidebar-goldens",
+      "selector": "[data-testid=\"nav-sidebar-goldens\"]"
+    },
+    "nav.sidebarItemSkills": {
+      "testId": "nav-sidebar-skills",
+      "selector": "[data-testid=\"nav-sidebar-skills\"]"
+    },
+    "nav.sidebarItemManifests": {
+      "testId": "nav-sidebar-manifests",
+      "selector": "[data-testid=\"nav-sidebar-manifests\"]"
+    },
+    "nav.sidebarItemRuns": {
+      "testId": "nav-sidebar-runs",
+      "selector": "[data-testid=\"nav-sidebar-runs\"]"
+    },
+    "nav.sidebarItemSettings": {
+      "testId": "nav-sidebar-settings",
+      "selector": "[data-testid=\"nav-sidebar-settings\"]"
+    },
+    "nav.topHeader": {
+      "testId": "nav-top-header",
+      "selector": "[data-testid=\"nav-top-header\"]"
+    },
+    "nav.topHeaderConvergence": {
+      "testId": "nav-top-header-convergence",
+      "selector": "[data-testid=\"nav-top-header-convergence\"]"
+    },
+    "nav.topHeaderStale": {
+      "testId": "nav-top-header-stale",
+      "selector": "[data-testid=\"nav-top-header-stale\"]"
+    },
+    "nav.topHeaderHealth": {
+      "testId": "nav-top-header-health",
+      "selector": "[data-testid=\"nav-top-header-health\"]"
+    },
+    "nav.topHeaderMenu": {
+      "testId": "nav-top-header-menu",
+      "selector": "[data-testid=\"nav-top-header-menu\"]"
+    },
+    "nav.mobileBottomNav": {
+      "testId": "nav-mobile-bottom",
+      "selector": "[data-testid=\"nav-mobile-bottom\"]"
+    },
+    "nav.mobileBottomItemGoldens": {
+      "testId": "nav-mobile-goldens",
+      "selector": "[data-testid=\"nav-mobile-goldens\"]"
+    },
+    "nav.mobileBottomItemSkills": {
+      "testId": "nav-mobile-skills",
+      "selector": "[data-testid=\"nav-mobile-skills\"]"
+    },
+    "nav.mobileBottomItemManifests": {
+      "testId": "nav-mobile-manifests",
+      "selector": "[data-testid=\"nav-mobile-manifests\"]"
+    },
+    "nav.mobileBottomItemRuns": {
+      "testId": "nav-mobile-runs",
+      "selector": "[data-testid=\"nav-mobile-runs\"]"
+    },
+    "nav.mobileBottomItemSettings": {
+      "testId": "nav-mobile-settings",
+      "selector": "[data-testid=\"nav-mobile-settings\"]"
+    },
+    "nav.appShell": {
+      "testId": "app-shell",
+      "selector": "[data-testid=\"app-shell\"]"
+    },
+    "settings.surface": {
+      "testId": "settings-surface",
+      "selector": "[data-testid=\"settings-surface\"]"
+    },
+    "settings.themeDark": {
+      "testId": "settings-theme-dark",
+      "selector": "[data-testid=\"settings-theme-dark\"]"
+    },
+    "settings.themeLight": {
+      "testId": "settings-theme-light",
+      "selector": "[data-testid=\"settings-theme-light\"]"
+    },
+    "settings.densityComfortable": {
+      "testId": "settings-density-comfortable",
+      "selector": "[data-testid=\"settings-density-comfortable\"]"
+    },
+    "settings.densityCompact": {
+      "testId": "settings-density-compact",
+      "selector": "[data-testid=\"settings-density-compact\"]"
+    },
+    "settings.sidebarCollapsed": {
+      "testId": "settings-sidebar-collapsed",
+      "selector": "[data-testid=\"settings-sidebar-collapsed\"]"
+    },
+    "settings.catalogSyncCard": {
+      "testId": "settings-catalog-sync-card",
+      "selector": "[data-testid=\"settings-catalog-sync-card\"]"
+    },
+    "settings.catalogSyncButton": {
+      "testId": "settings-catalog-sync-button",
+      "selector": "[data-testid=\"settings-catalog-sync-button\"]"
+    },
+    "settings.catalogSyncSummary": {
+      "testId": "settings-catalog-sync-summary",
+      "selector": "[data-testid=\"settings-catalog-sync-summary\"]"
+    },
+    "settings.catalogSyncError": {
+      "testId": "settings-catalog-sync-error",
+      "selector": "[data-testid=\"settings-catalog-sync-error\"]"
+    },
+    "settings.watcherCard": {
+      "testId": "settings-watcher-card",
+      "selector": "[data-testid=\"settings-watcher-card\"]"
+    },
+    "settings.watcherSummary": {
+      "testId": "settings-watcher-summary",
+      "selector": "[data-testid=\"settings-watcher-summary\"]"
+    },
+    "settings.watcherError": {
+      "testId": "settings-watcher-error",
+      "selector": "[data-testid=\"settings-watcher-error\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "b9af2472e48565b63763d65d83110aca5a35dd300eae1a87c5ded8209abdfbac",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

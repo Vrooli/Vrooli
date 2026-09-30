@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-retry",
+    "name": "useRetry",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A retry controller with attempt limits, backoff, cancellation, and retryability classification, so failures that cannot succeed on repeat are not repeated.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "hook",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "requiredCapabilities": [
+    "recovery-path"
+  ]
+}

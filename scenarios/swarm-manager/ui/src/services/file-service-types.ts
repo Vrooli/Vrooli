@@ -2,7 +2,7 @@
  * Generic File Service Interface
  *
  * Entity-agnostic contract for file operations. Both backlog items and
- * initiatives implement this interface so that shared UI components
+ * goals implement this interface so that shared UI components
  * (FilePreview, FileUpload, FileBrowser, etc.) work with either entity
  * type without code duplication.
  *
@@ -18,13 +18,13 @@ export interface FileOperationResult {
 }
 
 export interface IFileService {
-  /** Human-readable entity label for UI strings (e.g., "backlog item", "initiative") */
+  /** Human-readable entity label for UI strings (e.g., "backlog item", "goal") */
   readonly entityLabel: string;
-  /** File path that cannot be operated on (e.g., "spec.json", "initiative.json") */
+  /** File path that cannot be operated on (e.g., "spec.json", "goal.json") */
   readonly protectedFile: string;
   /** Base URL for raw file content — used for image src attributes */
   readonly fileContentBaseUrl: string;
-  /** React Query cache key prefix (e.g., ["backlog", kind, name] or ["initiative", name]) */
+  /** React Query cache key prefix (e.g., ["backlog", kind, name] or ["goal", name]) */
   readonly queryKeyPrefix: readonly string[];
 
   getFiles(): Promise<BacklogFile[]>;

@@ -15,7 +15,9 @@ func BrowserProfileFromProto(p *basbase.BrowserProfile) *BrowserProfile {
 	}
 
 	bp := &BrowserProfile{
-		Preset: p.GetPreset(),
+		Preset:           p.GetPreset(),
+		MotionPreference: p.GetMotionPreference(),
+		InteractionState: p.GetInteractionState(),
 	}
 
 	if p.Fingerprint != nil {
@@ -145,6 +147,12 @@ func BrowserProfileToProto(bp *BrowserProfile) *basbase.BrowserProfile {
 	}
 	if len(bp.ExtraHeaders) > 0 {
 		p.ExtraHeaders = bp.ExtraHeaders
+	}
+	if bp.MotionPreference != "" {
+		p.MotionPreference = proto.String(bp.MotionPreference)
+	}
+	if bp.InteractionState != "" {
+		p.InteractionState = proto.String(bp.InteractionState)
 	}
 
 	return p
@@ -356,12 +364,20 @@ func MergeBrowserProfiles(base, override *BrowserProfile) *BrowserProfile {
 
 	// Start with a copy of base
 	result := &BrowserProfile{
-		Preset: base.Preset,
+		Preset:           base.Preset,
+		MotionPreference: base.MotionPreference,
+		InteractionState: base.InteractionState,
 	}
 
 	// Override preset if set
 	if override.Preset != "" {
 		result.Preset = override.Preset
+	}
+	if override.MotionPreference != "" {
+		result.MotionPreference = override.MotionPreference
+	}
+	if override.InteractionState != "" {
+		result.InteractionState = override.InteractionState
 	}
 
 	// Merge fingerprint settings

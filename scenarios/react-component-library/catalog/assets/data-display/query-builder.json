@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.query-builder",
+    "name": "QueryBuilder",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "The structured predicate editor with nested groups, field-aware operators, typed values, validation, keyboard operation, a human-readable summary, and stable serialization.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.form",
+        "reason": "Predicate values are fields and use the shared form runtime."
+      },
+      {
+        "asset": "forms.select",
+        "reason": "Field and operator choice is shared."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "error-association"
+  ],
+  "requiredStates": [
+    "default",
+    "empty",
+    "validation-error"
+  ]
+}

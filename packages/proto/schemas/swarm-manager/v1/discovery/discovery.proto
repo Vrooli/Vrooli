@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.discovery;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/discovery;discovery_v1";
+
+// =============================================================================
+// DISCOVERY DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Server-side resolution of audio-tools' base URL so the browser never
+// composes scenario URLs. The swarm-manager UI calls
+// GetAudioToolsEndpoint at boot, then constructs an AudioToolsClient
+// against the returned base URL.
+//
+// Mirrors the field shape used by web-console's discovery domain so
+// adopters can copy the audio-integration UI folder unchanged.
+//
+// Procedure path:
+//   /vrooli.swarm_manager.v1.discovery.DiscoveryService/GetAudioToolsEndpoint
+// =============================================================================
+
+message GetAudioToolsEndpointRequest {}
+
+// GetAudioToolsEndpointResponse carries the resolved base URLs or a
+// stable token explaining why audio-tools is unreachable. The browser
+// uses the token to drive an "audio unavailable" banner.
+message GetAudioToolsEndpointResponse {
+  // True when audio-tools' base URL was resolved successfully.
+  bool available = 1;
+
+  // HTTP(S) base URL with no trailing slash. Empty when available=false.
+  string base_url = 2;
+
+  // ws://, wss:// base URL with no trailing slash. Empty when available=false.
+  string ws_base_url = 3;
+
+  // Stable token explaining why audio-tools is unreachable. One of:
+  //   "resolver_not_configured" — server has no resolver wired
+  //   "env_misconfigured"       — AUDIO_TOOLS_URL is missing/empty
+  //   "scenario_not_running"    — lifecycle reports audio-tools is down
+  //   "discovery_failed"        — generic / unclassified resolver error
+  // Empty when available=true.
+  string unavailable_reason = 4;
+}
+
+service DiscoveryService {
+  // Resolve the audio-tools base URL via the swarm-manager backend.
+  // Browsers call this at boot; never throws — unreachable audio-tools
+  // returns available=false with a stable unavailable_reason token.
+  rpc GetAudioToolsEndpoint(GetAudioToolsEndpointRequest) returns (GetAudioToolsEndpointResponse);
+}

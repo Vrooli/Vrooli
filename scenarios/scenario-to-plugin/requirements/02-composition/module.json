@@ -1,0 +1,122 @@
+{
+  "_metadata": {
+    "module": "composition",
+    "description": "Composition turns a validated declaration into an Agent Plugins 1.0.0 artifact tree. It owns the package model and the emitted manifest shape.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PLG-COMPOSE-TREE",
+      "title": "When composition succeeds, the ramp shall emit a plugin root containing plugin.json and, where declared, a skills/ directory and mcp.json at the fixed locations the Agent Plugins specification requires.",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "composition.tree",
+      "description": "Component locations are fixed by the specification and cannot be overridden. A client that cannot find skills/ at the plugin root will silently load nothing, so layout conformance is a composition-time guarantee rather than a publish-time check.",
+      "tags": [
+        "agent-plugins",
+        "layout",
+        "spec-conformance"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/composition/tree_test.go; api: api/handlers/composition/module_test.go; cli: cli/domains/composition/register_test.go. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-COMPOSE-MANIFEST",
+      "title": "The ramp shall emit a plugin.json restricted to the permitted top-level fields of the Agent Plugins specification, always carrying name and the schema reference.",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "composition.manifest",
+      "description": "The manifest schema is closed. An unrecognized top-level field is a specification violation rather than a harmless extension, so the emitter allows only the permitted set and rejects declaration input that would produce anything else.",
+      "tags": [
+        "agent-plugins",
+        "manifest",
+        "closed-schema"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/composition/manifest_test.go; ui: ui/src/features/packages/__tests__/ManifestPreview.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-COMPOSE-INDEPENDENT",
+      "title": "If one component of a composed package is invalid, then the ramp shall report that component as failed without marking unrelated components failed.",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "composition.validation",
+      "description": "The specification validates components independently after the manifest passes. Mirroring that behavior gives an author the full list of what is wrong in one pass instead of one error per rebuild cycle.",
+      "tags": [
+        "agent-plugins",
+        "validation",
+        "diagnostics"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/composition/component_test.go; ui: ui/src/features/packages/__tests__/ComponentFindings.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-COMPOSE-MCP",
+      "title": "Where a scenario declares an MCP server, the ramp should emit mcp.json and record that server's declared transport and authentication posture in the package report.",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "composition.mcp",
+      "description": "MCP configuration stays out of plugin.json by design, which keeps procedures (skills) separate from live external access (servers). Recording the authentication posture matters because a large share of public MCP servers ship with no authentication at all, and an operator should see that before publishing.",
+      "tags": [
+        "mcp",
+        "agent-plugins",
+        "auth-posture"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/composition/mcp_test.go; ui: ui/src/features/packages/__tests__/McpPosture.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-COMPOSE-COMPOSITE",
+      "title": "The ramp may compose one plugin from several scenarios when the declaration names those scenarios as a single external capability.",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "composition.composite",
+      "description": "Some capabilities only make sense to an external agent as a set. This stays deferred until one single-scenario plugin has been published and measured, because composite packaging multiplies both the drift surface and the revocation surface.",
+      "tags": [
+        "composite",
+        "roadmap"
+      ],
+      "delivery_scope": "roadmap",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/composition/composite_test.go. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    }
+  ]
+}

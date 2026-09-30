@@ -1,0 +1,136 @@
+{
+  "_metadata": {
+    "module": "release",
+    "description": "Disclosure derivation, the asset-studio handoff for model-backed work, and the reference surface consuming scenarios read.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "REL-001",
+      "title": "The system shall derive the AI-generated flag from the declared strategy",
+      "status": "planned",
+      "prd_ref": "OT-P0-013",
+      "category": "release",
+      "criticality": "P0",
+      "description": "The system shall set an asset's AI-generated flag from its style's declared strategy: true for `guided` and `synthesized`, false for `procedural` and `procedural-treated`. The system shall reject any request that sets the flag directly. Marking procedurally drawn output as AI-generated is a false claim, so over-disclosure is refused on the same footing as under-disclosure.",
+      "tags": [
+        "disclosure",
+        "integrity",
+        "invariant"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "One case per strategy asserting the derived value, plus a case asserting a direct set is rejected."
+        }
+      ]
+    },
+    {
+      "id": "REL-002",
+      "title": "The system shall release model-backed candidates through asset-studio",
+      "status": "planned",
+      "prd_ref": "OT-P0-014",
+      "category": "release",
+      "criticality": "P0",
+      "description": "While a candidate was produced by a strategy that invoked a model, the system shall release it through `asset-studio` so that provenance, cost, and disclosure are recorded once. The system shall not persist a second provenance record for that asset.",
+      "tags": [
+        "asset-studio",
+        "provenance",
+        "integration"
+      ],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Release a guided candidate through a faked asset-studio seam; assert the handoff carries strategy-derived disclosure and that no local provenance row is written."
+        }
+      ]
+    },
+    {
+      "id": "REL-003",
+      "title": "The system shall release procedural candidates without an asset-studio handoff",
+      "status": "planned",
+      "prd_ref": "OT-P0-014",
+      "category": "release",
+      "criticality": "P0",
+      "description": "While a candidate was produced without any model invocation, the system shall release it locally and shall not require `asset-studio`. A procedural render incurs no spend, carries no disclosure obligation, and reproduces from its seed, so routing it through a cost-and-disclosure ledger would add a dependency that buys nothing. This keeps the product usable when `asset-studio` is unavailable.",
+      "tags": [
+        "asset-studio",
+        "degradation",
+        "boundary"
+      ],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "With the asset-studio seam faked to fail on any call, assert a procedural candidate still releases and a guided candidate is refused with a clear cause."
+        }
+      ]
+    },
+    {
+      "id": "REL-004",
+      "title": "The system shall expose released backdrops by stable identifier without serving their bytes",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "release",
+      "criticality": "P0",
+      "description": "The system shall expose a released backdrop by stable identifier carrying its placement, reserved regions, measured contrast, disclosure state, and alt text. The consumer reference response shall not contain image bytes, so that a consuming scenario references a backdrop rather than copying it.",
+      "tags": [
+        "consumer-surface",
+        "compound-value",
+        "seam"
+      ],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Assert the reference response schema carries no byte-bearing field and that every declared metadata field is populated for a released backdrop."
+        }
+      ]
+    },
+    {
+      "id": "REL-005",
+      "title": "The system shall require operator-authored alt text before release",
+      "status": "planned",
+      "prd_ref": "OT-P0-021",
+      "category": "release",
+      "criticality": "P0",
+      "description": "The system shall refuse to release a backdrop carrying empty alt text. Because an ambient image is decorative in most placements, the system shall accept an explicit decorative marking as a valid answer, but shall require that the choice be made rather than defaulted.",
+      "tags": [
+        "accessibility",
+        "gate"
+      ],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Assert release is refused on empty alt text and permitted when marked decorative."
+        }
+      ]
+    },
+    {
+      "id": "REL-006",
+      "title": "The system should derive sized variants preserving the reserved regions",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "release",
+      "criticality": "P1",
+      "description": "The system should derive variants of a released backdrop for the surfaces a page needs — hero, split panel, open-graph card, and mobile crop — and should recompute the reserved regions and its contrast verdict for each variant rather than inheriting the parent's.",
+      "tags": [
+        "variants",
+        "placement",
+        "responsive"
+      ],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Derive each variant; assert an independent region and verdict per variant, and that a variant failing the gate is marked unreleasable."
+        }
+      ]
+    }
+  ]
+}

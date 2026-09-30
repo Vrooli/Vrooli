@@ -88,6 +88,7 @@ function AIPromptModal({
   onClose,
   folder,
   projectId,
+  onSwitchToManual,
 }: AIPromptModalProps) {
   const navigate = useNavigate();
   const titleId = useId();
@@ -285,6 +286,7 @@ function AIPromptModal({
                 <button
                   key={index}
                   onClick={() => handleExampleClick(example)}
+                  data-testid={`ai-example-prompt-${index}`}
                   className="px-3 py-1.5 text-xs text-gray-400 bg-gray-800/50 border border-gray-700 rounded-lg hover:border-gray-600 hover:text-gray-300 transition-colors"
                 >
                   {example}
@@ -323,6 +325,16 @@ function AIPromptModal({
               >
                 Cancel
               </button>
+              {onSwitchToManual && (
+                <button
+                  type="button"
+                  onClick={onSwitchToManual}
+                  data-testid={selectors.ai.modal.switchToManualButton}
+                  className="px-5 py-2.5 text-purple-300 border border-purple-500/40 rounded-xl hover:bg-purple-500/10 transition-colors"
+                >
+                  Switch to Manual Builder
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleStart}

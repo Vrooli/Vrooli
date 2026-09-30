@@ -16,7 +16,7 @@ describe("useImageUpload", () => {
 
   it("uploads file and injects path into terminal", async () => {
     mockFetchSuccess({ path: "/tmp/web-console-uploads/sess-1/test.png" });
-    const sendInput = vi.fn().mockReturnValue(true);
+    const sendInput = vi.fn().mockReturnValue({ status: "sent" as const, offset: 1 });
 
     const { result } = renderHook(() => useImageUpload("sess-1", sendInput));
 
@@ -28,7 +28,7 @@ describe("useImageUpload", () => {
       await result.current.uploadAndInject(file);
     });
 
-    expect(sendInput).toHaveBeenCalledWith("/tmp/web-console-uploads/sess-1/test.png\n");
+    expect(sendInput).toHaveBeenCalledWith("/tmp/web-console-uploads/sess-1/test.png\n", "bulk_text");
     expect(result.current.uploading).toBe(false);
     expect(result.current.error).toBeNull();
   });
@@ -40,7 +40,7 @@ describe("useImageUpload", () => {
       category: "validation",
       recovery: "Upload an image file",
     });
-    const sendInput = vi.fn().mockReturnValue(true);
+    const sendInput = vi.fn().mockReturnValue({ status: "sent" as const, offset: 1 });
 
     const { result } = renderHook(() => useImageUpload("sess-1", sendInput));
 
@@ -61,7 +61,7 @@ describe("useImageUpload", () => {
         resolveUpload = resolve;
       }),
     ) as typeof fetch;
-    const sendInput = vi.fn().mockReturnValue(true);
+    const sendInput = vi.fn().mockReturnValue({ status: "sent" as const, offset: 1 });
 
     const { result } = renderHook(() => useImageUpload("sess-1", sendInput));
 

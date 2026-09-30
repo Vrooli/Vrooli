@@ -5,32 +5,173 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/identity"
 )
 
-// CreateDeployment inserts a new deployment record.
+// deploymentColumns is the single projection every deployment read uses so a
+// new column is added in one place and scanned by one helper.
+const deploymentColumns = `
+			id, name, scenario_id, environment, target_binding, fence, desired_state, persistent_data, status, manifest,
+			bundle_path, bundle_sha256, bundle_size_bytes,
+			setup_result, deploy_result, preflight_result, last_inspect_result, ssh_identity,
+			error_message, error_step,
+			progress_step, progress_percent,
+			created_at, updated_at, last_deployed_at, last_inspected_at`
+
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+// scanDeployment reads one row of deploymentColumns.
+func scanDeployment(row rowScanner) (*domain.Deployment, error) {
+	d := &domain.Deployment{}
+	// manifest and target_binding are scanned through NullRawMessage because
+	// PostgreSQL returns jsonb as bytes while a SQLite pool may hold TEXT.
+	var binding, manifest domain.NullRawMessage
+	var desired sql.NullString
+	if err := row.Scan(
+		&d.ID,
+		&d.Name,
+		&d.ScenarioID,
+		&d.Environment,
+		&binding,
+		&d.Fence,
+		&desired,
+		&d.PersistentData,
+		&d.Status,
+		&manifest,
+		&d.BundlePath,
+		&d.BundleSHA256,
+		&d.BundleSizeBytes,
+		&d.SetupResult,
+		&d.DeployResult,
+		&d.PreflightResult,
+		&d.LastInspectResult,
+		&d.SSHIdentity,
+		&d.ErrorMessage,
+		&d.ErrorStep,
+		&d.ProgressStep,
+		&d.ProgressPercent,
+		&d.CreatedAt,
+		&d.UpdatedAt,
+		&d.LastDeployedAt,
+		&d.LastInspectedAt,
+	); err != nil {
+		return nil, err
+	}
+	d.Environment = identity.NormalizeEnvironment(d.Environment)
+	d.Manifest = manifest.Data
+	d.DesiredState = domain.DesiredState(desired.String).Normalized()
+	if binding.Valid && len(binding.Data) > 0 {
+		if err := json.Unmarshal(binding.Data, &d.Target); err != nil {
+			return nil, fmt.Errorf("decode target binding for deployment %s: %w", d.ID, err)
+		}
+	}
+	return d, nil
+}
+
+// UpdateDesiredState records the operator's intent for the workload. It
+// never touches the observed status: a stopped intent is honoured by
+// reconciliation, not by the health projection.
+func (r *Repository) UpdateDesiredState(ctx context.Context, id string, state domain.DesiredState) error {
+	switch state.Normalized() {
+	case domain.DesiredRunning, domain.DesiredStopped, domain.DesiredRetired:
+	default:
+		return fmt.Errorf("unknown desired state %q", state)
+	}
+	const q = `UPDATE deployments SET desired_state = $2, updated_at = $3 WHERE id = $1`
+	result, err := r.db.ExecContext(ctx, q, id, string(state.Normalized()), time.Now().UTC())
+	if err != nil {
+		return fmt.Errorf("failed to update desired_state: %w", err)
+	}
+	return requireRowsAffected(result, id)
+}
+
+// UpdatePersistentData records the legacy data-binding conversion.
+func (r *Repository) UpdatePersistentData(ctx context.Context, id string, bindings domain.PersistentDataBindings) error {
+	raw, err := json.Marshal(bindings)
+	if err != nil {
+		return fmt.Errorf("encode persistent data bindings: %w", err)
+	}
+	const q = `UPDATE deployments SET persistent_data = $2, updated_at = $3 WHERE id = $1`
+	result, err := r.db.ExecContext(ctx, q, id, raw, time.Now().UTC())
+	if err != nil {
+		return fmt.Errorf("failed to update persistent_data: %w", err)
+	}
+	return requireRowsAffected(result, id)
+}
+
+// bindingForWrite serialises the target binding and its uniqueness key. A
+// deployment created without an explicit binding derives one from the
+// manifest so the identity index is always populated on write.
+func bindingForWrite(d *domain.Deployment) ([]byte, *string, error) {
+	if d.Target.IsZero() && len(d.Manifest) > 0 {
+		var m domain.CloudManifest
+		if err := json.Unmarshal(d.Manifest, &m); err == nil {
+			d.Target = domain.TargetRefFromManifest(m)
+		}
+	}
+	raw, err := json.Marshal(d.Target)
+	if err != nil {
+		return nil, nil, fmt.Errorf("encode target binding: %w", err)
+	}
+	return raw, targetKeyPtr(d.Target), nil
+}
+
+func targetKeyPtr(t identity.TargetRef) *string {
+	key := t.Key()
+	if key == "" {
+		return nil
+	}
+	return &key
+}
+
+// isUniqueViolation recognises the identity index conflict on both engines
+// without leaking driver types into callers.
+func isUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unique constraint") || strings.Contains(msg, "duplicate key")
+}
+
+// CreateDeployment inserts a new deployment record. A second record for the
+// same (scenario, environment, target) is a typed deployment_identity_conflict.
 func (r *Repository) CreateDeployment(ctx context.Context, d *domain.Deployment) error {
+	d.Environment = identity.NormalizeEnvironment(d.Environment)
+	binding, targetKey, err := bindingForWrite(d)
+	if err != nil {
+		return err
+	}
 	const q = `
 		INSERT INTO deployments (
-			id, name, scenario_id, status, manifest,
+			id, name, scenario_id, environment, target_binding, target_key, fence, desired_state, status, manifest,
 			bundle_path, bundle_sha256, bundle_size_bytes,
 			preflight_result, ssh_identity,
 			error_message, error_step,
 			created_at, updated_at
 		) VALUES (
-			$1, $2, $3, $4, $5,
-			$6, $7, $8,
-			$9, $10,
-			$11, $12,
-			$13, $14
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+			$11, $12, $13,
+			$14, $15,
+			$16, $17,
+			$18, $19
 		)
 	`
-	_, err := r.db.ExecContext(ctx, q,
+	_, err = r.db.ExecContext(ctx, q,
 		d.ID,
 		d.Name,
 		d.ScenarioID,
+		d.Environment,
+		binding,
+		targetKey,
+		d.Fence,
+		string(d.DesiredState.Normalized()),
 		d.Status,
 		d.Manifest,
 		d.BundlePath,
@@ -43,6 +184,9 @@ func (r *Repository) CreateDeployment(ctx context.Context, d *domain.Deployment)
 		d.CreatedAt,
 		d.UpdatedAt,
 	)
+	if isUniqueViolation(err) {
+		return identityConflict(d.ScenarioID, d.Environment, d.Target)
+	}
 	if err != nil {
 		return fmt.Errorf("failed to create deployment: %w", err)
 	}
@@ -51,41 +195,8 @@ func (r *Repository) CreateDeployment(ctx context.Context, d *domain.Deployment)
 
 // GetDeployment retrieves a deployment by ID.
 func (r *Repository) GetDeployment(ctx context.Context, id string) (*domain.Deployment, error) {
-	const q = `
-		SELECT
-			id, name, scenario_id, status, manifest,
-			bundle_path, bundle_sha256, bundle_size_bytes,
-			setup_result, deploy_result, preflight_result, last_inspect_result, ssh_identity,
-			error_message, error_step,
-			progress_step, progress_percent,
-			created_at, updated_at, last_deployed_at, last_inspected_at
-		FROM deployments
-		WHERE id = $1
-	`
-	d := &domain.Deployment{}
-	err := r.db.QueryRowContext(ctx, q, id).Scan(
-		&d.ID,
-		&d.Name,
-		&d.ScenarioID,
-		&d.Status,
-		&d.Manifest,
-		&d.BundlePath,
-		&d.BundleSHA256,
-		&d.BundleSizeBytes,
-		&d.SetupResult,
-		&d.DeployResult,
-		&d.PreflightResult,
-		&d.LastInspectResult,
-		&d.SSHIdentity,
-		&d.ErrorMessage,
-		&d.ErrorStep,
-		&d.ProgressStep,
-		&d.ProgressPercent,
-		&d.CreatedAt,
-		&d.UpdatedAt,
-		&d.LastDeployedAt,
-		&d.LastInspectedAt,
-	)
+	q := `SELECT ` + deploymentColumns + ` FROM deployments WHERE id = $1`
+	d, err := scanDeployment(r.db.QueryRowContext(ctx, q, id))
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -95,79 +206,150 @@ func (r *Repository) GetDeployment(ctx context.Context, id string) (*domain.Depl
 	return d, nil
 }
 
-// GetDeploymentByHostAndScenario finds an existing deployment for the same host+scenario combination.
-func (r *Repository) GetDeploymentByHostAndScenario(ctx context.Context, host, scenarioID string) (*domain.Deployment, error) {
-	const q = `
-		SELECT
-			id, name, scenario_id, status, manifest,
-			bundle_path, bundle_sha256, bundle_size_bytes,
-			setup_result, deploy_result, preflight_result, last_inspect_result, ssh_identity,
-			error_message, error_step,
-			progress_step, progress_percent,
-			created_at, updated_at, last_deployed_at, last_inspected_at
-		FROM deployments
-		WHERE scenario_id = $1
-		  AND manifest->'target'->'vps'->>'host' = $2
-		ORDER BY created_at DESC
-		LIMIT 1
-	`
-	d := &domain.Deployment{}
-	err := r.db.QueryRowContext(ctx, q, scenarioID, host).Scan(
-		&d.ID,
-		&d.Name,
-		&d.ScenarioID,
-		&d.Status,
-		&d.Manifest,
-		&d.BundlePath,
-		&d.BundleSHA256,
-		&d.BundleSizeBytes,
-		&d.SetupResult,
-		&d.DeployResult,
-		&d.PreflightResult,
-		&d.LastInspectResult,
-		&d.SSHIdentity,
-		&d.ErrorMessage,
-		&d.ErrorStep,
-		&d.ProgressStep,
-		&d.ProgressPercent,
-		&d.CreatedAt,
-		&d.UpdatedAt,
-		&d.LastDeployedAt,
-		&d.LastInspectedAt,
-	)
+// GetDeploymentRef returns only the stable identity of a deployment, or nil
+// when the record does not exist.
+func (r *Repository) GetDeploymentRef(ctx context.Context, id string) (*identity.DeploymentRef, error) {
+	const q = `SELECT id, scenario_id, environment, target_binding FROM deployments WHERE id = $1`
+	ref, err := scanDeploymentRef(r.db.QueryRowContext(ctx, q, id))
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to get deployment by host and scenario: %w", err)
+		return nil, fmt.Errorf("failed to get deployment ref: %w", err)
 	}
-	return d, nil
+	return &ref, nil
+}
+
+func scanDeploymentRef(row rowScanner) (identity.DeploymentRef, error) {
+	var ref identity.DeploymentRef
+	var binding domain.NullRawMessage
+	if err := row.Scan(&ref.ID, &ref.ScenarioID, &ref.Environment, &binding); err != nil {
+		return identity.DeploymentRef{}, err
+	}
+	ref.Environment = identity.NormalizeEnvironment(ref.Environment)
+	if binding.Valid && len(binding.Data) > 0 {
+		if err := json.Unmarshal(binding.Data, &ref.Target); err != nil {
+			return identity.DeploymentRef{}, fmt.Errorf("decode target binding for deployment %s: %w", ref.ID, err)
+		}
+	}
+	return ref, nil
+}
+
+// ResolveDeployments returns every deployment matching the selector. Facet
+// matching is a conjunction; the identity package decides how many matches
+// are acceptable. The host facet reads the bound locator, and the domain facet
+// reads the manifest edge domain; both JSON paths are valid on PostgreSQL and
+// SQLite so routed test pools resolve identically to production.
+func (r *Repository) ResolveDeployments(ctx context.Context, selector identity.Selector) ([]identity.DeploymentRef, error) {
+	selector = selector.Normalized()
+	q := `SELECT id, scenario_id, environment, target_binding FROM deployments WHERE 1=1`
+	args := []any{}
+	add := func(clause, value string) {
+		args = append(args, value)
+		q += fmt.Sprintf(" AND %s = $%d", clause, len(args))
+	}
+	if selector.ID != "" {
+		add("id", selector.ID)
+	}
+	if selector.ScenarioID != "" {
+		add("scenario_id", selector.ScenarioID)
+	}
+	if selector.Environment != "" {
+		add("environment", identity.NormalizeEnvironment(selector.Environment))
+	}
+	if selector.Domain != "" {
+		add("manifest->'edge'->>'domain'", selector.Domain)
+	}
+	if selector.Host != "" {
+		add("target_binding->'locator'->>'host'", selector.Host)
+	}
+	q += " ORDER BY created_at DESC"
+
+	rows, err := r.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve deployments: %w", err)
+	}
+	defer rows.Close()
+	var refs []identity.DeploymentRef
+	for rows.Next() {
+		ref, err := scanDeploymentRef(rows)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan deployment ref: %w", err)
+		}
+		refs = append(refs, ref)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating deployment refs: %w", err)
+	}
+	return refs, nil
+}
+
+// UpdateTargetBinding rebinds the target of a deployment. The deployment ID
+// is untouched: a machine address change or a Bridge enrollment never creates
+// a new deployment. Binding onto a target already owned by another deployment
+// of the same scenario and environment is a typed conflict.
+func (r *Repository) UpdateTargetBinding(ctx context.Context, id string, target identity.TargetRef) error {
+	raw, err := json.Marshal(target)
+	if err != nil {
+		return fmt.Errorf("encode target binding: %w", err)
+	}
+	const q = `
+		UPDATE deployments SET
+			target_binding = $2,
+			target_key = $3,
+			updated_at = $4
+		WHERE id = $1
+	`
+	result, err := r.db.ExecContext(ctx, q, id, raw, targetKeyPtr(target), time.Now().UTC())
+	if isUniqueViolation(err) {
+		ref, refErr := r.GetDeploymentRef(ctx, id)
+		if refErr == nil && ref != nil {
+			return identityConflict(ref.ScenarioID, ref.Environment, target)
+		}
+		return identityConflict("", "", target)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to update target binding: %w", err)
+	}
+	return requireRowsAffected(result, id)
+}
+
+// BumpFence increments the deployment fence and returns the new value. The
+// caller stamps every write and target effect with it; a target that has seen
+// a higher fence refuses the lower one.
+func (r *Repository) BumpFence(ctx context.Context, id string) (uint64, error) {
+	const q = `
+		UPDATE deployments SET fence = fence + 1, updated_at = $2
+		WHERE id = $1
+		RETURNING fence
+	`
+	var fence uint64
+	err := r.db.QueryRowContext(ctx, q, id, time.Now().UTC()).Scan(&fence)
+	if err == sql.ErrNoRows {
+		return 0, fmt.Errorf("deployment not found: %s", id)
+	}
+	if err != nil {
+		return 0, fmt.Errorf("failed to bump fence: %w", err)
+	}
+	return fence, nil
 }
 
 // ListDeployments retrieves deployments with optional filtering.
 func (r *Repository) ListDeployments(ctx context.Context, filter domain.ListFilter) ([]*domain.Deployment, error) {
-	q := `
-		SELECT
-			id, name, scenario_id, status, manifest,
-			bundle_path, bundle_sha256, bundle_size_bytes,
-			setup_result, deploy_result, preflight_result, last_inspect_result, ssh_identity,
-			error_message, error_step,
-			progress_step, progress_percent,
-			created_at, updated_at, last_deployed_at, last_inspected_at
-		FROM deployments
-		WHERE 1=1
-	`
+	q := `SELECT ` + deploymentColumns + ` FROM deployments WHERE 1=1`
 	args := []interface{}{}
-	argNum := 1
 
 	if filter.Status != nil {
-		q += fmt.Sprintf(" AND status = $%d", argNum)
 		args = append(args, *filter.Status)
-		argNum++
+		q += fmt.Sprintf(" AND status = $%d", len(args))
 	}
 	if filter.ScenarioID != nil {
-		q += fmt.Sprintf(" AND scenario_id = $%d", argNum)
 		args = append(args, *filter.ScenarioID)
+		q += fmt.Sprintf(" AND scenario_id = $%d", len(args))
+	}
+	if filter.Environment != nil {
+		args = append(args, identity.NormalizeEnvironment(*filter.Environment))
+		q += fmt.Sprintf(" AND environment = $%d", len(args))
 	}
 
 	q += " ORDER BY created_at DESC"
@@ -187,30 +369,8 @@ func (r *Repository) ListDeployments(ctx context.Context, filter domain.ListFilt
 
 	var deployments []*domain.Deployment
 	for rows.Next() {
-		d := &domain.Deployment{}
-		if err := rows.Scan(
-			&d.ID,
-			&d.Name,
-			&d.ScenarioID,
-			&d.Status,
-			&d.Manifest,
-			&d.BundlePath,
-			&d.BundleSHA256,
-			&d.BundleSizeBytes,
-			&d.SetupResult,
-			&d.DeployResult,
-			&d.PreflightResult,
-			&d.LastInspectResult,
-			&d.SSHIdentity,
-			&d.ErrorMessage,
-			&d.ErrorStep,
-			&d.ProgressStep,
-			&d.ProgressPercent,
-			&d.CreatedAt,
-			&d.UpdatedAt,
-			&d.LastDeployedAt,
-			&d.LastInspectedAt,
-		); err != nil {
+		d, err := scanDeployment(rows)
+		if err != nil {
 			return nil, fmt.Errorf("failed to scan deployment: %w", err)
 		}
 		deployments = append(deployments, d)
@@ -223,33 +383,46 @@ func (r *Repository) ListDeployments(ctx context.Context, filter domain.ListFilt
 	return deployments, nil
 }
 
-// UpdateDeployment updates an existing deployment record.
+// UpdateDeployment updates an existing deployment record. The target binding
+// is rewritten from the record so a manifest host change keeps the locator
+// and the uniqueness key coherent; the ID and fence are never touched here.
 func (r *Repository) UpdateDeployment(ctx context.Context, d *domain.Deployment) error {
+	d.Environment = identity.NormalizeEnvironment(d.Environment)
+	binding, targetKey, err := bindingForWrite(d)
+	if err != nil {
+		return err
+	}
 	const q = `
 		UPDATE deployments SET
 			name = $2,
 			scenario_id = $3,
-			status = $4,
-			manifest = $5,
-			bundle_path = $6,
-			bundle_sha256 = $7,
-			bundle_size_bytes = $8,
-			setup_result = $9,
-			deploy_result = $10,
-			preflight_result = $11,
-			last_inspect_result = $12,
-			ssh_identity = $13,
-			error_message = $14,
-			error_step = $15,
-			updated_at = $16,
-			last_deployed_at = $17,
-			last_inspected_at = $18
+			environment = $4,
+			target_binding = $5,
+			target_key = $6,
+			status = $7,
+			manifest = $8,
+			bundle_path = $9,
+			bundle_sha256 = $10,
+			bundle_size_bytes = $11,
+			setup_result = $12,
+			deploy_result = $13,
+			preflight_result = $14,
+			last_inspect_result = $15,
+			ssh_identity = $16,
+			error_message = $17,
+			error_step = $18,
+			updated_at = $19,
+			last_deployed_at = $20,
+			last_inspected_at = $21
 		WHERE id = $1
 	`
 	result, err := r.db.ExecContext(ctx, q,
 		d.ID,
 		d.Name,
 		d.ScenarioID,
+		d.Environment,
+		binding,
+		targetKey,
 		d.Status,
 		d.Manifest,
 		d.BundlePath,
@@ -266,18 +439,23 @@ func (r *Repository) UpdateDeployment(ctx context.Context, d *domain.Deployment)
 		d.LastDeployedAt,
 		d.LastInspectedAt,
 	)
+	if isUniqueViolation(err) {
+		return identityConflict(d.ScenarioID, d.Environment, d.Target)
+	}
 	if err != nil {
 		return fmt.Errorf("failed to update deployment: %w", err)
 	}
+	return requireRowsAffected(result, d.ID)
+}
 
+func requireRowsAffected(result sql.Result, id string) error {
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
 	if rowsAffected == 0 {
-		return fmt.Errorf("deployment not found: %s", d.ID)
+		return fmt.Errorf("deployment not found: %s", id)
 	}
-
 	return nil
 }
 
@@ -296,16 +474,7 @@ func (r *Repository) UpdateDeploymentStatus(ctx context.Context, id string, stat
 	if err != nil {
 		return fmt.Errorf("failed to update deployment status: %w", err)
 	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("deployment not found: %s", id)
-	}
-
-	return nil
+	return requireRowsAffected(result, id)
 }
 
 // UpdateDeploymentSetupResult stores the VPS setup result.
@@ -411,20 +580,11 @@ func (r *Repository) UpdateDeploymentManifest(ctx context.Context, id string, ma
 	if err != nil {
 		return fmt.Errorf("failed to update manifest: %w", err)
 	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("deployment not found: %s", id)
-	}
-
-	return nil
+	return requireRowsAffected(result, id)
 }
 
 // UpdateDeploymentSSHIdentity persists the canonical SSH identity model.
-func (r *Repository) UpdateDeploymentSSHIdentity(ctx context.Context, id string, identity json.RawMessage) error {
+func (r *Repository) UpdateDeploymentSSHIdentity(ctx context.Context, id string, identityJSON json.RawMessage) error {
 	const q = `
 		UPDATE deployments SET
 			ssh_identity = $2,
@@ -432,18 +592,11 @@ func (r *Repository) UpdateDeploymentSSHIdentity(ctx context.Context, id string,
 		WHERE id = $1
 	`
 	now := time.Now()
-	result, err := r.db.ExecContext(ctx, q, id, identity, now)
+	result, err := r.db.ExecContext(ctx, q, id, identityJSON, now)
 	if err != nil {
 		return fmt.Errorf("failed to update ssh_identity: %w", err)
 	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("deployment not found: %s", id)
-	}
-	return nil
+	return requireRowsAffected(result, id)
 }
 
 // DeleteDeployment removes a deployment record.
@@ -453,16 +606,7 @@ func (r *Repository) DeleteDeployment(ctx context.Context, id string) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete deployment: %w", err)
 	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("deployment not found: %s", id)
-	}
-
-	return nil
+	return requireRowsAffected(result, id)
 }
 
 // CountDeploymentsByBundleSHA256 returns the number of deployments using a specific bundle.
@@ -555,126 +699,25 @@ func (r *Repository) GetDeploymentHistory(ctx context.Context, id string) ([]dom
 	return history, nil
 }
 
-// StartDeploymentRun begins a new deployment execution run with a fresh run_id.
-// This clears completed_steps and sets status atomically to prevent race conditions.
-// Returns the new run_id, or error if deployment is already running.
-func (r *Repository) StartDeploymentRun(ctx context.Context, id, runID string) error {
+// BeginDeploymentRun projects "an operation is executing" onto the
+// deployment record: status, cleared error and progress. It is a projection
+// written from the operation state machine, never an ownership claim — the
+// durable operation row (cloud_operations) owns execution, so there is no
+// status CAS here and an owner restart can never wedge a deployment.
+func (r *Repository) BeginDeploymentRun(ctx context.Context, id string, status domain.DeploymentStatus) error {
 	const q = `
 		UPDATE deployments SET
-			run_id = $2,
-			completed_steps = '[]'::jsonb,
-			status = 'setup_running',
-			error_message = NULL,
-			error_step = NULL,
-			preflight_result = NULL,
-			progress_step = NULL,
-			progress_percent = 0,
-			updated_at = $3
-		WHERE id = $1
-		  AND status NOT IN ('setup_running', 'deploying')
-	`
-	now := time.Now()
-	result, err := r.db.ExecContext(ctx, q, id, runID, now)
-	if err != nil {
-		return fmt.Errorf("failed to start deployment run: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("deployment is already running or not found")
-	}
-
-	return nil
-}
-
-// StartDeploymentStart begins a start/resume operation for a stopped deployment.
-// Unlike StartDeploymentRun, this sets status to 'deploying' (skipping setup phase)
-// and only works for stopped or setup_complete deployments.
-func (r *Repository) StartDeploymentStart(ctx context.Context, id, runID string) error {
-	const q = `
-		UPDATE deployments SET
-			run_id = $2,
-			completed_steps = '[]'::jsonb,
-			status = 'deploying',
+			status = $2,
 			error_message = NULL,
 			error_step = NULL,
 			progress_step = NULL,
 			progress_percent = 0,
 			updated_at = $3
 		WHERE id = $1
-		  AND status IN ('stopped', 'setup_complete')
 	`
-	now := time.Now()
-	result, err := r.db.ExecContext(ctx, q, id, runID, now)
+	result, err := r.db.ExecContext(ctx, q, id, status, time.Now().UTC())
 	if err != nil {
-		return fmt.Errorf("failed to start deployment: %w", err)
+		return fmt.Errorf("failed to begin deployment run: %w", err)
 	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("deployment not found or not in stopped/setup_complete state")
-	}
-
-	return nil
-}
-
-// MarkStepCompleted records a step as completed for idempotent replay.
-// Uses JSONB append to add the step ID to completed_steps array.
-func (r *Repository) MarkStepCompleted(ctx context.Context, id, stepID string) error {
-	const q = `
-		UPDATE deployments SET
-			completed_steps = COALESCE(completed_steps, '[]'::jsonb) || to_jsonb($2::text),
-			updated_at = $3
-		WHERE id = $1
-	`
-	now := time.Now()
-	_, err := r.db.ExecContext(ctx, q, id, stepID, now)
-	if err != nil {
-		return fmt.Errorf("failed to mark step completed: %w", err)
-	}
-	return nil
-}
-
-// GetCompletedSteps retrieves the list of completed step IDs for a deployment.
-func (r *Repository) GetCompletedSteps(ctx context.Context, id string) ([]string, error) {
-	const q = `
-		SELECT COALESCE(completed_steps, '[]'::jsonb)
-		FROM deployments
-		WHERE id = $1
-	`
-	var stepsJSON []byte
-	err := r.db.QueryRowContext(ctx, q, id).Scan(&stepsJSON)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to get completed steps: %w", err)
-	}
-
-	var steps []string
-	if err := json.Unmarshal(stepsJSON, &steps); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal completed steps: %w", err)
-	}
-
-	return steps, nil
-}
-
-// GetRunID retrieves the current run_id for a deployment.
-func (r *Repository) GetRunID(ctx context.Context, id string) (*string, error) {
-	const q = `SELECT run_id FROM deployments WHERE id = $1`
-	var runID *string
-	err := r.db.QueryRowContext(ctx, q, id).Scan(&runID)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to get run_id: %w", err)
-	}
-	return runID, nil
+	return requireRowsAffected(result, id)
 }

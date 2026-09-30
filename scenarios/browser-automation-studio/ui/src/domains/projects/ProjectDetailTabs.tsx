@@ -165,6 +165,7 @@ export function ProjectDetailTabs({ workflowCount }: ProjectDetailTabsProps) {
           <div className="hidden md:flex items-center gap-2 bg-flow-node border border-gray-700 rounded-lg p-1">
             <button
               onClick={() => handleViewModeChange("card")}
+              data-testid={selectors.workflows.cardViewToggle}
               className={`px-3 py-1.5 rounded flex items-center gap-2 transition-colors ${
                 viewMode === "card"
                   ? "bg-flow-accent text-white"

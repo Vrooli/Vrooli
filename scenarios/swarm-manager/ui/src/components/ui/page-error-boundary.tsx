@@ -20,6 +20,7 @@
 
 import { Component, type ReactNode } from "react";
 import { AlertTriangle, Home, RefreshCw } from "lucide-react";
+import { isStaleChunkError, reloadForStaleChunk } from "@vrooli/api-base";
 import { Button } from "./button";
 import { ErrorDiagnostics } from "./error-diagnostics";
 import { categorizeError, generateUniqueId } from "../../lib/error-utils";
@@ -72,6 +73,13 @@ export class PageErrorBoundary extends Component<PageErrorBoundaryProps, PageErr
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    // A stale-chunk failure means a deploy replaced this tab's lazy chunks;
+    // reloading (rate-limited) picks up the new version. If the cooldown
+    // suppresses it, render the fallback with a deploy-specific message.
+    if (isStaleChunkError(error) && reloadForStaleChunk()) {
+      return;
+    }
+
     console.error(
       "[PageErrorBoundary] Error caught:",
       JSON.stringify({
@@ -105,27 +113,38 @@ export class PageErrorBoundary extends Component<PageErrorBoundaryProps, PageErr
       }
 
       const pageName = this.props.pageName ?? "This page";
+      // Deploy artifact, not a crash: reframe and swap "Try Again" (which
+      // would just re-request the deleted chunk) for a real reload.
+      const isStaleChunk = this.state.error ? isStaleChunkError(this.state.error) : false;
 
       return (
         <div className="flex min-h-[50vh] items-center justify-center p-4">
           <div className="w-full max-w-md overflow-hidden text-center">
             <AlertTriangle className="mx-auto h-12 w-12 text-amber-400" />
             <h2 className="mt-4 text-xl font-semibold text-slate-100">
-              {pageName} encountered an error
+              {isStaleChunk ? "A new version is available" : `${pageName} encountered an error`}
             </h2>
             <p className="mt-2 text-slate-400">
-              Something went wrong while loading this page. You can try again or
-              navigate to a different section.
+              {isStaleChunk
+                ? "Swarm Manager was updated while this tab was open. Reload to pick up the new version."
+                : "Something went wrong while loading this page. You can try again or navigate to a different section."}
             </p>
             <div className="mt-6 flex justify-center gap-3">
               <Button variant="outline" onClick={this.handleGoHome}>
                 <Home className="mr-2 h-4 w-4" />
                 Go Home
               </Button>
-              <Button onClick={this.handleRetry}>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Try Again
-              </Button>
+              {isStaleChunk ? (
+                <Button onClick={() => window.location.reload()}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Reload
+                </Button>
+              ) : (
+                <Button onClick={this.handleRetry}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Try Again
+                </Button>
+              )}
             </div>
             <p className="mt-4 text-xs text-slate-600">
               Error ID: {this.state.errorId}

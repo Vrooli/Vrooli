@@ -15,10 +15,12 @@ import { z } from 'zod';
  * Response from start recording endpoint.
  */
 export const StartRecordingResponseSchema = z.object({
-  recording_id: z.string(),
-  session_id: z.string(),
-  started_at: z.string(),
+  recording_id: z.string().min(1),
+  session_id: z.string().min(1),
+  started_at: z.string().datetime({ offset: true }),
 });
+
+export const ActiveRecordingStatusSchema = StartRecordingResponseSchema.extend({ is_recording: z.literal(true) });
 
 export type StartRecordingResponse = z.infer<typeof StartRecordingResponseSchema>;
 
@@ -26,10 +28,11 @@ export type StartRecordingResponse = z.infer<typeof StartRecordingResponseSchema
  * Response from stop recording endpoint.
  */
 export const StopRecordingResponseSchema = z.object({
-  recording_id: z.string(),
-  session_id: z.string(),
-  action_count: z.number(),
-  stopped_at: z.string(),
+  recording_id: z.string().min(1),
+  session_id: z.string().min(1),
+  // ProtoJSON omits scalar zero values.
+  action_count: z.number().int().min(0).max(2147483647).default(0),
+  completed_at: z.string().datetime({ offset: true }),
 });
 
 export type StopRecordingResponse = z.infer<typeof StopRecordingResponseSchema>;
@@ -272,184 +275,6 @@ export const TimelineResponseSchema = z.object({
 });
 
 export type TimelineResponse = z.infer<typeof TimelineResponseSchema>;
-
-// ============================================================================
-// AI Navigation Schemas
-// ============================================================================
-
-/**
- * AI navigation response from start navigation endpoint.
- */
-export const AINavigateResponseSchema = z.object({
-  navigation_id: z.string(),
-  status: z.string(),
-  model: z.string(),
-  max_steps: z.number(),
-  estimated_cost: z.number().optional(),
-});
-
-export type AINavigateResponse = z.infer<typeof AINavigateResponseSchema>;
-
-/**
- * Browser action types for AI navigation.
- */
-export const BrowserActionTypeSchema = z.enum([
-  'click',
-  'type',
-  'scroll',
-  'navigate',
-  'hover',
-  'select',
-  'wait',
-  'keypress',
-  'done',
-  'request_human',
-]);
-
-export type BrowserActionType = z.infer<typeof BrowserActionTypeSchema>;
-
-/**
- * Scroll direction types.
- */
-export const ScrollDirectionSchema = z.enum(['up', 'down', 'left', 'right']);
-
-export type ScrollDirection = z.infer<typeof ScrollDirectionSchema>;
-
-/**
- * Human intervention types.
- */
-export const InterventionTypeSchema = z.enum([
-  'captcha',
-  'verification',
-  'complex_interaction',
-  'login_required',
-  'other',
-]);
-
-export type InterventionType = z.infer<typeof InterventionTypeSchema>;
-
-/**
- * Browser action from AI navigation.
- */
-export const BrowserActionSchema = z.object({
-  type: BrowserActionTypeSchema,
-  elementId: z.number().optional(),
-  coordinates: z.object({
-    x: z.number(),
-    y: z.number(),
-  }).optional(),
-  text: z.string().optional(),
-  direction: ScrollDirectionSchema.optional(),
-  url: z.string().optional(),
-  key: z.string().optional(),
-  result: z.string().optional(),
-  success: z.boolean().optional(),
-  reason: z.string().optional(),
-  instructions: z.string().optional(),
-  interventionType: InterventionTypeSchema.optional(),
-});
-
-export type BrowserAction = z.infer<typeof BrowserActionSchema>;
-
-/**
- * Token usage for AI navigation step.
- */
-export const TokensUsedSchema = z.object({
-  promptTokens: z.number(),
-  completionTokens: z.number(),
-  totalTokens: z.number(),
-});
-
-export type TokensUsed = z.infer<typeof TokensUsedSchema>;
-
-/**
- * AI navigation step event from WebSocket.
- */
-export const AINavigationStepEventSchema = z.object({
-  type: z.literal('ai_navigation_step'),
-  navigationId: z.string(),
-  sessionId: z.string(),
-  stepNumber: z.number(),
-  action: BrowserActionSchema,
-  reasoning: z.string(),
-  currentUrl: z.string(),
-  goalAchieved: z.boolean(),
-  tokensUsed: TokensUsedSchema,
-  durationMs: z.number(),
-  error: z.string().optional(),
-  timestamp: z.string(),
-});
-
-export type AINavigationStepEvent = z.infer<typeof AINavigationStepEventSchema>;
-
-/**
- * AI navigation complete status.
- */
-export const AINavigationCompleteStatusSchema = z.enum([
-  'completed',
-  'failed',
-  'aborted',
-  'max_steps_reached',
-  'loop_detected',
-  'awaiting_human',
-]);
-
-export type AINavigationCompleteStatus = z.infer<typeof AINavigationCompleteStatusSchema>;
-
-/**
- * AI navigation complete event from WebSocket.
- */
-export const AINavigationCompleteEventSchema = z.object({
-  type: z.literal('ai_navigation_complete'),
-  navigationId: z.string(),
-  sessionId: z.string(),
-  status: AINavigationCompleteStatusSchema,
-  totalSteps: z.number(),
-  totalTokens: z.number(),
-  totalDurationMs: z.number(),
-  finalUrl: z.string(),
-  error: z.string().optional(),
-  summary: z.string().optional(),
-  timestamp: z.string(),
-});
-
-export type AINavigationCompleteEvent = z.infer<typeof AINavigationCompleteEventSchema>;
-
-/**
- * Trigger types for human intervention.
- */
-export const HumanInterventionTriggerSchema = z.enum(['programmatic', 'ai_requested']);
-
-export type HumanInterventionTrigger = z.infer<typeof HumanInterventionTriggerSchema>;
-
-/**
- * AI navigation awaiting human event from WebSocket.
- */
-export const AINavigationAwaitingHumanEventSchema = z.object({
-  type: z.literal('ai_navigation_awaiting_human'),
-  navigationId: z.string(),
-  sessionId: z.string(),
-  stepNumber: z.number(),
-  reason: z.string(),
-  instructions: z.string().optional(),
-  interventionType: InterventionTypeSchema,
-  trigger: HumanInterventionTriggerSchema,
-  timestamp: z.string(),
-});
-
-export type AINavigationAwaitingHumanEvent = z.infer<typeof AINavigationAwaitingHumanEventSchema>;
-
-/**
- * AI navigation resumed event from WebSocket.
- */
-export const AINavigationResumedEventSchema = z.object({
-  type: z.literal('ai_navigation_resumed'),
-  navigationId: z.string(),
-  sessionId: z.string(),
-  timestamp: z.string(),
-});
-
-export type AINavigationResumedEvent = z.infer<typeof AINavigationResumedEventSchema>;
 
 // ============================================================================
 // History Schemas

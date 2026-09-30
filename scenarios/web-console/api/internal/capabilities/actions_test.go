@@ -1,0 +1,281 @@
+package capabilities
+
+import (
+	"context"
+	"errors"
+	"reflect"
+	"strings"
+	"testing"
+	"time"
+)
+
+type recordedCommand struct {
+	name string
+	args []string
+}
+
+type fakeCommandRunner struct {
+	results []CommandResult
+	errs    []error
+	calls   []recordedCommand
+}
+
+func (f *fakeCommandRunner) Run(_ context.Context, name string, args ...string) (CommandResult, error) {
+	f.calls = append(f.calls, recordedCommand{name: name, args: append([]string(nil), args...)})
+	i := len(f.calls) - 1
+	if i < len(f.results) {
+		err := error(nil)
+		if i < len(f.errs) {
+			err = f.errs[i]
+		}
+		return f.results[i], err
+	}
+	return CommandResult{}, nil
+}
+
+func lifecycleActionTestService(runner *fakeCommandRunner) LifecycleActionService {
+	return LifecycleActionService{
+		Defs: []Def{
+			{
+				ID:             "audio-tools",
+				DependencyKind: DependencyScenario,
+				DependencySlug: "audio-tools",
+			},
+			{
+				ID:             "ollama",
+				DependencyKind: DependencyResource,
+				DependencySlug: "ollama",
+			},
+		},
+		Runner:  runner,
+		CLIPath: "vrooli",
+		Timeout: time.Second,
+	}
+}
+
+func TestLifecycleActionServiceRunsStartThenSingleWait(t *testing.T) {
+	runner := &fakeCommandRunner{results: []CommandResult{
+		{Stdout: []byte(`{"success":true}`), ExitCode: 0},
+		{Stdout: []byte(`{"success":true,"verdict":"healthy","exit_code":0}`), ExitCode: 0},
+	}}
+	svc := lifecycleActionTestService(runner)
+
+	got, err := svc.Run(context.Background(), LifecycleActionRequest{CapabilityID: "audio-tools", ActionKind: ActionKindScenarioStart})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if !got.Success || got.Status != "healthy" {
+		t.Fatalf("result = %+v, want healthy success", got)
+	}
+	want := []recordedCommand{
+		{name: "vrooli", args: []string{"scenario", "start", "audio-tools", "--json", "--timeout", "1"}},
+		{name: "vrooli", args: []string{"scenario", "wait", "audio-tools", "--json", "--timeout", "1"}},
+	}
+	if !reflect.DeepEqual(runner.calls, want) {
+		t.Fatalf("commands = %#v, want %#v", runner.calls, want)
+	}
+}
+
+func TestLifecycleActionServiceRunsRestart(t *testing.T) {
+	runner := &fakeCommandRunner{results: []CommandResult{
+		{Stdout: []byte(`{"success":true}`), ExitCode: 0},
+		{Stdout: []byte(`{"success":true,"verdict":"healthy","exit_code":0}`), ExitCode: 0},
+	}}
+	svc := lifecycleActionTestService(runner)
+
+	got, err := svc.Run(context.Background(), LifecycleActionRequest{CapabilityID: "audio-tools", ActionKind: ActionKindScenarioRestart})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if !got.Success {
+		t.Fatalf("result = %+v, want success", got)
+	}
+	if runner.calls[0].args[1] != "restart" {
+		t.Fatalf("first command = %#v, want restart", runner.calls[0].args)
+	}
+}
+
+func TestLifecycleActionServiceReportsStartFailureWithoutWait(t *testing.T) {
+	runner := &fakeCommandRunner{
+		results: []CommandResult{{Stderr: []byte("build failed"), ExitCode: 1}},
+		errs:    []error{errors.New("exit status 1")},
+	}
+	svc := lifecycleActionTestService(runner)
+
+	got, err := svc.Run(context.Background(), LifecycleActionRequest{CapabilityID: "audio-tools", ActionKind: ActionKindScenarioStart})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if got.Success || got.Status != "failed" {
+		t.Fatalf("result = %+v, want failed", got)
+	}
+	if len(runner.calls) != 1 {
+		t.Fatalf("calls = %d, want 1", len(runner.calls))
+	}
+}
+
+func TestLifecycleActionServiceReportsWaitFailure(t *testing.T) {
+	runner := &fakeCommandRunner{
+		results: []CommandResult{
+			{Stdout: []byte(`{"success":true}`), ExitCode: 0},
+			{Stderr: []byte("timeout"), ExitCode: 124},
+		},
+		errs: []error{nil, errors.New("exit status 124")},
+	}
+	svc := lifecycleActionTestService(runner)
+
+	got, err := svc.Run(context.Background(), LifecycleActionRequest{CapabilityID: "audio-tools", ActionKind: ActionKindScenarioStart})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if got.Success || got.Status != "failed" || got.Message == "" {
+		t.Fatalf("result = %+v, want wait failure", got)
+	}
+	if len(runner.calls) != 2 {
+		t.Fatalf("calls = %d, want 2", len(runner.calls))
+	}
+}
+
+func TestLifecycleActionServiceRejectsUndeclaredAndResourceCapabilitiesForLifecycle(t *testing.T) {
+	runner := &fakeCommandRunner{}
+	svc := lifecycleActionTestService(runner)
+
+	for _, capabilityID := range []string{"missing", "ollama"} {
+		if _, err := svc.Run(context.Background(), LifecycleActionRequest{CapabilityID: capabilityID, ActionKind: ActionKindScenarioStart}); err == nil {
+			t.Fatalf("Run(%q) error = nil, want rejection", capabilityID)
+		}
+	}
+	if len(runner.calls) != 0 {
+		t.Fatalf("calls = %d, want 0", len(runner.calls))
+	}
+}
+
+func TestLifecycleActionServiceRunsDeclaredResourceOperatorAction(t *testing.T) {
+	runner := &fakeCommandRunner{results: []CommandResult{{Stdout: []byte(`{"success":true}`), ExitCode: 0}}}
+	svc := LifecycleActionService{
+		Defs:    []Def{{ID: "codex", DependencyKind: DependencyResource, DependencySlug: "codex", ActionKind: ActionKindOperatorCommand, OperatorCommand: "resource install codex --json"}},
+		Runner:  runner,
+		CLIPath: "vrooli",
+		Timeout: time.Second,
+	}
+	result, err := svc.Run(context.Background(), LifecycleActionRequest{CapabilityID: "codex", ActionKind: ActionKindOperatorCommand})
+	if err != nil || !result.Success {
+		t.Fatalf("Run() = %+v, err=%v", result, err)
+	}
+	if len(runner.calls) != 1 || strings.Join(runner.calls[0].args, " ") != "resource install codex --json" {
+		t.Fatalf("calls = %#v", runner.calls)
+	}
+}
+
+func TestLifecycleActionServiceRejectsUnsupportedAction(t *testing.T) {
+	runner := &fakeCommandRunner{}
+	svc := lifecycleActionTestService(runner)
+
+	if _, err := svc.Run(context.Background(), LifecycleActionRequest{CapabilityID: "audio-tools", ActionKind: ActionKindOperatorCommand}); err == nil {
+		t.Fatal("Run error = nil, want unsupported action rejection")
+	}
+	if len(runner.calls) != 0 {
+		t.Fatalf("calls = %d, want 0", len(runner.calls))
+	}
+}
+
+func TestLifecycleActionServicePassesSlugAsSingleArg(t *testing.T) {
+	runner := &fakeCommandRunner{results: []CommandResult{
+		{Stdout: []byte(`{"success":true}`), ExitCode: 0},
+		{Stdout: []byte(`{"success":true,"verdict":"healthy","exit_code":0}`), ExitCode: 0},
+	}}
+	svc := LifecycleActionService{
+		Defs: []Def{{
+			ID:             "scenario-x",
+			DependencyKind: DependencyScenario,
+			DependencySlug: "scenario-x; rm -rf /",
+		}},
+		Runner:  runner,
+		CLIPath: "vrooli",
+		Timeout: time.Second,
+	}
+
+	if _, err := svc.Run(context.Background(), LifecycleActionRequest{CapabilityID: "scenario-x", ActionKind: ActionKindScenarioStart}); err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if got := runner.calls[0].args[2]; got != "scenario-x; rm -rf /" {
+		t.Fatalf("slug arg = %q, want single original argument", got)
+	}
+}
+
+func TestExecCommandRunnerCapturesSuccessAndFailure(t *testing.T) {
+	runner := ExecCommandRunner{}
+	success, err := runner.Run(context.Background(), "sh", "-c", "printf success")
+	if err != nil || string(success.Stdout) != "success" || success.ExitCode != 0 {
+		t.Fatalf("success = %+v, err=%v", success, err)
+	}
+	failure, err := runner.Run(context.Background(), "sh", "-c", "printf failure >&2; exit 7")
+	if err == nil || string(failure.Stderr) != "failure" || failure.ExitCode != 7 {
+		t.Fatalf("failure = %+v, err=%v", failure, err)
+	}
+}
+
+// The registry declares OperatorCommand as a line an operator can paste, which
+// means it names the CLI. Executing it verbatim as arguments produced
+// `vrooli vrooli resource install codex --json` for every coding agent, so a
+// local install has never once run the command it reported running.
+func TestLifecycleActionServiceDoesNotRepeatTheCLINameFromTheDeclaredCommand(t *testing.T) {
+	for _, testCase := range []struct {
+		name     string
+		cliPath  string
+		declared string
+	}{
+		{name: "bare cli name", cliPath: "vrooli", declared: "vrooli resource install codex --json"},
+		{name: "absolute cli path", cliPath: "/usr/local/bin/vrooli", declared: "vrooli resource install codex --json"},
+		{name: "windows cli path", cliPath: `C:\tools\vrooli.exe`, declared: "vrooli resource install codex --json"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			runner := &fakeCommandRunner{results: []CommandResult{{Stdout: []byte(`{"success":true}`), ExitCode: 0}}}
+			svc := LifecycleActionService{
+				Defs:    []Def{{ID: "codex", DependencyKind: DependencyResource, DependencySlug: "codex", ActionKind: ActionKindOperatorCommand, OperatorCommand: testCase.declared}},
+				Runner:  runner,
+				CLIPath: testCase.cliPath,
+				Timeout: time.Second,
+			}
+			if _, err := svc.Run(context.Background(), LifecycleActionRequest{CapabilityID: "codex", ActionKind: ActionKindOperatorCommand}); err != nil {
+				t.Fatalf("Run() error = %v", err)
+			}
+			if len(runner.calls) != 1 {
+				t.Fatalf("calls = %#v", runner.calls)
+			}
+			if got := strings.Join(runner.calls[0].args, " "); got != "resource install codex --json" {
+				t.Fatalf("args = %q, want %q", got, "resource install codex --json")
+			}
+		})
+	}
+}
+
+// Every declared coding-agent installer must survive the same treatment: the
+// table is the thing that regressed, so assert against the real registry.
+func TestKnownOperatorCommandsProduceArgvWithoutTheCLIName(t *testing.T) {
+	checked := 0
+	for _, def := range Known {
+		if def.ActionKind != ActionKindOperatorCommand || def.OperatorCommand == "" {
+			continue
+		}
+		checked++
+		args := operatorCommandArgs(def.OperatorCommand, "vrooli")
+		if len(args) == 0 {
+			t.Fatalf("%s: operator command %q produced no arguments", def.ID, def.OperatorCommand)
+		}
+		if args[0] == "vrooli" {
+			t.Fatalf("%s: argv still starts with the CLI name: %v", def.ID, args)
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no declared operator commands were checked; the registry shape changed")
+	}
+}
+
+// A declaration that is already argv-shaped must be left alone, so the fix
+// cannot silently eat the first real argument of a future declaration.
+func TestOperatorCommandArgsKeepsACommandThatDoesNotNameTheCLI(t *testing.T) {
+	if got := strings.Join(operatorCommandArgs("resource install codex --json", "vrooli"), " "); got != "resource install codex --json" {
+		t.Fatalf("args = %q", got)
+	}
+}

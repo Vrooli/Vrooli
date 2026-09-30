@@ -1,0 +1,38 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-07-28T23:34:11-04:00"
+  },
+  "requirements": [
+    {
+      "id": "IMG-P0-007",
+      "title": "Model Management",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "category": "core",
+      "description": "CLI + Settings UI list/search/install/enable/disable/remove models with size, hardware-fit, license, capability labels; checksummed opt-in downloads; disk-space awareness; custom/fine-tuned local entries.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/models/install_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Install verifies checksum and disk space before download"
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/models/models_manifest_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Enable/disable/remove and custom local-model entry round-trip"
+        },
+        {
+          "type": "manual",
+          "ref": "ui/src/features/models",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Settings UI manages models with hardware-fit indicators"
+        }
+      ]
+    }
+  ]
+}

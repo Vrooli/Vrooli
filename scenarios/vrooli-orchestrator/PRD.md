@@ -68,9 +68,6 @@ Vrooli-orchestrator adds **contextual intelligence adaptation** - the ability to
 - `postgres`: Profile storage, activation history, and analytics
 - Vrooli core CLI: Must support `vrooli resource start/stop` and `vrooli scenario run/stop` commands
 
-**Optional resources**:
-- `browserless`: Auto-open browser tabs for dashboard URLs (fallback: print URLs to console)
-
 **Scenario dependencies**: None (foundational capability that others will consume)
 
 **Launch sequencing**:

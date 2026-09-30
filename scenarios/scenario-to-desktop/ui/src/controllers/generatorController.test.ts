@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { create } from "@bufbuild/protobuf";
 import {
   findScenarioByName,
   getScenarioDefaults,
@@ -6,6 +7,19 @@ import {
   type PrepareFormSubmissionParams,
 } from "./generatorController";
 import type { ScenarioDesktopStatus } from "../components/scenario-inventory/types";
+import { StageName } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
+import { PreflightResponseSchema } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
+import {
+  ProbeEndpointsResponseSchema,
+  ProxyHintsResponseSchema,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/domain/operations_pb";
+import { ManifestResponseSchema } from "@vrooli/proto-types/scenario-to-desktop/v1/domain/preflight_pb";
+
+const readyPreflight = () =>
+  create(PreflightResponseSchema, {
+    validation: { valid: true },
+    ready: { ready: true },
+  });
 
 // Mock API module for async tests
 vi.mock("../lib/api", () => ({
@@ -19,9 +33,18 @@ vi.mock("../lib/api", () => ({
 describe("generatorController", () => {
   describe("findScenarioByName", () => {
     const scenarios: ScenarioDesktopStatus[] = [
-      { name: "scenario-a", service_display_name: "Scenario A" } as ScenarioDesktopStatus,
-      { name: "scenario-b", service_display_name: "Scenario B" } as ScenarioDesktopStatus,
-      { name: "scenario-c", service_display_name: "Scenario C" } as ScenarioDesktopStatus,
+      {
+        name: "scenario-a",
+        service_display_name: "Scenario A",
+      } as ScenarioDesktopStatus,
+      {
+        name: "scenario-b",
+        service_display_name: "Scenario B",
+      } as ScenarioDesktopStatus,
+      {
+        name: "scenario-c",
+        service_display_name: "Scenario C",
+      } as ScenarioDesktopStatus,
     ];
 
     it("finds scenario by name", () => {
@@ -124,7 +147,9 @@ describe("generatorController", () => {
 
     it("handles API error gracefully", async () => {
       const { fetchScenarioDesktopStatus } = await import("../lib/api");
-      vi.mocked(fetchScenarioDesktopStatus).mockRejectedValue(new Error("Network error"));
+      vi.mocked(fetchScenarioDesktopStatus).mockRejectedValue(
+        new Error("Network error"),
+      );
 
       const { loadGeneratorPageData } = await import("./generatorController");
       const result = await loadGeneratorPageData(null, null);
@@ -134,40 +159,61 @@ describe("generatorController", () => {
     });
 
     it("fetches proxy hints when scenario provided", async () => {
-      const { fetchScenarioDesktopStatus, fetchProxyHints } = await import("../lib/api");
+      const { fetchScenarioDesktopStatus, fetchProxyHints } =
+        await import("../lib/api");
       vi.mocked(fetchScenarioDesktopStatus).mockResolvedValue({
         scenarios: [],
         stats: { total: 0, with_desktop: 0, built: 0, web_only: 0 },
       });
-      vi.mocked(fetchProxyHints).mockResolvedValue({
-        scenario: "test-scenario",
-        hints: [{ url: "https://api.example.com", source: "config", confidence: "high", message: "" }],
-      });
+      vi.mocked(fetchProxyHints).mockResolvedValue(
+        create(ProxyHintsResponseSchema, {
+          scenarioName: "test-scenario",
+          hints: [
+            {
+              url: "https://api.example.com",
+              source: "config",
+              confidence: "high",
+              message: "",
+            },
+          ],
+        }),
+      );
 
       const { loadGeneratorPageData } = await import("./generatorController");
       const result = await loadGeneratorPageData("test-scenario", null);
 
       expect(fetchProxyHints).toHaveBeenCalledWith("test-scenario");
-      expect(result.proxyHints?.scenario).toBe("test-scenario");
+      expect(result.proxyHints?.scenarioName).toBe("test-scenario");
     });
 
     it("fetches bundle manifest when path provided", async () => {
-      const { fetchScenarioDesktopStatus, fetchBundleManifest } = await import("../lib/api");
+      const { fetchScenarioDesktopStatus, fetchBundleManifest } =
+        await import("../lib/api");
       vi.mocked(fetchScenarioDesktopStatus).mockResolvedValue({
         scenarios: [],
         stats: { total: 0, with_desktop: 0, built: 0, web_only: 0 },
       });
-      vi.mocked(fetchBundleManifest).mockResolvedValue({ path: "/path/to/manifest.json", manifest: {} });
+      vi.mocked(fetchBundleManifest).mockResolvedValue(
+        create(ManifestResponseSchema, {
+          manifest: {},
+        }),
+      );
 
       const { loadGeneratorPageData } = await import("./generatorController");
-      const result = await loadGeneratorPageData(null, "/path/to/manifest.json");
+      const result = await loadGeneratorPageData(
+        null,
+        "/path/to/manifest.json",
+      );
 
-      expect(fetchBundleManifest).toHaveBeenCalledWith({ bundle_manifest_path: "/path/to/manifest.json" });
+      expect(fetchBundleManifest).toHaveBeenCalledWith({
+        bundle_manifest_path: "/path/to/manifest.json",
+      });
       expect(result.bundleManifest).toBeDefined();
     });
 
     it("handles proxy hints error gracefully", async () => {
-      const { fetchScenarioDesktopStatus, fetchProxyHints } = await import("../lib/api");
+      const { fetchScenarioDesktopStatus, fetchProxyHints } =
+        await import("../lib/api");
       vi.mocked(fetchScenarioDesktopStatus).mockResolvedValue({
         scenarios: [],
         stats: { total: 0, with_desktop: 0, built: 0, web_only: 0 },
@@ -206,7 +252,9 @@ describe("generatorController", () => {
 
     it("returns error on failure", async () => {
       const { fetchScenarioDesktopStatus } = await import("../lib/api");
-      vi.mocked(fetchScenarioDesktopStatus).mockRejectedValue(new Error("Failed to fetch"));
+      vi.mocked(fetchScenarioDesktopStatus).mockRejectedValue(
+        new Error("Failed to fetch"),
+      );
 
       const { loadScenarios } = await import("./generatorController");
       const result = await loadScenarios();
@@ -231,10 +279,19 @@ describe("generatorController", () => {
 
     it("fetches hints for valid scenario", async () => {
       const { fetchProxyHints } = await import("../lib/api");
-      vi.mocked(fetchProxyHints).mockResolvedValue({
-        scenario: "my-scenario",
-        hints: [{ url: "https://api.example.com", source: "config", confidence: "high", message: "" }],
-      });
+      vi.mocked(fetchProxyHints).mockResolvedValue(
+        create(ProxyHintsResponseSchema, {
+          scenarioName: "my-scenario",
+          hints: [
+            {
+              url: "https://api.example.com",
+              source: "config",
+              confidence: "high",
+              message: "",
+            },
+          ],
+        }),
+      );
 
       const { loadProxyHints } = await import("./generatorController");
       const result = await loadProxyHints("my-scenario");
@@ -278,10 +335,11 @@ describe("generatorController", () => {
 
     it("fetches manifest for valid path", async () => {
       const { fetchBundleManifest } = await import("../lib/api");
-      vi.mocked(fetchBundleManifest).mockResolvedValue({
-        path: "/path/to/manifest.json",
-        manifest: { bundle_root: "/app", version: "1.0.0" },
-      });
+      vi.mocked(fetchBundleManifest).mockResolvedValue(
+        create(ManifestResponseSchema, {
+          manifest: { bundle_root: "/app", version: "1.0.0" },
+        }),
+      );
 
       const { loadBundleManifest } = await import("./generatorController");
       const result = await loadBundleManifest("/path/to/manifest.json");
@@ -292,7 +350,11 @@ describe("generatorController", () => {
 
     it("trims whitespace from path", async () => {
       const { fetchBundleManifest } = await import("../lib/api");
-      vi.mocked(fetchBundleManifest).mockResolvedValue({ path: "/path/to/manifest.json", manifest: { bundle_root: "/app" } });
+      vi.mocked(fetchBundleManifest).mockResolvedValue(
+        create(ManifestResponseSchema, {
+          manifest: { bundle_root: "/app" },
+        }),
+      );
 
       const { loadBundleManifest } = await import("./generatorController");
       await loadBundleManifest("  /path/to/manifest.json  ");
@@ -318,22 +380,28 @@ describe("generatorController", () => {
 
     it("tests connection for valid URL", async () => {
       const { probeEndpoints } = await import("../lib/api");
-      vi.mocked(probeEndpoints).mockResolvedValue({
-        server: { status: "ok", status_code: 200 },
-        api: { status: "ok", status_code: 200 },
-      });
+      vi.mocked(probeEndpoints).mockResolvedValue(
+        create(ProbeEndpointsResponseSchema, {
+          server: { status: "ok", statusCode: 200 },
+          api: { status: "ok", statusCode: 200 },
+        }),
+      );
 
       const { testProxyConnection } = await import("./generatorController");
       const result = await testProxyConnection("https://api.example.com");
 
-      expect(probeEndpoints).toHaveBeenCalledWith({ proxy_url: "https://api.example.com" });
+      expect(probeEndpoints).toHaveBeenCalledWith({
+        proxy_url: "https://api.example.com",
+      });
       expect(result.result?.server?.status).toBe("ok");
       expect(result.error).toBeNull();
     });
 
     it("handles connection error", async () => {
       const { probeEndpoints } = await import("../lib/api");
-      vi.mocked(probeEndpoints).mockRejectedValue(new Error("Connection refused"));
+      vi.mocked(probeEndpoints).mockRejectedValue(
+        new Error("Connection refused"),
+      );
 
       const { testProxyConnection } = await import("./generatorController");
       const result = await testProxyConnection("https://api.example.com");
@@ -389,21 +457,14 @@ describe("generatorController", () => {
     it("returns pipeline config when all validations pass", () => {
       const params = createBaseParams();
       // Add preflight result to satisfy validation - needs validation.valid and ready.ready
-      params.storePreflightResult = {
-        status: "ready",
-        validation: { valid: true },
-        ready: {
-          ready: true,
-          details: {},
-        },
-      };
+      params.storePreflightResult = readyPreflight();
 
       const result = prepareFormSubmission(params);
 
       expect(result.errors).toHaveLength(0);
       expect(result.pipelineConfig).not.toBeNull();
-      expect(result.pipelineConfig?.scenario_name).toBe("test-scenario");
-      expect(result.pipelineConfig?.stop_after_stage).toBe("generate");
+      expect(result.pipelineConfig?.scenarioName).toBe("test-scenario");
+      expect(result.pipelineConfig?.stopAfterStage).toBe(StageName.GENERATE);
     });
 
     it("includes proxy URL in pipeline config when in proxy mode", () => {
@@ -417,21 +478,14 @@ describe("generatorController", () => {
       const result = prepareFormSubmission(params);
 
       expect(result.errors).toHaveLength(0);
-      expect(result.pipelineConfig?.proxy_url).toBe("https://api.example.com");
+      expect(result.pipelineConfig?.proxyUrl).toBe("https://api.example.com");
     });
 
     it("uses custom output path when location mode is custom", () => {
       const params = createBaseParams();
       params.locationMode = "custom";
       params.outputPath = "/custom/output/path";
-      params.storePreflightResult = {
-        status: "ready",
-        validation: { valid: true },
-        ready: {
-          ready: true,
-          details: {},
-        },
-      };
+      params.storePreflightResult = readyPreflight();
 
       const result = prepareFormSubmission(params);
 
@@ -445,16 +499,13 @@ describe("generatorController", () => {
       params.signingConfig = { enabled: true };
       params.signingReadiness = {
         ready: true,
-        platforms: { windows: { ready: true }, macos: { ready: false }, linux: { ready: false } },
-      };
-      params.storePreflightResult = {
-        status: "ready",
-        validation: { valid: true },
-        ready: {
-          ready: true,
-          details: {},
+        platforms: {
+          windows: { ready: true },
+          macos: { ready: false },
+          linux: { ready: false },
         },
       };
+      params.storePreflightResult = readyPreflight();
 
       const result = prepareFormSubmission(params);
 
@@ -465,14 +516,7 @@ describe("generatorController", () => {
     it("uses server preflight result when store result is null", () => {
       const params = createBaseParams();
       params.storePreflightResult = null;
-      params.serverPreflightResult = {
-        status: "ready",
-        validation: { valid: true },
-        ready: {
-          ready: true,
-          details: {},
-        },
-      };
+      params.serverPreflightResult = readyPreflight();
 
       const result = prepareFormSubmission(params);
 
@@ -482,14 +526,7 @@ describe("generatorController", () => {
 
     it("considers missing secrets count for preflight ok status", () => {
       const params = createBaseParams();
-      params.storePreflightResult = {
-        status: "ready",
-        validation: { valid: true },
-        ready: {
-          ready: true,
-          details: {},
-        },
-      };
+      params.storePreflightResult = readyPreflight();
       params.missingSecretsCount = 5;
 
       const result = prepareFormSubmission(params);

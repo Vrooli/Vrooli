@@ -33,10 +33,14 @@ const buildFormValues = (
     tags: initialValues?.tags ?? [],
     kind: nextKind,
     dependsOn: initialValues?.dependsOn ?? [],
-    initiative: initialValues?.initiative ?? "",
+    milestone: initialValues?.milestone ?? "",
     effort: initialValues?.effort ?? "",
     acceptanceAllow: initialValues?.acceptanceAllow ?? [],
     acceptanceDeny: initialValues?.acceptanceDeny ?? [],
+    executionMode: initialValues?.executionMode ?? "sliced",
+    executionLimits: initialValues?.executionLimits,
+    continuation: initialValues?.continuation ?? "manual",
+    scopePolicy: initialValues?.scopePolicy ?? "fixed",
   };
 };
 

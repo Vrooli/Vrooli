@@ -1,67 +1,74 @@
 {
-  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
+    "parent": "vrooli",
     "name": "document-manager",
     "displayName": "Document Manager",
-    "description": "AI-powered documentation management SaaS platform with comprehensive analysis, improvement suggestions, and automated quality maintenance",
-    "version": "2.0.0",
+    "description": "Local-first document ingestion and understanding: tiered parsing, citable anchors, sensitivity-aware routing, and a per-document custody receipt",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
     "tags": [
-      "business-application",
-      "productivity",
-      "documentation",
-      "ai",
-      "automation",
-      "maintenance",
-      "saas",
-      "quality-assurance",
-      "content-analysis",
-      "custom-ui",
-      "go-api",
-      "n8n-workflows",
-      "postgres-storage",
-      "redis-cache",
-      "qdrant-vectors",
-      "ollama-ai"
-    ],
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "general",
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/document-manager"
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
     },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    "generated_at": "2026-08-05T23:47:17Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
+    "content_sha": "7c6abefa15a33669b5aff750d0a01da11c8b4beac70d1bd069c45e012f4ab898"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "document-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "document-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
     }
   },
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "description": "Document manager coordination API port",
+      "description": "Go API server",
       "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "description": "Document manager web interface port",
-      "range": "35000-39999"
+      "description": "React UI",
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
-      "description": "Document Manager health check configuration",
+      "description": "Standard API/UI health checks",
       "endpoints": {
         "api": "/health",
         "ui": "/health"
@@ -72,231 +79,145 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
-          "timeout": 5000,
+          "timeout": 10000,
           "interval": 30000
         },
         {
           "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
-          "critical": true,
           "timeout": 5000,
           "interval": 30000
         }
       ],
-      "timeout": 5000,
-      "interval": 30000,
-      "startup_grace_period": 10000
-    },
-    "setup": {
-      "description": "Initialize Document Manager with all resources and integrations",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/document-manager-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "document-manager",
-            "targets": [
-              "document-manager"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "generate-embeddings",
-          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
-          "description": "Generate code embeddings for AI assistance"
-        },
-        {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add application data to resources (database schema, collections, workflows)"
-        },
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o document-manager-api .",
-          "description": "Build Go coordination API binary"
-        },
-        {
-          "name": "verify-models",
-          "run": "curl -sf http://localhost:${RESOURCE_PORTS[ollama]}/api/tags | grep -E '(llama3.2|nomic-embed-text)' || echo 'Pulling required models...' && curl -X POST http://localhost:${RESOURCE_PORTS[ollama]}/api/pull -d '{\"name\": \"llama3.2\"}' & curl -X POST http://localhost:${RESOURCE_PORTS[ollama]}/api/pull -d '{\"name\": \"nomic-embed-text\"}' &",
-          "description": "Verify and pull required AI models"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Document Manager initialized\\n  Web Interface: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/document_manager\\n  Vector DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: document-manager --help'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start document manager with coordination API and monitoring",
-      "steps": [
-        {
-          "name": "ensure-resources",
-          "run": "bash lib/ensure-resources.sh",
-          "description": "Ensure all required resources are running"
-        },
-        {
-          "name": "start-api",
-          "run": "cd api && POSTGRES_URL=\"postgresql://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/document_manager?sslmode=disable\" QDRANT_URL=\"http://localhost:6333\" OLLAMA_URL=\"http://localhost:11434\" REDIS_URL=\"redis://localhost:6379\" N8N_URL=\"http://localhost:5678\" ./document-manager-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/document-manager-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && UI_PORT=${UI_PORT} API_PORT=${API_PORT} API_BASE_URL=\"http://localhost:${API_PORT}\" NODE_ENV=production node server.js",
-          "description": "Start UI server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "configure-redis-notifications",
-          "run": "redis-cli -p ${RESOURCE_PORTS[redis]} CONFIG SET notify-keyspace-events Ex > /dev/null 2>&1 || echo 'Redis keyspace notifications configured'",
-          "description": "Configure Redis for pub/sub notifications"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Document Manager running:\\n  Web Interface: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Coordination API: http://localhost:$API_PORT\\n  Vector search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: document-manager --help'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for document-manager",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute document-manager --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"document-manager-api\" || true; sleep 1; pkill -9 -f \"document-manager-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/document-manager.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/document-manager.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
+      "startup_grace_period": 15000
     }
   },
   "dependencies": {
     "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
+      "doc-parse": {
         "required": true,
-        "purpose": "Store application metadata, agent configurations, improvement queue, and audit logs",
-        "database": "document_manager",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "data"
-          }
-        ]
+        "description": "Local content, table, geometry, and PDF classification handler for intake and derivation.",
+        "startup_policy": "must_start"
       },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "purpose": "Vector database for documentation embeddings, agent memory, and similarity pattern analysis",
-        "initialization": [
-          {
-            "file": "initialization/storage/qdrant/collections.json",
-            "type": "config"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Real-time messaging, notification channels, and caching"
-      },
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/doc-monitor-workflow.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/improvement-processor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/notification-router.json",
-            "type": "workflow"
-          }
-        ]
-      },
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.2",
-          "nomic-embed-text",
-          "codellama"
-        ]
-      },
-      "unstructured_io": {
-        "type": "unstructured_io",
-        "enabled": true,
+      "doc-ocr": {
         "required": false,
-        "purpose": "Advanced document parsing and content extraction"
+        "description": "Portable tier-2 OCR handler for scanned PDFs and raster images.",
+        "startup_policy": "try_start"
+      },
+      "unstructured-io": {
+        "required": false,
+        "description": "Measured Docker fallback for breadth, typed elements, and OCR when available.",
+        "startup_policy": "try_start"
+      }
+    },
+    "scenarios": {
+      "ai-gateway": {
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Gateway-only inference seam for later enrichment and permitted remote tiers.",
+        "degraded_behavior": "Intake and local parsing remain available; enrichment and permitted remote tiers are unavailable until ai-gateway starts.",
+        "supervision_precedence": "required"
+      },
+      "storage-manager": {
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Governed storage and routed file-store contract for raw bytes.",
+        "degraded_behavior": "The scenario keeps its local routed storage seam; external storage-manager-backed operations are unavailable until storage-manager starts.",
+        "supervision_precedence": "required"
+      },
+      "search-hub": {
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Retrieval registration and query seam used by later domains.",
+        "degraded_behavior": "Intake and local parsing remain available; retrieval registration and federated search are unavailable until search-hub starts.",
+        "supervision_precedence": "required"
+      }
+    }
+  },
+  "storage": {
+    "entries": {
+      "raw_documents": {
+        "rung": "owned",
+        "subpath": "documents",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Original content-addressed document bytes; never pruned or regenerated."
+      },
+      "derivations": {
+        "rung": "owned",
+        "subpath": "derivations",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Derived readings are reproducible from the durable raw bytes."
+        },
+        "rationale": "Versioned parser output may be rebuilt after retention."
+      },
+      "retrieval_index": {
+        "rung": "owned",
+        "subpath": "retrieval_index",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "The FTS and vector index is rebuildable from units and enrichment metadata."
+        },
+        "rationale": "Retrieval state is a derived cache and is never the source of corpus truth."
+      },
+      "custody": {
+        "rung": "owned",
+        "subpath": "custody",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Append-only processing evidence; no prune budget by design."
+      },
+      "deployment": {
+        "rung": "owned",
+        "subpath": "deployment",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Lifecycle deployment reports are durable operational evidence retained with the scenario data root."
+      }
+    },
+    "rationale": "Raw bytes and custody evidence are durable; derivations are reproducible cache artifacts."
+  },
+  "credentials": {},
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
       }
     }
   }

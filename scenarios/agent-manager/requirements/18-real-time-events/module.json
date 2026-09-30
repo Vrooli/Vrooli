@@ -9,7 +9,7 @@
       "description": "Implement real-time event streaming via WebSocket connections for run status updates, logs, and metrics. Include reconnection handling and event buffering capabilities.",
       "id": "REQ-P1-007",
       "prd_ref": "OT-P1-007",
-      "status": "draft",
+      "status": "planned",
       "title": "WebSocket Event Streaming",
       "validation": [
         {

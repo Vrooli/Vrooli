@@ -189,20 +189,16 @@ func payloadBool(payload map[string]any, key string) bool {
 // DetectVideoContentType returns the MIME type for a video file based on extension.
 func DetectVideoContentType(path string) string {
 	ext := strings.ToLower(filepath.Ext(path))
-	if ext == "" {
-		return "video/webm"
-	}
-	if contentType := mime.TypeByExtension(ext); contentType != "" {
-		return contentType
-	}
 	switch ext {
 	case ".mp4":
 		return "video/mp4"
 	case ".webm":
 		return "video/webm"
-	default:
-		return "video/webm"
 	}
+	if contentType := mime.TypeByExtension(ext); contentType != "" {
+		return contentType
+	}
+	return "video/webm"
 }
 
 // ExtensionForContentType returns a file extension for a given content type.

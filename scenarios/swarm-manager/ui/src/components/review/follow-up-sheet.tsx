@@ -28,6 +28,7 @@ export interface FollowUpSheetProps {
   execution: ExecutionRecord;
   reviewRounds: ReviewRound[];
   onSuccess?: (newExecution: ExecutionRecord) => void;
+  initialContext?: string;
 }
 
 function buildDefaultContext(execution: ExecutionRecord, type: FollowUpType): string {
@@ -154,7 +155,7 @@ function RunHealthIndicator({ runState }: { runState: AgentRunState | null }) {
   );
 }
 
-export function FollowUpSheet({ isOpen, onClose, execution, reviewRounds, onSuccess }: FollowUpSheetProps) {
+export function FollowUpSheet({ isOpen, onClose, execution, reviewRounds, onSuccess, initialContext }: FollowUpSheetProps) {
   const hasReviewIssues = hasActionableFinalizationIssues(execution);
   const canContinue = Boolean(execution.runId);
 
@@ -185,18 +186,18 @@ export function FollowUpSheet({ isOpen, onClose, execution, reviewRounds, onSucc
       const defaultType: FollowUpType = hasReviewIssues ? "fixup" : "followup";
       setFollowUpType(defaultType);
       setRunMode(canContinue ? "continue" : "new");
-      setContext(buildDefaultContext(execution, defaultType));
+      setContext(initialContext ?? buildDefaultContext(execution, defaultType));
       setError(null);
       setIsSubmitting(false);
       // Pre-select all evidence from latest round for fixup; empty otherwise
       if (defaultType === "fixup" && reviewRounds.length > 0) {
         const latest = reviewRounds[reviewRounds.length - 1];
-        setSelectedEvidenceIds(new Set(latest?.evidence.map((e) => e.id) ?? []));
+        setSelectedEvidenceIds(new Set<string>(latest?.evidence.map((e) => e.id) ?? []));
       } else {
-        setSelectedEvidenceIds(new Set());
+        setSelectedEvidenceIds(new Set<string>());
       }
     }
-  }, [isOpen, execution, hasReviewIssues, canContinue, reviewRounds]);
+  }, [isOpen, execution, hasReviewIssues, canContinue, reviewRounds, initialContext]);
 
   const handleTypeChange = useCallback((type: FollowUpType) => {
     setFollowUpType(type);
@@ -274,7 +275,7 @@ export function FollowUpSheet({ isOpen, onClose, execution, reviewRounds, onSucc
             selectedIds={selectedEvidenceIds}
             onToggle={(id) => {
               setSelectedEvidenceIds((prev) => {
-                const next = new Set(prev);
+                const next = new Set<string>(prev);
                 if (next.has(id)) next.delete(id);
                 else next.add(id);
                 return next;

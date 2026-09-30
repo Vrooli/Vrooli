@@ -109,6 +109,9 @@ func checkOptimisticConcurrency(currentBytes []byte, expectedHash, cleanPath str
 
 // SaveFileContent updates a text file in the repo with optimistic concurrency.
 func SaveFileContent(ctx context.Context, deps FileContentDeps, req SaveFileContentRequest) (*SaveFileContentResponse, error) {
+	if err := requireHumanMutation(ctx, "save file content"); err != nil {
+		return nil, err
+	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}

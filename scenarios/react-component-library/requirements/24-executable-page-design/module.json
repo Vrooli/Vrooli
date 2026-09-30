@@ -1,0 +1,79 @@
+{
+  "_metadata": {
+    "description": "Authored page sketches, catalog-guided decomposition, source reconciliation, and executable implementation briefs.",
+    "module": "executable-page-design",
+    "prd_ref": "OT-P0-009",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "EPD-001",
+      "title": "Scenario-owned page sketches preserve authored experience documents",
+      "status": "not_implemented",
+      "prd_ref": "OT-P0-009",
+      "category": "experience",
+      "criticality": "P0",
+      "description": "When a user imports or edits a page design, the library shall persist its template, placements, placeholders, notes, and unplaced items in page.sketch without changing unrelated experience-document fields.",
+      "tags": ["sketch", "experience", "storage"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Automation will be linked to the sketch store round-trip and path-safety tests when Phase 2 implements them."
+        }
+      ]
+    },
+    {
+      "id": "EPD-002",
+      "title": "Reconciliation produces closed and attributable region verdicts",
+      "status": "not_implemented",
+      "prd_ref": "OT-P0-009",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "When a sketch is verified, the library shall scan observed source once and return one attributable matches, drifted, missing, extra, or unverifiable verdict for every resolved region and extra file.",
+      "tags": ["sketch", "reconciliation", "provenance"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Automation will be linked to the resolver and verdict tests when Phases 3 and 4 implement them."
+        }
+      ]
+    },
+    {
+      "id": "EPD-003",
+      "title": "Catalog-guided decomposition exhausts reuse before invention",
+      "status": "not_implemented",
+      "prd_ref": "OT-P0-009",
+      "category": "architecture",
+      "criticality": "P0",
+      "description": "When a page is imported or searched, the library shall rank page templates before lower layers and shall classify each local component as built reuse, declared design, or invention only after both reuse tiers run.",
+      "tags": ["catalog", "search", "decomposition"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Automation will be linked to catalog ranking and decomposition tests when Phases 5 through 7 implement them."
+        }
+      ]
+    },
+    {
+      "id": "EPD-004",
+      "title": "Page design emits an executable brief and visible reconciliation",
+      "status": "not_implemented",
+      "prd_ref": "OT-P0-009",
+      "category": "workflow",
+      "criticality": "P0",
+      "description": "When a design is ready, the library shall render its regions and coverage in the workbench and emit ordered reuse, build, and invention work whose closing command verifies the sketch.",
+      "tags": ["workbench", "brief", "workflow"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Automation will be linked to brief ordering and workbench interaction tests when Phases 11 through 14 implement them."
+        }
+      ]
+    }
+  ]
+}

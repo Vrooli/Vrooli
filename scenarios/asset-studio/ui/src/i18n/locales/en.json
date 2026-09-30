@@ -1,0 +1,175 @@
+{
+  "$rowKey": "id",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "$text": "Blocked",
+  "Changes saved successfully": {
+    "": "We couldn’t save your changes."
+  },
+  "Disabled states retain the same geometry and clearly communicate that the action is unavailable": {
+    "": "A clear visual hierarchy, a full touch target, and a small amount of responsive motion make the next action feel inevitable."
+  },
+  "Request in progress": "Ready to save",
+  "Saved": "Try again",
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Asset Studio are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place.",
+    "eyebrow": "Scenario Template",
+    "title": "Asset Studio"
+  },
+  "aria-label": "Release notes",
+  "ascending": "descending",
+  "asset": "navigation.page",
+  "border-app-primary bg-app-primary text-app-primary-foreground": "border-app-border text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground",
+  "capability": "navigation",
+  "caption": "No rows table",
+  "children": "Try again",
+  "clsx": "^2.1.1",
+  "component": "button",
+  "default": "success",
+  "defaultValue": "locked",
+  "desc": "asc",
+  "description": "Record a scenario adoption to track drift.",
+  "detail": "The generic harness supplies context; Button remains the subject.",
+  "dialog": "complementary",
+  "emptyMessage": "No scenarios match",
+  "equals": "Current",
+  "errorBoundary": {
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again",
+    "title": "Something went wrong"
+  },
+  "errors": {
+    "aborted": "Operation aborted.",
+    "already_exists": "Already exists.",
+    "canceled": "Operation canceled.",
+    "data_loss": "Data loss detected.",
+    "deadline_exceeded": "Operation timed out.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "internal": "Something went wrong. Please try again.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "not_found": "Resource not found.",
+    "out_of_range": "Out of range.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "unauthenticated": "Please sign in to continue.",
+    "unavailable": "Service temporarily unavailable.",
+    "unimplemented": "Not yet implemented.",
+    "unknown": "An unknown error occurred."
+  },
+  "example": "overlay-open",
+  "export": "LongLabels",
+  "field": "name",
+  "fixture": "fixtures.user-directory",
+  "format": "renderable-text",
+  "header": "Scenario",
+  "health": {
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "loading": "Checking API status…",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "serviceLabel": "Service:",
+    "statusLabel": "Status:",
+    "timestampLabel": "Timestamp:",
+    "title": "API Health"
+  },
+  "iconName": "arrowEnd",
+  "id": "danger",
+  "kind": "text",
+  "label": "Label",
+  "layout": {
+    "bottomNavLabel": "Mobile navigation",
+    "nav": {
+      "dashboard": "Dashboard",
+      "settings": "Settings"
+    },
+    "sidebarLabel": "Primary navigation"
+  },
+  "libraryId": "react-component-library:Pressable",
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "lucide-react": "^0.424.0",
+  "mode": "pinned",
+  "module": "./story.tsx",
+  "name": "Danger",
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_one": "1 notification",
+    "summary_zero": "No notifications"
+  },
+  "pages": {
+    "dashboard": {
+      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
+      "statPlaceholderLabel": "Stat",
+      "title": "Dashboard"
+    },
+    "settings": {
+      "localeHeading": "Language",
+      "themeHeading": "Appearance",
+      "title": "Settings"
+    }
+  },
+  "path": "children",
+  "placeholder": "Choose status",
+  "provenance": "react-component-library/Button@1.2.0",
+  "purpose": "A responsive, dismissible navigation container with safe-area and resize affordances.",
+  "react": "^18",
+  "react-component-library:useEscapeKey": "^1.0.0",
+  "ref": "../../../../../experience/components/button.json",
+  "region": "navigation",
+  "resolvedAt": "2026-08-31T05:19:38Z",
+  "role": "button",
+  "schema": "scenario-experience-spec/v1",
+  "schemaVersion": "1.1.0",
+  "selector": "nav",
+  "size": "lg",
+  "statement": "The shell remains bounded by the document viewport in both presentations.",
+  "status": "Behind",
+  "storyRef": "../../library/components/SidebarShell/versions/1.2.0/story.json",
+  "studio": {
+    "authorTitle": "Author product identity",
+    "basis": "Conformance basis: prose-only. An operator must explicitly judge this candidate before release.",
+    "candidate": "Candidate {{id}}",
+    "choose": "Choose an identity before composing a render.",
+    "create": "Create product identity",
+    "createError": "Unable to create identity",
+    "finish": "Finish",
+    "form": "Form",
+    "generated": "Generated · disclosure required",
+    "libraryDescription": "Versioned declarations are the source of truth for every released artifact.",
+    "libraryEmpty": "No identities yet. Author the first product to begin the release spine.",
+    "libraryTitle": "Identity library",
+    "loadError": "Unable to load the identity library",
+    "name": "Name",
+    "release": "Record passing verdict and release",
+    "releaseError": "Release is unavailable",
+    "released": "Released asset {{id}}. Its reference carries generated disclosure and alt text.",
+    "render": "Resolve spec and render two candidates",
+    "renderError": "Unable to create render candidates",
+    "renderTitle": "Render and release",
+    "saving": "Saving identity…",
+    "selectError": "Unable to select candidate",
+    "selected": "Selected identity: {{name}} v{{version}}. Estimated cost: $0.02 before submission.",
+    "submitting": "Submitting…",
+    "version": "{{kind}} · version {{version}}"
+  },
+  "tailwind-merge": "^2.3.0",
+  "testid": "sidebar-shell",
+  "theme": {
+    "choice": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
+    },
+    "switcherLabel": "Theme"
+  },
+  "tier": "machine",
+  "title": "Status Badge",
+  "tone": "danger",
+  "true": "false",
+  "type": "no-document-horizontal-overflow",
+  "value": "Blocked",
+  "variant": "primary",
+  "version": "1.0.0"
+}

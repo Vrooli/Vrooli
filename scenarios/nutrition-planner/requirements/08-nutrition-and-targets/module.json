@@ -1,0 +1,156 @@
+{
+  "_metadata": {
+    "description": "Unit-aware nutrient arithmetic, distinct nutrient forms, explicit targets, unknown/zero semantics, scopes, and fixed supplement schedules.",
+    "module": "nutrition-and-targets",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "NUT-001",
+      "title": "Nutrient arithmetic is unit-aware and exact",
+      "status": "planned",
+      "prd_ref": "OT-P0-010",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "The scenario shall compute contributions as concentration times compatible quantity divided by basis, summing included ingredients once and dividing by the recipe yield in servings, using decimal or rational arithmetic with canonical decimal strings on the wire.",
+      "tags": [
+        "nutrition",
+        "arithmetic",
+        "decimal"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: FIX-02 yields exactly 83 g protein and 1,160 kcal per two-serving recipe, 41.5 g and 580 kcal per serving, $7.80 allocated cost, and 62.25 g protein at 1.5 servings (ACT-039)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: changing a display unit leaves the underlying stored quantity unchanged (ACT-039)."
+        }
+      ]
+    },
+    {
+      "id": "NUT-002",
+      "title": "Nutrient forms remain distinct",
+      "status": "planned",
+      "prd_ref": "OT-P0-010",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "The nutrient registry shall use stable internal IDs with canonical units, form semantics, allowed conversions, and provider mappings, and shall not silently combine incompatible forms such as folate versus folate equivalents or ALA, EPA, and DHA.",
+      "tags": [
+        "nutrients",
+        "registry",
+        "forms"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: an omega-3 product without a labeled breakdown yields unknown individual contributions, and no global IU-to-mass conversion is applied across vitamins (ACT-039)."
+        }
+      ]
+    },
+    {
+      "id": "NUT-003",
+      "title": "Targets carry bounds, period, enforcement, and provenance",
+      "status": "planned",
+      "prd_ref": "OT-P0-010",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "Every nutrition target shall carry a nutrient identity, unit, lower and upper bounds as applicable, evaluation period, contribution scope, enforcement level, provenance, and effective dates, and an active target shall require at least one bound with the lower bound not exceeding the upper bound.",
+      "tags": [
+        "targets",
+        "bounds",
+        "provenance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a range target requires both bounds to be assessed, and setting a daily target does not automatically create a weekly target (ACT-042)."
+        }
+      ]
+    },
+    {
+      "id": "NUT-004",
+      "title": "Unknown, zero, and partial are distinct and honest",
+      "status": "planned",
+      "prd_ref": "OT-P0-010",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "For each nutrient the scenario shall aggregate known contributions while tracking unresolved contributors, so a lower-only target can pass on the known subtotal with completeness still partial, while an upper bound cannot pass while unbounded unknown contributions remain and fails if the known subtotal already exceeds it.",
+      "tags": [
+        "unknown",
+        "coverage",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: FIX-04 distinguishes a met lower protein bound with partial completeness, an unresolved energy upper bound, a range with an unresolved upper bound, a fail at 540 kcal against a 500 kcal ceiling, and unknown rather than zero B12 (ACT-040)."
+        }
+      ]
+    },
+    {
+      "id": "NUT-005",
+      "title": "Evaluation scopes are explicit and never double-count",
+      "status": "planned",
+      "prd_ref": "OT-P0-010",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "The scenario shall distinguish selected meal, planned day, recorded so far, expected day, and selected week, shall not count both planned and actual amounts for one occurrence, and an unrecorded past slot shall remain unknown rather than being silently replaced with the plan.",
+      "tags": [
+        "scope",
+        "periods",
+        "full-day"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a dinner-only plan reports dinner totals with rest of day not covered and never claims full-day compliance (FIX-04, ACT-041)."
+        }
+      ]
+    },
+    {
+      "id": "NUT-006",
+      "title": "Supplements are fixed schedules the planner never adjusts",
+      "status": "planned",
+      "prd_ref": "OT-P0-010",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "A supplement schedule shall carry product revision, dose quantity, local recurrence, start and end dates, pause state, and user confirmation, and the planner shall never invent, increase, or optimize a dose to satisfy a coverage gap; a dose edit requires a user action and a new schedule revision.",
+      "tags": [
+        "supplements",
+        "schedules",
+        "dose"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: paused or selected-day schedules contribute only on applicable local dates at confirmed quantities, and editing a schedule never rewrites prior intake (ACT-042, ACT-043)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a product used in a recipe and separately scheduled can be two real intakes, with likely duplicate capture flagged for review rather than silently deleted."
+        }
+      ]
+    }
+  ]
+}

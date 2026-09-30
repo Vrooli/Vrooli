@@ -1,0 +1,125 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "templates.checkout-page",
+    "name": "CheckoutPage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The transaction surface with order summary, form state, asynchronous confirmation, recoverable failure, duplicate-submission protection, and an unambiguous completion state.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "page-template",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
+    },
+    "kits": [
+      "vrooli-conversion-landing",
+      "vrooli-default"
+    ]
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page",
+        "reason": "Route boundary, metadata, scroll restoration, and focus placement are the shared page."
+      },
+      {
+        "asset": "patterns.async-form-flow",
+        "reason": "Submission and recovery are the shared workflow."
+      },
+      {
+        "asset": "patterns.error-recovery-flow",
+        "reason": "Retryability classification and work preservation are shared."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "i18n-adapter"
+    },
+    {
+      "capability": "validation-adapter",
+      "typeArguments": [
+        "TOrder"
+      ]
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "heading-hierarchy",
+    "semantic-structure",
+    "entrance-restraint",
+    "content-reflow",
+    "recovery-path",
+    "error-honesty",
+    "partial-degradation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "permission-explained",
+    "empty-state-craft",
+    "status-announced",
+    "dark-parity",
+    "text-scale-resilience",
+    "card-restraint",
+    "error-association",
+    "input-preservation",
+    "error-message-usefulness"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry",
+    "submitting",
+    "success",
+    "validation-error"
+  ],
+  "regions": [
+    {
+      "id": "summary",
+      "purpose": "What is being purchased and for how much.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "details",
+      "purpose": "Payment and delivery entry.",
+      "required": true,
+      "lifecycle": "async",
+      "accepts": "forms"
+    },
+    {
+      "id": "confirmation",
+      "purpose": "Unambiguous completion state and receipt.",
+      "required": false,
+      "lifecycle": "async"
+    }
+  ],
+  "rationale": "Duplicate-submission protection is a correctness requirement, not polish: a double-charged customer is a support incident, so the idempotency key belongs in the shared async contract rather than in each integration."
+}

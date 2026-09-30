@@ -8,8 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/testutil"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
 func TestStore_SaveInvalidTheme(t *testing.T) {

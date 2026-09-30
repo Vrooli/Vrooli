@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"scenario-to-cloud/domain"
-	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/vps/portparse"
 	"scenario-to-cloud/vps/systemmetrics"
 )
@@ -159,88 +158,99 @@ func formatBytes(kb int64) string {
 	return fmt.Sprintf("%d KB", kb)
 }
 
-// checkStaleScenarioProcesses detects running processes for the target scenario.
-// This catches cases where old processes are still running, which would prevent
-// the newly deployed version from starting correctly.
+// staleProcessExclusions are command lines that mention the scenario id
+// without being scenario processes: the observation itself, editors, log
+// viewers and shell sessions.
+var staleProcessExclusions = []string{"pgrep", "grep", "vim", "nano", "less", "tail", "cat", "ssh", "sshd", "bash -c", "sh -c"}
+
+// checkStaleScenarioProcesses detects running processes for the target
+// scenario through pgrep. Old processes would keep outdated credentials and
+// ports and prevent the newly deployed version from starting correctly.
 func checkStaleScenarioProcesses(
 	ctx context.Context,
-	cfg ssh.Config,
-	sshRunner ssh.Runner,
+	obs observer,
 	manifest domain.CloudManifest,
 	warn func(id, title, details, hint string, data map[string]string),
 	pass func(id, title, details string, data map[string]string),
 ) {
-	scenarioID := manifest.Scenario.ID
+	scenarioID := strings.TrimSpace(manifest.Scenario.ID)
 	if scenarioID == "" {
-		return // Skip if no scenario specified
+		return
 	}
-
-	// Find processes matching scenario name
-	// Look for actual runtime processes (node, python, go, java, pm2) that contain the scenario ID
-	// Exclude: grep itself, editors, log viewers, shell sessions
-	cmd := fmt.Sprintf(
-		`ps aux --no-headers | grep -E '%s' | grep -v -E '(grep|vim|nano|less|tail|cat|ssh|sshd)' || true`,
-		scenarioID,
-	)
-	result, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
+	result, err := obs.observe(ctx, "pgrep", "-a", "-f", scenarioID)
 	if err != nil {
-		warn(domain.PreflightStaleProcessesID, "Stale process check",
-			"Unable to check for running processes",
-			"SSH command failed - check connectivity",
-			nil)
+		warn(domain.PreflightStaleProcessesID, "Stale process check", "Unable to check for running processes", err.Error(), nil)
 		return
 	}
-
-	// Parse the process output
-	stdout := strings.TrimSpace(result.Stdout)
-	if stdout == "" {
-		pass(domain.PreflightStaleProcessesID, "Stale process check",
-			"No existing scenario processes found",
-			nil)
+	processInfos := staleProcessLines(result.Stdout)
+	if len(processInfos) == 0 {
+		pass(domain.PreflightStaleProcessesID, "Stale process check", "No existing scenario processes found", nil)
 		return
 	}
+	detailsMsg := fmt.Sprintf("Found %d running process(es) for %s: %s", len(processInfos), scenarioID, strings.Join(processInfos, " | "))
+	warn(domain.PreflightStaleProcessesID, "Stale process check", detailsMsg,
+		"Stop existing processes through the lifecycle owner (Stop Processes) so the updated version deploys correctly",
+		map[string]string{"count": strconv.Itoa(len(processInfos)), "details": strings.Join(processInfos, "; ")})
+}
 
-	// Count and describe processes
-	lines := strings.Split(stdout, "\n")
-	var processInfos []string
-	for _, line := range lines {
+// staleProcessLines turns `pgrep -a` output (pid then command line) into
+// "PID n: command" entries, dropping the excluded command lines.
+func staleProcessLines(output string) []string {
+	var infos []string
+	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		// Extract PID and command from ps aux output
-		// Format: USER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
-		fields := strings.Fields(line)
-		if len(fields) >= 11 {
-			pid := fields[1]
-			// Command is everything from field 10 onwards
-			command := strings.Join(fields[10:], " ")
-			// Truncate long commands
-			if len(command) > 80 {
-				command = command[:80] + "..."
+		pid, command, found := strings.Cut(line, " ")
+		if !found {
+			continue
+		}
+		excluded := false
+		for _, marker := range staleProcessExclusions {
+			if strings.Contains(command, marker) {
+				excluded = true
+				break
 			}
-			processInfos = append(processInfos, fmt.Sprintf("PID %s: %s", pid, command))
+		}
+		if excluded {
+			continue
+		}
+		if len(command) > 80 {
+			command = command[:80] + "..."
+		}
+		infos = append(infos, fmt.Sprintf("PID %s: %s", pid, command))
+	}
+	return infos
+}
+
+// ufwEnabled reads ENABLED= from /etc/ufw/ufw.conf.
+func ufwEnabled(conf string) bool {
+	for _, line := range strings.Split(conf, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "ENABLED=") {
+			return strings.EqualFold(strings.TrimPrefix(line, "ENABLED="), "yes")
 		}
 	}
+	return false
+}
 
-	if len(processInfos) == 0 {
-		pass(domain.PreflightStaleProcessesID, "Stale process check",
-			"No existing scenario processes found",
-			nil)
-		return
+// ufwRulesAllow scans /etc/ufw/user.rules for allow tuples on 80 and 443.
+// UFW writes one `### tuple ### allow <proto> <port> ...` line per rule.
+func ufwRulesAllow(rules string) (allow80, allow443 bool) {
+	for _, line := range strings.Split(rules, "\n") {
+		lower := strings.ToLower(strings.TrimSpace(line))
+		if !strings.Contains(lower, "allow") {
+			continue
+		}
+		if ufwAllowsPort(lower, 80) {
+			allow80 = true
+		}
+		if ufwAllowsPort(lower, 443) {
+			allow443 = true
+		}
 	}
-
-	// Include process details in the visible message
-	detailsMsg := fmt.Sprintf("Found %d running process(es) for %s: %s",
-		len(processInfos), scenarioID, strings.Join(processInfos, " | "))
-
-	warn(domain.PreflightStaleProcessesID, "Stale process check",
-		detailsMsg,
-		"Stop existing processes to ensure the updated version deploys correctly",
-		map[string]string{
-			"count":   fmt.Sprintf("%d", len(processInfos)),
-			"details": strings.Join(processInfos, "; "),
-		})
+	return allow80, allow443
 }
 
 // ParseSSOutput parses the output of `ss -tlnp`.

@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "foundation",
+  "catalogId": "react-component-library:StyleSheet",
+  "deprecatedVersions": [],
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:StyleSheet"
+}

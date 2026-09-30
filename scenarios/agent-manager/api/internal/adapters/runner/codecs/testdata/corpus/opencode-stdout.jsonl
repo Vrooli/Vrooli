@@ -1,0 +1,6 @@
+{"type":"step_start","sessionID":"sess-1","part":{"type":"step-start","sessionID":"sess-1"}}
+{"type":"text","sessionID":"sess-1","part":{"type":"text","text":"Hello there"}}
+{"type":"tool_use","sessionID":"sess-1","part":{"type":"tool","tool":"write","callID":"call-1","state":{"status":"pending","input":{"path":"/tmp/x.txt","content":"hi"}}}}
+{"type":"tool_use","sessionID":"sess-1","part":{"type":"tool","tool":"write","callID":"call-1","state":{"status":"completed","input":{"path":"/tmp/x.txt"},"output":"file written"}}}
+{"type":"step_finish","sessionID":"sess-1","part":{"type":"step-finish","reason":"stop","text":"All done.","tokens":{"input":120,"output":40,"cache":{"read":5,"write":3}},"cost":0.0042}}
+

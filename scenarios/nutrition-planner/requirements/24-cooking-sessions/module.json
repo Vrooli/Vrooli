@@ -1,0 +1,152 @@
+{
+  "_metadata": {
+    "description": "Focused cooking mode: pinned sessions, explicit step completion, durable concurrent timers, and a finish flow that separates batch confirmation from intake.",
+    "module": "cooking-sessions",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "COOK-001",
+      "title": "Cooking sessions are pinned and resumable",
+      "status": "planned",
+      "prd_ref": "OT-P0-019",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "When a user starts cooking, the scenario shall create or resume a session identified by recipe revision, preparation method, scale, optional occurrence, and workspace, offer Resume or Start another when a matching session is active, track active, paused, completed, and abandoned states, and keep the session pinned when the recipe is edited during cooking.",
+      "tags": [
+        "cooking",
+        "session",
+        "revisions"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: editing the recipe during an active session leaves the session on its original method and revision (AT-018)."
+        }
+      ]
+    },
+    {
+      "id": "COOK-002",
+      "title": "Step completion is explicit and Next only navigates",
+      "status": "planned",
+      "prd_ref": "OT-P0-019",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The cooking view shall show Step n of m, title, full instruction, relevant quantities, equipment and settings, optional image, and timers, offer an explicit Mark step done, keep Previous and Next as navigation only, drive completed checkmarks from persisted completion events, warn before completing a step with unconfirmed prerequisites while allowing a confirmed override, and give phones a step-list sheet.",
+      "tags": [
+        "cooking",
+        "steps",
+        "completion"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: pressing Next without Mark step done advances the view and leaves completion unchanged (AT-026)."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: the desktop step rail and the phone step-list sheet show the same persisted completion state (R13.2)."
+        }
+      ]
+    },
+    {
+      "id": "COOK-003",
+      "title": "Timers are durable and use absolute time",
+      "status": "planned",
+      "prd_ref": "OT-P0-019",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "Each cooking timer shall have a stable id, session and step linkage, label, original duration, state, start and target timestamps, paused remaining duration, and revision, display remaining time from the current clock rather than a decrementing counter, run concurrently with hidden timers in a tray, support Start, Pause, Resume, Add minute, Reset, and Dismiss, and add a minute to the deadline when running or to the remaining duration when paused.",
+      "tags": [
+        "cooking",
+        "timers",
+        "persistence"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: +1 min adds to the deadline while running and to the remainder while paused; reload reconstructs the displayed time (AT-027)."
+        }
+      ]
+    },
+    {
+      "id": "COOK-004",
+      "title": "Timers coordinate across tabs, offline, and clock changes",
+      "status": "planned",
+      "prd_ref": "OT-P0-019",
+      "category": "resilience",
+      "criticality": "P0",
+      "description": "The scenario shall coordinate timers across tabs so an expiry is persisted and announced once, persist offline timer actions as revisioned operations for reconciliation, reconcile clock changes by a documented policy, and promise background alerts only where the platform supports and permits them.",
+      "tags": [
+        "cooking",
+        "timers",
+        "multi-tab",
+        "offline"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a timer expiring with two tabs open records one expiry and one alert (AT-028); a paused timer changed offline reconciles on reconnect (R22)."
+        }
+      ]
+    },
+    {
+      "id": "COOK-005",
+      "title": "Timer expiry never completes a step or meal",
+      "status": "planned",
+      "prd_ref": "OT-P0-019",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "When a timer reaches zero, the scenario shall mark only the timer elapsed, never the step or meal complete, announce state changes and expiry rather than every second, and never turn an elapsed timer into a new session.",
+      "tags": [
+        "cooking",
+        "timers",
+        "accessibility"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: an elapsed timer leaves the step incomplete and emits one live-region announcement (R13.3, R07)."
+        }
+      ]
+    },
+    {
+      "id": "COOK-006",
+      "title": "Finishing separates batch confirmation from intake",
+      "status": "planned",
+      "prd_ref": "OT-P0-019",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "When cooking finishes, the scenario shall offer a batch confirmation with actual yield and optional ingredient adjustments, or Finish without inventory update, keep I ate a serving as a separate action, consume raw ingredients once at batch confirmation and prepared portions once at intake, and never count time with the screen open as active cooking time.",
+      "tags": [
+        "cooking",
+        "batch",
+        "intake",
+        "inventory"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: finishing without eating records preparation but no intake (AT-029); cooking then eating leftovers consumes raw stock once and prepared stock once (AT-030, FIX-03)."
+        }
+      ]
+    }
+  ]
+}

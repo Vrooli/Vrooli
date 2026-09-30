@@ -18,6 +18,7 @@ import type { ActualViewport } from '../api/schemas';
 import type { Page } from '../hooks/usePages';
 import type { TimelineEntry } from '../api/schemas';
 import type { RetryState } from '../services';
+import type { FrameStats } from '../hooks/useFrameStats';
 
 // ============================================================================
 // Types
@@ -47,6 +48,13 @@ export interface DisplayDimensions {
   height: number;
 }
 
+/** Live stream connection metadata displayed in browser chrome. */
+export interface StreamConnectionStatus {
+  isConnected: boolean;
+  isWebSocket: boolean;
+  lastFrameTime?: string;
+}
+
 // ============================================================================
 // Store State Interface
 // ============================================================================
@@ -56,7 +64,6 @@ interface SessionState {
   sessionId: string | null;
   profileId: string | null;
   actualViewport: ActualViewport | null;
-  initialRestoredUrl: string | null;
   /** Session has been confirmed to exist on the server */
   isValidated: boolean;
 
@@ -80,6 +87,11 @@ interface SessionState {
   // Display dimensions (for coordinate mapping)
   frameDimensions: FrameDimensions | null;
   displayDimensions: DisplayDimensions | null;
+
+  // Live preview metadata (kept out of RecordingSession React state)
+  recordingPageTitle: string;
+  recordingFrameStats: FrameStats | null;
+  connectionStatus: StreamConnectionStatus | null;
 }
 
 // ============================================================================
@@ -92,7 +104,6 @@ interface SessionActions {
     sessionId: string;
     profileId?: string | null;
     actualViewport?: ActualViewport | null;
-    initialRestoredUrl?: string | null;
   }) => void;
   /** Validate that a session exists on the server before subscribing */
   validateSession: (sessionId: string) => Promise<boolean>;
@@ -124,6 +135,12 @@ interface SessionActions {
   // Display dimensions
   setFrameDimensions: (dims: FrameDimensions | null) => void;
   setDisplayDimensions: (dims: DisplayDimensions | null) => void;
+
+  // Live preview metadata
+  setRecordingPageTitle: (title: string) => void;
+  setRecordingFrameStats: (stats: FrameStats | null) => void;
+  setConnectionStatus: (status: StreamConnectionStatus | null) => void;
+  clearLivePreviewMetadata: () => void;
 }
 
 type SessionStore = SessionState & SessionActions;
@@ -155,7 +172,6 @@ const initialState: SessionState = {
   sessionId: null,
   profileId: null,
   actualViewport: null,
-  initialRestoredUrl: null,
   isValidated: false,
   isCreating: false,
   isValidating: false,
@@ -170,6 +186,9 @@ const initialState: SessionState = {
   timelineHasMore: false,
   frameDimensions: null,
   displayDimensions: null,
+  recordingPageTitle: '',
+  recordingFrameStats: null,
+  connectionStatus: null,
 };
 
 // ============================================================================
@@ -194,7 +213,6 @@ export const useSessionStore = create<SessionStore>()(
         sessionId: data.sessionId,
         profileId: data.profileId ?? null,
         actualViewport: data.actualViewport ?? null,
-        initialRestoredUrl: data.initialRestoredUrl ?? null,
         isValidated: true,
         isCreating: false,
         isValidating: false,
@@ -373,6 +391,35 @@ export const useSessionStore = create<SessionStore>()(
     setFrameDimensions: (frameDimensions) => set({ frameDimensions }),
 
     setDisplayDimensions: (displayDimensions) => set({ displayDimensions }),
+
+    // ========================================================================
+    // Live Preview Metadata Actions
+    // ========================================================================
+
+    setRecordingPageTitle: (recordingPageTitle) =>
+      set((s) => (s.recordingPageTitle === recordingPageTitle ? {} : { recordingPageTitle })),
+
+    setRecordingFrameStats: (recordingFrameStats) => set({ recordingFrameStats }),
+
+    setConnectionStatus: (connectionStatus) =>
+      set((s) => {
+        const current = s.connectionStatus;
+        if (
+          current?.isConnected === connectionStatus?.isConnected &&
+          current?.isWebSocket === connectionStatus?.isWebSocket &&
+          current?.lastFrameTime === connectionStatus?.lastFrameTime
+        ) {
+          return {};
+        }
+        return { connectionStatus };
+      }),
+
+    clearLivePreviewMetadata: () =>
+      set({
+        recordingPageTitle: '',
+        recordingFrameStats: null,
+        connectionStatus: null,
+      }),
   }))
 );
 
@@ -441,6 +488,15 @@ export const useFrameDimensions = () => useSessionStore((s) => s.frameDimensions
 
 /** Get display dimensions */
 export const useDisplayDimensions = () => useSessionStore((s) => s.displayDimensions);
+
+/** Get recording page title for browser chrome */
+export const useRecordingPageTitle = () => useSessionStore((s) => s.recordingPageTitle);
+
+/** Get recording frame stats for browser chrome */
+export const useRecordingFrameStats = () => useSessionStore((s) => s.recordingFrameStats);
+
+/** Get recording stream connection status */
+export const useRecordingConnectionStatus = () => useSessionStore((s) => s.connectionStatus);
 
 /** Get combined session/validation state for components that need both */
 export const useSessionState = () =>

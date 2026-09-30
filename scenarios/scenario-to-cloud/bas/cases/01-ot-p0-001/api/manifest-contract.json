@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "name": "Manifest contract template",
+    "description": "Validate the manifest template the API returns carries the contract fields a deployment-manager export must satisfy (target, scenario, dependencies, bundle, ports).",
+    "tags": [
+      "e2e",
+      "api",
+      "manifest"
+    ],
+    "requirements": [
+      "STC-P0-001"
+    ],
+    "labels": {
+      "safety": "observer",
+      "mutates_target": "false",
+      "mutates_repository": "false",
+      "requirements_json": "[\"STC-P0-001\"]"
+    },
+    "reset": "none",
+    "execution_mode": "observer"
+  },
+  "flow_definition": {
+    "settings": {},
+    "nodes": [
+      {"id":"template-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/manifest/template","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/manifest/template"}}}
+    ],
+    "edges":[]
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "metadata": {
+    "name": "world-first-frame",
+    "description": "World first frame: canvas mounts, diagnostics report ready within budget, summary strip visible",
+    "labels": {
+      "reset": "none",
+      "safety": "read-only"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1600,
+    "viewport_height": 1000
+  },
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prompt-manager",
+          "scenario_path": "/world?diag=1&intro=0",
+          "wait_until": "NAVIGATE_WAIT_EVENT_LOAD",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open the world with diagnostics"
+        }
+      }
+    },
+    {
+      "id": "wait-canvas",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/world.canvas",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Wait for the canvas"
+        }
+      }
+    },
+    {
+      "id": "assert-ready",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/world.diagnostics",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "timeout_ms": 90000,
+          "failure_message": "World did not reach ready",
+          "attribute_name": "data-ready",
+          "expected": {
+            "string_value": "true"
+          }
+        },
+        "metadata": {
+          "label": "Diagnostics ready"
+        }
+      }
+    },
+    {
+      "id": "assert-budget",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/world.diagnostics",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "timeout_ms": 30000,
+          "failure_message": "Draw calls or triangles exceed the tuning budget",
+          "attribute_name": "data-budget-ok",
+          "expected": {
+            "string_value": "true"
+          }
+        },
+        "metadata": {
+          "label": "Render within budget"
+        }
+      }
+    },
+    {
+      "id": "assert-summary",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/world.hud.summary",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "Summary strip missing"
+        },
+        "metadata": {
+          "label": "Summary strip visible"
+        }
+      }
+    },
+    {
+      "id": "shot-first-frame",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Hero frame"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate",
+      "target": "wait-canvas",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-canvas",
+      "target": "assert-ready",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "assert-ready",
+      "target": "assert-budget",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-budget",
+      "target": "assert-summary",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "assert-summary",
+      "target": "shot-first-frame",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

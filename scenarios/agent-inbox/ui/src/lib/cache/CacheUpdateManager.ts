@@ -160,7 +160,6 @@ export class CacheUpdateManager {
             is_read: true,
             is_starred: false,
             is_archived: false,
-            tools_enabled: true,
             web_search_enabled: false,
             label_ids: [],
             created_at: now,
@@ -178,7 +177,7 @@ export class CacheUpdateManager {
           ...old.chat,
           active_leaf_message_id: expectedLeafId || message.id,
         },
-        messages: [...(old.messages || []), message],
+        messages: [...old.messages, message],
       };
     });
   }

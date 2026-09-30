@@ -69,6 +69,9 @@ type TimelineQuery struct {
 
 // ApplyDefaults sets default values for unset query fields.
 func (q *TimelineQuery) ApplyDefaults() {
+	if q.Offset < 0 {
+		q.Offset = 0
+	}
 	if q.Limit <= 0 {
 		q.Limit = 100
 	}

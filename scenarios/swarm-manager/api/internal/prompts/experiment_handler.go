@@ -4,12 +4,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gorilla/mux"
-
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/experiment"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/promptmanager"
+
+	"github.com/gorilla/mux"
 )
 
 // ExperimentHandler serves experiment analysis endpoints.

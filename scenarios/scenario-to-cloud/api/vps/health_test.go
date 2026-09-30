@@ -121,7 +121,7 @@ func newHealthyTLSSnapshot() *tlsinfo.Snapshot {
 	}
 }
 
-func findCheck(resp domain.HealthResponse, category string, id string) *domain.HealthCheck {
+func findCheck(resp domain.HealthResponse, category, id string) *domain.HealthCheck {
 	for _, sec := range resp.Sections {
 		if sec.Category != category {
 			continue
@@ -142,7 +142,7 @@ func TestComputeHealth_Healthy(t *testing.T) {
 	dnsEval := newHealthyDNSEval()
 	tlsSnap := newHealthyTLSSnapshot()
 
-	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil)
+	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil, nil)
 
 	if resp.Health != domain.HealthHealthy {
 		t.Errorf("expected health=healthy, got %s", resp.Health)
@@ -156,8 +156,8 @@ func TestComputeHealth_Healthy(t *testing.T) {
 	if resp.Host != "1.2.3.4" {
 		t.Errorf("expected host=1.2.3.4, got %s", resp.Host)
 	}
-	if len(resp.Sections) != 6 {
-		t.Errorf("expected 6 sections, got %d", len(resp.Sections))
+	if len(resp.Sections) != 7 {
+		t.Errorf("expected 7 sections, got %d", len(resp.Sections))
 	}
 	if len(resp.Recommendations) != 0 {
 		t.Errorf("expected 0 recommendations, got %d", len(resp.Recommendations))
@@ -175,7 +175,7 @@ func TestComputeHealth_SSHAgentIsWarn(t *testing.T) {
 		VerificationState: sshidentity.VerificationUnknown,
 	}
 
-	resp := ComputeHealth(dep, manifest, identity, liveState, newHealthyDNSEval(), newHealthyTLSSnapshot(), nil)
+	resp := ComputeHealth(dep, manifest, identity, liveState, newHealthyDNSEval(), newHealthyTLSSnapshot(), nil, nil)
 
 	var keyAuthCheck *domain.HealthCheck
 	for _, sec := range resp.Sections {
@@ -222,7 +222,7 @@ func TestComputeHealth_ExplicitUnauthorizedIsFail(t *testing.T) {
 	liveState.System.SSH.VerificationState = string(sshidentity.VerificationUnauthorized)
 	identity := newExplicitIdentity(sshidentity.VerificationUnauthorized)
 
-	resp := ComputeHealth(dep, manifest, identity, liveState, newHealthyDNSEval(), newHealthyTLSSnapshot(), nil)
+	resp := ComputeHealth(dep, manifest, identity, liveState, newHealthyDNSEval(), newHealthyTLSSnapshot(), nil, nil)
 
 	var keyAuthCheck *domain.HealthCheck
 	for _, sec := range resp.Sections {
@@ -259,7 +259,7 @@ func TestComputeHealth_Degraded_TLSExpiring(t *testing.T) {
 		ALPN: tlsinfo.ALPNCheck{Status: tlsinfo.ALPNPass},
 	}
 
-	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil)
+	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil, nil)
 
 	if resp.Health != domain.HealthDegraded {
 		t.Errorf("expected health=degraded, got %s", resp.Health)
@@ -300,7 +300,7 @@ func TestComputeHealth_ALPNWarnHealthyCertIsInformational(t *testing.T) {
 		},
 	}
 
-	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil)
+	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil, nil)
 
 	if resp.Health != domain.HealthHealthy {
 		t.Fatalf("expected healthy when ALPN warns but cert is healthy, got %s", resp.Health)
@@ -337,7 +337,7 @@ func TestComputeHealth_ALPNWarnWithinRenewalWindowIsWarn(t *testing.T) {
 		},
 	}
 
-	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil)
+	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil, nil)
 
 	if resp.Health != domain.HealthDegraded {
 		t.Fatalf("expected degraded when ALPN warns in renewal window, got %s", resp.Health)
@@ -379,7 +379,7 @@ func TestComputeHealth_ALPNWarnNearExpiryIsFail(t *testing.T) {
 		},
 	}
 
-	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil)
+	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil, nil)
 
 	if resp.Health != domain.HealthUnhealthy {
 		t.Fatalf("expected unhealthy when ALPN fails near expiry, got %s", resp.Health)
@@ -404,7 +404,7 @@ func TestComputeHealth_Unhealthy_ProcessMissing(t *testing.T) {
 	dnsEval := newHealthyDNSEval()
 	tlsSnap := newHealthyTLSSnapshot()
 
-	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil)
+	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil, nil)
 
 	if resp.Health != domain.HealthUnhealthy {
 		t.Errorf("expected health=unhealthy, got %s", resp.Health)
@@ -420,6 +420,11 @@ func TestComputeHealth_Unhealthy_ProcessMissing(t *testing.T) {
 	if !found {
 		t.Error("expected a process restart recommendation")
 	}
+	for _, r := range resp.Recommendations {
+		if r.Category == "processes" && r.Command != "scenario-to-cloud deployment start dep-123" {
+			t.Fatalf("process recommendation command = %q, want owner-level deployment start", r.Command)
+		}
+	}
 }
 
 func TestComputeHealth_Failed(t *testing.T) {
@@ -428,7 +433,7 @@ func TestComputeHealth_Failed(t *testing.T) {
 	dep.ErrorMessage = &errMsg
 	manifest := newTestManifest()
 
-	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationUnknown), nil, nil, nil, nil)
+	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationUnknown), nil, nil, nil, nil, nil)
 
 	if resp.Health != domain.HealthFailed {
 		t.Errorf("expected health=failed, got %s", resp.Health)
@@ -439,7 +444,7 @@ func TestComputeHealth_Stopped(t *testing.T) {
 	dep := newTestDeployment(domain.StatusStopped)
 	manifest := newTestManifest()
 
-	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationUnknown), nil, nil, nil, nil)
+	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationUnknown), nil, nil, nil, nil, nil)
 
 	if resp.Health != domain.HealthStopped {
 		t.Errorf("expected health=stopped, got %s", resp.Health)
@@ -464,7 +469,7 @@ func TestComputeHealth_Unknown_SSHUnreachable(t *testing.T) {
 		Error: "ssh: connect to host 1.2.3.4 port 22: Connection timed out",
 	}
 
-	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationUnknown), liveState, nil, nil, nil)
+	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationUnknown), liveState, nil, nil, nil, nil)
 
 	if resp.Health != domain.HealthUnknown {
 		t.Errorf("expected health=unknown, got %s", resp.Health)
@@ -475,7 +480,7 @@ func TestComputeHealth_Starting(t *testing.T) {
 	dep := newTestDeployment(domain.StatusDeploying)
 	manifest := newTestManifest()
 
-	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationUnknown), nil, nil, nil, nil)
+	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationUnknown), nil, nil, nil, nil, nil)
 
 	if resp.Health != domain.HealthStarting {
 		t.Errorf("expected health=starting, got %s", resp.Health)
@@ -492,7 +497,7 @@ func TestComputeHealth_SystemWarnings(t *testing.T) {
 	dnsEval := newHealthyDNSEval()
 	tlsSnap := newHealthyTLSSnapshot()
 
-	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil)
+	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil, nil)
 
 	if resp.Health != domain.HealthDegraded {
 		t.Errorf("expected health=degraded, got %s", resp.Health)
@@ -510,7 +515,7 @@ func TestComputeHealth_SectionCounts(t *testing.T) {
 	dnsEval := newHealthyDNSEval()
 	tlsSnap := newHealthyTLSSnapshot()
 
-	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil)
+	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil, nil)
 
 	for _, sec := range resp.Sections {
 		total := sec.PassCount + sec.WarnCount + sec.FailCount + sec.ErrorCount
@@ -537,7 +542,7 @@ func TestComputeHealth_CPUSpikeWithoutLoadPressureIsWarning(t *testing.T) {
 	dnsEval := newHealthyDNSEval()
 	tlsSnap := newHealthyTLSSnapshot()
 
-	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil)
+	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil, nil)
 
 	if resp.Health != domain.HealthDegraded {
 		t.Fatalf("expected degraded for transient CPU spike, got %s", resp.Health)
@@ -554,9 +559,36 @@ func TestComputeHealth_CPUSustainedHighLoadFails(t *testing.T) {
 	dnsEval := newHealthyDNSEval()
 	tlsSnap := newHealthyTLSSnapshot()
 
-	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil)
+	resp := ComputeHealth(dep, manifest, newExplicitIdentity(sshidentity.VerificationAuthorized), liveState, dnsEval, tlsSnap, nil, nil)
 
 	if resp.Health != domain.HealthUnhealthy {
 		t.Fatalf("expected unhealthy for sustained CPU pressure, got %s", resp.Health)
+	}
+}
+
+// TestComputeHealth_SSHProbeFailureIsUnknown [REQ:STC-P0-033] proves that an
+// inspection whose commands all failed (OK=true, SSH ping not connected) is
+// reported unknown, never unhealthy: unreachable evidence is not evidence.
+func TestComputeHealth_SSHProbeFailureIsUnknown(t *testing.T) {
+	dep := newTestDeployment(domain.StatusDeployed)
+	live := newHealthyLiveState()
+	live.System.SSH.Connected = false
+	live.Processes = nil
+
+	resp := ComputeHealth(dep, newTestManifest(), newExplicitIdentity(sshidentity.VerificationAuthorized), live, newHealthyDNSEval(), newHealthyTLSSnapshot(), nil, nil)
+	if resp.Health != domain.HealthUnknown {
+		t.Fatalf("Health = %s, want unknown", resp.Health)
+	}
+	if c := findCheck(resp, "ssh", "ssh_connected"); c == nil || c.Status != domain.HealthCheckFail {
+		t.Fatalf("ssh_connected = %+v", c)
+	}
+	if c := findCheck(resp, "processes", "processes_unavailable"); c == nil || c.Status != domain.HealthCheckSkip {
+		t.Fatalf("processes should be unavailable, got %+v", c)
+	}
+	if c := findCheck(resp, "system", "system_unavailable"); c == nil {
+		t.Fatal("system metrics should be unavailable when SSH did not connect")
+	}
+	if LiveStateReachable(live) {
+		t.Fatal("LiveStateReachable must be false when the SSH probe failed")
 	}
 }

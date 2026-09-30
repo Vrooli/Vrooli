@@ -1,0 +1,64 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "notification-hub",
+  "description": "Notification Hub — owner notification delivery and decision surface.",
+  "groups": [
+    {
+      "name": "notifications",
+      "description": "Accept and inspect notifications.",
+      "commands": [
+        {"name":"send","description":"Accept a notification and return its durable id.","flags":[{"name":"title"},{"name":"body","required":true},{"name":"urgency","values":["low","normal","high","critical"]},{"name":"sensitivity-label","required":true},{"name":"idempotency-key","required":true},{"name":"dedupe-key"},{"name":"scheduled-at"},{"name":"digest-window-seconds"}],"binding":{"kind":"connect-rpc","service":"NotificationsService","method":"Send"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"relay","description":"Accept a bridge-safe base64 notification payload.","flags":[{"name":"payload-base64","required":true}],"binding":{"kind":"connect-rpc","service":"NotificationsService","method":"Relay"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"get","description":"Read a notification and its receipts.","positionals":[{"name":"id","required":true}],"binding":{"kind":"connect-rpc","service":"NotificationsService","method":"Get"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"list","description":"List the notification timeline.","flags":[{"name":"limit"}],"binding":{"kind":"connect-rpc","service":"NotificationsService","method":"List"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+      ]
+    },
+    {
+      "name":"channels",
+      "description":"Inspect delivery channel readiness.",
+      "commands":[
+        {"name":"status","description":"Report channel readiness for this recipient and machine.","flags":[{"name":"machine-id"}],"binding":{"kind":"connect-rpc","service":"RoutingService","method":"ChannelsStatus"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+      ]
+    },
+    {
+      "name":"delivery",
+      "description":"Operate durable delivery.",
+      "commands":[
+        {"name":"deliver","description":"Attempt delivery for a durable notification.","positionals":[{"name":"id","required":true}],"binding":{"kind":"connect-rpc","service":"DeliveryService","method":"Deliver"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"timeline","description":"Read delivery history.","binding":{"kind":"connect-rpc","service":"DeliveryService","method":"GetTimeline"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"analytics","description":"Report delivery counts, failures, and latency.","flags":[{"name":"since"},{"name":"until"}],"binding":{"kind":"connect-rpc","service":"DeliveryService","method":"GetAnalytics"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+      ]
+    },
+    {
+      "name":"conversations",
+      "description":"Answer an operator question.",
+      "commands":[
+        {"name":"ask","description":"Ask the operator a question and persist its deadline.","flags":[{"name":"question","required":true},{"name":"deadline","required":true},{"name":"sensitivity-label","required":true},{"name":"idempotency-key","required":true}],"binding":{"kind":"connect-rpc","service":"ConversationsService","method":"Ask"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"answer","description":"Record an answer to a pending notification question.","flags":[{"name":"ask-id","required":true},{"name":"answer","required":true}],"binding":{"kind":"connect-rpc","service":"ConversationsService","method":"Answer"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"wait","description":"Wait for an answer or the supplied deadline.","flags":[{"name":"ask-id","required":true},{"name":"deadline","required":true}],"binding":{"kind":"connect-rpc","service":"ConversationsService","method":"Wait"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+      ]
+    },
+    {
+      "name":"recipients",
+      "description":"Manage the authenticated recipient projection, devices, addresses, preferences, and escalation.",
+      "commands":[
+        {"name":"get","description":"Read the authenticated recipient.","binding":{"kind":"connect-rpc","service":"RecipientsService","method":"GetRecipient"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"push-subscribe","description":"Register a browser push subscription.","flags":[{"name":"endpoint","required":true},{"name":"p256dh","required":true},{"name":"auth","required":true},{"name":"origin","required":true}],"binding":{"kind":"connect-rpc","service":"RecipientsService","method":"RegisterPushSubscription"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"push-remove","description":"Remove a browser push subscription.","flags":[{"name":"endpoint","required":true}],"binding":{"kind":"connect-rpc","service":"RecipientsService","method":"RemovePushSubscription"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"device-list","description":"List registered devices.","binding":{"kind":"connect-rpc","service":"RecipientsService","method":"ListDevices"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"device-upsert","description":"Register or update a device.","flags":[{"name":"id"},{"name":"name","required":true},{"name":"machine-id"}],"binding":{"kind":"connect-rpc","service":"RecipientsService","method":"UpsertDevice"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"device-remove","description":"Remove a device.","positionals":[{"name":"id","required":true}],"binding":{"kind":"connect-rpc","service":"RecipientsService","method":"RemoveDevice"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"address-upsert","description":"Register or update a channel address.","flags":[{"name":"id"},{"name":"device-id","required":true},{"name":"channel","required":true},{"name":"address","required":true},{"name":"approved-labels"}],"binding":{"kind":"connect-rpc","service":"RecipientsService","method":"UpsertChannelAddress"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"address-remove","description":"Remove a channel address.","positionals":[{"name":"id","required":true}],"binding":{"kind":"connect-rpc","service":"RecipientsService","method":"RemoveChannelAddress"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"quiet-set","description":"Create or replace a quiet window.","flags":[{"name":"weekday","required":true},{"name":"start","required":true},{"name":"end","required":true},{"name":"timezone","required":true},{"name":"critical-override"}],"binding":{"kind":"connect-rpc","service":"RecipientsService","method":"SetQuietWindow"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"quiet-list","description":"List quiet windows.","binding":{"kind":"connect-rpc","service":"RecipientsService","method":"ListQuietWindows"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"quiet-delete","description":"Delete a quiet window.","positionals":[{"name":"id","required":true}],"binding":{"kind":"connect-rpc","service":"RecipientsService","method":"DeleteQuietWindow"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"escalation-set","description":"Set ordered escalation channels.","flags":[{"name":"channels","required":true}],"binding":{"kind":"connect-rpc","service":"RecipientsService","method":"SetEscalationChain"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"escalation-get","description":"Read ordered escalation channels.","binding":{"kind":"connect-rpc","service":"RecipientsService","method":"GetEscalationChain"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+      ]
+    }
+  ],
+  "measures":{"domains":[]},
+  "exceptions":[],
+  "omitted":[]
+}

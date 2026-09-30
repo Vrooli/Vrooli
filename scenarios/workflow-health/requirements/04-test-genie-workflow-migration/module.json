@@ -1,0 +1,45 @@
+{
+  "description": "Test Genie exposes `workflow` as the canonical delegated phase and keeps `playbooks` as migration-only aliasing.",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "OT-P0-004",
+  "priority": "P0",
+  "requirements": [
+    {
+      "id": "REQ-P0-007",
+      "title": "Register Canonical Delegated Workflow Phase",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "test-genie",
+      "criticality": "P0",
+      "description": "Test Genie must register a canonical `workflow` phase backed by workflow-health via the generic validation-provider adapter, include execution by default for runtime workflows, and expose workflow metadata in presets, docs, schemas, and CLI phase validation.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "ref": "",
+          "notes": "Phase catalog guard tests assert `workflow` uses source `validation-provider`, provider scenario `workflow-health`, execution enabled, and no active native runner entry."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-008",
+      "title": "Alias Deprecated Playbooks Inputs",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "migration",
+      "criticality": "P0",
+      "description": "Test Genie must accept `playbooks` only as a documented deprecated alias that routes to `workflow`, emits deprecation guidance, and never appears as the final canonical catalog phase.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "pending",
+          "ref": "",
+          "notes": "`test-genie execute <scenario> --phases playbooks` routes to workflow with a deprecation warning; `--phases workflow` is the documented path."
+        }
+      ]
+    }
+  ],
+  "title": "Test Genie workflow migration"
+}

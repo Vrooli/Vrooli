@@ -50,6 +50,9 @@ func resolveGroupIgnore(repoDir, cleanPath, groupDirRaw string) (string, string,
 // When Level is "group", the entry is written to <RepoDir>/<GroupDir>/.gitignore.
 // Otherwise it writes to the root .gitignore.
 func IgnorePath(ctx context.Context, deps IgnoreDeps, req IgnoreRequest) (*IgnoreResponse, error) {
+	if err := requireHumanMutation(ctx, "ignore path"); err != nil {
+		return nil, err
+	}
 	if deps.Git == nil {
 		return nil, fmt.Errorf("git runner is required")
 	}

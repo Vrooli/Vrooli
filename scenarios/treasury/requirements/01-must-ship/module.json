@@ -1,0 +1,343 @@
+{
+  "_metadata": {
+    "description": "P0 requirements: the authorization spine. Every entry here must hold before any automated rail is wired, because each one is a property that a later rail assumes rather than re-establishes.",
+    "last_validated_at": "2026-08-28T01:24:44-04:00",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "TRS-P0-001",
+      "title": "The mandate contract",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "The scenario shall admit every spend through exactly one typed grant naming authorizer, cap, counterparty scope and expiry, with each rail an adapter satisfying it and no privileged path",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/mandate/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Constructing a mandate without an authorizer, cap, counterparty scope or expiry is rejected with the named constraint. [REQ:TRS-P0-001]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/rail/contract_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The registry wraps every adapter with the same execution contract; the table test enumerates registered manual and automated fixtures. [REQ:TRS-P0-001]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/rail/contract_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Every adapter obtained from the registry rejects a settle command with no mandate reference before adapter code runs, proving the absence of a privileged path. [REQ:TRS-P0-001]"
+        }
+      ]
+    },
+    {
+      "id": "TRS-P0-002",
+      "title": "Policy evaluated server-side",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "description": "When an agent submits a charge, the scenario shall evaluate it against its mandate inside the API, and the agent that read untrusted content shall never hold the decision",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/authorization/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The evaluator derives its verdict only from stored mandate and budget state; caller-supplied verdict, allowance or override fields do not exist. [REQ:TRS-P0-002]"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/agentspend/connect_handler_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "The agent-facing request has no verdict override field, and an out-of-cap request is recomputed from stored policy and refused. [REQ:TRS-P0-002]"
+        }
+      ]
+    },
+    {
+      "id": "TRS-P0-003",
+      "title": "Budgets carry caps, scope and gating",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "description": "A budget shall carry total, periodic and per-transaction caps plus counterparty allow and deny lists, and shall declare whether spends beneath it require human approval",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/budget/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The budget preserves every cap and gating dimension, and a deny-list entry outranks an allow-list entry for the same counterparty. [REQ:TRS-P0-003]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/authorization/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Periodic caps roll over on their declared boundary without retroactively freeing total headroom already consumed by settled charges. [REQ:TRS-P0-003]"
+        },
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Planned automation at `bas/cases/budgets/configure.json`. An operator creates a budget with every cap dimension and both lists through the console, and the resulting authorization behaviour matches the configuration. [REQ:TRS-P0-003]"
+        }
+      ]
+    },
+    {
+      "id": "TRS-P0-004",
+      "title": "The approval gate is structurally out of agent reach",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "The agent-facing service shall expose no method that mutates policy, budgets or gating, so a caller holding a valid agent token cannot disable the gate that governs it",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/agentspend/surface_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Asserts against the generated proto service descriptor that AgentSpend declares only the four reviewed non-policy methods. A synthetic SetGating mutation proves the guard fails live. [REQ:TRS-P0-004]"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/treasuryadmin/realm_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Every TreasuryAdmin method is exercised through a generated Connect client/server: agent and mixed-realm credentials are rejected, while an operator credential crosses the boundary. [REQ:TRS-P0-004]"
+        }
+      ]
+    },
+    {
+      "id": "TRS-P0-005",
+      "title": "Unverifiable callers cannot spend",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "description": "If agent identity cannot be verified at authorization time, then the scenario shall refuse the spend rather than record it at a degraded evidence grade",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/identity/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Transport failure, rejected token, malformed authority response and absent token each fail closed. [REQ:TRS-P0-005]"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/agentspend/connect_handler_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "With the identity authority unreachable, an authorization request is refused, no spend authority is persisted, and append-only refusal evidence records the cause. [REQ:TRS-P0-005]"
+        }
+      ]
+    },
+    {
+      "id": "TRS-P0-006",
+      "title": "Approval is owned in-scenario and relayed when available",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "description": "The scenario shall own an approval queue and its operator surface, and shall relay requests through notification-hub only as an optional enhancement that approval never depends on",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/approval/sqlite_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The SQLite-backed local queue admits, resolves and expires requests; decline and expiry release their authorization holds. [REQ:TRS-P0-006]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/approval/sqlite_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "With the relay returning a concrete connection failure, local approval still admits and resolves; the failed relay attempt is durable and does not change the outcome. [REQ:TRS-P0-006]"
+        },
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Planned automation at `bas/cases/approvals/approve-and-decline.json`. An operator approves one pending charge and declines another from the queue, and both outcomes reach the requesting caller. [REQ:TRS-P0-006]"
+        }
+      ]
+    },
+    {
+      "id": "TRS-P0-007",
+      "title": "The manual rail is first-class",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "description": "The scenario shall accept an operator-settled payment as an ordinary rail adapter carrying the same mandate, evidence and emission path as any automated rail",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/rail/contract_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The manual adapter implements the common rail interface and requires a mandate, receipt reference, external reference, timestamp and operator attribution. [REQ:TRS-P0-007]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/rail/contract_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Manual and automated adapters return the identical rail.Result envelope consumed by settlement, evidence and emission; only basis and provider references differ. [REQ:TRS-P0-007]"
+        }
+      ]
+    },
+    {
+      "id": "TRS-P0-008",
+      "title": "Every settlement emits a money event",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "description": "When a charge settles, the scenario shall emit one idempotent money event to money-ledger through its existing inbound contract, carrying provenance and basis",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ledger/money_ledger_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A real generated Money Ledger Connect handler captures the emitted event and proves stable external id, configured book/account routing, negative expense amount, currency, provenance basis, and duplicate acceptance. [REQ:TRS-P0-008]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/ledger/service_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Outage delivery failure leaves the durable row queued; recovery marks it accepted, and all later drains emit nothing. Settlement SQLite tests prove the outbox row is committed with the charge and uses `treasury:\u003csettlement-id\u003e` idempotency. [REQ:TRS-P0-008]"
+        },
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Attended 2026-08-19 drill stopped Money Ledger, settled `phase8-settlement`, observed queued local evidence, restarted Money Ledger, and found exactly one posting with external id `treasury:phase8-settlement`; a settlement retry retained one evidence row, one outbox row, and one posting. [REQ:TRS-P0-008]"
+        }
+      ]
+    },
+    {
+      "id": "TRS-P0-009",
+      "title": "Evidence is retained for every attempt",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "description": "The scenario shall retain mandate, approval, request, rail response and receipt as one replayable record per spend attempt, including declines and expiries",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/evidence/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A refused proposal produces one complete record; replay reconstructs it from that row alone, SQLite triggers reject update/delete, and an id collision with different content is rejected rather than silently treated as idempotent. [REQ:TRS-P0-009]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/approval/evidence_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Approval decline and expiry each retain the complete request, approval id, resolver/basis, and terminal outcome as one immutable replay record. Settlement tests cover settled and definite-failure rail outcomes with request, response, and receipt snapshots. [REQ:TRS-P0-009]"
+        },
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Attended 2026-08-19 drill queried `spend_attempt_evidence` after settlement with Money Ledger stopped and reconstructed amount 321, agent, mandate, instrument, rail external reference, receipt, basis, and retention deadline without joining mutable domain tables. [REQ:TRS-P0-009]"
+        }
+      ]
+    },
+    {
+      "id": "TRS-P0-010",
+      "title": "Operator funds only",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "description": "The scenario shall refuse to custody value belonging to any party other than the operator, enforced at the contract boundary rather than by documented convention",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/book/sqlite_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The book service and SQLite repository reject a second beneficiary after the operator beneficiary is established; no relaxation flag exists. [REQ:TRS-P0-010]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/book/sqlite_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Raw SQL bypass tests prove the real SQLite schema rejects a second beneficiary row, a book for an unregistered beneficiary, an unknown-book budget, a cross-book mandate, and a cross-book instrument. Schema metadata also proves budgets, mandates, and instruments have no alternate beneficiary column, while multiple books for the one operator remain valid. [REQ:TRS-P0-010]"
+        }
+      ]
+    },
+    {
+      "id": "TRS-P0-011",
+      "title": "Idempotent settlement",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-011",
+      "criticality": "P0",
+      "description": "When a charge is retried under an unchanged idempotency key, the scenario shall return the first commit's outcome rather than moving money a second time",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/settlement/sqlite_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Real SQLite tests require a caller key, reject payload aliases, retain and return the first outcome, persist ambiguity after a lost response, and prove that unknown cannot become failed without query provenance. [REQ:TRS-P0-011]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/settlement/sqlite_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Thirty-two simultaneous submissions of one key all receive the same settled result while the adapter call counter and durable row count both remain exactly one. [REQ:TRS-P0-011]"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/agentspend/settlement_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "A real generated Connect client/server rejects caller-asserted outcomes and returns the server-owned durable settlement on retry with one adapter call. [REQ:TRS-P0-011]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/settlement/flow/flow_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The checked Quint/Apalache artifact's complete transition matrix and named/generated traces replay against production settlement transitions. [REQ:TRS-P0-011]"
+        }
+      ]
+    },
+    {
+      "id": "TRS-P0-012",
+      "title": "A mandate expires without action",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-012",
+      "criticality": "P0",
+      "description": "While a mandate is past its expiry, the scenario shall reject every charge presented against it, and expiry shall require no operator intervention to take effect",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/mandate/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Expiry is evaluated from the mandate's own timestamp at the fail-closed live-grant boundary; no sweep, job or operator action is required for it to bind. [REQ:TRS-P0-012]"
+        },
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Planned test at `api/internal/mandate/expiry_clock_test.go`. A mandate that expires between authorization and settlement refuses the settlement. [REQ:TRS-P0-012]"
+        }
+      ]
+    }
+  ]
+}

@@ -17,6 +17,35 @@ import type {
     StorageInfo,
 } from "./types";
 
+let atomicWriteSequence = 0;
+
+/**
+ * Write beside the destination and atomically replace it when the injected
+ * filesystem exposes rename. The fallback keeps older test seams usable;
+ * production Node/Electron filesystems always provide rename.
+ */
+async function writeAtomically(
+    fs: IStorageFileSystem,
+    target: string,
+    data: string | Buffer,
+    encoding?: "utf-8"
+): Promise<void> {
+    if (typeof fs.rename !== "function") {
+        if (encoding) await fs.writeFile(target, data, encoding);
+        else await fs.writeFile(target, data);
+        return;
+    }
+    const temporary = `${target}.tmp-${++atomicWriteSequence}`;
+    try {
+        if (encoding) await fs.writeFile(temporary, data, encoding);
+        else await fs.writeFile(temporary, data);
+        await fs.rename(temporary, target);
+    } catch (error) {
+        try { await fs.unlink(temporary); } catch { /* preserve the original failure */ }
+        throw error;
+    }
+}
+
 /**
  * Create an app storage instance with injected dependencies.
  *
@@ -121,11 +150,7 @@ export function createAppStorage(
             // Ensure parent directory exists
             await fs.mkdir(path.dirname(fullPath), { recursive: true });
 
-            if (Buffer.isBuffer(data)) {
-                await fs.writeFile(fullPath, data);
-            } else {
-                await fs.writeFile(fullPath, data, "utf-8");
-            }
+            await writeAtomically(fs, fullPath, data, Buffer.isBuffer(data) ? undefined : "utf-8");
         },
 
         async readFile(relativePath: string): Promise<Buffer | null> {

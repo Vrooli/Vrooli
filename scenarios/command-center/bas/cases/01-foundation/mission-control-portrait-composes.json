@@ -1,0 +1,116 @@
+{
+  "metadata": {
+    "name": "mission-control-portrait-composes",
+    "description": "Renders /mission-control at 390px wide and asserts the hero figure, room identity and supporting readings are all present in the portrait composition (CC-P1-004).",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"CC-UI-001\"]"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/mission-control",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /mission-control at phone width"
+        }
+      }
+    },
+    {
+      "id": "wait-hero",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='room-hero'] [data-figure]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for the hero figure"
+        }
+      }
+    },
+    {
+      "id": "assert-identity",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": ".cc-room-title",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Expected the room title in the portrait eyebrow"
+        },
+        "metadata": {
+          "label": "Room identity is visible"
+        }
+      }
+    },
+    {
+      "id": "assert-readings",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='metric-list'] [data-reading]",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected supporting readings in the portrait composition"
+        },
+        "metadata": {
+          "label": "Supporting readings are present"
+        }
+      }
+    },
+    {
+      "id": "capture",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture portrait composition"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate",
+      "target": "wait-hero",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-hero",
+      "target": "assert-identity",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "assert-identity",
+      "target": "assert-readings",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-readings",
+      "target": "capture",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

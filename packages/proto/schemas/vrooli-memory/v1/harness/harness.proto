@@ -1,0 +1,93 @@
+syntax = "proto3";
+package vrooli.vrooli_memory.v1.harness;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/harness;harness_v1";
+service HarnessService {
+  rpc RunImport(RunImportRequest) returns (RunImportResponse);
+  rpc GetImportStatus(GetImportStatusRequest) returns (GetImportStatusResponse);
+  rpc RefreshProjection(RefreshProjectionRequest) returns (RefreshProjectionResponse);
+  rpc CaptureWrite(CaptureWriteRequest) returns (CaptureWriteResponse);
+  rpc GetMaintenanceStatus(GetMaintenanceStatusRequest) returns (GetMaintenanceStatusResponse);
+}
+message RuntimeRequest {
+  string runtime = 1;
+}
+message RunImportRequest {
+  string runtime = 1;
+  bool dry_run = 2;
+}
+message RunImportResponse {
+  int32 imported_count = 1;
+  ImportRun run = 2;
+  bool joined_existing_run = 3;
+  bool dry_run = 4;
+  string observation = 5;
+}
+message GetImportStatusRequest {
+  string run_id = 1;
+  string runtime = 2;
+}
+message GetImportStatusResponse {
+  ImportRun run = 1;
+}
+message ImportRun {
+  string id = 1;
+  string runtime = 2;
+  string source_root = 3;
+  string status = 4;
+  int32 total_sources = 5;
+  int32 processed_sources = 6;
+  int32 imported_count = 7;
+  int32 existing_count = 8;
+  int32 failed_count = 9;
+  string current_path = 10;
+  string error_message = 11;
+  string started_at = 12;
+  string completed_at = 13;
+  string updated_at = 14;
+}
+message RefreshProjectionRequest {
+  string runtime = 1;
+  bool dry_run = 2;
+}
+message RefreshProjectionResponse {
+  string path = 1;
+  int64 size_bytes = 2;
+  bool overflow = 3;
+  bool dry_run = 4;
+  string rendered_content = 5;
+  int64 size_lines = 6;
+  int64 byte_cap = 7;
+  int64 line_cap = 8;
+}
+message CaptureWriteRequest {
+  string runtime = 1;
+  string content = 2;
+  string source_path = 3;
+}
+message CaptureWriteResponse {
+  string entry_id = 1;
+}
+message GetMaintenanceStatusRequest {}
+message GetMaintenanceStatusResponse {
+  MaintenanceRun run = 1;
+}
+message MaintenanceRun {
+  string id = 1;
+  string started_at = 2;
+  string completed_at = 3;
+  repeated MaintenanceOutcome outcomes = 4;
+}
+message MaintenanceOutcome {
+  string runtime = 1;
+  string import_status = 2;
+  string import_error = 3;
+  string projection_status = 4;
+  string projection_error = 5;
+  string started_at = 6;
+  string completed_at = 7;
+  int64 projection_size_bytes = 8;
+  int64 projection_size_lines = 9;
+  int64 projection_byte_cap = 10;
+  int64 projection_line_cap = 11;
+}

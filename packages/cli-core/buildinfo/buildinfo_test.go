@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestComputeFingerprint_DetectsChanges(t *testing.T) {
@@ -77,7 +79,7 @@ func TestComputeFingerprint_IgnoresModtimeAndSkippedDirs(t *testing.T) {
 
 func TestComputeFingerprint_ErrorsOnUnreadableFile(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("file permission semantics differ on Windows")
+		repocontracttest.SkipPlatform(t, "file permission semantics differ on Windows")
 	}
 	dir := t.TempDir()
 	root := filepath.Join(dir, "cli")

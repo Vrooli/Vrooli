@@ -1,0 +1,83 @@
+package api
+
+import (
+	"net/http"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/vrooli/internal/logx"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
+)
+
+const (
+	handlersSystemWarning = "warning"
+)
+
+func (a *App) ListResources(w http.ResponseWriter, r *http.Request) {
+	report, err := a.Resources.ListStatusesReport(true, false)
+	if err != nil {
+		a.logError("Resource list request failed", err, logx.AttrOperation, "list_resources")
+		respondError(w, newAPIError(http.StatusInternalServerError, "resource_list_failed", "failed to list resources", err))
+		return
+	}
+	payload := map[string]any{"resources": report.Items}
+	if len(report.Failures) > 0 {
+		payload["discovery_failures"] = report.Failures
+	}
+	a.logInfo("Resource list request completed", "count", len(report.Items), "discovery_failures", len(report.Failures))
+	respondSuccess(w, http.StatusOK, payload)
+}
+
+func (a *App) HandleLifecycle(w http.ResponseWriter, r *http.Request) {
+	action := mux.Vars(r)["action"]
+	if err := a.Project.RunProjectPhase(action, nil); err != nil {
+		a.logError("Project lifecycle request failed", err, logx.AttrAction, action)
+		respondError(w, err)
+		return
+	}
+	a.logInfo("Project lifecycle request completed", logx.AttrAction, action)
+	respondSuccess(w, http.StatusOK, lifecycleActionData{Action: action, Message: "completed"})
+}
+
+func (a *App) ProcessMetricsHandler(w http.ResponseWriter, r *http.Request) {
+	metrics := a.getEnhancedProcessMetrics()
+	metrics["status"] = scenarioruntime.HealthStatusHealthy
+	if zombies, ok := metrics["zombie_processes"].(int); ok && zombies > 5 {
+		metrics["status"] = handlersSystemWarning
+	}
+	if orphans, ok := metrics["orphan_processes"].(int); ok && orphans > 3 {
+		metrics["status"] = handlersSystemWarning
+	}
+	a.logInfo("Process metrics request completed", logx.AttrStatus, metrics["status"])
+	respondSuccess(w, http.StatusOK, metrics)
+}
+
+func (a *App) HealthCheck(w http.ResponseWriter, r *http.Request) {
+	healthSnapshot := a.collectProcessHealthSnapshot()
+	overallStatus := scenarioruntime.HealthStatusHealthy
+	switch healthSnapshot.OverallStatus {
+	case "critical":
+		overallStatus = "unhealthy"
+	case handlersSystemWarning, "unknown":
+		overallStatus = "degraded"
+	}
+	status := http.StatusOK
+	if overallStatus != scenarioruntime.HealthStatusHealthy {
+		status = http.StatusServiceUnavailable
+	}
+	if overallStatus != scenarioruntime.HealthStatusHealthy {
+		a.logWarn("Health check degraded", logx.AttrStatus, overallStatus)
+	}
+	respondJSON(w, status, map[string]interface{}{
+		"status":      overallStatus,
+		"version":     "1.0.0",
+		"vrooli_root": a.Root,
+		"apps_dir":    a.AppsDir,
+		"system": map[string]interface{}{
+			"zombie_processes": healthSnapshot.ZombieCount,
+			"zombie_status":    healthSnapshot.ZombieStatus,
+			"orphan_processes": healthSnapshot.OrphanCount,
+			"orphan_status":    healthSnapshot.OrphanStatus,
+			"process_health":   healthSnapshot.OverallStatus,
+		},
+	})
+}

@@ -213,7 +213,6 @@ func TestComprehensiveAPIEndpoints(t *testing.T) {
 					Path:   "/api/v1/extension/generate",
 					Body:   req,
 				})
-
 				if err != nil {
 					t.Errorf("Request %d failed: %v", index, err)
 					done <- false
@@ -481,7 +480,6 @@ func TestConfigurationManagement(t *testing.T) {
 		os.Setenv("API_ENDPOINT", "http://custom.endpoint")
 		os.Setenv("TEMPLATES_PATH", "/custom/templates")
 		os.Setenv("OUTPUT_PATH", "/custom/output")
-		os.Setenv("BROWSERLESS_URL", "http://custom.browserless")
 		os.Setenv("DEBUG", "true")
 
 		defer func() {
@@ -489,7 +487,6 @@ func TestConfigurationManagement(t *testing.T) {
 			os.Unsetenv("API_ENDPOINT")
 			os.Unsetenv("TEMPLATES_PATH")
 			os.Unsetenv("OUTPUT_PATH")
-			os.Unsetenv("BROWSERLESS_URL")
 			os.Unsetenv("DEBUG")
 			if oldAPIPort != "" {
 				os.Setenv("API_PORT", oldAPIPort)
@@ -512,10 +509,6 @@ func TestConfigurationManagement(t *testing.T) {
 
 		if cfg.OutputPath != "/custom/output" {
 			t.Errorf("Expected custom output path, got %s", cfg.OutputPath)
-		}
-
-		if cfg.BrowserlessURL != "http://custom.browserless" {
-			t.Errorf("Expected custom browserless URL, got %s", cfg.BrowserlessURL)
 		}
 
 		if !cfg.Debug {

@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "name": "device-control-dashboard-device-inventory",
+    "description": "Open the Device Control dashboard and verify that the live device inventory surface renders.",
+    "requirement": "DVC-P1-008",
+    "version": "1",
+    "labels": { "reset": "none", "surface": "operator" },
+    "execution_mode": "EXECUTION_MODE_OBSERVER"
+  },
+  "id": "7f2e9f20-4af4-4c1f-9dbd-18e44dc02e41",
+  "project_id": "device-control",
+  "name": "device-control-dashboard-device-inventory",
+  "folder_path": "/bas/cases/02-operator",
+  "description": "The operator can reach the dashboard's live device inventory.",
+  "version": 1,
+  "flow_definition": {
+    "settings": { "viewport_width": 1440, "viewport_height": 900 },
+    "nodes": [
+      { "id": "open-dashboard", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "@scenario/self", "scenario_path": "/", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000 }, "metadata": { "label": "Open Device Control" } } },
+      { "id": "wait-dashboard", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/pages.dashboard", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Dashboard renders" } } },
+      { "id": "wait-device-inventory", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/pages.dashboardDevices", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Live device inventory renders" } } }
+    ],
+    "edges": [
+      { "source": "open-dashboard", "target": "wait-dashboard" },
+      { "source": "wait-dashboard", "target": "wait-device-inventory" }
+    ]
+  }
+}

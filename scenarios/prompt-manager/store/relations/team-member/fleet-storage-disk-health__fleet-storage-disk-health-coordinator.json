@@ -1,0 +1,10 @@
+{
+  "kind": "team-member",
+  "schemaVersion": 1,
+  "teamId": "fleet-storage-disk-health",
+  "agentId": "fleet-storage-disk-health-coordinator",
+  "roles": [
+    "coordinator"
+  ],
+  "status": "active"
+}

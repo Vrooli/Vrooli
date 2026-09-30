@@ -1,31 +1,41 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import MobileToolbar from "../components/MobileToolbar";
+import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { useMessagesViewStore } from "../stores/useMessagesViewStore";
+import { toolbarPrefsFromPreset } from "../lib/toolbarLayout";
 
 const baseProps = {
-  onInput: vi.fn(() => true),
+  onInput: vi.fn(() => ({ status: "sent" as const, offset: 1 })),
   onFocusTerminal: vi.fn(),
   activeSessionId: "sess-1",
-  voiceSupported: true,
-  voicePreparing: false,
-  voiceRecording: false,
-  voiceTranscribing: false,
-  voiceError: null,
-  voiceLevel: 0,
-  voicePartialTranscript: "",
-  voiceBackend: "browser",
-  onVoiceStart: vi.fn(),
-  onVoiceStop: vi.fn(),
+  voice: {
+    supported: true,
+    preparing: false,
+    recording: false,
+    transcribing: false,
+    error: null,
+    level: 0,
+    partialTranscript: "",
+    backend: "browser",
+    onStart: vi.fn(),
+    onStop: vi.fn(),
+  },
   onVoiceCancel: vi.fn(),
   onUploadImage: vi.fn(),
   isTtsSpeaking: false,
   onTtsStop: vi.fn(),
-  onSwitchToTerminal: vi.fn(),
 };
 
 describe("MobileToolbar viewMode", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // AI suggest ships off; these cases are about the view, not the default.
+    const base = toolbarPrefsFromPreset("balanced");
+    useWorkspaceStore.setState({
+      toolbarPrefs: { ...base, enabled: { ...base.enabled, ai: true } },
+    });
   });
 
   it("hides terminal-specific keys in messages mode", () => {
@@ -38,15 +48,37 @@ describe("MobileToolbar viewMode", () => {
     expect(screen.queryByTestId(/toolbar-key-/)).toBeNull();
   });
 
-  it("keeps input, send, expand, image upload, and mic in messages mode", () => {
+  it("keeps input, send, image upload, and mic in messages mode", () => {
     render(<MobileToolbar {...baseProps} viewMode="messages" />);
 
     expect(screen.getByTestId("mobile-command-input")).toBeInTheDocument();
     expect(screen.getByTestId("mobile-command-submit")).toBeInTheDocument();
-    expect(screen.getByTestId("expand-toggle")).toBeInTheDocument();
+    expect(screen.queryByTestId("expand-toggle")).toBeNull();
     expect(screen.getByTestId("toolbar-upload-image")).toBeInTheDocument();
     // Mic button is present
-    expect(screen.getByTestId("voice-mic-btn")).toBeInTheDocument();
+    expect(screen.getByTestId("voice-mic-btn")).toHaveAttribute("data-size", "md");
+  });
+
+  it("spreads messages-mode action buttons evenly across the row", () => {
+    render(<MobileToolbar {...baseProps} onOpenAi={vi.fn()} viewMode="messages" />);
+
+    const row = screen.getByTestId("messages-toolbar-actions");
+    const ai = screen.getByTestId("toolbar-ai");
+    const upload = screen.getByTestId("toolbar-upload-image");
+    const mic = screen.getByTestId("voice-mic-btn");
+
+    expect(row).toBeInTheDocument();
+    // Even spread is now a computed width rather than a flex class, so assert
+    // the contract itself: every action gets the same share of the row.
+    const micSlot = screen.getByTestId("toolbar-mic-slot");
+    const widths = [ai, upload, micSlot].map((el) => parseFloat(el.style.width));
+    expect(widths.every((w) => w > 0)).toBe(true);
+    expect(Math.max(...widths) - Math.min(...widths)).toBeLessThanOrEqual(1);
+    // The slot owns the computed footprint; the library button fills it.
+    expect(mic).toHaveClass("w-full", "h-full");
+    expect(mic).toHaveAttribute("data-rcl-surface", "soft");
+    expect(mic).toHaveAttribute("data-rcl-shape", "rounded");
+    expect(mic).toHaveAttribute("data-size", "md");
   });
 
   it("shows full toolbar in terminal mode (default)", () => {
@@ -64,49 +96,67 @@ describe("MobileToolbar viewMode", () => {
     expect(screen.getByTestId("toolbar-mod-ctrl")).toBeInTheDocument();
   });
 
-  // --- Feature 3: Auto-switch to terminal on send ---
+  // --- Sending from Messages stays in Messages (the send shows as an echo row) ---
 
-  it("calls onSwitchToTerminal when submitting text in messages mode", () => {
+  it("[REQ:P0-017f] a send from Messages keeps the pane in Messages", () => {
+    useMessagesViewStore.getState().setViewMode("sess-1", "messages");
     render(<MobileToolbar {...baseProps} viewMode="messages" />);
 
-    const input = screen.getByTestId("mobile-command-input");
-    fireEvent.change(input, { target: { value: "hello" } });
+    fireEvent.change(screen.getByTestId("mobile-command-input"), { target: { value: "hello" } });
     fireEvent.click(screen.getByTestId("mobile-command-submit"));
 
-    expect(baseProps.onInput).toHaveBeenCalledWith("hello");
-    expect(baseProps.onSwitchToTerminal).toHaveBeenCalledTimes(1);
+    expect(baseProps.onInput).toHaveBeenCalledWith("hello", "bulk_text");
+    expect(useMessagesViewStore.getState().viewModes["sess-1"]).toBe("messages");
   });
 
-  it("calls onSwitchToTerminal when submitting empty input (Enter) in messages mode", () => {
+  it("[REQ:P0-017f] an empty Send in Messages presses Enter and stays in Messages", () => {
+    useMessagesViewStore.getState().setViewMode("sess-1", "messages");
     render(<MobileToolbar {...baseProps} viewMode="messages" />);
 
-    // Empty input — acts as Enter key
     fireEvent.click(screen.getByTestId("mobile-command-submit"));
 
-    expect(baseProps.onSwitchToTerminal).toHaveBeenCalledTimes(1);
+    expect(baseProps.onInput).toHaveBeenCalledWith("\r", "typing");
+    expect(useMessagesViewStore.getState().viewModes["sess-1"]).toBe("messages");
   });
 
-  it("does NOT call onSwitchToTerminal when submitting in terminal mode", () => {
+  // --- Full-screen composer entry (corner expand icon) ---
+
+  it("shows the corner expand icon in terminal mode and opens the composer", () => {
+    const onExpandComposer = vi.fn();
+    render(<MobileToolbar {...baseProps} onExpandComposer={onExpandComposer} viewMode="terminal" />);
+    const expand = screen.getByTestId("expand-toggle");
+    expect(expand).toBeInTheDocument();
+    fireEvent.click(expand);
+    expect(onExpandComposer).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the corner expand icon in messages mode and opens the composer", () => {
+    const onExpandComposer = vi.fn();
+    render(<MobileToolbar {...baseProps} onExpandComposer={onExpandComposer} viewMode="messages" />);
+    const expand = screen.getByTestId("expand-toggle");
+    expect(expand).toBeInTheDocument();
+    fireEvent.click(expand);
+    expect(onExpandComposer).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render the expand icon when onExpandComposer is not provided", () => {
     render(<MobileToolbar {...baseProps} viewMode="terminal" />);
-
-    const input = screen.getByTestId("mobile-command-input");
-    fireEvent.change(input, { target: { value: "hello" } });
-    fireEvent.click(screen.getByTestId("mobile-command-submit"));
-
-    expect(baseProps.onInput).toHaveBeenCalled();
-    expect(baseProps.onSwitchToTerminal).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("expand-toggle")).toBeNull();
   });
 
-  it("does not error when onSwitchToTerminal is undefined in messages mode", () => {
-    const propsWithoutSwitch = { ...baseProps, onSwitchToTerminal: undefined };
-    render(<MobileToolbar {...propsWithoutSwitch} viewMode="messages" />);
 
-    const input = screen.getByTestId("mobile-command-input");
-    fireEvent.change(input, { target: { value: "hello" } });
+  it("shows voice command suggestions and routes confirm or dismiss", () => {
+    const onCommandConfirm = vi.fn();
+    const onCommandDismiss = vi.fn();
+    const suggestion = { id: "s1", commandId: "list-files", description: "List files", confidence: 0.9, rawText: "list files", timestamp: 1, args: {} };
+    const first = render(<MobileToolbar {...baseProps} voice={{ ...baseProps.voice, commandSuggestion: suggestion, onCommandConfirm, onCommandDismiss }} />);
+    expect(screen.getByTestId("voice-command-suggestion")).toHaveTextContent("List files");
+    fireEvent.click(screen.getByTestId("voice-command-confirm"));
+    expect(onCommandConfirm).toHaveBeenCalledWith(suggestion);
 
-    // Should not throw
-    expect(() => {
-      fireEvent.click(screen.getByTestId("mobile-command-submit"));
-    }).not.toThrow();
+    first.unmount();
+    render(<MobileToolbar {...baseProps} voice={{ ...baseProps.voice, commandSuggestion: suggestion, onCommandConfirm, onCommandDismiss }} />);
+    fireEvent.click(screen.getByTestId("voice-command-dismiss"));
+    expect(onCommandDismiss).toHaveBeenCalledWith(suggestion);
   });
 });

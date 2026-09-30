@@ -1,0 +1,1 @@
+{"gate":"unit","assetId":"calibration-unit","kind":"component","runner":"external","requiredFailureCode":"catalog.unit_calibration","description":"A component test fixture that must fail its unit assertion; the unit runner is owned by test-genie."}

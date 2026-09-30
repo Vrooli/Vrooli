@@ -28,32 +28,59 @@ function extractHtmlErrorMessage(html: string, status: number): string {
 
 const MAX_ERROR_LENGTH = 500;
 
-export async function handleResponse<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const text = await res.text();
-    let message = text;
-    if (text) {
-      // Detect HTML responses (proxies, panic recovery, etc.)
-      const isHtml = text.trimStart().startsWith("<") || res.headers.get("content-type")?.includes("text/html");
-      if (isHtml) {
-        message = extractHtmlErrorMessage(text, res.status);
-      } else {
-        try {
-          const parsed = JSON.parse(text) as { error?: string };
-          if (parsed?.error) {
-            message = parsed.error;
-          }
-        } catch {
-          // Ignore JSON parse errors; fall back to raw text.
+/**
+ * Read the most useful error message a failed response carries: the API's JSON
+ * `error` field, an HTML error page's title/heading, or the raw body. Falls back
+ * to the status when the body is empty.
+ *
+ * Shared by every failure path, streaming included \u2014 a caller that reports only
+ * `res.status` renders real causes invisible (a bare "500 Internal Server Error"
+ * with the actual reason sitting unread in the body).
+ */
+export async function extractErrorMessage(res: Response): Promise<string> {
+  let text = "";
+  try {
+    text = await res.text();
+  } catch {
+    // Body already consumed or connection dropped; fall back to the status.
+  }
+  let message = text;
+  if (text) {
+    // Detect HTML responses (proxies, panic recovery, etc.)
+    const isHtml = text.trimStart().startsWith("<") || res.headers.get("content-type")?.includes("text/html");
+    if (isHtml) {
+      message = extractHtmlErrorMessage(text, res.status);
+    } else {
+      try {
+        const parsed = JSON.parse(text) as { error?: string };
+        if (parsed?.error) {
+          message = parsed.error;
         }
+      } catch {
+        // Ignore JSON parse errors; fall back to raw text.
       }
     }
-    if (message && message.length > MAX_ERROR_LENGTH) {
-      message = message.slice(0, MAX_ERROR_LENGTH) + "\u2026";
-    }
-    throw new Error(message || `Request failed: ${res.status}`);
+  }
+  if (message && message.length > MAX_ERROR_LENGTH) {
+    message = message.slice(0, MAX_ERROR_LENGTH) + "\u2026";
+  }
+  return message || `${res.status} ${res.statusText}`.trim() || `Request failed: ${res.status}`;
+}
+
+export async function handleResponse<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json() as Promise<T>;
+}
+
+export async function fetchExternalUrl(path: string): Promise<string | null> {
+  const res = await fetch(path);
+  if (!res.ok) {
+    return null;
+  }
+  const data = await res.json() as { url?: unknown };
+  return typeof data.url === "string" && data.url.trim() ? data.url : null;
 }
 
 export { buildApiUrl };

@@ -1,0 +1,175 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "The system should list, create, and switch branches with uncommitted-change detection and verified human authority.",
+      "id": "GCT-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Branch operations",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P1-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should generate commit-message suggestions from bounded evidence with a deterministic fallback when inference is unavailable.",
+      "id": "GCT-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "AI-assisted commit messages",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P1-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should detect active merge conflicts and potential conflicts from local and remote state without performing an agent merge.",
+      "id": "GCT-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "Conflict detection and reporting",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P1-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should preview commit impact with bounded line, affected-scope, and deployment-risk evidence.",
+      "id": "GCT-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "planned",
+      "title": "Change preview",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P1-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should parse supported Vrooli trailers, preserve unknown keys, resolve current work references, and disclose unresolved links without rewriting history.",
+      "id": "GCT-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Trailer and work-reference resolution",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P1-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should connect agent runs, sandbox receipts, exact content, and committed history while preserving mixed, legacy, private, and unknown attribution states.",
+      "id": "GCT-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "planned",
+      "title": "Pending and committed AI provenance",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P1-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Where a provenance provider is available, the system should expose a registered, scoped, privacy-preserving search corpus with explicit experimental or unavailable standing.",
+      "id": "GCT-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "planned",
+      "title": "Shared provenance search",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P1-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should normalize mention events, deduplicate edited deliveries, persist request and reply state, refuse stale revisions, and expose durable delivery outcomes.",
+      "id": "GCT-P1-008",
+      "prd_ref": "OT-P1-008",
+      "status": "planned",
+      "title": "Mention-driven advisory requests",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P1-008] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should expose provider-neutral change, review, check, release, and publish capability semantics without owning provider authentication or SDK connectors.",
+      "id": "GCT-P1-009",
+      "prd_ref": "OT-P1-009",
+      "status": "planned",
+      "title": "Host-neutral collaboration",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P1-009] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should publish validated usage, feature, improve, provenance, review, and draft skills plus governed programs with explicit contracts and failure semantics.",
+      "id": "GCT-P1-010",
+      "prd_ref": "OT-P1-010",
+      "status": "planned",
+      "title": "Governed skills and programs",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P1-010] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should preserve missing observations, apply anti-gaming floors, and produce setpoint reads that distinguish unavailable evidence from measured improvement.",
+      "id": "GCT-P1-011",
+      "prd_ref": "OT-P1-011",
+      "status": "planned",
+      "title": "Measured improvement",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P1-011] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

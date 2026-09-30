@@ -31,12 +31,12 @@ The system provides a ChatGPT-style bubble interface for conversational AI (powe
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Search functionality | Full-text search across all chat messages
-- [ ] OT-P1-002 | Keyboard shortcuts | Email-style keyboard navigation (j/k, enter, escape, etc.)
+- [x] OT-P1-002 | Keyboard shortcuts | Email-style keyboard navigation (j/k, enter, escape, etc.)
 - [ ] OT-P1-003 | Archive functionality | Archive old chats without deleting them
 - [ ] OT-P1-004 | Bulk operations | Select multiple chats for bulk label/archive/delete actions
-- [ ] OT-P1-005 | Chat export | Export chat history to markdown, JSON, or text formats
+- [x] OT-P1-005 | Chat export | Export chat history to markdown, JSON, or text formats
 - [ ] OT-P1-006 | Conversation forking | Create a new chat branching from a specific point in an existing conversation
-- [ ] OT-P1-007 | Model usage stats | Track token usage and costs per model
+- [x] OT-P1-007 | Model usage stats | Track token usage and costs per model
 - [ ] OT-P1-008 | Starred chats | Pin important chats to the top of the inbox
 
 ### 🟢 P2 – Future / expansion

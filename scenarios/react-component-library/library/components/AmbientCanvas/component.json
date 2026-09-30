@@ -1,0 +1,17 @@
+{
+  "catalogId": "react-component-library:AmbientCanvas",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-command-display",
+      "affinity": "native",
+      "reason": "Provides the display scene layer and reduced-motion behavior."
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "0.1.0"
+  ],
+  "latest": "0.1.1",
+  "libraryId": "react-component-library:AmbientCanvas"
+}

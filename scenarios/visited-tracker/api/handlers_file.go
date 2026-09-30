@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -58,13 +59,13 @@ func updateFileNotesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	campaign.UpdatedAt = time.Now().UTC()
-	if err := saveCampaign(campaign); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
+	if err := saveCampaign(r.Context(), campaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), campaignWriteStatus(err))
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "File notes updated successfully",
 	})
 }
@@ -85,6 +86,11 @@ func updateFilePriorityHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
 		http.Error(w, `{"error": "Invalid JSON"}`, http.StatusBadRequest)
+		return
+	}
+
+	if updates.PriorityWeight <= 0 || updates.PriorityWeight > 100 || math.IsNaN(updates.PriorityWeight) || math.IsInf(updates.PriorityWeight, 0) {
+		http.Error(w, `{"error":"priority_weight must be greater than zero and at most 100"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -117,13 +123,13 @@ func updateFilePriorityHandler(w http.ResponseWriter, r *http.Request) {
 	campaign.UpdatedAt = time.Now().UTC()
 	updateStalenessScores(campaign)
 
-	if err := saveCampaign(campaign); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
+	if err := saveCampaign(r.Context(), campaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), campaignWriteStatus(err))
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "File priority updated successfully",
 	})
 }
@@ -174,13 +180,13 @@ func toggleFileExclusionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	campaign.UpdatedAt = time.Now().UTC()
-	if err := saveCampaign(campaign); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
+	if err := saveCampaign(r.Context(), campaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), campaignWriteStatus(err))
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "File exclusion updated successfully",
 	})
 }
@@ -221,7 +227,7 @@ func getFileByPathHandler(w http.ResponseWriter, r *http.Request) {
 	for _, file := range campaign.TrackedFiles {
 		if file.FilePath == filePath || file.AbsolutePath == absPath || file.FilePath == absPath {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(file)
+			_ = json.NewEncoder(w).Encode(file)
 			return
 		}
 	}
@@ -305,8 +311,8 @@ func bulkExcludeFilesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	campaign.UpdatedAt = time.Now().UTC()
-	if err := saveCampaign(campaign); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
+	if err := saveCampaign(r.Context(), campaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), campaignWriteStatus(err))
 		return
 	}
 
@@ -320,7 +326,7 @@ func bulkExcludeFilesHandler(w http.ResponseWriter, r *http.Request) {
 	if len(resolution.Unmatched) > 0 {
 		response["unmatched_patterns"] = resolution.Unmatched
 	}
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // resetCampaignHandler - POST /api/v1/campaigns/{id}/reset

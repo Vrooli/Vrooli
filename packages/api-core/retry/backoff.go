@@ -29,6 +29,8 @@ import (
 	"math"
 	"math/rand"
 	"time"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Config controls retry behavior.
@@ -57,9 +59,13 @@ type Config struct {
 	// Optional.
 	OnRetry func(attempt int, err error, delay time.Duration)
 
-	// Sleeper overrides time.Sleep for testing.
-	// If nil, uses time.Sleep.
-	Sleeper func(time.Duration)
+	// Retryable decides whether an operation error can benefit from another
+	// attempt. Returning false stops immediately and returns that error. If nil,
+	// every error is retryable to preserve the package's default behavior.
+	Retryable func(error) bool
+
+	// Clock supplies the retry sleep and timer seam. If nil, schedule.System is used.
+	Clock schedule.Clock
 
 	// Rand overrides rand.Float64 for testing.
 	// Must return a value in [0.0, 1.0).
@@ -112,6 +118,9 @@ func Do(ctx context.Context, cfg Config, op func(attempt int) error) error {
 			return nil // Success
 		} else {
 			lastErr = err
+			if !cfg.Retryable(err) {
+				return err
+			}
 		}
 
 		// Don't sleep after the last attempt
@@ -124,7 +133,7 @@ func Do(ctx context.Context, cfg Config, op func(attempt int) error) error {
 			}
 
 			// Sleep with context awareness
-			if err := sleepWithContext(ctx, delay, cfg.Sleeper); err != nil {
+			if err := sleepWithContext(ctx, delay, cfg.Clock); err != nil {
 				return fmt.Errorf("context cancelled during retry backoff (last error: %w): %v", lastErr, err)
 			}
 		}
@@ -152,21 +161,17 @@ func computeDelay(cfg Config, attempt int) time.Duration {
 }
 
 // sleepWithContext sleeps for the given duration, but returns early if context is cancelled.
-func sleepWithContext(ctx context.Context, d time.Duration, sleeper func(time.Duration)) error {
-	if sleeper != nil {
-		// Custom sleeper (for testing) - just call it directly
-		sleeper(d)
-		return ctx.Err()
+func sleepWithContext(ctx context.Context, d time.Duration, clock schedule.Clock) error {
+	if clock == nil {
+		clock = schedule.System()
 	}
-
-	// Real sleep with context cancellation support
-	timer := time.NewTimer(d)
+	timer := clock.NewTimer(d)
 	defer timer.Stop()
 
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-timer.C:
+	case <-timer.C():
 		return nil
 	}
 }
@@ -192,6 +197,9 @@ func applyDefaults(cfg Config) Config {
 	}
 	if cfg.JitterFraction < 0 {
 		cfg.JitterFraction = 0.25
+	}
+	if cfg.Retryable == nil {
+		cfg.Retryable = func(error) bool { return true }
 	}
 	return cfg
 }

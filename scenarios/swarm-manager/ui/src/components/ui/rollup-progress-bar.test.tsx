@@ -1,24 +1,28 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
-import { RollupProgressBar, rollupTotal } from "./rollup-progress-bar";
-import type { InitiativeRollup } from "../../types";
+import { RollupProgressBar, rollupTotal, type GoalRollup } from "./rollup-progress-bar";
 
-function makeRollup(overrides: Partial<InitiativeRollup> = {}): InitiativeRollup {
+
+function makeRollup(overrides: Partial<GoalRollup> = {}): GoalRollup {
   const base = { completed: 0, inProgress: 0, failed: 0, pending: 0, total: 0, archived: 0, ...overrides };
   // Auto-compute total if not explicitly set
   if (!overrides.total) {
     base.total = base.completed + base.inProgress + base.failed + base.pending;
   }
-  return base as InitiativeRollup;
+  return base as GoalRollup;
 }
 
 describe("rollupTotal", () => {
-  it("sums all fields", () => {
+  it("sums active progress fields", () => {
     expect(rollupTotal(makeRollup({ completed: 2, inProgress: 3, failed: 1, pending: 4 }))).toBe(10);
   });
 
   it("returns 0 for empty rollup", () => {
     expect(rollupTotal(makeRollup())).toBe(0);
+  });
+
+  it("excludes archived-only count from the total", () => {
+    expect(rollupTotal(makeRollup({ completed: 2, pending: 1, archived: 5 }))).toBe(3);
   });
 });
 
@@ -74,5 +78,12 @@ describe("RollupProgressBar", () => {
     const bar = screen.getByTestId("rollup-progress-bar");
     const inner = bar.querySelector(".h-1");
     expect(inner).not.toBeNull();
+  });
+
+  it("renders archived completed work through the completed segment when supplied by the backend", () => {
+    render(<RollupProgressBar rollup={makeRollup({ completed: 3, archived: 4 })} showLabels />);
+    expect(screen.getByText("3 completed")).toBeDefined();
+    expect(screen.getByText("3 total")).toBeDefined();
+    expect(screen.queryByText(/archived/i)).toBeNull();
   });
 });

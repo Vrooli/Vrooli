@@ -1,95 +1,139 @@
 /**
- * StatsPanel - Floating panel displaying operational metrics.
- *
- * Follows the SettingsDrawer pattern: FloatingPanel + custom tab bar + per-tab content.
- * Data is fetched via React Query (useStats hook) with 60s auto-refresh while open.
+ * StatsContent - tabbed operational metrics content shared by the routed
+ * Stats view and focused tests.
  */
 
-import { useState } from "react";
-import { AlertCircle, Loader2 } from "lucide-react";
-import { FloatingPanel } from "../../../components/ui/floating-panel";
+import { useRef, useState } from "react";
+import {
+  Activity,
+  AlertCircle,
+  BarChart3,
+  CheckCircle2,
+  Clock3,
+  Gauge,
+  Info,
+  LayoutDashboard,
+  Layers,
+  ListChecks,
+  Loader2,
+  MessageSquare,
+  Target,
+  Timer,
+  TrendingUp,
+  Users,
+  Zap,
+} from "lucide-react";
+import { HistoryBanner } from "../../../components/stats/history-banner";
+import { InsufficientDataCard } from "../../../components/stats/insufficient-data-card";
+import { KeyValueList } from "../../../components/stats/key-value-list";
+import { MiniBarChart } from "../../../components/stats/mini-bar-chart";
+import { ProgressBar } from "../../../components/stats/progress-bar";
+import { SectionLabel } from "../../../components/stats/section-label";
+import { StatsCard as StatCard } from "../../../components/stats/stats-card";
+import { EtaExplainerTrigger, type EtaExplainerBand } from "../../../components/stats/EtaExplainer";
+import { StatsEmptyState } from "../../../components/stats/stats-empty-state";
+import { StatsMetricCard } from "../../../components/stats/stats-metric-card";
+import { CompactTabBar } from "../../../components/ui/compact-tab-bar";
 import { cn } from "../../../lib/utils";
-import { useStats } from "../../../hooks/useStats";
+import { presentModeLabel } from "../../../lib/member-item-strategy";
+import { Popover } from "../../../components/ui/popover";
+import { useNavigate } from "react-router-dom";
+import { backlogDetailPath } from "../../../app/routes/route-paths";
+import { BoardCard } from "../../../components/cards/BoardCard";
 import {
   formatDelta,
   formatHours,
   formatRate,
-  formatWeeksRemaining,
-  toBarPercent,
 } from "../../../lib/stats-format-utils";
 import type {
   AgentStats,
   BlockingStats,
   DashboardStats,
+  HistoryWindow,
+  ModeStats,
   ScopeStats,
+  SessionStats,
   StatsCategory,
   StatsResponse,
   ThroughputStats,
   TimingStats,
 } from "../../../types/stats";
+import type { CompactTabItem } from "../../../components/ui/compact-tab-bar";
+import type { StatsEtaBand } from "../../../types/stats";
 
 // ---------------------------------------------------------------------------
 // Tab config
 // ---------------------------------------------------------------------------
 
-const STATS_TABS: { id: StatsCategory; label: string }[] = [
-  { id: "dashboard", label: "Dashboard" },
-  { id: "throughput", label: "Throughput" },
-  { id: "agent", label: "Agent" },
-  { id: "timing", label: "Timing" },
-  { id: "blocking", label: "Blocking" },
-  { id: "scope", label: "Scope" },
+/** Map the snake_case Stats ETA band onto the shared explainer's normalized shape. */
+function toExplainerBand(eta: StatsEtaBand): EtaExplainerBand {
+  return {
+    p50Label: eta.p50_label,
+    p80Label: eta.p80_label,
+    remainingItems: eta.remaining_items,
+    laneCapacity: eta.lane_capacity,
+    basis: eta.basis,
+    basisLabel: eta.basis_label,
+    confidence: eta.confidence,
+  };
+}
+
+const STATS_TABS: CompactTabItem<StatsCategory>[] = [
+  { value: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { value: "throughput", label: "Throughput", icon: TrendingUp },
+  { value: "agent", label: "Agent", icon: Zap },
+  { value: "timing", label: "Timing", icon: Timer },
+  { value: "blocking", label: "Blocking", icon: AlertCircle },
+  { value: "scope", label: "Scope", icon: Target },
+  { value: "modes", label: "Legacy history", icon: Layers },
+  { value: "sessions", label: "Sessions", icon: MessageSquare },
 ];
+
+// Default min sample threshold used when the response does not include one.
+// The Go engine exports this via stats.MinSampleMeaningful; the response
+// echoes it so UI and backend stay aligned.
+const DEFAULT_MIN_SAMPLE = 5;
+
+function minSample(history: HistoryWindow | undefined): number {
+  return history?.min_sample_meaningful && history.min_sample_meaningful > 0
+    ? history.min_sample_meaningful
+    : DEFAULT_MIN_SAMPLE;
+}
 
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
-interface StatsPanelProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface StatsContentProps {
+  data: StatsResponse | undefined;
+  isLoading: boolean;
+  error: Error | null;
+  activeTab: StatsCategory;
+  onTabChange: (tab: StatsCategory) => void;
 }
 
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
-export function StatsPanel({ isOpen, onClose }: StatsPanelProps) {
-  const [activeTab, setActiveTab] = useState<StatsCategory>("dashboard");
-  const { data, isLoading, error } = useStats(isOpen);
-
+export function StatsContent({
+  data,
+  isLoading,
+  error,
+  activeTab,
+  onTabChange,
+}: StatsContentProps) {
   return (
-    <FloatingPanel
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Stats"
-      className="max-w-3xl"
-      initialPosition={{ x: 340, y: 76 }}
-      testId="stats-panel"
-    >
-      {/* Tab bar — same pattern as SettingsDrawer */}
-      <div className="-mx-4 mb-4 flex overflow-x-auto border-b border-slate-700/50 px-4" role="tablist">
-        {STATS_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              "shrink-0 border-b-2 px-4 py-2 text-sm font-medium transition-colors",
-              activeTab === tab.id
-                ? "border-cyan-400 text-cyan-300"
-                : "border-transparent text-slate-400 hover:text-slate-200",
-            )}
-            data-testid={`stats-tab-${tab.id}`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+    <div className="space-y-4" data-testid="stats-content">
+      <CompactTabBar
+        items={STATS_TABS}
+        activeValue={activeTab}
+        onValueChange={onTabChange}
+        aria-label="Stats sections"
+        className="border-b border-slate-700/50"
+        tabTestIdPrefix="stats-tab"
+      />
 
-      {/* Content area */}
       {isLoading && (
         <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-400" data-testid="stats-loading">
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -104,8 +148,13 @@ export function StatsPanel({ isOpen, onClose }: StatsPanelProps) {
         </div>
       )}
 
-      {data && <TabContent tab={activeTab} data={data} />}
-    </FloatingPanel>
+      {data && (
+        <>
+          <HistoryBanner history={data.history} testId="stats-history-banner" />
+          <TabContent tab={activeTab} data={data} />
+        </>
+      )}
+    </div>
   );
 }
 
@@ -116,88 +165,107 @@ export function StatsPanel({ isOpen, onClose }: StatsPanelProps) {
 function TabContent({ tab, data }: { tab: StatsCategory; data: StatsResponse }) {
   switch (tab) {
     case "dashboard":
-      return <DashboardTab data={data.dashboard} eventCount={data.event_count} />;
+      return <DashboardTab data={data.dashboard} eventCount={data.event_count} history={data.history} />;
     case "throughput":
-      return <ThroughputTab data={data.throughput} />;
+      return <ThroughputTab data={data.throughput} dashboard={data.dashboard} />;
     case "agent":
-      return <AgentTab data={data.agent} />;
+      return <AgentTab data={data.agent} history={data.history} />;
     case "timing":
-      return <TimingTab data={data.timing} />;
+      return <TimingTab data={data.timing} history={data.history} />;
     case "blocking":
       return <BlockingTab data={data.blocking} />;
     case "scope":
       return <ScopeTab data={data.scope} />;
+    case "modes":
+      return <ModesTab data={data.mode} />;
+    case "sessions":
+      return <SessionsTab data={data.session} history={data.history} />;
   }
-}
-
-// ---------------------------------------------------------------------------
-// Shared presentational components
-// ---------------------------------------------------------------------------
-
-function StatCard({ label, value, subtext, testId }: { label: string; value: string; subtext?: string; testId?: string }) {
-  return (
-    <div className="rounded-lg border border-slate-700/50 bg-slate-900/40 p-3" data-testid={testId}>
-      <p className="text-xs text-slate-400">{label}</p>
-      <p className="text-lg font-semibold text-slate-100">{value}</p>
-      {subtext && <p className="text-xs text-slate-500">{subtext}</p>}
-    </div>
-  );
-}
-
-function ProgressBar({ value, max, color = "bg-cyan-500" }: { value: number; max: number; color?: string }) {
-  const width = toBarPercent(value, max);
-  return (
-    <div className="h-2 w-full rounded-full bg-slate-800">
-      <div className={cn("h-2 rounded-full transition-all", color)} style={{ width: `${width}%` }} />
-    </div>
-  );
-}
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">{children}</h3>;
 }
 
 // ---------------------------------------------------------------------------
 // Dashboard tab
 // ---------------------------------------------------------------------------
 
-function DashboardTab({ data, eventCount }: { data: DashboardStats; eventCount: number }) {
-  const maxCompleted = data.velocity_trend.length > 0
-    ? Math.max(...data.velocity_trend.map((p) => p.completed), 1)
-    : 1;
+function DashboardTab({ data, eventCount, history }: { data: DashboardStats; eventCount: number; history: HistoryWindow }) {
+  const velocityTrend = data.velocity_trend ?? [];
+  const navigate = useNavigate();
+  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
+  const selectedPoint = velocityTrend.find((point) => point.week_start === selectedWeek);
+
+  const eta = data.estimated_remaining;
 
   return (
     <div className="space-y-4" data-testid="stats-content-dashboard">
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Backlog" value={String(data.total_backlog_size)} testId="stat-backlog-size" />
-        <StatCard label="Completed" value={String(data.total_completed_all_time)} subtext="all time" testId="stat-completed-all-time" />
-        <StatCard label="Est. Remaining" value={formatWeeksRemaining(data.estimated_weeks_remaining)} testId="stat-weeks-remaining" />
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatCard label="Backlog" value={data.total_backlog_size.toLocaleString()} icon={ListChecks} testId="stat-backlog-size" />
+        <StatCard
+          label="Completed"
+          value={data.total_completed_all_time.toLocaleString()}
+          subtext="all time"
+          icon={CheckCircle2}
+          testId="stat-completed-all-time"
+        />
+        {eta ? (
+          <StatCard
+            label="Est. Remaining"
+            value={`${eta.p50_label} - ${eta.p80_label}`}
+            subtext={`${eta.remaining_items.toLocaleString()} items · ${eta.basis_label}`}
+            icon={Clock3}
+            testId="stat-weeks-remaining"
+          >
+            <EtaExplainerTrigger band={toExplainerBand(eta)} testId="stat-weeks-remaining-explainer" />
+          </StatCard>
+        ) : (
+          <InsufficientDataCard
+            label="Est. Remaining"
+            reason="No estimable backlog closure is available."
+            testId="stat-weeks-remaining"
+          />
+        )}
       </div>
 
       <div>
-        <SectionLabel>Velocity (last {data.velocity_trend.length} weeks)</SectionLabel>
-        {data.velocity_trend.length === 0 ? (
-          <p className="text-sm text-slate-500">No velocity data yet</p>
+        <SectionLabel icon={TrendingUp}>Velocity (last {velocityTrend.length} weeks)</SectionLabel>
+        {velocityTrend.length === 0 ? (
+          <StatsEmptyState>No velocity data yet</StatsEmptyState>
         ) : (
-          <div className="flex items-end gap-1" style={{ height: 80 }}>
-            {data.velocity_trend.map((point) => (
-              <div
-                key={point.week_start}
-                className="flex flex-1 flex-col items-center gap-1"
-              >
-                <div
-                  className="w-full rounded-t bg-cyan-500/70"
-                  style={{ height: `${toBarPercent(point.completed, maxCompleted)}%` }}
-                  title={`${point.week_start}: ${point.completed} completed`}
+          <MiniBarChart
+            points={velocityTrend.map((point) => ({
+              key: point.week_start,
+              label: point.week_start,
+              value: point.completed,
+            }))}
+            testId="stats-velocity-chart"
+            onSelect={(point) => setSelectedWeek(point.key)}
+          />
+        )}
+        {selectedWeek && selectedPoint && (
+          <div className="mt-3 space-y-2" data-testid="stats-velocity-drilldown">
+            <p className="text-xs font-medium text-slate-300">Completed that week ({selectedWeek})</p>
+            {selectedPoint.completed_items?.length ? (
+              selectedPoint.completed_items.map((item) => (
+                <BoardCard
+                  key={`${item.kind}/${item.name}`}
+                  title={item.name}
+                  subtitle={item.kind}
+                  tone="positive"
+                  onClick={() => navigate(backlogDetailPath(item.kind, item.name))}
                 />
-                <span className="text-[10px] text-slate-500">{point.completed}</span>
-              </div>
-            ))}
+              ))
+            ) : (
+              <StatsEmptyState>No completed items recorded for this week</StatsEmptyState>
+            )}
           </div>
         )}
       </div>
 
-      <p className="text-xs text-slate-500">{eventCount.toLocaleString()} events processed</p>
+      <p className="text-xs text-slate-500">
+        {eventCount.toLocaleString()} events processed
+        {history.has_history && (
+          <> · {Math.max(1, Math.round(history.history_days))}d of history</>
+        )}
+      </p>
     </div>
   );
 }
@@ -206,39 +274,135 @@ function DashboardTab({ data, eventCount }: { data: DashboardStats; eventCount: 
 // Throughput tab
 // ---------------------------------------------------------------------------
 
-function ThroughputTab({ data }: { data: ThroughputStats }) {
+function formatItemsPerWeek(count: number, days: number): string {
+  return `${((count / days) * 7).toFixed(1)} / wk`;
+}
+
+function deltaClassName(value: number): string {
+  if (value > 0) return "text-amber-400";
+  if (value < 0) return "text-emerald-400";
+  return "text-slate-300";
+}
+
+function ThroughputTab({ data, dashboard }: { data: ThroughputStats; dashboard: DashboardStats }) {
+  const trend = data.throughput_trend ?? [];
+  const hasTrendData = trend.some((point) => point.created > 0 || point.completed > 0);
+  const eta = dashboard.estimated_remaining;
+
   return (
-    <div className="space-y-3" data-testid="stats-content-throughput">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-xs text-slate-500">
-            <th className="pb-2 font-medium" />
-            <th className="pb-2 font-medium">7 days</th>
-            <th className="pb-2 font-medium">30 days</th>
-          </tr>
-        </thead>
-        <tbody className="text-slate-200">
-          <tr>
-            <td className="py-1 text-slate-400">Created</td>
-            <td className="py-1">{data.created_last_7_days}</td>
-            <td className="py-1">{data.created_last_30_days}</td>
-          </tr>
-          <tr>
-            <td className="py-1 text-slate-400">Completed</td>
-            <td className="py-1">{data.completed_last_7_days}</td>
-            <td className="py-1">{data.completed_last_30_days}</td>
-          </tr>
-          <tr className="border-t border-slate-700/50">
-            <td className="py-1 text-slate-400">Net delta</td>
-            <td className={cn("py-1 font-medium", data.net_delta_7_days > 0 ? "text-amber-400" : data.net_delta_7_days < 0 ? "text-emerald-400" : "text-slate-300")}>
-              {formatDelta(data.net_delta_7_days)}
-            </td>
-            <td className={cn("py-1 font-medium", data.net_delta_30_days > 0 ? "text-amber-400" : data.net_delta_30_days < 0 ? "text-emerald-400" : "text-slate-300")}>
-              {formatDelta(data.net_delta_30_days)}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <div className="space-y-4" data-testid="stats-content-throughput">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatCard
+          label="Created"
+          value={data.created_last_7_days.toLocaleString()}
+          subtext="last 7 days"
+          icon={ListChecks}
+          testId="stat-throughput-created-7d"
+        />
+        <StatCard
+          label="Completed"
+          value={data.completed_last_7_days.toLocaleString()}
+          subtext="last 7 days"
+          icon={CheckCircle2}
+          testId="stat-throughput-completed-7d"
+        />
+        <StatCard
+          label="Net Delta"
+          value={formatDelta(data.net_delta_7_days)}
+          subtext={data.net_delta_7_days > 0 ? "backlog grew" : data.net_delta_7_days < 0 ? "backlog shrank" : "balanced"}
+          icon={TrendingUp}
+          valueClassName={deltaClassName(data.net_delta_7_days)}
+          testId="stat-throughput-net-7d"
+        />
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <SectionLabel icon={BarChart3}>Created vs completed</SectionLabel>
+          <div className="flex items-center gap-3 text-[11px] text-slate-500">
+            <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-cyan-400/70" /> Created</span>
+            <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-emerald-400/70" /> Completed</span>
+          </div>
+        </div>
+        {!hasTrendData ? (
+          <StatsEmptyState testId="stats-throughput-empty">
+            No created or completed work recorded in the trend window
+          </StatsEmptyState>
+        ) : (
+          <MiniBarChart
+            points={trend.map((point) => ({
+              key: point.week_start,
+              label: point.week_start,
+              value: point.created,
+              secondaryValue: point.completed,
+            }))}
+            valueLabel="created"
+            secondaryValueLabel="completed"
+            testId="stats-throughput-chart"
+          />
+        )}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {eta ? (
+          <StatCard
+            label="Burndown"
+            value={`${eta.p50_label} - ${eta.p80_label}`}
+            subtext={`${eta.remaining_items.toLocaleString()} items · ${eta.basis_label}`}
+            icon={Clock3}
+            testId="stat-throughput-burndown"
+          >
+            <EtaExplainerTrigger band={toExplainerBand(eta)} testId="stat-throughput-burndown-explainer" />
+          </StatCard>
+        ) : (
+          <InsufficientDataCard
+            label="Burndown"
+            reason="No estimable backlog closure is available."
+            testId="stat-throughput-burndown"
+          />
+        )}
+        <StatCard
+          label="30d Flow Rate"
+          value={`${formatItemsPerWeek(data.completed_last_30_days, 30)} done`}
+          subtext={`${formatItemsPerWeek(data.created_last_30_days, 30)} created · ${formatDelta(data.net_delta_30_days)} net`}
+          icon={Gauge}
+          testId="stat-throughput-rate"
+        />
+      </div>
+
+      <div>
+        <SectionLabel icon={Activity}>Window detail</SectionLabel>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-slate-500">
+              <th className="pb-2 font-medium" />
+              <th className="pb-2 font-medium">7 days</th>
+              <th className="pb-2 font-medium">30 days</th>
+            </tr>
+          </thead>
+          <tbody className="text-slate-200">
+            <tr>
+              <td className="py-1 text-slate-400">Created</td>
+              <td className="py-1">{data.created_last_7_days}</td>
+              <td className="py-1">{data.created_last_30_days}</td>
+            </tr>
+            <tr>
+              <td className="py-1 text-slate-400">Completed</td>
+              <td className="py-1">{data.completed_last_7_days}</td>
+              <td className="py-1">{data.completed_last_30_days}</td>
+            </tr>
+            <tr className="border-t border-slate-700/50">
+              <td className="py-1 text-slate-400">Net delta</td>
+              <td className={cn("py-1 font-medium", deltaClassName(data.net_delta_7_days))}>
+                {formatDelta(data.net_delta_7_days)}
+              </td>
+              <td className={cn("py-1 font-medium", deltaClassName(data.net_delta_30_days))}>
+                {formatDelta(data.net_delta_30_days)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -247,39 +411,198 @@ function ThroughputTab({ data }: { data: ThroughputStats }) {
 // Agent tab
 // ---------------------------------------------------------------------------
 
-function AgentTab({ data }: { data: AgentStats }) {
+function AgentTab({ data, history }: { data: AgentStats; history: HistoryWindow }) {
+  const threshold = minSample(history);
+  const rateSample = data.success_rate_sample_size;
+  const rateReady = rateSample >= Math.max(1, threshold);
+  const durationReady = data.execution_duration_samples >= Math.max(1, threshold);
+  const workshopReady = data.workshop_rounds_sample_size >= Math.max(1, threshold);
+
   return (
     <div className="space-y-4" data-testid="stats-content-agent">
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Total Executions" value={String(data.total_executions)} />
-        <StatCard label="Avg Duration" value={`${data.avg_execution_minutes.toFixed(1)} min`} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <StatCard
+          label="Total Executions"
+          value={String(data.total_executions)}
+          subtext={`${data.completed_count} completed · ${data.failed_count} failed`}
+          icon={Zap}
+        />
+        <StatsMetricCard
+          label="Avg Duration"
+          value={`${data.avg_execution_minutes.toFixed(1)} min`}
+          sampleSize={data.execution_duration_samples}
+          minSample={threshold}
+          sampleNoun="completed runs"
+          insufficientReason={`Need at least ${threshold} finished runs.`}
+          icon={Timer}
+        />
       </div>
 
-      <div className="space-y-3">
-        <div>
-          <div className="mb-1 flex justify-between text-xs">
-            <span className="text-slate-400">Success rate</span>
-            <span className="text-emerald-400">{formatRate(data.success_rate)}</span>
+      {rateReady ? (
+        <div className="space-y-3">
+          <div>
+            <div className="mb-1 flex justify-between text-xs">
+              <span className="text-slate-400">Success rate</span>
+              <span className="text-emerald-400">{formatRate(data.success_rate)} <span className="text-slate-500">({data.completed_count} of {rateSample})</span></span>
+            </div>
+            <ProgressBar value={data.success_rate} max={1} color="bg-emerald-500" />
           </div>
-          <ProgressBar value={data.success_rate} max={1} color="bg-emerald-500" />
-        </div>
-        <div>
-          <div className="mb-1 flex justify-between text-xs">
-            <span className="text-slate-400">Failure rate</span>
-            <span className="text-red-400">{formatRate(data.failure_rate)}</span>
+          <div>
+            <div className="mb-1 flex justify-between text-xs">
+              <span className="text-slate-400">Failure rate</span>
+              <span className="text-red-400">{formatRate(data.failure_rate)} <span className="text-slate-500">({data.failed_count} of {rateSample})</span></span>
+            </div>
+            <ProgressBar value={data.failure_rate} max={1} color="bg-red-500" />
           </div>
-          <ProgressBar value={data.failure_rate} max={1} color="bg-red-500" />
-        </div>
-        <div>
-          <div className="mb-1 flex justify-between text-xs">
-            <span className="text-slate-400">Follow-up rate</span>
-            <span className="text-amber-400">{formatRate(data.follow_up_rate)}</span>
+          {data.manually_accepted_count > 0 && (
+            <div>
+              <div className="mb-1 flex justify-between text-xs">
+                <span className="text-slate-400">Manually accepted</span>
+                <span className="text-cyan-300">{formatRate(data.manual_accept_rate)} <span className="text-slate-500">({data.manually_accepted_count} of {rateSample})</span></span>
+              </div>
+              <ProgressBar value={data.manual_accept_rate} max={1} color="bg-cyan-500" />
+              <p className="mt-1 text-[11px] text-slate-500">
+                Runs the agent flagged as failed but you accepted as good enough.
+              </p>
+            </div>
+          )}
+          <div>
+            <div className="mb-1 flex justify-between text-xs">
+              <span className="text-slate-400">Follow-up rate</span>
+              <span className="text-amber-400">{formatRate(data.follow_up_rate)}</span>
+            </div>
+            <ProgressBar value={data.follow_up_rate} max={1} color="bg-amber-500" />
           </div>
-          <ProgressBar value={data.follow_up_rate} max={1} color="bg-amber-500" />
         </div>
-      </div>
+      ) : (
+        <InsufficientDataCard
+          label="Success / failure rate"
+          reason={`Need at least ${threshold} finished runs before rates are meaningful.`}
+          have={rateSample}
+          required={threshold}
+        />
+      )}
 
-      <StatCard label="Avg Workshop Rounds" value={data.avg_workshop_rounds.toFixed(1)} />
+      {workshopReady || durationReady ? (
+        <StatsMetricCard
+          label="Avg Workshop Rounds"
+          value={data.avg_workshop_rounds.toFixed(1)}
+          sampleSize={data.workshop_rounds_sample_size}
+          minSample={threshold}
+          sampleNoun="workshop runs"
+          insufficientReason={`Need at least ${threshold} items with workshop rounds.`}
+        />
+      ) : (
+        <InsufficientDataCard
+          label="Avg Workshop Rounds"
+          reason="No workshop rounds recorded yet."
+          have={data.workshop_rounds_sample_size}
+          required={threshold}
+        />
+      )}
+
+      <RecommendationAcceptanceSection data={data} threshold={threshold} />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Recommendation acceptance (Agent tab subsection)
+// ---------------------------------------------------------------------------
+
+function RecommendationAcceptanceSection({
+  data,
+  threshold,
+}: {
+  data: AgentStats;
+  threshold: number;
+}) {
+  const sample = data.recommendation_acceptance_sample_size;
+  const ready = sample >= Math.max(1, threshold);
+  const byKind = data.recommendation_acceptance_by_kind ?? {};
+  const kindEntries = Object.entries(byKind).sort(([a], [b]) => a.localeCompare(b));
+  const [showByKind, setShowByKind] = useState(false);
+
+  return (
+    <div className="space-y-3" data-testid="stats-recommendation-acceptance">
+      <SectionLabel icon={MessageSquare}>Decision Recommendations</SectionLabel>
+      {ready ? (
+        <div className="space-y-3">
+          <div>
+            <div className="mb-1 flex justify-between text-xs">
+              <span className="text-slate-400">Recommendation acceptance</span>
+              <span className="text-emerald-400">
+                {formatRate(data.recommendation_acceptance_rate)}{" "}
+                <span className="text-slate-500">(n={sample})</span>
+              </span>
+            </div>
+            <ProgressBar value={data.recommendation_acceptance_rate} max={1} color="bg-emerald-500" />
+            <p className="mt-1 text-[11px] text-slate-500">
+              Of decisions you answered, the share where you picked the agent&apos;s recommended option.
+              Picking &quot;Other&quot; counts as rejecting the recommendation.
+            </p>
+          </div>
+          <div>
+            <div className="mb-1 flex justify-between text-xs">
+              <span className="text-slate-400">Freeform override</span>
+              <span className="text-amber-400">
+                {formatRate(data.freeform_override_rate)}{" "}
+                <span className="text-slate-500">(n={sample})</span>
+              </span>
+            </div>
+            <ProgressBar value={data.freeform_override_rate} max={1} color="bg-amber-500" />
+            <p className="mt-1 text-[11px] text-slate-500">
+              Share of answers that picked &quot;Other&quot;. A high rate means the offered options miss the mark.
+            </p>
+          </div>
+          {kindEntries.length > 0 && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowByKind((v) => !v)}
+                className="text-xs text-slate-400 hover:text-slate-200"
+                data-testid="stats-rec-by-kind-toggle"
+              >
+                {showByKind ? "Hide breakdown by kind" : "Show breakdown by kind"}
+              </button>
+              {showByKind && (
+                <div className="mt-2 space-y-2">
+                  {kindEntries.map(([kind, kr]) => {
+                    const kindReady = kr.sample_size >= Math.max(1, threshold);
+                    return kindReady ? (
+                      <div key={kind} className="text-xs">
+                        <div className="mb-1 flex justify-between">
+                          <span className="capitalize text-slate-400">{kind}</span>
+                          <span className="text-emerald-300">
+                            {formatRate(kr.rate)}{" "}
+                            <span className="text-slate-500">(n={kr.sample_size})</span>
+                          </span>
+                        </div>
+                        <ProgressBar value={kr.rate} max={1} color="bg-emerald-500" />
+                      </div>
+                    ) : (
+                      <InsufficientDataCard
+                        key={kind}
+                        label={kind.charAt(0).toUpperCase() + kind.slice(1)}
+                        reason={`Need at least ${threshold} answered decisions in this kind.`}
+                        have={kr.sample_size}
+                        required={threshold}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <InsufficientDataCard
+          label="Recommendation acceptance"
+          reason={`Need at least ${threshold} answered decisions.`}
+          have={sample}
+          required={threshold}
+        />
+      )}
     </div>
   );
 }
@@ -288,23 +611,53 @@ function AgentTab({ data }: { data: AgentStats }) {
 // Timing tab
 // ---------------------------------------------------------------------------
 
-function TimingTab({ data }: { data: TimingStats }) {
+function TimingTab({ data, history }: { data: TimingStats; history: HistoryWindow }) {
+  const threshold = minSample(history);
   return (
     <div className="space-y-3" data-testid="stats-content-timing">
-      <SectionLabel>Cycle Time (in progress → complete)</SectionLabel>
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Average" value={formatHours(data.avg_cycle_time_hours)} />
-        <StatCard label="Median" value={formatHours(data.median_cycle_time_hours)} />
+      <SectionLabel icon={Clock3}>Lead Time (created → complete)</SectionLabel>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <StatsMetricCard
+          label="Average"
+          value={formatHours(data.avg_lead_time_hours)}
+          sampleSize={data.lead_time_sample_size}
+          minSample={threshold}
+          sampleNoun="items"
+          insufficientReason={`Need at least ${threshold} items tracked from creation to completion.`}
+          icon={Gauge}
+        />
+        <StatsMetricCard
+          label="Median"
+          value={formatHours(data.median_lead_time_hours)}
+          sampleSize={data.lead_time_sample_size}
+          minSample={threshold}
+          sampleNoun="items"
+          insufficientReason={`Need at least ${threshold} items tracked from creation to completion.`}
+          icon={BarChart3}
+        />
       </div>
 
-      <SectionLabel>Lead Time (created → complete)</SectionLabel>
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Average" value={formatHours(data.avg_lead_time_hours)} />
-        <StatCard label="Median" value={formatHours(data.median_lead_time_hours)} />
+      <SectionLabel icon={Timer}>Execution Duration (running → complete)</SectionLabel>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <StatsMetricCard
+          label="Average"
+          value={`${data.avg_execution_minutes.toFixed(1)} min`}
+          sampleSize={data.execution_duration_samples}
+          minSample={threshold}
+          sampleNoun="finished runs"
+          insufficientReason={`Need at least ${threshold} finished executions.`}
+          icon={Timer}
+        />
+        <StatsMetricCard
+          label="Median"
+          value={`${data.median_execution_minutes.toFixed(1)} min`}
+          sampleSize={data.execution_duration_samples}
+          minSample={threshold}
+          sampleNoun="finished runs"
+          insufficientReason={`Need at least ${threshold} finished executions.`}
+          icon={BarChart3}
+        />
       </div>
-
-      <SectionLabel>Queue Wait</SectionLabel>
-      <StatCard label="Avg queue wait" value={formatHours(data.avg_queue_wait_hours)} />
     </div>
   );
 }
@@ -314,21 +667,23 @@ function TimingTab({ data }: { data: TimingStats }) {
 // ---------------------------------------------------------------------------
 
 function BlockingTab({ data }: { data: BlockingStats }) {
+  const topReasons = data.top_reasons ?? [];
+
   return (
     <div className="space-y-4" data-testid="stats-content-blocking">
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Blocked" value={String(data.currently_blocked)} />
-        <StatCard label="Blocked %" value={formatRate(data.blocked_ratio)} />
-        <StatCard label="Avg Block Time" value={formatHours(data.avg_block_hours)} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard label="Blocked" value={String(data.currently_blocked)} icon={AlertCircle} />
+        <StatCard label="Blocked %" value={formatRate(data.blocked_ratio)} icon={Gauge} />
+        <StatCard label="Avg Block Time" value={formatHours(data.avg_block_hours)} icon={Clock3} />
       </div>
 
       <div>
-        <SectionLabel>Top Blocking Reasons</SectionLabel>
-        {data.top_reasons.length === 0 ? (
-          <p className="text-sm text-slate-500">No blocking reasons recorded</p>
+        <SectionLabel icon={AlertCircle}>Top Blocking Reasons</SectionLabel>
+        {topReasons.length === 0 ? (
+          <StatsEmptyState>No blocking reasons recorded</StatsEmptyState>
         ) : (
           <ul className="space-y-1">
-            {data.top_reasons.map((r) => (
+            {topReasons.map((r) => (
               <li key={r.reason} className="flex items-center justify-between rounded px-2 py-1 text-sm hover:bg-slate-800/50">
                 <span className="truncate text-slate-300">{r.reason}</span>
                 <span className="ml-2 shrink-0 rounded bg-slate-700/60 px-1.5 py-0.5 text-xs text-slate-400">
@@ -348,40 +703,309 @@ function BlockingTab({ data }: { data: BlockingStats }) {
 // ---------------------------------------------------------------------------
 
 function ScopeTab({ data }: { data: ScopeStats }) {
+  const goals = data.goals ?? [];
+	const [explainerOpen, setExplainerOpen] = useState(false);
+	const explainerRef = useRef<HTMLButtonElement | null>(null);
+
   return (
     <div className="space-y-4" data-testid="stats-content-scope">
-      {data.max_dependency_depth > 0 && (
-        <p className="text-xs text-slate-500">Max dependency depth: {data.max_dependency_depth}</p>
-      )}
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs leading-5 text-slate-400">
+		  Scope shows goal health and how its tracked item count has changed.
+          {data.max_dependency_depth > 0 && ` Maximum dependency depth: ${data.max_dependency_depth}.`}
+        </p>
+        <button
+          ref={explainerRef}
+          type="button"
+          onClick={() => setExplainerOpen((open) => !open)}
+          aria-label="Explain scope statistics"
+          aria-expanded={explainerOpen}
+          className="shrink-0 rounded p-1 text-slate-500 transition-colors hover:bg-slate-800 hover:text-cyan-300"
+        >
+          <Info className="h-3.5 w-3.5" aria-hidden />
+        </button>
+        <Popover
+          isOpen={explainerOpen}
+          onClose={() => setExplainerOpen(false)}
+          triggerRef={explainerRef}
+          placement="bottom-end"
+          className="w-72 p-3 text-xs text-slate-300"
+        >
+          <h3 className="mb-1 text-sm font-semibold text-slate-100">How scope is computed</h3>
+		  <p>Each row summarizes a goal’s tracked items, completion, active work, blockers, and scope change.</p>
+        </Popover>
+      </div>
 
-      {data.initiatives.length === 0 ? (
-        <p className="text-sm text-slate-500">No initiatives yet</p>
+      {goals.length === 0 ? (
+		<StatsEmptyState>No goals yet</StatsEmptyState>
       ) : (
         <ul className="space-y-3">
-          {data.initiatives.map((init) => {
-            const pct = init.total > 0 ? (init.completed / init.total) * 100 : 0;
-            return (
-              <li key={init.name} className="rounded-lg border border-slate-700/50 bg-slate-900/40 p-3">
-                <div className="mb-1 flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-200">{init.name}</span>
-                  <span className="text-xs text-slate-400">{Math.round(pct)}%</span>
-                </div>
-                <ProgressBar value={init.completed} max={init.total} color="bg-cyan-500" />
-                <div className="mt-1.5 flex gap-3 text-xs text-slate-500">
-                  <span>{init.total} total</span>
-                  <span>{init.in_progress} active</span>
-                  {init.blocked > 0 && <span className="text-red-400">{init.blocked} blocked</span>}
-                  {init.scope_creep !== 0 && (
-                    <span className={init.scope_creep > 0 ? "text-amber-400" : "text-emerald-400"}>
-                      scope {init.scope_creep > 0 ? "+" : ""}{Math.round(init.scope_creep * 100)}%
-                    </span>
-                  )}
-                </div>
-              </li>
-            );
-          })}
+		  {goals.map((init) => {
+              const pct = init.total > 0 ? (init.completed / init.total) * 100 : 0;
+              return (
+                <li key={init.name} className="rounded-lg border border-slate-700/50 bg-slate-900/40 p-3">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-200">{init.name}</span>
+                    <span className="text-xs text-slate-400">{Math.round(pct)}%</span>
+                  </div>
+                  <ProgressBar value={init.completed} max={init.total} color="bg-cyan-500" />
+                  <div className="mt-1.5 flex gap-3 text-xs text-slate-500">
+                    <span>{init.total} total</span>
+                    <span>{init.in_progress} active</span>
+                    {init.blocked > 0 && <span className="text-red-400">{init.blocked} blocked</span>}
+                    {init.scope_creep !== 0 && (
+                      <span className={init.scope_creep > 0 ? "text-amber-400" : "text-emerald-400"}>
+                        scope {init.scope_creep > 0 ? "+" : ""}{Math.round(init.scope_creep * 100)}%
+                      </span>
+                    )}
+                  </div>
+                </li>
+              );
+		  })}
         </ul>
       )}
     </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Historical operating-mode metrics
+// ---------------------------------------------------------------------------
+
+function ModesTab({ data }: { data: ModeStats }) {
+  const usageEntries = Object.entries(data?.usage_by_mode ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  const phaseEntries = Object.entries(data?.phase_runs_by_mode ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  const profileEntries = Object.entries(data?.usage_by_profile ?? {}).sort(([, a], [, b]) => b - a);
+  const syncEntries = Object.entries(data?.backlog_sync_by_mode ?? {}).sort(([a], [b]) => a.localeCompare(b));
+
+  return (
+    <div className="space-y-4" data-testid="stats-content-modes">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <StatCard label="Historical mode switches" value={String(data?.mode_switch_count ?? 0)} icon={Layers} />
+        <StatCard label="Profiles Used" value={String(profileEntries.length)} icon={Users} />
+      </div>
+
+      <div>
+        <SectionLabel icon={Activity}>Historical mode usage</SectionLabel>
+        {usageEntries.length === 0 ? (
+          <StatsEmptyState>No historical mode records yet</StatsEmptyState>
+        ) : (
+          <ul className="space-y-2">
+            {usageEntries.map(([mode, count]) => (
+              <li key={mode} className="flex items-center justify-between rounded-lg border border-slate-700/50 bg-slate-900/40 px-3 py-2 text-sm">
+                <span className="text-slate-300">{formatModeLabel(mode)}</span>
+                <span className="font-medium text-slate-100">{count}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div>
+        <SectionLabel icon={BarChart3}>Historical phase runs</SectionLabel>
+        {phaseEntries.length === 0 ? (
+          <StatsEmptyState>No historical operating-mode phase runs yet</StatsEmptyState>
+        ) : (
+          <div className="space-y-3">
+            {phaseEntries.map(([mode, phases]) => (
+              <div key={mode} className="rounded-lg border border-slate-700/50 bg-slate-900/40 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-200">{formatModeLabel(mode)}</span>
+                  <span className="text-xs text-slate-500">{sumValues(phases)} runs</span>
+                </div>
+                <div className="space-y-2">
+                  {Object.entries(phases).sort(([a], [b]) => a.localeCompare(b)).map(([phase, count]) => (
+                    <div key={phase} className="text-xs">
+                      <div className="mb-1 flex justify-between">
+                        <span className="text-slate-400">{formatModeLabel(phase)}</span>
+                        <span className="text-slate-300">{count}</span>
+                      </div>
+                      <ProgressBar value={count} max={Math.max(1, sumValues(phases))} color="bg-cyan-500" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {Object.entries(data?.replan_rate_by_mode ?? {}).map(([mode, rate]) => (
+          <StatCard
+            key={`replan-${mode}`}
+            label={`${formatModeLabel(mode)} Replan`}
+            value={formatRate(rate.rate)}
+            subtext={`n=${rate.sample_size}`}
+          />
+        ))}
+        {Object.entries(data?.acceptance_rate_by_mode ?? {}).map(([mode, rate]) => (
+          <StatCard
+            key={`acceptance-${mode}`}
+            label={`${formatModeLabel(mode)} Acceptance`}
+            value={formatRate(rate.rate)}
+            subtext={`n=${rate.sample_size}`}
+          />
+        ))}
+      </div>
+
+      <div>
+        <SectionLabel icon={Users}>Profile Usage</SectionLabel>
+        {profileEntries.length === 0 ? (
+          <StatsEmptyState>No profile usage recorded yet</StatsEmptyState>
+        ) : (
+          <ul className="space-y-1">
+            {profileEntries.map(([profile, count]) => (
+              <li key={profile} className="flex items-center justify-between rounded px-2 py-1 text-sm hover:bg-slate-800/50">
+                <span className="truncate text-slate-300">{profile}</span>
+                <span className="ml-2 shrink-0 rounded bg-slate-700/60 px-1.5 py-0.5 text-xs text-slate-400">{count}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {syncEntries.length > 0 && (
+        <div>
+          <SectionLabel icon={ListChecks}>Backlog Sync</SectionLabel>
+          <ul className="space-y-2">
+            {syncEntries.map(([mode, sync]) => (
+              <li key={mode} className="rounded-lg border border-slate-700/50 bg-slate-900/40 p-3 text-xs text-slate-400">
+                <div className="mb-1 font-medium text-slate-200">{formatModeLabel(mode)}</div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                  <span>{sync.events} events</span>
+                  <span>{sync.items_completed} completed</span>
+                  <span>{sync.items_created} created</span>
+                  <span>{sync.items_updated} updated</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sessions tab
+// ---------------------------------------------------------------------------
+
+function SessionsTab({ data, history }: { data: SessionStats; history: HistoryWindow }) {
+  const threshold = minSample(history);
+  const kindEntries = Object.entries(data?.sessions_by_kind ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  const statusEntries = Object.entries(data?.sessions_by_status ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  const proposalEntries = Object.entries(data?.proposal_apply_rate_by_kind ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  const artifactEntries = Object.entries(data?.artifacts_by_type ?? {}).sort(([a], [b]) => a.localeCompare(b));
+
+  return (
+    <div className="space-y-4" data-testid="stats-content-sessions">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard label="Sessions" value={String(data?.total_sessions ?? 0)} subtext={`${data?.active_sessions ?? 0} active`} icon={MessageSquare} />
+        <StatsMetricCard
+          label="Messages / Session"
+          value={(data?.avg_messages_per_session ?? 0).toFixed(1)}
+          sampleSize={data?.total_sessions ?? 0}
+          minSample={1}
+          sampleNoun="sessions"
+          insufficientReason="No sessions recorded yet."
+          icon={MessageSquare}
+        />
+        <StatsMetricCard
+          label="Failed Sessions"
+          value={formatRate(data?.failed_session_rate ?? 0)}
+          sampleSize={data?.failed_session_sample_size ?? 0}
+          minSample={Math.max(1, threshold)}
+          sampleNoun="terminal sessions"
+          insufficientReason={`Need at least ${threshold} terminal sessions.`}
+          icon={AlertCircle}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <StatCard label="Backlog Artifacts" value={String(data?.session_created_backlog_items ?? 0)} subtext="created by sessions" icon={ListChecks} />
+        <StatCard label="Goal Artifacts" value={String(data?.session_created_goals ?? 0)} subtext="created by sessions" icon={Target} />
+      </div>
+
+      <StatsMetricCard
+        label="Time to First Proposal"
+        value={formatDurationSeconds(data?.avg_time_to_first_proposal_seconds ?? 0)}
+        sampleSize={data?.first_proposal_sample_size ?? 0}
+        minSample={Math.max(1, threshold)}
+        sampleNoun="sessions with proposals"
+        insufficientReason={`Need at least ${threshold} sessions with proposals.`}
+        icon={Timer}
+      />
+
+      <div>
+        <SectionLabel icon={MessageSquare}>Sessions By Kind</SectionLabel>
+        {kindEntries.length === 0 ? (
+          <StatsEmptyState>No agent sessions recorded yet</StatsEmptyState>
+        ) : (
+          <KeyValueList entries={kindEntries} formatKey={formatModeLabel} />
+        )}
+      </div>
+
+      <div>
+        <SectionLabel icon={Activity}>Current Status</SectionLabel>
+        {statusEntries.length === 0 ? (
+          <StatsEmptyState>No status data yet</StatsEmptyState>
+        ) : (
+          <KeyValueList entries={statusEntries} formatKey={formatModeLabel} />
+        )}
+      </div>
+
+      <div>
+        <SectionLabel icon={CheckCircle2}>Proposal Apply Rate</SectionLabel>
+        {proposalEntries.length === 0 ? (
+          <StatsEmptyState>No proposals recorded yet</StatsEmptyState>
+        ) : (
+          <div className="space-y-2">
+            {proposalEntries.map(([kind, rate]) => (
+              <div key={kind} className="text-xs">
+                <div className="mb-1 flex justify-between">
+                  <span className="text-slate-400">{formatModeLabel(kind)}</span>
+                  <span className="text-emerald-300">{formatRate(rate.rate)} <span className="text-slate-500">(n={rate.sample_size})</span></span>
+                </div>
+                <ProgressBar value={rate.rate} max={1} color="bg-emerald-500" />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <SectionLabel icon={ListChecks}>Artifacts By Type</SectionLabel>
+        {artifactEntries.length === 0 ? (
+          <StatsEmptyState>No session artifacts recorded yet</StatsEmptyState>
+        ) : (
+          <KeyValueList entries={artifactEntries} formatKey={formatModeLabel} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function formatDurationSeconds(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "0m";
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+  return `${(seconds / 3600).toFixed(1)}h`;
+}
+
+// Mode buckets route through the member-item-strategy mapping: goals
+// stored under the legacy "item-level" wire value keep being counted, but the
+// bucket is relabeled "Member-item workflow" (never dropped or merged). Phase
+// keys pass through untouched — they never carry the legacy wire value.
+function formatModeLabel(value: string): string {
+  const humanized = value
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+  return presentModeLabel(value, humanized);
+}
+
+function sumValues(values: Record<string, number>): number {
+  return Object.values(values).reduce((sum, value) => sum + value, 0);
 }

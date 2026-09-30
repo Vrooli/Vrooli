@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useWorkflowStore } from '../stores/workflowStore';
-import { getUpstreamUrl, getUpstreamUrlAsync } from '../utils/nodeUtils';
+import { getUpstreamUrl, getUpstreamUrlAsync } from '../domains/workflows/utils/normalizers';
 
 /**
  * Hook to get the upstream URL for a given node.

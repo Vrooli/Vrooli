@@ -19,9 +19,25 @@ type mockExecutionQueuer struct {
 	queueResult     execution.Record
 	queueErr        error
 
+	// Manual-accept controls.
+	manuallyAcceptedCalls []manuallyAcceptedCall
+	manuallyAcceptedID    string
+	manuallyAcceptedOK    bool
+	manuallyAcceptedErr   error
+
 	// Track calls for assertion.
 	preflightCalls []string // "kind/name" of each ProcessPreflight call
 	queueCalls     []execution.CreateRequest
+
+	// Retry-latest controls.
+	retryLatestCalls    []retryLatestCall
+	retryLatestRecord   execution.Record
+	retryLatestHasPrior bool
+	retryLatestErr      error
+}
+
+type manuallyAcceptedCall struct {
+	Kind, Name, Acceptor, Reason string
 }
 
 func (m *mockExecutionQueuer) ProcessPreflight(_ context.Context, backlogKind, backlogName string) (execution.ProcessPreflight, error) {
@@ -30,6 +46,11 @@ func (m *mockExecutionQueuer) ProcessPreflight(_ context.Context, backlogKind, b
 		return execution.ProcessPreflight{}, m.preflightErr
 	}
 	return m.preflightResult, nil
+}
+
+func (m *mockExecutionQueuer) ProcessPreflightForSpec(_ context.Context, spec execution.PreflightSpec) execution.ProcessPreflight {
+	m.preflightCalls = append(m.preflightCalls, spec.Kind+"/"+spec.Name)
+	return m.preflightResult
 }
 
 func (m *mockExecutionQueuer) QueueBacklog(_ context.Context, req execution.CreateRequest) (execution.Record, error) {
@@ -45,10 +66,32 @@ func (m *mockExecutionQueuer) QueueBacklog(_ context.Context, req execution.Crea
 	return result, nil
 }
 
-// TestGoldenPath_BatchCreateInitiativeQueue exercises the full pipeline:
-// batch-create items with dependencies and an initiative, then batch-queue
+func (m *mockExecutionQueuer) ManuallyAcceptLatestForBacklog(_ context.Context, backlogKind, backlogName, acceptor, reason string) (string, bool, error) {
+	m.manuallyAcceptedCalls = append(m.manuallyAcceptedCalls, manuallyAcceptedCall{
+		Kind: backlogKind, Name: backlogName, Acceptor: acceptor, Reason: reason,
+	})
+	return m.manuallyAcceptedID, m.manuallyAcceptedOK, m.manuallyAcceptedErr
+}
+
+// retryLatestCall captures one RetryLatestForBacklog invocation.
+type retryLatestCall struct {
+	Kind, Name, Note string
+}
+
+// Retry-latest controls. Add fields to the mock so tests can wire
+// success/failure paths without touching unrelated mocks.
+func (m *mockExecutionQueuer) RetryLatestForBacklog(_ context.Context, backlogKind, backlogName, note string) (execution.Record, bool, error) {
+	m.retryLatestCalls = append(m.retryLatestCalls, retryLatestCall{Kind: backlogKind, Name: backlogName, Note: note})
+	if m.retryLatestErr != nil {
+		return execution.Record{}, m.retryLatestHasPrior, m.retryLatestErr
+	}
+	return m.retryLatestRecord, m.retryLatestHasPrior, nil
+}
+
+// TestGoldenPath_BatchCreateMilestoneQueue exercises the full pipeline:
+// batch-create items with dependencies and an milestone, then batch-queue
 // them with confirm:true, verifying topological ordering and execution IDs.
-func TestGoldenPath_BatchCreateInitiativeQueue(t *testing.T) {
+func TestGoldenPath_BatchCreateMilestoneQueue(t *testing.T) {
 	h, rootDir, ia := setupBatchTestHandler(t)
 
 	eq := &mockExecutionQueuer{
@@ -56,16 +99,16 @@ func TestGoldenPath_BatchCreateInitiativeQueue(t *testing.T) {
 	}
 	h.SetExecutionQueuer(eq)
 
-	// Phase 1: Batch-create 3 items in a dependency chain with an initiative.
+	// Phase 1: Batch-create 3 items in a dependency chain with an milestone.
 	p1, p2, p3 := int32(1), int32(2), int32(3)
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "item-a", Title: "Item A", Kind: "idea", Priority: &p1, Initiative: "test-initiative"},
-			{Name: "item-b", Title: "Item B", Kind: "idea", Priority: &p2, DependsOn: []string{"idea/item-a"}, Initiative: "test-initiative"},
-			{Name: "item-c", Title: "Item C", Kind: "idea", Priority: &p3, DependsOn: []string{"idea/item-b"}, Initiative: "test-initiative"},
+			{Name: "item-a", Title: "Item A", Kind: "idea", Priority: &p1, Milestone: "test-milestone", PlanRef: testPlanRef("item-a")},
+			{Name: "item-b", Title: "Item B", Kind: "idea", Priority: &p2, DependsOn: []string{"idea/item-a"}, Milestone: "test-milestone", PlanRef: testPlanRef("item-b")},
+			{Name: "item-c", Title: "Item C", Kind: "idea", Priority: &p3, DependsOn: []string{"idea/item-b"}, Milestone: "test-milestone", PlanRef: testPlanRef("item-c")},
 		},
-		Initiatives: []batchCreateInitiative{
-			{Name: "test-initiative", Title: "Test Initiative"},
+		Milestones: []batchCreateMilestone{
+			{Name: "test-milestone", Title: "Test Milestone"},
 		},
 	}
 
@@ -80,15 +123,15 @@ func TestGoldenPath_BatchCreateInitiativeQueue(t *testing.T) {
 		}
 	}
 
-	// Verify initiative was ensured and items were added.
-	if _, ok := ia.snapshots["test-initiative"]; !ok {
-		t.Error("expected initiative 'test-initiative' to be created")
+	// Verify milestone was ensured and items were added.
+	if _, ok := ia.snapshots["test-milestone"]; !ok {
+		t.Error("expected milestone 'test-milestone' to be created")
 	}
-	if len(ia.addedItems["test-initiative"]) != 3 {
-		t.Errorf("expected 3 items added to initiative, got %d", len(ia.addedItems["test-initiative"]))
+	if len(ia.addedItems["test-milestone"]) != 3 {
+		t.Errorf("expected 3 items added to milestone, got %d", len(ia.addedItems["test-milestone"]))
 	}
 
-	// Phase 2: Make items queueable by setting status to "ready" and adding plan.md.
+	// Phase 2: Make items queueable by setting status to "ready" and preserving plan_ref.
 	store := NewFileStore(rootDir)
 	for _, name := range []string{"item-a", "item-b", "item-c"} {
 		item, err := store.LoadItem(KindIdea, name)
@@ -99,7 +142,6 @@ func TestGoldenPath_BatchCreateInitiativeQueue(t *testing.T) {
 		if err := store.SaveItem(item); err != nil {
 			t.Fatalf("failed to save %s: %v", name, err)
 		}
-		testutil.WriteFile(t, filepath.Join(rootDir, "ideas", name, "plan.md"), "# Plan\nTest plan.")
 	}
 
 	// Phase 3: Preview mode — all items should be ready.
@@ -173,5 +215,14 @@ func TestGoldenPath_BatchCreateInitiativeQueue(t *testing.T) {
 	// Verify the mock received 3 queue calls.
 	if len(eq.queueCalls) != 3 {
 		t.Errorf("expected 3 QueueBacklog calls, got %d", len(eq.queueCalls))
+	}
+}
+
+func testPlanRef(name string) *PlanRef {
+	return &PlanRef{
+		Provider: PlanRefProviderPlanManager,
+		PlanID:   "test-plan-" + name,
+		Slug:     "test-plan-" + name,
+		Role:     PlanRefRoleExecutionSpec,
 	}
 }

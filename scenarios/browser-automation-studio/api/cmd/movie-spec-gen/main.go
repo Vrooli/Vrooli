@@ -13,27 +13,26 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/export"
 )
 
 type generator struct {
-	overrides map[reflect.Type]string
+	overrides      map[reflect.Type]string
 	fieldOverrides map[string]string
-	typeImports map[string]string
-	names     map[reflect.Type]string
-	visited   map[reflect.Type]bool
-	order     []reflect.Type
+	typeImports    map[string]string
+	names          map[reflect.Type]string
+	visited        map[reflect.Type]bool
+	order          []reflect.Type
 }
 
 func newGenerator(overrides map[reflect.Type]string, fieldOverrides map[string]string, typeImports map[string]string) *generator {
 	return &generator{
-		overrides: overrides,
+		overrides:      overrides,
 		fieldOverrides: fieldOverrides,
-		typeImports: typeImports,
-		names:     make(map[reflect.Type]string),
-		visited:   make(map[reflect.Type]bool),
-		order:     make([]reflect.Type, 0, len(overrides)),
+		typeImports:    typeImports,
+		names:          make(map[reflect.Type]string),
+		visited:        make(map[reflect.Type]bool),
+		order:          make([]reflect.Type, 0, len(overrides)),
 	}
 }
 
@@ -366,7 +365,7 @@ func main() {
 		reflect.TypeOf(export.ExportNormalizedRect{}):    "ReplayMovieNormalizedRect",
 		reflect.TypeOf(export.ExportResilience{}):        "ReplayMovieResilience",
 		reflect.TypeOf(export.ExportFrame{}):             "ReplayMovieFrame",
-		reflect.TypeOf(typeconv.RetryHistoryEntry{}):     "ReplayMovieRetryHistoryEntry",
+		reflect.TypeOf(export.RetryHistoryEntry{}):       "ReplayMovieRetryHistoryEntry",
 		reflect.TypeOf(contracts.HighlightRegion{}):      "ReplayMovieRegion",
 		reflect.TypeOf(contracts.MaskRegion{}):           "ReplayMovieRegion",
 		reflect.TypeOf(contracts.ElementFocus{}):         "ReplayMovieFocusedElement",

@@ -6,6 +6,12 @@ import type { DeploymentProfile } from "./api";
 
 export type TierKey = "local" | "desktop" | "mobile" | "saas" | "enterprise";
 
+export const SOURCE_DELIVERY_CAPABILITY = "delivery.source_repository";
+
+export function supportsSourceRepository(capabilities: string[] | undefined): boolean {
+  return (capabilities ?? []).includes(SOURCE_DELIVERY_CAPABILITY);
+}
+
 export interface TierOption {
   id: number;
   key: TierKey;

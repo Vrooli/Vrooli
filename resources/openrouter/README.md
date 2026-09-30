@@ -1,363 +1,115 @@
 # OpenRouter Resource
 
-## Overview
-OpenRouter is a unified AI model gateway that provides access to 100+ models from OpenAI, Anthropic, Google, Meta, and more through a single API. It acts as a smart router that can automatically select the best model for your needs based on cost, speed, and capability requirements.
+Hosted OpenRouter API gateway for access to multiple upstream model providers through one endpoint.
 
-## Why OpenRouter?
+## Intent
 
-### Key Benefits
-- **Model Diversity**: Access GPT-4, Claude, Gemini, Llama, Mistral, and dozens more through one API
-- **Cost Optimization**: Automatically route to cheaper models when appropriate
-- **Fallback Handling**: Automatic failover when primary models are unavailable  
-- **Usage Analytics**: Track spending and usage across all models
-- **Rate Limit Management**: Built-in queuing and retry logic
-- **Provider Redundancy**: No single point of failure across AI providers
+- Resource ID: `openrouter`
+- Category: `hosted-service`
+- Driver: `cloud-api`
+- Portability tier: `full`
 
-### Use Cases in Vrooli
-- **Scenario Generation**: Use specialized models for different scenario types
-- **Cost-Sensitive Tasks**: Route simple tasks to cheaper models automatically
-- **High-Availability**: Ensure AI features work even when primary providers are down
-- **Model Comparison**: Test same prompt across multiple models for quality assessment
-- **Specialized Tasks**: Access domain-specific models (code, math, creative writing)
+## Use Cases
 
-## Quick Start
+- Route scenario traffic across multiple hosted model providers behind one API.
+- Compare or switch models without rewriting every scenario client.
+- Add fallback and provider diversity for AI-powered workflows.
 
-```bash
-# Check status
-vrooli resource openrouter status
+## Architecture
 
-# Configure with API key
-vrooli resource openrouter configure --api-key "your-key-here"
+This resource now follows the updated `cloud-api` structure.
 
-# Or store in Vault (recommended)
-vault kv put secret/openrouter api_key="your-key-here"
+- `resource.json` is the declarative authority for endpoint, credentials, exports, health, and freshness metadata.
+- `cli/` is the thin binary entrypoint and delegated command wiring surface.
+- `cli/internal/` is the default home for OpenRouter-specific Go logic when the manifest and shared control plane are not enough.
 
-# Test the configuration
-vrooli resource openrouter test
+The intended escalation path is:
 
-# List available models (text)
-vrooli resource openrouter content models --limit 25
+1. express behavior in `resource.json`
+2. rely on the shared `vrooli resource ...` control plane
+3. add OpenRouter-specific Go code under `cli/internal/...` only where specialization is real
+4. add custom CLI commands only when the resource truly needs resource-local operator actions beyond the standard lifecycle surface
 
-# Structured JSON (includes provider, pricing, context length)
-vrooli resource openrouter content models --json | jq '.models[0]'
+Current internal package boundaries:
 
-# Test a specific model
-vrooli resource openrouter test-model "anthropic/claude-3-opus"
+- `cli/internal/config`: endpoint and provider configuration helpers
+- `cli/internal/auth`: credential resolution and redaction helpers
+- `cli/internal/health`: provider-safe connectivity and generation helpers
+- `cli/internal/env`: environment, path, and defaults helpers
+- `cli/internal/app`: native operator commands over the internal Go packages
 
-# View usage analytics
-vrooli resource openrouter usage today      # Today's usage
-vrooli resource openrouter usage week       # Last 7 days
-vrooli resource openrouter usage month      # Last 30 days
-vrooli resource openrouter usage all        # All-time usage
-
-# Benchmark model performance (NEW)
-vrooli resource openrouter benchmark test "openai/gpt-4"   # Test single model
-vrooli resource openrouter benchmark compare               # Compare default models
-vrooli resource openrouter benchmark list                  # List past benchmarks
-```
-
-## Configuration
-
-### API Key Setup
-1. Get a free API key from [OpenRouter](https://openrouter.ai)
-2. Add credits ($5 minimum recommended)
-3. Configure using one of these methods:
-   - Environment variable: `export OPENROUTER_API_KEY="sk-or-..."`
-   - Vault (recommended): `vault kv put secret/openrouter api_key="sk-or-..."`
-   - Direct config: `vrooli resource openrouter configure --api-key "sk-or-..."`
-
-### Model Selection (Enhanced 2025-09-11)
-OpenRouter now supports intelligent automatic model selection and fallback chains:
-
-#### Automatic Selection Strategies
-- **Auto**: Intelligently selects based on task type (code, creative, analysis, etc.)
-- **Cheapest**: Finds the most cost-effective model for your requirements
-- **Fastest**: Routes to models with lowest latency
-- **Quality**: Selects highest capability models within budget
-
-#### Fallback Chains
-The resource now automatically handles model failures with configurable fallback chains:
-```bash
-# Test with automatic fallback
-vrooli resource openrouter test-model "primary-model" --fallback "backup1,backup2"
-
-# List models by category
-vrooli resource openrouter list-models --category code  # coding models
-vrooli resource openrouter list-models --category cheap # budget models
-vrooli resource openrouter list-models --category fast  # low-latency models
-```
-
-## Integration Examples
-
-### With N8n Workflows
-```json
-{
-  "model": "auto",
-  "route": "fallback",
-  "models": [
-    "anthropic/claude-3-opus",
-    "openai/gpt-4-turbo",
-    "google/gemini-pro"
-  ]
-}
-```
-
-### With AI Scenarios
-```bash
-# Use specialized model for AI-powered scenarios
-vrooli scenario run ai-code-generator
-
-# Use efficient models for documentation tasks
-vrooli scenario run document-processor
-```
-
-## Available Models (Sample)
-
-### Premium Models
-- `anthropic/claude-3-opus` - Best for complex reasoning
-- `openai/gpt-4-turbo` - Versatile, multimodal
-- `google/gemini-pro` - Good for long context
-
-### Cost-Effective Models  
-- `mistralai/mistral-7b` - Fast, cheap, capable
-- `meta-llama/llama-3-70b` - Open source powerhouse
-- `anthropic/claude-instant` - Quick responses
-
-### Specialized Models
-- `anthropic/claude-3-opus:beta` - Coding specialist
-- `perplexity/sonar-medium` - Web-aware responses
-- `cohere/command-r` - RAG-optimized
-
-## Monitoring & Analytics
-
-### Usage Tracking
-The resource automatically tracks all API usage including tokens, costs, and models used:
+## Usage
 
 ```bash
-# View usage for different periods
-vrooli resource openrouter usage today      # Today's usage
-vrooli resource openrouter usage week       # Last 7 days
-vrooli resource openrouter usage month      # Last 30 days
-vrooli resource openrouter usage all        # All-time usage
+# Install or validate the resource contract
+vrooli resource install openrouter
+
+# Check status through the shared control plane
+resource-openrouter status
+
+# List available models
+resource-openrouter list-models
+resource-openrouter content models --json --limit 20
+
+# Resolve a model ROLE to a concrete model (the only model-selection authority)
+resource-openrouter policy resolve --role chat.default --json
+resource-openrouter policy resolve --role image.generate.logo --field model
+resource-openrouter policy roles
+resource-openrouter policy models
+resource-openrouter policy constraints --json
+
+# Generate a response (model is selected by ROLE via policy, not a slug)
+resource-openrouter generate "Summarize OpenRouter routing in one paragraph"
+echo "Explain tool routing simply" | resource-openrouter generate --role chat.small
+resource-openrouter generate --role chat.quality --max-tokens 640 --prompt-file ./prompt.txt
+# --model is an explicit advanced override; prefer --role.
+
+# Multimodal requests use the standard-input JSON envelope; image bytes are
+# kept out of argv and logs.
+resource-openrouter generate --role image.generate.logo --input-json-stdin --json <<'JSON'
+{"prompt":"Describe this image briefly.","images":[{"media_type":"image/png","data_b64":"...base64..."}]}
+JSON
+
+# Store credentials for future commands
+resource-openrouter configure --api-key sk-or-v1-example
+
+# Show resolved runtime configuration (default role + resolved model)
+resource-openrouter show-config --json
 ```
 
-### Performance Benchmarking (NEW - v1.1.0)
-Compare model performance to make informed decisions:
+## Model Role Policy
 
-```bash
-# Benchmark a single model
-vrooli resource openrouter benchmark test "openai/gpt-4"
+OpenRouter is the **policy authority** for model selection. Concrete OpenRouter
+model slugs live in exactly one place — [`model-policy.json`](/home/matthalloran8/Vrooli/resources/openrouter/model-policy.json).
+Scenarios and resources declare the **roles** they need and resolve them through
+`resource-openrouter policy resolve`; they never hard-code a provider slug or an
+`OPENROUTER_*_MODEL` env default (enforced by the `openrouter_policy_facts`
+repo-contract check).
 
-# Compare multiple models
-vrooli resource openrouter benchmark compare "openai/gpt-3.5-turbo" "anthropic/claude-3-haiku" "mistralai/mistral-7b"
+- A **role** describes intent + capability (e.g. `chat.default`, `agent.tools`,
+  `image.generate.logo`, `image.edit.identity`), an **endpoint** family (`chat`
+  or `images`), and bounded **request defaults**.
+- The policy carries the concrete default model plus an ordered **fallbacks**
+  list and per-model capabilities/modalities/pricing metadata.
+- Scenarios declare needed roles in `service.json` under
+  `dependencies.resources.openrouter.model_roles`. At scenario start,
+  `resource-openrouter ensure --config-base64 <json>` validates every declared
+  role against the policy (it never downloads anything — OpenRouter is cloud
+  hosted) and best-effort checks the live catalog.
+- To change a model, edit `model-policy.json` (the single update point) — never a
+  consumer.
 
-# Use default comparison set
-vrooli resource openrouter benchmark compare
+The control plane resolves `vrooli/openrouter:api-key` and injects
+`OPENROUTER_API_KEY` only into the resource process. The resource does not
+invoke Vault, read user credential files, or manage secret storage.
 
-# View past benchmark results
-vrooli resource openrouter benchmark list
+## Notes
 
-# Clean old benchmarks (>30 days)
+- This is a cloud API resource, not a local runtime owner.
+- Keep `cli/main.go` thin. Do not move provider logic into CLI wiring.
+- Keep endpoint, credential, and health expectations declarative in `resource.json` whenever possible.
+- `generate`, `list-models`, and `content models` are now native Go commands, not retained shell wrappers.
+- Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/openrouter/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+## Maturity
 
-## Manual model additions (local overlay)
-If the OpenRouter catalog is missing a slug you know works (e.g., `x-ai/grok-4.1-fast:free`), add it locally and it will appear in `resource-openrouter models` / `resource-opencode models` results:
-
-1) Create `data/openrouter/manual-models.json` with entries shaped like the normalized catalog (id is required):
-```json
-[
-  {
-    "id": "x-ai/grok-4.1-fast:free",
-    "name": "Grok 4.1 Fast (Free)",
-    "description": "Manual entry to surface the free Grok fast route",
-    "pricing": { "request": 0 },
-    "context_length": 32768,
-    "architecture": { "modality": "text", "input": ["text"], "output": ["text"] },
-    "supported_parameters": ["max_tokens", "temperature"]
-  }
-]
-```
-2) Re-run `resource-openrouter models ...` (filters like `--provider`/`--search` still apply; ids are de-duplicated against the live catalog).
-vrooli resource openrouter benchmark clean
-```
-
-Benchmarks measure:
-- Response time (milliseconds)
-- Token throughput (tokens/second)
-- Success rate
-- Relative performance
-
-### Rate Limit Management
-Built-in rate limit handling with automatic queuing:
-- Requests are automatically queued when rate limited
-- Exponential backoff for retries
-- Priority queuing (high/normal/low)
-- Automatic processing when limits reset
-
-### Cost Optimization
-The resource includes automatic model selection for cost optimization:
-- Auto-selects cheapest model that meets requirements
-- Fallback chains for failed requests
-- Usage analytics to track spending
-
-## Custom Routing Rules (NEW - v1.2.0)
-
-Define custom rules to automatically select models based on prompt characteristics:
-
-### Managing Routing Rules
-```bash
-# List all routing rules
-vrooli resource openrouter routing list
-
-# Show routing rule template
-vrooli resource openrouter routing template
-
-# Add a new routing rule from JSON file
-vrooli resource openrouter routing add my-rule rule.json
-
-# Enable/disable rules
-vrooli resource openrouter routing enable code-specialist
-vrooli resource openrouter routing disable fast-response
-
-# Remove a rule
-vrooli resource openrouter routing remove my-rule
-
-# Test routing with a prompt
-vrooli resource openrouter routing test "Write a Python function"
-
-# Evaluate routing for a prompt (returns selected model)
-vrooli resource openrouter routing evaluate "Analyze this data"
-
-# View routing history
-vrooli resource openrouter routing history 20
-```
-
-### Example Routing Rules
-
-#### Cost Optimizer (Default Enabled)
-```json
-{
-  "name": "cost-optimizer",
-  "description": "Select cheapest model for simple tasks",
-  "priority": 100,
-  "conditions": {
-    "max_cost_per_million": 5.0
-  },
-  "action": {
-    "type": "select_cheapest",
-    "fallback": "openai/gpt-3.5-turbo"
-  },
-  "enabled": true
-}
-```
-
-#### Code Specialist
-```json
-{
-  "name": "code-specialist",
-  "description": "Use specialized models for coding tasks",
-  "priority": 90,
-  "conditions": {
-    "prompt_contains": ["code", "function", "debug", "implement", "algorithm"]
-  },
-  "action": {
-    "type": "select_model",
-    "model": "anthropic/claude-3-opus",
-    "fallback": "openai/gpt-4-turbo"
-  },
-  "enabled": true
-}
-```
-
-#### Fast Response for Short Prompts
-```json
-{
-  "name": "quick-answers",
-  "description": "Use fast models for simple questions",
-  "priority": 80,
-  "conditions": {
-    "prompt_length_less_than": 100,
-    "response_time_target": 1000
-  },
-  "action": {
-    "type": "select_fastest",
-    "candidates": ["mistralai/mistral-7b", "openai/gpt-3.5-turbo"],
-    "fallback": "openai/gpt-3.5-turbo"
-  },
-  "enabled": true
-}
-```
-
-### How Routing Works
-1. Rules are evaluated in priority order (highest first)
-2. First matching rule determines model selection
-3. If no rules match, default model is used
-4. Routing decisions are logged for analytics
-
-### Action Types
-- **select_model**: Use a specific model
-- **select_cheapest**: Choose most cost-effective model
-- **select_fastest**: Pick fastest responding model from candidates
-
-### Condition Types
-- **prompt_contains**: Keywords to match (case-insensitive)
-- **prompt_length_less_than**: Maximum prompt length
-- **max_cost_per_million**: Cost limit per million tokens
-- **response_time_target**: Target response time in ms
-
-## Cloudflare AI Gateway Integration
-
-OpenRouter can be configured to use Cloudflare AI Gateway as a proxy layer for additional features like caching, rate limiting, and analytics.
-
-### Setup Cloudflare AI Gateway
-
-```bash
-# Check current status
-vrooli resource openrouter cloudflare status
-
-# Enable with explicit gateway URL
-vrooli resource openrouter cloudflare configure true "https://gateway.ai.cloudflare.com/v1/ACCOUNT_ID/GATEWAY_ID/openrouter"
-
-# Or enable with IDs (URL will be constructed)
-vrooli resource openrouter cloudflare configure true "" "my-gateway" "abc123"
-
-# Disable integration
-vrooli resource openrouter cloudflare configure false
-
-# Test connectivity
-vrooli resource openrouter cloudflare test
-```
-
-### Benefits of Cloudflare AI Gateway
-- **Caching**: Reduce API costs by caching repeated requests
-- **Rate Limiting**: Prevent runaway costs with request limits
-- **Analytics**: Track usage patterns and costs across your organization
-- **Fallback**: Automatic failover if OpenRouter is unavailable
-- **Security**: Additional layer of protection for API keys
-
-When enabled, all OpenRouter API calls will automatically route through the configured Cloudflare AI Gateway.
-
-## Troubleshooting
-
-### Common Issues
-
-1. **"Placeholder key" error**
-   - Solution: Configure a real API key (see Configuration section)
-
-2. **Rate limits**
-   - OpenRouter handles this automatically with queuing
-   - Consider upgrading tier for higher limits
-
-3. **Model not available**
-   - Some models require specific account tiers
-   - Check model availability: `vrooli resource openrouter list-models`
-
-## Documentation
-- [API Documentation](docs/api.md)
-- [Model Comparison](docs/models.md)
-- [Integration Guide](docs/integration.md)
-- [Cost Optimization](docs/cost-optimization.md)
-
-## Support
-- OpenRouter Dashboard: https://openrouter.ai/dashboard
-- API Docs: https://openrouter.ai/docs
-- Model Playground: https://openrouter.ai/playground
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

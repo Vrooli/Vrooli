@@ -23,8 +23,10 @@ type DocCase struct {
 	Scenario           string
 }
 
-var testCaseRegex = regexp.MustCompile(`(?s)<test-case\s+([^>]+)>(.*?)</test-case>`)
-var attrRegex = regexp.MustCompile(`([A-Za-z0-9_-]+)="([^"]*)"`)
+var (
+	testCaseRegex = regexp.MustCompile(`(?s)<test-case\s+([^>]+)>(.*?)</test-case>`)
+	attrRegex     = regexp.MustCompile(`([A-Za-z0-9_-]+)="([^"]*)"`)
+)
 
 func LoadDocCases(t *testing.T, filename string) []DocCase {
 	t.Helper()

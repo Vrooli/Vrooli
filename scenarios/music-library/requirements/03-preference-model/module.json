@@ -1,0 +1,77 @@
+{
+  "_metadata": {
+    "module": "preference-model",
+    "description": "A readable, editable, uncertainty-bearing preference model over frozen embeddings.",
+    "prd_ref": "OT-P0-003",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MLIB-P0-009",
+      "title": "The model returns preference and uncertainty together",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "core",
+      "criticality": "P0",
+      "description": "The preference model yields both an expected preference and a calibrated uncertainty at any point in the embedding space. Uncertainty is a first-class output because informative pair selection, honest exploration, and truthful explanation all depend on it; a point-estimate model cannot satisfy the dependent requirements.",
+      "tags": ["preference", "uncertainty"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/preference/model_test.go", "phase": "unit", "status": "planned", "notes": "Scoring returns mean and variance; variance rises with distance from observed data" }
+      ]
+    },
+    {
+      "id": "MLIB-P0-010",
+      "title": "Unheard and just-generated tracks are scorable",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Because the model is defined over the embedding space rather than over item identities, a track with no interaction history — including one generated seconds ago — receives a preference estimate and an uncertainty without any cold-start special case.",
+      "tags": ["preference", "cold-start"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/preference/coldstart_test.go", "phase": "unit", "status": "planned", "notes": "A never-seen track scores without special-casing" }
+      ]
+    },
+    {
+      "id": "MLIB-P0-011",
+      "title": "The profile is a readable, editable surface",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "core",
+      "criticality": "P0",
+      "description": "The listener can see what the model believes about their taste, how confident it is, and which attributes carry the most weight; and can directly pin, boost, or ban any attribute. Edits take effect immediately and are distinguishable from learned belief.",
+      "tags": ["preference", "legibility", "control"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/preference/edit_test.go", "phase": "unit", "status": "planned", "notes": "Manual constraints apply immediately and remain separable from learned weights" },
+        { "type": "test", "ref": "ui/src/features/taste/TasteProfile.test.tsx", "phase": "unit", "status": "planned", "notes": "Profile renders belief, confidence, and attribute weights" }
+      ]
+    },
+    {
+      "id": "MLIB-P1-001",
+      "title": "Taste adapts in days, not seasons",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Recent evidence is weighted so a genuinely new interest moves recommendations within days rather than being regularised away as noise against years of history. A sustained shift is distinguished from incidental variation.",
+      "tags": ["preference", "recency"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/preference/recency_test.go", "phase": "unit", "status": "planned", "notes": "A sustained new-interest signal shifts rankings within a bounded number of sessions" }
+      ]
+    },
+    {
+      "id": "MLIB-P1-002",
+      "title": "Context-scoped profiles",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Distinct listening contexts carry distinct preference profiles so that incompatible tastes are not averaged into a meaningless middle, with the active context selectable and inferable.",
+      "tags": ["preference", "context"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/preference/context_test.go", "phase": "unit", "status": "planned", "notes": "Per-context profiles score the same track differently" }
+      ]
+    }
+  ]
+}

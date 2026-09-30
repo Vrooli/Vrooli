@@ -1,0 +1,74 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "media.gallery",
+    "name": "Gallery",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "media",
+    "description": "The responsive media collection with stable aspect ratios, progressive loading, selection, pagination, captions, keyboard navigation, and lightbox integration.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.aspect-ratio",
+        "reason": "Layout is reserved before media resolves so nothing shifts on load."
+      },
+      {
+        "asset": "primitives.progressive-image",
+        "reason": "Loading, error, and layout reservation are shared."
+      },
+      {
+        "asset": "data-display.list",
+        "reason": "Collection semantics and keyboard navigation are shared."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Loading, empty, partial, stale, error, and offline presentation are delegated rather than reimplemented."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "overlays.lightbox",
+        "reason": "Full-size inspection needs an immersive overlay; a thumbnail strip may not."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "content-reflow",
+    "contrast-floor",
+    "gesture-alternative",
+    "entrance-restraint",
+    "responsive-transformation",
+    "empty-state-craft",
+    "controlled-irregularity"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "partial",
+    "request-error"
+  ],
+  "beauty": {
+    "avoid": [
+      "uniform-card-grid"
+    ]
+  },
+  "rationale": "One of the few surfaces where controlled irregularity belongs: forcing every image into an identical tile discards composition information the content itself carries."
+}

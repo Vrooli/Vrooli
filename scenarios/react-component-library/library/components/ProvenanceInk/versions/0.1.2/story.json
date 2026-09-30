@@ -1,0 +1,79 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Legend",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "measured"
+        },
+        {
+          "kind": "text",
+          "value": "illustrative · missing"
+        }
+      ],
+      "id": "legend",
+      "mode": "pinned",
+      "name": "Four inks, one glyph",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Chips",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "no substrate · marketing-crew · open 14 days"
+        },
+        {
+          "kind": "text",
+          "value": "illustrative · needs a revenue surface on the monetization instrument"
+        }
+      ],
+      "id": "chips",
+      "mode": "live",
+      "name": "Every chip with its qualifier",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Unavailable",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "vrooli-core not answering · deadline exceeded"
+        }
+      ],
+      "id": "unavailable",
+      "mode": "pinned",
+      "name": "A silent sensor is framed, not zeroed",
+      "role": "boundary"
+    }
+  ],
+  "title": "ProvenanceInk"
+}

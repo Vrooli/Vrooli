@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "su2",
+  "display_name": "SU2",
+  "category": "simulation",
+  "summary": "CFD and adjoint optimization suite for aerodynamic analysis and engineering optimization workflows.",
+  "why_it_matters": "SU2 preserves specialized aerospace and CFD capability knowledge, but there is no current scenario demand that justifies active resource maintenance.",
+  "when_to_use": [
+    "A future scenario needs CFD or aerodynamic optimization.",
+    "Operators want adjoint-based design studies in local or containerized workflows.",
+    "The workflow depends on engineering solvers beyond lightweight simulation."
+  ],
+  "example_scenarios": [
+    "Aerospace design studies",
+    "CFD optimization pipelines",
+    "Engineering research services"
+  ],
+  "integration_kind": "native-cli",
+  "platform_support": {
+    "notes": "Containerized and host installs are possible, but HPC assumptions and solver complexity make support uneven and Linux-leaning.",
+    "linux": "partial",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "prerequisites": [
+    "Validated install or container strategy",
+    "Reference meshes and benchmark cases",
+    "Artifact storage and result review path"
+  ],
+  "dependencies": [],
+  "suggested_template": "native-cli",
+  "implementation_notes": [
+    "Promotion should validate a narrow solver workflow with known cases.",
+    "Keep preprocessing, optimization, and postprocessing concerns separate.",
+    "Do not claim general support without tested case execution."
+  ],
+  "operational_notes": [
+    "Performance and numerical reproducibility matter.",
+    "Validation should run a sample case and verify expected outputs.",
+    "Long-running jobs need explicit cleanup and timeout handling."
+  ],
+  "risks": [
+    "Specialized scientific stacks become maintenance drag without active users.",
+    "Solver support claims are easy to overstate from install success alone."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "su2"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/su2"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

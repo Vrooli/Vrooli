@@ -1,0 +1,100 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "A persona holds a real number rather than borrowing the operator's, which removes the last shared artifact between a persona and its owner",
+      "id": "PSN-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Phone number provisioning",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P2-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Retire or rotate a persona without orphaning the accounts it created, driven by the credential-linkage register rather than by memory",
+      "id": "PSN-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Persona rotation and retirement",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P2-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Route a blocked step to a human as a paid task when the operator is not the right person to complete it, the model Payman built a business on",
+      "id": "PSN-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Paid human handoff",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P2-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Accept and verify another party's agent-identity attestation, making Know Your Agent bidirectional rather than something Vrooli only asserts",
+      "id": "PSN-P2-004",
+      "prd_ref": "OT-P2-004",
+      "status": "planned",
+      "title": "Counterparty attestation exchange",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P2-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "A persona usable from another Vrooli instance, relayed through vrooli-bridge, without copying its documents or credentials across the boundary",
+      "id": "PSN-P2-005",
+      "prd_ref": "OT-P2-005",
+      "status": "planned",
+      "title": "Cross-instance personas",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P2-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "A CAPTCHA or biometric prompt routes to the right human by policy rather than to whoever happens to be watching, and is never attempted by a machine",
+      "id": "PSN-P2-006",
+      "prd_ref": "OT-P2-006",
+      "status": "planned",
+      "title": "Escalation routing for unsolvable challenges",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P2-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

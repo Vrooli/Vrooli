@@ -1,0 +1,196 @@
+{
+  "schemaVersion": 5,
+  "kind": "page",
+  "title": "Catalog navigation",
+  "route": "/",
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "catalog",
+      "name": "Catalog home",
+      "role": "anatomy",
+      "apiState": [
+        {
+          "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "components": [
+              {
+                "id": "cdd480c9-ca5c-47ea-ba4b-4045e2239a22",
+                "libraryId": "react-component-library:Button",
+                "displayName": "Button",
+                "description": "The primary action control: a labelled, token-bound button that acknowledges activation immediately, expresses intent through semantic variants, and keeps stable dimensions while it moves through pending, success, and failure.",
+                "sourcePath": "components/Button/versions/2.2.11/Button.tsx",
+                "version": "2.2.11",
+                "slug": "Button",
+                "latestVersion": "2.2.11",
+                "slot": "ui-primitive",
+                "category": "controls",
+                "assetKind": "ASSET_KIND_COMPONENT",
+                "catalogId": "controls.button",
+                "catalogDomain": "controls",
+                "catalogRung": 3,
+                "catalogRungName": "component",
+                "catalogKind": "component"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Button"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid=\"catalog-support-tab\"]"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-experience-surface=\"catalog-results\"]",
+          "value": "1"
+        },
+        {
+          "kind": "visible",
+          "selector": "a[href=\"/coverage\"]"
+        },
+        {
+          "kind": "visible",
+          "selector": "a[href=\"/design\"]"
+        },
+        {
+          "kind": "visible",
+          "selector": "a[href=\"/settings\"]"
+        }
+      ]
+    },
+    {
+      "id": "components",
+      "name": "Components alias",
+      "role": "anatomy",
+      "apiState": [
+        {
+          "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "components": [
+              {
+                "id": "cdd480c9-ca5c-47ea-ba4b-4045e2239a22",
+                "libraryId": "react-component-library:Button",
+                "displayName": "Button",
+                "description": "The primary action control: a labelled, token-bound button that acknowledges activation immediately, expresses intent through semantic variants, and keeps stable dimensions while it moves through pending, success, and failure.",
+                "sourcePath": "components/Button/versions/2.2.11/Button.tsx",
+                "version": "2.2.11",
+                "slug": "Button",
+                "latestVersion": "2.2.11",
+                "slot": "ui-primitive",
+                "category": "controls",
+                "assetKind": "ASSET_KIND_COMPONENT",
+                "catalogId": "controls.button",
+                "catalogDomain": "controls",
+                "catalogRung": 3,
+                "catalogRungName": "component",
+                "catalogKind": "component"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Button"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid=\"catalog-support-tab\"]"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-experience-surface=\"catalog-results\"]",
+          "value": "1"
+        },
+        {
+          "kind": "visible",
+          "selector": "a[href=\"/coverage\"]"
+        },
+        {
+          "kind": "visible",
+          "selector": "a[href=\"/design\"]"
+        },
+        {
+          "kind": "visible",
+          "selector": "a[href=\"/settings\"]"
+        }
+      ],
+      "route": "/components"
+    },
+    {
+      "id": "catalog-alias",
+      "name": "Catalog alias",
+      "role": "anatomy",
+      "apiState": [
+        {
+          "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "components": [
+              {
+                "id": "cdd480c9-ca5c-47ea-ba4b-4045e2239a22",
+                "libraryId": "react-component-library:Button",
+                "displayName": "Button",
+                "description": "The primary action control: a labelled, token-bound button that acknowledges activation immediately, expresses intent through semantic variants, and keeps stable dimensions while it moves through pending, success, and failure.",
+                "sourcePath": "components/Button/versions/2.2.11/Button.tsx",
+                "version": "2.2.11",
+                "slug": "Button",
+                "latestVersion": "2.2.11",
+                "slot": "ui-primitive",
+                "category": "controls",
+                "assetKind": "ASSET_KIND_COMPONENT",
+                "catalogId": "controls.button",
+                "catalogDomain": "controls",
+                "catalogRung": 3,
+                "catalogRungName": "component",
+                "catalogKind": "component"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Button"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid=\"catalog-support-tab\"]"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-experience-surface=\"catalog-results\"]",
+          "value": "1"
+        },
+        {
+          "kind": "visible",
+          "selector": "a[href=\"/coverage\"]"
+        },
+        {
+          "kind": "visible",
+          "selector": "a[href=\"/design\"]"
+        },
+        {
+          "kind": "visible",
+          "selector": "a[href=\"/settings\"]"
+        }
+      ],
+      "route": "/catalog"
+    }
+  ]
+}

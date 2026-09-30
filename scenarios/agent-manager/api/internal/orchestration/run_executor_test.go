@@ -4,63 +4,24 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
-	"agent-manager/internal/database"
+	cfgpkg "agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
+	"agent-manager/internal/orchestration/testutil"
+	"agent-manager/internal/orchestration/testutil/fixtures"
+	"agent-manager/internal/orchestration/testutil/mocks"
 	"agent-manager/internal/repository"
-	"agent-manager/internal/testutil"
 
 	"github.com/google/uuid"
 )
-
-// =============================================================================
-// MOCK BROADCASTER
-// =============================================================================
-
-// testBroadcaster implements orchestration.EventBroadcaster for tests.
-type testBroadcaster struct {
-	mu               sync.Mutex
-	statusBroadcasts []*domain.Run
-	eventBroadcasts  []*domain.RunEvent
-}
-
-func (b *testBroadcaster) BroadcastEvent(event *domain.RunEvent) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.eventBroadcasts = append(b.eventBroadcasts, event)
-}
-
-func (b *testBroadcaster) BroadcastRunStatus(run *domain.Run) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	// Copy status to avoid races with the executor mutating the run
-	snapshot := *run
-	b.statusBroadcasts = append(b.statusBroadcasts, &snapshot)
-}
-
-func (b *testBroadcaster) BroadcastProgress(runID uuid.UUID, phase domain.RunPhase, percent int, action string) {
-	// no-op
-}
-
-func (b *testBroadcaster) getStatusBroadcasts() []*domain.Run {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return append([]*domain.Run{}, b.statusBroadcasts...)
-}
-
-func (b *testBroadcaster) getEventBroadcasts() []*domain.RunEvent {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return append([]*domain.RunEvent{}, b.eventBroadcasts...)
-}
 
 // =============================================================================
 // TEST FIXTURES
@@ -74,47 +35,26 @@ type testFixtures struct {
 }
 
 // newTestFixtures creates a consistent set of test fixtures.
-func newTestFixtures() *testFixtures {
-	profileID := uuid.New()
-	taskID := uuid.New()
-	runID := uuid.New()
+func newTestFixtures(t *testing.T) *testFixtures {
+	t.Helper()
+	profile := fixtures.NewAgentProfile(t,
+		fixtures.WithAgentProfileName("test-profile"),
+	)
+	task := fixtures.NewTask(t,
+		fixtures.WithTaskDescription("A test task for executor tests"),
+	)
 
 	return &testFixtures{
-		profile: &domain.AgentProfile{
-			ID:         profileID,
-			Name:       "test-profile",
-			RunnerType: domain.RunnerTypeClaudeCode,
-			Model:      "claude-3-opus",
-			MaxTurns:   100,
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
-		},
-		task: &domain.Task{
-			ID:          taskID,
-			Title:       "Test Task",
-			Description: "A test task for executor tests",
-			ScopePath:   "src/",
-			ProjectRoot: "/project",
-			Status:      domain.TaskStatusQueued,
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
-		},
-		run: &domain.Run{
-			ID:             runID,
-			TaskID:         taskID,
-			AgentProfileID: &profileID,
-			Status:         domain.RunStatusPending,
-			Phase:          domain.RunPhaseQueued,
-			RunMode:        domain.RunModeSandboxed,
-			CreatedAt:      time.Now(),
-			UpdatedAt:      time.Now(),
-		},
+		profile: profile,
+		task:    task,
+		run:     fixtures.NewRun(t, task.ID, profile.ID),
 	}
 }
 
 // newInPlaceFixtures creates fixtures for in-place execution.
-func newInPlaceFixtures() *testFixtures {
-	f := newTestFixtures()
+func newInPlaceFixtures(t *testing.T) *testFixtures {
+	t.Helper()
+	f := newTestFixtures(t)
 	f.run.RunMode = domain.RunModeInPlace
 	return f
 }
@@ -151,147 +91,35 @@ func mustRegisterRunnerForExecutor(t *testing.T, registry runner.Registry, r run
 	}
 }
 
-// =============================================================================
-// MOCK SANDBOX PROVIDER
-// =============================================================================
-
-// mockSandboxProvider is a test double for sandbox.Provider.
-type mockSandboxProvider struct {
-	createFunc         func(ctx context.Context, req sandbox.CreateRequest) (*sandbox.Sandbox, error)
-	getFunc            func(ctx context.Context, id uuid.UUID) (*sandbox.Sandbox, error)
-	deleteFunc         func(ctx context.Context, id uuid.UUID) error
-	getWorkspacePathFn func(ctx context.Context, id uuid.UUID) (string, error)
-	getDiffFunc        func(ctx context.Context, id uuid.UUID) (*sandbox.DiffResult, error)
-	approveFunc        func(ctx context.Context, req sandbox.ApproveRequest) (*sandbox.ApproveResult, error)
-	rejectFunc         func(ctx context.Context, id uuid.UUID, actor string) error
-	partialApproveFunc func(ctx context.Context, req sandbox.PartialApproveRequest) (*sandbox.ApproveResult, error)
-	stopFunc           func(ctx context.Context, id uuid.UUID) error
-	startFunc          func(ctx context.Context, id uuid.UUID) error
-	isAvailableFunc    func(ctx context.Context) (bool, string)
+func newMockSandboxProvider() *mocks.FakeSandboxProvider {
+	return mocks.NewFakeSandboxProvider()
 }
 
-func newMockSandboxProvider() *mockSandboxProvider {
-	sandboxID := uuid.New()
-	return &mockSandboxProvider{
-		createFunc: func(ctx context.Context, req sandbox.CreateRequest) (*sandbox.Sandbox, error) {
-			return &sandbox.Sandbox{
-				ID:          sandboxID,
-				ScopePath:   req.ScopePath,
-				ProjectRoot: req.ProjectRoot,
-				Status:      sandbox.SandboxStatusActive,
-				WorkDir:     "/tmp/sandbox/" + sandboxID.String(),
-				CreatedAt:   time.Now(),
-			}, nil
-		},
-		getWorkspacePathFn: func(ctx context.Context, id uuid.UUID) (string, error) {
-			return "/tmp/sandbox/" + id.String() + "/merged", nil
-		},
-	}
+type testBroadcaster struct {
+	*mocks.FakeBroadcaster
 }
 
-func (m *mockSandboxProvider) Create(ctx context.Context, req sandbox.CreateRequest) (*sandbox.Sandbox, error) {
-	if m.createFunc != nil {
-		return m.createFunc(ctx, req)
+func (b *testBroadcaster) ensure() *mocks.FakeBroadcaster {
+	if b.FakeBroadcaster == nil {
+		b.FakeBroadcaster = mocks.NewFakeBroadcaster()
 	}
-	return nil, nil
+	return b.FakeBroadcaster
 }
 
-func (m *mockSandboxProvider) Get(ctx context.Context, id uuid.UUID) (*sandbox.Sandbox, error) {
-	if m.getFunc != nil {
-		return m.getFunc(ctx, id)
-	}
-	return nil, nil
+func (b *testBroadcaster) BroadcastEvent(event *domain.RunEvent) {
+	b.ensure().BroadcastEvent(event)
 }
 
-func (m *mockSandboxProvider) Delete(ctx context.Context, id uuid.UUID) error {
-	if m.deleteFunc != nil {
-		return m.deleteFunc(ctx, id)
-	}
-	return nil
+func (b *testBroadcaster) BroadcastRunStatus(run *domain.Run) {
+	b.ensure().BroadcastRunStatus(run)
 }
 
-func (m *mockSandboxProvider) GetWorkspacePath(ctx context.Context, id uuid.UUID) (string, error) {
-	if m.getWorkspacePathFn != nil {
-		return m.getWorkspacePathFn(ctx, id)
-	}
-	return "", nil
+func (b *testBroadcaster) BroadcastProgress(runID uuid.UUID, phase domain.RunPhase, percent int, action string) {
+	b.ensure().BroadcastProgress(runID, phase, percent, action)
 }
 
-func (m *mockSandboxProvider) IsAvailable(ctx context.Context) (bool, string) {
-	if m.isAvailableFunc != nil {
-		return m.isAvailableFunc(ctx)
-	}
-	return true, ""
-}
-
-func (m *mockSandboxProvider) GetDiff(ctx context.Context, id uuid.UUID) (*sandbox.DiffResult, error) {
-	if m.getDiffFunc != nil {
-		return m.getDiffFunc(ctx, id)
-	}
-	return &sandbox.DiffResult{}, nil
-}
-
-func (m *mockSandboxProvider) Approve(ctx context.Context, req sandbox.ApproveRequest) (*sandbox.ApproveResult, error) {
-	if m.approveFunc != nil {
-		return m.approveFunc(ctx, req)
-	}
-	return &sandbox.ApproveResult{Success: true}, nil
-}
-
-func (m *mockSandboxProvider) Reject(ctx context.Context, id uuid.UUID, actor string) error {
-	if m.rejectFunc != nil {
-		return m.rejectFunc(ctx, id, actor)
-	}
-	return nil
-}
-
-func (m *mockSandboxProvider) PartialApprove(ctx context.Context, req sandbox.PartialApproveRequest) (*sandbox.ApproveResult, error) {
-	if m.partialApproveFunc != nil {
-		return m.partialApproveFunc(ctx, req)
-	}
-	return &sandbox.ApproveResult{Success: true}, nil
-}
-
-func (m *mockSandboxProvider) Stop(ctx context.Context, id uuid.UUID) error {
-	if m.stopFunc != nil {
-		return m.stopFunc(ctx, id)
-	}
-	return nil
-}
-
-func (m *mockSandboxProvider) Start(ctx context.Context, id uuid.UUID) error {
-	if m.startFunc != nil {
-		return m.startFunc(ctx, id)
-	}
-	return nil
-}
-
-func (m *mockSandboxProvider) ValidatePath(ctx context.Context, path string, projectRoot string) (*sandbox.PathValidationResult, error) {
-	return &sandbox.PathValidationResult{Path: path, Valid: true}, nil
-}
-
-// =============================================================================
-// EXECUTOR CONFIG TESTS
-// =============================================================================
-
-func TestDefaultExecutorConfig(t *testing.T) {
-	config := orchestration.DefaultExecutorConfig()
-
-	if config.Timeout != 60*time.Minute {
-		t.Errorf("expected default timeout 60m, got %v", config.Timeout)
-	}
-	if config.HeartbeatInterval != 15*time.Second {
-		t.Errorf("expected default heartbeat interval 15s, got %v", config.HeartbeatInterval)
-	}
-	if config.CheckpointInterval != 1*time.Minute {
-		t.Errorf("expected default checkpoint interval 1m, got %v", config.CheckpointInterval)
-	}
-	if config.MaxRetries != 3 {
-		t.Errorf("expected default max retries 3, got %d", config.MaxRetries)
-	}
-	if config.StaleThreshold != 5*time.Minute {
-		t.Errorf("expected default stale threshold 5m, got %v", config.StaleThreshold)
-	}
+func (b *testBroadcaster) getStatusBroadcasts() []*domain.Run {
+	return b.ensure().StatusBroadcasts()
 }
 
 // =============================================================================
@@ -299,7 +127,7 @@ func TestDefaultExecutorConfig(t *testing.T) {
 // =============================================================================
 
 func TestNewRunExecutor(t *testing.T) {
-	f := newTestFixtures()
+	f := newTestFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -327,16 +155,15 @@ func TestNewRunExecutor(t *testing.T) {
 	}
 }
 
-func TestRunExecutor_WithConfig(t *testing.T) {
-	f := newTestFixtures()
+func TestRunExecutor_WithLevers(t *testing.T) {
+	f := newTestFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	registry := runner.NewRegistry()
 
-	customConfig := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Minute,
-		HeartbeatInterval: 10 * time.Second,
-		MaxRetries:        5,
-	}
+	customLevers := cfgpkg.DefaultLevers()
+	customLevers.Execution.DefaultTimeout = 5 * time.Minute
+	customLevers.Heartbeat.RunHeartbeatInterval = 10 * time.Second
+	customLevers.Heartbeat.MaxRetriesPerPhase = 5
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -348,7 +175,7 @@ func TestRunExecutor_WithConfig(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(customConfig)
+	).WithLevers(customLevers)
 
 	if executor == nil {
 		t.Fatal("expected executor, got nil")
@@ -360,7 +187,7 @@ func TestRunExecutor_WithConfig(t *testing.T) {
 // =============================================================================
 
 func TestRunExecutor_Execute_SandboxedMode_Success(t *testing.T) {
-	f := newTestFixtures()
+	f := newTestFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -380,11 +207,10 @@ func TestRunExecutor_Execute_SandboxedMode_Success(t *testing.T) {
 	sandboxProvider := newMockSandboxProvider()
 
 	// Use short timeout for test
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-		MaxRetries:        1,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
+	levers.Heartbeat.MaxRetriesPerPhase = 1
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -396,7 +222,7 @@ func TestRunExecutor_Execute_SandboxedMode_Success(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -421,7 +247,7 @@ func TestRunExecutor_Execute_SandboxedMode_Success(t *testing.T) {
 }
 
 func TestRunExecutor_Execute_InPlaceMode_Success(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -436,10 +262,9 @@ func TestRunExecutor_Execute_InPlaceMode_Success(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -451,7 +276,7 @@ func TestRunExecutor_Execute_InPlaceMode_Success(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -468,7 +293,7 @@ func TestRunExecutor_Execute_InPlaceMode_Success(t *testing.T) {
 }
 
 func TestRunExecutor_Execute_SandboxCreationFailure(t *testing.T) {
-	f := newTestFixtures()
+	f := newTestFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -478,16 +303,15 @@ func TestRunExecutor_Execute_SandboxCreationFailure(t *testing.T) {
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	// Mock sandbox provider that fails
-	sandboxProvider := &mockSandboxProvider{
-		createFunc: func(ctx context.Context, req sandbox.CreateRequest) (*sandbox.Sandbox, error) {
+	sandboxProvider := &mocks.FakeSandboxProvider{
+		CreateFunc: func(ctx context.Context, req sandbox.CreateRequest) (*sandbox.Sandbox, error) {
 			return nil, errors.New("sandbox service unavailable")
 		},
 	}
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -499,7 +323,7 @@ func TestRunExecutor_Execute_SandboxCreationFailure(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -523,7 +347,7 @@ func TestRunExecutor_Execute_SandboxCreationFailure(t *testing.T) {
 }
 
 func TestRunExecutor_Execute_NoSandboxProvider(t *testing.T) {
-	f := newTestFixtures() // Sandboxed mode requires provider
+	f := newTestFixtures(t) // Sandboxed mode requires provider
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -532,10 +356,9 @@ func TestRunExecutor_Execute_NoSandboxProvider(t *testing.T) {
 	mockRunner.SetAvailable(true, "ready")
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -547,7 +370,7 @@ func TestRunExecutor_Execute_NoSandboxProvider(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -564,7 +387,7 @@ func TestRunExecutor_Execute_NoSandboxProvider(t *testing.T) {
 // =============================================================================
 
 func TestRunExecutor_Execute_RunnerNotAvailable(t *testing.T) {
-	f := newInPlaceFixtures() // Skip sandbox issues
+	f := newInPlaceFixtures(t) // Skip sandbox issues
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -573,10 +396,9 @@ func TestRunExecutor_Execute_RunnerNotAvailable(t *testing.T) {
 	mockRunner.SetAvailable(false, "resource not installed")
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -588,7 +410,7 @@ func TestRunExecutor_Execute_RunnerNotAvailable(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -601,17 +423,16 @@ func TestRunExecutor_Execute_RunnerNotAvailable(t *testing.T) {
 }
 
 func TestRunExecutor_Execute_RunnerNotRegistered(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
 	// Empty registry - no runners registered
 	registry := runner.NewRegistry()
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -623,7 +444,7 @@ func TestRunExecutor_Execute_RunnerNotRegistered(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -640,7 +461,7 @@ func TestRunExecutor_Execute_RunnerNotRegistered(t *testing.T) {
 // =============================================================================
 
 func TestRunExecutor_Execute_RunnerReturnsError(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -652,10 +473,9 @@ func TestRunExecutor_Execute_RunnerReturnsError(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -667,7 +487,7 @@ func TestRunExecutor_Execute_RunnerReturnsError(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -680,7 +500,7 @@ func TestRunExecutor_Execute_RunnerReturnsError(t *testing.T) {
 }
 
 func TestRunExecutor_Execute_RunnerReturnsNonZeroExit(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -696,10 +516,9 @@ func TestRunExecutor_Execute_RunnerReturnsNonZeroExit(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -711,7 +530,7 @@ func TestRunExecutor_Execute_RunnerReturnsNonZeroExit(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -734,7 +553,7 @@ func TestRunExecutor_Execute_RunnerReturnsNonZeroExit(t *testing.T) {
 // =============================================================================
 
 func TestRunExecutor_Execute_ContextCancelled(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -753,10 +572,9 @@ func TestRunExecutor_Execute_ContextCancelled(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           30 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 30 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -768,7 +586,7 @@ func TestRunExecutor_Execute_ContextCancelled(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -799,7 +617,7 @@ func TestRunExecutor_Execute_ContextCancelled(t *testing.T) {
 }
 
 func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -808,8 +626,8 @@ func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 	mockRunner.SetAvailable(true, "ready")
 
 	// Simulate real runner behavior: returns result with session ID even on timeout.
-	// The real ClaudeCodeRunner.Execute captures session ID from stream events
-	// and returns (result, nil), not (nil, ctx.Err()).
+	// The real claude codec captures session ID from stream events and the core
+	// Runner returns (result, nil), not (nil, ctx.Err()).
 	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
 		<-ctx.Done()
 		return &runner.ExecuteResult{
@@ -821,10 +639,9 @@ func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	// Very short timeout
-	config := orchestration.ExecutorConfig{
-		Timeout:           200 * time.Millisecond,
-		HeartbeatInterval: 50 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 200 * time.Millisecond
+	levers.Heartbeat.RunHeartbeatInterval = 50 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -836,7 +653,7 @@ func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -848,8 +665,38 @@ func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 	}
 }
 
+func TestRunExecutor_Execute_UsesResolvedRunTimeout(t *testing.T) {
+	f := newInPlaceFixtures(t)
+	f.run.ResolvedConfig = &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode, Timeout: 100 * time.Millisecond}
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "ready")
+	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
+
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 25 * time.Millisecond
+	executor := orchestration.NewRunExecutor(repos.Runs, registry, nil, eventStore, f.run, f.task, f.profile, "test prompt", "").WithLevers(levers).WithRunStateRoot(t.TempDir())
+
+	started := time.Now()
+	executor.Execute(context.Background())
+	if elapsed := time.Since(started); elapsed >= time.Second {
+		t.Fatalf("executor ignored resolved timeout: ran for %s", elapsed)
+	}
+	if got := executor.Outcome(); got != domain.RunOutcomeTimeout {
+		t.Fatalf("outcome = %q, want timeout", got)
+	}
+}
+
 func TestRunExecutor_Execute_TimeoutPreservesSessionID(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -868,10 +715,9 @@ func TestRunExecutor_Execute_TimeoutPreservesSessionID(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           200 * time.Millisecond,
-		HeartbeatInterval: 50 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 200 * time.Millisecond
+	levers.Heartbeat.RunHeartbeatInterval = 50 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -883,7 +729,7 @@ func TestRunExecutor_Execute_TimeoutPreservesSessionID(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"",
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	executor.Execute(context.Background())
 
@@ -911,7 +757,7 @@ func TestRunExecutor_Execute_TimeoutPreservesSessionID(t *testing.T) {
 }
 
 func TestRunExecutor_Execute_TimeoutNoSessionID(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -930,10 +776,9 @@ func TestRunExecutor_Execute_TimeoutNoSessionID(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           200 * time.Millisecond,
-		HeartbeatInterval: 50 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 200 * time.Millisecond
+	levers.Heartbeat.RunHeartbeatInterval = 50 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -945,7 +790,7 @@ func TestRunExecutor_Execute_TimeoutNoSessionID(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"",
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	executor.Execute(context.Background())
 
@@ -970,7 +815,7 @@ func TestRunExecutor_Execute_TimeoutNoSessionID(t *testing.T) {
 // =============================================================================
 
 func TestRunExecutor_WithCheckpointRepository(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -982,11 +827,10 @@ func TestRunExecutor_WithCheckpointRepository(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:            5 * time.Second,
-		HeartbeatInterval:  100 * time.Millisecond,
-		CheckpointInterval: 50 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
+	levers.Heartbeat.CheckpointInterval = 50 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -998,7 +842,7 @@ func TestRunExecutor_WithCheckpointRepository(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config).WithCheckpointRepository(repos.Checkpoints)
+	).WithLevers(levers).WithCheckpointRepository(repos.Checkpoints)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1014,7 +858,7 @@ func TestRunExecutor_WithCheckpointRepository(t *testing.T) {
 }
 
 func TestRunExecutor_WithResumeFrom(t *testing.T) {
-	f := newTestFixtures()
+	f := newTestFixtures(t)
 	sandboxID := uuid.New()
 	workDir := "/tmp/sandbox/" + sandboxID.String()
 
@@ -1036,28 +880,27 @@ func TestRunExecutor_WithResumeFrom(t *testing.T) {
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	// Mock sandbox that allows retrieval and provides workspace path
-	sandboxProvider := &mockSandboxProvider{
-		createFunc: func(ctx context.Context, req sandbox.CreateRequest) (*sandbox.Sandbox, error) {
+	sandboxProvider := &mocks.FakeSandboxProvider{
+		CreateFunc: func(ctx context.Context, req sandbox.CreateRequest) (*sandbox.Sandbox, error) {
 			// Should not be called when resuming past sandbox phase
 			t.Error("create should not be called when resuming past sandbox phase")
 			return nil, errors.New("should not create")
 		},
-		getFunc: func(ctx context.Context, id uuid.UUID) (*sandbox.Sandbox, error) {
+		GetFunc: func(ctx context.Context, id uuid.UUID) (*sandbox.Sandbox, error) {
 			return &sandbox.Sandbox{
 				ID:      id,
 				Status:  sandbox.SandboxStatusActive,
 				WorkDir: workDir,
 			}, nil
 		},
-		getWorkspacePathFn: func(ctx context.Context, id uuid.UUID) (string, error) {
+		GetWorkspacePathFn: func(ctx context.Context, id uuid.UUID) (string, error) {
 			return workDir, nil
 		},
 	}
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -1069,7 +912,7 @@ func TestRunExecutor_WithResumeFrom(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config).WithResumeFrom(checkpoint)
+	).WithLevers(levers).WithResumeFrom(checkpoint)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1093,7 +936,7 @@ func TestRunExecutor_WithResumeFrom(t *testing.T) {
 // =============================================================================
 
 func TestRunExecutor_EmitsEvents(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1105,10 +948,9 @@ func TestRunExecutor_EmitsEvents(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -1120,7 +962,7 @@ func TestRunExecutor_EmitsEvents(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1149,7 +991,7 @@ func TestRunExecutor_EmitsEvents(t *testing.T) {
 }
 
 func TestRunExecutor_EmitsErrorEventOnFailure(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1161,10 +1003,9 @@ func TestRunExecutor_EmitsErrorEventOnFailure(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -1176,7 +1017,7 @@ func TestRunExecutor_EmitsErrorEventOnFailure(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1196,7 +1037,7 @@ func TestRunExecutor_EmitsErrorEventOnFailure(t *testing.T) {
 // =============================================================================
 
 func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1208,10 +1049,9 @@ func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -1223,7 +1063,9 @@ func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
+	terminal := make(chan *domain.Run, 1)
+	executor.WithTerminalObserver(func(run *domain.Run) { terminal <- run })
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1243,10 +1085,19 @@ func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 	if updatedRun.EndedAt == nil {
 		t.Error("expected EndedAt to be set")
 	}
+
+	select {
+	case observed := <-terminal:
+		if observed.ID != f.run.ID || observed.Status != domain.RunStatusComplete {
+			t.Fatalf("terminal observer received %+v", observed)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("terminal observer was not called")
+	}
 }
 
 func TestRunExecutor_SetsApprovalStateOnSuccess(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1258,10 +1109,9 @@ func TestRunExecutor_SetsApprovalStateOnSuccess(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -1273,7 +1123,7 @@ func TestRunExecutor_SetsApprovalStateOnSuccess(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1291,7 +1141,7 @@ func TestRunExecutor_SetsApprovalStateOnSuccess(t *testing.T) {
 // =============================================================================
 
 func TestRunExecutor_InPlaceMode_MissingProjectRoot(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	f.task.ProjectRoot = "" // Missing project root
 
 	repos, eventStore := setupExecutorRepos(t, f)
@@ -1302,10 +1152,9 @@ func TestRunExecutor_InPlaceMode_MissingProjectRoot(t *testing.T) {
 	mockRunner.SetAvailable(true, "ready")
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs,
@@ -1317,7 +1166,7 @@ func TestRunExecutor_InPlaceMode_MissingProjectRoot(t *testing.T) {
 		f.profile,
 		"test prompt",
 		"", // no system prompt
-	).WithConfig(config)
+	).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1344,7 +1193,7 @@ func TestRunExecutor_ConcurrentExecutions(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 
-			f := newInPlaceFixtures()
+			f := newInPlaceFixtures(t)
 			f.run.ID = uuid.New() // Unique run ID
 			f.task.ID = uuid.New()
 			f.run.TaskID = f.task.ID
@@ -1364,10 +1213,9 @@ func TestRunExecutor_ConcurrentExecutions(t *testing.T) {
 			}
 			mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-			config := orchestration.ExecutorConfig{
-				Timeout:           5 * time.Second,
-				HeartbeatInterval: 50 * time.Millisecond,
-			}
+			levers := cfgpkg.DefaultLevers()
+			levers.Execution.DefaultTimeout = 5 * time.Second
+			levers.Heartbeat.RunHeartbeatInterval = 50 * time.Millisecond
 
 			executor := orchestration.NewRunExecutor(
 				repos.Runs,
@@ -1379,7 +1227,7 @@ func TestRunExecutor_ConcurrentExecutions(t *testing.T) {
 				f.profile,
 				fmt.Sprintf("test prompt %d", idx),
 				"", // no system prompt
-			).WithConfig(config)
+			).WithLevers(levers)
 
 			ctx := context.Background()
 			executor.Execute(ctx)
@@ -1398,130 +1246,11 @@ func TestRunExecutor_ConcurrentExecutions(t *testing.T) {
 	}
 }
 
-// =============================================================================
-// SANDBOX ENVIRONMENT VARIABLE INJECTION
-//
-// These tests verify that SandboxEnvVars() correctly produces the environment
-// variables that enable sandbox-aware scenario lifecycle commands. The Vrooli
-// CLI (scripts/lib/scenario/runner.sh) reads these variables to transparently
-// redirect scenario path resolution to the sandbox's merged/ directory, so
-// agents can restart scenarios and see their own file changes.
-// =============================================================================
-
-// TestSandboxEnvVars_Sandboxed verifies that a fully-configured sandboxed run
-// produces all three environment variables: VROOLI_SANDBOX_ID (for logging),
-// VROOLI_SANDBOX_MERGED (the overlay path the CLI redirects to), and
-// VROOLI_SANDBOX_SCOPE (which scenarios to redirect).
-func TestSandboxEnvVars_Sandboxed(t *testing.T) {
-	f := newTestFixtures()
-	f.task.ScopePath = "scenarios/my-scenario"
-	f.run.RunMode = domain.RunModeSandboxed
-
-	repos, eventStore := setupExecutorRepos(t, f)
-	mustCreateRun(t, repos.Runs, f.run)
-
-	executor := orchestration.NewRunExecutor(
-		repos.Runs, nil, nil, eventStore, f.run, f.task, f.profile, "test prompt", "",
-	)
-
-	sandboxID := uuid.New()
-	executor.WithExistingSandbox(sandboxID, "/tmp/sandbox/abc123/merged")
-
-	vars := executor.SandboxEnvVars()
-	if vars == nil {
-		t.Fatal("expected non-nil env vars for sandboxed run")
-	}
-	if got := vars["VROOLI_SANDBOX_ID"]; got != sandboxID.String() {
-		t.Errorf("VROOLI_SANDBOX_ID = %q, want %q", got, sandboxID.String())
-	}
-	if got := vars["VROOLI_SANDBOX_MERGED"]; got != "/tmp/sandbox/abc123/merged" {
-		t.Errorf("VROOLI_SANDBOX_MERGED = %q, want %q", got, "/tmp/sandbox/abc123/merged")
-	}
-	if got := vars["VROOLI_SANDBOX_SCOPE"]; got != "scenarios/my-scenario" {
-		t.Errorf("VROOLI_SANDBOX_SCOPE = %q, want %q", got, "scenarios/my-scenario")
-	}
-}
-
-// TestSandboxEnvVars_InPlace verifies that in-place (non-sandboxed) runs produce
-// no sandbox env vars, since the agent is working directly on the real repo and
-// the CLI should use normal path resolution.
-func TestSandboxEnvVars_InPlace(t *testing.T) {
-	f := newInPlaceFixtures()
-
-	repos, eventStore := setupExecutorRepos(t, f)
-	mustCreateRun(t, repos.Runs, f.run)
-
-	executor := orchestration.NewRunExecutor(
-		repos.Runs, nil, nil, eventStore, f.run, f.task, f.profile, "test prompt", "",
-	)
-
-	vars := executor.SandboxEnvVars()
-	if vars != nil {
-		t.Errorf("expected nil env vars for in-place run, got %v", vars)
-	}
-}
-
-// TestSandboxEnvVars_NoSandboxID verifies that sandboxed runs return nil before
-// sandbox creation completes (sandboxID not yet assigned). This prevents the CLI
-// from attempting redirection when there's no sandbox to redirect to.
-func TestSandboxEnvVars_NoSandboxID(t *testing.T) {
-	f := newTestFixtures()
-	f.run.RunMode = domain.RunModeSandboxed
-
-	repos, eventStore := setupExecutorRepos(t, f)
-	mustCreateRun(t, repos.Runs, f.run)
-
-	executor := orchestration.NewRunExecutor(
-		repos.Runs, nil, nil, eventStore, f.run, f.task, f.profile, "test prompt", "",
-	)
-	// Don't call WithExistingSandbox — sandboxID stays nil
-
-	vars := executor.SandboxEnvVars()
-	if vars != nil {
-		t.Errorf("expected nil env vars when sandboxID is nil, got %v", vars)
-	}
-}
-
-// TestSandboxEnvVars_EmptyScopePath verifies that when ScopePath is empty,
-// VROOLI_SANDBOX_SCOPE is omitted from the env vars but the other two are still
-// present. This handles edge cases where the sandbox covers the entire project
-// root — the CLI will interpret the missing scope as "everything is in scope".
-func TestSandboxEnvVars_EmptyScopePath(t *testing.T) {
-	f := newTestFixtures()
-	f.task.ScopePath = "" // Empty scope — whole project
-	f.run.RunMode = domain.RunModeSandboxed
-
-	repos, eventStore := setupExecutorRepos(t, f)
-	mustCreateRun(t, repos.Runs, f.run)
-
-	executor := orchestration.NewRunExecutor(
-		repos.Runs, nil, nil, eventStore, f.run, f.task, f.profile, "test prompt", "",
-	)
-
-	sandboxID := uuid.New()
-	executor.WithExistingSandbox(sandboxID, "/tmp/sandbox/abc123/merged")
-
-	vars := executor.SandboxEnvVars()
-	if vars == nil {
-		t.Fatal("expected non-nil env vars for sandboxed run with empty scope")
-	}
-	if got := vars["VROOLI_SANDBOX_ID"]; got != sandboxID.String() {
-		t.Errorf("VROOLI_SANDBOX_ID = %q, want %q", got, sandboxID.String())
-	}
-	if got := vars["VROOLI_SANDBOX_MERGED"]; got != "/tmp/sandbox/abc123/merged" {
-		t.Errorf("VROOLI_SANDBOX_MERGED = %q, want %q", got, "/tmp/sandbox/abc123/merged")
-	}
-	if _, exists := vars["VROOLI_SANDBOX_SCOPE"]; exists {
-		t.Error("VROOLI_SANDBOX_SCOPE should be omitted when ScopePath is empty")
-	}
-}
-
-// =============================================================================
 // MERGED ENV VARS TESTS
 // =============================================================================
 
 func TestMergedEnvVars_CustomOnly(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1542,7 +1271,7 @@ func TestMergedEnvVars_CustomOnly(t *testing.T) {
 }
 
 func TestMergedEnvVars_SandboxOnly(t *testing.T) {
-	f := newTestFixtures()
+	f := newTestFixtures(t)
 	f.run.RunMode = domain.RunModeSandboxed
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
@@ -1563,7 +1292,7 @@ func TestMergedEnvVars_SandboxOnly(t *testing.T) {
 }
 
 func TestMergedEnvVars_SandboxOverridesCustom(t *testing.T) {
-	f := newTestFixtures()
+	f := newTestFixtures(t)
 	f.run.RunMode = domain.RunModeSandboxed
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
@@ -1593,7 +1322,7 @@ func TestMergedEnvVars_SandboxOverridesCustom(t *testing.T) {
 }
 
 func TestMergedEnvVars_BothNil(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1612,7 +1341,7 @@ func TestMergedEnvVars_BothNil(t *testing.T) {
 // =============================================================================
 
 func TestRunExecutor_BroadcastsStatusOnSuccess(t *testing.T) {
-	f := newInPlaceFixtures()
+	f := newInPlaceFixtures(t)
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
 
@@ -1624,21 +1353,20 @@ func TestRunExecutor_BroadcastsStatusOnSuccess(t *testing.T) {
 	}
 	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
-	broadcaster := &testBroadcaster{}
+	broadcaster := mocks.NewFakeBroadcaster()
 
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
+	levers := cfgpkg.DefaultLevers()
+	levers.Execution.DefaultTimeout = 5 * time.Second
+	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
 	executor := orchestration.NewRunExecutor(
 		repos.Runs, registry, nil, eventStore,
 		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config).WithBroadcaster(broadcaster)
+	).WithLevers(levers).WithBroadcaster(broadcaster)
 
 	executor.Execute(context.Background())
 
-	broadcasts := broadcaster.getStatusBroadcasts()
+	broadcasts := broadcaster.StatusBroadcasts()
 	if len(broadcasts) == 0 {
 		t.Fatal("expected at least one status broadcast on successful completion")
 	}
@@ -1648,412 +1376,5 @@ func TestRunExecutor_BroadcastsStatusOnSuccess(t *testing.T) {
 	last := broadcasts[len(broadcasts)-1]
 	if last.Status != domain.RunStatusComplete {
 		t.Errorf("expected final broadcast status complete for in-place run, got %s", last.Status)
-	}
-}
-
-func TestRunExecutor_BroadcastsStatusOnFailure(t *testing.T) {
-	f := newInPlaceFixtures()
-	repos, eventStore := setupExecutorRepos(t, f)
-	mustCreateRun(t, repos.Runs, f.run)
-
-	registry := runner.NewRegistry()
-	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
-	mockRunner.SetAvailable(true, "ready")
-	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
-		return nil, errors.New("execution failed")
-	}
-	mustRegisterRunnerForExecutor(t, registry, mockRunner)
-
-	broadcaster := &testBroadcaster{}
-
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
-
-	executor := orchestration.NewRunExecutor(
-		repos.Runs, registry, nil, eventStore,
-		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config).WithBroadcaster(broadcaster)
-
-	executor.Execute(context.Background())
-
-	broadcasts := broadcaster.getStatusBroadcasts()
-	if len(broadcasts) == 0 {
-		t.Fatal("expected at least one status broadcast on failure")
-	}
-
-	last := broadcasts[len(broadcasts)-1]
-	if last.Status != domain.RunStatusFailed {
-		t.Errorf("expected final broadcast status failed, got %s", last.Status)
-	}
-}
-
-func TestRunExecutor_BroadcastsStatusOnCancellation(t *testing.T) {
-	f := newInPlaceFixtures()
-	repos, eventStore := setupExecutorRepos(t, f)
-	mustCreateRun(t, repos.Runs, f.run)
-
-	registry := runner.NewRegistry()
-	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
-	mockRunner.SetAvailable(true, "ready")
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
-		wg.Done()
-		<-ctx.Done()
-		return nil, ctx.Err()
-	}
-	mustRegisterRunnerForExecutor(t, registry, mockRunner)
-
-	broadcaster := &testBroadcaster{}
-
-	config := orchestration.ExecutorConfig{
-		Timeout:           30 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
-
-	executor := orchestration.NewRunExecutor(
-		repos.Runs, registry, nil, eventStore,
-		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config).WithBroadcaster(broadcaster)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	go func() {
-		executor.Execute(ctx)
-		close(done)
-	}()
-
-	wg.Wait()
-	cancel()
-	<-done
-
-	broadcasts := broadcaster.getStatusBroadcasts()
-	if len(broadcasts) == 0 {
-		t.Fatal("expected at least one status broadcast on cancellation")
-	}
-
-	last := broadcasts[len(broadcasts)-1]
-	if last.Status != domain.RunStatusCancelled {
-		t.Errorf("expected final broadcast status cancelled, got %s", last.Status)
-	}
-}
-
-func TestRunExecutor_NoBroadcaster_NoPanic(t *testing.T) {
-	// Verify that nil broadcaster doesn't cause a panic
-	f := newInPlaceFixtures()
-	repos, eventStore := setupExecutorRepos(t, f)
-	mustCreateRun(t, repos.Runs, f.run)
-
-	registry := runner.NewRegistry()
-	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
-	mockRunner.SetAvailable(true, "ready")
-	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
-		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
-	}
-	mustRegisterRunnerForExecutor(t, registry, mockRunner)
-
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
-
-	// No WithBroadcaster call — broadcaster stays nil
-	executor := orchestration.NewRunExecutor(
-		repos.Runs, registry, nil, eventStore,
-		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config)
-
-	executor.Execute(context.Background())
-	// If we get here without panic, the nil guard works
-}
-
-// =============================================================================
-// IN-PLACE RUN APPROVAL BYPASS TESTS
-// =============================================================================
-// In-place runs apply changes directly to the working tree (no sandbox).
-// Since there is no sandbox to diff against or merge from, the approval
-// workflow is skipped entirely and the run auto-completes.
-
-func TestRunExecutor_InPlace_SkipsApproval_EvenWhenRequiresApprovalTrue(t *testing.T) {
-	// An in-place run should auto-complete even when RequiresApproval is
-	// explicitly set to true in the resolved config.
-	f := newInPlaceFixtures()
-	f.run.ResolvedConfig = &domain.RunConfig{
-		RunnerType:       domain.RunnerTypeClaudeCode,
-		RequiresApproval: true,
-	}
-	repos, eventStore := setupExecutorRepos(t, f)
-	mustCreateRun(t, repos.Runs, f.run)
-
-	registry := runner.NewRegistry()
-	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
-	mockRunner.SetAvailable(true, "ready")
-	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
-		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
-	}
-	mustRegisterRunnerForExecutor(t, registry, mockRunner)
-
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
-
-	executor := orchestration.NewRunExecutor(
-		repos.Runs, registry, nil, eventStore,
-		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config)
-
-	executor.Execute(context.Background())
-
-	updatedRun, err := repos.Runs.Get(context.Background(), f.run.ID)
-	if err != nil {
-		t.Fatalf("get run: %v", err)
-	}
-	if updatedRun.Status != domain.RunStatusComplete {
-		t.Errorf("expected in-place run status 'complete', got '%s'", updatedRun.Status)
-	}
-	if updatedRun.ApprovalState != domain.ApprovalStateNone {
-		t.Errorf("expected approval state 'none' for in-place run, got '%s'", updatedRun.ApprovalState)
-	}
-}
-
-func TestRunExecutor_Sandboxed_StillRequiresApproval(t *testing.T) {
-	// Sandboxed runs should continue entering needs_review when
-	// RequiresApproval is true and auto-approval does not succeed.
-	f := newTestFixtures() // sandboxed mode
-	f.run.ResolvedConfig = &domain.RunConfig{
-		RunnerType:       domain.RunnerTypeClaudeCode,
-		RequiresApproval: true,
-		SandboxConfig: &domain.SandboxConfig{
-			Acceptance: domain.SandboxAcceptanceConfig{
-				// Disable all auto-approval paths so we hit needs_review
-				DisableAutoApproveIfEmpty: true,
-			},
-		},
-	}
-	repos, eventStore := setupExecutorRepos(t, f)
-	mustCreateRun(t, repos.Runs, f.run)
-
-	registry := runner.NewRegistry()
-	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
-	mockRunner.SetAvailable(true, "ready")
-	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
-		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
-	}
-	mustRegisterRunnerForExecutor(t, registry, mockRunner)
-
-	sandboxProvider := newMockSandboxProvider()
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
-
-	executor := orchestration.NewRunExecutor(
-		repos.Runs, registry, sandboxProvider, eventStore,
-		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config)
-
-	executor.Execute(context.Background())
-
-	updatedRun, err := repos.Runs.Get(context.Background(), f.run.ID)
-	if err != nil {
-		t.Fatalf("get run: %v", err)
-	}
-	if updatedRun.Status != domain.RunStatusNeedsReview {
-		t.Errorf("expected sandboxed run status 'needs_review', got '%s'", updatedRun.Status)
-	}
-	if updatedRun.ApprovalState != domain.ApprovalStatePending {
-		t.Errorf("expected approval state 'pending' for sandboxed run, got '%s'", updatedRun.ApprovalState)
-	}
-}
-
-func TestRunExecutor_Sandboxed_NoApprovalRequired_Completes(t *testing.T) {
-	// Sandboxed runs with RequiresApproval=false should still auto-complete.
-	f := newTestFixtures() // sandboxed mode
-	f.run.ResolvedConfig = &domain.RunConfig{
-		RunnerType:       domain.RunnerTypeClaudeCode,
-		RequiresApproval: false,
-	}
-	repos, eventStore := setupExecutorRepos(t, f)
-	mustCreateRun(t, repos.Runs, f.run)
-
-	registry := runner.NewRegistry()
-	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
-	mockRunner.SetAvailable(true, "ready")
-	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
-		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
-	}
-	mustRegisterRunnerForExecutor(t, registry, mockRunner)
-
-	sandboxProvider := newMockSandboxProvider()
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
-
-	executor := orchestration.NewRunExecutor(
-		repos.Runs, registry, sandboxProvider, eventStore,
-		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config)
-
-	executor.Execute(context.Background())
-
-	updatedRun, err := repos.Runs.Get(context.Background(), f.run.ID)
-	if err != nil {
-		t.Fatalf("get run: %v", err)
-	}
-	if updatedRun.Status != domain.RunStatusComplete {
-		t.Errorf("expected status 'complete', got '%s'", updatedRun.Status)
-	}
-	if updatedRun.ApprovalState != domain.ApprovalStateNone {
-		t.Errorf("expected approval state 'none', got '%s'", updatedRun.ApprovalState)
-	}
-}
-
-func TestRunExecutor_InPlace_EmitsSkipApprovalEvent(t *testing.T) {
-	// Verify that in-place runs emit a system event explaining the
-	// approval skip, so operators can trace the decision.
-	f := newInPlaceFixtures()
-	repos, eventStore := setupExecutorRepos(t, f)
-	mustCreateRun(t, repos.Runs, f.run)
-
-	registry := runner.NewRegistry()
-	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
-	mockRunner.SetAvailable(true, "ready")
-	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
-		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
-	}
-	mustRegisterRunnerForExecutor(t, registry, mockRunner)
-
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
-
-	executor := orchestration.NewRunExecutor(
-		repos.Runs, registry, nil, eventStore,
-		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config)
-
-	executor.Execute(context.Background())
-
-	// Check that a system event was emitted explaining the approval skip
-	events, err := eventStore.Get(context.Background(), f.run.ID, event.GetOptions{AfterSequence: -1})
-	if err != nil {
-		t.Fatalf("get events: %v", err)
-	}
-
-	found := false
-	for _, evt := range events {
-		if evt.EventType == domain.EventTypeLog {
-			if logData, ok := evt.Data.(*domain.LogEventData); ok {
-				if logData.Level == "info" &&
-					strings.Contains(logData.Message, "in-place run completed") &&
-					strings.Contains(logData.Message, "skipping approval") {
-					found = true
-					break
-				}
-			}
-		}
-	}
-	if !found {
-		t.Error("expected system event explaining in-place approval skip, but none found")
-	}
-}
-
-func TestRunExecutor_BroadcastsPostRunnerEvents(t *testing.T) {
-	// Verify that system events emitted after the runner finishes
-	// (phase changes, completion messages) are broadcast via WebSocket,
-	// not just stored to the database. This ensures real-time UI updates
-	// for post-execution events.
-	f := newInPlaceFixtures()
-	repos, eventStore := setupExecutorRepos(t, f)
-	mustCreateRun(t, repos.Runs, f.run)
-
-	registry := runner.NewRegistry()
-	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
-	mockRunner.SetAvailable(true, "ready")
-	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
-		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
-	}
-	mustRegisterRunnerForExecutor(t, registry, mockRunner)
-
-	broadcaster := &testBroadcaster{}
-
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
-
-	executor := orchestration.NewRunExecutor(
-		repos.Runs, registry, nil, eventStore,
-		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config).WithBroadcaster(broadcaster)
-
-	executor.Execute(context.Background())
-
-	eventBroadcasts := broadcaster.getEventBroadcasts()
-	if len(eventBroadcasts) == 0 {
-		t.Fatal("expected post-runner events to be broadcast via WebSocket")
-	}
-
-	// Verify that at least one log event (system event) was broadcast.
-	// These are the events emitted by emitSystemEvent (phase changes, etc.)
-	foundLogBroadcast := false
-	for _, evt := range eventBroadcasts {
-		if evt.EventType == domain.EventTypeLog {
-			foundLogBroadcast = true
-			break
-		}
-	}
-	if !foundLogBroadcast {
-		t.Error("expected at least one log event to be broadcast, but none found")
-	}
-}
-
-func TestRunExecutor_BroadcastsErrorEventsOnFailure(t *testing.T) {
-	// Verify that error events emitted when a runner fails are broadcast
-	// via WebSocket so the UI can show failure details in real-time.
-	f := newInPlaceFixtures()
-	repos, eventStore := setupExecutorRepos(t, f)
-	mustCreateRun(t, repos.Runs, f.run)
-
-	registry := runner.NewRegistry()
-	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
-	mockRunner.SetAvailable(true, "ready")
-	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
-		return nil, fmt.Errorf("agent crashed unexpectedly")
-	}
-	mustRegisterRunnerForExecutor(t, registry, mockRunner)
-
-	broadcaster := &testBroadcaster{}
-
-	config := orchestration.ExecutorConfig{
-		Timeout:           5 * time.Second,
-		HeartbeatInterval: 100 * time.Millisecond,
-	}
-
-	executor := orchestration.NewRunExecutor(
-		repos.Runs, registry, nil, eventStore,
-		f.run, f.task, f.profile, "test prompt", "",
-	).WithConfig(config).WithBroadcaster(broadcaster)
-
-	executor.Execute(context.Background())
-
-	eventBroadcasts := broadcaster.getEventBroadcasts()
-
-	// Verify that an error event was broadcast
-	foundErrorBroadcast := false
-	for _, evt := range eventBroadcasts {
-		if evt.EventType == domain.EventTypeError {
-			foundErrorBroadcast = true
-			break
-		}
-	}
-	if !foundErrorBroadcast {
-		t.Error("expected error event to be broadcast on runner failure, but none found")
 	}
 }

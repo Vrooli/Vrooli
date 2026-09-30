@@ -1,0 +1,198 @@
+{
+  "_metadata": {
+    "description": "One meal hero and card layout with scene, cutout, editorial, and minimal treatments chosen deterministically from versioned media metadata, honest fallbacks, and the curated production asset kit.",
+    "module": "meal-artwork-and-media",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "MEDIA-001",
+      "title": "Presentation, appearance, and generation are independent settings",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "The scenario shall keep presentation (Immersive scenes, Editorial photos, Minimal), appearance (Light, Evening, Follow device), and generation permission (Off, Ask each time, Automatic within budget) as three independent settings rather than one premium theme switch.",
+      "tags": [
+        "media",
+        "settings",
+        "presentation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: changing any one of the three settings leaves the other two unchanged (R17.1)."
+        }
+      ]
+    },
+    {
+      "id": "MEDIA-002",
+      "title": "A deterministic chooser selects the treatment",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "The scenario shall choose a meal's treatment deterministically: honor Minimal; for Editorial use an eligible photo or Minimal; for Immersive use an approved scene matching the recipe revision, appearance, and composition, then an approved compatible cutout, then an ordinary photo, then Minimal, never selecting an incompatible scene and never enqueuing generation.",
+      "tags": [
+        "media",
+        "chooser",
+        "fallback"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: the R27.3 artwork fixtures (approved table scene, overhead wrap, portrait phone photo, overhead photo, no image, incompatible scene revision, rejected generated image, load failure, no evening asset) each resolve to the expected treatment (AT-004, AT-005)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a scene for the wrong appearance or recipe revision falls back to an eligible treatment without creating a job (R26)."
+        }
+      ]
+    },
+    {
+      "id": "MEDIA-003",
+      "title": "Media failures never break the layout",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "When an image is missing, fails to load, or loads late, the scenario shall reserve its dimensions, keep titles and controls in place, fall back to the next treatment without a broken-image icon, and record a safe diagnostic, so no-photo and failed-photo meals look intentional.",
+      "tags": [
+        "media",
+        "layout-shift",
+        "fallback"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: forcing an image error swaps to the next treatment without moving Start cooking or resetting meal state (R17.1, R26)."
+        },
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned: captures of the editorial and minimal Today states in both appearances are compared with docs/reference/mockups/today-editorial-light.png and recorded in docs/internal/REDESIGN_LEDGER.md."
+        }
+      ]
+    },
+    {
+      "id": "MEDIA-004",
+      "title": "Every asset carries validated, versioned metadata",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "contract",
+      "criticality": "P0",
+      "description": "Every media asset shall record type, owner or scope, immutable content hash, dimensions, encoded format, source and rights, generation provenance, approval state, recipe revision compatibility, scene version, appearance, composition, focal point, safe text rectangles, and crop bounds in normalized validated coordinates, with stable manifest ids separate from filenames and private media access-controlled per workspace.",
+      "tags": [
+        "media",
+        "manifest",
+        "provenance",
+        "privacy"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: the manifest validator rejects out-of-range coordinates, unknown MIME types, and missing rights or approval fields (R17.4, R21.2)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: private media requested from another workspace is denied without leaking metadata (AT-044)."
+        }
+      ]
+    },
+    {
+      "id": "MEDIA-005",
+      "title": "Scene composition respects safe areas and crops",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The scenario shall scale food and table in a composed scene as one image using focal point and approved crop bounds, keep live text inside the asset's safe text area, target 22 to 30 percent of the compact Today viewport for artwork within about 160 to 260 px and about 160 to 220 px for compact recipe images, reduce decorative art before hiding Start cooking, and label generated imagery Serving inspiration.",
+      "tags": [
+        "media",
+        "composition",
+        "mobile"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: long meal titles stay within the safe text rectangle or switch to a quiet panel, and compact image height stays within its clamp (R06.3, R17.4)."
+        },
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned: phone captures show title and Start cooking on the first screen of representative phones (R27.5)."
+        }
+      ]
+    },
+    {
+      "id": "MEDIA-006",
+      "title": "The curated asset kit is reviewed, optimized, and sourced",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "reporting",
+      "criticality": "P0",
+      "description": "The scenario shall ship the curated kit of eight scene templates, composed Today examples, editorial photos for the curated catalog, the equipment scene layers, and ingredient and equipment icons as reviewed, optimized renditions with manifest provenance and rights, loading only the current appearance and composition and never using concept mockups as assets.",
+      "tags": [
+        "media",
+        "assets",
+        "performance",
+        "provenance"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned: each asset's review against R19.3 and its provenance record are listed in the asset manifest and docs/internal/REDESIGN_LEDGER.md."
+        },
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "planned",
+          "notes": "Planned: measured hero and thumbnail transfer sizes stay near the R25.4 budgets or carry a recorded justification."
+        }
+      ]
+    },
+    {
+      "id": "MEDIA-007",
+      "title": "Curated scene templates have lifecycle states",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "The scenario shall import curated scene templates through a developer or admin path that validates required metadata and preview crops, give templates draft, approved, and retired states, make a referenced template version immutable, and let retirement stop new generation without breaking previously approved images.",
+      "tags": [
+        "media",
+        "scenes",
+        "lifecycle"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: importing a template without safe text regions fails validation, and retiring a template keeps its approved presentations renderable (R18.5)."
+        }
+      ]
+    }
+  ]
+}

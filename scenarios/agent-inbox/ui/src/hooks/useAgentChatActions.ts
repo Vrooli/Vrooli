@@ -40,22 +40,19 @@ export function useAgentChatActions({
         // Start agent mode with the first message
         await startAgentMode(chatId, {
           message: payload.content.trim(),
-          runner_type: config.runner_type,
           project_path: config.project_path,
-          model: config.model || undefined,
-          max_turns: config.max_turns || undefined,
         });
 
         // Refresh chat data to get updated agent state
-        queryClient.invalidateQueries({ queryKey: ["chats"] });
-        queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+        void queryClient.invalidateQueries({ queryKey: ["chats"] });
+        void queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
       } catch (error) {
         console.error("Failed to create agent chat:", error);
         // Clean up the partially-created chat so the user isn't left with a broken empty chat
         if (chatId) {
           try { await deleteChatAPI(chatId); } catch { /* best effort */ }
           selectChat("");
-          queryClient.invalidateQueries({ queryKey: ["chats"] });
+          void queryClient.invalidateQueries({ queryKey: ["chats"] });
         }
         // Surface the error to the user
         const msg = error instanceof AgentModeError
@@ -79,14 +76,14 @@ export function useAgentChatActions({
 
         await attachAgentRun(chatId, run.run_id, run.task_id);
 
-        queryClient.invalidateQueries({ queryKey: ["chats"] });
-        queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+        void queryClient.invalidateQueries({ queryKey: ["chats"] });
+        void queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
       } catch (error) {
         console.error("Failed to attach run:", error);
         if (chatId) {
           try { await deleteChatAPI(chatId); } catch { /* best effort */ }
           selectChat("");
-          queryClient.invalidateQueries({ queryKey: ["chats"] });
+          void queryClient.invalidateQueries({ queryKey: ["chats"] });
         }
         const msg = error instanceof AgentModeError
           ? error.message

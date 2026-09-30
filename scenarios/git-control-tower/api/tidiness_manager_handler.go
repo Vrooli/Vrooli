@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -138,7 +137,11 @@ func (s *Server) handleTidinessLightScan(w http.ResponseWriter, r *http.Request)
 		hctx.Resp.InternalError("could not resolve repository root")
 		return
 	}
-	absPath := filepath.Join(repoRoot, "scenarios", scenarioName)
+	absPath, err := resolveScenarioPath(repoRoot, scenarioName)
+	if err != nil {
+		hctx.Resp.InternalError("could not resolve scenario path")
+		return
+	}
 
 	req := TidinessLightScanRequest{
 		ScenarioPath: absPath,

@@ -1,0 +1,77 @@
+{
+  "_metadata": {
+    "description": "First-party HTTP response semantics for API handlers and route registration.",
+    "last_validated_at": "2026-07-06T14:17:52-04:00",
+    "module": "http-semantics",
+    "prd_ref": "OT-P0-004",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "APIH-HTTP-001",
+      "title": "Status code checks avoid brittle error guessing",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "The validator reports raw numeric status literals and clearly implicit success on direct error responses while avoiding speculative call-graph guesses that would create false positives.",
+      "tags": [
+        "status-codes",
+        "http"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Implemented ref: api/internal/validation/http_semantics_test.go. Fixtures cover raw status literals and implicit stdlib JSON error success without speculative call-graph guesses."
+        }
+      ]
+    },
+    {
+      "id": "APIH-HTTP-002",
+      "title": "Content type checks are response-pattern aware",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "The validator detects missing content types for obvious JSON encoders, text/html, text/plain, text/csv, application/pdf, binary downloads, XML, and server-sent event streams without requiring every handler to duplicate framework-provided headers.",
+      "tags": [
+        "content-type",
+        "downloads",
+        "streaming"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Implemented ref: api/internal/validation/http_semantics_test.go. Fixtures cover obvious stdlib JSON response writes, explicit Content-Type headers, framework-owned responses, and test-file exclusions."
+        }
+      ]
+    },
+    {
+      "id": "APIH-HTTP-003",
+      "title": "Feature endpoints are versioned and ops probes exempted",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Route registration and endpoint metadata distinguish public feature APIs, Connect procedure paths, static assets, and operational probes so versioning findings only apply to first-party REST feature endpoints.",
+      "tags": [
+        "versioning",
+        "routes",
+        "rest-exception"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Implemented ref: api/internal/validation/http_semantics_test.go. Fixtures cover /api/v1 subrouters, /health, endpoint metadata rest_exception, and unversioned REST feature paths."
+        }
+      ]
+    }
+  ]
+}

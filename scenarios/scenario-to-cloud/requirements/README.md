@@ -7,6 +7,10 @@ Organize requirement modules by PRD operational targets, keeping the filesystem 
 2. `requirements/index.json` imports each module; tests auto-sync their status when they run.
 3. Coverage summaries live in `coverage/phase-results/` after each test phase.
 
+Validation references should point to an existing test, workflow playbook, or
+other executable evidence; planned requirements may omit validation until the
+capability has an owned implementation.
+
 ## Contributor Notes
 - Each requirement should reference `prd_ref` as the OT id (e.g. `OT-P0-003`).
 - Tag tests with `[REQ:ID]` so auto-sync can update status.

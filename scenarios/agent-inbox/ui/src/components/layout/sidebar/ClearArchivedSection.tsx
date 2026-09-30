@@ -38,9 +38,8 @@ export function ClearArchivedSection({
               Cancel
             </button>
             <button
-              onClick={async () => {
-                await onClearArchived();
-                setShowConfirm(false);
+              onClick={() => {
+                void onClearArchived().then(() => { setShowConfirm(false); });
               }}
               disabled={isClearingArchived}
               className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-500 disabled:opacity-50 rounded-lg transition-colors"

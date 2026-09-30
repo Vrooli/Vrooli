@@ -5,16 +5,18 @@ import {
   ShortcutParamsSchema,
   ActionType,
   KeyAction,
+  KeyboardModifier,
 } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
-import { KeyboardHandler } from '../../../src/handlers/keyboard';
+import { KeyboardHandler, resetKeyboardState } from '../../../src/handlers/keyboard';
 import type { HandlerContext } from '../../../src/handlers/base';
 import type { HandlerInstruction } from '../../../src/types';
-import { createMockContext, createTestConfig } from '../../helpers';
+import { createMockContext, createMockPage, createTestConfig } from '../../helpers';
 import { logger, metrics } from '../../../src/utils';
 
 function buildKeyboardInstruction(params: {
   key?: string;
   keys?: string[];
+  modifiers?: Array<string | KeyboardModifier>;
   action?: KeyAction;
 }): HandlerInstruction {
   const action = create(ActionDefinitionSchema, {
@@ -24,6 +26,7 @@ function buildKeyboardInstruction(params: {
       value: create(KeyboardParamsSchema, {
         key: params.key,
         keys: params.keys ?? [],
+        modifiers: params.modifiers ?? [],
         action: params.action,
       }),
     },
@@ -62,6 +65,8 @@ describe('KeyboardHandler', () => {
   let handler: KeyboardHandler;
   let context: HandlerContext;
   const keyboard = {
+    type: jest.fn().mockResolvedValue(undefined),
+    insertText: jest.fn().mockResolvedValue(undefined),
     press: jest.fn().mockResolvedValue(undefined),
     down: jest.fn().mockResolvedValue(undefined),
     up: jest.fn().mockResolvedValue(undefined),
@@ -69,8 +74,9 @@ describe('KeyboardHandler', () => {
 
   beforeEach(() => {
     handler = new KeyboardHandler();
+    const page = createMockPage({ keyboard });
     context = {
-      page: { keyboard } as HandlerContext['page'],
+      page,
       browserContext: createMockContext(),
       config: createTestConfig(),
       logger,
@@ -115,6 +121,29 @@ describe('KeyboardHandler', () => {
     expect(keyboard.up).toHaveBeenCalledWith('Shift');
   });
 
+  it('releases a key whose down effect is uncertain after transport failure', async () => {
+    const instruction = buildKeyboardInstruction({
+      key: 'Shift',
+      action: KeyAction.DOWN,
+    });
+    keyboard.down.mockRejectedValueOnce(new Error('synthetic key-down failure'));
+
+    const result = await handler.execute(instruction, context);
+
+    expect(result.success).toBe(false);
+    expect(keyboard.up).toHaveBeenCalledWith('Shift');
+  });
+
+  it('does not carry a held key across retained-page reset', async () => {
+    await handler.execute(buildKeyboardInstruction({ key: 'Shift', action: KeyAction.DOWN }), context);
+    keyboard.down.mockClear();
+
+    await resetKeyboardState(context.page);
+    await handler.execute(buildKeyboardInstruction({ key: 'A', action: KeyAction.PRESS, modifiers: [KeyboardModifier.SHIFT] }), context);
+
+    expect(keyboard.down).toHaveBeenCalledWith('Shift');
+  });
+
   it('returns an error when no key is provided', async () => {
     const instruction = buildKeyboardInstruction({});
 
@@ -146,8 +175,9 @@ describe('KeyboardHandler', () => {
     const instruction: HandlerInstruction = {
       index: 0,
       nodeId: 'node-2',
-      type: 'keyboard-unknown',
-      params: {},
+      action: create(ActionDefinitionSchema, {
+        type: ActionType.UNSPECIFIED,
+      }),
     };
 
     const result = await handler.execute(instruction, context);

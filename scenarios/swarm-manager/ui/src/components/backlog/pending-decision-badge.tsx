@@ -5,7 +5,7 @@
  */
 
 import { memo } from "react";
-import type { AttentionReason } from "../../lib/feed";
+import type { AttentionReason } from "../../lib/attention";
 
 interface PendingDecisionBadgeProps {
   reasons: AttentionReason[];
@@ -15,10 +15,6 @@ const REASON_CONFIG: Record<AttentionReason["kind"], { label: (count: number) =>
   "pending-decisions": {
     label: (n) => `${n} decision${n !== 1 ? "s" : ""}`,
     color: "bg-amber-500/20 text-amber-400",
-  },
-  "plan-ready": {
-    label: () => "Plan ready",
-    color: "bg-emerald-500/20 text-emerald-400",
   },
   "research-complete": {
     label: () => "Review ready",

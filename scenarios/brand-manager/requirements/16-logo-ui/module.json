@@ -1,0 +1,95 @@
+{
+  "_metadata": {
+    "description": "The Logo page: a repo-owned operator surface for candidates, compare, actions, refine and target preview.",
+    "module": "logo-ui",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "LOGOUI-001",
+      "title": "Candidate gallery with lineage",
+      "status": "complete",
+      "prd_ref": "OT-P1-005",
+      "category": "logo-ui",
+      "criticality": "P1",
+      "description": "The /logo route shows a brand selector and a paginated gallery of candidate cards (thumbnail, concept, origin badge, status chip, prompt excerpt, created time) grouped by concept with lineage links.",
+      "tags": [
+        "ui",
+        "candidates"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Built: /logo route, candidate gallery grouped by concept with lineage badges (src/features/logo/LogoCandidateGallery.tsx + LogoCandidateGallery.test.tsx); compare strip with 64/32/16 size strip (LogoCompare.tsx); refine panel for instruction, vectorize, background removal and a brush mask (LogoRefinePanel.tsx, MaskBrush.tsx); target preview sheet at 16/32/64/180/512 on light and dark grounds with the maskable circle (LogoTargetPreview.tsx + test). Live screenshots at evidence/final/logo-page-1280.png and logo-page-400.png."
+        }
+      ]
+    },
+    {
+      "id": "LOGOUI-002",
+      "title": "Compare and actions",
+      "status": "complete",
+      "prd_ref": "OT-P1-005",
+      "category": "logo-ui",
+      "criticality": "P1",
+      "description": "An operator can select two to four candidates for side-by-side compare with a 64/32/16 px size strip, and can pick, reject and restore.",
+      "tags": [
+        "ui",
+        "compare"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Built: /logo route, candidate gallery grouped by concept with lineage badges (src/features/logo/LogoCandidateGallery.tsx + LogoCandidateGallery.test.tsx); compare strip with 64/32/16 size strip (LogoCompare.tsx); refine panel for instruction, vectorize, background removal and a brush mask (LogoRefinePanel.tsx, MaskBrush.tsx); target preview sheet at 16/32/64/180/512 on light and dark grounds with the maskable circle (LogoTargetPreview.tsx + test). Live screenshots at evidence/final/logo-page-1280.png and logo-page-400.png."
+        }
+      ]
+    },
+    {
+      "id": "LOGOUI-003",
+      "title": "Refine by instruction or brush mask",
+      "status": "complete",
+      "prd_ref": "OT-P1-005",
+      "category": "logo-ui",
+      "criticality": "P1",
+      "description": "Refine is available through a text field and a canvas brush that exports a PNG mask and calls RefineCandidate with the mask asset; a vectorize action is also available.",
+      "tags": [
+        "ui",
+        "refine"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Built: /logo route, candidate gallery grouped by concept with lineage badges (src/features/logo/LogoCandidateGallery.tsx + LogoCandidateGallery.test.tsx); compare strip with 64/32/16 size strip (LogoCompare.tsx); refine panel for instruction, vectorize, background removal and a brush mask (LogoRefinePanel.tsx, MaskBrush.tsx); target preview sheet at 16/32/64/180/512 on light and dark grounds with the maskable circle (LogoTargetPreview.tsx + test). Live screenshots at evidence/final/logo-page-1280.png and logo-page-400.png."
+        }
+      ]
+    },
+    {
+      "id": "LOGOUI-004",
+      "title": "Target preview sheet",
+      "status": "complete",
+      "prd_ref": "OT-P1-005",
+      "category": "logo-ui",
+      "criticality": "P1",
+      "description": "The preview sheet renders every declared target size at 16/32/64/180/512 px on light and dark grounds, with the maskable circle overlay and the og card at reduced scale.",
+      "tags": [
+        "ui",
+        "preview"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Built: /logo route, candidate gallery grouped by concept with lineage badges (src/features/logo/LogoCandidateGallery.tsx + LogoCandidateGallery.test.tsx); compare strip with 64/32/16 size strip (LogoCompare.tsx); refine panel for instruction, vectorize, background removal and a brush mask (LogoRefinePanel.tsx, MaskBrush.tsx); target preview sheet at 16/32/64/180/512 on light and dark grounds with the maskable circle (LogoTargetPreview.tsx + test). Live screenshots at evidence/final/logo-page-1280.png and logo-page-400.png."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "metadata": {
+    "name": "forge-metric-list-renders",
+    "description": "Navigates to /forge (all-live-metrics dashboard) and asserts the MetricList wrapper renders at least one [data-metric-id] entry.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"CC-UI-002\"]"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-forge",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/forge",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /forge"
+        }
+      }
+    },
+    {
+      "id": "wait-metric-list",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='metric-list']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for metric-list wrapper"
+        }
+      }
+    },
+    {
+      "id": "assert-metric-list-wrapper",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='metric-list']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected [data-testid='metric-list'] wrapper on /forge"
+        },
+        "metadata": {
+          "label": "Assert metric-list wrapper present"
+        }
+      }
+    },
+    {
+      "id": "assert-metric-entry",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='metric-list'] [data-metric-id]",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected at least one [data-metric-id] entry inside metric-list on /forge"
+        },
+        "metadata": {
+          "label": "Assert at least one metric entry"
+        }
+      }
+    },
+    {
+      "id": "capture-forge-metrics",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture /forge metric list"
+        }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-forge", "target": "wait-metric-list", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-metric-list", "target": "assert-metric-list-wrapper", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "assert-metric-list-wrapper", "target": "assert-metric-entry", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "assert-metric-entry", "target": "capture-forge-metrics", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

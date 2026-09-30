@@ -1,0 +1,100 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "The system may provide a visual diff viewer, interactive human staging, branch management, and service-health monitoring.",
+      "id": "GCT-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Web UI dashboard",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P2-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may list and manage worktrees through the bounded WorktreeService contract.",
+      "id": "GCT-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Worktree management",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P2-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may save, apply, and drop stashes through verified human controls.",
+      "id": "GCT-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Stash operations",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P2-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Where a verified host connection exists, the system may provide connected pull-request, release-authoring, activity, and publication views with capability-specific unavailable states.",
+      "id": "GCT-P2-004",
+      "prd_ref": "OT-P2-004",
+      "status": "planned",
+      "title": "Connected PR and release workspace",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P2-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may add provider-owned adapters for external collaboration operations while preserving the host-neutral GCT contract.",
+      "id": "GCT-P2-005",
+      "prd_ref": "OT-P2-005",
+      "status": "planned",
+      "title": "Expanded provider integrations",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P2-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may add measured concurrency, retention, recovery, and independent corpus receipts when the owning validation infrastructure provides them.",
+      "id": "GCT-P2-006",
+      "prd_ref": "OT-P2-006",
+      "status": "planned",
+      "title": "Operational evidence hardening",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P2-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

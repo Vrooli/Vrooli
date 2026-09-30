@@ -23,10 +23,11 @@ _sym_db = _symbol_database.Default()
 
 
 from google.protobuf import any_pb2 as google_dot_protobuf_dot_any__pb2
+from google.protobuf import struct_pb2 as google_dot_protobuf_dot_struct__pb2
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&vrooli-events/v1/domain/envelope.proto\x12\x10vrooli_events.v1\x1a\x19google/protobuf/any.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb4\x03\n\rEventEnvelope\x12\x19\n\x08\x65vent_id\x18\x01 \x01(\tR\x07\x65ventId\x12\'\n\x0fsource_scenario\x18\x02 \x01(\tR\x0esourceScenario\x12\'\n\x0ftarget_scenario\x18\x03 \x01(\tR\x0etargetScenario\x12\x1d\n\nevent_type\x18\x04 \x01(\tR\teventType\x12\x38\n\ttimestamp\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\ttimestamp\x12%\n\x0e\x63orrelation_id\x18\x06 \x01(\tR\rcorrelationId\x12.\n\x07payload\x18\x07 \x01(\x0b\x32\x14.google.protobuf.AnyR\x07payload\x12I\n\x08metadata\x18\x08 \x03(\x0b\x32-.vrooli_events.v1.EventEnvelope.MetadataEntryR\x08metadata\x1a;\n\rMetadataEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\x42OZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domainb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&vrooli-events/v1/domain/envelope.proto\x12\x1evrooli.vrooli_events.v1.domain\x1a\x19google/protobuf/any.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xba\x04\n\rEventEnvelope\x12\x19\n\x08\x65vent_id\x18\x01 \x01(\tR\x07\x65ventId\x12\x1d\n\nevent_type\x18\x02 \x01(\tR\teventType\x12;\n\x0boccurred_at\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\noccurredAt\x12\x43\n\x06source\x18\x04 \x01(\x0b\x32+.vrooli.vrooli_events.v1.domain.EventSourceR\x06source\x12\x43\n\x06target\x18\x05 \x01(\x0b\x32+.vrooli.vrooli_events.v1.domain.EventTargetR\x06target\x12R\n\x0b\x63orrelation\x18\x06 \x01(\x0b\x32\x30.vrooli.vrooli_events.v1.domain.EventCorrelationR\x0b\x63orrelation\x12R\n\x0b\x61ttribution\x18\x07 \x01(\x0b\x32\x30.vrooli.vrooli_events.v1.domain.EventAttributionR\x0b\x61ttribution\x12(\n\x04\x64\x61ta\x18\x08 \x01(\x0b\x32\x14.google.protobuf.AnyR\x04\x64\x61ta\x12V\n\x0fwork_references\x18\t \x03(\x0b\x32-.vrooli.vrooli_events.v1.domain.WorkReferenceR\x0eworkReferences\"H\n\x0b\x45ventSource\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x1d\n\nactor_kind\x18\x02 \x01(\tR\tactorKind\"c\n\x0b\x45ventTarget\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x1c\n\toperation\x18\x02 \x01(\tR\toperation\x12\x1a\n\x08protocol\x18\x03 \x01(\tR\x08protocol\"\xe4\x01\n\x10\x45ventCorrelation\x12\x1d\n\nrequest_id\x18\x01 \x01(\tR\trequestId\x12 \n\x0c\x61gent_run_id\x18\x02 \x01(\tR\nagentRunId\x12\x17\n\x07task_id\x18\x03 \x01(\tR\x06taskId\x12\x32\n\x15workflow_execution_id\x18\x04 \x01(\tR\x13workflowExecutionId\x12(\n\x10workflow_node_id\x18\x05 \x01(\tR\x0eworkflowNodeId\x12\x18\n\x07\x61ttempt\x18\x06 \x01(\rR\x07\x61ttempt\"p\n\x10\x45ventAttribution\x12!\n\x0csubject_kind\x18\x01 \x01(\tR\x0bsubjectKind\x12\x1d\n\nsubject_id\x18\x02 \x01(\tR\tsubjectId\x12\x1a\n\x08verified\x18\x03 \x01(\x08R\x08verified\"\xd6\x03\n\rWorkReference\x12\x12\n\x04kind\x18\x01 \x01(\tR\x04kind\x12\x0e\n\x02id\x18\x02 \x01(\tR\x02id\x12\x1a\n\x08revision\x18\x03 \x01(\tR\x08revision\x12\"\n\x0crelationship\x18\x04 \x01(\tR\x0crelationship\x12&\n\x0fsource_event_id\x18\x05 \x01(\tR\rsourceEventId\x12\"\n\rsource_run_id\x18\x06 \x01(\tR\x0bsourceRunId\x12\x1a\n\x08verified\x18\x07 \x01(\x08R\x08verified\x12W\n\nvisibility\x18\x08 \x01(\x0e\x32\x37.vrooli.vrooli_events.v1.domain.WorkReferenceVisibilityR\nvisibility\x12\'\n\x0f\x65vidence_digest\x18\t \x01(\tR\x0e\x65videnceDigest\x12H\n\x05state\x18\n \x01(\x0e\x32\x32.vrooli.vrooli_events.v1.domain.WorkReferenceStateR\x05state\x12-\n\x12unavailable_reason\x18\x0b \x01(\tR\x11unavailableReason\"\xf2\x01\n\x0bReceiptData\x12\x18\n\x07outcome\x18\x01 \x01(\tR\x07outcome\x12\x1f\n\x0bstatus_code\x18\x02 \x01(\rR\nstatusCode\x12\x1f\n\x0b\x64uration_ms\x18\x03 \x01(\x04R\ndurationMs\x12%\n\x0epolicy_version\x18\x04 \x01(\tR\rpolicyVersion\x12\'\n\x0fidempotency_key\x18\x05 \x01(\tR\x0eidempotencyKey\x12\x37\n\nprojection\x18\x06 \x01(\x0b\x32\x17.google.protobuf.StructR\nprojection*\x91\x01\n\x17WorkReferenceVisibility\x12)\n%WORK_REFERENCE_VISIBILITY_UNSPECIFIED\x10\x00\x12$\n WORK_REFERENCE_VISIBILITY_PUBLIC\x10\x01\x12%\n!WORK_REFERENCE_VISIBILITY_PRIVATE\x10\x02*\xd1\x01\n\x12WorkReferenceState\x12$\n WORK_REFERENCE_STATE_UNSPECIFIED\x10\x00\x12\x1f\n\x1bWORK_REFERENCE_STATE_ACTIVE\x10\x01\x12 \n\x1cWORK_REFERENCE_STATE_EXPIRED\x10\x02\x12$\n WORK_REFERENCE_STATE_UNAVAILABLE\x10\x03\x12,\n(WORK_REFERENCE_STATE_PROJECTION_MISMATCH\x10\x04\x42OZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domainb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,10 +35,22 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'vrooli_events.v1.domain.env
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domain'
-  _globals['_EVENTENVELOPE_METADATAENTRY']._loaded_options = None
-  _globals['_EVENTENVELOPE_METADATAENTRY']._serialized_options = b'8\001'
-  _globals['_EVENTENVELOPE']._serialized_start=121
-  _globals['_EVENTENVELOPE']._serialized_end=557
-  _globals['_EVENTENVELOPE_METADATAENTRY']._serialized_start=498
-  _globals['_EVENTENVELOPE_METADATAENTRY']._serialized_end=557
+  _globals['_WORKREFERENCEVISIBILITY']._serialized_start=1976
+  _globals['_WORKREFERENCEVISIBILITY']._serialized_end=2121
+  _globals['_WORKREFERENCESTATE']._serialized_start=2124
+  _globals['_WORKREFERENCESTATE']._serialized_end=2333
+  _globals['_EVENTENVELOPE']._serialized_start=165
+  _globals['_EVENTENVELOPE']._serialized_end=735
+  _globals['_EVENTSOURCE']._serialized_start=737
+  _globals['_EVENTSOURCE']._serialized_end=809
+  _globals['_EVENTTARGET']._serialized_start=811
+  _globals['_EVENTTARGET']._serialized_end=910
+  _globals['_EVENTCORRELATION']._serialized_start=913
+  _globals['_EVENTCORRELATION']._serialized_end=1141
+  _globals['_EVENTATTRIBUTION']._serialized_start=1143
+  _globals['_EVENTATTRIBUTION']._serialized_end=1255
+  _globals['_WORKREFERENCE']._serialized_start=1258
+  _globals['_WORKREFERENCE']._serialized_end=1728
+  _globals['_RECEIPTDATA']._serialized_start=1731
+  _globals['_RECEIPTDATA']._serialized_end=1973
 # @@protoc_insertion_point(module_scope)

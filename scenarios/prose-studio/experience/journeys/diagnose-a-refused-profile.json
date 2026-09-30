@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "diagnose-a-refused-profile",
+    "title": "Diagnose why a profile will not generate",
+    "purpose": "Refusal is a first-class journey rather than an error case, because this scenario refuses often and for good reasons: an unregistered declaration, a key collision, an infeasible context budget, an exhausted session budget. Each refusal names its cause at the surface where it can be fixed.",
+    "prd_refs": [
+      "OT-P0-021",
+      "OT-P0-026",
+      "OT-P0-029"
+    ]
+  },
+  "steps": [
+    {
+      "page": "document-workspace",
+      "state": "infeasible-profile",
+      "intent": "Meet the refusal stated inline with its specific cause rather than a dead control",
+      "via": "feasibility-notice"
+    },
+    {
+      "page": "declaration-registry",
+      "state": "collision",
+      "intent": "If the cause is registration, see both paths claiming one key and that neither was applied",
+      "via": "collision-detail"
+    },
+    {
+      "page": "style-library",
+      "state": "resolution-conflict",
+      "intent": "If the cause is resolution, see both contributing versions and the conflicting metric",
+      "via": "conformance-report"
+    }
+  ]
+}

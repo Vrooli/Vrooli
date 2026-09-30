@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "preview-popout-page",
+    "title": "Preview popout",
+    "purpose": "Local preview popout page composition.",
+    "storyRef": "../../ui/src/pages/PreviewPopoutPage.story.json"
+  },
+  "states": [
+    {
+      "id": "source-unavailable",
+      "example": "source-unavailable",
+      "description": "Source failure remains visible in popout"
+    }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "generic",
+      "description": "Preview popout"
+    }
+  ],
+  "claims": [],
+  "bindings": {
+    "elements": {
+      "surface": {
+        "selector": "[data-testid=\"preview-popout\"]"
+      }
+    }
+  }
+}

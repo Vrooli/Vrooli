@@ -541,7 +541,6 @@ func (cp *ChartProcessor) storeChartData(ctx context.Context, chartID string, re
 		string(configJSON),
 		string(metadataJSON),
 	)
-
 	if err != nil {
 		log.Printf("Database storage failed (continuing anyway): %v", err)
 		// Don't fail the entire operation if database storage fails
@@ -552,8 +551,9 @@ func (cp *ChartProcessor) storeChartData(ctx context.Context, chartID string, re
 }
 
 func (cp *ChartProcessor) generateChartFiles(ctx context.Context, chartID string, req ChartGenerationProcessorRequest) (map[string]string, error) {
-	// Use the real chart renderer
-	renderer := NewChartRenderer("/tmp")
+	// Use the real chart renderer. Output lands under renderRootDir, which the
+	// API server serves at renderedURLPrefix so BAS can screenshot PNG exports.
+	renderer := NewChartRenderer(renderRootDir)
 	return renderer.RenderChart(chartID, req)
 }
 
@@ -578,7 +578,7 @@ func (cp *ChartProcessor) generateMockChartFile(filepath, format string, req Cha
 		content = fmt.Sprintf("Mock chart file: %s", format)
 	}
 
-	return os.WriteFile(filepath, []byte(content), 0644)
+	return os.WriteFile(filepath, []byte(content), 0o644)
 }
 
 func (cp *ChartProcessor) generateMockSVG(req ChartGenerationProcessorRequest) string {

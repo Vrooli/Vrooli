@@ -86,7 +86,7 @@ Flags:
 		if s.HasUI {
 			parts = append(parts, "UI")
 		}
-		if s.HasCLI {
+		if s.CLIInstalled {
 			parts = append(parts, "CLI")
 		}
 		partsStr := strings.Join(parts, ",")

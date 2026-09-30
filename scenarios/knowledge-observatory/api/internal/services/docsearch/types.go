@@ -77,24 +77,23 @@ type TextSearchMatch struct {
 }
 
 // UnifiedSearchRequest combines file, text, and semantic search.
+// Note: the records-era semantic filter fields (SemanticCollection,
+// SemanticNamespaces, SemanticVisibility, SemanticTags) were removed in the
+// Phase-7 cutover; the hybrid engine does not use them.
 type UnifiedSearchRequest struct {
-	Query              string
-	Pattern            string
-	Scope              string
-	Scenario           string
-	BasePath           string
-	Limit              int
-	IncludeContent     bool
-	FileTypes          []string
-	CaseSensitive      bool
-	ContextLines       int
-	UseSemantic        *bool
-	SemanticCollection string
-	SemanticNamespaces []string
-	SemanticVisibility []string
-	SemanticTags       []string
-	SemanticLimit      int
-	SemanticThreshold  float64
+	Query             string
+	Pattern           string
+	Scope             string
+	Scenario          string
+	BasePath          string
+	Limit             int
+	IncludeContent    bool
+	FileTypes         []string
+	CaseSensitive     bool
+	ContextLines      int
+	UseSemantic       *bool
+	SemanticLimit     int
+	SemanticThreshold float64
 }
 
 // UnifiedSearchResult represents a normalized match from any search source.

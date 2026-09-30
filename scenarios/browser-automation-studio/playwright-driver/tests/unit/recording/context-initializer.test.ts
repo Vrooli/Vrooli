@@ -18,6 +18,7 @@ import {
 } from '../../../src/recording';
 import type { BrowserContext, Route, Request, APIResponse, Page } from 'rebrowser-playwright';
 import type { Logger as WinstonLogger } from 'winston';
+import { createDeferred, createMockContext, createMockPage } from '../../helpers';
 
 // Mock logger
 const mockLogger = {
@@ -101,6 +102,7 @@ function createMockRoute(
     method: jest.fn().mockReturnValue('GET'),
     resourceType: jest.fn().mockReturnValue('document'),
     postData: jest.fn().mockReturnValue(null),
+    frame: jest.fn().mockReturnValue(null),
     ...requestOverrides,
   } as unknown as jest.Mocked<Request>;
 
@@ -127,13 +129,13 @@ function createMockRoute(
 }
 
 // Helper to create mock context
-function createMockContext(): {
+function createRecordingContextFixture(): {
   context: jest.Mocked<BrowserContext>;
   routeHandlers: Map<string, (route: Route) => Promise<void>>;
 } {
   const routeHandlers = new Map<string, (route: Route) => Promise<void>>();
 
-  const mockContext = {
+  const mockContext = createMockContext({
     route: jest.fn().mockImplementation((pattern: string, handler: (route: Route) => Promise<void>) => {
       routeHandlers.set(pattern, handler);
       return Promise.resolve();
@@ -141,13 +143,44 @@ function createMockContext(): {
     pages: jest.fn().mockReturnValue([]),
     on: jest.fn(),
     off: jest.fn(),
-  } as unknown as jest.Mocked<BrowserContext>;
+  });
 
   return { context: mockContext, routeHandlers };
 }
 
+function createMockPageContext(page: MockPage): {
+  context: jest.Mocked<BrowserContext>;
+} {
+  const context = {
+    route: jest.fn(),
+    pages: jest.fn().mockReturnValue([page]),
+    on: jest.fn(),
+    off: jest.fn(),
+  } as unknown as jest.Mocked<BrowserContext>;
+
+  return { context };
+}
+
+function getRouteHandler(
+  handlers: Map<string, (route: Route) => Promise<void>>,
+  pattern: string,
+  label: string
+): (route: Route) => Promise<void> {
+  return requireDefined(handlers.get(pattern), `${label} route handler not registered`);
+}
+
+function getEventRouteHandler(
+  pageRouteHandlers: Map<string, (route: Route) => Promise<void>>
+): (route: Route) => Promise<void> {
+  const eventRoutePattern = requireDefined(
+    Array.from(pageRouteHandlers.keys()).find((key) => key.includes('__vrooli_recording_event__')),
+    'Event route not registered on page'
+  );
+  return getRouteHandler(pageRouteHandlers, eventRoutePattern, 'Event');
+}
+
 // Helper to create mock page with event listeners
-function createMockPage(): {
+function createRecordingPageFixture(): {
   page: MockPage;
   pageListeners: Map<string, Array<(...args: unknown[]) => void>>;
   pageRouteHandlers: Map<string, (route: Route) => Promise<void>>;
@@ -155,7 +188,7 @@ function createMockPage(): {
   const pageListeners = new Map<string, Array<(...args: unknown[]) => void>>();
   const pageRouteHandlers = new Map<string, (route: Route) => Promise<void>>();
 
-  const mockPage = {
+  const mockPage = createMockPage({
     url: jest.fn().mockReturnValue('https://example.com'),
     on: jest.fn().mockImplementation((event: string, handler: (...args: unknown[]) => void) => {
       const handlers = pageListeners.get(event) || [];
@@ -167,7 +200,7 @@ function createMockPage(): {
       pageRouteHandlers.set(pattern, handler);
       return Promise.resolve();
     }),
-  } as unknown as MockPage;
+  }) as unknown as MockPage;
 
   return { page: mockPage, pageListeners, pageRouteHandlers };
 }
@@ -190,7 +223,7 @@ describe('RecordingContextInitializer', () => {
 
   describe('initialization', () => {
     it('should set up context-level route for HTML injection', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { context, routeHandlers } = createRecordingContextFixture();
 
       await initializer.initialize(context);
 
@@ -206,13 +239,8 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should set up page-level event route on existing pages', async () => {
-      const { page, pageRouteHandlers } = createMockPage();
-      const mockContext = {
-        route: jest.fn(),
-        pages: jest.fn().mockReturnValue([page]),
-        on: jest.fn(),
-        off: jest.fn(),
-      } as unknown as jest.Mocked<BrowserContext>;
+      const { page, pageRouteHandlers } = createRecordingPageFixture();
+      const { context: mockContext } = createMockPageContext(page);
 
       await initializer.initialize(mockContext);
 
@@ -225,7 +253,7 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should be idempotent (safe to call multiple times)', async () => {
-      const { context } = createMockContext();
+      const { context } = createRecordingContextFixture();
 
       await initializer.initialize(context);
       await initializer.initialize(context);
@@ -234,8 +262,40 @@ describe('RecordingContextInitializer', () => {
       expect(context.route).toHaveBeenCalledTimes(1);
     });
 
+    it('should share concurrent initialization and register setup once', async () => {
+      const { context } = createRecordingContextFixture();
+      const setupReady = createDeferred();
+      (context.route as jest.Mock).mockImplementation(async () => {
+        await setupReady.promise;
+      });
+
+      const first = initializer.initialize(context);
+      await Promise.resolve();
+      const second = initializer.initialize(context);
+      await Promise.resolve();
+
+      expect(context.route).toHaveBeenCalledTimes(1);
+
+      setupReady.resolve();
+      await Promise.all([first, second]);
+      expect(initializer.isInitialized()).toBe(true);
+    });
+
+    it('should allow initialization to retry after setup failure', async () => {
+      const { context } = createRecordingContextFixture();
+      (context.route as jest.Mock)
+        .mockRejectedValueOnce(new Error('temporary route setup failure'))
+        .mockResolvedValueOnce(undefined);
+
+      await expect(initializer.initialize(context)).rejects.toThrow('temporary route setup failure');
+      await initializer.initialize(context);
+
+      expect(context.route).toHaveBeenCalledTimes(2);
+      expect(initializer.isInitialized()).toBe(true);
+    });
+
     it('should mark as initialized after setup', async () => {
-      const { context } = createMockContext();
+      const { context } = createRecordingContextFixture();
 
       expect(initializer.isInitialized()).toBe(false);
 
@@ -247,15 +307,12 @@ describe('RecordingContextInitializer', () => {
 
   describe('script injection', () => {
     it('should inject script into HTML responses with <head> tag', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { context, routeHandlers } = createRecordingContextFixture();
 
       await initializer.initialize(context);
 
       // Get the catch-all handler
-      const handler = requireDefined(
-        routeHandlers.get('**/*'),
-        'Route handler not registered for HTML injection'
-      );
+      const handler = getRouteHandler(routeHandlers, '**/*', 'HTML injection');
 
       // Create mock route with HTML containing <head>
       const { route } = createMockRoute(
@@ -276,14 +333,11 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should inject script into HTML responses with <HEAD> tag (uppercase)', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { context, routeHandlers } = createRecordingContextFixture();
 
       await initializer.initialize(context);
 
-      const handler = requireDefined(
-        routeHandlers.get('**/*'),
-        'Route handler not registered for HTML injection'
-      );
+      const handler = getRouteHandler(routeHandlers, '**/*', 'HTML injection');
       const { route } = createMockRoute(
         { resourceType: mockRequestResourceType('document') },
         {
@@ -300,14 +354,11 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should inject script after doctype when no head tag', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { context, routeHandlers } = createRecordingContextFixture();
 
       await initializer.initialize(context);
 
-      const handler = requireDefined(
-        routeHandlers.get('**/*'),
-        'Route handler not registered for HTML injection'
-      );
+      const handler = getRouteHandler(routeHandlers, '**/*', 'HTML injection');
       const { route } = createMockRoute(
         { resourceType: mockRequestResourceType('document') },
         {
@@ -324,14 +375,11 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should prepend script when no head or doctype', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { context, routeHandlers } = createRecordingContextFixture();
 
       await initializer.initialize(context);
 
-      const handler = requireDefined(
-        routeHandlers.get('**/*'),
-        'Route handler not registered for HTML injection'
-      );
+      const handler = getRouteHandler(routeHandlers, '**/*', 'HTML injection');
       const { route } = createMockRoute(
         { resourceType: mockRequestResourceType('document') },
         {
@@ -348,14 +396,11 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should NOT inject into non-document resources', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { context, routeHandlers } = createRecordingContextFixture();
 
       await initializer.initialize(context);
 
-      const handler = requireDefined(
-        routeHandlers.get('**/*'),
-        'Route handler not registered for HTML injection'
-      );
+      const handler = getRouteHandler(routeHandlers, '**/*', 'HTML injection');
       const { route } = createMockRoute({
         resourceType: mockRequestResourceType('stylesheet'),
       });
@@ -368,14 +413,11 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should NOT inject into non-HTML content types', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { context, routeHandlers } = createRecordingContextFixture();
 
       await initializer.initialize(context);
 
-      const handler = requireDefined(
-        routeHandlers.get('**/*'),
-        'Route handler not registered for HTML injection'
-      );
+      const handler = getRouteHandler(routeHandlers, '**/*', 'HTML injection');
       const { route } = createMockRoute(
         { resourceType: mockRequestResourceType('document') },
         {
@@ -394,14 +436,11 @@ describe('RecordingContextInitializer', () => {
 
   describe('injection statistics', () => {
     it('should track successful injections', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { context, routeHandlers } = createRecordingContextFixture();
 
       await initializer.initialize(context);
 
-      const handler = requireDefined(
-        routeHandlers.get('**/*'),
-        'Route handler not registered for injection stats'
-      );
+      const handler = getRouteHandler(routeHandlers, '**/*', 'Injection stats');
       const { route } = createMockRoute(
         { resourceType: mockRequestResourceType('document') },
         {
@@ -419,14 +458,11 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should track skipped requests', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { context, routeHandlers } = createRecordingContextFixture();
 
       await initializer.initialize(context);
 
-      const handler = requireDefined(
-        routeHandlers.get('**/*'),
-        'Route handler not registered for injection stats'
-      );
+      const handler = getRouteHandler(routeHandlers, '**/*', 'Injection stats');
       const { route } = createMockRoute({
         resourceType: mockRequestResourceType('image'),
       });
@@ -440,7 +476,7 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should track injection methods separately', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { context, routeHandlers } = createRecordingContextFixture();
 
       await initializer.initialize(context);
 
@@ -477,7 +513,7 @@ describe('RecordingContextInitializer', () => {
 
   describe('event handling', () => {
     it('should parse events from POST data', async () => {
-      const { page, pageRouteHandlers } = createMockPage();
+      const { page, pageRouteHandlers } = createRecordingPageFixture();
       const mockContext = {
         route: jest.fn(),
         pages: jest.fn().mockReturnValue([page]),
@@ -493,14 +529,7 @@ describe('RecordingContextInitializer', () => {
       });
 
       // Event route is now on page, not context
-      const eventRoutePattern = requireDefined(
-        Array.from(pageRouteHandlers.keys()).find((k) => k.includes('__vrooli_recording_event__')),
-        'Event route not registered on page'
-      );
-      const handler = requireDefined(
-        pageRouteHandlers.get(eventRoutePattern),
-        'Event route handler not registered on page'
-      );
+      const handler = getEventRouteHandler(pageRouteHandlers);
 
       const eventData: RawBrowserEvent = {
         actionType: 'click',
@@ -531,13 +560,8 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should call event handler with parsed event', async () => {
-      const { page, pageRouteHandlers } = createMockPage();
-      const mockContext = {
-        route: jest.fn(),
-        pages: jest.fn().mockReturnValue([page]),
-        on: jest.fn(),
-        off: jest.fn(),
-      } as unknown as jest.Mocked<BrowserContext>;
+      const { page, pageRouteHandlers } = createRecordingPageFixture();
+      const { context: mockContext } = createMockPageContext(page);
 
       await initializer.initialize(mockContext);
 
@@ -545,14 +569,7 @@ describe('RecordingContextInitializer', () => {
       initializer.setEventHandler(eventHandler);
 
       // Event route is now on page, not context
-      const eventRoutePattern = requireDefined(
-        Array.from(pageRouteHandlers.keys()).find((k) => k.includes('__vrooli_recording_event__')),
-        'Event route not registered on page'
-      );
-      const handler = requireDefined(
-        pageRouteHandlers.get(eventRoutePattern),
-        'Event route handler not registered on page'
-      );
+      const handler = getEventRouteHandler(pageRouteHandlers);
 
       const { route } = createMockRoute({
         url: mockRequestUrl('https://example.com/__vrooli_recording_event__'),
@@ -575,13 +592,8 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should handle malformed event data gracefully', async () => {
-      const { page, pageRouteHandlers } = createMockPage();
-      const mockContext = {
-        route: jest.fn(),
-        pages: jest.fn().mockReturnValue([page]),
-        on: jest.fn(),
-        off: jest.fn(),
-      } as unknown as jest.Mocked<BrowserContext>;
+      const { page, pageRouteHandlers } = createRecordingPageFixture();
+      const { context: mockContext } = createMockPageContext(page);
 
       await initializer.initialize(mockContext);
 
@@ -589,14 +601,7 @@ describe('RecordingContextInitializer', () => {
       initializer.setEventHandler(eventHandler);
 
       // Event route is now on page, not context
-      const eventRoutePattern = requireDefined(
-        Array.from(pageRouteHandlers.keys()).find((k) => k.includes('__vrooli_recording_event__')),
-        'Event route not registered on page'
-      );
-      const handler = requireDefined(
-        pageRouteHandlers.get(eventRoutePattern),
-        'Event route handler not registered on page'
-      );
+      const handler = getEventRouteHandler(pageRouteHandlers);
 
       const { route } = createMockRoute({
         url: mockRequestUrl('https://example.com/__vrooli_recording_event__'),
@@ -612,13 +617,8 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should clear event handler when requested', async () => {
-      const { page, pageRouteHandlers } = createMockPage();
-      const mockContext = {
-        route: jest.fn(),
-        pages: jest.fn().mockReturnValue([page]),
-        on: jest.fn(),
-        off: jest.fn(),
-      } as unknown as jest.Mocked<BrowserContext>;
+      const { page, pageRouteHandlers } = createRecordingPageFixture();
+      const { context: mockContext } = createMockPageContext(page);
 
       await initializer.initialize(mockContext);
 
@@ -627,14 +627,7 @@ describe('RecordingContextInitializer', () => {
       initializer.clearEventHandler();
 
       // Event route is now on page, not context
-      const eventRoutePattern = requireDefined(
-        Array.from(pageRouteHandlers.keys()).find((k) => k.includes('__vrooli_recording_event__')),
-        'Event route not registered on page'
-      );
-      const handler = requireDefined(
-        pageRouteHandlers.get(eventRoutePattern),
-        'Event route handler not registered on page'
-      );
+      const handler = getEventRouteHandler(pageRouteHandlers);
 
       const { route } = createMockRoute({
         url: mockRequestUrl('https://example.com/__vrooli_recording_event__'),
@@ -679,14 +672,11 @@ describe('RecordingContextInitializer', () => {
      */
 
     it('should call route.fetch() with maxRedirects: 10 to follow redirects for injection', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { context, routeHandlers } = createRecordingContextFixture();
 
       await initializer.initialize(context);
 
-      const handler = requireDefined(
-        routeHandlers.get('**/*'),
-        'Route handler not registered for redirect handling'
-      );
+      const handler = getRouteHandler(routeHandlers, '**/*', 'Redirect handling');
       const { route } = createMockRoute(
         { resourceType: mockRequestResourceType('document') },
         {
@@ -707,14 +697,11 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should pass 301 redirect responses through without modification', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { context, routeHandlers } = createRecordingContextFixture();
 
       await initializer.initialize(context);
 
-      const handler = requireDefined(
-        routeHandlers.get('**/*'),
-        'Route handler not registered for redirect handling'
-      );
+      const handler = getRouteHandler(routeHandlers, '**/*', 'Redirect handling');
       const { route } = createMockRoute(
         { resourceType: mockRequestResourceType('document') },
         {
@@ -733,14 +720,11 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should pass 302 redirect responses through without modification', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { context, routeHandlers } = createRecordingContextFixture();
 
       await initializer.initialize(context);
 
-      const handler = requireDefined(
-        routeHandlers.get('**/*'),
-        'Route handler not registered for redirect handling'
-      );
+      const handler = getRouteHandler(routeHandlers, '**/*', 'Redirect handling');
       const { route } = createMockRoute(
         { resourceType: mockRequestResourceType('document') },
         {
@@ -759,14 +743,11 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should pass 307 redirect responses through without modification', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { context, routeHandlers } = createRecordingContextFixture();
 
       await initializer.initialize(context);
 
-      const handler = requireDefined(
-        routeHandlers.get('**/*'),
-        'Route handler not registered for redirect handling'
-      );
+      const handler = getRouteHandler(routeHandlers, '**/*', 'Redirect handling');
       const { route } = createMockRoute(
         { resourceType: mockRequestResourceType('document') },
         {
@@ -785,14 +766,11 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should track redirects as skipped in injection stats', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { context, routeHandlers } = createRecordingContextFixture();
 
       await initializer.initialize(context);
 
-      const handler = requireDefined(
-        routeHandlers.get('**/*'),
-        'Route handler not registered for redirect handling'
-      );
+      const handler = getRouteHandler(routeHandlers, '**/*', 'Redirect handling');
       const { route } = createMockRoute(
         { resourceType: mockRequestResourceType('document') },
         {
@@ -811,14 +789,11 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should still inject script into 200 OK responses', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { context, routeHandlers } = createRecordingContextFixture();
 
       await initializer.initialize(context);
 
-      const handler = requireDefined(
-        routeHandlers.get('**/*'),
-        'Route handler not registered for redirect handling'
-      );
+      const handler = getRouteHandler(routeHandlers, '**/*', 'Redirect handling');
       const { route } = createMockRoute(
         { resourceType: mockRequestResourceType('document') },
         {
@@ -837,7 +812,7 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should call route.fetch() with a timeout to prevent hanging', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { context, routeHandlers } = createRecordingContextFixture();
 
       await initializer.initialize(context);
 
@@ -888,7 +863,7 @@ describe('RecordingContextInitializer', () => {
      */
 
     it('should set up page.route for event URL but NOT navigation listeners', async () => {
-      const { page, pageListeners, pageRouteHandlers } = createMockPage();
+      const { page, pageListeners, pageRouteHandlers } = createRecordingPageFixture();
       const mockContext = {
         route: jest.fn(),
         pages: jest.fn().mockReturnValue([page]),
@@ -925,7 +900,7 @@ describe('RecordingContextInitializer', () => {
       await initializer.initialize(mockContext);
 
       // Simulate new page creation
-      const { page, pageListeners, pageRouteHandlers } = createMockPage();
+      const { page, pageListeners, pageRouteHandlers } = createRecordingPageFixture();
       const pageHandler = requireDefined(
         contextPageListeners.get('page')?.[0],
         'Page handler not registered on context'
@@ -947,7 +922,7 @@ describe('RecordingContextInitializer', () => {
 
   describe('setupPageEventRoute', () => {
     it('should be idempotent by default (skip if already set up)', async () => {
-      const { page } = createMockPage();
+      const { page } = createRecordingPageFixture();
       const mockContext = {
         route: jest.fn(),
         pages: jest.fn().mockReturnValue([page]),
@@ -967,7 +942,7 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should re-register when force=true', async () => {
-      const { page } = createMockPage();
+      const { page } = createRecordingPageFixture();
       const mockContext = {
         route: jest.fn(),
         pages: jest.fn().mockReturnValue([page]),
@@ -984,6 +959,27 @@ describe('RecordingContextInitializer', () => {
 
       // Should have called page.route again
       expect((page.route as jest.Mock).mock.calls.length).toBeGreaterThan(initialRouteCallCount);
+    });
+
+    it('should serialize concurrent forced registrations', async () => {
+      const { context } = createRecordingContextFixture();
+      await initializer.initialize(context);
+
+      const { page } = createRecordingPageFixture();
+      const routeReady = createDeferred();
+      let registrations = 0;
+      (page.route as jest.Mock).mockImplementation(async () => {
+        registrations += 1;
+        await routeReady.promise;
+      });
+
+      const first = initializer.setupPageEventRoute(page, { force: true });
+      const second = initializer.setupPageEventRoute(page, { force: true });
+      await Promise.resolve();
+
+      expect(registrations).toBe(1);
+      routeReady.resolve();
+      await Promise.all([first, second]);
     });
   });
 });

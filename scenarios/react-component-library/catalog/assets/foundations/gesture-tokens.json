@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "foundations.gesture-tokens",
+    "name": "Gesture Tokens",
+    "kind": "foundation",
+    "domain": "foundations",
+    "description": "The shared interaction feel vocabulary: axis slop, flick velocity, overtravel resistance, dismiss threshold, hover open and close delays, safe-polygon fuse, and long-press timing.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "theme-token",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  }
+}

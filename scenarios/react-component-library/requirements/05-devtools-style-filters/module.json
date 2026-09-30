@@ -1,0 +1,45 @@
+{
+  "_metadata": {
+    "module": "devtools-style-filters",
+    "description": "Chrome-DevTools-style visual filters applied to the preview iframe: color-scheme toggle and vision filters (blur, grayscale, three colorblindness modes).",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DV-001",
+      "title": "Color-scheme toggle (system/light/dark) posts a class to the harness child via the bridge",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "category": "filters",
+      "criticality": "P1",
+      "description": "The Appearance & visual checks menu provides a three-way System/Light/Dark control that posts the resolved color-scheme state to each harness child. The harness applies `color-scheme: <value>` on `:root` and toggles a `dark` class as needed; token packs remain a separate CSS-token override axis.",
+      "tags": ["filters", "iframe-bridge"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "UI component test toggles the control, asserts the bridge message is posted with the expected payload."
+        }
+      ]
+    },
+    {
+      "id": "DV-002",
+      "title": "Vision-filter dropdown applies SVG-defined filters to the iframe",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "category": "filters",
+      "criticality": "P1",
+      "description": "The Appearance & visual checks menu offers none, blur (0–10px), grayscale, protanopia, deuteranopia, and tritanopia. Hidden SVG `<filter>` defs on the host page are composed into `filter: url(#...)` on the iframe wrapper. Colorblindness matrices match `app-monitor`'s `DeviceVisionFilterDefs`.",
+      "tags": ["filters", "a11y"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Component test asserts dropdown selection updates the wrapper's `filter` CSS to the expected `url(#...)` value."
+        }
+      ]
+    }
+  ]
+}

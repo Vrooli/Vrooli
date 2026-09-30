@@ -138,7 +138,7 @@ function buildHealthCheckResult(
   },
   customHealth?: Record<string, unknown>
 ): HealthCheckResult {
-  const { serviceName, version } = options
+  const { serviceName, version, buildIdentity } = options
   const timestamp = new Date().toISOString()
 
   // Determine overall status
@@ -157,6 +157,9 @@ function buildHealthCheckResult(
 
   if (version) {
     result.version = version
+  }
+  if (buildIdentity) {
+    result.build_identity = buildIdentity
   }
 
   // Add API connectivity info if checked
@@ -247,7 +250,7 @@ export function createHealthEndpoint(options: HealthOptions): RequestHandler {
     }
 
     const result = buildHealthCheckResult(
-      { serviceName, version, apiPort, apiHost, timeout },
+      { serviceName, version, buildIdentity: process.env.VROOLI_BUILD_IDENTITY, apiPort, apiHost, timeout },
       apiConnectivity,
       customHealth
     )

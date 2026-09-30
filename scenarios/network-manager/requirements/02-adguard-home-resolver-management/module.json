@@ -1,0 +1,28 @@
+{
+  "_metadata": {
+    "module": "adguard-home-resolver-management",
+    "description": "First managed resolver adapter for AdGuard Home.",
+    "prd_ref": "OT-P0-002",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NM-P0-002",
+      "title": "AdGuard Home is the first managed resolver backend",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "resolver",
+      "criticality": "P0",
+      "description": "The scenario shall expose AdGuard Home setup status, API connectivity, upstream resolver configuration, conservative default filtering state, and resolver health without requiring users to understand the underlying service internals.",
+      "tags": ["adguard-home", "dns", "resolver"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add resolver adapter contract tests tagged [REQ:NM-P0-002] using a fake AdGuard Home client for status, upstream config, and health failure mapping."
+        }
+      ]
+    }
+  ]
+}

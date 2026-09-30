@@ -8,6 +8,7 @@
 import { useMemo } from 'react';
 import { ImageOff } from 'lucide-react';
 import clsx from 'clsx';
+import { selectors } from '@/constants/selectors';
 
 export interface Screenshot {
   /** URL of the screenshot */
@@ -61,9 +62,13 @@ export function ScreenshotSlideshow({
   }
 
   return (
-    <div className={clsx('h-full w-full relative bg-gray-900', className)}>
+    <div
+      data-testid={selectors.replay.player}
+      className={clsx('h-full w-full relative bg-gray-900', className)}
+    >
       {/* Screenshot image */}
       <img
+        data-testid={selectors.replay.screenshot}
         src={currentScreenshot.url}
         alt={currentScreenshot.stepLabel || `Screenshot ${currentIndex + 1}`}
         className={clsx(

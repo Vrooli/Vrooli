@@ -1,0 +1,23 @@
+id: no-private-retention-walk
+language: Go
+severity: error
+message: >-
+  Do not combine a private filesystem walk with deletion. Use
+  packages/api-core/retention for selection and deletion.
+note: >-
+  Keeping traversal, containment, re-stat, and deletion in one engine prevents
+  cleanup callers from drifting into unsafe variants.
+files:
+  - "**/*.go"
+ignores:
+  - "**/*_test.go"
+  - "packages/api-core/retention/**"
+rule:
+  kind: function_declaration
+  all:
+    - has:
+        kind: call_expression
+        regex: 'filepath\.Walk(Dir)?'
+    - has:
+        kind: call_expression
+        regex: 'os\.Remove(All)?'

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { FollowUpSheet } from "./follow-up-sheet";
 import { selectors } from "../../consts/selectors";
 import type { ExecutionRecord, Finalization } from "../../types";
@@ -77,6 +77,14 @@ const defaultProps = {
   onSuccess: vi.fn(),
 };
 
+async function renderSheet(props?: Partial<React.ComponentProps<typeof FollowUpSheet>>) {
+  const result = render(<FollowUpSheet {...defaultProps} {...props} />);
+  await act(async () => {
+    await Promise.resolve();
+  });
+  return result;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   // Default: return no metrics so RunHealthIndicator doesn't render unless overridden
@@ -88,35 +96,35 @@ beforeEach(() => {
 });
 
 describe("FollowUpSheet", () => {
-  it("renders when open", () => {
-    render(<FollowUpSheet {...defaultProps} />);
+  it("renders when open", async () => {
+    await renderSheet();
     expect(screen.getByTestId(selectors.review.followUpSheet)).toBeInTheDocument();
   });
 
-  it("does not render when closed", () => {
-    render(<FollowUpSheet {...defaultProps} isOpen={false} />);
+  it("does not render when closed", async () => {
+    await renderSheet({ isOpen: false });
     expect(screen.queryByTestId(selectors.review.followUpSheet)).toBeNull();
   });
 
-  it("shows fixup type when execution has finalization issues", () => {
+  it("shows fixup type when execution has finalization issues", async () => {
     const exec = makeExecution({ finalization: makeFinalization("needs_work") });
-    render(<FollowUpSheet {...defaultProps} execution={exec} />);
+    await renderSheet({ execution: exec });
     expect(screen.getByTestId(selectors.followUp.typeFixup)).toBeInTheDocument();
   });
 
-  it("hides fixup type when no finalization issues", () => {
-    render(<FollowUpSheet {...defaultProps} />);
+  it("hides fixup type when no finalization issues", async () => {
+    await renderSheet();
     expect(screen.queryByTestId(selectors.followUp.typeFixup)).toBeNull();
   });
 
-  it("shows evidence context when fixup selected and rounds exist", () => {
+  it("shows evidence context when fixup selected and rounds exist", async () => {
     const exec = makeExecution({ finalization: makeFinalization("needs_work") });
-    render(<FollowUpSheet {...defaultProps} execution={exec} reviewRounds={[makeRound()]} />);
+    await renderSheet({ execution: exec, reviewRounds: [makeRound()] });
     expect(screen.getByTestId(selectors.review.evidenceContextSummary)).toBeInTheDocument();
   });
 
-  it("shows evidence context for general follow-up when rounds exist", () => {
-    render(<FollowUpSheet {...defaultProps} reviewRounds={[makeRound()]} />);
+  it("shows evidence context for general follow-up when rounds exist", async () => {
+    await renderSheet({ reviewRounds: [makeRound()] });
     // Evidence context is always shown when rounds exist
     expect(screen.getByTestId(selectors.review.evidenceContextSummary)).toBeInTheDocument();
   });
@@ -127,7 +135,7 @@ describe("FollowUpSheet", () => {
     const onSuccess = vi.fn();
     const onClose = vi.fn();
 
-    render(<FollowUpSheet {...defaultProps} onClose={onClose} onSuccess={onSuccess} />);
+    await renderSheet({ onClose, onSuccess });
     fireEvent.click(screen.getByTestId(selectors.followUp.submitButton));
 
     await waitFor(() => {
@@ -142,7 +150,7 @@ describe("FollowUpSheet", () => {
 
   it("shows error on service failure", async () => {
     mockFollowUp.mockRejectedValue(new Error("Server error"));
-    render(<FollowUpSheet {...defaultProps} />);
+    await renderSheet();
     fireEvent.click(screen.getByTestId(selectors.followUp.submitButton));
 
     await waitFor(() => {
@@ -152,7 +160,7 @@ describe("FollowUpSheet", () => {
 
   it("shows session expired message on 409", async () => {
     mockFollowUp.mockRejectedValue(new Error("409 Conflict"));
-    render(<FollowUpSheet {...defaultProps} />);
+    await renderSheet();
     fireEvent.click(screen.getByTestId(selectors.followUp.submitButton));
 
     await waitFor(() => {
@@ -160,15 +168,15 @@ describe("FollowUpSheet", () => {
     });
   });
 
-  it("disables submit when custom type has no context", () => {
-    render(<FollowUpSheet {...defaultProps} />);
+  it("disables submit when custom type has no context", async () => {
+    await renderSheet();
     fireEvent.click(screen.getByTestId(selectors.followUp.typeCustom));
     expect(screen.getByTestId(selectors.followUp.submitButton)).toBeDisabled();
   });
 
-  it("disables Continue Run when no runId", () => {
+  it("disables Continue Run when no runId", async () => {
     const exec = makeExecution({ runId: undefined });
-    render(<FollowUpSheet {...defaultProps} execution={exec} />);
+    await renderSheet({ execution: exec });
     expect(screen.getByTestId(selectors.followUp.runModeContinue)).toBeDisabled();
   });
 
@@ -183,7 +191,7 @@ describe("FollowUpSheet", () => {
       costEstimate: 1.23,
       changedFiles: 8,
     });
-    render(<FollowUpSheet {...defaultProps} />);
+    await renderSheet();
 
     await waitFor(() => {
       expect(screen.getByTestId(selectors.followUp.runHealth)).toBeInTheDocument();
@@ -202,16 +210,16 @@ describe("FollowUpSheet", () => {
       contextTokens: 160000,
       turnsUsed: 50,
     });
-    render(<FollowUpSheet {...defaultProps} />);
+    await renderSheet();
 
     await waitFor(() => {
       expect(screen.getByText(/context window is filling up/i)).toBeInTheDocument();
     });
   });
 
-  it("does not show run health when no runId", () => {
+  it("does not show run health when no runId", async () => {
     const exec = makeExecution({ runId: undefined });
-    render(<FollowUpSheet {...defaultProps} execution={exec} />);
+    await renderSheet({ execution: exec });
     expect(screen.queryByTestId(selectors.followUp.runHealth)).toBeNull();
   });
 });

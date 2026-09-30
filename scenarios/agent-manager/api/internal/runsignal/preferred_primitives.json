@@ -1,0 +1,6 @@
+[
+  {"intent_key":"blocking-run-observation","discouraged_path":"test-genie runs status","preferred_path":"test-genie runs wait","detect_shape":"repeat-discouraged-without-preferred","min_repeat":2,"rationale_ref":"CLAUDE.md#critical-rule-3"},
+  {"intent_key":"project-search","discouraged_path":"grep","preferred_path":"search-hub query","detect_shape":"repeat-discouraged-without-preferred","min_repeat":2,"rationale_ref":"AGENTS.md#critical-rule-6"},
+  {"intent_key":"project-search","discouraged_path":"rg","preferred_path":"search-hub query","detect_shape":"repeat-discouraged-without-preferred","min_repeat":2,"rationale_ref":"AGENTS.md#critical-rule-6"},
+  {"intent_key":"project-search","discouraged_path":"find","preferred_path":"search-hub query","detect_shape":"repeat-discouraged-without-preferred","min_repeat":2,"rationale_ref":"AGENTS.md#critical-rule-6"}
+]

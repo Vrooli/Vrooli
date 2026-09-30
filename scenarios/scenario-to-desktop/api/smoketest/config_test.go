@@ -73,7 +73,7 @@ func TestConfig_Timeout(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := smoketest.Config{
+			config := smoketest.SmokeTestConfig{
 				TimeoutSeconds: tt.timeoutSeconds,
 			}
 
@@ -120,7 +120,7 @@ func TestConfig_TimeoutMS(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := smoketest.Config{
+			config := smoketest.SmokeTestConfig{
 				TimeoutSeconds: tt.timeoutSeconds,
 			}
 
@@ -151,13 +151,13 @@ func TestConfig_DefaultTimeout(t *testing.T) {
 func TestConfig_TimeoutForDeploymentMode(t *testing.T) {
 	tests := []struct {
 		name           string
-		config         smoketest.Config
+		config         smoketest.SmokeTestConfig
 		deploymentMode string
 		wantDuration   time.Duration
 	}{
 		{
 			name: "bundled mode uses BundledModeTimeoutSeconds",
-			config: smoketest.Config{
+			config: smoketest.SmokeTestConfig{
 				TimeoutSeconds:            30,
 				BundledModeTimeoutSeconds: 60,
 			},
@@ -166,7 +166,7 @@ func TestConfig_TimeoutForDeploymentMode(t *testing.T) {
 		},
 		{
 			name: "external-server mode uses ExternalServerModeTimeoutSeconds",
-			config: smoketest.Config{
+			config: smoketest.SmokeTestConfig{
 				TimeoutSeconds:                   30,
 				ExternalServerModeTimeoutSeconds: 20,
 			},
@@ -175,7 +175,7 @@ func TestConfig_TimeoutForDeploymentMode(t *testing.T) {
 		},
 		{
 			name: "cloud-api mode uses ExternalServerModeTimeoutSeconds",
-			config: smoketest.Config{
+			config: smoketest.SmokeTestConfig{
 				TimeoutSeconds:                   30,
 				ExternalServerModeTimeoutSeconds: 25,
 			},
@@ -184,7 +184,7 @@ func TestConfig_TimeoutForDeploymentMode(t *testing.T) {
 		},
 		{
 			name: "unknown mode falls back to default TimeoutSeconds",
-			config: smoketest.Config{
+			config: smoketest.SmokeTestConfig{
 				TimeoutSeconds:            45,
 				BundledModeTimeoutSeconds: 60,
 			},
@@ -193,7 +193,7 @@ func TestConfig_TimeoutForDeploymentMode(t *testing.T) {
 		},
 		{
 			name: "bundled mode falls back to default when BundledModeTimeoutSeconds is 0",
-			config: smoketest.Config{
+			config: smoketest.SmokeTestConfig{
 				TimeoutSeconds:            30,
 				BundledModeTimeoutSeconds: 0,
 			},
@@ -202,7 +202,7 @@ func TestConfig_TimeoutForDeploymentMode(t *testing.T) {
 		},
 		{
 			name: "external-server falls back to default when ExternalServerModeTimeoutSeconds is 0",
-			config: smoketest.Config{
+			config: smoketest.SmokeTestConfig{
 				TimeoutSeconds:                   30,
 				ExternalServerModeTimeoutSeconds: 0,
 			},
@@ -222,7 +222,7 @@ func TestConfig_TimeoutForDeploymentMode(t *testing.T) {
 }
 
 func TestConfig_TimeoutMSForDeploymentMode(t *testing.T) {
-	config := smoketest.Config{
+	config := smoketest.SmokeTestConfig{
 		TimeoutSeconds:                   30,
 		BundledModeTimeoutSeconds:        60,
 		ExternalServerModeTimeoutSeconds: 20,

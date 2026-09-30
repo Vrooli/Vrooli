@@ -1,9 +1,16 @@
 import { useCallback } from "react";
-import { getConfig } from "@/config";
 import { logger } from "@utils/logger";
 import toast from "react-hot-toast";
+import { ConnectError } from "@connectrpc/connect";
 import type { FileTreeDragPayload } from "../FileTree";
 import { useProjectDetailStore } from "./useProjectDetailStore";
+import { projectFilesClient } from "@/api/projectFiles";
+
+const formatError = (err: unknown, fallback: string): string => {
+  if (err instanceof ConnectError) return err.rawMessage || err.message || fallback;
+  if (err instanceof Error) return err.message || fallback;
+  return fallback;
+};
 
 /**
  * Hook providing file tree CRUD operations for a project
@@ -79,18 +86,10 @@ export function useFileTreeOperations(projectId: string) {
    */
   const createFolder = useCallback(
     async (relPath: string): Promise<void> => {
-      const config = await getConfig();
-      const response = await fetch(
-        `${config.API_URL}/projects/${projectId}/files/mkdir`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ path: relPath }),
-        },
-      );
-      if (!response.ok) {
-        const msg = await response.text();
-        throw new Error(msg || `Failed to create folder: ${response.status}`);
+      try {
+        await projectFilesClient.mkdirProjectPath({ projectId, path: relPath });
+      } catch (err) {
+        throw new Error(formatError(err, "Failed to create folder"));
       }
     },
     [projectId],
@@ -101,7 +100,6 @@ export function useFileTreeOperations(projectId: string) {
    */
   const createWorkflowFile = useCallback(
     async (relPath: string, type: "action" | "flow" | "case", name?: string): Promise<string | undefined> => {
-      const config = await getConfig();
       const inferredName =
         name?.trim() ||
         relPath
@@ -111,33 +109,23 @@ export function useFileTreeOperations(projectId: string) {
           .replace(/\.flow\.json$/i, "")
           .replace(/\.case\.json$/i, "") ||
         "workflow";
-      const response = await fetch(
-        `${config.API_URL}/projects/${projectId}/files/write`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            path: relPath,
-            workflow: {
-              name: inferredName,
-              type,
-              flow_definition: { nodes: [], edges: [] },
-            },
-          }),
-        },
-      );
-      if (!response.ok) {
-        const msg = await response.text();
-        throw new Error(msg || `Failed to create workflow file: ${response.status}`);
+      try {
+        const resp = await projectFilesClient.writeProjectWorkflowFile({
+          projectId,
+          path: relPath,
+          workflow: {
+            name: inferredName,
+            type,
+            flowDefinition: { nodes: [], edges: [] },
+          },
+        });
+        if (resp.warnings && resp.warnings.length > 0) {
+          toast(resp.warnings[0] ?? "Created with warnings");
+        }
+        return resp.workflowId || undefined;
+      } catch (err) {
+        throw new Error(formatError(err, "Failed to create workflow file"));
       }
-      const payload = (await response.json()) as {
-        workflowId?: string;
-        warnings?: string[];
-      };
-      if (payload.warnings && payload.warnings.length > 0) {
-        toast(payload.warnings[0] ?? "Created with warnings");
-      }
-      return payload.workflowId;
     },
     [projectId],
   );
@@ -147,18 +135,10 @@ export function useFileTreeOperations(projectId: string) {
    */
   const moveFile = useCallback(
     async (fromPath: string, toPath: string): Promise<void> => {
-      const config = await getConfig();
-      const response = await fetch(
-        `${config.API_URL}/projects/${projectId}/files/move`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ from_path: fromPath, to_path: toPath }),
-        },
-      );
-      if (!response.ok) {
-        const msg = await response.text();
-        throw new Error(msg || `Failed to move: ${response.status}`);
+      try {
+        await projectFilesClient.moveProjectFile({ projectId, fromPath, toPath });
+      } catch (err) {
+        throw new Error(formatError(err, "Failed to move"));
       }
     },
     [projectId],
@@ -169,18 +149,10 @@ export function useFileTreeOperations(projectId: string) {
    */
   const deleteFile = useCallback(
     async (relPath: string): Promise<void> => {
-      const config = await getConfig();
-      const response = await fetch(
-        `${config.API_URL}/projects/${projectId}/files/delete`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ path: relPath }),
-        },
-      );
-      if (!response.ok) {
-        const msg = await response.text();
-        throw new Error(msg || `Failed to delete: ${response.status}`);
+      try {
+        await projectFilesClient.deleteProjectFile({ projectId, path: relPath });
+      } catch (err) {
+        throw new Error(formatError(err, "Failed to delete"));
       }
     },
     [projectId],
@@ -191,14 +163,7 @@ export function useFileTreeOperations(projectId: string) {
    */
   const resyncFiles = useCallback(async (): Promise<void> => {
     try {
-      const config = await getConfig();
-      const response = await fetch(
-        `${config.API_URL}/projects/${projectId}/files/resync`,
-        { method: "POST" },
-      );
-      if (!response.ok) {
-        throw new Error(`Resync failed: ${response.status}`);
-      }
+      await projectFilesClient.resyncProjectFiles({ projectId });
       toast.success("Project files resynced");
       await fetchProjectEntries(projectId);
       await fetchWorkflows(projectId);
@@ -208,7 +173,7 @@ export function useFileTreeOperations(projectId: string) {
         { component: "useFileTreeOperations", action: "resyncFiles", projectId },
         error,
       );
-      toast.error(error instanceof Error ? error.message : "Failed to resync");
+      toast.error(formatError(error, "Failed to resync"));
       throw error;
     }
   }, [projectId, fetchProjectEntries, fetchWorkflows]);
@@ -218,18 +183,10 @@ export function useFileTreeOperations(projectId: string) {
    */
   const revealProjectPath = useCallback(
     async (relPath: string): Promise<void> => {
-      const config = await getConfig();
-      const response = await fetch(
-        `${config.API_URL}/projects/${projectId}/files/reveal`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ path: relPath }),
-        },
-      );
-      if (!response.ok) {
-        const msg = await response.text();
-        throw new Error(msg || `Failed to open in folder: ${response.status}`);
+      try {
+        await projectFilesClient.revealProjectPath({ projectId, path: relPath });
+      } catch (err) {
+        throw new Error(formatError(err, "Failed to open in folder"));
       }
     },
     [projectId],
@@ -239,14 +196,10 @@ export function useFileTreeOperations(projectId: string) {
    * Opens the project root folder in the system file manager
    */
   const openProjectFolder = useCallback(async (): Promise<void> => {
-    const config = await getConfig();
-    const response = await fetch(
-      `${config.API_URL}/projects/${projectId}/open-folder`,
-      { method: "POST" },
-    );
-    if (!response.ok) {
-      const msg = await response.text();
-      throw new Error(msg || `Failed to open project folder: ${response.status}`);
+    try {
+      await projectFilesClient.openProjectFolder({ projectId });
+    } catch (err) {
+      throw new Error(formatError(err, "Failed to open project folder"));
     }
   }, [projectId]);
 

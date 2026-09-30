@@ -1,126 +1,115 @@
-/**
- * CapturesTab - Lists captures with inline triage via CaptureCard.
- *
- * Users can accept, edit, dismiss, and retry classification directly
- * from the sidebar without leaving the graph view.
- */
-
-import { useState } from "react";
-import { MessageSquare } from "lucide-react";
+/** Capture collection surface. Domain content remains in CaptureCard. */
+import { memo, useMemo } from "react";
+import { Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { CollectionList } from "@vrooli/react-component-library/CollectionList/1";
+import { SIDEBAR_TAB_ICONS } from "../../../../types/constants";
 import { useCaptureStore } from "../../../../stores";
 import { CaptureCard } from "../../../../components/capture/capture-card";
-import { BacklogFormDialog } from "../../../../components/backlog/backlog-form-dialog";
-import { backlogService } from "../../../../services/backlog-service";
-import { useBacklogStore } from "../../../../stores";
-import { useDetailSelectionStore } from "../../../../stores/detail-selection-store";
+import { CollectionRow } from "../../../../components/ui/collection-row";
+import { captureService } from "../../../../services/capture-service";
 import { matchesSearch } from "./useSidebarSearch";
-import type { Capture, BacklogFormValues } from "../../../../types";
+import type { Capture } from "../../../../types";
 import type { CaptureFilters, SortConfig } from "./types";
+import { captureDetailPath } from "../../../../app/routes/route-paths";
+import { SidebarEmptyState } from "./SidebarEmptyState";
+import { Button } from "../../../../components/ui/button";
 
 interface CapturesTabProps {
   searchQuery: string;
   filters: CaptureFilters;
   sort: SortConfig;
-  onItemClick: (nodeId: string) => void;
+  onClearSearch?: () => void;
+  onCreateCapture?: () => void;
 }
 
-function applyFilters(items: Capture[], filters: CaptureFilters): Capture[] {
-  if (filters.statuses.length === 0) return items;
-  return items.filter((c) => filters.statuses.includes(c.status));
+function compareCaptures(sort: SortConfig) {
+  const direction = sort.direction === "asc" ? 1 : -1;
+  return (a: Capture, b: Capture) => {
+    if (sort.field === "alphabetical") return a.text.localeCompare(b.text) * direction;
+    if (sort.field === "status") return a.status.localeCompare(b.status) * direction;
+    return (new Date(b.created).getTime() - new Date(a.created).getTime()) * direction;
+  };
 }
 
-function applySort(items: Capture[], sort: SortConfig): Capture[] {
-  const sorted = [...items];
-  const dir = sort.direction === "asc" ? 1 : -1;
-
-  sorted.sort((a, b) => {
-    switch (sort.field) {
-      case "recency":
-        return (new Date(b.created).getTime() - new Date(a.created).getTime()) * dir;
-      case "status":
-        return a.status.localeCompare(b.status) * dir;
-      case "alphabetical":
-        return a.text.localeCompare(b.text) * dir;
-      default:
-        return (new Date(b.created).getTime() - new Date(a.created).getTime()) * dir;
-    }
-  });
-
-  return sorted;
-}
-
-export function CapturesTab({ searchQuery, filters, sort, onItemClick: _onItemClick }: CapturesTabProps) {
+function CapturesTabImpl({ searchQuery, filters, sort, onClearSearch, onCreateCapture }: CapturesTabProps) {
+  const navigate = useNavigate();
   const captures = useCaptureStore((s) => s.captures);
-  const upsertBacklogItem = useBacklogStore((s) => s.upsertItem);
-  const selectCapture = useDetailSelectionStore((s) => s.selectCapture);
+  const sorted = useMemo(
+    () =>
+      captures
+        .filter(
+          (capture) =>
+            (filters.statuses.length === 0 || filters.statuses.includes(capture.status)) &&
+            (!searchQuery || matchesSearch(searchQuery, capture.text)),
+        )
+        .sort(compareCaptures(sort)),
+    [captures, filters.statuses, searchQuery, sort],
+  );
 
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [editPrefill, setEditPrefill] = useState<BacklogFormValues | undefined>();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-
-  let filtered = applyFilters(captures, filters);
-  if (searchQuery) {
-    filtered = filtered.filter((c) => matchesSearch(searchQuery, c.text));
-  }
-  const sorted = applySort(filtered, sort);
-
-  const handleEditItem = (prefill: BacklogFormValues) => {
-    setEditPrefill(prefill);
-    setSubmitError(null);
-    setShowEditDialog(true);
-  };
-
-  const handleEditSubmit = async (values: BacklogFormValues) => {
-    setIsSubmitting(true);
-    setSubmitError(null);
-    try {
-      const created = await backlogService.create({ ...values, suggestedSkills: [] });
-      upsertBacklogItem(created);
-      setShowEditDialog(false);
-      setEditPrefill(undefined);
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Failed to create backlog item");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const open = (capture: Capture) => navigate(captureDetailPath(capture.id));
 
   if (sorted.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-        <MessageSquare className="mb-2 h-8 w-8" />
-        <p className="text-sm">{searchQuery || filters.statuses.length > 0 ? "No captures match your filters." : "No captures yet."}</p>
-      </div>
+      <SidebarEmptyState
+        icon={SIDEBAR_TAB_ICONS.captures}
+        title={searchQuery || filters.statuses.length ? "No captures match your filters." : "No captures yet."}
+        hint="Quick thoughts and observations land here before classification."
+        query={searchQuery}
+        onClearSearch={onClearSearch}
+        action={
+          onCreateCapture ? (
+            <Button type="button" size="sm" data-testid="captures-tab-create-capture" onClick={onCreateCapture}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Quick capture
+            </Button>
+          ) : undefined
+        }
+      />
     );
   }
 
   return (
-    <>
-      <div className="space-y-1.5">
-        {sorted.map((capture) => (
-          <CaptureCard
-            key={capture.id}
-            capture={capture}
-            onEditItem={handleEditItem}
-            onClick={() => selectCapture(capture.id)}
-            className="rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5"
-          />
-        ))}
-      </div>
-
-      <BacklogFormDialog
-        isOpen={showEditDialog}
-        mode="create"
-        initialValues={editPrefill}
-        isSubmitting={isSubmitting}
-        submitError={submitError}
-        onClose={() => {
-          setShowEditDialog(false);
-          setEditPrefill(undefined);
-        }}
-        onSubmit={handleEditSubmit}
-      />
-    </>
+    <CollectionList
+      items={sorted}
+      getKey={(capture) => capture.id}
+      label="Captures"
+      virtualize
+      onOpen={open}
+      selection={{ mode: "none", enterOn: ["shortcut"] }}
+      actions={[
+        {
+          id: "open",
+          label: "Open",
+          onSelect: ([capture]) => {
+            if (capture) open(capture);
+          },
+        },
+        {
+          id: "classify",
+          label: "Classify",
+          bulk: true,
+          onSelect: async (rows) => {
+            for (const capture of rows) await captureService.classify(capture.id);
+          },
+        },
+        {
+          id: "delete",
+          label: "Delete",
+          tone: "destructive",
+          bulk: true,
+          onSelect: async (rows) => {
+            for (const capture of rows) await captureService.remove(capture.id);
+          },
+        },
+      ]}
+      renderItem={(capture) => (
+        <CollectionRow>
+          <CaptureCard capture={capture} />
+        </CollectionRow>
+      )}
+    />
   );
 }
+
+export const CapturesTab = memo(CapturesTabImpl);

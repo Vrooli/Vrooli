@@ -1,9 +1,81 @@
 package preflight
 
 import (
+	"context"
+	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
+
+	runtimeapi "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/health"
+	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
+
+type jobRuntimeClient struct {
+	applied                   map[string]string
+	validationErr, secretsErr error
+	portsErr, telemetryErr    error
+}
+
+func TestRejectTier2ServiceSecrets(t *testing.T) {
+	if err := rejectTier2ServiceSecrets([]Secret{{ID: "consumer-token", Class: "user"}}); err != nil {
+		t.Fatalf("user-scoped secret rejected: %v", err)
+	}
+	if err := rejectTier2ServiceSecrets([]Secret{{ID: "shared-secret", Class: "service"}}); err == nil {
+		t.Fatal("service-classified secret was accepted")
+	}
+}
+
+func (c *jobRuntimeClient) Status() (*Runtime, error) {
+	return &Runtime{InstanceID: "dry-run", DryRun: true}, nil
+}
+
+func (c *jobRuntimeClient) Validate() (*runtimeapi.BundleValidationResult, error) {
+	return &runtimeapi.BundleValidationResult{Valid: true}, c.validationErr
+}
+
+func (c *jobRuntimeClient) Secrets() ([]Secret, error) {
+	return []Secret{{ID: "API_KEY", Required: true, HasValue: true}}, c.secretsErr
+}
+
+func (c *jobRuntimeClient) ApplySecrets(secrets map[string]string) error {
+	c.applied = secrets
+	return nil
+}
+
+func (c *jobRuntimeClient) Ready(_ Request, _ time.Duration) (Ready, int, error) {
+	return Ready{Ready: true, Details: map[string]health.Status{}}, 2, nil
+}
+
+func (c *jobRuntimeClient) Ports() (map[string]map[string]int, error) {
+	return map[string]map[string]int{"api": {"http": 47710}}, c.portsErr
+}
+
+func (c *jobRuntimeClient) Telemetry() (*Telemetry, error) {
+	return &Telemetry{Path: "runtime/telemetry.jsonl"}, c.telemetryErr
+}
+
+func (c *jobRuntimeClient) LogTails(_ Request) []LogTail {
+	return []LogTail{{ServiceID: "api", Lines: 1, Content: "ready"}}
+}
+
+func TestServiceJanitorLifecycle(t *testing.T) {
+	service := NewService()
+	service.StartJanitor()
+	// Starting twice must not create a second, unowned ticker worker.
+	service.StartJanitor()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := service.StopJanitor(ctx); err != nil {
+		t.Fatalf("StopJanitor() error = %v", err)
+	}
+	if err := service.StopJanitor(ctx); err != nil {
+		t.Fatalf("second StopJanitor() error = %v", err)
+	}
+}
 
 func TestInMemorySessionStore(t *testing.T) {
 	store := NewInMemorySessionStore()
@@ -20,6 +92,68 @@ func TestInMemorySessionStore(t *testing.T) {
 			t.Errorf("expected Stop to return false for nonexistent session")
 		}
 	})
+}
+
+func TestSharedPreflightHelpersValidatePathsAndRuntimeResponses(t *testing.T) {
+	fixture, err := filepath.Abs("../../runtime/testdata/fixture-bundle/bundle.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, manifestPath, err := loadAndValidateManifest(fixture)
+	if err != nil || manifest == nil || manifestPath != fixture {
+		t.Fatalf("load manifest = %#v, %q, %v", manifest, manifestPath, err)
+	}
+	if _, _, err := loadAndValidateManifest(filepath.Join(t.TempDir(), "missing.json")); err == nil {
+		t.Fatal("expected missing manifest error")
+	}
+	root, err := resolveBundleRoot("", fixture)
+	if err != nil || root != filepath.Dir(fixture) {
+		t.Fatalf("default root = %q, %v", root, err)
+	}
+	client := &jobRuntimeClient{}
+	validation, secrets, err := fetchValidationData(client, Request{StatusOnly: true})
+	if err != nil || validation != nil || secrets != nil {
+		t.Fatalf("status-only validation = %#v %#v %v", validation, secrets, err)
+	}
+	validation, secrets, err = fetchValidationData(client, Request{})
+	if err != nil || validation == nil || len(secrets) != 1 {
+		t.Fatalf("validation data = %#v %#v %v", validation, secrets, err)
+	}
+	client.validationErr = errors.New("invalid bundle")
+	if _, _, err := fetchValidationData(client, Request{}); err == nil {
+		t.Fatal("expected validation error")
+	}
+}
+
+func TestPreflightDiagnosticsAndSmallFormatHelpers(t *testing.T) {
+	client := &jobRuntimeClient{}
+	ports, telemetry, tails, err := fetchDiagnostics(client, Request{})
+	if err != nil || ports["api"]["http"] != 47710 || telemetry.Path == "" || len(tails) != 1 {
+		t.Fatalf("diagnostics = %#v %#v %#v %v", ports, telemetry, tails, err)
+	}
+	client.portsErr = errors.New("ports unavailable")
+	if _, _, _, err := fetchDiagnostics(client, Request{}); err == nil {
+		t.Fatal("expected port error")
+	}
+	client.portsErr = nil
+	client.telemetryErr = errors.New("telemetry unavailable")
+	if _, _, _, err := fetchDiagnostics(client, Request{}); err == nil {
+		t.Fatal("expected telemetry error")
+	}
+	if statusErrorSlice(nil) != nil || len(statusErrorSlice(errors.New("offline"))) != 1 {
+		t.Fatal("status error conversion is incorrect")
+	}
+	if formatExpiresAt(time.Time{}) != "" || formatExpiresAt(time.Unix(0, 0)) == "" {
+		t.Fatal("expiry formatting is incorrect")
+	}
+	portPath := filepath.Join(t.TempDir(), "ipc_port")
+	if err := os.WriteFile(portPath, []byte("47710\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	port, err := readPortFileWithRetry(portPath, time.Second)
+	if err != nil || port != 47710 {
+		t.Fatalf("port file = %d, %v", port, err)
+	}
 }
 
 // createAndGetJob creates a job in the store and returns it, failing the test if creation fails.
@@ -222,6 +356,67 @@ func TestServiceCreateJob(t *testing.T) {
 	}
 	if job.Status != "running" {
 		t.Errorf("expected status 'running', got %q", job.Status)
+	}
+}
+
+func TestRunPreflightJobRejectsMissingManifestBeforeRuntimeStartup(t *testing.T) {
+	jobs := NewInMemoryJobStore()
+	runtimeStarted := false
+	service := NewService(
+		WithJobStore(jobs),
+		WithRuntimeFactory(func(_ *bundlemanifest.Manifest, _ string, _ time.Duration) (*RuntimeHandle, error) {
+			runtimeStarted = true
+			return nil, nil
+		}),
+	)
+	job := service.CreateJob()
+	service.RunPreflightJob(job.ID, Request{})
+	completed := mustGetJob(t, jobs, job.ID)
+	if runtimeStarted {
+		t.Fatal("runtime startup must not occur without a manifest path")
+	}
+	if completed.Status != "failed" || completed.Steps["validation"].State != "fail" {
+		t.Fatalf("job = %#v, want validation failure", completed)
+	}
+	if completed.Err != "bundle_manifest_path is required" {
+		t.Fatalf("job error = %q", completed.Err)
+	}
+}
+
+func TestRunPreflightJobCollectsRuntimeEvidenceAndCompletes(t *testing.T) {
+	fixture, err := filepath.Abs("../../runtime/testdata/fixture-bundle/bundle.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(fixture); err != nil {
+		t.Fatalf("fixture manifest unavailable: %v", err)
+	}
+	jobs := NewInMemoryJobStore()
+	client := &jobRuntimeClient{}
+	service := NewService(
+		WithJobStore(jobs),
+		WithTimeProvider(func() time.Time { return time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC) }),
+		WithRuntimeFactory(func(_ *bundlemanifest.Manifest, _ string, _ time.Duration) (*RuntimeHandle, error) {
+			return &RuntimeHandle{Client: client, SessionID: "dry-run-session"}, nil
+		}),
+	)
+	job := service.CreateJob()
+	service.RunPreflightJob(job.ID, Request{BundleManifestPath: fixture, Secrets: map[string]string{"API_KEY": "present"}})
+	completed := mustGetJob(t, jobs, job.ID)
+	if completed.Status != "completed" || completed.Result == nil {
+		t.Fatalf("job = %#v, want completed result", completed)
+	}
+	if completed.Result.SessionID != "dry-run-session" || completed.Result.Ready == nil || !completed.Result.Ready.Ready {
+		t.Fatalf("runtime result = %#v", completed.Result)
+	}
+	if completed.Result.Runtime == nil || completed.Result.Runtime.BundleRoot != filepath.Dir(fixture) {
+		t.Fatalf("runtime evidence = %#v", completed.Result.Runtime)
+	}
+	if client.applied["API_KEY"] != "present" {
+		t.Fatalf("secrets were not applied: %#v", client.applied)
+	}
+	if completed.Result.Ports["api"]["http"] != 47710 || completed.Result.Telemetry == nil {
+		t.Fatalf("diagnostics evidence = ports=%#v telemetry=%#v", completed.Result.Ports, completed.Result.Telemetry)
 	}
 }
 

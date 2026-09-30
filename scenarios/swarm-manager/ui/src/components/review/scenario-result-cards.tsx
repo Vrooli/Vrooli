@@ -8,11 +8,12 @@
 
 import { Check, AlertTriangle, X, Minus, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
-import { renderMarkdown } from "../../lib/render-markdown";
+import { useNavigate } from "react-router-dom";
+import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0";
 import { cn } from "../../lib";
-import { useDetailSelectionStore } from "../../stores/detail-selection-store";
 import { selectors } from "../../consts/selectors";
 import type { ExecutionRecord, ScenarioFinalization, FinalizationStatus, ReviewDimension } from "../../types";
+import { scenarioDetailPath } from "../../app/routes/route-paths";
 
 export interface ScenarioResultCardsProps {
   execution: ExecutionRecord;
@@ -79,7 +80,7 @@ function ScenarioCard({
 }: {
   scenario: ScenarioFinalization;
 }) {
-  const selectScenario = useDetailSelectionStore((s) => s.selectScenario);
+  const navigate = useNavigate();
   const review = scenario.review;
   const classification = review.result?.classification;
   const dimensions = review.result?.dimensions ?? [];
@@ -106,7 +107,7 @@ function ScenarioCard({
 
         <button
           type="button"
-          onClick={() => selectScenario(scenario.scenarioName)}
+          onClick={() => navigate(scenarioDetailPath(scenario.scenarioName))}
           className="text-xs font-medium text-slate-200 hover:text-violet-400 transition-colors truncate"
         >
           {scenario.scenarioName}
@@ -147,14 +148,14 @@ function ScenarioCard({
           {scenario.health.details && scenario.health.status !== "completed" && (
             <div className="flex items-start gap-1.5 text-[11px] text-red-300">
               <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-              <span className="prose-sm-slate" dangerouslySetInnerHTML={{ __html: renderMarkdown(scenario.health.details) }} />
+              <MarkdownRenderer content={scenario.health.details} className="prose-sm-slate" />
             </div>
           )}
           {review.skipReason && (
-            <div className="prose-sm-slate text-[11px] text-amber-300" dangerouslySetInnerHTML={{ __html: renderMarkdown(review.skipReason) }} />
+            <MarkdownRenderer content={review.skipReason} className="prose-sm-slate text-[11px] text-amber-300" />
           )}
           {summary && (
-            <div className="prose-sm-slate text-[11px] leading-relaxed text-slate-400" dangerouslySetInnerHTML={{ __html: renderMarkdown(summary) }} />
+            <MarkdownRenderer content={summary} className="prose-sm-slate text-[11px] leading-relaxed text-slate-400" />
           )}
         </div>
       )}

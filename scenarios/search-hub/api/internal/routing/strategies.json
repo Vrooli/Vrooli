@@ -1,0 +1,38 @@
+{
+  "active_strategy": "lexical-cross-encoder",
+  "router_factors": {
+    "max_fanout_width": 6,
+    "widen_threshold": 0.45,
+    "per_provider_timeout": "4s",
+    "concurrency": 8,
+    "query_budget": "25s",
+    "zero_yield_minimum_routes": 5,
+    "demotion_window": "15m"
+  },
+  "strategies": [
+    {
+      "name": "semantic-cross-encoder",
+      "description": "Guarded semantic candidate: provider-description ranking over every eligible leaf, followed by cross-encoder selection and bounded fan-out.",
+      "stages": [
+        {"kind": "lexical", "params": {"role": "provider_description_fallback", "shortlist_width": 6}},
+        {"kind": "embedding", "params": {"role": "provider_description_shortlist", "candidate_scope": "all", "evidence_scope": "all", "fusion": "reciprocal_rank", "selection_policy": "lexical_guarded", "evidence_width": 6}},
+        {"kind": "cross_encoder", "params": {"selection": "provider_pick", "fanout_width": 6}}
+      ]
+    },
+    {
+      "name": "lexical-cross-encoder",
+      "description": "Named fallback: lexical provider shortlist followed by cross-encoder selection.",
+      "stages": [
+        {"kind": "lexical", "params": {"shortlist_width": 6}},
+        {"kind": "cross_encoder", "params": {"selection": "provider_pick", "fanout_width": 6}}
+      ]
+    },
+    {
+      "name": "lexical-fallback",
+      "description": "Zero-dependency fallback: lexical provider shortlist with bounded fan-out.",
+      "stages": [
+        {"kind": "lexical", "params": {"shortlist_width": 6}}
+      ]
+    }
+  ]
+}

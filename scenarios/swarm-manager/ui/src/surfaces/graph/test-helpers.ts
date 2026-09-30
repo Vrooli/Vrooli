@@ -17,7 +17,7 @@ import type {
   GraphEdge,
   GraphEntityType,
   GraphNode,
-  InitiativeGraphNodeData,
+  GoalGraphNodeData,
   RunGraphNodeData,
   ScenarioGraphNodeData,
 } from "./types";
@@ -62,15 +62,15 @@ export function makeBacklogNode(
   };
 }
 
-export function makeInitiativeNode(
+export function makeGoalNode(
   id: string,
-  overrides: Partial<InitiativeGraphNodeData> = {},
+  overrides: Partial<GoalGraphNodeData> = {},
 ): GraphNode {
-  const name = id.replace(/^initiative\//, "") || lastSegment(id);
-  const data: InitiativeGraphNodeData = {
+  const name = id.replace(/^goal\//, "") || lastSegment(id);
+  const data: GoalGraphNodeData = {
     label: overrides.label ?? overrides.title ?? name,
-    entityType: "initiative",
-    rawType: "Initiative",
+    entityType: "goal",
+    rawType: "Goal",
     name,
     title: overrides.title ?? name,
     status: overrides.status ?? "active",
@@ -87,7 +87,7 @@ export function makeInitiativeNode(
 
   return {
     id,
-    type: "initiative",
+    type: "goal",
     position: DEFAULT_POSITION,
     data,
   };
@@ -237,7 +237,7 @@ export function makeGraphNode(
   overrides:
     | Partial<AgentActivityGraphNodeData>
     | Partial<BacklogGraphNodeData>
-    | Partial<InitiativeGraphNodeData>
+    | Partial<GoalGraphNodeData>
     | Partial<CaptureGraphNodeData>
     | Partial<ScenarioGraphNodeData>
     | Partial<ExecutionGraphNodeData>
@@ -246,8 +246,8 @@ export function makeGraphNode(
   switch (entityType) {
     case "backlog":
       return makeBacklogNode(id, overrides as Partial<BacklogGraphNodeData>);
-    case "initiative":
-      return makeInitiativeNode(id, overrides as Partial<InitiativeGraphNodeData>);
+    case "goal":
+      return makeGoalNode(id, overrides as Partial<GoalGraphNodeData>);
     case "capture":
       return makeCaptureNode(id, overrides as Partial<CaptureGraphNodeData>);
     case "scenario":
@@ -268,7 +268,7 @@ export function makeClusterNodeData(
 ): ClusterGraphNodeData {
   return {
     label: overrides.label ?? "Cluster",
-    entityType: "initiative",
+    entityType: "goal",
     rawType: "Cluster",
     collapsed: overrides.collapsed ?? true,
     rollup: overrides.rollup ?? null,

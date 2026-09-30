@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package vrooli.git_control_tower.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/shared;shared_v1";
+
+// HEALTH DOMAIN
+//
+// The health endpoint remains an operational REST exception so lifecycle
+// managers and load balancers can probe it without a Connect client. This
+// message makes its JSON payload typed and keeps the wire contract aligned
+// with api-core/health.Response.
+
+message DependencyStatus {
+  bool connected = 1;
+  double latency_ms = 2;
+  string error = 3;
+  string database = 4;
+}
+
+message HealthResponse {
+  string status = 1;
+  string service = 2;
+  string timestamp = 3;
+  bool readiness = 4;
+  string version = 5;
+  double uptime_seconds = 6;
+  map<string, DependencyStatus> dependencies = 7;
+}

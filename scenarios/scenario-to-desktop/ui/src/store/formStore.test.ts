@@ -5,6 +5,8 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { act } from "@testing-library/react";
+import { create } from "@bufbuild/protobuf";
+import { ProbeEndpointsResponseSchema } from "@vrooli/proto-types/scenario-to-desktop/v1/domain/operations_pb";
 import { useFormStore } from "./formStore";
 import {
   defaultAppMetadata,
@@ -117,10 +119,10 @@ describe("formStore", () => {
       const store = useFormStore.getState();
 
       act(() => {
-        store.setFramework("tauri");
+        store.setFramework("electron");
       });
 
-      expect(useFormStore.getState().deployment.framework).toBe("tauri");
+      expect(useFormStore.getState().deployment.framework).toBe("electron");
     });
   });
 
@@ -142,7 +144,9 @@ describe("formStore", () => {
         store.setOutputPath("/custom/output/path");
       });
 
-      expect(useFormStore.getState().output.outputPath).toBe("/custom/output/path");
+      expect(useFormStore.getState().output.outputPath).toBe(
+        "/custom/output/path",
+      );
     });
   });
 
@@ -187,7 +191,9 @@ describe("formStore", () => {
         store.setProxyUrl("https://proxy.example.com");
       });
 
-      expect(useFormStore.getState().connection.proxyUrl).toBe("https://proxy.example.com");
+      expect(useFormStore.getState().connection.proxyUrl).toBe(
+        "https://proxy.example.com",
+      );
     });
 
     it("setBundleManifestPath updates bundle manifest path", () => {
@@ -197,7 +203,9 @@ describe("formStore", () => {
         store.setBundleManifestPath("/path/to/bundle.json");
       });
 
-      expect(useFormStore.getState().connection.bundleManifestPath).toBe("/path/to/bundle.json");
+      expect(useFormStore.getState().connection.bundleManifestPath).toBe(
+        "/path/to/bundle.json",
+      );
     });
 
     it("setServerPort updates server port", () => {
@@ -217,7 +225,9 @@ describe("formStore", () => {
         store.setLocalServerPath("dist/server.js");
       });
 
-      expect(useFormStore.getState().connection.localServerPath).toBe("dist/server.js");
+      expect(useFormStore.getState().connection.localServerPath).toBe(
+        "dist/server.js",
+      );
     });
 
     it("setLocalApiEndpoint updates local API endpoint", () => {
@@ -227,7 +237,9 @@ describe("formStore", () => {
         store.setLocalApiEndpoint("http://localhost:4000/api");
       });
 
-      expect(useFormStore.getState().connection.localApiEndpoint).toBe("http://localhost:4000/api");
+      expect(useFormStore.getState().connection.localApiEndpoint).toBe(
+        "http://localhost:4000/api",
+      );
     });
 
     it("setAutoManageTier1 updates auto manage tier 1 flag", () => {
@@ -247,34 +259,48 @@ describe("formStore", () => {
         store.setVrooliBinaryPath("/usr/local/bin/vrooli");
       });
 
-      expect(useFormStore.getState().connection.vrooliBinaryPath).toBe("/usr/local/bin/vrooli");
+      expect(useFormStore.getState().connection.vrooliBinaryPath).toBe(
+        "/usr/local/bin/vrooli",
+      );
     });
 
     it("setConnectionResult updates connection result", () => {
       const store = useFormStore.getState();
-      const mockResult = {
-        server: { status: "ok" as const, status_code: 200, url: "https://example.com" },
-        api: { status: "ok" as const, status_code: 200, url: "https://example.com/api" },
-      };
+      const mockResult = create(ProbeEndpointsResponseSchema, {
+        server: {
+          status: "ok" as const,
+          statusCode: 200,
+        },
+        api: {
+          status: "ok" as const,
+          statusCode: 200,
+        },
+      });
 
       act(() => {
         store.setConnectionResult(mockResult);
       });
 
-      expect(useFormStore.getState().connection.connectionResult).toEqual(mockResult);
+      expect(useFormStore.getState().connection.connectionResult).toEqual(
+        mockResult,
+      );
     });
 
     it("setConnectionResult clears result when null", () => {
       const store = useFormStore.getState();
 
       act(() => {
-        store.setConnectionResult({
-          server: { status: "ok", status_code: 200 },
-          api: { status: "ok", status_code: 200 },
-        });
+        store.setConnectionResult(
+          create(ProbeEndpointsResponseSchema, {
+            server: { status: "ok", statusCode: 200 },
+            api: { status: "ok", statusCode: 200 },
+          }),
+        );
       });
 
-      expect(useFormStore.getState().connection.connectionResult).not.toBeNull();
+      expect(
+        useFormStore.getState().connection.connectionResult,
+      ).not.toBeNull();
 
       act(() => {
         store.setConnectionResult(null);
@@ -290,7 +316,9 @@ describe("formStore", () => {
         store.setConnectionError("Connection failed");
       });
 
-      expect(useFormStore.getState().connection.connectionError).toBe("Connection failed");
+      expect(useFormStore.getState().connection.connectionError).toBe(
+        "Connection failed",
+      );
     });
 
     it("setConnectionError clears error when null", () => {
@@ -300,7 +328,9 @@ describe("formStore", () => {
         store.setConnectionError("Some error");
       });
 
-      expect(useFormStore.getState().connection.connectionError).toBe("Some error");
+      expect(useFormStore.getState().connection.connectionError).toBe(
+        "Some error",
+      );
 
       act(() => {
         store.setConnectionError(null);
@@ -353,7 +383,9 @@ describe("formStore", () => {
       const store = useFormStore.getState();
 
       act(() => {
-        store.setValidationErrors([{ id: "1", field: "test", message: "error" }]);
+        store.setValidationErrors([
+          { id: "1", field: "test", message: "error" },
+        ]);
       });
 
       expect(useFormStore.getState().validationErrors).toHaveLength(1);
@@ -389,7 +421,7 @@ describe("formStore", () => {
         store.setIconPath("/custom/icon.png");
         store.setDeploymentMode("external-server");
         store.setServerType("node");
-        store.setFramework("tauri");
+        store.setFramework("electron");
         store.setLocationMode("custom");
         store.setOutputPath("/custom/output");
         store.setPlatforms({ win: false, mac: false, linux: true });
@@ -399,7 +431,9 @@ describe("formStore", () => {
         store.setAutoManageTier1(true);
         store.setSigningEnabledForBuild(true);
         store.setSelectedTemplate("advanced");
-        store.setValidationErrors([{ id: "1", field: "test", message: "error" }]);
+        store.setValidationErrors([
+          { id: "1", field: "test", message: "error" },
+        ]);
         store.setScenarioLocked(true);
       });
 
@@ -450,13 +484,13 @@ describe("formStore", () => {
       act(() => {
         store.hydrateFromServer({
           deployment: {
-            framework: "tauri",
+            framework: "electron",
           },
         });
       });
 
       const state = useFormStore.getState();
-      expect(state.deployment.framework).toBe("tauri");
+      expect(state.deployment.framework).toBe("electron");
       // Other fields should remain at defaults
       expect(state.deployment.mode).toBe("bundled");
       expect(state.deployment.serverType).toBe("external");
@@ -549,7 +583,9 @@ describe("formStore", () => {
       });
 
       // State should be unchanged
-      expect(useFormStore.getState().appMetadata.displayName).toBe("Custom Name");
+      expect(useFormStore.getState().appMetadata.displayName).toBe(
+        "Custom Name",
+      );
     });
 
     it("handles all fields in one call", () => {

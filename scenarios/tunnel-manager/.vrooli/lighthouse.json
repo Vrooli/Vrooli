@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
   "_metadata": {
-    "description": "Lighthouse config for Tunnel Manager dashboard",
-    "last_updated": "2026-02-19T00:00:00Z"
+    "description": "Baseline Lighthouse config for the React + Vite template",
+    "last_updated": "2026-05-03T00:00:00Z"
   },
   "enabled": true,
   "pages": [

@@ -1,0 +1,341 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.meta_optimization_manager.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.meta_optimization_manager.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "convergence_status",
+      "path": "/vrooli.meta_optimization_manager.v1.convergence.ConvergenceService/GetConvergenceStatus",
+      "method": "POST",
+      "summary": "Convergence status",
+      "description": "Returns per-template four-lens fitness + gold-star generated-golden health across all templates (OT-P1-002). Computed live; persists a dated audit record for the trend.",
+      "category": "convergence",
+      "response": {
+        "type": "object",
+        "properties": {
+          "references": "array<ReferenceHealth>",
+          "templates": "array<TemplateFitness>"
+        }
+      }
+    },
+    {
+      "id": "convergence_template_fitness",
+      "path": "/vrooli.meta_optimization_manager.v1.convergence.ConvergenceService/GetTemplateFitness",
+      "method": "POST",
+      "summary": "Template fitness",
+      "description": "Returns the four-lens fitness counts + advisory tier for one template (or all).",
+      "category": "convergence",
+      "response": {
+        "type": "object",
+        "properties": {
+          "templates": "array<TemplateFitness>"
+        }
+      }
+    },
+    {
+      "id": "convergence_references",
+      "path": "/vrooli.meta_optimization_manager.v1.convergence.ConvergenceService/ListReferences",
+      "method": "POST",
+      "summary": "List reference health",
+      "description": "Returns gold-star generated-golden health + eligibility (stale-from-template, clean-on-all-tools, ≥60d stability, breadth), optionally filtered by eligibility.",
+      "category": "convergence",
+      "response": {
+        "type": "object",
+        "properties": {
+          "references": "array<ReferenceHealth>"
+        }
+      }
+    },
+    {
+      "id": "convergence_trend",
+      "path": "/vrooli.meta_optimization_manager.v1.convergence.ConvergenceService/GetConvergenceTrend",
+      "method": "POST",
+      "summary": "Convergence trend",
+      "description": "Returns per-replica-cost / coordinated-edit points over the dated fitness-audit records (the compounding proof), optionally for one template.",
+      "category": "convergence",
+      "response": {
+        "type": "object",
+        "properties": {
+          "points": "array<FitnessTrendPoint>"
+        }
+      }
+    },
+    {
+      "id": "coverage_status",
+      "path": "/vrooli.meta_optimization_manager.v1.coverage.CoverageService/GetStatus",
+      "method": "POST",
+      "summary": "Readiness scoreboard",
+      "description": "Returns per-projection coverage + denominator-confidence + the latest empirical trend (OT-P0-001). Degrades gracefully per-projection when an owner is unreachable.",
+      "category": "coverage",
+      "response": {
+        "type": "object",
+        "properties": {
+          "latest_trial_trend": "EmpiricalTrendPoint",
+          "projections": "array<ProjectionCoverage>"
+        }
+      }
+    },
+    {
+      "id": "coverage_list_cells",
+      "path": "/vrooli.meta_optimization_manager.v1.coverage.CoverageService/ListCells",
+      "method": "POST",
+      "summary": "List denominator cells",
+      "description": "Returns the denominator grid rows with live status applied, optionally filtered by projection and status.",
+      "category": "coverage",
+      "response": {
+        "type": "object",
+        "properties": {
+          "cells": "array<Cell>"
+        }
+      }
+    },
+    {
+      "id": "coverage_explain_cell",
+      "path": "/vrooli.meta_optimization_manager.v1.coverage.CoverageService/ExplainCell",
+      "method": "POST",
+      "summary": "Explain a cell",
+      "description": "Returns one cell by namespaced id (<projection>/<id>) with its provenance citations.",
+      "category": "coverage",
+      "response": {
+        "type": "object",
+        "properties": {
+          "cell": "Cell"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No cell with that id"
+        }
+      ]
+    },
+    {
+      "id": "coverage_validate_docs",
+      "path": "/vrooli.meta_optimization_manager.v1.coverage.CoverageService/ValidateBaseDocs",
+      "method": "POST",
+      "summary": "Validate base docs (self-honesty gate)",
+      "description": "Checks the space docs themselves (OT-P0-004): guide rows map to a skill, authored-NOW cells have a live provider. ok=false when any ERROR-severity issue exists.",
+      "category": "coverage",
+      "response": {
+        "type": "object",
+        "properties": {
+          "issues": "array<BaseDocIssue>",
+          "ok": "bool"
+        }
+      }
+    },
+    {
+      "id": "focus_get",
+      "path": "/vrooli.meta_optimization_manager.v1.focus.FocusService/GetFocus",
+      "method": "POST",
+      "summary": "Ranked next-best gaps",
+      "description": "Returns the ranked next-best gaps (impact × importance) with qualitative context (OT-P0-002). Optionally filtered by projection and capped by limit.",
+      "category": "focus",
+      "response": {
+        "type": "object",
+        "properties": {
+          "items": "array<FocusItem>"
+        }
+      }
+    },
+    {
+      "id": "focus_list_gaps",
+      "path": "/vrooli.meta_optimization_manager.v1.focus.FocusService/ListGaps",
+      "method": "POST",
+      "summary": "List the gaps registry",
+      "description": "Returns the full gaps registry (live-derived non-NOW cells overlaid with the owned registry), optionally filtered by projection/cell/status (OT-P0-003).",
+      "category": "focus",
+      "response": {
+        "type": "object",
+        "properties": {
+          "gaps": "array<Gap>"
+        }
+      }
+    },
+    {
+      "id": "focus_get_gap",
+      "path": "/vrooli.meta_optimization_manager.v1.focus.FocusService/GetGap",
+      "method": "POST",
+      "summary": "Get one gap",
+      "description": "Returns one gap by id with its full qualitative context.",
+      "category": "focus",
+      "response": {
+        "type": "object",
+        "properties": {
+          "gap": "Gap"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No gap with that id"
+        }
+      ]
+    },
+    {
+      "id": "focus_add_gap_note",
+      "path": "/vrooli.meta_optimization_manager.v1.focus.FocusService/AddGapNote",
+      "method": "POST",
+      "summary": "Append an explored approach to a gap",
+      "description": "Appends an explored-but-unbuilt approach to a gap — the one focus write verb (the 'store our thinking' primitive). Materializes a registry row for a derived gap.",
+      "category": "focus",
+      "response": {
+        "type": "object",
+        "properties": {
+          "gap": "Gap"
+        }
+      }
+    },
+    {
+      "id": "focus_list_condition",
+      "path": "/vrooli.meta_optimization_manager.v1.focus.FocusService/ListCondition",
+      "method": "POST",
+      "summary": "Observed condition findings",
+      "description": "Lists condition findings derived from serving telemetry.",
+      "category": "focus",
+      "response": {
+        "type": "object",
+        "properties": {
+          "gaps": "array<Gap>"
+        }
+      }
+    },
+    {
+      "id": "focus_explain_condition",
+      "path": "/vrooli.meta_optimization_manager.v1.focus.FocusService/ExplainCondition",
+      "method": "POST",
+      "summary": "Explain condition leg",
+      "description": "Explains one provider leg's observed condition evidence.",
+      "category": "focus",
+      "response": {
+        "type": "object",
+        "properties": {
+          "gap": "Gap"
+        }
+      }
+    },
+    {
+      "id": "trials_list_tasks",
+      "path": "/vrooli.meta_optimization_manager.v1.trials.TrialsService/ListTrialTasks",
+      "method": "POST",
+      "summary": "List trial tasks",
+      "description": "Returns the trial task suite generated from the Guide space (one task per Guide row + negative honesty cases), optionally filtered by suite.",
+      "category": "trials",
+      "response": {
+        "type": "object",
+        "properties": {
+          "tasks": "array<TrialTask>"
+        }
+      }
+    },
+    {
+      "id": "trials_run",
+      "path": "/vrooli.meta_optimization_manager.v1.trials.TrialsService/RunTrials",
+      "method": "POST",
+      "summary": "Run trials (explicit invocation)",
+      "description": "Reconciles MoM's declared role-only profile, then dispatches a task or suite through Agent Manager's sandboxed runner, evaluates the produced diff against the fixture oracle, and records the runs (OT-P1-001). EXPLICIT INVOCATION ONLY — never auto-runs; always sandboxed.",
+      "category": "trials",
+      "response": {
+        "type": "object",
+        "properties": {
+          "runs": "array<TrialRun>"
+        }
+      }
+    },
+    {
+      "id": "trials_history",
+      "path": "/vrooli.meta_optimization_manager.v1.trials.TrialsService/GetTrialHistory",
+      "method": "POST",
+      "summary": "Trial history trend",
+      "description": "Returns the success-rate / tokens / wall-time trend over time plus the most recent runs, optionally filtered by task or suite.",
+      "category": "trials",
+      "response": {
+        "type": "object",
+        "properties": {
+          "points": "array<TrialHistoryPoint>",
+          "recent_runs": "array<TrialRun>"
+        }
+      }
+    },
+    {
+      "id": "trials_show",
+      "path": "/vrooli.meta_optimization_manager.v1.trials.TrialsService/GetTrialRun",
+      "method": "POST",
+      "summary": "Show one trial run",
+      "description": "Returns one run by id with its verdict, sandbox diff ref, tokens, and wall-time.",
+      "category": "trials",
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "TrialRun"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No run with that id"
+        }
+      ]
+    },
+    {
+      "id": "trials_gate_coverage",
+      "path": "/vrooli.meta_optimization_manager.v1.trials.TrialsService/GetGateCoverage",
+      "method": "POST",
+      "summary": "Guide-gate coverage",
+      "description": "Returns the % of Guide-space tasks that have at least one live empirical gate (the recursive Guide-coverage metric).",
+      "category": "trials",
+      "response": {
+        "type": "object",
+        "properties": {
+          "gate_coverage_ratio": "double",
+          "guide_tasks_total": "int",
+          "guide_tasks_with_gate": "int"
+        }
+      }
+    }
+  ]
+}

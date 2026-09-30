@@ -1,0 +1,59 @@
+{
+  "shortNames": {
+    "external:operator": "OP",
+    "external:vision-walk": "VW",
+    "member:brand-manager": "BM",
+    "member:producer": "P",
+    "por:docs/marketing/strategy/AUDIENCES.md": "CANON2",
+    "por:docs/marketing/strategy/STRATEGY.md": "CANON1",
+    "process:learning-synthesis": "LEARN",
+    "topic:audience-scan/*": "AS",
+    "topic:brand-snapshot/*": "BRANDSNAP",
+    "topic:brand-snapshot/YYYY-MM-DD": "BRANDSNAPSHO",
+    "topic:channel-scan/*": "CHAN",
+    "topic:competitor-record/*": "COMP",
+    "topic:format-scan/*": "FORMAT",
+    "topic:hook-record/*": "HOOK",
+    "topic:marketing-craft-observation/*": "MCO",
+    "topic:monetization-benchmark-adjacent-record/*": "MB",
+    "topic:skill-scan/*": "SKILL",
+    "topic:workflow-scan/*": "WF"
+  },
+  "displays": {
+    "external:operator": "Operator",
+    "external:vision-walk": "Vision walk",
+    "member:brand-manager": "Brand Manager",
+    "member:producer": "Producer",
+    "process:learning-synthesis": "Learning synthesis"
+  },
+  "nodeOrder": [
+    "topic:audience-scan/*",
+    "member:brand-manager",
+    "topic:brand-snapshot/*",
+    "topic:brand-snapshot/YYYY-MM-DD",
+    "por:docs/marketing/strategy/STRATEGY.md",
+    "por:docs/marketing/strategy/AUDIENCES.md",
+    "topic:channel-scan/*",
+    "topic:competitor-record/*",
+    "topic:format-scan/*",
+    "topic:hook-record/*",
+    "process:learning-synthesis",
+    "topic:monetization-benchmark-adjacent-record/*",
+    "topic:marketing-craft-observation/*",
+    "external:operator",
+    "member:producer",
+    "topic:skill-scan/*",
+    "external:vision-walk",
+    "topic:workflow-scan/*"
+  ],
+  "readabilityEdges": [
+    {
+      "from": "process:learning-synthesis",
+      "to": "topic:marketing-craft-observation/*"
+    },
+    {
+      "from": "topic:marketing-craft-observation/*",
+      "to": "process:learning-synthesis"
+    }
+  ]
+}

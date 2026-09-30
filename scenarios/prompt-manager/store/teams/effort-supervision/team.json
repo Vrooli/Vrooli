@@ -1,0 +1,128 @@
+{
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "effort-supervisor",
+    "reportingMode": "leader",
+    "messagingMode": "async-inbox",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": true,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": false,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": false
+    }
+  },
+  "createdAt": "2026-09-12T00:00:00Z",
+  "displayName": "Effort Supervision",
+  "enabled": true,
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "id": "effort-supervision",
+  "instrument": {
+    "status": "partial",
+    "scenario": "agent-manager",
+    "archetype": "coverage-board",
+    "coversScenarios": [
+      "agent-manager",
+      "prompt-manager"
+    ],
+    "gapMarker": "2026-09-30 \u2014 The supervisor is an ordinary member heartbeat (daily schedule plus inbox wakes); each goal's orchestrator runs its daily journey qualification. Agent Manager keeps the effort board and token accounting. No unattended supervised goal has run yet."
+  },
+  "kind": "team",
+  "lifetime": "standing",
+  "mission": "Supervise delivery orchestrators from above: repair the shared infrastructure their workaround logs name, audit sampled accepted epochs and every step-back, and report weighted cost per accepted epoch.",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "effort-supervision-contract",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/agent-system/EFFORT_SUPERVISION.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/agent-system/EFFORT_SUPERVISION.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-supervision/SKILL.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/prompt-manager/docs/concepts/HEARTBEATS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md"
+            }
+          ],
+          "writePolicy": "owner-authorized amendments only",
+          "consumers": [
+            "effort-supervision"
+          ],
+          "useFor": "supervision method, authority and scheduling"
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "team-charter",
+          "path": {
+            "base": "team-shared",
+            "path": "TEAM.md"
+          },
+          "kind": "charter",
+          "required": true
+        }
+      ]
+    },
+    "knowledgeTopics": {
+      "supervision-assessment/*": {
+        "ownerMemberId": "effort-supervisor",
+        "supersedesPrevious": false,
+        "retention": "append-only; owner wake identity links each assessment"
+      }
+    },
+    "members": {
+      "effort-supervisor": {
+        "lane": "Daily trend check and event wakes above every delivery orchestrator: repair shared infrastructure from goal WORKAROUNDS.md, audit every 3rd accepted epoch and every step-back, and report weighted non-cache tokens per accepted epoch.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          }
+        ],
+        "forbiddenWrites": [],
+        "safetyCriticalRules": [
+          "Never select, admit or accept an epoch; the orchestrator accepts through the mechanical gate and the supervisor audits a sample.",
+          "Never wake on unchanged state; a wake with nothing actionable records one quiet line.",
+          "Steer an orchestrator only through a FEEDBACK.md entry marked supervisor or supervisor-audit; never edit its epoch files or direct its workers.",
+          "Repair shared infrastructure in its owning scenario or through one bounded Agent Manager repair run; delivery teams never use Swarm Manager.",
+          "Weight non-cache tokens Sol 10, Luna 1; dollar figures from subscription runs are not evidence.",
+          "Do not change accepted outcomes, owner grants, global heartbeat policy, secrets, production or paid fallback routes.",
+          "Keep supervision authority separated: only the prompt-manager/delivery-review profile may carry agent-manager:supervise."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": false
+        }
+      }
+    }
+  },
+  "purpose": "supervision",
+  "revision": 13,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
+  "shared": {
+    "path": "shared/",
+    "mountHint": "readWrite"
+  },
+  "updatedAt": "2026-09-30T11:49:49Z"
+}

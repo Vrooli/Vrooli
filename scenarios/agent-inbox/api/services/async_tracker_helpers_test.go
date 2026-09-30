@@ -4,13 +4,11 @@ import (
 	"context"
 	"testing"
 	"time"
-
-	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
 
 // TestGetActiveOperations verifies filtering by chat ID and completion status.
 func TestGetActiveOperations(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	now := time.Now()
 	completed := now.Add(-time.Minute)
@@ -47,7 +45,7 @@ func TestGetActiveOperations(t *testing.T) {
 
 // TestCleanupStaleOperations verifies removal of old completed operations.
 func TestCleanupStaleOperations(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	now := time.Now()
 	old := now.Add(-2 * time.Hour)
@@ -94,7 +92,7 @@ func TestCleanupStaleOperations(t *testing.T) {
 
 // TestGetOperationCount verifies operation counting.
 func TestGetOperationCount(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	if svc.GetOperationCount() != 0 {
 		t.Error("expected 0 operations initially")
@@ -112,10 +110,10 @@ func TestGetOperationCount(t *testing.T) {
 
 // TestSnapshotOperation verifies safe copying of immutable fields.
 func TestSnapshotOperation(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
-	asyncBehavior := &toolspb.AsyncBehavior{
-		StatusPolling: &toolspb.StatusPolling{
+	asyncBehavior := &AsyncBehavior{
+		StatusPolling: &StatusPolling{
 			StatusTool: "get_status",
 		},
 	}
@@ -160,7 +158,7 @@ func TestSnapshotOperation(t *testing.T) {
 
 // TestSnapshotOperation_NotFound verifies behavior when operation doesn't exist.
 func TestSnapshotOperation_NotFound(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	snap, ok := svc.snapshotOperation("nonexistent")
 	if ok {
@@ -173,7 +171,7 @@ func TestSnapshotOperation_NotFound(t *testing.T) {
 
 // TestMultipleSubscribersReceiveUpdates verifies updates go to all subscribers.
 func TestMultipleSubscribersReceiveUpdates(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	// Create multiple subscribers
 	sub1 := svc.SubscribeWithID("chat-1")
@@ -204,7 +202,7 @@ func TestMultipleSubscribersReceiveUpdates(t *testing.T) {
 
 // TestRemoveOperation verifies explicit operation removal.
 func TestRemoveOperation(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	_, cancel := context.WithCancel(context.Background())
 	defer cancel()

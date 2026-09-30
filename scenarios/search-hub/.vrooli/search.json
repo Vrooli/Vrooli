@@ -1,0 +1,82 @@
+{
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "search-hub.docs",
+      "lifecycle": "production",
+      "provider_group": "search-hub",
+      "bucket": "BUCKET_KNOW",
+      "type": "doc",
+      "description": "Search Hub's internal operating documentation: routing trust, eval attribution, provider lifecycle, recovery, corpus validation, and performance decisions. Route here for how Search Hub works or how to operate its retrieval contract.",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_index",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "knowledge-observatory",
+          "path": "/api/v1/search/query",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"scope\":\"path\",\"target\":\"scenarios/search-hub/docs\"}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "knowledge-observatory",
+          "path": "/api/v1/search/status",
+          "method": "HTTP_METHOD_GET",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "reindex_endpoint": {
+        "http_json": {
+          "scenario_id": "knowledge-observatory",
+          "path": "/api/v1/reindex/run",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"dry_run\":false,\"control_token\":\"{{control_token}}\"}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "index_timestamp_field": "last_reconcile_at",
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "relative_path",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "snippet",
+        "path_field": "path",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "tuning": {
+        "engine": "hybrid",
+        "embed_model": "nomic-embed-text",
+        "rerank_enabled": false,
+        "rerank_blend": false,
+        "rerank_shortlist": 20
+      },
+      "config_writable": false,
+      "config_pinned_reason": "Knowledge Observatory owns the hybrid document-search tuning; Search Hub can reindex but must not write provider configuration back.",
+      "tests": {
+        "minimum": {"reviewed_positive": 1, "negative": 1},
+        "suite_id": "search-hub.docs.primary",
+        "name": "Search Hub internal documentation",
+        "description": "Reviewed questions over Search Hub's own operational documentation.",
+        "cases": [
+          {
+            "id": "routing-trust",
+            "query": "what durable decisions govern Search Hub routing and evidence",
+            "tags": ["reviewed", "routing"],
+            "expect_ids": ["scenarios/search-hub/docs/internal/DECISIONS.md"],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "junk",
+            "query": "zzqxwv florbnax nonsense",
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.7,
+            "note": "Path-scoped hybrid retrieval has a calibrated unrelated-query ceiling of 0.625 on this corpus; retain the negative gate below that ceiling."
+          }
+        ]
+      }
+    }
+  ]
+}

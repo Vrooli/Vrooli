@@ -1,0 +1,31 @@
+{
+  "id": "new_paid_subscriptions_30d",
+  "label": "New paid subscriptions · 30 days",
+  "description": "Producer-owned Business Digest reading.",
+  "unit": "count",
+  "format": "integer",
+  "kind": "scalar",
+  "shape": "series",
+  "source": {
+    "team": "monetization",
+    "binding": "scenario:landing-page-business-suite",
+    "read": "/api/v1/business-digest?window_days=30",
+    "select": "digest_paid_subs",
+    "ttlSeconds": 300,
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "featureId": "digest_paid_subs",
+    "contractVersion": "business-digest.v1",
+    "selector": "digest_paid_subs",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "IN-REACH",
+  "sample": {
+    "value": 0,
+    "series": [
+      0
+    ],
+    "basis": "hand-authored zero baseline; production validation pending"
+  }
+}

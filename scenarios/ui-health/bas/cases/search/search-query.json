@@ -1,0 +1,87 @@
+{
+  "metadata": {
+    "name": "search-query",
+    "description": "Walks the empty Search page, types a query, and verifies the loading/results states fire. Does not assert hit content (depends on Qdrant population).",
+    "labels": {
+      "reset": "none",
+      "navigation_spec": "ui-health.app.ui"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-search",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "ui-health",
+          "scenario_path": "/search",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Navigate to /search" }
+      }
+    },
+    {
+      "id": "wait-search-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='page-search']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": { "label": "Search page visible" }
+      }
+    },
+    {
+      "id": "wait-empty-state",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='search-empty']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": { "label": "Pre-query empty state" }
+      }
+    },
+    {
+      "id": "type-query",
+      "action": {
+        "type": "ACTION_TYPE_TYPE",
+        "type": {
+          "selector": "[data-testid='search-input']",
+          "text": "card"
+        },
+        "metadata": { "label": "Type debounced query" }
+      }
+    },
+    {
+      "id": "wait-summary-or-no-results",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='search-results-summary'], [data-testid='search-no-results']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Results or no-results state reached" }
+      }
+    },
+    {
+      "id": "capture-final",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": { "full_page": true },
+        "metadata": { "label": "Capture search outcome" }
+      }
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "createdAt": "2026-09-01T20:28:24Z",
+  "description": "Evaluate the deployment readiness check: Requirements cover what is sold",
+  "entry": "SKILL.md",
+  "id": "readiness-requirements-cover-sale",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "tools"
+  ],
+  "name": "readiness-requirements-cover-sale",
+  "origin": {
+    "kind": "authored"
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "readiness-check",
+    "deployment-manager"
+  ],
+  "updatedAt": "2026-09-01T20:28:24Z"
+}

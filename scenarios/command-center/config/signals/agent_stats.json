@@ -1,0 +1,22 @@
+{
+  "id": "agent_stats",
+  "label": "Agent success rate",
+  "description": "Share of agent executions that completed successfully.",
+  "unit": "percent",
+  "format": "percent",
+  "shape": "scalar",
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:swarm-manager",
+    "read": "/api/v1/stats",
+    "select": "agent_stats",
+    "ttlSeconds": 30,
+    "integrationId": "swarm-manager",
+    "featureId": "agent_stats",
+    "contractVersion": "legacy.v1",
+    "selector": "agent_stats",
+    "expectedUnit": "percent",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

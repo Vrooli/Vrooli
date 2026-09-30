@@ -1,3 +1,5 @@
+// DOC: docs/guides/managing-policies.md
+// DOC: docs/internal/TEMPORAL-FLOWS.md
 package middleware
 
 import (

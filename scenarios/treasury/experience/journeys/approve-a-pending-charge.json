@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "approve-a-pending-charge",
+    "title": "Approve a pending charge",
+    "purpose": "The core loop this scenario exists for: an agent proposed a spend, a budget required a human, and the operator decides. The whole journey should complete without the operator needing to reconstruct context from elsewhere.",
+    "prd_refs": [
+      "OT-P0-006",
+      "OT-P0-003",
+      "OT-P0-009"
+    ]
+  },
+  "steps": [
+    {
+      "page": "approvals",
+      "state": "default",
+      "intent": "See that something is waiting and read its amount and counterparty without opening anything."
+    },
+    {
+      "page": "approvals",
+      "state": "default",
+      "intent": "Judge whether the request is expected by reading the mandate and budget that admitted it.",
+      "via": "the request row's mandate reference"
+    },
+    {
+      "page": "approvals",
+      "state": "submitting",
+      "intent": "Approve the request from the row, with the control naming the amount and counterparty it is approving.",
+      "via": "the row's approve control"
+    },
+    {
+      "page": "activity",
+      "state": "default",
+      "intent": "Confirm the charge settled and that its money event reached the ledger.",
+      "via": "the confirmation's link to the resulting attempt"
+    }
+  ]
+}

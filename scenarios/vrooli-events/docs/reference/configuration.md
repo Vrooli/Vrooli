@@ -13,7 +13,7 @@ These configure vrooli-events at startup. They are typically set via the Vrooli 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `API_PORT` | (lifecycle) | HTTP API listen port (managed by Vrooli) |
-| `DB_PATH` | `~/.vrooli/vrooli-events/events.db` | SQLite database file path |
+| `DB_PATH` | `~/.local/share/vrooli/vrooli-events/events.db` | SQLite database file path |
 
 ### Retention & Pruning
 

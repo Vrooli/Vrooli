@@ -2,24 +2,70 @@ package collector
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics/contracts"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics/repository"
 )
 
 // mockEventSink is a test double for automation/events.Sink
 type mockEventSink struct {
-	published []autocontracts.EventEnvelope
-	limits    autocontracts.EventBufferLimits
+	published  []autocontracts.EventEnvelope
+	limits     autocontracts.EventBufferLimits
+	closed     []uuid.UUID
+	publishErr error
+}
+
+func (m *mockEventSink) CloseExecution(id uuid.UUID) { m.closed = append(m.closed, id) }
+
+// [REQ:BAS-RH-J07] Decorating an event sink must preserve its lifecycle owner.
+func TestCollectorClosePropagatesAndReleasesBuffers(t *testing.T) {
+	delegate := &mockEventSink{}
+	c := NewCollector(delegate, repository.NewMockRepository())
+	id, other := uuid.New(), uuid.New()
+	_ = c.OnCursorUpdate(context.Background(), id, 0, contracts.TimedPoint{X: 1})
+	_ = c.OnCursorUpdate(context.Background(), other, 0, contracts.TimedPoint{X: 2})
+	c.CloseExecution(id)
+	if len(delegate.closed) != 1 || delegate.closed[0] != id {
+		t.Fatal("execution cleanup did not reach the delegate")
+	}
+	if _, ok := c.cursorBuffers.Load(cursorBufferKey(id, 0)); ok {
+		t.Fatal("closed execution retained cursor buffers")
+	}
+	if _, ok := c.cursorBuffers.Load(cursorBufferKey(other, 0)); !ok {
+		t.Fatal("closing one execution cleared another execution's buffers")
+	}
 }
 
 func (m *mockEventSink) Publish(ctx context.Context, event autocontracts.EventEnvelope) error {
 	m.published = append(m.published, event)
-	return nil
+	return m.publishErr
+}
+
+// Rejected events must not create apparently accepted UX evidence.
+func TestCollectorRejectedEventHasNoSideEffects(t *testing.T) {
+	delegate := &mockEventSink{publishErr: autoevents.ErrExecutionClosed}
+	repo := repository.NewMockRepository()
+	c := NewCollector(delegate, repo)
+	err := c.Publish(context.Background(), autocontracts.EventEnvelope{
+		ExecutionID: uuid.New(),
+		Kind:        autocontracts.EventKindStepCompleted,
+		Payload: &autocontracts.StepOutcome{
+			Success:     true,
+			CursorTrail: []autocontracts.CursorPosition{{Point: &autocontracts.Point{X: 1}}},
+		},
+	})
+	if !errors.Is(err, autoevents.ErrExecutionClosed) {
+		t.Fatalf("rejection lost: %v", err)
+	}
+	if len(repo.SavedTraces) != 0 || len(repo.SavedCursorPaths) != 0 {
+		t.Fatal("rejected event persisted UX evidence")
+	}
 }
 
 func (m *mockEventSink) Limits() autocontracts.EventBufferLimits {

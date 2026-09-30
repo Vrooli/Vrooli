@@ -88,6 +88,6 @@ Simplified model with just development, edge devices, and cloud.
 
 ## References
 
-- [Tier Reference Documentation](../tiers/README.md)
+- [Tier Reference Documentation](../tiers/tier-2-desktop.md)
 - [Fitness Scoring Guide](../guides/fitness-scoring.md)
 - [Dependency Swapping Guide](../guides/dependency-swapping.md)

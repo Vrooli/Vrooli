@@ -1,0 +1,18 @@
+{
+  "module_id": "MOD-P2-004",
+  "prd_ref": "OT-P2-004",
+  "priority": "P2",
+  "title": "Manifest Auto-Generation from Observed Diffs",
+  "description": "When no manifest exists for a (skill, golden) tuple, run the validation once and propose a seeded manifest from the observed diff. Operator reviews and accepts. Bootstraps the manifest set as new skills appear.",
+  "requirements": [
+    {
+      "id": "REQ-P2-004",
+      "prd_ref": "OT-P2-004",
+      "title": "Seed-from-diff workflow",
+      "description": "On first validation for a (skill, golden) without an existing manifest: persist the observed diff as a proposed-manifest record (paths from diff become allowed_paths, with content rules left open). Surfaces a 'review proposed manifest' action in the UI/CLI.",
+      "category": "core",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

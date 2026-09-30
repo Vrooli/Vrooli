@@ -3,8 +3,8 @@ package healing
 import (
 	"context"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // mockHealer is a test double for Healer.

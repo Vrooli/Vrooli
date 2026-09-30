@@ -1,19 +1,34 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+	"landing-page-business-suite-api/internal/commerce"
 )
+
+func TestAccountServiceCreditsContextCancellationReachesPersistence(t *testing.T) {
+	db := setupTestDB(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	service := NewAccountService(db, NewPlanService(db))
+	_, err := service.GetCreditsContext(ctx, "canceled-context@example.com")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("GetCreditsContext() error = %v, want context cancellation", err)
+	}
+}
 
 func TestAccountServiceSubscriptionCache(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planService := NewPlanService(db)
 	accountService := NewAccountService(db, planService)
-	accountService.cacheTTL = 40 * time.Millisecond
+	const cacheTTL = 40 * time.Millisecond
+	accountService.SetCacheTTL(cacheTTL)
 
 	const userEmail = "cache-test@example.com"
 	const subscriptionID = "sub-cache-test"
@@ -29,7 +44,7 @@ func TestAccountServiceSubscriptionCache(t *testing.T) {
 		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
 		ON CONFLICT (subscription_id) DO UPDATE
 		SET status = EXCLUDED.status, updated_at = NOW()
-	`, subscriptionID, userEmail, "active", "solo", "price_solo_monthly", accountService.bundleKey)
+	`, subscriptionID, userEmail, "active", "solo", "price_solo_monthly", accountService.BundleKey())
 	if err != nil {
 		t.Fatalf("failed to seed subscription: %v", err)
 	}
@@ -38,7 +53,7 @@ func TestAccountServiceSubscriptionCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("initial GetSubscription failed: %v", err)
 	}
-	if info.State != landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE {
+	if info.State != landing_page_business_suite_v1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE {
 		t.Fatalf("expected status active, got %s", info.State)
 	}
 
@@ -55,24 +70,23 @@ func TestAccountServiceSubscriptionCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cached GetSubscription failed: %v", err)
 	}
-	if cached.State != landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE {
+	if cached.State != landing_page_business_suite_v1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE {
 		t.Fatalf("expected cached status active, got %s", cached.State)
 	}
 
-	time.Sleep(accountService.cacheTTL + 10*time.Millisecond)
+	time.Sleep(cacheTTL + 10*time.Millisecond)
 
 	refreshed, err := accountService.GetSubscription(userEmail)
 	if err != nil {
 		t.Fatalf("refresher GetSubscription failed: %v", err)
 	}
-	if refreshed.State != landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED {
+	if refreshed.State != landing_page_business_suite_v1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED {
 		t.Fatalf("expected refreshed status canceled, got %s", refreshed.State)
 	}
 }
 
 func TestAccountServiceSubscriptionMissingUser(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	accountService := NewAccountService(db, NewPlanService(db))
 
@@ -81,7 +95,7 @@ func TestAccountServiceSubscriptionMissingUser(t *testing.T) {
 		t.Fatalf("unexpected error for missing user: %v", err)
 	}
 
-	if status.State != landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE {
+	if status.State != landing_page_business_suite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE {
 		t.Fatalf("expected inactive state for missing user, got %s", status.State)
 	}
 	if status.GetMessage() == "" || status.GetMessage() != "user not provided" {
@@ -94,15 +108,14 @@ func TestAccountServiceSubscriptionMissingUser(t *testing.T) {
 
 func TestAccountServiceCreditsFallbacksWhenPlanUnavailable(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Force a plan lookup miss to exercise fallback defaults.
 	// Use an empty PlanStore with no plans configured
-	emptyStore := NewPlanStoreWithOptions(PlanStoreOptions{
+	emptyStore := NewPlanStoreWithOptions(commerce.PlanStoreOptions{
 		PlansPath: "", // Empty path means no plans will be loaded
 		BundleKey: "missing_bundle",
 	})
-	planService := &PlanService{planStore: emptyStore, defaultBundle: "missing_bundle", displayEnv: "production"}
+	planService := NewPlanServiceWithOptions(commerce.PlanServiceOptions{PlanStore: emptyStore, DefaultBundle: "missing_bundle", DisplayEnv: "production"})
 	accountService := NewAccountService(db, planService)
 
 	credits, err := accountService.GetCredits("fallback@example.com")
@@ -133,7 +146,6 @@ func TestAccountServiceCreditsFallbacksWhenPlanUnavailable(t *testing.T) {
 
 func TestGetEntitlements_IncludesBillingCycleStart(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	email := "billing@test.com"
 	subID := "sub_test_billing"
@@ -166,7 +178,6 @@ func TestGetEntitlements_IncludesBillingCycleStart(t *testing.T) {
 
 func TestGetEntitlements_BillingCycleStartZeroWhenNotSet(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	email := "nobilling@test.com"
 	subID := "sub_test_nobilling"
@@ -199,10 +210,9 @@ func TestGetEntitlements_BillingCycleStartZeroWhenNotSet(t *testing.T) {
 
 func TestGetBillingCycleStart_NoSubscription(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewAccountService(db, NewPlanService(db))
-	start := svc.getBillingCycleStart("nonexistent@test.com")
+	start := svc.BillingCycleStart("nonexistent@test.com")
 	if start != 0 {
 		t.Errorf("expected billing_cycle_start=0 for nonexistent user, got %d", start)
 	}
@@ -210,10 +220,9 @@ func TestGetBillingCycleStart_NoSubscription(t *testing.T) {
 
 func TestGetBillingCycleStart_EmptyUser(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewAccountService(db, NewPlanService(db))
-	start := svc.getBillingCycleStart("  ")
+	start := svc.BillingCycleStart("  ")
 	if start != 0 {
 		t.Errorf("expected billing_cycle_start=0 for empty user, got %d", start)
 	}

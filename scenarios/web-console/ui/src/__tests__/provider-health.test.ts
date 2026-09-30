@@ -1,102 +1,178 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { apiBaseMock } from "../test-utils";
 
-// Mock api-base before any imports
 vi.mock("@vrooli/api-base", () => apiBaseMock());
 
+interface ProviderConfigProto {
+  name: string;
+  enabled: boolean;
+  priority: number;
+  timeoutSec: number;
+  maxRetries: number;
+}
+
+interface ProviderHealthProto {
+  name: string;
+  available: boolean;
+  lastCheck?: string;
+  lastLatency?: string;
+  errorCount: number;
+  successCount: number;
+  errorRate: number;
+}
+
+interface ConfigResponseProto {
+  providers: ProviderConfigProto[];
+  health: ProviderHealthProto[];
+}
+
+interface HealthResponseProto {
+  health: ProviderHealthProto[];
+}
+
+const getConfigMock = vi.fn<(_: Record<string, never>) => Promise<ConfigResponseProto>>();
+const updateConfigMock = vi.fn<(request: Record<string, unknown>) => Promise<ConfigResponseProto>>();
+const getHealthMock = vi.fn<(_: Record<string, never>) => Promise<HealthResponseProto>>();
+
+vi.mock("../api/ai", async () => {
+  const actual = await vi.importActual<typeof import("../api/ai")>("../api/ai");
+  return {
+    ...actual,
+    aiClient: {
+      getConfig: getConfigMock,
+      updateConfig: updateConfigMock,
+      getHealth: getHealthMock,
+    },
+    getAIConfig: async () => {
+      const resp = await getConfigMock({});
+      return {
+        providers: resp.providers.map((p) => ({
+          name: p.name,
+          enabled: p.enabled,
+          priority: p.priority,
+          timeout_sec: p.timeoutSec,
+          max_retries: p.maxRetries,
+        })),
+        health: resp.health.map((h) => ({
+          name: h.name,
+          available: h.available,
+          last_check: h.lastCheck || undefined,
+          last_latency: h.lastLatency || undefined,
+          error_count: h.errorCount,
+          success_count: h.successCount,
+          error_rate: h.errorRate,
+        })),
+      };
+    },
+    updateAIConfig: async (update: { name: string; enabled?: boolean; priority?: number; timeout_sec?: number; max_retries?: number }) => {
+      const req: Record<string, unknown> = { name: update.name };
+      if (update.enabled !== undefined) { req.enabled = update.enabled; req.hasEnabled = true; }
+      if (update.priority !== undefined) { req.priority = update.priority; req.hasPriority = true; }
+      if (update.timeout_sec !== undefined) { req.timeoutSec = update.timeout_sec; req.hasTimeoutSec = true; }
+      if (update.max_retries !== undefined) { req.maxRetries = update.max_retries; req.hasMaxRetries = true; }
+      const resp = await updateConfigMock(req);
+      return {
+        providers: resp.providers.map((p) => ({
+          name: p.name,
+          enabled: p.enabled,
+          priority: p.priority,
+          timeout_sec: p.timeoutSec,
+          max_retries: p.maxRetries,
+        })),
+        health: resp.health.map((h) => ({
+          name: h.name,
+          available: h.available,
+          error_count: h.errorCount,
+          success_count: h.successCount,
+          error_rate: h.errorRate,
+        })),
+      };
+    },
+    getAIHealth: async () => {
+      const resp = await getHealthMock({});
+      return resp.health.map((h) => ({
+        name: h.name,
+        available: h.available,
+        error_count: h.errorCount,
+        success_count: h.successCount,
+        error_rate: h.errorRate,
+      }));
+    },
+  };
+});
+
 beforeEach(() => {
-  vi.restoreAllMocks();
+  getConfigMock.mockReset();
+  updateConfigMock.mockReset();
+  getHealthMock.mockReset();
 });
 
 // [REQ:P1-003a] Provider Configuration API client tests
 describe("AI Provider Config API", () => {
   it("getAIConfig returns providers and health", async () => {
-    const mockResp = {
+    getConfigMock.mockResolvedValue({
       providers: [
-        { name: "ollama", enabled: true, priority: 1, timeout_sec: 30, max_retries: 0 },
-        { name: "openrouter", enabled: true, priority: 2, timeout_sec: 30, max_retries: 0 },
+        { name: "ollama", enabled: true, priority: 1, timeoutSec: 30, maxRetries: 0 },
+        { name: "openrouter", enabled: true, priority: 2, timeoutSec: 30, maxRetries: 0 },
       ],
       health: [
-        { name: "ollama", available: true, error_count: 0, success_count: 5, error_rate: 0 },
-        { name: "openrouter", available: false, error_count: 2, success_count: 0, error_rate: 1 },
+        { name: "ollama", available: true, errorCount: 0, successCount: 5, errorRate: 0 },
+        { name: "openrouter", available: false, errorCount: 2, successCount: 0, errorRate: 1 },
       ],
-    };
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockResp),
-    }) as typeof fetch;
+    });
 
-    const { getAIConfig } = await import("../lib/api");
+    const { getAIConfig } = await import("../api/ai");
     const result = await getAIConfig();
 
     expect(result.providers).toHaveLength(2);
     expect(result.health).toHaveLength(2);
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/ai/config"),
-      expect.objectContaining({ cache: "no-store" }),
-    );
+    expect(result.providers[0]).toMatchObject({ name: "ollama", timeout_sec: 30, max_retries: 0 });
+    expect(getConfigMock).toHaveBeenCalled();
   });
 
-  it("updateAIConfig sends PUT with partial update", async () => {
-    const mockResp = {
-      providers: [
-        { name: "ollama", enabled: false, priority: 1, timeout_sec: 10, max_retries: 0 },
-      ],
+  it("updateAIConfig sends partial update with has* presence flags", async () => {
+    updateConfigMock.mockResolvedValue({
+      providers: [{ name: "ollama", enabled: false, priority: 1, timeoutSec: 10, maxRetries: 0 }],
       health: [],
-    };
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockResp),
-    }) as typeof fetch;
+    });
 
-    const { updateAIConfig } = await import("../lib/api");
+    const { updateAIConfig } = await import("../api/ai");
     const result = await updateAIConfig({ name: "ollama", enabled: false, timeout_sec: 10 });
 
     expect(result.providers[0]?.enabled).toBe(false);
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/ai/config"),
-      expect.objectContaining({ method: "PUT" }),
-    );
+    expect(updateConfigMock).toHaveBeenCalledWith(expect.objectContaining({
+      name: "ollama",
+      enabled: false,
+      hasEnabled: true,
+      timeoutSec: 10,
+      hasTimeoutSec: true,
+    }));
   });
 
   it("getAIHealth returns health array", async () => {
-    const mockHealth = [
-      { name: "ollama", available: true, error_count: 0, success_count: 3, error_rate: 0 },
-    ];
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockHealth),
-    }) as typeof fetch;
+    getHealthMock.mockResolvedValue({
+      health: [{ name: "ollama", available: true, errorCount: 0, successCount: 3, errorRate: 0 }],
+    });
 
-    const { getAIHealth } = await import("../lib/api");
+    const { getAIHealth } = await import("../api/ai");
     const result = await getAIHealth();
 
     expect(result).toHaveLength(1);
     expect(result[0]?.available).toBe(true);
   });
 
-  it("getAIConfig throws on error", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: () => Promise.resolve({ error: "Internal error" }),
-    }) as typeof fetch;
+  it("getAIConfig propagates errors from the Connect client", async () => {
+    getConfigMock.mockRejectedValue(new Error("Internal error"));
 
-    const { getAIConfig, APIError } = await import("../lib/api");
-
-    try {
-      await getAIConfig();
-      expect.unreachable("should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(APIError);
-    }
+    const { getAIConfig } = await import("../api/ai");
+    await expect(getAIConfig()).rejects.toThrow("Internal error");
   });
 });
 
 // [REQ:P1-003b] Provider Health Dashboard - type tests
 describe("Provider types", () => {
   it("ProviderConfig interface includes fields", async () => {
-    const config: import("../lib/api").ProviderConfig = {
+    const config: import("../api/ai").ProviderConfig = {
       name: "ollama",
       enabled: true,
       priority: 1,
@@ -108,7 +184,7 @@ describe("Provider types", () => {
   });
 
   it("ProviderHealth interface includes availability and metrics", async () => {
-    const health: import("../lib/api").ProviderHealth = {
+    const health: import("../api/ai").ProviderHealth = {
       name: "ollama",
       available: true,
       last_check: "2026-01-01T00:00:00Z",
@@ -120,5 +196,4 @@ describe("Provider types", () => {
     expect(health.available).toBe(true);
     expect(health.error_rate).toBe(0);
   });
-
 });

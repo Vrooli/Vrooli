@@ -1,0 +1,130 @@
+{
+  "$schema": "../../../../.vrooli/schemas/experience-capability-registry.schema.json",
+  "kind": "capability-group",
+  "schemaVersion": "1.0.0",
+  "group": {
+    "id": "responsive",
+    "description": "Whether a surface adapts to viewport, orientation, and container constraints as a change in behavior rather than merely a change in width."
+  },
+  "capabilities": [
+    {
+      "id": "no-horizontal-overflow",
+      "title": "No document-level horizontal overflow",
+      "facets": ["promises"],
+      "description": "The document never scrolls horizontally at any declared viewport, so no content is reachable only by sideways scrolling the whole page.",
+      "proves": {
+        "axes": { "viewport": ["mobile", "tablet", "desktop", "wide"] },
+        "evidence": ["layout-box"],
+        "claimTypes": ["no-document-horizontal-overflow"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "Already an inherited floor with a working evaluator. Declared here so the capability is countable per asset rather than existing only as an implicit floor."
+    },
+    {
+      "id": "content-container-safety",
+      "title": "Content stays reachable inside its container",
+      "facets": ["promises"],
+      "description": "Content and controls remain reachable inside their own surface; clipped overflow is only acceptable when the container exposes a deliberate scroll affordance.",
+      "proves": {
+        "evidence": ["layout-box"],
+        "claimTypes": ["content-not-clipped"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "The content-not-clipped evaluator now compares rendered and scroll geometry and recognizes reachable overflow. This capability makes the newly computable visual-bar check visible in the derived capability report."
+    },
+    {
+      "id": "viewport-fill",
+      "title": "Fills the viewport without dead space",
+      "facets": ["promises"],
+      "description": "The surface occupies the available viewport rather than leaving unexplained empty regions or stranding content in a narrow column on wide displays.",
+      "proves": {
+        "axes": { "viewport": ["mobile", "desktop", "wide"] },
+        "evidence": ["layout-box"],
+        "claimTypes": ["viewport-fill"]
+      },
+      "tierCeiling": "machine",
+      "appliesTo": ["page", "page-template", "pattern"]
+    },
+    {
+      "id": "chrome-pinned",
+      "title": "Application chrome stays put",
+      "facets": ["promises"],
+      "description": "Headers, toolbars, and navigation remain in position while content scrolls beneath them, rather than scrolling away and leaving the user without orientation.",
+      "proves": {
+        "axes": { "viewport": ["mobile", "desktop"] },
+        "evidence": ["layout-box"],
+        "claimTypes": ["chrome-pinned", "single-line-chrome"]
+      },
+      "tierCeiling": "machine",
+      "appliesTo": ["page", "page-template", "navigation"]
+    },
+    {
+      "id": "safe-area-respected",
+      "title": "Respects device safe areas",
+      "facets": ["promises"],
+      "description": "Interactive elements near the screen edges stay clear of notches, home indicators, and rounded corners in both orientations.",
+      "proves": {
+        "axes": { "viewport": ["mobile"], "orientation": ["portrait", "landscape"] },
+        "evidence": ["layout-box"],
+        "claimTypes": ["safe-area-tap-targets"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "The evaluator exists and runs at mobile portrait only. Landscape is where safe-area handling usually breaks, and the orientation axis is available in BAS but unwired."
+    },
+    {
+      "id": "responsive-transformation",
+      "title": "Adapts by changing behavior, not only width",
+      "facets": ["promises"],
+      "description": "At smaller viewports the surface performs its declared transformation — sidebar becomes drawer, modal becomes sheet, header navigation becomes bottom navigation, split panes become stepwise panels — rather than merely shrinking.",
+      "proves": {
+        "axes": { "viewport": ["mobile", "tablet", "desktop"] },
+        "evidence": ["ax-tree", "layout-box"],
+        "claimTypes": ["responsive-transformation", "state-distinct"]
+      },
+      "tierCeiling": "machine",
+      "appliesTo": ["page", "page-template", "pattern", "navigation"],
+      "rationale": "The transformations are already specified in every kit's DESIGN.md and nothing validates them. This is the capability the composed navigation asset carries, and it is the reason navigation is one asset rather than three — a floor can check each surface in isolation but cannot assert that this sidebar becomes that drawer."
+    },
+    {
+      "id": "content-reflow",
+      "title": "Content reflows without clipping",
+      "facets": ["promises"],
+      "description": "Text and controls reflow at narrow widths and under text expansion without truncating meaning, overlapping, or forcing fixed-format elements to collide.",
+      "proves": {
+        "axes": { "viewport": ["mobile"], "locale": ["de"], "text-scale": ["double"] },
+        "evidence": ["layout-box"],
+        "claimTypes": ["no-document-horizontal-overflow", "spacing"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "German plus doubled text at mobile width is the compound worst case. DESIGN.md already requires that text never overflow or overlap and that fixed-format controls have stable dimensions."
+    },
+    {
+      "id": "mobile-capability-parity",
+      "title": "Mobile is not a degraded desktop",
+      "facets": ["promises"],
+      "description": "Every action available at desktop has a deliberate mobile equivalent, so the small viewport is a complete surface rather than a read-only fallback.",
+      "proves": {
+        "axes": { "viewport": ["mobile", "desktop"] },
+        "evidence": ["ax-tree"],
+        "claimTypes": ["affordance-present"]
+      },
+      "tierCeiling": "manual",
+      "appliesTo": ["page", "page-template", "pattern"],
+      "rationale": "Structurally checkable in the weak sense — compare the affordance sets captured at each viewport — but an affordance can be present and useless, so full proof needs a human. DESIGN.md states the requirement explicitly in every kit."
+    },
+    {
+      "id": "density-adaptive-layout",
+      "title": "Dense viewports get dense layout",
+      "facets": ["promises"],
+      "description": "On wide and kiosk displays the surface uses the additional space to show more information or larger legible type, rather than stretching a phone layout across the screen.",
+      "proves": {
+        "axes": { "viewport": ["wide"], "density": ["comfortable", "compact"] },
+        "evidence": ["layout-box", "computed-style"],
+        "claimTypes": ["viewport-fill", "spacing"]
+      },
+      "tierCeiling": "manual",
+      "appliesTo": ["page", "page-template", "pattern"],
+      "rationale": "Most relevant to vrooli-command-display, whose baseline matrix is wide rather than mobile, and whose surfaces are read from across a room."
+    }
+  ]
+}

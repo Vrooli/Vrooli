@@ -9,7 +9,7 @@
 | agent-manager | scenario | Yes | No | HTTP/JSON (protojson) | Healthy |
 | postgres | resource | Yes | Yes | SQL (lib/pq) | Healthy |
 | qdrant | resource | Yes | No | HTTP REST | Healthy (graceful degrade) |
-| ollama | resource | Yes | No | HTTP REST | Healthy (graceful degrade) |
+| ollama | resource | Yes | No | resource-ollama gateway CLI | Healthy (graceful degrade) |
 
 ## Contract Stack Assessment
 
@@ -47,7 +47,7 @@
 
 1. **Status vocabulary drift**: If agent-manager adds new terminal statuses (e.g., `RUN_STATUS_TIMED_OUT`), they won't be recognized until `heartbeat/status.go` is updated. Source of truth: `packages/proto/schemas/agent-manager/v1/domain/types.proto`.
 2. **Proto type safety gap**: prompt-manager deserializes agent-manager responses via `encoding/json` into hand-written structs, not via `protojson` into generated types. This means new/renamed fields require manual sync. Acceptable for now given the narrow interface (5 API calls).
-3. **Resource URL resolution**: Ollama and Qdrant URLs come from environment variables, not from discovery. This is correct for resources (not scenarios) but means URL changes require process restart.
+3. **Resource configuration resolution**: Qdrant URL and Ollama gateway command come from environment variables, not from discovery. This is correct for resources (not scenarios) but means configuration changes require process restart.
 4. **`needs_review` timeout behavior**: If a heartbeat run reaches `RUN_STATUS_NEEDS_REVIEW` (approval required), `WaitForRun` will poll until the 15-minute timeout fires and then mark the run as failed. Acceptable because heartbeat runs use `RUN_MODE_IN_PLACE` and should not normally require approval.
 
 ## Completion Gates

@@ -1,0 +1,16 @@
+{
+  "scenario": "ts-junk-drawer",
+  "languages": ["typescript"],
+  "files": [
+    { "id": "f-utils", "path": "api/internal/utils/index.ts", "package_id": "p-utils", "language": "typescript", "lines": 12 },
+    { "id": "f-billing", "path": "api/internal/billing/service.ts", "package_id": "p-billing", "language": "typescript", "lines": 20 }
+  ],
+  "packages": [
+    { "id": "p-utils", "import_path": "ts-junk-drawer/api/internal/utils", "repo_path": "api/internal/utils", "language": "typescript", "internal": true },
+    { "id": "p-billing", "import_path": "ts-junk-drawer/api/internal/billing", "repo_path": "api/internal/billing", "language": "typescript", "internal": true }
+  ],
+  "symbols": [],
+  "imports": [
+    { "from": "p-utils", "to_package_id": "p-billing" }
+  ]
+}

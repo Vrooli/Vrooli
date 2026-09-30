@@ -100,8 +100,6 @@ sequenceDiagram
     participant S as Service
     participant V as Validation
 
-    C->>H: POST /suite-requests {scenario: ""}
-    H->>S: CreateSuiteRequest("")
     S->>V: NewValidationError("scenarioName is required")
     V-->>S: ValidationError
     S-->>H: error

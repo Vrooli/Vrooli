@@ -1,6 +1,8 @@
-import { GitCommit, History, X } from "lucide-react";
+import { usePushSafety } from "./PushSafetyIndicators";
+import { GitCommit, History, ShieldAlert, X } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import type { CommitCheckRun } from "../lib/api";
 
 export interface ViewingCommit {
   hash: string;
@@ -8,6 +10,7 @@ export interface ViewingCommit {
   files: string[];
   author?: string;
   date?: string;
+  checks?: CommitCheckRun[];
 }
 
 interface HistoryModeHeaderProps {
@@ -17,6 +20,15 @@ interface HistoryModeHeaderProps {
 }
 
 export function HistoryModeHeader({ commit, onExit, compact }: HistoryModeHeaderProps) {
+  const { review, label } = usePushSafety();
+  const recoveryAction = review && label && (
+    <Button type="button" variant="outline" size="sm" onClick={review}
+      className="shrink-0 gap-1 border-amber-600/50 text-amber-200 hover:bg-amber-900/30"
+      aria-label="Review push recovery options" title={`${label}. Opens a read-only review; no history is changed.`}>
+      <ShieldAlert className="h-3.5 w-3.5" />
+      {compact ? "Push warning" : label}
+    </Button>
+  );
   if (compact) {
     return (
       <header
@@ -34,6 +46,7 @@ export function HistoryModeHeader({ commit, onExit, compact }: HistoryModeHeader
           </span>
         </div>
 
+        {recoveryAction}
         <Button
           variant="outline"
           size="sm"
@@ -74,6 +87,7 @@ export function HistoryModeHeader({ commit, onExit, compact }: HistoryModeHeader
       </div>
 
       <div className="flex items-center gap-3 flex-shrink-0">
+        {recoveryAction}
         {commit.author && (
           <span className="text-xs text-slate-500 hidden sm:block">
             by {commit.author}

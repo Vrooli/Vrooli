@@ -1,0 +1,25 @@
+{
+  "_metadata": {
+    "description": "Additional native-device qualification; supported baseline claims are governed by OT-P0-008.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "Maintain recorded manual qualification evidence across iOS Safari, installed PWA, Android Chrome, and desktop microphone environments.",
+      "id": "ATD-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Expanded device qualification",
+      "validation": [
+        {
+          "notes": "Planned native-device qualification under docs/internal/TESTING.md device profiles. No physical-device receipt is asserted by this entry. Log actual operator evidence before promotion; retain profile and engine identity.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

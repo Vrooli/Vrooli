@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "local-use",
+  "version": "1.0.0",
+  "titleKey": "profiles.localUse.title",
+  "descriptionKey": "profiles.localUse.description",
+  "owner": "vrooli-onboarding",
+  "compatibleCatalogMajor": 1,
+  "questions": [
+    {
+      "id": "purposes",
+      "type": "multi-select",
+      "promptKey": "setup.purpose.prompt",
+      "required": true,
+      "options": [
+        {"id": "use-local-apps", "labelKey": "setup.purpose.use"},
+        {"id": "develop-apps", "labelKey": "setup.purpose.develop"}
+      ],
+      "minSelections": 1
+    }
+  ],
+  "rules": [
+    {
+      "id": "local-app-use",
+      "when": {"contains": {"answer": "purposes", "value": "use-local-apps"}},
+      "recommend": [
+        {"capabilityRef": "application.local", "reasonKey": "setup.reason.localUse"}
+      ]
+    },
+    {
+      "id": "local-development",
+      "when": {"contains": {"answer": "purposes", "value": "develop-apps"}},
+      "recommend": [
+        {"capabilityRef": "development.local", "scenarioRefs": ["vrooli-onboarding"], "reasonKey": "setup.reason.localDevelopment"}
+      ]
+    }
+  ],
+  "manualSelection": {"available": true},
+  "provenance": {"source": "repository", "reviewRevision": "local-use-r1"}
+}

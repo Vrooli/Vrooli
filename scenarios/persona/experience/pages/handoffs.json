@@ -1,0 +1,93 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "handoffs",
+    "title": "Handoffs",
+    "routes": [
+      "/handoffs",
+      "/handoffs/:handoffId"
+    ],
+    "purpose": "The scenario's primary surface. Work the queue of steps that no machine may take, and complete each one with everything else already filled in.",
+    "prd_refs": [
+      "OT-P0-007",
+      "OT-P1-004",
+      "OT-P1-008",
+      "OT-P2-003",
+      "OT-P2-006"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Each row states what the human must do in one plain sentence \u2014 not what failed, and never a raw error."
+    },
+    {
+      "statement": "The four terminal outcomes (completed, expired, cancelled, refused) must be distinguishable at a glance and never by colour alone."
+    },
+    {
+      "statement": "Everything the agent already completed is visible before the human acts, so they can trust the checkpoint instead of redoing the work."
+    },
+    {
+      "statement": "Completion is reachable by keyboard alone, start to finish.",
+      "notes": "A handoff commonly arrives on a phone at an awkward moment; this is the normal case, not an edge case."
+    },
+    {
+      "statement": "The queue must be fully usable with no notification relay configured \u2014 the relay is an enhancement, never a prerequisite."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "One or more open handoffs, newest first."
+    },
+    {
+      "id": "empty",
+      "description": "Nothing is blocked. Reads as a resolved state, not as a failure to load."
+    },
+    {
+      "id": "loading",
+      "description": "Queue is resolving."
+    },
+    {
+      "id": "detail",
+      "description": "A single handoff is open, showing the wall, the required action, and the checkpoint."
+    },
+    {
+      "id": "submitting",
+      "description": "The operator has confirmed completion and the resume is in flight."
+    },
+    {
+      "id": "success",
+      "description": "Completed; the originating flow has been handed back its checkpoint."
+    },
+    {
+      "id": "expired",
+      "description": "The handoff passed its deadline. A terminal state with its own presentation \u2014 never rendered as a generic error."
+    },
+    {
+      "id": "cancelled",
+      "description": "Explicitly cancelled by an operator; terminal."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The viewer may propose but not act as this persona, so completion is unavailable and the reason is stated."
+    },
+    {
+      "id": "partial",
+      "description": "The handoff loads but the linked document binding cannot be resolved."
+    },
+    {
+      "id": "request-error",
+      "description": "The handoff cannot be loaded."
+    },
+    {
+      "id": "offline",
+      "description": "No connectivity; queued handoffs remain readable from cache and completion is disabled with a stated reason."
+    },
+    {
+      "id": "stale",
+      "description": "The queue is older than its refresh interval because the API or relay is unreachable. Labelled with its age so an operator never completes a handoff that has already expired elsewhere."
+    }
+  ]
+}

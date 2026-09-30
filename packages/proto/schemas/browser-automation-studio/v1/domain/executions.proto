@@ -1,0 +1,13 @@
+syntax = "proto3";
+package vrooli.browser_automation_studio.v1.domain;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain;domain";
+
+// Executions is the durable workflow-run domain owned by browser-automation-studio.
+message Executions {
+  string id = 1;
+  string status = 2;
+  string started_at = 3;
+  string completed_at = 4;
+  string created_at = 5;
+}

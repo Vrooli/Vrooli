@@ -1,0 +1,47 @@
+<!-- Fixture derived 2026-09-02 on swarminator (Linux) from platform-go RenderDefinition for target windows; not host-verified on macOS or Windows. Regenerate: PLATFORM_GO_UPDATE_FIXTURES=1 go test -run TestDarwinAndWindowsRenderersMatchFixtures -->
+<?xml version="1.0" encoding="UTF-8"?>
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Vrooli emergency watchdog (portable host-pressure binary)</Description>
+    <Author>Vrooli</Author>
+    <Documentation>https://github.com/Vrooli/Vrooli/blob/master/internal/safeguards/emergency-watchdog/handler.go</Documentation>
+  </RegistrationInfo>
+  <Triggers>
+    <BootTrigger>
+      <Enabled>true</Enabled>
+      <Delay>PT30S</Delay>
+    </BootTrigger>
+    <TimeTrigger>
+      <Enabled>true</Enabled>
+      <StartBoundary>2026-01-01T00:00:00</StartBoundary>
+      <Repetition>
+        <Interval>PT5M</Interval>
+        <StopAtDurationEnd>false</StopAtDurationEnd>
+      </Repetition>
+    </TimeTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>alice</UserId>
+      <LogonType>S4U</LogonType>
+      <RunLevel>HighestAvailable</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <ExecutionTimeLimit>PT30M</ExecutionTimeLimit>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>C:\Users\alice\.vrooli\libexec\vrooli-watchdog.exe</Command>
+      <Arguments>--report-only --request-pressure</Arguments>
+    </Exec>
+  </Actions>
+</Task>

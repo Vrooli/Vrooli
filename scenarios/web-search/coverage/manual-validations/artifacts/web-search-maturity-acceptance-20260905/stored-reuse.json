@@ -1,0 +1,19 @@
+{
+  "status": "ok",
+  "answer_kind": "stored_finding",
+  "brief": {
+    "query": "What is the default TCP port of PostgreSQL?",
+    "level": "l2",
+    "summary": "PostgreSQL listens on TCP port 5432 by default.",
+    "citations": [
+      {
+        "url": "https://www.postgresql.org/docs/current/runtime-config-connection.html",
+        "title": "19.3. Connections and Authentication - PostgreSQL"
+      }
+    ]
+  },
+  "finding_ids": [
+    "2b0fef34-577c-4581-8e9f-92c67a950efe"
+  ],
+  "checked_at": "2026-09-05T05:40:12.711767231Z"
+}

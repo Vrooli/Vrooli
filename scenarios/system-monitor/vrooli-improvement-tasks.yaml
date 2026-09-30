@@ -56,7 +56,7 @@ tasks:
       urgency: high
   
   - title: "Add OpenAPI Documentation Generation for All Scenario APIs"
-    description: "Automatically generate OpenAPI/Swagger documentation for all 80+ scenario APIs. Implement middleware to auto-document endpoints, add request/response validation, create interactive API explorers, and maintain version compatibility. Priority on ecosystem-manager and browser-automation-studio."
+    description: "Automatically generate OpenAPI/Swagger documentation for all 80+ scenario APIs. Implement middleware to auto-document endpoints, add request/response validation, create interactive API explorers, and maintain version compatibility. Priority on swarm-manager and browser-automation-studio."
     type: documentation
     priority_estimates:
       impact: medium

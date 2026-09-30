@@ -1,8 +1,14 @@
 node_modules/
 dist/
 coverage/
+/logs/
 *.log
 .DS_Store
 .env
 .env.local
 *.tsbuildinfo
+
+# Generated validation output
+/playwright-report/
+/test-results/
+/test-coverage.txt

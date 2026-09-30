@@ -1,7 +1,7 @@
 // Package settings provides filesystem-backed settings persistence.
 //
-// Settings are stored at scenarios/swarm-manager/.vrooli/settings.json by default.
-// This keeps the scenario fully local and git-trackable without DB dependencies.
+// Settings are stored at scenarios/swarm-manager/config/settings.json by default.
+// This keeps them git-trackable as shared scenario behavior defaults.
 //
 // DOC: docs/reference/configuration.md
 // DOC: docs/reference/operational-targets.md
@@ -12,23 +12,32 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
+
+	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/eventlog"
+	"swarm-manager/internal/httputil"
 
 	"github.com/gorilla/mux"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
-	"swarm-manager/internal/apierr"
-	"swarm-manager/internal/httputil"
 )
 
 // Handler exposes HTTP endpoints for settings persistence.
 // [REQ:REQ-P1-010-API] Settings persistence API
 type Handler struct {
-	store *Store
+	store   *Store
+	emitter *eventlog.Emitter
 }
 
 // NewHandler creates a new settings handler.
 func NewHandler(path string) *Handler {
 	return &Handler{store: NewStore(path)}
+}
+
+// NewHandlerWithEmitter adds durable audit events for autonomy mode changes.
+func NewHandlerWithEmitter(path string, emitter *eventlog.Emitter) *Handler {
+	return &Handler{store: NewStore(path), emitter: emitter}
 }
 
 // GetStore returns the underlying store (for dependency injection into other handlers).
@@ -49,7 +58,10 @@ func (h *Handler) Get(w http.ResponseWriter, _ *http.Request) {
 		apierr.MapError(w, "[settings] get", apierr.Internal("failed to load settings"))
 		return
 	}
-	resp := &apipb.SettingsResponse{Settings: settingsToProto(settings)}
+	resp := &apipb.SettingsResponse{
+		Settings:         settingsToProto(settings),
+		PolicyProjection: policyProjectionToProto(settings),
+	}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		apierr.MapError(w, "[settings] get", apierr.Internal("failed to encode response"))
 		return
@@ -88,6 +100,18 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[settings] update", apierr.Internal("failed to persist settings"))
 		return
 	}
+	if h.emitter != nil {
+		actorID := strings.TrimSpace(r.Header.Get("X-Actor-ID"))
+		if actorID == "" {
+			actorID = "operator"
+		}
+		for gateID, to := range updated.AutonomyGateModes {
+			from := current.AutonomyGateModes[gateID]
+			if from != to {
+				h.emitter.EmitAutonomyGateModeChanged(gateID, from, to, actorID)
+			}
+		}
+	}
 
 	slog.Info("settings updated",
 		"theme", updated.Theme,
@@ -95,7 +119,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		"at", time.Now().UTC().Format(time.RFC3339),
 	)
 
-	resp := &apipb.SettingsResponse{Settings: settingsToProto(updated)}
+	resp := &apipb.SettingsResponse{
+		Settings:         settingsToProto(updated),
+		PolicyProjection: policyProjectionToProto(updated),
+	}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		apierr.MapError(w, "[settings] update", apierr.Internal("failed to encode response"))
 		return

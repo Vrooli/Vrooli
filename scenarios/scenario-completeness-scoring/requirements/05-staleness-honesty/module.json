@@ -1,0 +1,78 @@
+{
+  "description": "A freshness block computed via freshness-go (current tree digest vs digests stamped on recorded runs in coverage/runs.index.json) showing per-phase fresh/stale/unknown and a copy-pastable suggested refresh command; never-tested scenarios degrade to \"unknown\", not fake-fresh.",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "Every score response must include a freshness block computed by packages/freshness-go. The freshness block must compare the current tree digest of the scenario with the digests stamped on recorded runs in coverage/runs.index.json. Each tracked phase must report one of three verdicts: fresh (current digest matches stamped digest), stale (digest mismatch), or unknown (no recorded run exists for that phase). Scenarios with no test history must degrade to 'unknown', never to a fake 'fresh' verdict. The block must include a copy-pastable suggested refresh command listing the stale/unknown phases. No local reimplementation of freshness logic is permitted — only packages/freshness-go must be used.",
+      "id": "REQ-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "draft",
+      "title": "Freshness Block with Per-Phase Fresh/Stale/Unknown Verdicts and Refresh Command",
+      "validation": [
+        {
+          "notes": "api/internal/freshness/verdict_test.go [REQ:OT-P0-005]: table test: matching digest → fresh verdict",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/freshness/verdict_test.go: mismatched digest → stale verdict with phase name present",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/freshness/verdict_test.go: no entry in runs.index.json for phase → unknown verdict (never fresh)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/freshness/verdict_test.go: empty runs.index.json (never-tested scenario) → all phases unknown",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/freshness/verdict_test.go: assert suggested refresh command string contains phase names for all non-fresh phases",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "cmd/score/score_integration_test.go: GetScore with synthetic runs.index.json containing a stale digest returns freshness block with at least one stale verdict and a non-empty refresh_command string",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "cli golden test: `score get \u003cscenario\u003e` output contains a 'Freshness' section with per-phase verdict labels and a suggested command line",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Engineers immediately know whether the score reflects the current codebase state and have a one-liner to refresh stale phases",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Staleness Honesty"
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "ACE-Step/Ace-Step1.5:acestep-v15-turbo",
+    "display_name": "ACE-Step 1.5 Turbo",
+    "variant": "acestep-v15-turbo",
+    "revision": "19671f406d603126926c1b7e2adc169acbcade22",
+    "licence": "permissive",
+    "installed": true,
+    "bytes": 7516192768,
+    "operations": ["compose"],
+    "hardware": {"min_vram_bytes": 6442450944, "min_ram_bytes": 8589934592, "cpu_capable": false},
+    "license": "MIT",
+    "commercial_use": "yes",
+    "commercial_use_notes": "Vendor asserts licensed, royalty-free, or synthetic training data.",
+    "base_model_lineage": "ACE-Step 1.5",
+    "known_risks": "Publisher-authored remote code is pinned and reviewed inside the verified resource artifact.",
+    "checksum": "3f6e0797fad420a39bd33979eb6e840e30989e34a3794e843d23b60ec6e422d7",
+    "disk_floor_bytes": 2147483648
+  }
+]

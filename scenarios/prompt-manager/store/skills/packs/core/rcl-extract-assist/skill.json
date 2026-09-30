@@ -1,0 +1,26 @@
+{
+  "description": "Extract a scenario asset into the React Component Library with source refactoring and baseline-aware verification.",
+  "entry": "SKILL.md",
+  "icon": "package",
+  "id": "rcl-extract-assist",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "contract"
+  ],
+  "name": "RCL Extract Assist",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "react-component-library",
+    "catalog",
+    "extract"
+  ]
+}

@@ -1,7 +1,9 @@
 package handlers
+
 // DOC: docs/reference/api-endpoints.md#investigations
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,16 +12,17 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
-	"github.com/gorilla/mux"
-	"system-monitor-api/internal/apierrors"
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/convert"
-	"system-monitor-api/internal/httputil"
-	"system-monitor-api/internal/models"
+	"connectrpc.com/connect"
+	investigationspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/investigations"
+	scriptspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/scripts"
 
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 )
 
 // InvestigationHandler handles investigation-related requests
@@ -28,7 +31,10 @@ type InvestigationHandler struct {
 	config           *config.Config
 	investigationSvc InvestigationManager
 	scriptSvc        ScriptRunner
+	runHistory       InvestigationRunHistory
 }
+
+func (h *InvestigationHandler) SetRunHistory(history InvestigationRunHistory) { h.runHistory = history }
 
 // NewInvestigationHandler creates a new investigation handler
 func NewInvestigationHandler(cfg *config.Config, investigationSvc InvestigationManager, scriptSvc ScriptRunner, log *slog.Logger) *InvestigationHandler {
@@ -40,8 +46,295 @@ func NewInvestigationHandler(cfg *config.Config, investigationSvc InvestigationM
 	}
 }
 
-// ListInvestigations handles GET /api/v1/investigations
-func (h *InvestigationHandler) ListInvestigations(w http.ResponseWriter, r *http.Request) {
+// ListScripts handles the typed Connect-RPC script listing contract.
+func (h *InvestigationHandler) ListScripts(context.Context, *connect.Request[scriptspb.ListScriptsRequest]) (*connect.Response[scriptspb.ListScriptsResponse], error) {
+	scripts, err := h.scriptSvc.ListScripts()
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&scriptspb.ListScriptsResponse{
+		Scripts: convert.ScriptMetasToProto(scripts),
+	}), nil
+}
+
+// GetScript handles the typed Connect-RPC script retrieval contract.
+func (h *InvestigationHandler) GetScript(_ context.Context, req *connect.Request[scriptspb.GetScriptRequest]) (*connect.Response[scriptspb.GetScriptResponse], error) {
+	id := req.Msg.GetId()
+	if id == "" {
+		return nil, connectError(apierrors.Validation("id", "Script ID is required"))
+	}
+
+	meta, content, err := h.scriptSvc.GetScript(id)
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&scriptspb.GetScriptResponse{
+		Script:  convert.ScriptMetaToProto(meta),
+		Content: content,
+	}), nil
+}
+
+// UpdateScript handles the typed Connect-RPC script persistence contract.
+func (h *InvestigationHandler) UpdateScript(_ context.Context, req *connect.Request[scriptspb.UpdateScriptRequest]) (*connect.Response[scriptspb.GetScriptResponse], error) {
+	id := req.Msg.GetId()
+	if id == "" {
+		return nil, connectError(apierrors.Validation("id", "Script ID is required"))
+	}
+	meta, content, err := h.scriptSvc.UpdateScript(id, req.Msg.GetContent())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&scriptspb.GetScriptResponse{Script: convert.ScriptMetaToProto(meta), Content: content}), nil
+}
+
+// ExecuteScript handles the typed Connect-RPC script execution contract.
+func (h *InvestigationHandler) ExecuteScript(ctx context.Context, req *connect.Request[scriptspb.ExecuteScriptRequest]) (*connect.Response[scriptspb.ExecuteScriptResponse], error) {
+	id := req.Msg.GetId()
+	if id == "" {
+		return nil, connectError(apierrors.Validation("id", "Script ID is required"))
+	}
+
+	contentOverride := ""
+	if req.Msg.Content != nil {
+		contentOverride = req.Msg.GetContent()
+	}
+
+	execution, err := h.scriptSvc.ExecuteScript(ctx, id, contentOverride)
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&scriptspb.ExecuteScriptResponse{
+		Execution: convert.ScriptExecutionToProto(execution),
+	}), nil
+}
+
+func (h *InvestigationHandler) ListRuns(ctx context.Context, req *connect.Request[scriptspb.ListRunsRequest]) (*connect.Response[scriptspb.ListRunsResponse], error) {
+	if h.runHistory == nil {
+		return nil, connectError(apierrors.Internal("investigation run history is unavailable", nil))
+	}
+	var since time.Time
+	var err error
+	if strings.TrimSpace(req.Msg.GetSince()) != "" {
+		since, err = time.Parse(time.RFC3339Nano, req.Msg.GetSince())
+		if err != nil {
+			return nil, connectError(apierrors.Validation("since", "since must be RFC 3339"))
+		}
+	}
+	runs, err := h.runHistory.ListRuns(ctx, req.Msg.GetEntryId(), since, int(req.Msg.GetLimit()))
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&scriptspb.ListRunsResponse{Runs: convert.InvestigationRunsToProto(runs)}), nil
+}
+
+func (h *InvestigationHandler) GetRun(ctx context.Context, req *connect.Request[scriptspb.GetRunRequest]) (*connect.Response[scriptspb.GetRunResponse], error) {
+	if h.runHistory == nil {
+		return nil, connectError(apierrors.Internal("investigation run history is unavailable", nil))
+	}
+	run, err := h.runHistory.GetRun(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&scriptspb.GetRunResponse{Run: convert.InvestigationRunToProto(run)}), nil
+}
+
+func (h *InvestigationHandler) PruneRuns(ctx context.Context, req *connect.Request[scriptspb.PruneRunsRequest]) (*connect.Response[scriptspb.PruneRunsResponse], error) {
+	if h.runHistory == nil {
+		return nil, connectError(apierrors.Internal("investigation run history is unavailable", nil))
+	}
+	deleted, err := h.runHistory.Prune(ctx, time.Now().UTC(), req.Msg.GetDryRun())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&scriptspb.PruneRunsResponse{Deleted: deleted, DryRun: req.Msg.GetDryRun()}), nil
+}
+
+// TriggerInvestigation starts a new anomaly investigation via Connect-RPC.
+func (h *InvestigationHandler) TriggerInvestigation(ctx context.Context, req *connect.Request[investigationspb.TriggerInvestigationRequest]) (*connect.Response[investigationspb.TriggerInvestigationResponse], error) {
+	investigation, err := h.investigationSvc.TriggerInvestigation(ctx, req.Msg.GetAutoFix(), req.Msg.GetNote())
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&investigationspb.TriggerInvestigationResponse{
+		Status:          models.StatusQueued,
+		InvestigationId: investigation.ID,
+		ApiBaseUrl:      h.configuredAPIBaseURL(),
+		Message:         "Investigation queued for processing",
+		AutoFix:         req.Msg.GetAutoFix(),
+		Note:            req.Msg.GetNote(),
+	}), nil
+}
+
+// GetInvestigation retrieves an investigation by ID via Connect-RPC.
+func (h *InvestigationHandler) GetInvestigation(ctx context.Context, req *connect.Request[investigationspb.GetInvestigationRequest]) (*connect.Response[investigationspb.GetInvestigationResponse], error) {
+	investigation, err := h.investigationSvc.GetInvestigation(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&investigationspb.GetInvestigationResponse{
+		Investigation: convert.InvestigationToProto(investigation),
+	}), nil
+}
+
+// GetLatestInvestigation retrieves the most recent investigation via Connect-RPC.
+func (h *InvestigationHandler) GetLatestInvestigation(ctx context.Context, _ *connect.Request[investigationspb.GetLatestInvestigationRequest]) (*connect.Response[investigationspb.GetLatestInvestigationResponse], error) {
+	investigation, err := h.investigationSvc.GetLatestInvestigation(ctx)
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&investigationspb.GetLatestInvestigationResponse{
+		Investigation: convert.InvestigationToProto(investigation),
+	}), nil
+}
+
+// ListInvestigations returns recent investigations via Connect-RPC.
+func (h *InvestigationHandler) ListInvestigations(ctx context.Context, req *connect.Request[investigationspb.ListInvestigationsRequest]) (*connect.Response[investigationspb.ListInvestigationsResponse], error) {
+	limit := 20
+	if req.Msg.Limit != nil && req.Msg.GetLimit() > 0 {
+		limit = int(req.Msg.GetLimit())
+	}
+
+	investigations, err := h.investigationSvc.ListInvestigations(ctx, limit)
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&investigationspb.ListInvestigationsResponse{
+		Investigations: convert.InvestigationsToProto(investigations),
+	}), nil
+}
+
+// UpdateInvestigationStatus updates an investigation's status via Connect-RPC.
+func (h *InvestigationHandler) UpdateInvestigationStatus(ctx context.Context, req *connect.Request[investigationspb.UpdateInvestigationStatusRequest]) (*connect.Response[investigationspb.UpdateInvestigationStatusResponse], error) {
+	statusStr := strings.ToLower(strings.TrimPrefix(req.Msg.Status.String(), "INVESTIGATION_STATUS_"))
+	if err := h.investigationSvc.UpdateInvestigationStatus(ctx, req.Msg.GetId(), statusStr); err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&investigationspb.UpdateInvestigationStatusResponse{Status: "updated"}), nil
+}
+
+// UpdateInvestigationFindings updates an investigation's findings via Connect-RPC.
+func (h *InvestigationHandler) UpdateInvestigationFindings(ctx context.Context, req *connect.Request[investigationspb.UpdateInvestigationFindingsRequest]) (*connect.Response[investigationspb.UpdateInvestigationFindingsResponse], error) {
+	var details map[string]interface{}
+	if req.Msg.Details != nil {
+		details = req.Msg.Details.AsMap()
+	}
+
+	if err := h.investigationSvc.UpdateInvestigationFindings(ctx, req.Msg.GetId(), req.Msg.GetFindings(), details); err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&investigationspb.UpdateInvestigationFindingsResponse{Status: "updated"}), nil
+}
+
+// UpdateInvestigationProgress updates investigation progress via Connect-RPC.
+func (h *InvestigationHandler) UpdateInvestigationProgress(ctx context.Context, req *connect.Request[investigationspb.UpdateInvestigationProgressRequest]) (*connect.Response[investigationspb.UpdateInvestigationProgressResponse], error) {
+	if err := h.investigationSvc.UpdateInvestigationProgress(ctx, req.Msg.GetId(), int(req.Msg.GetProgress())); err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&investigationspb.UpdateInvestigationProgressResponse{Status: "updated"}), nil
+}
+
+// AddInvestigationStep adds a step to an investigation via Connect-RPC.
+func (h *InvestigationHandler) AddInvestigationStep(ctx context.Context, req *connect.Request[investigationspb.AddInvestigationStepRequest]) (*connect.Response[investigationspb.AddInvestigationStepResponse], error) {
+	step := protoStepToModel(req.Msg.GetStep())
+	if err := h.investigationSvc.AddInvestigationStep(ctx, req.Msg.GetId(), step); err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&investigationspb.AddInvestigationStepResponse{Status: "step_added"}), nil
+}
+
+// GetCooldownStatus returns the current investigation cooldown via Connect-RPC.
+func (h *InvestigationHandler) GetCooldownStatus(ctx context.Context, _ *connect.Request[investigationspb.GetCooldownStatusRequest]) (*connect.Response[investigationspb.GetCooldownStatusResponse], error) {
+	status, err := h.investigationSvc.GetCooldownStatus(ctx)
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&investigationspb.GetCooldownStatusResponse{
+		Cooldown: convert.CooldownStatusToProto(status),
+	}), nil
+}
+
+// ResetCooldown resets the investigation cooldown via Connect-RPC.
+func (h *InvestigationHandler) ResetCooldown(ctx context.Context, _ *connect.Request[investigationspb.ResetCooldownRequest]) (*connect.Response[investigationspb.ResetCooldownResponse], error) {
+	if err := h.investigationSvc.ResetCooldown(ctx); err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&investigationspb.ResetCooldownResponse{Status: "cooldown_reset"}), nil
+}
+
+// UpdateCooldownPeriod updates the investigation cooldown period via Connect-RPC.
+func (h *InvestigationHandler) UpdateCooldownPeriod(ctx context.Context, req *connect.Request[investigationspb.UpdateCooldownPeriodRequest]) (*connect.Response[investigationspb.UpdateCooldownPeriodResponse], error) {
+	if err := h.investigationSvc.UpdateCooldownPeriod(ctx, int(req.Msg.GetCooldownPeriodSeconds())); err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&investigationspb.UpdateCooldownPeriodResponse{Status: "updated"}), nil
+}
+
+// GetTriggers returns trigger configurations via Connect-RPC.
+func (h *InvestigationHandler) GetTriggers(ctx context.Context, _ *connect.Request[investigationspb.GetTriggersRequest]) (*connect.Response[investigationspb.GetTriggersResponse], error) {
+	triggers, err := h.investigationSvc.GetTriggers(ctx)
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&investigationspb.GetTriggersResponse{
+		Triggers: convert.TriggerConfigsMapToProto(triggers),
+	}), nil
+}
+
+// UpdateTrigger updates a trigger configuration via Connect-RPC.
+func (h *InvestigationHandler) UpdateTrigger(ctx context.Context, req *connect.Request[investigationspb.UpdateTriggerRequest]) (*connect.Response[investigationspb.UpdateTriggerResponse], error) {
+	var enabled, autoFix *bool
+	var threshold *float64
+	if req.Msg.Enabled != nil {
+		e := req.Msg.GetEnabled()
+		enabled = &e
+	}
+	if req.Msg.AutoFix != nil {
+		a := req.Msg.GetAutoFix()
+		autoFix = &a
+	}
+	if req.Msg.Threshold != nil {
+		t := req.Msg.GetThreshold()
+		threshold = &t
+	}
+
+	if err := h.investigationSvc.UpdateTrigger(ctx, req.Msg.GetId(), enabled, autoFix, threshold); err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&investigationspb.UpdateTriggerResponse{Status: "updated"}), nil
+}
+
+// StopAgent stops a running investigation agent via Connect-RPC.
+func (h *InvestigationHandler) StopAgent(ctx context.Context, req *connect.Request[investigationspb.StopAgentRequest]) (*connect.Response[investigationspb.StopAgentResponse], error) {
+	id := req.Msg.GetId()
+	if id == "" {
+		return nil, connectError(apierrors.Validation("id", "Agent ID is required"))
+	}
+
+	if err := h.investigationSvc.StopInvestigationAgent(ctx, id); err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&investigationspb.StopAgentResponse{Status: models.StatusStopped, Id: id}), nil
+}
+
+// HandleListInvestigations handles GET /api/v1/investigations
+func (h *InvestigationHandler) HandleListInvestigations(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	limit := 20
 	if queryLimit := r.URL.Query().Get("limit"); queryLimit != "" {
@@ -56,14 +349,14 @@ func (h *InvestigationHandler) ListInvestigations(w http.ResponseWriter, r *http
 		return
 	}
 
-	resp := &apipb.ListInvestigationsResponse{
+	resp := &investigationspb.ListInvestigationsResponse{
 		Investigations: convert.InvestigationsToProto(investigations),
 	}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
-// GetLatestInvestigation handles GET /api/v1/investigations/latest
-func (h *InvestigationHandler) GetLatestInvestigation(w http.ResponseWriter, r *http.Request) {
+// HandleGetLatestInvestigation handles GET /api/v1/investigations/latest
+func (h *InvestigationHandler) HandleGetLatestInvestigation(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	investigation, err := h.investigationSvc.GetLatestInvestigation(ctx)
@@ -75,11 +368,11 @@ func (h *InvestigationHandler) GetLatestInvestigation(w http.ResponseWriter, r *
 	httputil.SafeProtoJSON(w, h.log, r, convert.InvestigationToProto(investigation))
 }
 
-// TriggerInvestigation handles POST /api/v1/investigations/trigger
-func (h *InvestigationHandler) TriggerInvestigation(w http.ResponseWriter, r *http.Request) {
+// HandleTriggerInvestigation handles POST /api/v1/investigations/trigger
+func (h *InvestigationHandler) HandleTriggerInvestigation(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var pbReq apipb.TriggerInvestigationRequest
+	var pbReq investigationspb.TriggerInvestigationRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
 		if r.ContentLength <= 0 || errors.Is(err, io.EOF) {
 			// Allow empty body for backwards compatibility
@@ -98,7 +391,7 @@ func (h *InvestigationHandler) TriggerInvestigation(w http.ResponseWriter, r *ht
 	}
 
 	// Return immediate response with API info
-	resp := &apipb.TriggerInvestigationResponse{
+	resp := &investigationspb.TriggerInvestigationResponse{
 		Status:          models.StatusQueued,
 		InvestigationId: investigation.ID,
 		ApiBaseUrl:      h.resolveAPIBaseURL(r),
@@ -109,10 +402,9 @@ func (h *InvestigationHandler) TriggerInvestigation(w http.ResponseWriter, r *ht
 	httputil.SafeProtoJSONWithStatus(w, h.log, r, http.StatusAccepted, resp)
 }
 
-// GetInvestigation handles GET /api/v1/investigations/{id}
-func (h *InvestigationHandler) GetInvestigation(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
+// HandleGetInvestigation handles GET /api/v1/investigations/{id}
+func (h *InvestigationHandler) HandleGetInvestigation(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
 	ctx := r.Context()
 
 	investigation, err := h.investigationSvc.GetInvestigation(ctx, id)
@@ -124,13 +416,12 @@ func (h *InvestigationHandler) GetInvestigation(w http.ResponseWriter, r *http.R
 	httputil.SafeProtoJSON(w, h.log, r, convert.InvestigationToProto(investigation))
 }
 
-// UpdateInvestigationStatus handles PUT /api/v1/investigations/{id}/status
-func (h *InvestigationHandler) UpdateInvestigationStatus(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
+// HandleUpdateInvestigationStatus handles PUT /api/v1/investigations/{id}/status
+func (h *InvestigationHandler) HandleUpdateInvestigationStatus(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
 	ctx := r.Context()
 
-	var pbReq apipb.UpdateInvestigationStatusRequest
+	var pbReq investigationspb.UpdateInvestigationStatusRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
 		return
@@ -144,17 +435,16 @@ func (h *InvestigationHandler) UpdateInvestigationStatus(w http.ResponseWriter, 
 		return
 	}
 
-	resp := &apipb.UpdateInvestigationStatusResponse{Status: "updated"}
+	resp := &investigationspb.UpdateInvestigationStatusResponse{Status: "updated"}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
-// UpdateInvestigationFindings handles PUT /api/v1/investigations/{id}/findings
-func (h *InvestigationHandler) UpdateInvestigationFindings(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
+// HandleUpdateInvestigationFindings handles PUT /api/v1/investigations/{id}/findings
+func (h *InvestigationHandler) HandleUpdateInvestigationFindings(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
 	ctx := r.Context()
 
-	var pbReq apipb.UpdateInvestigationFindingsRequest
+	var pbReq investigationspb.UpdateInvestigationFindingsRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
 		return
@@ -171,17 +461,16 @@ func (h *InvestigationHandler) UpdateInvestigationFindings(w http.ResponseWriter
 		return
 	}
 
-	resp := &apipb.UpdateInvestigationFindingsResponse{Status: "updated"}
+	resp := &investigationspb.UpdateInvestigationFindingsResponse{Status: "updated"}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
-// UpdateInvestigationProgress handles PUT /api/v1/investigations/{id}/progress
-func (h *InvestigationHandler) UpdateInvestigationProgress(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
+// HandleUpdateInvestigationProgress handles PUT /api/v1/investigations/{id}/progress
+func (h *InvestigationHandler) HandleUpdateInvestigationProgress(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
 	ctx := r.Context()
 
-	var pbReq apipb.UpdateInvestigationProgressRequest
+	var pbReq investigationspb.UpdateInvestigationProgressRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
 		return
@@ -192,17 +481,16 @@ func (h *InvestigationHandler) UpdateInvestigationProgress(w http.ResponseWriter
 		return
 	}
 
-	resp := &apipb.UpdateInvestigationProgressResponse{Status: "updated"}
+	resp := &investigationspb.UpdateInvestigationProgressResponse{Status: "updated"}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
-// AddInvestigationStep handles POST /api/v1/investigations/{id}/step
-func (h *InvestigationHandler) AddInvestigationStep(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
+// HandleAddInvestigationStep handles POST /api/v1/investigations/{id}/step
+func (h *InvestigationHandler) HandleAddInvestigationStep(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
 	ctx := r.Context()
 
-	var pbReq apipb.AddInvestigationStepRequest
+	var pbReq investigationspb.AddInvestigationStepRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
 		return
@@ -214,12 +502,12 @@ func (h *InvestigationHandler) AddInvestigationStep(w http.ResponseWriter, r *ht
 		return
 	}
 
-	resp := &apipb.AddInvestigationStepResponse{Status: "step_added"}
+	resp := &investigationspb.AddInvestigationStepResponse{Status: "step_added"}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
-// GetCooldownStatus handles GET /api/v1/investigations/cooldown
-func (h *InvestigationHandler) GetCooldownStatus(w http.ResponseWriter, r *http.Request) {
+// HandleGetCooldownStatus handles GET /api/v1/investigations/cooldown
+func (h *InvestigationHandler) HandleGetCooldownStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	status, err := h.investigationSvc.GetCooldownStatus(ctx)
@@ -228,14 +516,14 @@ func (h *InvestigationHandler) GetCooldownStatus(w http.ResponseWriter, r *http.
 		return
 	}
 
-	resp := &apipb.GetCooldownStatusResponse{
+	resp := &investigationspb.GetCooldownStatusResponse{
 		Cooldown: convert.CooldownStatusToProto(status),
 	}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
-// ResetCooldown handles POST /api/v1/investigations/cooldown/reset
-func (h *InvestigationHandler) ResetCooldown(w http.ResponseWriter, r *http.Request) {
+// HandleResetCooldown handles POST /api/v1/investigations/cooldown/reset
+func (h *InvestigationHandler) HandleResetCooldown(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	if err := h.investigationSvc.ResetCooldown(ctx); err != nil {
@@ -248,8 +536,8 @@ func (h *InvestigationHandler) ResetCooldown(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-// UpdateCooldownPeriod handles PUT /api/v1/investigations/cooldown/period
-func (h *InvestigationHandler) UpdateCooldownPeriod(w http.ResponseWriter, r *http.Request) {
+// HandleUpdateCooldownPeriod handles PUT /api/v1/investigations/cooldown/period
+func (h *InvestigationHandler) HandleUpdateCooldownPeriod(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var req struct {
@@ -271,8 +559,8 @@ func (h *InvestigationHandler) UpdateCooldownPeriod(w http.ResponseWriter, r *ht
 	}
 }
 
-// GetTriggers handles GET /api/v1/investigations/triggers
-func (h *InvestigationHandler) GetTriggers(w http.ResponseWriter, r *http.Request) {
+// HandleGetTriggers handles GET /api/v1/investigations/triggers
+func (h *InvestigationHandler) HandleGetTriggers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	triggers, err := h.investigationSvc.GetTriggers(ctx)
@@ -281,19 +569,18 @@ func (h *InvestigationHandler) GetTriggers(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	resp := &apipb.GetTriggersResponse{
+	resp := &investigationspb.GetTriggersResponse{
 		Triggers: convert.TriggerConfigsMapToProto(triggers),
 	}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
-// UpdateTrigger handles PUT /api/v1/investigations/triggers/{id}
-func (h *InvestigationHandler) UpdateTrigger(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
+// HandleUpdateTrigger handles PUT /api/v1/investigations/triggers/{id}
+func (h *InvestigationHandler) HandleUpdateTrigger(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
 	ctx := r.Context()
 
-	var pbReq apipb.UpdateTriggerRequest
+	var pbReq investigationspb.UpdateTriggerRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
 		return
@@ -319,14 +606,13 @@ func (h *InvestigationHandler) UpdateTrigger(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	resp := &apipb.UpdateTriggerResponse{Status: "updated"}
+	resp := &investigationspb.UpdateTriggerResponse{Status: "updated"}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
 // UpdateTriggerThreshold handles PUT /api/v1/investigations/triggers/{id}/threshold
 func (h *InvestigationHandler) UpdateTriggerThreshold(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
+	id := r.PathValue("id")
 	ctx := r.Context()
 
 	var req struct {
@@ -367,69 +653,12 @@ func (h *InvestigationHandler) resolveAPIBaseURL(r *http.Request) string {
 	return fmt.Sprintf("http://localhost:%s", port)
 }
 
-// =============================================================================
-// Agent Configuration Endpoints
-// =============================================================================
-
-// GetAgentConfig handles GET /api/agent/config
-func (h *InvestigationHandler) GetAgentConfig(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	config, err := h.investigationSvc.GetAgentConfig(ctx)
-	if err != nil {
-		httputil.HandleError(w, h.log, r, err)
-		return
+func (h *InvestigationHandler) configuredAPIBaseURL() string {
+	port := "8080"
+	if h.config != nil && strings.TrimSpace(h.config.Server.APIPort) != "" {
+		port = strings.TrimSpace(h.config.Server.APIPort)
 	}
-
-	if err := httputil.JSON(w, config); err != nil {
-		h.log.Warn("response write failed", "error", err, "path", r.URL.Path)
-	}
-}
-
-// GetAvailableRunners handles GET /api/agent/runners
-func (h *InvestigationHandler) GetAvailableRunners(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	runners, err := h.investigationSvc.GetAvailableRunners(ctx)
-	if err != nil {
-		httputil.HandleError(w, h.log, r, err)
-		return
-	}
-
-	if err := httputil.JSON(w, runners); err != nil {
-		h.log.Warn("response write failed", "error", err, "path", r.URL.Path)
-	}
-}
-
-// UpdateAgentConfig handles PUT /api/agent/config
-func (h *InvestigationHandler) UpdateAgentConfig(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var req struct {
-		RunnerType       string   `json:"runner_type,omitempty"`
-		Model            string   `json:"model,omitempty"`
-		MaxTurns         int32    `json:"max_turns,omitempty"`
-		TimeoutSeconds   int32    `json:"timeout_seconds,omitempty"`
-		AllowedTools     []string `json:"allowed_tools,omitempty"`
-		SkipPermissions  bool     `json:"skip_permissions,omitempty"`
-		RequiresSandbox  bool     `json:"requires_sandbox,omitempty"`
-		RequiresApproval bool     `json:"requires_approval,omitempty"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
-		return
-	}
-
-	config, err := h.investigationSvc.UpdateAgentConfig(ctx, req.RunnerType, req.Model, req.MaxTurns, req.TimeoutSeconds, req.AllowedTools, req.SkipPermissions, req.RequiresSandbox, req.RequiresApproval)
-	if err != nil {
-		httputil.HandleError(w, h.log, r, err)
-		return
-	}
-
-	if err := httputil.JSON(w, config); err != nil {
-		h.log.Warn("response write failed", "error", err, "path", r.URL.Path)
-	}
+	return fmt.Sprintf("http://localhost:%s", port)
 }
 
 // GetAgentStatus handles GET /api/agent/status
@@ -480,8 +709,7 @@ func (h *InvestigationHandler) GetCurrentAgent(w http.ResponseWriter, r *http.Re
 // GetAgentStatusByID handles GET /api/v1/investigations/agent/{id}/status
 // Returns the latest investigation payload for a specific agent.
 func (h *InvestigationHandler) GetAgentStatusByID(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
+	id := r.PathValue("id")
 	ctx := r.Context()
 
 	investigation, err := h.investigationSvc.GetInvestigationAgentStatus(ctx, id)
@@ -493,10 +721,9 @@ func (h *InvestigationHandler) GetAgentStatusByID(w http.ResponseWriter, r *http
 	httputil.SafeProtoJSON(w, h.log, r, convert.InvestigationToProto(investigation))
 }
 
-// StopAgent handles POST /api/v1/investigations/agent/{id}/stop
-func (h *InvestigationHandler) StopAgent(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
+// HandleStopAgent handles POST /api/v1/investigations/agent/{id}/stop.
+func (h *InvestigationHandler) HandleStopAgent(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
 	ctx := r.Context()
 
 	if err := h.investigationSvc.StopInvestigationAgent(ctx, id); err != nil {
@@ -509,24 +736,23 @@ func (h *InvestigationHandler) StopAgent(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-// ListScripts handles GET /api/v1/investigations/scripts
-func (h *InvestigationHandler) ListScripts(w http.ResponseWriter, r *http.Request) {
+// HandleListScripts handles GET /api/v1/investigations/scripts.
+func (h *InvestigationHandler) HandleListScripts(w http.ResponseWriter, r *http.Request) {
 	scripts, err := h.scriptSvc.ListScripts()
 	if err != nil {
 		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	resp := &apipb.ListScriptsResponse{
+	resp := &scriptspb.ListScriptsResponse{
 		Scripts: convert.ScriptMetasToProto(scripts),
 	}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
-// GetScript handles GET /api/v1/investigations/scripts/{id}
-func (h *InvestigationHandler) GetScript(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
+// HandleGetScript handles GET /api/v1/investigations/scripts/{id}.
+func (h *InvestigationHandler) HandleGetScript(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
 
 	meta, content, err := h.scriptSvc.GetScript(id)
 	if err != nil {
@@ -534,20 +760,35 @@ func (h *InvestigationHandler) GetScript(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	resp := &apipb.GetScriptResponse{
+	resp := &scriptspb.GetScriptResponse{
 		Script:  convert.ScriptMetaToProto(meta),
 		Content: content,
 	}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
-// ExecuteScript handles POST /api/v1/investigations/scripts/{id}/execute
-func (h *InvestigationHandler) ExecuteScript(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
+// HandleUpdateScript handles PUT /api/v1/investigations/scripts/{id}.
+func (h *InvestigationHandler) HandleUpdateScript(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var pbReq scriptspb.UpdateScriptRequest
+	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
+		httputil.HandleError(w, h.log, r, apierrors.Validation("content", "Invalid script update payload"))
+		return
+	}
+	meta, content, err := h.scriptSvc.UpdateScript(id, pbReq.GetContent())
+	if err != nil {
+		httputil.HandleError(w, h.log, r, err)
+		return
+	}
+	httputil.SafeProtoJSON(w, h.log, r, &scriptspb.GetScriptResponse{Script: convert.ScriptMetaToProto(meta), Content: content})
+}
+
+// HandleExecuteScript handles POST /api/v1/investigations/scripts/{id}/execute.
+func (h *InvestigationHandler) HandleExecuteScript(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
 	ctx := r.Context()
 
-	var pbReq apipb.ExecuteScriptRequest
+	var pbReq scriptspb.ExecuteScriptRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
 		// Allow empty body — execute script as-is
 		pbReq.Content = nil
@@ -564,14 +805,66 @@ func (h *InvestigationHandler) ExecuteScript(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	resp := &apipb.ExecuteScriptResponse{
+	resp := &scriptspb.ExecuteScriptResponse{
 		Execution: convert.ScriptExecutionToProto(execution),
 	}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
+func (h *InvestigationHandler) HandleListRuns(w http.ResponseWriter, r *http.Request) {
+	entryID := r.URL.Query().Get("entry_id")
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	var since time.Time
+	var err error
+	if value := r.URL.Query().Get("since"); value != "" {
+		since, err = time.Parse(time.RFC3339Nano, value)
+		if err != nil {
+			httputil.HandleError(w, h.log, r, apierrors.Validation("since", "since must be RFC 3339"))
+			return
+		}
+	}
+	if h.runHistory == nil {
+		httputil.HandleError(w, h.log, r, apierrors.Internal("investigation run history is unavailable", nil))
+		return
+	}
+	runs, err := h.runHistory.ListRuns(r.Context(), entryID, since, limit)
+	if err != nil {
+		httputil.HandleError(w, h.log, r, err)
+		return
+	}
+	httputil.SafeProtoJSON(w, h.log, r, &scriptspb.ListRunsResponse{Runs: convert.InvestigationRunsToProto(runs)})
+}
+
+func (h *InvestigationHandler) HandleGetRun(w http.ResponseWriter, r *http.Request) {
+	if h.runHistory == nil {
+		httputil.HandleError(w, h.log, r, apierrors.Internal("investigation run history is unavailable", nil))
+		return
+	}
+	run, err := h.runHistory.GetRun(r.Context(), r.PathValue("id"))
+	if err != nil {
+		httputil.HandleError(w, h.log, r, err)
+		return
+	}
+	httputil.SafeProtoJSON(w, h.log, r, &scriptspb.GetRunResponse{Run: convert.InvestigationRunToProto(run)})
+}
+
+func (h *InvestigationHandler) HandlePruneRuns(w http.ResponseWriter, r *http.Request) {
+	if h.runHistory == nil {
+		httputil.HandleError(w, h.log, r, apierrors.Internal("investigation run history is unavailable", nil))
+		return
+	}
+	var req scriptspb.PruneRunsRequest
+	_ = httputil.DecodeProtoJSON(r, &req)
+	deleted, err := h.runHistory.Prune(r.Context(), time.Now().UTC(), req.GetDryRun())
+	if err != nil {
+		httputil.HandleError(w, h.log, r, err)
+		return
+	}
+	httputil.SafeProtoJSON(w, h.log, r, &scriptspb.PruneRunsResponse{Deleted: deleted, DryRun: req.GetDryRun()})
+}
+
 // protoStepToModel converts a proto InvestigationStep to the internal model.
-func protoStepToModel(step *domainpb.InvestigationStep) models.InvestigationStep {
+func protoStepToModel(step *investigationspb.InvestigationStep) models.InvestigationStep {
 	if step == nil {
 		return models.InvestigationStep{}
 	}

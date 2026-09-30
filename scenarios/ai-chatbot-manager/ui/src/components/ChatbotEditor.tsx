@@ -28,7 +28,7 @@ const DEFAULT_FORM: ChatbotForm = {
   personality: 'You are a helpful assistant who responds with confidence and empathy.',
   knowledge_base: '',
   model_config: {
-    model: 'llama3.2',
+    model: 'chat.default',
     temperature: 0.7,
     max_tokens: 1000,
   },
@@ -73,7 +73,7 @@ function ChatbotEditor() {
           personality: chatbot.personality || DEFAULT_FORM.personality,
           knowledge_base: chatbot.knowledge_base || DEFAULT_FORM.knowledge_base,
           model_config: {
-            model: (chatbot.model_config?.model as string) || 'llama3.2',
+            model: (chatbot.model_config?.model as string) || 'chat.default',
             temperature: (chatbot.model_config?.temperature as number) ?? 0.7,
             max_tokens: (chatbot.model_config?.max_tokens as number) ?? 1000,
           },
@@ -275,11 +275,10 @@ function ChatbotEditor() {
           </header>
           <div className="form-grid">
             <div className="form-control">
-              <label htmlFor="model-select">Model</label>
+              <label htmlFor="model-select">Model Role</label>
               <select id="model-select" value={formData.model_config?.model as string} onChange={handleModelConfigChange('model')}>
-                <option value="llama3.2">Llama 3.2 (recommended)</option>
-                <option value="mistral">Mistral</option>
-                <option value="codellama">CodeLlama</option>
+                <option value="chat.default">chat.default</option>
+                <option value="chat.small">chat.small</option>
               </select>
             </div>
             <div className="form-control">

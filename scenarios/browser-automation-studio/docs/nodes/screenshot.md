@@ -20,7 +20,7 @@
 ## Runtime Behavior
 
 1. The automation compiler keeps screenshot params intact (name, viewport overrides, focus/highlight/mask/zoom, DOM snapshot flag); validation is handled by the workflow validator and UI.
-2. BrowserlessEngine applies the payload through `browserless/cdp/actions.go`, driving focus/highlights/masks before capturing via `Page.captureScreenshot`. Overlay metadata is preserved for replay.
+2. The Playwright driver applies the payload, driving focus/highlights/masks before capturing via `Page.captureScreenshot`. Overlay metadata is preserved for replay.
 3. Execution artifacts include the PNG plus highlight/mask metadata and optional DOM snapshot so the Execution Viewer and exports render the overlays correctly.
 
 ## Example

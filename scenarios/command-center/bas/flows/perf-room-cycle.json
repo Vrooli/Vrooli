@@ -1,0 +1,254 @@
+{
+  "metadata": {
+    "name": "perf-room-cycle",
+    "description": "Perf-capture flow (intent:performance). Assertion-free: drives the kiosk journey the board runs all day - mount at full scene tier, then advance through all six rooms with the keyboard, dwelling in each so the trace holds every composition's steady-state frames and each room transition. Capture: performance-health audit run command-center --workflow perf-room-cycle. Never bind as a requirement automation case.",
+    "labels": {
+      "intent": "performance",
+      "reset": "none"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-board",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/mission-control?tier=full&cycle=600",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open the board at full scene tier with a long cycle"
+        }
+      }
+    },
+    {
+      "id": "wait-scene-mission-control",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='scene-canvas'][data-scene-state='ready']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for the first scene frame"
+        }
+      }
+    },
+    {
+      "id": "dwell-mission-control",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 3000
+        },
+        "metadata": {
+          "label": "Dwell: orbital field steady state"
+        }
+      }
+    },
+    {
+      "id": "next-hive",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "key": "ArrowRight"
+        },
+        "metadata": {
+          "label": "Advance to hive"
+        }
+      }
+    },
+    {
+      "id": "dwell-hive",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 3000
+        },
+        "metadata": {
+          "label": "Dwell: hive transition and steady state"
+        }
+      }
+    },
+    {
+      "id": "next-forge",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "key": "ArrowRight"
+        },
+        "metadata": {
+          "label": "Advance to forge"
+        }
+      }
+    },
+    {
+      "id": "dwell-forge",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 3000
+        },
+        "metadata": {
+          "label": "Dwell: forge transition and steady state"
+        }
+      }
+    },
+    {
+      "id": "next-ledger",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "key": "ArrowRight"
+        },
+        "metadata": {
+          "label": "Advance to ledger"
+        }
+      }
+    },
+    {
+      "id": "dwell-ledger",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 3000
+        },
+        "metadata": {
+          "label": "Dwell: ledger transition and steady state"
+        }
+      }
+    },
+    {
+      "id": "next-broadcast",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "key": "ArrowRight"
+        },
+        "metadata": {
+          "label": "Advance to broadcast"
+        }
+      }
+    },
+    {
+      "id": "dwell-broadcast",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 3000
+        },
+        "metadata": {
+          "label": "Dwell: broadcast transition and steady state"
+        }
+      }
+    },
+    {
+      "id": "next-panorama",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "key": "ArrowRight"
+        },
+        "metadata": {
+          "label": "Advance to panorama"
+        }
+      }
+    },
+    {
+      "id": "dwell-panorama",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 3000
+        },
+        "metadata": {
+          "label": "Dwell: panorama transition and steady state"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-navigate-board-wait-scene-mission-control",
+      "source": "navigate-board",
+      "target": "wait-scene-mission-control",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-wait-scene-mission-control-dwell-mission-control",
+      "source": "wait-scene-mission-control",
+      "target": "dwell-mission-control",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-dwell-mission-control-next-hive",
+      "source": "dwell-mission-control",
+      "target": "next-hive",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-next-hive-dwell-hive",
+      "source": "next-hive",
+      "target": "dwell-hive",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-dwell-hive-next-forge",
+      "source": "dwell-hive",
+      "target": "next-forge",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-next-forge-dwell-forge",
+      "source": "next-forge",
+      "target": "dwell-forge",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-dwell-forge-next-ledger",
+      "source": "dwell-forge",
+      "target": "next-ledger",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-next-ledger-dwell-ledger",
+      "source": "next-ledger",
+      "target": "dwell-ledger",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-dwell-ledger-next-broadcast",
+      "source": "dwell-ledger",
+      "target": "next-broadcast",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-next-broadcast-dwell-broadcast",
+      "source": "next-broadcast",
+      "target": "dwell-broadcast",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-dwell-broadcast-next-panorama",
+      "source": "dwell-broadcast",
+      "target": "next-panorama",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-next-panorama-dwell-panorama",
+      "source": "next-panorama",
+      "target": "dwell-panorama",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

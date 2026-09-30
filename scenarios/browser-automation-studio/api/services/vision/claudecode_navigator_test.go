@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/hubmocks"
 )
 
 // mockCommandRunner implements CommandRunner for testing.
@@ -40,7 +41,7 @@ func (m *mockCommandRunner) CommandContext(ctx context.Context, name string, arg
 	m.lastArgs = args
 
 	// For version check, create a real command that outputs the version
-	if len(args) == 1 && args[0] == "--version" {
+	if len(args) > 0 && args[len(args)-1] == "--version" {
 		output := m.versionOutput
 		if output == "" {
 			output = "claude-code 1.0.18"
@@ -77,7 +78,7 @@ func TestNewClaudeCodeVisionNavigator(t *testing.T) {
 	})
 
 	t.Run("applies options", func(t *testing.T) {
-		wsHub := &mockWSHub{}
+		wsHub := hubmocks.New()
 		cmdRunner := &mockCommandRunner{}
 		var recordedActions []*RecordedNavigationAction
 		callback := func(sessionID string, action *RecordedNavigationAction) {
@@ -500,6 +501,9 @@ func TestClaudeCodeVisionNavigator_GetSession(t *testing.T) {
 		NavigationSession: &NavigationSession{
 			NavigationID: "nav_test",
 			SessionID:    "session123",
+			ExtractedData: map[string]interface{}{
+				"nested": map[string]interface{}{"value": "original"},
+			},
 		},
 		doneChan: make(chan struct{}),
 	}
@@ -514,6 +518,13 @@ func TestClaudeCodeVisionNavigator_GetSession(t *testing.T) {
 		}
 		if s.SessionID != "session123" {
 			t.Errorf("SessionID = %q, want %q", s.SessionID, "session123")
+		}
+		s.ExtractedData["nested"].(map[string]interface{})["value"] = "changed"
+		nav.mu.RLock()
+		live := nav.activeNavigations["nav_test"].NavigationSession
+		nav.mu.RUnlock()
+		if got := live.ExtractedData["nested"].(map[string]interface{})["value"]; got != "original" {
+			t.Errorf("Claude Code snapshot leaked extracted data: %v", got)
 		}
 	})
 
@@ -609,11 +620,7 @@ func TestClaudeCodeNavigationHandle(t *testing.T) {
 			session:   testSession,
 		}
 
-		// Close done channel in background
-		go func() {
-			time.Sleep(10 * time.Millisecond)
-			close(testSession.doneChan)
-		}()
+		close(testSession.doneChan)
 
 		err := testHandle.Wait(context.Background())
 		if err != nil {
@@ -709,7 +716,7 @@ func TestClaudeCodeVisionNavigator_ParseOutput(t *testing.T) {
 		recordedActions = append(recordedActions, action)
 	}
 
-	wsHub := &mockWSHub{}
+	wsHub := hubmocks.New()
 	nav := NewClaudeCodeVisionNavigator(log,
 		WithClaudeCodeActionRecordCallback(callback),
 		WithClaudeCodeHub(wsHub),
@@ -751,7 +758,7 @@ func TestClaudeCodeVisionNavigator_ParseOutput(t *testing.T) {
 	}
 
 	// Verify WebSocket broadcasts
-	if wsHub.broadcastCount < 1 {
+	if wsHub.BroadcastEnvelopeCount() < 1 {
 		t.Error("expected at least one WebSocket broadcast")
 	}
 

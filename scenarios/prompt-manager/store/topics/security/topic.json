@@ -1,0 +1,15 @@
+{
+  "kind": "topic",
+  "schemaVersion": 1,
+  "id": "security",
+  "name": "Security",
+  "description": "Security work: hardening, threat modeling, and closing vulnerabilities.",
+  "parentTopicId": "development",
+  "skills": [
+    "security"
+  ],
+  "status": "active",
+  "revision": 1,
+  "createdAt": "2026-06-04T17:35:25Z",
+  "updatedAt": "2026-06-04T17:35:25Z"
+}

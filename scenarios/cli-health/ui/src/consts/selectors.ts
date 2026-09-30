@@ -1,0 +1,93 @@
+import { librarySelectors } from "./selectors.library";
+/** Application selector definitions. Shared behavior lives in @vrooli/ui-selectors.
+ * Run selector:manifest after editing these maps; UI builds regenerate the manifest.
+ */
+import { LOCALE_CODES } from "../i18n/locales";
+
+import { createSelectorRegistry, defineDynamicSelector, type LiteralSelectorTree, type DynamicSelectorTree } from "@vrooli/ui-selectors";
+export { createSelectorRegistry, defineDynamicSelector } from "@vrooli/ui-selectors";
+
+const literalSelectors = {
+  app: {
+    title: "app-title",
+    eyebrow: "app-eyebrow",
+    description: "app-description",
+  },
+locale: {
+    switcher: "locale-switcher",
+  },
+  errorBoundary: {
+    root: "error-boundary-root",
+    retryButton: "error-boundary-retry",
+  },
+  nav: {
+    root: "nav-tabs",
+    tabSearch: "nav-tab-search",
+    tabValidate: "nav-tab-validate",
+    tabStatus: "nav-tab-status",
+  },
+  search: {
+    card: "search-card",
+    input: "search-input",
+    submit: "search-submit",
+    modeAi: "search-mode-ai",
+    modeText: "search-mode-text",
+    loading: "search-loading",
+    error: "search-error",
+    empty: "search-empty",
+    modeUsed: "search-mode-used",
+    reranker: "search-reranker",
+    results: "search-results",
+    result: "search-result",
+    weakMatch: "search-weak-match",
+  },
+  validate: {
+    card: "validate-card",
+    input: "validate-input",
+    submit: "validate-submit",
+    loading: "validate-loading",
+    error: "validate-error",
+    passed: "validate-passed",
+    failed: "validate-failed",
+    summary: "validate-summary",
+    findings: "validate-findings",
+    finding: "validate-finding",
+    empty: "validate-empty",
+  },
+  status: {
+    card: "status-card",
+    loading: "status-loading",
+    error: "status-error",
+    available: "status-available",
+    ollama: "status-ollama",
+    qdrant: "status-qdrant",
+    indexed: "status-indexed",
+    lastReconcile: "status-last-reconcile",
+    reindex: "status-reindex",
+    reindexed: "status-reindexed",
+  },
+} satisfies LiteralSelectorTree;
+
+// Per-locale toggle test IDs are emitted by `locale.toggle({ code })` below.
+// We deliberately do NOT also declare static `toggleEn` / `toggleJa` literals —
+// the dynamic form is the single source of truth, and duplicating it here would
+// drift the moment a new locale is added to LOCALE_CODES.
+//
+// `code` is constrained to `LOCALE_CODES` so `selectors.locale.toggle({ code: "fr" })`
+// is a TypeScript error when "fr" isn't a supported locale. The runtime enum
+// validation in `normalizeParams` provides the same guarantee at call time.
+const dynamicSelectorDefinitions = {
+  locale: {
+    toggle: defineDynamicSelector({
+      description: "Locale toggle button by language code",
+      testIdPattern: "locale-toggle-${code}",
+      params: { code: { type: "enum", values: LOCALE_CODES } },
+    }),
+  },
+} satisfies DynamicSelectorTree;
+
+const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions, librarySelectors);
+
+export const selectors = registry.selectors;
+export type Selectors = typeof selectors;
+export const selectorsManifest = registry.manifest;

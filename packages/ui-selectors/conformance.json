@@ -1,0 +1,160 @@
+{
+  "manifest": {
+    "schemaVersion": 1,
+    "selectors": {
+      "save": {
+        "testId": "save",
+        "selector": "[data-testid=\"save\"]"
+      }
+    },
+    "dynamicSelectors": {
+      "locale": {
+        "description": "locale",
+        "testIdPattern": "locale-${code}",
+        "selectorPattern": "[data-testid=\"locale-${code}\"]",
+        "params": [
+          {
+            "name": "code",
+            "type": "enum",
+            "values": [
+              "en",
+              "ja"
+            ]
+          }
+        ]
+      },
+      "item": {
+        "description": "item",
+        "selectorPattern": "[data-name=\"${name}\"]",
+        "params": [
+          {
+            "name": "name",
+            "type": "string"
+          }
+        ]
+      },
+      "row": {
+        "description": "row",
+        "testIdPattern": "row-${index}",
+        "selectorPattern": "[data-testid=\"row-${index}\"]",
+        "params": [
+          {
+            "name": "index",
+            "type": "number"
+          }
+        ]
+      }
+    }
+  },
+  "cases": [
+    {
+      "name": "literal",
+      "key": "save",
+      "params": {},
+      "want": "[data-testid=\"save\"]"
+    },
+    {
+      "name": "enum",
+      "key": "locale",
+      "params": {
+        "code": "en"
+      },
+      "want": "[data-testid=\"locale-en\"]"
+    },
+    {
+      "name": "invalid enum",
+      "key": "locale",
+      "params": {
+        "code": "xx"
+      },
+      "error": true
+    },
+    {
+      "name": "unknown argument",
+      "key": "locale",
+      "params": {
+        "code": "en",
+        "extra": "bad"
+      },
+      "error": true
+    },
+    {
+      "name": "missing argument",
+      "key": "locale",
+      "params": {},
+      "error": true
+    },
+    {
+      "name": "quote escaping",
+      "key": "item",
+      "params": {
+        "name": "a\"b"
+      },
+      "want": "[data-name=\"a\\22 b\"]"
+    },
+    {
+      "name": "backslash escaping",
+      "key": "item",
+      "params": {
+        "name": "a\\b"
+      },
+      "want": "[data-name=\"a\\5c b\"]"
+    },
+    {
+      "name": "numeric",
+      "key": "row",
+      "params": {
+        "index": 2
+      },
+      "want": "[data-testid=\"row-2\"]"
+    },
+    {
+      "name": "wrong type",
+      "key": "row",
+      "params": {
+        "index": "2"
+      },
+      "error": true
+    },
+    {
+      "name": "literal arguments",
+      "key": "save",
+      "params": {
+        "x": "y"
+      },
+      "error": true
+    },
+    {
+      "name": "large fixed number",
+      "key": "row",
+      "params": {
+        "index": 1000000
+      },
+      "want": "[data-testid=\"row-1000000\"]"
+    },
+    {
+      "name": "fixed threshold",
+      "key": "row",
+      "params": {
+        "index": 1e+20
+      },
+      "want": "[data-testid=\"row-100000000000000000000\"]"
+    },
+    {
+      "name": "small exponent",
+      "key": "row",
+      "params": {
+        "index": 1e-07
+      },
+      "want": "[data-testid=\"row-1e-7\"]"
+    },
+    {
+      "name": "large exponent",
+      "key": "row",
+      "params": {
+        "index": 1e+21
+      },
+      "want": "[data-testid=\"row-1e+21\"]"
+    }
+  ]
+}

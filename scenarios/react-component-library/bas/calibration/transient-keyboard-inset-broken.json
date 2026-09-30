@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "name": "transient-keyboard-inset-broken",
+    "description": "CALIBRATION: plants a keyboard inset during an ordinary resize with no focused editable target.",
+    "requirement": "OVERLAY-COMPOSITION",
+    "version": "1",
+    "labels": { "reset": "none", "surface": "overlay-composition-calibration", "calibration": "expected-failure", "assertion_class": "transient-keyboard-inset-broken", "requirements_json": "[\"OVERLAY-COMPOSITION\"]" },
+    "execution_mode": "EXECUTION_MODE_OBSERVER"
+  },
+  "settings": { "viewport_width": 390, "viewport_height": 844 },
+  "nodes": [
+    { "id": "navigate", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "react-component-library", "scenario_path": "/", "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED", "timeout_ms": 30000 }, "metadata": { "label": "Open calibration host" } } },
+    { "id": "plant", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { document.documentElement.style.setProperty('--rcl-keyboard-inset','220px'); document.body.innerHTML='<div id=\"surface\"></div>'; document.body.focus(); dispatchEvent(new Event('resize')); const inset=getComputedStyle(document.documentElement).getPropertyValue('--rcl-keyboard-inset').trim(); document.body.dataset.calibrationOk=inset===''||inset==='0px'?'yes':'no'; return {inset,activeElement:document.activeElement?.tagName}; })()", "store_result": "failureEvidence" }, "metadata": { "label": "Plant a false transient keyboard inset" } } },
+    { "id": "assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "body[data-calibration-ok=\"yes\"]", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": 1000, "failure_message": "EXPECTED CALIBRATION FAILURE: ordinary resize retained a keyboard inset without an editable focus target." }, "metadata": { "label": "Expected false-keyboard failure" } } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate", "target": "plant", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "plant", "target": "assert", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

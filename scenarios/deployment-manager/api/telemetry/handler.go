@@ -35,7 +35,7 @@ func NewHandler(log func(string, map[string]interface{})) *Handler {
 	return &Handler{log: log}
 }
 
-func telemetryDir() string {
+func telemetryDir() (string, error) {
 	return shared.GetConfigResolver().ResolveTelemetryDir()
 }
 
@@ -63,7 +63,11 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	EnrichEvents(events, params, now)
 
 	// Ensure telemetry directory exists
-	dir := telemetryDir()
+	dir, err := telemetryDir()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("resolve telemetry dir: %s", err), http.StatusInternalServerError)
+		return
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		http.Error(w, fmt.Sprintf("prepare telemetry dir: %s", err), http.StatusInternalServerError)
 		return
@@ -88,14 +92,13 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 
 // List handles telemetry list requests.
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	dir := telemetryDir()
-	entries, err := os.ReadDir(dir)
+	dir, err := telemetryDir()
 	if err != nil {
-		if os.IsNotExist(err) {
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]Summary{})
-			return
-		}
+		http.Error(w, fmt.Sprintf("resolve telemetry dir: %s", err), http.StatusInternalServerError)
+		return
+	}
+	entries, err := readTelemetryEntries(dir)
+	if err != nil {
 		http.Error(w, fmt.Sprintf("read telemetry dir: %s", err), http.StatusInternalServerError)
 		return
 	}
@@ -114,6 +117,18 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(summaries)
+}
+
+// readTelemetryEntries treats an absent telemetry directory as an empty
+// store. Keeping that filesystem policy outside the HTTP error branch lets
+// List reserve error statuses for actual failures and keeps its response
+// contract unambiguous to static API-health validation.
+func readTelemetryEntries(dir string) ([]os.DirEntry, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil && os.IsNotExist(err) {
+		return []os.DirEntry{}, nil
+	}
+	return entries, err
 }
 
 func summarizeTelemetryFile(path string) (Summary, error) {

@@ -5,7 +5,7 @@ import (
 
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
@@ -23,12 +23,12 @@ func ExecutionToProto(execution *database.ExecutionIndex) (*basexecution.Executi
 	}
 
 	pb := &basexecution.Execution{
-		ExecutionId:     execution.ID.String(),
-		WorkflowId:      execution.WorkflowID.String(),
-		Status:          StringToExecutionStatus(execution.Status),
-		StartedAt:       autocontracts.TimeToTimestamp(execution.StartedAt),
-		CreatedAt:       autocontracts.TimeToTimestamp(execution.CreatedAt),
-		UpdatedAt:       autocontracts.TimeToTimestamp(execution.UpdatedAt),
+		ExecutionId: execution.ID.String(),
+		WorkflowId:  execution.WorkflowID.String(),
+		Status:      StringToExecutionStatus(execution.Status),
+		StartedAt:   autocontracts.TimeToTimestamp(execution.StartedAt),
+		CreatedAt:   autocontracts.TimeToTimestamp(execution.CreatedAt),
+		UpdatedAt:   autocontracts.TimeToTimestamp(execution.UpdatedAt),
 	}
 
 	pb.CompletedAt = autocontracts.TimePtrToTimestamp(execution.CompletedAt)
@@ -58,7 +58,7 @@ func ExecutionExportPreviewToProto(preview *workflow.ExecutionExportPreview) (*b
 		CapturedFrameCount:  int32(preview.CapturedFrameCount),
 		AvailableAssetCount: int32(preview.AvailableAssetCount),
 		TotalDurationMs:     int32(preview.TotalDurationMs),
-		Package:             typeconv.ToJsonObjectFromAny(preview.Package),
+		Package:             autocontracts.ToJsonObjectFromAny(preview.Package),
 	}, nil
 }
 
@@ -127,7 +127,7 @@ func timelineFrameToEntry(frame export.TimelineFrame) (*bastimeline.TimelineEntr
 	// Build ActionDefinition with action type
 	if frame.StepType != "" {
 		entry.Action = &basactions.ActionDefinition{
-			Type: StringToActionType(frame.StepType),
+			Type: enums.StringToActionType(frame.StepType),
 		}
 	}
 
@@ -179,9 +179,8 @@ func timelineFrameToEntry(frame export.TimelineFrame) (*bastimeline.TimelineEntr
 		entry.Aggregates.FinalUrl = &frame.FinalURL
 	}
 
-
 	if frame.ExtractedDataPreview != nil {
-		entry.Aggregates.ExtractedDataPreview = typeconv.AnyToJsonValue(frame.ExtractedDataPreview)
+		entry.Aggregates.ExtractedDataPreview = autocontracts.AnyToJsonValue(frame.ExtractedDataPreview)
 	}
 
 	if frame.FocusedElement != nil {
@@ -255,7 +254,7 @@ func timelineLogToProto(log export.TimelineLog) *bastimeline.TimelineLog {
 	return pb
 }
 
-func convertRetryHistory(entries []typeconv.RetryHistoryEntry) []*basbase.RetryAttempt {
+func convertRetryHistory(entries []export.RetryHistoryEntry) []*basbase.RetryAttempt {
 	if len(entries) == 0 {
 		return nil
 	}
@@ -336,7 +335,7 @@ func convertPoint(pt *autocontracts.Point) *basbase.Point {
 	}
 }
 
-func convertScreenshot(screenshot *typeconv.TimelineScreenshot) *basdomain.TimelineScreenshot {
+func convertScreenshot(screenshot *export.TimelineScreenshot) *basdomain.TimelineScreenshot {
 	if screenshot == nil {
 		return nil
 	}
@@ -354,7 +353,7 @@ func convertScreenshot(screenshot *typeconv.TimelineScreenshot) *basdomain.Timel
 	return pb
 }
 
-func convertArtifact(artifact typeconv.TimelineArtifact) (*bastimeline.TimelineArtifact, error) {
+func convertArtifact(artifact export.TimelineArtifact) (*bastimeline.TimelineArtifact, error) {
 	pb := &bastimeline.TimelineArtifact{
 		Id:          artifact.ID,
 		Type:        StringToArtifactType(artifact.Type),
@@ -376,7 +375,7 @@ func convertArtifact(artifact typeconv.TimelineArtifact) (*bastimeline.TimelineA
 		stepIndex := int32(*artifact.StepIndex)
 		pb.StepIndex = &stepIndex
 	}
-	if payload := typeconv.ToJsonValueMap(artifact.Payload); len(payload) > 0 {
+	if payload := autocontracts.ToJsonValueMap(artifact.Payload); len(payload) > 0 {
 		pb.Payload = payload
 	}
 	return pb, nil
@@ -400,11 +399,11 @@ func ConvertAssertion(assertion *autocontracts.AssertionOutcome) (*basbase.Asser
 	}
 
 	if assertion.Expected != nil {
-		pb.Expected = typeconv.AnyToJsonValue(assertion.Expected)
+		pb.Expected = autocontracts.AnyToJsonValue(assertion.Expected)
 	}
 
 	if assertion.Actual != nil {
-		pb.Actual = typeconv.AnyToJsonValue(assertion.Actual)
+		pb.Actual = autocontracts.AnyToJsonValue(assertion.Actual)
 	}
 
 	return pb, nil

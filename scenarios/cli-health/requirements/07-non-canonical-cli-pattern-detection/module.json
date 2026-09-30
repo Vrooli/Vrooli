@@ -1,0 +1,64 @@
+{
+  "description": "A CLI entrypoint-structure check flags scenarios whose `cli/main.go` owns command or infrastructure setup instead of staying a thin process boundary.",
+  "module_id": "MOD-P1-007",
+  "prd_ref": "OT-P1-002",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "The `cli-health validate \u003cscenario\u003e` command must inspect each scenario's `cli/main.go` entrypoint and verify it delegates to `NewApp`/`app.Run`, `cmd.Execute`, or an equivalent CLI runner. Scenarios whose `main()` performs direct infrastructure setup or accumulates non-delegating command/business logic must produce a warning-level `cli.main_heavy` finding. These findings must not fail validation by themselves, but they must appear in the maturity assessment and validation output.",
+      "id": "REQ-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "draft",
+      "title": "Non-Canonical CLI Pattern Detection Across Scenarios",
+      "validation": [
+        {
+          "notes": "A direct server setup in cli/main.go returns cli.main_heavy at warning severity.",
+          "phase": "unit",
+          "ref": "api/internal/services/manifestvalidation/entrypoint_test.go::TestEntrypointFindings_DirectServerSetupFails",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The current scenario-app pattern (NewApp plus app.Run) returns no entrypoint finding.",
+          "phase": "unit",
+          "ref": "api/internal/services/manifestvalidation/entrypoint_test.go::TestEntrypointFindings_CurrentScenarioAppMainPasses",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A lifecycle guard plus app delegation returns no entrypoint finding.",
+          "phase": "unit",
+          "ref": "api/internal/services/manifestvalidation/entrypoint_test.go::TestEntrypointFindings_LifecycleGuardMainPasses",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A non-delegating busy main() returns cli.main_heavy without relying on raw line-count heuristics.",
+          "phase": "integration",
+          "ref": "api/internal/services/manifestvalidation/entrypoint_test.go::TestEntrypointFindings_NonDelegatingBusyMainFails",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The validator reads cli/main.go next to the manifest path used by ValidateScenario.",
+          "phase": "integration",
+          "ref": "api/internal/services/manifestvalidation/entrypoint_test.go::TestEntrypointFindings_ReadsMainNextToManifest",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Enforcing the canonical CLI pattern ensures consistent behaviour, flag parsing, and error formatting across all scenario CLIs",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Non-canonical CLI pattern detection"
+}

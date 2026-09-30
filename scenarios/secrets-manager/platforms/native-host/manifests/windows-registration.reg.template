@@ -1,0 +1,7 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts\com.vrooli.secrets-manager]
+@="{{MANIFEST_PATH}}"
+
+[HKEY_CURRENT_USER\Software\Mozilla\NativeMessagingHosts\com.vrooli.secrets-manager]
+@="{{MANIFEST_PATH}}"

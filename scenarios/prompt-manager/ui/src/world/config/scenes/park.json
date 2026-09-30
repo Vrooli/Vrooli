@@ -1,0 +1,44 @@
+{
+  "id": "park",
+  "title": "Park",
+  "environment": "outdoor",
+  "assetSet": "park",
+  "biomeSet": "park",
+  "layoutStrategy": "clearings",
+  "props": {
+    "desk": "desk",
+    "chair": "bench",
+    "table": "table_round",
+    "seat": "log_seat",
+    "hearth": "campfire",
+    "lamp": "lamp_post",
+    "board": "sign_board",
+    "filler": ["stump", "rock_small", "flowers"]
+  },
+  "emissive": { "hearth": "#ffab52", "lamp": "#ffd9a0" },
+  "gatheringLabel": "Commons",
+  "palette": {
+    "horizon": "#7fa862",
+    "ground": "#6fae58",
+    "roomFloor": "#cdb98d",
+    "roomWall": "#e6ddcf",
+    "commons": "#b39a63",
+    "path": "#c9b48c"
+  },
+  "camera": {
+    "hero": {
+      "azimuthDeg": 24,
+      "polarDeg": 52,
+      "targetY": 0.6,
+      "distanceFactor": 1.0
+    },
+    "establishing": {
+      "azimuthDeg": 8,
+      "polarDeg": 36,
+      "targetY": 0.6,
+      "distanceFactor": 1.6
+    }
+  },
+  "propScale": 1.8,
+  "treeScale": 1.5
+}

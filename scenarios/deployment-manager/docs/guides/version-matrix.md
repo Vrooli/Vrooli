@@ -2,6 +2,11 @@
 
 > Reference for supported versions of tools and dependencies used in deployment workflows.
 
+This is a build-pipeline reference, not a release-approval document. Package
+manifests, target preflight, and the [desktop evidence contract](../../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md)
+are authoritative for a specific release. Tier names below refer to the
+technical deployment model, not monetization tiers.
+
 ## Core Tools
 
 | Tool | Minimum | Tested With | Required For | Notes |
@@ -47,7 +52,7 @@
 
 ## Infrastructure
 
-| Service | Version | Tier 1 | Tier 2+ | Notes |
+| Service | Version | Tier 1 | Tier 2 desktop and later target profiles | Notes |
 |---------|---------|--------|---------|-------|
 | Redis 7+ | 7.0+ | Optional | Swap required | In-process cache for bundles |
 | Ollama | Latest | Optional | Swap to models | Heavy; requires swap for desktop |

@@ -1,0 +1,258 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.infrastructure_manager.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.infrastructure_manager.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "capabilities_describe",
+      "path": "/api/v1/capabilities/describe",
+      "method": "GET",
+      "summary": "Describe declared scenario dependencies and their current recovery actions.",
+      "description": "",
+      "category": "capabilities",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operational capability probe is intentionally REST-shaped for lifecycle and diagnostics callers.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "condition_get",
+      "path": "/vrooli.infrastructure_manager.v1.condition.ConditionService/GetCondition",
+      "method": "POST",
+      "summary": "Read condition",
+      "description": "",
+      "category": "condition"
+    },
+    {
+      "id": "condition_trust",
+      "path": "/vrooli.infrastructure_manager.v1.condition.ConditionService/GetTrustDistribution",
+      "method": "POST",
+      "summary": "Read the trust triple",
+      "description": "",
+      "category": "condition"
+    },
+    {
+      "id": "condition_explain",
+      "path": "/vrooli.infrastructure_manager.v1.condition.ConditionService/ExplainCell",
+      "method": "POST",
+      "summary": "Explain one condition cell",
+      "description": "",
+      "category": "condition"
+    },
+    {
+      "id": "condition_history",
+      "path": "/vrooli.infrastructure_manager.v1.condition.ConditionService/GetHistory",
+      "method": "POST",
+      "summary": "Read condition history",
+      "description": "",
+      "category": "condition"
+    },
+    {
+      "id": "coverage_get",
+      "path": "/vrooli.infrastructure_manager.v1.coverage.CoverageService/GetCoverage",
+      "method": "POST",
+      "summary": "Read coverage ratios",
+      "description": "",
+      "category": "coverage"
+    },
+    {
+      "id": "coverage_cells",
+      "path": "/vrooli.infrastructure_manager.v1.coverage.CoverageService/ListCells",
+      "method": "POST",
+      "summary": "List coverage cells",
+      "description": "",
+      "category": "coverage"
+    },
+    {
+      "id": "coverage_open_loop",
+      "path": "/vrooli.infrastructure_manager.v1.coverage.CoverageService/ListOpenLoopCells",
+      "method": "POST",
+      "summary": "List dated open-loop cells",
+      "description": "",
+      "category": "coverage"
+    },
+    {
+      "id": "coverage_projection",
+      "path": "/vrooli.infrastructure_manager.v1.coverage.CoverageService/GetProjection",
+      "method": "POST",
+      "summary": "Read one projection",
+      "description": "",
+      "category": "coverage"
+    },
+    {
+      "id": "coverage_validate_setpoint",
+      "path": "/vrooli.infrastructure_manager.v1.coverage.CoverageService/ValidateSetpoint",
+      "method": "POST",
+      "summary": "Validate the read-only setpoint",
+      "description": "",
+      "category": "coverage"
+    },
+    {
+      "id": "coverage_drift",
+      "path": "/vrooli.infrastructure_manager.v1.coverage.CoverageService/GetDrift",
+      "method": "POST",
+      "summary": "Read coverage drift",
+      "description": "",
+      "category": "coverage"
+    },
+    {
+      "id": "focus_next",
+      "path": "/vrooli.infrastructure_manager.v1.focus.FocusService/GetNext",
+      "method": "POST",
+      "summary": "Read the ranked next findings",
+      "description": "",
+      "category": "focus"
+    },
+    {
+      "id": "focus_finding",
+      "path": "/vrooli.infrastructure_manager.v1.focus.FocusService/GetFinding",
+      "method": "POST",
+      "summary": "Read one finding",
+      "description": "",
+      "category": "focus"
+    },
+    {
+      "id": "focus_sources",
+      "path": "/vrooli.infrastructure_manager.v1.focus.FocusService/ListSources",
+      "method": "POST",
+      "summary": "Read finding sources",
+      "description": "",
+      "category": "focus"
+    },
+    {
+      "id": "focus_efficacy",
+      "path": "/vrooli.infrastructure_manager.v1.focus.FocusService/GetEfficacy",
+      "method": "POST",
+      "summary": "Read efficacy evidence",
+      "description": "",
+      "category": "focus"
+    },
+    {
+      "id": "ladder_get",
+      "path": "/vrooli.infrastructure_manager.v1.ladder.LadderService/GetLadder",
+      "method": "POST",
+      "summary": "Read the device-layer capability ladder",
+      "description": "",
+      "category": "ladder"
+    },
+    {
+      "id": "ladder_cells",
+      "path": "/vrooli.infrastructure_manager.v1.ladder.LadderService/ListCells",
+      "method": "POST",
+      "summary": "List ladder cells",
+      "description": "",
+      "category": "ladder"
+    },
+    {
+      "id": "ladder_devices",
+      "path": "/vrooli.infrastructure_manager.v1.ladder.LadderService/ListDevices",
+      "method": "POST",
+      "summary": "List graded hardware devices",
+      "description": "",
+      "category": "ladder"
+    },
+    {
+      "id": "ladder_sources",
+      "path": "/vrooli.infrastructure_manager.v1.ladder.LadderService/ListSources",
+      "method": "POST",
+      "summary": "List ladder source availability",
+      "description": "",
+      "category": "ladder"
+    },
+    {
+      "id": "ladder_findings",
+      "path": "/vrooli.infrastructure_manager.v1.ladder.LadderService/RankFindings",
+      "method": "POST",
+      "summary": "Read cascade-ranked ladder findings",
+      "description": "",
+      "category": "ladder"
+    },
+    {
+      "id": "portability_grid",
+      "path": "/vrooli.infrastructure_manager.v1.portability.PortabilityService/GetGrid",
+      "method": "POST",
+      "summary": "Read the capability portability grid",
+      "description": "",
+      "category": "portability"
+    },
+    {
+      "id": "portability_capability",
+      "path": "/vrooli.infrastructure_manager.v1.portability.PortabilityService/GetCapability",
+      "method": "POST",
+      "summary": "Read one capability's platform row",
+      "description": "",
+      "category": "portability"
+    },
+    {
+      "id": "portability_situations",
+      "path": "/vrooli.infrastructure_manager.v1.portability.PortabilityService/ListSituations",
+      "method": "POST",
+      "summary": "List capabilities by situation classification",
+      "description": "",
+      "category": "portability"
+    },
+    {
+      "id": "portability_fleet",
+      "path": "/vrooli.infrastructure_manager.v1.portability.PortabilityService/GetFleet",
+      "method": "POST",
+      "summary": "Read the computed fleet portability view",
+      "description": "",
+      "category": "portability"
+    }
+  ]
+}

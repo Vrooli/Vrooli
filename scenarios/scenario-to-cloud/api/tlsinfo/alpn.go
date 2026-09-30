@@ -52,7 +52,7 @@ func DefaultALPNProbe(ctx context.Context, host, serverName string, port int, ti
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	dialer := &net.Dialer{Timeout: timeout}
 	config := &tls.Config{
-		InsecureSkipVerify: true,
+		InsecureSkipVerify: true, // #nosec G402 -- ACME TLS-ALPN-01 intentionally probes an untrusted challenge certificate; ALPN and endpoint identity are checked by this probe.
 		ServerName:         serverName,
 		NextProtos:         []string{"acme-tls/1"},
 	}

@@ -1,0 +1,238 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "minio",
+  "storage": {"entries": {
+    "data": {"rung": "pinned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/minio", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/minio", "windows": "$USER_HOME/AppData/Local/vrooli/resources/minio"}, "kind": "dir", "class": "data", "regenerable": false, "rationale": "MinIO object data is bind-mounted to /data and must survive container replacement."},
+    "config": {"rung": "pinned", "path": {"linux": "$USER_HOME/.config/vrooli/resources/minio", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/minio", "windows": "$USER_HOME/AppData/Local/vrooli/resources/minio"}, "kind": "dir", "class": "config", "regenerable": false, "sensitive": true, "rationale": "MinIO credentials and server configuration are bind-mounted to /root/.minio."}
+  }},
+  "display_name": "MinIO",
+  "description": "Managed MinIO object storage service with native docker lifecycle and shell-retained S3 administration commands.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-minio",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-minio_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-minio"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "template": "docker-service",
+  "driver": "docker-service",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker images, storage, and networking remain host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        }
+      }
+    }
+  },
+  "portability_tier": "full",
+  "category": "storage",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "api",
+      "container": 9000,
+      "host": 9000
+    },
+    {
+      "name": "console",
+      "container": 9001,
+      "host": 9001
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:9000/minio/health/live",
+      "timeout_seconds": 10
+    }
+  ],
+  "runtime": {
+    "image": "minio/minio:RELEASE.2025-07-23T15-54-02Z",
+    "container_name": "minio",
+    "env": {
+      "MINIO_ROOT_USER": "minioadmin",
+      "MINIO_ROOT_PASSWORD": "minioadmin",
+      "MINIO_BROWSER": "on",
+      "MINIO_REGION": "us-east-1",
+      "GOMAXPROCS": "4",
+      "MINIO_API_REQUESTS_MAX": "8000",
+      "MINIO_API_REQUESTS_DEADLINE": "10s"
+    },
+    "volumes": [
+      {
+        "source": "${RESOURCE_DATA_DIR}",
+        "target": "/data"
+      },
+      {
+        "source": "${RESOURCE_CONFIG_DIR}",
+        "target": "/root/.minio"
+      }
+    ],
+    "command": [
+      "server",
+      "/data",
+      "--console-address",
+      ":9001"
+    ]
+  },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific MinIO dependency settings.",
+    "properties": {
+      "buckets": {
+        "type": "object",
+        "properties": {
+          "default_buckets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "environment_exports": {
+    "static": {
+      "MINIO_HOST": "localhost"
+    },
+    "from_ports": {
+      "MINIO_PORT": "api",
+      "MINIO_CONSOLE_PORT": "console"
+    },
+    "from_runtime_env": [
+      "MINIO_ROOT_USER",
+      "MINIO_ROOT_PASSWORD",
+      "MINIO_BROWSER",
+      "MINIO_REGION"
+    ],
+    "derived": {
+      "MINIO_URL": {
+        "template": "http://${MINIO_HOST}:${MINIO_PORT}"
+      },
+      "MINIO_BASE_URL": {
+        "template": "${MINIO_URL}"
+      },
+      "MINIO_ENDPOINT": {
+        "template": "${MINIO_HOST}:${MINIO_PORT}"
+      },
+      "MINIO_CONSOLE_URL": {
+        "template": "http://${MINIO_HOST}:${MINIO_CONSOLE_PORT}"
+      },
+      "MINIO_ACCESS_KEY": {
+        "template": "${MINIO_ROOT_USER}"
+      },
+      "MINIO_SECRET_KEY": {
+        "template": "${MINIO_ROOT_PASSWORD}"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 950,
+    "startup_timeout_seconds": 20,
+    "startup_time_estimate": "5-10s",
+    "dependencies": [],
+    "recovery_attempts": 3,
+    "priority": "high"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 60,
+    "stop_timeout_seconds": 30,
+    "retries": 3
+  },
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
+}

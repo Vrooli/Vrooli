@@ -204,9 +204,9 @@ export function useStorageWizard({ onComplete }: UseStorageWizardProps): UseStor
           bucket: settings.bucket ?? '',
           region: settings.region ?? '',
           endpoint: settings.endpoint ?? '',
-          forcePathStyle: settings.force_path_style ?? false,
+          forcePathStyle: settings.force_path_style,
           defaultPrefix: settings.default_prefix ?? '',
-          signedUrlTtlSeconds: settings.signed_url_ttl_seconds ?? 900,
+          signedUrlTtlSeconds: settings.signed_url_ttl_seconds,
           publicBaseUrl: settings.public_base_url ?? '',
         },
       });

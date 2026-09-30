@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "review",
+    "title": "Review",
+    "routes": ["/review"],
+    "purpose": "Show planned versus recorded activity with unrecorded periods explicitly visible, let the user carry work forward deliberately, and surface a small number of inspectable, evidence-linked learning suggestions.",
+    "prd_refs": ["OT-P1-006"]
+  },
+  "priorities": [
+    { "statement": "Unrecorded periods are visible, not hidden; the review never treats missing activity as productive or zero time.", "notes": "Plan §14.1, INV-08." },
+    { "statement": "'All tasks completed' is not the definition of a good day; a deliberate scope reduction or early renegotiation is recorded as a useful decision.", "notes": "Plan §14.1." },
+    { "statement": "Denominators and unknown coverage are shown; with only two tracked days, the week is not described as precisely measured.", "notes": "Plan §14.2." },
+    { "statement": "Each insight has supporting records, an explanation, and a practical proposed adjustment; accepting it is an explicit, auditable setting change, never a silent rewrite.", "notes": "Plan §14.3-14.5, INV-14." }
+  ],
+  "states": [
+    { "id": "loading", "description": "Daily/weekly read models resolve with coverage." },
+    { "id": "success", "description": "Planned vs actual, coverage, carry-forward choices, and any eligible insights are visible." },
+    { "id": "empty", "description": "No history yet: explain that learning needs records and provide editable manual defaults rather than a suggestion." },
+    { "id": "partial", "description": "Below the evidence threshold: show descriptive history and state why no adjustment is suggested." },
+    { "id": "stale", "description": "Review figures depend on stale inputs (e.g. an unrefreshed integration): coverage and freshness are disclosed rather than presented as precise." },
+    { "id": "request-error", "description": "A summary failed to load: retain last-known review with a retry." }
+  ]
+}

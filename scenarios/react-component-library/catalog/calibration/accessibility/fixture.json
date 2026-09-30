@@ -1,0 +1,1 @@
+{"gate":"accessibility","assetId":"calibration-accessibility","kind":"component","runner":"external","requiredFailureCode":"catalog.accessibility_calibration","description":"A browser accessibility fixture with a deliberately missing accessible name."}

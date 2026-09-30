@@ -1,0 +1,564 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.nutrition_planner.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.nutrition_planner.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "capabilities_describe",
+      "path": "/api/v1/capabilities/describe",
+      "method": "GET",
+      "summary": "Describe declared scenario dependencies and their current recovery actions.",
+      "description": "",
+      "category": "capabilities",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET capability probe is used by lifecycle and operator tooling.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "diagnostics_report",
+      "path": "/api/v1/diagnostics",
+      "method": "GET",
+      "summary": "Report scoped operational and data-health findings",
+      "description": "",
+      "category": "operations",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Authenticated operator and workspace data-health report; no generated RPC is required.",
+        "proto_payloads": {
+          "request": {
+            "transport": "query",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "text",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "workspace_list",
+      "path": "/vrooli.nutrition_planner.v1.workspace.WorkspaceService/ListWorkspaces",
+      "method": "POST",
+      "summary": "List owned workspaces",
+      "description": "",
+      "category": "workspace"
+    },
+    {
+      "id": "workspace_create",
+      "path": "/vrooli.nutrition_planner.v1.workspace.WorkspaceService/CreateWorkspace",
+      "method": "POST",
+      "summary": "Create a workspace",
+      "description": "",
+      "category": "workspace"
+    },
+    {
+      "id": "workspace_get",
+      "path": "/vrooli.nutrition_planner.v1.workspace.WorkspaceService/GetWorkspace",
+      "method": "POST",
+      "summary": "Get an owned workspace",
+      "description": "",
+      "category": "workspace"
+    },
+    {
+      "id": "recipe_list",
+      "path": "/vrooli.nutrition_planner.v1.recipe.RecipeService/ListRecipes",
+      "method": "POST",
+      "summary": "List recipes",
+      "description": "",
+      "category": "recipe"
+    },
+    {
+      "id": "recipe_create",
+      "path": "/vrooli.nutrition_planner.v1.recipe.RecipeService/CreateRecipe",
+      "method": "POST",
+      "summary": "Create a recipe draft",
+      "description": "",
+      "category": "recipe"
+    },
+    {
+      "id": "recipe_get",
+      "path": "/vrooli.nutrition_planner.v1.recipe.RecipeService/GetRecipe",
+      "method": "POST",
+      "summary": "Get a recipe",
+      "description": "",
+      "category": "recipe"
+    },
+    {
+      "id": "recipe_update",
+      "path": "/vrooli.nutrition_planner.v1.recipe.RecipeService/UpdateRecipe",
+      "method": "POST",
+      "summary": "Create a new recipe revision",
+      "description": "",
+      "category": "recipe"
+    },
+    {
+      "id": "catalog_list",
+      "path": "/vrooli.nutrition_planner.v1.catalog.CatalogService/ListCatalog",
+      "method": "POST",
+      "summary": "List food and product revisions",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_create_revision",
+      "path": "/vrooli.nutrition_planner.v1.catalog.CatalogService/CreateRevision",
+      "method": "POST",
+      "summary": "Create a food or product revision",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_get_revision",
+      "path": "/vrooli.nutrition_planner.v1.catalog.CatalogService/GetRevision",
+      "method": "POST",
+      "summary": "Get a food or product revision",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "cost_list_price_observations",
+      "path": "/vrooli.nutrition_planner.v1.cost.CostService/ListPriceObservations",
+      "method": "POST",
+      "summary": "List preserved price observations",
+      "description": "",
+      "category": "cost"
+    },
+    {
+      "id": "cost_create_price_observation",
+      "path": "/vrooli.nutrition_planner.v1.cost.CostService/CreatePriceObservation",
+      "method": "POST",
+      "summary": "Record a price observation",
+      "description": "",
+      "category": "cost"
+    },
+    {
+      "id": "inventory_list_events",
+      "path": "/vrooli.nutrition_planner.v1.inventory.InventoryService/ListEvents",
+      "method": "POST",
+      "summary": "List inventory events",
+      "description": "",
+      "category": "inventory"
+    },
+    {
+      "id": "inventory_record_event",
+      "path": "/vrooli.nutrition_planner.v1.inventory.InventoryService/RecordEvent",
+      "method": "POST",
+      "summary": "Record an inventory event",
+      "description": "",
+      "category": "inventory"
+    },
+    {
+      "id": "inventory_prepare_batch",
+      "path": "/vrooli.nutrition_planner.v1.inventory.InventoryService/PrepareBatch",
+      "method": "POST",
+      "summary": "Prepare a batch and consume raw stock once",
+      "description": "",
+      "category": "inventory"
+    },
+    {
+      "id": "inventory_consume_batch_portion",
+      "path": "/vrooli.nutrition_planner.v1.inventory.InventoryService/ConsumeBatchPortion",
+      "method": "POST",
+      "summary": "Consume one prepared batch portion",
+      "description": "",
+      "category": "inventory"
+    },
+    {
+      "id": "inventory_undo_batch_portion",
+      "path": "/vrooli.nutrition_planner.v1.inventory.InventoryService/UndoBatchPortion",
+      "method": "POST",
+      "summary": "Undo one prepared batch portion",
+      "description": "",
+      "category": "inventory"
+    },
+    {
+      "id": "inventory_stage_receipt_proposal",
+      "path": "/vrooli.nutrition_planner.v1.inventory.InventoryService/StageReceiptProposal",
+      "method": "POST",
+      "summary": "Stage a receipt purchase proposal for review",
+      "description": "",
+      "category": "inventory"
+    },
+    {
+      "id": "inventory_list_receipt_proposals",
+      "path": "/vrooli.nutrition_planner.v1.inventory.InventoryService/ListReceiptProposals",
+      "method": "POST",
+      "summary": "List staged receipt purchase proposals",
+      "description": "",
+      "category": "inventory"
+    },
+    {
+      "id": "inventory_apply_receipt_proposal",
+      "path": "/vrooli.nutrition_planner.v1.inventory.InventoryService/ApplyReceiptProposal",
+      "method": "POST",
+      "summary": "Apply an approved receipt purchase proposal",
+      "description": "",
+      "category": "inventory"
+    },
+    {
+      "id": "nutrition_list_targets",
+      "path": "/vrooli.nutrition_planner.v1.nutrition.NutritionService/ListTargets",
+      "method": "POST",
+      "summary": "List nutrition targets",
+      "description": "",
+      "category": "nutrition"
+    },
+    {
+      "id": "nutrition_create_target",
+      "path": "/vrooli.nutrition_planner.v1.nutrition.NutritionService/CreateTarget",
+      "method": "POST",
+      "summary": "Create a nutrition target",
+      "description": "",
+      "category": "nutrition"
+    },
+    {
+      "id": "nutrition_get_target",
+      "path": "/vrooli.nutrition_planner.v1.nutrition.NutritionService/GetTarget",
+      "method": "POST",
+      "summary": "Get a nutrition target revision",
+      "description": "",
+      "category": "nutrition"
+    },
+    {
+      "id": "nutrition_evaluate_scope",
+      "path": "/vrooli.nutrition_planner.v1.nutrition.NutritionService/EvaluateScope",
+      "method": "POST",
+      "summary": "Evaluate an explicit intake scope",
+      "description": "",
+      "category": "nutrition"
+    },
+    {
+      "id": "nutrition_list_intakes",
+      "path": "/vrooli.nutrition_planner.v1.nutrition.NutritionService/ListIntakes",
+      "method": "POST",
+      "summary": "List recorded intake events",
+      "description": "",
+      "category": "nutrition"
+    },
+    {
+      "id": "nutrition_record_intake",
+      "path": "/vrooli.nutrition_planner.v1.nutrition.NutritionService/RecordIntake",
+      "method": "POST",
+      "summary": "Record or correct an intake event",
+      "description": "",
+      "category": "nutrition"
+    },
+    {
+      "id": "supplement_list_schedules",
+      "path": "/vrooli.nutrition_planner.v1.supplement.SupplementService/ListSchedules",
+      "method": "POST",
+      "summary": "List supplement schedules",
+      "description": "",
+      "category": "supplement"
+    },
+    {
+      "id": "supplement_create_schedule",
+      "path": "/vrooli.nutrition_planner.v1.supplement.SupplementService/CreateSchedule",
+      "method": "POST",
+      "summary": "Create a confirmed supplement schedule",
+      "description": "",
+      "category": "supplement"
+    },
+    {
+      "id": "supplement_update_schedule",
+      "path": "/vrooli.nutrition_planner.v1.supplement.SupplementService/UpdateSchedule",
+      "method": "POST",
+      "summary": "Create a new supplement schedule revision",
+      "description": "",
+      "category": "supplement"
+    },
+    {
+      "id": "supplement_get_schedule",
+      "path": "/vrooli.nutrition_planner.v1.supplement.SupplementService/GetSchedule",
+      "method": "POST",
+      "summary": "Get a supplement schedule revision",
+      "description": "",
+      "category": "supplement"
+    },
+    {
+      "id": "routine_list_templates",
+      "path": "/vrooli.nutrition_planner.v1.routine.RoutineService/ListTemplates",
+      "method": "POST",
+      "summary": "List recurring meal templates",
+      "description": "",
+      "category": "routine"
+    },
+    {
+      "id": "routine_create_template",
+      "path": "/vrooli.nutrition_planner.v1.routine.RoutineService/CreateTemplate",
+      "method": "POST",
+      "summary": "Create a recurring meal template",
+      "description": "",
+      "category": "routine"
+    },
+    {
+      "id": "routine_update_template",
+      "path": "/vrooli.nutrition_planner.v1.routine.RoutineService/UpdateTemplate",
+      "method": "POST",
+      "summary": "Create a new recurring template revision",
+      "description": "",
+      "category": "routine"
+    },
+    {
+      "id": "routine_generate_occurrences",
+      "path": "/vrooli.nutrition_planner.v1.routine.RoutineService/GenerateOccurrences",
+      "method": "POST",
+      "summary": "Generate dated routine occurrences",
+      "description": "",
+      "category": "routine"
+    },
+    {
+      "id": "portability_export_recipes",
+      "path": "/vrooli.nutrition_planner.v1.portability.PortabilityService/ExportRecipes",
+      "method": "POST",
+      "summary": "Export recipes in native format",
+      "description": "",
+      "category": "portability"
+    },
+    {
+      "id": "portability_export_workspace",
+      "path": "/vrooli.nutrition_planner.v1.portability.PortabilityService/ExportWorkspace",
+      "method": "POST",
+      "summary": "Export supported workspace data",
+      "description": "",
+      "category": "portability"
+    },
+    {
+      "id": "portability_preview_workspace_import",
+      "path": "/vrooli.nutrition_planner.v1.portability.PortabilityService/PreviewWorkspaceImport",
+      "method": "POST",
+      "summary": "Validate a workspace import before applying it",
+      "description": "",
+      "category": "portability"
+    },
+    {
+      "id": "portability_apply_workspace_import",
+      "path": "/vrooli.nutrition_planner.v1.portability.PortabilityService/ApplyWorkspaceImport",
+      "method": "POST",
+      "summary": "Apply a validated workspace restore atomically",
+      "description": "",
+      "category": "portability"
+    },
+    {
+      "id": "portability_preview_recipes_import",
+      "path": "/vrooli.nutrition_planner.v1.portability.PortabilityService/PreviewRecipesImport",
+      "method": "POST",
+      "summary": "Review a recipe collection import before applying it",
+      "description": "",
+      "category": "portability"
+    },
+    {
+      "id": "portability_apply_recipes_import",
+      "path": "/vrooli.nutrition_planner.v1.portability.PortabilityService/ApplyRecipesImport",
+      "method": "POST",
+      "summary": "Apply a recipe collection import atomically",
+      "description": "",
+      "category": "portability"
+    },
+    {
+      "id": "portability_export_groceries_csv",
+      "path": "/vrooli.nutrition_planner.v1.portability.PortabilityService/ExportGroceriesCSV",
+      "method": "POST",
+      "summary": "Export a grocery checklist as CSV",
+      "description": "",
+      "category": "portability"
+    },
+    {
+      "id": "portability_export_recipe_pdf",
+      "path": "/vrooli.nutrition_planner.v1.portability.PortabilityService/ExportRecipePDF",
+      "method": "POST",
+      "summary": "Export one recipe as PDF",
+      "description": "",
+      "category": "portability"
+    },
+    {
+      "id": "portability_export_weekly_pdf",
+      "path": "/vrooli.nutrition_planner.v1.portability.PortabilityService/ExportWeeklyPDF",
+      "method": "POST",
+      "summary": "Export the weekly plan as PDF",
+      "description": "",
+      "category": "portability"
+    },
+    {
+      "id": "profile_get",
+      "path": "/vrooli.nutrition_planner.v1.profile.ProfileService/GetProfile",
+      "method": "POST",
+      "summary": "Get profile",
+      "description": "",
+      "category": "profile"
+    },
+    {
+      "id": "profile_save_draft",
+      "path": "/vrooli.nutrition_planner.v1.profile.ProfileService/SaveProfileDraft",
+      "method": "POST",
+      "summary": "Save onboarding draft",
+      "description": "",
+      "category": "profile"
+    },
+    {
+      "id": "profile_apply",
+      "path": "/vrooli.nutrition_planner.v1.profile.ProfileService/ApplyProfile",
+      "method": "POST",
+      "summary": "Apply profile rules",
+      "description": "",
+      "category": "profile"
+    },
+    {
+      "id": "eligibility_evaluate",
+      "path": "/vrooli.nutrition_planner.v1.eligibility.EligibilityService/Evaluate",
+      "method": "POST",
+      "summary": "Evaluate recipe eligibility",
+      "description": "",
+      "category": "eligibility"
+    },
+    {
+      "id": "jobs_list",
+      "path": "/vrooli.nutrition_planner.v1.jobs.JobsService/ListJobs",
+      "method": "POST",
+      "summary": "List optional background jobs",
+      "description": "",
+      "category": "jobs"
+    },
+    {
+      "id": "jobs_create",
+      "path": "/vrooli.nutrition_planner.v1.jobs.JobsService/CreateJob",
+      "method": "POST",
+      "summary": "Queue an optional background job",
+      "description": "",
+      "category": "jobs"
+    },
+    {
+      "id": "jobs_transition",
+      "path": "/vrooli.nutrition_planner.v1.jobs.JobsService/TransitionJob",
+      "method": "POST",
+      "summary": "Advance a background job state",
+      "description": "",
+      "category": "jobs"
+    },
+    {
+      "id": "jobs_cancel",
+      "path": "/vrooli.nutrition_planner.v1.jobs.JobsService/CancelJob",
+      "method": "POST",
+      "summary": "Cancel a background job",
+      "description": "",
+      "category": "jobs"
+    },
+    {
+      "id": "planning_generate",
+      "path": "/vrooli.nutrition_planner.v1.planning.PlanningService/GeneratePlan",
+      "method": "POST",
+      "summary": "Generate a deterministic dinner plan draft",
+      "description": "",
+      "category": "planning"
+    },
+    {
+      "id": "planning_apply",
+      "path": "/vrooli.nutrition_planner.v1.planning.PlanningService/ApplyPlan",
+      "method": "POST",
+      "summary": "Apply a plan draft with optimistic concurrency",
+      "description": "",
+      "category": "planning"
+    },
+    {
+      "id": "planning_swap_preview",
+      "path": "/vrooli.nutrition_planner.v1.planning.PlanningService/PreviewSwap",
+      "method": "POST",
+      "summary": "Preview a scoped meal swap",
+      "description": "",
+      "category": "planning"
+    },
+    {
+      "id": "planning_shopping_preview",
+      "path": "/vrooli.nutrition_planner.v1.planning.PlanningService/GetShoppingPreview",
+      "method": "POST",
+      "summary": "Read an honest plan-derived shopping preview",
+      "description": "",
+      "category": "shopping"
+    },
+    {
+      "id": "planning_shopping_checked",
+      "path": "/vrooli.nutrition_planner.v1.planning.PlanningService/SetShoppingChecked",
+      "method": "POST",
+      "summary": "Persist checklist state without changing inventory",
+      "description": "",
+      "category": "shopping"
+    },
+    {
+      "id": "planning_feedback_record",
+      "path": "/vrooli.nutrition_planner.v1.planning.PlanningService/RecordFeedback",
+      "method": "POST",
+      "summary": "Record explicit meal feedback",
+      "description": "",
+      "category": "feedback"
+    },
+    {
+      "id": "planning_feedback_undo",
+      "path": "/vrooli.nutrition_planner.v1.planning.PlanningService/UndoFeedback",
+      "method": "POST",
+      "summary": "Undo explicit meal feedback",
+      "description": "",
+      "category": "feedback"
+    }
+  ]
+}

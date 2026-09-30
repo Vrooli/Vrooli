@@ -1,6 +1,22 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "name": "app-monitor",
     "displayName": "App Monitor",
@@ -52,8 +68,8 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 35000,
-      "description": "Ecosystem Manager UI port"
+      "port": 20000,
+      "description": "Swarm Manager UI port"
     },
     "vite": {
       "env_var": "VITE_PORT",
@@ -90,131 +106,6 @@
       "timeout": 5000,
       "interval": 30000,
       "startup_grace_period": 10000
-    },
-    "setup": {
-      "description": "Initialize App Monitor with database schema and automation workflows",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/app-monitor-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "app-monitor"
-          },
-          {
-            "type": "file",
-            "path": "ui/package.json"
-          },
-          {
-            "type": "command",
-            "command": "vrooli resource status"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "generate-embeddings",
-          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
-          "description": "Generate code embeddings for AI assistance"
-        },
-        {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add app data to resources"
-        },
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o app-monitor-api .",
-          "description": "Build Go coordination API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies for React app"
-        },
-        {
-          "name": "verify-docker-access",
-          "run": "docker version > /dev/null && echo '\u2705 Docker access verified' || echo '\u274c Docker access required for app monitoring'",
-          "description": "Verify Docker access for app monitoring"
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build React UI for production"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 App Monitor initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start app monitor with Go API server and production UI bundle",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./app-monitor-api",
-          "description": "Start Go coordination API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/app-monitor-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && NODE_ENV=production node server.js",
-          "description": "Start Express server with built React app",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
-          "description": "Display all running service URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for app-monitor",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute app-monitor --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"app-monitor-api\" || true; sleep 1; pkill -9 -f \"app-monitor-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/app-monitor.*node server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/app-monitor.*node server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -224,59 +115,136 @@
         "enabled": true,
         "required": true,
         "purpose": "Store app metadata, monitoring data, status logs, and metrics",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "schema"
-          }
-        ]
+        "startup_policy": "must_start"
       },
       "redis": {
         "type": "redis",
         "enabled": true,
-        "required": true,
-        "purpose": "Real-time event streaming, caching, and app notifications"
+        "required": false,
+        "purpose": "Optional real-time event fan-out. The websocket handler guards every Redis call behind an explicit nil check and serves a working no-Redis branch, so the scenario runs without a Redis server.",
+        "startup_policy": "try_start"
       },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": false,
-        "models": [
-          "phi3.5:3.8b",
-          "llama3.2"
-        ],
-        "purpose": "AI-powered analysis for unhealthy apps and performance optimization recommendations"
-      },
-      "browserless": {
-        "type": "browserless",
-        "enabled": true,
-        "required": false,
-        "purpose": "Headless browser for capturing diagnostics when iframe bridge fails (console logs, network requests, screenshots, page HTML)"
+        "purpose": "AI-powered analysis for unhealthy apps and performance optimization recommendations",
+        "startup_policy": "try_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "description": "Auto-detected via analyzer (heuristic)",
+        "startup_policy": "must_start"
       }
     },
     "scenarios": {
-      "app-issue-tracker": {
+      "swarm-manager": {
         "required": true,
-        "version": "2.0.0-file-based",
-        "versionRange": ">=2.0.0-file-based",
-        "description": "Auto-detected dependency via scenario_port_cli"
+        "version": "1.0.0",
+        "versionRange": ">=1.0.0",
+        "description": "Creates and reads scenario fix backlog items",
+        "startup_policy": "must_start"
       },
       "scenario-auditor": {
         "required": true,
         "version": "1.0.0",
         "versionRange": ">=1.0.0",
-        "description": "Auto-detected dependency via scenario_port_cli"
+        "description": "Auto-detected dependency via scenario_port_cli",
+        "startup_policy": "must_start"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "app-monitor",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "app-monitor"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui",
+        "env": {
+          "NODE_ENV": "production"
+        }
+      }
+    }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "Optional accelerator. The scenario opens a client when Redis is reachable and serves a working no-Redis path when it is not."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "The scenario does not require Redis, so the desktop tier simply runs without it rather than shipping a server."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
+        }
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

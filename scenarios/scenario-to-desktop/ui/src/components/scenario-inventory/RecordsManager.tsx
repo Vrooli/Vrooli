@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Package, RefreshCw } from "lucide-react";
-import type { DesktopRecordResponse } from "../../lib/api";
 import {
   deleteDesktopBuild,
   fetchDesktopRecords,
@@ -11,6 +10,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { AppCard } from "../records/AppCard";
 import { AppDetailDrawer } from "../records/AppDetailDrawer";
+import { presentDesktopRecords } from "../records/recordPresentation";
 
 interface RecordsManagerProps {
   onSwitchTemplate?: (scenarioName: string, templateType?: string) => void;
@@ -18,40 +18,56 @@ interface RecordsManagerProps {
   onRebuildWithSigning?: (scenarioName: string) => void;
 }
 
-export function RecordsManager({ onSwitchTemplate, onEditSigning, onRebuildWithSigning }: RecordsManagerProps) {
+export function RecordsManager({
+  onSwitchTemplate,
+  onEditSigning,
+  onRebuildWithSigning,
+}: RecordsManagerProps) {
   const queryClient = useQueryClient();
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
 
-  const { data, isLoading, error, refetch, isFetching } = useQuery<DesktopRecordResponse>({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["desktop-records"],
     queryFn: fetchDesktopRecords,
     refetchInterval: 20000,
   });
 
   const moveMutation = useMutation({
-    mutationFn: async (params: { recordId: string; target?: "destination" | "custom"; destination_path?: string }) => {
-      return moveDesktopRecord(params.recordId, { target: params.target, destination_path: params.destination_path });
+    mutationFn: async (params: {
+      recordId: string;
+      target?: "destination" | "custom";
+      destination_path?: string;
+    }) => {
+      return moveDesktopRecord(params.recordId, {
+        target: params.target,
+        destination_path: params.destination_path,
+      });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["desktop-records"] });
+      void queryClient.invalidateQueries({ queryKey: ["desktop-records"] });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (scenarioName: string) => deleteDesktopBuild(scenarioName),
+    mutationFn: async (scenarioName: string) =>
+      deleteDesktopBuild(scenarioName),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["desktop-records"] });
+      void queryClient.invalidateQueries({ queryKey: ["desktop-records"] });
       setSelectedRecordId(null);
     },
   });
 
-  const records = useMemo(() => data?.records || [], [data]);
+  const records = useMemo(() => presentDesktopRecords(data), [data]);
   const selectedItem = useMemo(
     () => records.find((r) => r.record.id === selectedRecordId) ?? null,
     [records, selectedRecordId],
   );
 
-  const handleMove = (recordId: string, target: "destination" | "custom", customPath?: string) => {
+  const handleMove = (
+    recordId: string,
+    target: "destination" | "custom",
+    customPath?: string,
+  ) => {
     moveMutation.mutate({
       recordId,
       target,
@@ -69,22 +85,29 @@ export function RecordsManager({ onSwitchTemplate, onEditSigning, onRebuildWithS
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-slate-50">Your Desktop Apps</h2>
+            <h2 className="text-lg font-semibold text-slate-50">
+              Your Desktop Apps
+            </h2>
             <Badge variant="outline">{records.length}</Badge>
           </div>
           <p className="text-sm text-slate-400 mt-0.5">
-            Manage your generated desktop wrappers. Click an app to view details and actions.
+            Manage your generated desktop wrappers. Click an app to view details
+            and actions.
           </p>
         </div>
         <Button
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => refetch()}
+          onClick={() => {
+            void refetch();
+          }}
           disabled={isFetching}
           className="gap-2 shrink-0"
         >
-          <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+          />
           Refresh
         </Button>
       </div>
@@ -93,15 +116,19 @@ export function RecordsManager({ onSwitchTemplate, onEditSigning, onRebuildWithS
       {error && (
         <div className="rounded border border-red-800 bg-red-950/30 p-3 text-sm text-red-200 flex items-center gap-2">
           <AlertCircle className="h-4 w-4" />
-          {(error as Error).message}
+          {error.message}
         </div>
       )}
 
       {/* Move mutation feedback */}
       {moveMutation.isError && (
-        <p className="text-xs text-red-300">{(moveMutation.error as Error).message || "Move failed"}</p>
+        <p className="text-xs text-red-300">
+          {moveMutation.error.message || "Move failed"}
+        </p>
       )}
-      {moveMutation.isSuccess && <p className="text-xs text-green-300">Move updated.</p>}
+      {moveMutation.isSuccess && (
+        <p className="text-xs text-green-300">Move updated.</p>
+      )}
 
       {/* Content */}
       {isLoading ? (
@@ -112,9 +139,12 @@ export function RecordsManager({ onSwitchTemplate, onEditSigning, onRebuildWithS
             <Package className="h-7 w-7 text-slate-500" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-200">No desktop apps yet</p>
+            <p className="text-sm font-medium text-slate-200">
+              No desktop apps yet
+            </p>
             <p className="text-xs text-slate-400 mt-1">
-              Use the Generator tab to build a desktop wrapper for one of your scenarios.
+              Use the Generator tab to build a desktop wrapper for one of your
+              scenarios.
             </p>
           </div>
         </div>
@@ -123,13 +153,25 @@ export function RecordsManager({ onSwitchTemplate, onEditSigning, onRebuildWithS
           {/* Desktop grid */}
           <div className="hidden md:grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {records.map((item) => (
-              <AppCard key={item.record.id} item={item} onClick={() => setSelectedRecordId(item.record.id)} />
+              <AppCard
+                key={item.record.id}
+                item={item}
+                onClick={() => {
+                  setSelectedRecordId(item.record.id);
+                }}
+              />
             ))}
           </div>
           {/* Mobile list */}
           <div className="md:hidden">
             {records.map((item) => (
-              <AppCard key={item.record.id} item={item} onClick={() => setSelectedRecordId(item.record.id)} />
+              <AppCard
+                key={item.record.id}
+                item={item}
+                onClick={() => {
+                  setSelectedRecordId(item.record.id);
+                }}
+              />
             ))}
           </div>
         </>
@@ -139,9 +181,13 @@ export function RecordsManager({ onSwitchTemplate, onEditSigning, onRebuildWithS
       <AppDetailDrawer
         item={selectedItem}
         open={selectedRecordId !== null}
-        onClose={() => setSelectedRecordId(null)}
+        onClose={() => {
+          setSelectedRecordId(null);
+        }}
         onMove={handleMove}
-        onDelete={handleDelete}
+        onDelete={(scenarioName) => {
+          void handleDelete(scenarioName);
+        }}
         movePending={moveMutation.isPending}
         onSwitchTemplate={onSwitchTemplate}
         onEditSigning={onEditSigning}

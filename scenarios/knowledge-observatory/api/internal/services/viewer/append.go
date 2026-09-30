@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"knowledge-observatory/internal/docschema"
+	"knowledge-observatory/internal/doclogs"
 )
 
 // DocAppendRequest describes a request to append an entry to a structured document.
@@ -48,34 +48,26 @@ func (s *Service) AppendEntry(ctx context.Context, req DocAppendRequest) (*DocAp
 		return nil, ErrTitleRequired
 	}
 
-	dt, err := docschema.ParseDocType(req.DocType)
+	doc, scenarioPath, err := s.resolveContractDoc(scenario, req.DocType)
 	if err != nil {
-		return nil, ErrDocTypeInvalid
+		return nil, err
 	}
-	if dt != docschema.DocTypeProblems && dt != docschema.DocTypeProgress {
+	if doc.Operations.AppendLog == nil || !doc.Operations.AppendLog.Enabled {
 		return nil, ErrAppendUnsupported
 	}
 
-	var abs string
-	if s.repoRoot != "" {
-		abs = filepath.Join(s.repoRoot, "scenarios", scenario, dt.ExpectedPath())
-	} else {
-		abs = filepath.Join(s.scenariosRoot, scenario, dt.ExpectedPath())
-	}
-
-	result, err := docschema.AppendEntry(abs, docschema.AppendConfig{
-		DocType: dt,
-		Title:   title,
-		Body:    req.Body,
-		Author:  req.Author,
-		Status:  req.Status,
+	result, err := doclogs.Append(filepath.Join(scenarioPath, filepath.FromSlash(doc.ScenarioPath)), *doc.Operations.AppendLog, doclogs.Entry{
+		Title:  title,
+		Body:   req.Body,
+		Author: req.Author,
+		Status: req.Status,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return &DocAppendResult{
 		ScenarioName: scenario,
-		DocType:      string(dt),
+		DocType:      doc.DocType,
 		EntryAdded:   result.EntryAdded,
 	}, nil
 }

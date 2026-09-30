@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
-
-const API_BASE = resolveApiBase({ appendSuffix: true });
+import { buildApiUrl } from "@vrooli/api-base";
+import { API_BASE } from "../lib/api";
 
 export interface DocSection {
   id: string;

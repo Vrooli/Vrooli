@@ -1,10 +1,18 @@
 # Driver Interface Architecture
 
-_Last reviewed: 2026-01-30_
+_Execution ownership reviewed: 2026-09-22_
 
 ## Overview
 
 The browser-automation-studio implements a **pluggable driver architecture** that separates browser drivers (HTTP-based communication layer) from navigators (AI-powered vision navigation). The system uses a layered design with clear separation of concerns.
+
+Workflow execution is owned by `automation/session.GoSession`, which allocates
+lease operation identity and calls `driver.Client.RunInstruction` with one typed
+instruction. Recording and vision navigation use the maintained client interfaces
+below. The unused `automation/driver/playwright` adapter, `claudecode` driver
+stub, and parallel `driver.Driver`/`Session` types are retired; they were absent
+from application wiring and sent an obsolete untyped plural instruction payload.
+Navigator selection remains a separate, active concern.
 
 ## Architecture Layers
 
@@ -86,6 +94,16 @@ The browser-automation-studio implements a **pluggable driver architecture** tha
 ```
 
 ## Interface Definitions
+
+### Target-owned application attachment
+
+Cross-platform validation uses one `AppTarget` descriptor. Its `target_kind`
+selects an admitted-URL policy (`electron` or `android-webview`); BAS attaches
+to the target-owned renderer and never launches the application or opens a
+debugging port. The executor calls the resolver seam for every scenario
+navigation, so adding a WebView kind does not create a parallel target field.
+The attach also requires the matching immutable `ValidationContext` and
+isolation lease.
 
 ### VisionNavigator Interface
 

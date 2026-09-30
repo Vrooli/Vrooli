@@ -1,0 +1,95 @@
+{
+  "description": "`ui-health validate scenario <name> --json` emits ONE consolidated `Report` covering all check groups (static manifest, static UI-interop, static project-UI standards, bundle freshness, runtime/render, AI surface search, and auto-fix availability). Each `Finding` carries a stable `check_group`, `code`, `severity`, and `dimension`, and where applicable `fix_class` and `autofix_available`, so a single command surfaces the complete UI-health picture for a scenario.",
+  "module_id": "MOD-P0-012",
+  "prd_ref": "OT-P0-006",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "The `Report` and `Finding` data model must carry a stable `check_group` field identifying which of the seven check groups produced each Finding, plus a `code`, `severity`, and `dimension`. Findings that originate from fixable checks must also carry `fix_class` and `autofix_available` fields.",
+      "id": "REQ-P0-009",
+      "prd_ref": "OT-P0-006",
+      "status": "draft",
+      "title": "Report and Finding carry check_group, fix_class, autofix_available",
+      "validation": [
+        {
+          "notes": "Each Finding serializes a non-empty check_group identifying its originating check group",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Findings include stable code, severity, and dimension fields in JSON output",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Findings from fixable checks carry fix_class and autofix_available; non-fixable Findings default fix_class to manual",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `ui-health validate scenario <name> --json` and confirm every Finding in the output has a populated check_group field",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Report schema is stable and versioned so test-genie and app-monitor can rely on check_group/fix_class/autofix_available",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "cli",
+      "dependencies": [
+        "REQ-P0-009"
+      ],
+      "description": "A single invocation of `ui-health validate scenario <name> --json` must produce one Report in which all seven check groups (static manifest, static UI-interop, static project-UI standards, bundle freshness, runtime/render, AI surface search, auto-fix availability) are representable. No check group requires a separate command.",
+      "id": "REQ-P0-010",
+      "prd_ref": "OT-P0-006",
+      "status": "draft",
+      "title": "All seven check groups representable in one report",
+      "validation": [
+        {
+          "notes": "The Report model enumerates all seven check_group values as valid",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A single validate invocation populates Findings spanning multiple check groups for a scenario with mixed violations",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `ui-health validate scenario <name> --json` once and confirm the consolidated Report includes results from static and dynamic groups without a second command",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A single consolidated report is the canonical UI-health output and no check group is omitted when all are applicable",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Single consolidated UI-validation report"
+}

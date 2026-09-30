@@ -1,0 +1,7 @@
+{
+  "traceEvents": [
+    { "cat": "loading", "name": "navigationStart", "ph": "R", "ts": 1000 },
+    { "cat": "devtools.timeline", "name": "RunTask", "ph": "X", "ts": 5000, "dur": 1200 },
+    { "cat": "disabled-by-default-v8.cpu_profiler", "name": "ProfileChunk", "ph": "P", "ts": 6000 }
+  ]
+}

@@ -7,8 +7,13 @@ import { inputClassName } from '../components/formFieldClasses';
 import { Button } from '../../../shared/ui/button';
 import { LAYOUT } from '../config/layout.constants';
 import { useProfileForm } from '../hooks/useProfileForm';
+import { useEffect, useState } from 'react';
+import { getAdminSecurityEvents, type AdminSecurityEvent } from '../../../shared/api';
+import { TwoFactorSettings } from '../components/TwoFactorSettings';
 
 export function ProfileSettings() {
+  const [securityEvents, setSecurityEvents] = useState<AdminSecurityEvent[]>([]);
+  useEffect(() => { void getAdminSecurityEvents().then((response) => { setSecurityEvents(response.events ?? []); }).catch(() => { setSecurityEvents([]); }); }, []);
   const {
     profile,
     loading,
@@ -29,7 +34,6 @@ export function ProfileSettings() {
     <AdminLayout maxWidth="default">
       <div className={LAYOUT.pageSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Harden the default admin identity"
           description="Update the seeded admin email and password so deployments do not rely on defaults. Changes apply immediately to the current session."
           icon={Mail}
@@ -85,12 +89,12 @@ export function ProfileSettings() {
               iconColorClass="text-emerald-300"
               testId="profile-email-section"
             >
-              <form className="space-y-4" onSubmit={handleEmailSubmit} data-testid="profile-email-form">
+              <form className="space-y-4" onSubmit={(event) => { void handleEmailSubmit(event); }} data-testid="profile-email-form">
                 <FormField label="New email">
                   <input
                     type="email"
                     value={emailForm.newEmail}
-                    onChange={(event) => updateEmailForm('newEmail', event.target.value)}
+                    onChange={(event) => { updateEmailForm('newEmail', event.target.value); }}
                     placeholder="you@company.com"
                     className={inputClassName}
                     data-testid="profile-email-new"
@@ -100,7 +104,7 @@ export function ProfileSettings() {
                   <input
                     type="password"
                     value={emailForm.currentPassword}
-                    onChange={(event) => updateEmailForm('currentPassword', event.target.value)}
+                    onChange={(event) => { updateEmailForm('currentPassword', event.target.value); }}
                     placeholder="Confirm with current password"
                     className={inputClassName}
                     data-testid="profile-email-current-password"
@@ -140,12 +144,12 @@ export function ProfileSettings() {
               iconColorClass="text-blue-200"
               testId="profile-password-section"
             >
-              <form className="space-y-4" onSubmit={handlePasswordSubmit} data-testid="profile-password-form">
+              <form className="space-y-4" onSubmit={(event) => { void handlePasswordSubmit(event); }} data-testid="profile-password-form">
                 <FormField label="New password">
                   <input
                     type="password"
                     value={passwordForm.newPassword}
-                    onChange={(event) => updatePasswordForm('newPassword', event.target.value)}
+                    onChange={(event) => { updatePasswordForm('newPassword', event.target.value); }}
                     placeholder="At least 12 characters, letters + numbers"
                     className={inputClassName}
                     data-testid="profile-password-new"
@@ -156,7 +160,7 @@ export function ProfileSettings() {
                   <input
                     type="password"
                     value={passwordForm.confirmPassword}
-                    onChange={(event) => updatePasswordForm('confirmPassword', event.target.value)}
+                    onChange={(event) => { updatePasswordForm('confirmPassword', event.target.value); }}
                     placeholder="Re-enter new password"
                     className={inputClassName}
                     data-testid="profile-password-confirm"
@@ -167,7 +171,7 @@ export function ProfileSettings() {
                   <input
                     type="password"
                     value={passwordForm.currentPassword}
-                    onChange={(event) => updatePasswordForm('currentPassword', event.target.value)}
+                    onChange={(event) => { updatePasswordForm('currentPassword', event.target.value); }}
                     placeholder="Confirm with current password"
                     className={inputClassName}
                     data-testid="profile-password-current"
@@ -201,6 +205,12 @@ export function ProfileSettings() {
             </FormSection>
           </div>
         )}
+        {!loading && !loadError && <TwoFactorSettings />}
+        {!loading && !loadError && <section className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5" aria-label="Admin security events" data-testid="admin-security-events">
+          <h2 className="text-lg font-semibold text-white">Recent security events</h2>
+          <p className="mt-1 text-sm text-slate-400">Latest administrator sign-in and credential activity.</p>
+          {securityEvents.length === 0 ? <p className="mt-4 text-sm text-slate-500">No security events recorded.</p> : <ul className="mt-4 divide-y divide-white/10" aria-live="polite">{securityEvents.map((event, index) => <li className="flex flex-wrap justify-between gap-2 py-3 text-sm" key={`${event.created_at}-${event.event}-${index}`}><span className="font-medium text-slate-200">{event.event}</span><span className="text-slate-400">{new Date(event.created_at).toLocaleString()}{event.ip_hint ? ` · ${event.ip_hint}` : ''}</span></li>)}</ul>}
+        </section>}
       </div>
     </AdminLayout>
   );

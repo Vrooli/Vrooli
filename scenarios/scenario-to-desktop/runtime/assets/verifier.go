@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/telemetry"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/telemetry"
 )
 
 // Verifier verifies bundle assets.
@@ -33,6 +33,20 @@ func (v *Verifier) EnsureAssets(svc manifest.Service) error {
 	for _, asset := range svc.Assets {
 		if err := v.verifyAsset(svc, asset); err != nil {
 			return err
+		}
+	}
+	for _, assetDir := range svc.AssetDirs {
+		path := manifest.ResolvePath(v.BundlePath, assetDir)
+		info, err := v.FS.Stat(path)
+		if err != nil {
+			_ = v.Telemetry.Record("asset_directory_missing", map[string]interface{}{
+				"service_id": svc.ID,
+				"path":       assetDir,
+			})
+			return fmt.Errorf("asset directory missing for service %s: %s", svc.ID, assetDir)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("asset directory path is not a directory: %s", assetDir)
 		}
 	}
 	return nil

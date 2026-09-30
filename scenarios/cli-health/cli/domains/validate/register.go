@@ -1,0 +1,27 @@
+// Package validate is the CLI's validate-domain command surface. It mirrors
+// the API's shared ScenarioValidationService endpoint.
+package validate
+
+import (
+	"fmt"
+
+	"github.com/vrooli/cli-core/cliapp"
+)
+
+// GroupName is the manifest group this package owns.
+const GroupName = "validate"
+
+// Register builds the validate subcommand group from the embedded manifest
+// and wires Connect-RPC bindings to handlers in handlers.go.
+func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
+	h := newHandlers(core)
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"ScenarioValidationService.ValidateScenario": cliapp.ProtoListOutcome(h.scenarioCall, h.scenarioReport, h.scenarioOutcome),
+		"ScenarioValidationService.ValidateTarget":   cliapp.ProtoListOutcome(h.projectCall, h.projectReport, h.projectOutcome),
+	}
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("validate: load from manifest: %w", err)
+	}
+	return group, nil
+}

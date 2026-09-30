@@ -1,0 +1,22 @@
+{
+  "id": "active_scenarios",
+  "label": "Apps running",
+  "description": "Apps the control plane reports as running.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "scalar",
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:vrooli-core",
+    "read": "/scenarios",
+    "select": "active_scenarios",
+    "ttlSeconds": 60,
+    "integrationId": "vrooli-core",
+    "featureId": "active_scenarios",
+    "contractVersion": "legacy.v1",
+    "selector": "active_scenarios",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

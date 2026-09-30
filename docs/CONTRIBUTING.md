@@ -1,343 +1,137 @@
 # Contributing to Vrooli
 
-Thank you for your interest in contributing to Vrooli! This document provides guidelines and standards for contributing to make the process smooth and consistent for everyone.
+Vrooli is a local, self-improving software foundry. Contributions should strengthen the current platform, expand reusable capability, or improve the conditions under which future scenarios and resources can be built safely.
 
-## Table of Contents
+Start with:
 
-- [Code of Conduct](#code-of-conduct)
-- [Getting Started](#getting-started)
-- [Development Process](#development-process)
-- [Coding Standards](#coding-standards)
-- [Testing Requirements](#testing-requirements)
-- [Pull Request Process](#pull-request-process)
-- [Commit Message Guidelines](#commit-message-guidelines)
-- [Review Process](#review-process)
-- [Documentation Standards](#documentation-standards)
-- [Security Guidelines](#security-guidelines)
-- [Community](#community)
+- [README.md](README.md)
+- [QUICKSTART.md](QUICKSTART.md)
+- [concepts/ARCHITECTURE.md](concepts/ARCHITECTURE.md)
+- [reference/cli-commands.md](reference/cli-commands.md)
+- [repo-contract.md](repo-contract.md)
+- [package-governance.md](package-governance.md)
 
-## Code of Conduct
+## Core Expectations
 
-By participating in this project, you agree to abide by our Code of Conduct:
-
-- **Be Respectful**: Treat all contributors with respect and professionalism
-- **Be Inclusive**: Welcome contributors of all backgrounds and experience levels
-- **Be Constructive**: Provide helpful feedback and accept criticism gracefully
-- **Be Collaborative**: Work together to solve problems and improve the project
+- prefer edits to existing files over creating parallel structures
+- use the current `vrooli` CLI and scenario Makefiles, not direct execution or shell-era shortcuts
+- keep docs, manifests, validation rules, and code aligned in the same change when you touch shared platform contracts
+- treat scenarios as long-lived business and platform capabilities, not disposable demos
+- treat resources as shared local building blocks, not one-off integrations
 
 ## Getting Started
 
-### Prerequisites
-
-Before contributing, ensure you have:
-
-1. Read the [README.md](/README.md) and [CLAUDE.md](/CLAUDE.md)
-2. Set up your development environment following [/docs/GETTING_STARTED.md](/docs/GETTING_STARTED.md)
-3. Familiarized yourself with the [architecture documentation](/docs/ARCHITECTURE_OVERVIEW.md)
-4. Reviewed recent commits and issues to understand current development
-
-### First-Time Contributors
-
-1. **Find an Issue**: Look for issues labeled `good-first-issue` or `help-wanted`
-2. **Comment on the Issue**: Let us know you're working on it
-3. **Ask Questions**: Don't hesitate to ask for clarification or guidance
-4. **Start Small**: Consider documentation improvements or bug fixes for your first contribution
-
-## Development Process
-
-### 1. Fork and Clone
+Clone the repository, then use the canonical setup flow:
 
 ```bash
-# Fork the repository on GitHub, then:
-git clone https://github.com/YOUR_USERNAME/Vrooli.git
-cd Vrooli
-git remote add upstream https://github.com/Vrooli/Vrooli.git
-```
-
-### 2. Create a Feature Branch
-
-```bash
-# Update your fork
-git checkout dev
-git pull upstream dev
-
-# Create your feature branch
-git checkout -b feature/your-feature-name
-```
-
-### 3. Set Up Development Environment
-
-```bash
-# Install dependencies
-pnpm install
-
-# Start development environment  
+make setup
+vrooli help
 vrooli develop
 ```
 
-### 4. Make Your Changes
-
-Follow our coding standards and ensure all tests pass before committing.
-
-## Coding Standards
-
-### TypeScript Guidelines
-
-1. **Type Safety**
-   - Use explicit types, avoid `any`
-   - Leverage TypeScript's strict mode
-   - Define interfaces for complex objects
-
-2. **Import Requirements**
-   ```typescript
-   // ALWAYS use .js extension in imports
-   import { foo } from "./bar.js";
-   
-   // For monorepo packages, use package name only
-   import { types } from "@vrooli/shared";
-   ```
-
-3. **Naming Conventions**
-   - Components: PascalCase (e.g., `UserProfile`)
-   - Functions/Variables: camelCase (e.g., `getUserData`)
-   - Constants: UPPER_SNAKE_CASE (e.g., `MAX_RETRIES`)
-   - Files: Match the main export (e.g., `UserProfile.tsx`)
-
-4. **Code Organization**
-   - Keep files focused and under 300 lines when possible
-   - Group related functionality
-   - Use barrel exports for clean imports
-
-### React Guidelines
-
-1. **Component Structure**
-   - Use functional components with hooks
-   - Keep components focused on a single responsibility
-   - Extract complex logic into custom hooks
-
-2. **State Management**
-   - Use appropriate state solutions (local state, context, stores)
-   - Avoid unnecessary re-renders
-   - Document complex state logic
-
-### Architecture Principles
-
-1. **Three-Tier Architecture**: Respect the coordination/process/execution intelligence model
-2. **Event-Driven Design**: Use the event bus for component communication
-3. **Emergent Capabilities**: Don't hard-code what can emerge from agent intelligence
-4. **Type Safety**: Maintain type safety across package boundaries
-
-## Testing Requirements
-
-### Test Coverage
-
-- **Minimum**: 80% code coverage for new code
-- **Critical Paths**: 100% coverage for authentication, payment, and security code
-- **Integration Tests**: Use testcontainers for Redis/PostgreSQL (never mock core infrastructure)
-
-### Writing Tests
-
-```typescript
-// Test file naming: ComponentName.test.ts or functionName.test.ts
-// Place in __test directories (NOT __tests)
-
-describe('Component/Function Name', () => {
-  it('should [expected behavior] when [condition]', () => {
-    // Arrange
-    // Act
-    // Assert
-  });
-});
-```
-
-### Running Tests
+If you are working on a specific scenario, prefer its lifecycle Makefile:
 
 ```bash
-# Run all tests
-pnpm test
-
-# Run scenario tests
-vrooli scenario test <scenario-name>
-
-# Run resource tests
-vrooli test resources
-
-# Watch mode for development
-vrooli test --watch
+cd scenarios/<name>
+make start
+make test
+make logs
+make stop
 ```
 
-## Pull Request Process
+Do not start scenarios with direct binary or script execution.
 
-### Before Submitting
+## Contribution Areas
 
-1. **Update from upstream**
-   ```bash
-   git pull upstream dev
-   git rebase upstream/dev
-   ```
+Common high-value contribution categories:
 
-2. **Run all checks**
-   ```bash
-   # Type checking
-   pnpm run type-check
-   
-   # Linting
-   pnpm run lint
-   
-   # Tests
-   pnpm test
-   ```
+- project-level CLI and control-plane improvements under `cmd/` and `internal/`
+- scenario improvements that expand reusable business capability
+- resource improvements that make the local platform more capable or more reliable
+- package governance, repo-contract, and validation work that reduces platform drift
+- documentation updates that improve current-state accuracy
 
-3. **Update documentation** if you've:
-   - Added new features
-   - Changed APIs
-   - Modified configuration options
+## Development Workflow
 
-### PR Guidelines
-
-1. **Title Format**: `type(scope): description`
-   - Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-   - Example: `feat(server): add rate limiting to API endpoints`
-
-2. **Description Template**:
-   ```markdown
-   ## Description
-   Brief description of changes
-   
-   ## Type of Change
-   - [ ] Bug fix
-   - [ ] New feature
-   - [ ] Breaking change
-   - [ ] Documentation update
-   
-   ## Testing
-   - [ ] Unit tests pass
-   - [ ] Integration tests pass
-   - [ ] Manual testing completed
-   
-   ## Checklist
-   - [ ] Code follows style guidelines
-   - [ ] Self-review completed
-   - [ ] Documentation updated
-   - [ ] No new warnings
-   ```
-
-3. **PR Size**: Keep PRs focused and under 400 lines when possible
-
-## Commit Message Guidelines
-
-Follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
-
-```
-type(scope): subject
-
-body
-
-footer
-```
-
-### Examples
+Use a normal branch-based workflow:
 
 ```bash
-# Feature
-feat(ui): add dark mode toggle to settings
-
-# Bug fix
-fix(server): resolve memory leak in WebSocket handler
-
-# Documentation
-docs(api): update authentication flow diagram
-
-# Performance
-perf(jobs): optimize embedding generation batch size
-
-# Breaking change
-feat(api)!: change user endpoint response format
-
-BREAKING CHANGE: The user endpoint now returns a nested structure
+git checkout -b feature/your-change
 ```
 
-## Review Process
+Before opening a PR:
 
-### For Contributors
+```bash
+vrooli help
+```
 
-1. **Respond to Feedback**: Address reviewer comments promptly
-2. **Update Your PR**: Push fixes as new commits (we'll squash on merge)
-3. **Re-request Review**: Use GitHub's re-request feature when ready
+Run the validations that match your change:
 
-### For Reviewers
+```bash
+vrooli scenario test <name>
+go test ./cmd/vrooli/... ./internal/...
+make hygiene
+make validate-package-governance
+```
 
-1. **Be Constructive**: Suggest improvements, don't just criticize
-2. **Check for**:
-   - Code quality and standards compliance
-   - Test coverage and quality
-   - Documentation updates
-   - Security implications
-   - Performance impact
+Do not treat every command above as mandatory for every change. Run the checks that cover the surface you touched, then call out anything you could not run.
 
-3. **Use Review Comments**:
-   - ✅ Approve: Ready to merge
-   - 💬 Comment: Suggestions but not blocking
-   - 🚫 Request Changes: Must be addressed before merge
+## Working On Scenarios
 
-## Documentation Standards
+- use `vrooli scenario ...` for inspection and orchestration when needed
+- prefer scenario-local `make start|test|logs|stop` for day-to-day lifecycle work
+- do not add new direct-execution guidance to docs or scripts
+- keep scenario docs inside the scenario when behavior is scenario-specific
 
-### When to Update Documentation
+## Working On Resources
 
-Update documentation when you:
-- Add new features or APIs
-- Change existing behavior
-- Fix documentation errors
-- Improve clarity or examples
+- use `vrooli resource ...` as the operator surface
+- keep resource behavior manifest-driven
+- do not default to cloning old shell-first resource layouts
+- if you change resource lifecycle semantics, update the docs and validation surface in the same PR
 
-### Documentation Guidelines
+## Shared Contracts
 
-1. **Location**: Place docs in the appropriate `/docs/` subdirectory
-2. **Format**: Use Markdown with clear headings and examples
-3. **Diagrams**: Use Mermaid for technical diagrams
-4. **Examples**: Include practical, runnable examples
-5. **Cross-references**: Link to related documentation
+When touching shared platform structure:
 
-## Security Guidelines
+- repo-aware layout rules belong in `.vrooli/repo-contract.json`
+- package sharing rules belong in package manifests under `packages/<name>/.vrooli/package.json`
+- do not introduce new repo-root heuristics or canonical path assembly when a shared helper already exists
+- validate repo-contract and package-governance changes in the same change set
 
-### Security Considerations
+## Documentation
 
-1. **Never commit**:
-   - Passwords, API keys, or secrets
-   - Personal data or PII
-   - Security vulnerabilities
+Project-level docs should distinguish clearly between:
 
-2. **Always**:
-   - Validate and sanitize user input
-   - Use parameterized queries
-   - Follow OWASP guidelines
-   - Report security issues privately
+- canonical current-state guidance
+- specialized reference material
+- historical or proposal documents
 
-### Reporting Security Issues
+Do not let older historical docs override the canonical layer under `docs/README.md`, `docs/QUICKSTART.md`, `docs/concepts/`, and `docs/reference/`.
 
-For security vulnerabilities, please email security@vrooli.com instead of creating a public issue.
+## Pull Requests
 
-## Community
+A good PR does four things:
 
-### Getting Help
+- explains the problem clearly
+- explains the chosen approach briefly
+- names the validations run
+- calls out follow-up work or remaining risk honestly
 
-- **Discord**: Join our [Discord server](https://discord.gg/vrooli) for real-time help
-- **Discussions**: Use GitHub Discussions for questions and ideas
-- **Issues**: Report bugs and request features through GitHub Issues
+Use conventional, readable titles such as:
 
-### Recognition
+- `docs: refresh contributor workflow`
+- `fix(cli): normalize scenario path resolution`
+- `feat(resource): add governed blueprint restore flow`
 
-We value all contributions! Contributors are:
-- Listed in our [Contributors](https://github.com/Vrooli/Vrooli/graphs/contributors) page
-- Mentioned in release notes for significant contributions
-- Invited to our contributor recognition program
+## Review Standard
 
-## Questions?
+Expect review to focus on:
 
-If you have questions about contributing, please:
-1. Check existing documentation
-2. Search closed issues and discussions
-3. Ask in our Discord #contributing channel
-4. Create a new discussion if needed
+- correctness
+- drift against current architecture and contracts
+- operational safety
+- test and validation coverage
+- documentation accuracy
 
-Thank you for contributing to Vrooli! Together, we're building the future of AI-powered productivity. 🚀
+If a change updates platform truth, update the docs in the same PR.

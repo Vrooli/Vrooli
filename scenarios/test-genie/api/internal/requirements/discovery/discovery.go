@@ -42,6 +42,13 @@ type Discoverer interface {
 // discoverer implements Discoverer using file system operations.
 type discoverer struct {
 	reader Reader
+	strict bool
+}
+
+// NewStrict rejects incomplete import graphs for authoritative registry reads.
+// Existing diagnostic scans retain their best-effort behavior.
+func NewStrict(reader Reader) Discoverer {
+	return &discoverer{reader: reader, strict: true}
 }
 
 // osReader implements Reader using the os package.
@@ -119,6 +126,9 @@ func (d *discoverer) discoverFromIndex(ctx context.Context, requirementsDir, ind
 
 	for _, importPath := range indexFile.Imports {
 		if err := d.resolveImport(ctx, requirementsDir, importPath, visited, &files); err != nil {
+			if d.strict {
+				return nil, err
+			}
 			// Log warning but continue - partial discovery is better than none
 			continue
 		}
@@ -163,6 +173,9 @@ func (d *discoverer) resolveImport(ctx context.Context, baseDir, importPath stri
 	// If it's a JSON file, check for nested imports
 	data, err := d.reader.ReadFile(absPath)
 	if err != nil {
+		if d.strict {
+			return err
+		}
 		return nil // File exists but can't read - continue anyway
 	}
 
@@ -170,6 +183,9 @@ func (d *discoverer) resolveImport(ctx context.Context, baseDir, importPath stri
 		Imports []string `json:"imports"`
 	}
 	if err := json.Unmarshal(data, &nested); err != nil {
+		if d.strict {
+			return &ParseError{FilePath: absPath, Err: err}
+		}
 		return nil // Not valid JSON or no imports field - that's fine
 	}
 
@@ -178,6 +194,9 @@ func (d *discoverer) resolveImport(ctx context.Context, baseDir, importPath stri
 	for _, nestedImport := range nested.Imports {
 		// Imports are relative to the current file's directory
 		if err := d.resolveImport(ctx, nestedBaseDir, nestedImport, visited, files); err != nil {
+			if d.strict {
+				return err
+			}
 			continue
 		}
 	}

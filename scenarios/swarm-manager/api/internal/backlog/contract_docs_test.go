@@ -29,13 +29,12 @@ func readRepoFile(t *testing.T, root, rel string) string {
 	return string(data)
 }
 
-func TestAuthoritativeDocsRejectLegacyScopeAndBatchInitiativeFlag(t *testing.T) {
+func TestAuthoritativeDocsRejectLegacyScopeAndBatchMilestoneFlag(t *testing.T) {
 	root := repoRootFromContractDocsTest(t)
 
 	files := []string{
 		"scenarios/prompt-manager/store/skills/packs/core/swarm-manager-meta-orchestrator/SKILL.md",
-		"scenarios/prompt-manager/store/skills/packs/core/swarm-manager-backlog-tools/SKILL.md",
-		"scenarios/swarm-manager/docs/reference/api-endpoints.md",
+		"scenarios/prompt-manager/store/skills/packs/core/swarm-manager-work-authoring/SKILL.md",
 		"scenarios/swarm-manager/docs/reference/cli-commands.md",
 	}
 
@@ -45,8 +44,8 @@ func TestAuthoritativeDocsRejectLegacyScopeAndBatchInitiativeFlag(t *testing.T) 
 			t.Fatalf("%s still contains legacy backlog scope examples", rel)
 		}
 		for _, line := range strings.Split(content, "\n") {
-			if strings.Contains(line, "backlog batch-create") && strings.Contains(line, "--initiative") {
-				t.Fatalf("%s still teaches the legacy backlog batch-create --initiative flag", rel)
+			if strings.Contains(line, "backlog batch-create") && strings.Contains(line, "--milestone") {
+				t.Fatalf("%s still teaches the legacy backlog batch-create --milestone flag", rel)
 			}
 		}
 	}
@@ -59,21 +58,28 @@ func TestAuthoritativeDocsDescribeCanonicalBacklogImport(t *testing.T) {
 	for _, required := range []string{
 		"acceptance_allow",
 		"acceptance_deny",
-		`"initiatives": [`,
 		"--preview",
 		"orchestration-summary.md",
+		"acceptance criteria",
 	} {
 		if !strings.Contains(metaSkill, required) {
 			t.Fatalf("meta-orchestrator skill missing %q", required)
 		}
 	}
+	// Batch import attaches items to existing goal-owned milestones. A
+	// top-level "milestones" block is the retired flat-grouping shape: it
+	// carries no acceptance criteria, so every milestone it defined would be
+	// permanently unverifiable, and the seam used to invent a goal to hold it.
+	if strings.Contains(metaSkill, `"milestones": [`) {
+		t.Fatal("meta-orchestrator skill teaches the retired top-level milestones import block; milestones are created through the goal API with acceptance criteria")
+	}
 
-	backlogTools := readRepoFile(t, root, "scenarios/prompt-manager/store/skills/packs/core/swarm-manager-backlog-tools/SKILL.md")
+	backlogTools := metaSkill
 	for _, required := range []string{
 		"acceptance_allow",
 		"acceptance_deny",
 		"--preview",
-		`"initiative": "release-control"`,
+		"goals targets-add",
 	} {
 		if !strings.Contains(backlogTools, required) {
 			t.Fatalf("backlog-tools skill missing %q", required)

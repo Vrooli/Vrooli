@@ -6,7 +6,8 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
+
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
@@ -34,8 +35,8 @@ func (m *MockEntitlementProviderWithBillingCycle) GetEntitlement(ctx context.Con
 	return m.Entitlement, m.GetEntitlementError
 }
 
-func (m *MockEntitlementProviderWithBillingCycle) GetAICreditsLimit(tier entitlement.Tier) int {
-	return m.AICreditsLimit
+func (m *MockEntitlementProviderWithBillingCycle) LimitForEntitlement(_ *entitlement.Entitlement) (int, bool) {
+	return m.AICreditsLimit, true
 }
 
 func (m *MockEntitlementProviderWithBillingCycle) CanUseAIWithEntitlement(ent *entitlement.Entitlement) bool {
@@ -65,7 +66,6 @@ func createTestServiceWithBillingCycle(t *testing.T, billingCycleStart int) (*Se
 	svc := NewService(ServiceOptions{
 		DB:                  db,
 		Logger:              log,
-		Dialect:             "sqlite",
 		EntitlementProvider: provider,
 	})
 
@@ -232,13 +232,13 @@ func TestBillingPeriod_YearBoundary_DecemberToJanuary(t *testing.T) {
 		{
 			name:          "Jan 5 (before cycle day)",
 			date:          time.Date(2026, 1, 5, 12, 0, 0, 0, time.UTC),
-			expectedYear:  2025,     // Period started in December
+			expectedYear:  2025, // Period started in December
 			expectedMonth: time.December,
 		},
 		{
 			name:          "Jan 20 (after cycle day)",
 			date:          time.Date(2026, 1, 20, 12, 0, 0, 0, time.UTC),
-			expectedYear:  2026,     // Period started in January
+			expectedYear:  2026, // Period started in January
 			expectedMonth: time.January,
 		},
 		{

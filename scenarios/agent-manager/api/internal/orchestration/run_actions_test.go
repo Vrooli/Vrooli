@@ -18,8 +18,7 @@ func TestAttachRunActionsList_ActionsPopulated(t *testing.T) {
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
 		Name:       "test-actions",
-		ProfileKey: "test-actions-" + uuid.New().String()[:8],
-		RunnerType: domain.RunnerTypeClaudeCode,
+		ProfileKey: "test-actions-" + uuid.New().String()[:8], RoleRef: "code.default",
 	})
 
 	task := mustCreateTask(t, svc, ctx, &domain.Task{

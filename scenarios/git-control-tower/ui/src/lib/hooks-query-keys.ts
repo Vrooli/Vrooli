@@ -1,11 +1,12 @@
 import { useCallback, useState } from "react";
 import type { ContentSearchRequest, ViewMode } from "./api";
+import type { ArtifactFilters, EvidenceFilters, RunFilters } from "./api-evidence";
 
 export const queryKeys = {
   health: ["health"] as const,
   repoStatus: (repoId?: string | null) => ["repo", "status", repoId ?? "default"] as const,
-  repoHistory: (limit?: number, includeFiles?: boolean, repoId?: string | null, grep?: string) =>
-    ["repo", "history", repoId ?? "default", limit, includeFiles, grep] as const,
+  repoHistory: (limit?: number, includeFiles?: boolean, repoId?: string | null, grep?: string, includeChecks?: boolean) =>
+    ["repo", "history", repoId ?? "default", limit, includeFiles, grep, includeChecks] as const,
   syncStatus: (repoId?: string | null) => ["repo", "sync-status", repoId ?? "default"] as const,
   branches: (repoId?: string | null) => ["repo", "branches", repoId ?? "default"] as const,
   diff: (
@@ -21,6 +22,8 @@ export const queryKeys = {
     ["repo", "approved-changes", repoId ?? "default"] as const,
   provenance: (repoId?: string | null) =>
     ["repo", "provenance", repoId ?? "default"] as const,
+  blame: (path: string, repoId?: string | null) =>
+    ["repo", "blame", repoId ?? "default", path] as const,
   files: (pattern?: string, deep?: boolean, repoId?: string | null) =>
     ["repo", "files", repoId ?? "default", pattern, deep] as const,
   relatedFiles: (path: string, repoId?: string | null) =>
@@ -31,7 +34,9 @@ export const queryKeys = {
     ["repo", "search", "content", repoId ?? "default", query, opts] as const,
   credentials: (repoId?: string | null) => ["credentials", repoId ?? "default"] as const,
   groupingRules: (repoId?: string | null) => ["repo", "grouping-rules", repoId ?? "default"] as const,
+  repoGroups: (repoId?: string | null) => ["repo", "groups", repoId ?? "default"] as const,
   gitignoreHealth: (repoId?: string | null) => ["repo", "gitignore", "health", repoId ?? "default"] as const,
+  trackedBinaries: (repoId?: string | null) => ["repo", "tracked-binaries", repoId ?? "default"] as const,
   capabilities: ["capabilities"] as const,
   sshKeys: ["ssh", "keys"] as const,
   repos: ["repos"] as const,
@@ -42,12 +47,12 @@ export const queryKeys = {
     ["repo", "visual-captures", repoId ?? "default", "detail", id, slug] as const,
   captureStorage: (repoId?: string | null) =>
     ["repo", "visual-capture-storage", repoId ?? "default"] as const,
-  workflowCaptures: (slug: string, repoId?: string | null) =>
-    ["repo", "workflow-captures", repoId ?? "default", slug] as const,
-  testExecutions: (scenarioName: string, repoId?: string | null) =>
-    ["repo", "test-executions", repoId ?? "default", scenarioName] as const,
-  testExecution: (id: string, repoId?: string | null) =>
-    ["repo", "test-executions", repoId ?? "default", "detail", id] as const,
+  testRuns: (scenario: string, filters: RunFilters, repoId?: string | null) =>
+    ["test-runs", repoId ?? "default", scenario, filters] as const,
+  testRun: (scenario: string, runId: string, filters: ArtifactFilters, repoId?: string | null) =>
+    ["test-runs", repoId ?? "default", scenario, runId, filters] as const,
+  evidence: (scenario: string, filters: EvidenceFilters, repoId?: string | null) =>
+    ["evidence", repoId ?? "default", scenario, filters] as const,
   tidinessScore: (scenarioName: string, repoId?: string | null) =>
     ["repo", "tidiness-score", repoId ?? "default", scenarioName] as const,
   tidinessIssues: (scenarioName: string, file?: string, repoId?: string | null, category?: string, severity?: string, limit?: number) =>
@@ -78,6 +83,15 @@ export const queryKeys = {
     ["review", "summary", repoId ?? "default", scenarioName] as const,
   reviewJob: (jobId: string, repoId?: string | null) =>
     ["review", "job", repoId ?? "default", jobId] as const,
+  baselines: (scenario: string, scope: string, repoId?: string | null) =>
+    ["baselines", repoId ?? "default", scenario, scope] as const,
+  sourceDistributions: (repoId?: string | null, scenario?: string) =>
+    ["source-distributions", repoId ?? "default", scenario ?? "all"] as const,
+  sourceDistribution: (id: string) => ["source-distribution", id] as const,
+  baseline: (scenario: string, name: string, branch: string, repoId?: string | null) =>
+    ["baselines", repoId ?? "default", scenario, "detail", name, branch] as const,
+  baselineDiff: (scenario: string, name: string, branch: string, surface: string, repoId?: string | null) =>
+    ["baselines", repoId ?? "default", scenario, "diff", name, branch, surface] as const,
 };
 
 const REPO_STORAGE_KEY = "gct.activeRepoId";

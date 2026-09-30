@@ -44,7 +44,7 @@ func main() {
 	})
 	http.ListenAndServe(":8080", nil)
 }
-`), 0644)
+`), 0o644)
 
 	scanner := NewGosecScanner()
 	ctx := context.Background()
@@ -89,7 +89,7 @@ func TestGitleaksScanner(t *testing.T) {
 	"aws_access_key": "AKIAIOSFODNN7EXAMPLE",
 	"aws_secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
 	"github_token": "ghp_1234567890abcdef1234567890abcdef1234"
-}`), 0644)
+}`), 0o644)
 
 	scanner := NewGitleaksScanner()
 	ctx := context.Background()
@@ -150,7 +150,7 @@ func main() {
 		fmt.Println("Debug mode")
 	}
 }
-`), 0644)
+`), 0o644)
 
 	testJSFile := filepath.Join(tempDir, "app.js")
 	os.WriteFile(testJSFile, []byte(`
@@ -167,7 +167,7 @@ function addToCache(item) {
 }
 
 console.log("TODO: Add error handling");
-`), 0644)
+`), 0o644)
 
 	scanner := NewCustomScanner()
 	ctx := context.Background()
@@ -243,7 +243,7 @@ func TestScannerInterface(t *testing.T) {
 
 	tempDir := t.TempDir()
 	testFile := filepath.Join(tempDir, "test.go")
-	os.WriteFile(testFile, []byte("package main"), 0644)
+	os.WriteFile(testFile, []byte("package main"), 0o644)
 
 	ctx := context.Background()
 
@@ -353,7 +353,7 @@ func main() {
 	hash := md5.Sum([]byte(apiKey))
 	fmt.Printf("%x", hash)
 }
-`), 0644)
+`), 0o644)
 
 	multiScanner := NewMultiScanner(
 		NewGosecScanner(),
@@ -399,7 +399,7 @@ func TestScannerConcurrency(t *testing.T) {
 package main
 // TODO: Fix issue %d
 func main() {}
-`, i)), 0644)
+`, i)), 0o644)
 	}
 
 	scanner := NewCustomScanner()
@@ -457,7 +457,7 @@ func process() {
 		data[i] = i * 2
 	}
 }
-`), 0644)
+`), 0o644)
 	}
 
 	scanner := NewCustomScanner()

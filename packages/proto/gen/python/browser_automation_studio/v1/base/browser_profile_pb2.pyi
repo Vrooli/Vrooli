@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class BrowserProfile(_message.Message):
-    __slots__ = ("preset", "fingerprint", "behavior", "anti_detection", "proxy", "extra_headers")
+    __slots__ = ("preset", "fingerprint", "behavior", "anti_detection", "proxy", "extra_headers", "motion_preference", "interaction_state")
     class ExtraHeadersEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -21,13 +21,17 @@ class BrowserProfile(_message.Message):
     ANTI_DETECTION_FIELD_NUMBER: _ClassVar[int]
     PROXY_FIELD_NUMBER: _ClassVar[int]
     EXTRA_HEADERS_FIELD_NUMBER: _ClassVar[int]
+    MOTION_PREFERENCE_FIELD_NUMBER: _ClassVar[int]
+    INTERACTION_STATE_FIELD_NUMBER: _ClassVar[int]
     preset: str
     fingerprint: FingerprintSettings
     behavior: BehaviorSettings
     anti_detection: AntiDetectionSettings
     proxy: ProxySettings
     extra_headers: _containers.ScalarMap[str, str]
-    def __init__(self, preset: _Optional[str] = ..., fingerprint: _Optional[_Union[FingerprintSettings, _Mapping]] = ..., behavior: _Optional[_Union[BehaviorSettings, _Mapping]] = ..., anti_detection: _Optional[_Union[AntiDetectionSettings, _Mapping]] = ..., proxy: _Optional[_Union[ProxySettings, _Mapping]] = ..., extra_headers: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    motion_preference: str
+    interaction_state: str
+    def __init__(self, preset: _Optional[str] = ..., fingerprint: _Optional[_Union[FingerprintSettings, _Mapping]] = ..., behavior: _Optional[_Union[BehaviorSettings, _Mapping]] = ..., anti_detection: _Optional[_Union[AntiDetectionSettings, _Mapping]] = ..., proxy: _Optional[_Union[ProxySettings, _Mapping]] = ..., extra_headers: _Optional[_Mapping[str, str]] = ..., motion_preference: _Optional[str] = ..., interaction_state: _Optional[str] = ...) -> None: ...
 
 class FingerprintSettings(_message.Message):
     __slots__ = ("viewport_width", "viewport_height", "device_scale_factor", "hardware_concurrency", "device_memory", "user_agent", "user_agent_preset", "locale", "timezone_id", "geolocation_enabled", "latitude", "longitude", "accuracy", "color_scheme")

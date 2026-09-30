@@ -24,10 +24,11 @@
  * If not provided, falls back to frame dimensions (which may be wrong on HiDPI).
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { Profiler, memo, useCallback, useEffect, useRef } from 'react';
 import { useFrameStream, type PageMetadata, type StreamConnectionStatus } from './useFrameStream';
 import { useInputForwarding } from './useInputForwarding';
 import type { FrameStats } from '../hooks/useFrameStats';
+import { onProfilerRender } from '@/lib/profiler';
 
 // Re-export types for consumers
 export type { FrameStats } from '../hooks/useFrameStats';
@@ -35,8 +36,8 @@ export type { PageMetadata, StreamConnectionStatus } from './useFrameStream';
 
 interface PlaywrightViewProps {
   sessionId: string;
-  /** Optional page ID for multi-tab sessions. When provided, frames are received for this specific page. */
-  pageId?: string;
+  /** Selected page; null disables the viewer, omission follows the active page. */
+  pageId?: string | null;
   quality?: number;
   fps?: number;
   onStreamError?: (message: string) => void;
@@ -61,7 +62,7 @@ interface PlaywrightViewProps {
   isViewportSyncing?: boolean;
 }
 
-export function PlaywrightView({
+export const PlaywrightView = memo(function PlaywrightView({
   sessionId,
   pageId,
   quality = 65,
@@ -101,6 +102,7 @@ export function PlaywrightView({
     onStatsUpdate,
     onPageMetadataChange,
     onConnectionStatusChange,
+    enableTimestampState: !hideConnectionIndicator,
   });
 
   // Input forwarding hook
@@ -207,6 +209,7 @@ export function PlaywrightView({
   );
 
   return (
+    <Profiler id="PlaywrightView" onRender={onProfilerRender}>
     <div
       ref={containerRef}
       tabIndex={0}
@@ -285,5 +288,6 @@ export function PlaywrightView({
         </div>
       )}
     </div>
+    </Profiler>
   );
-}
+});

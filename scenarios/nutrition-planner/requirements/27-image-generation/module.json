@@ -1,0 +1,124 @@
+{
+  "_metadata": {
+    "description": "Optional bounded image generation through the platform image capability: Off by default, quoted, budget-reserved, deduplicated, reviewable jobs.",
+    "module": "image-generation",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "GEN-001",
+      "title": "Generation is off by default and bounded by explicit policy",
+      "status": "planned",
+      "prd_ref": "OT-P1-007",
+      "category": "policy",
+      "criticality": "P1",
+      "description": "The scenario should default new accounts to generation Off, offer Ask each time with the requested variants and a configured estimate before starting, allow Automatic within budget only with an explicit nonzero cap, triggers, variant limits, and scope, and never generate from page views, theme toggles, search results, hover, resizing, or whole catalogs.",
+      "tags": [
+        "generation",
+        "policy",
+        "budget"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: no view, theme, search, or resize code path can create a generation job, and automatic mode without a cap is rejected (R18.1, AT-003)."
+        }
+      ]
+    },
+    {
+      "id": "GEN-002",
+      "title": "Generation jobs follow a reviewable lifecycle",
+      "status": "planned",
+      "prd_ref": "OT-P1-007",
+      "category": "automation",
+      "criticality": "P1",
+      "description": "Generation jobs should validate recipe and media ownership, source rights, and template compatibility, capture immutable input revisions, move through queued, running, awaiting review, and approved or available, or failed, canceled, or rejected, keep provider completion, review approval, and activation separate, and never activate a result for a recipe revision that changed during generation.",
+      "tags": [
+        "generation",
+        "jobs",
+        "review",
+        "revisions"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a recipe edited while its image generates leaves the result unactivated for the new revision (AT-042)."
+        }
+      ]
+    },
+    {
+      "id": "GEN-003",
+      "title": "Reservations are atomic and requests deduplicate",
+      "status": "planned",
+      "prd_ref": "OT-P1-007",
+      "category": "automation",
+      "criticality": "P1",
+      "description": "The scenario should reserve budget atomically before dispatch, count settled use plus outstanding reservations and maximum attempt cost, settle or release each reservation exactly once, hold unknown usage conservatively, and deduplicate by workspace, recipe visual revision, photo hash, scene version, appearance, composition, provider configuration, prompt version, and output parameters.",
+      "tags": [
+        "generation",
+        "budget",
+        "idempotency"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: two jobs whose combined cost exceeds the remaining budget cannot both reserve (AT-040); retrying the same request reuses the job or result (AT-041)."
+        }
+      ]
+    },
+    {
+      "id": "GEN-004",
+      "title": "Generation routes through the platform image capability",
+      "status": "planned",
+      "prd_ref": "OT-P1-007",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "The scenario should call image generation through the image-tools scenario, which routes models through ai-gateway roles, keep provider secrets server-side, send only task-relevant data, report actually configured capability so an unconfigured provider shows an honest disabled state, and keep every other workflow working when generation fails or is absent.",
+      "tags": [
+        "generation",
+        "image-tools",
+        "ai-gateway",
+        "degradation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: with no credentials or a failing provider, recipes, plans, bundled scenes, and editing all work and Settings shows the generation capability as unavailable (AT-043)."
+        }
+      ]
+    },
+    {
+      "id": "GEN-005",
+      "title": "Prompts are versioned and outputs validated",
+      "status": "planned",
+      "prd_ref": "OT-P1-007",
+      "category": "contract",
+      "criticality": "P1",
+      "description": "Generation prompts should be versioned as code or configuration following the R18.4 contract, and outputs should be validated for decodability, MIME agreement, size, dimensions, appearance, and composition and reviewed for food identity, stray text, malformed vessels, impossible shadows, and unwanted ingredients, with rejection keeping the ordinary photo available.",
+      "tags": [
+        "generation",
+        "prompts",
+        "validation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: an output whose MIME type disagrees with its bytes or whose dimensions do not match the requested composition is rejected before review (R18.4)."
+        }
+      ]
+    }
+  ]
+}

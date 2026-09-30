@@ -1,0 +1,11 @@
+{
+  "requirements": [{
+    "id": "REQ-P2-003",
+    "title": "Mobile monitoring app",
+    "status": "planned",
+    "prd_ref": "OT-P2-003",
+    "category": "ui",
+    "description": "Provide a dedicated mobile monitoring surface for operators.",
+    "validation": [{"type": "test", "phase": "integration", "status": "not_implemented", "notes": "Validate mobile monitoring workflows."}]
+  }]
+}

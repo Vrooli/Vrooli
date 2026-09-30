@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "foundations.class-merge",
+    "name": "Class Merge",
+    "kind": "foundation",
+    "domain": "foundations",
+    "description": "A single conditional class composition helper with Tailwind conflict resolution; consumer overrides win over defaults.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "lib-util",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [],
+    "suggests": []
+  },
+  "requiredCapabilities": [],
+  "rationale": "The library previously carried incompatible local class merge implementations. One foundation makes override semantics deterministic for every adopter."
+}

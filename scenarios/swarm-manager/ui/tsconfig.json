@@ -1,7 +1,21 @@
 {
-  "extends": "./tsconfig.node.json",
   "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+
+    /* Linting */
     // ╔══════════════════════════════════════════════════════════════════════════╗
     // ║  SAFETY-CRITICAL RULES - DO NOT REMOVE OR WEAKEN                        ║
     // ║                                                                          ║
@@ -24,9 +38,26 @@
     // ║  the type errors they produce at compile time.                           ║
     // ╚══════════════════════════════════════════════════════════════════════════╝
     "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    /*
+     * STABILITY CRITICAL: noUncheckedIndexedAccess
+     * This setting makes array/object indexing return T | undefined.
+     * It prevents silent null crashes when accessing array[i] or obj[key].
+     * DO NOT REMOVE - see ui-health skill for rationale.
+     */
     "noUncheckedIndexedAccess": true,
-    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
+
+    /* Paths */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "react": ["./node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"],
+      "lucide-react": ["./node_modules/lucide-react/dist/lucide-react.d.ts"]
+    }
   },
-  "include": ["src", "vite.config.ts", "tailwind.config.ts"],
-  "exclude": ["dist"]
+  "include": ["src"],
+  "references": [{ "path": "./tsconfig.node.json" }]
 }

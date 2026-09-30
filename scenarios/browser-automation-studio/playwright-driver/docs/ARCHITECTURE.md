@@ -583,9 +583,9 @@ established during the 2025-01 architecture audit.
 
 | Module | Functions | Notes |
 |--------|-----------|-------|
-| `proto/action-type-utils` | `actionTypeToString`, `stringToActionType` | Enum conversions |
+| `recording/action-types` | `actionTypeToString`, `stringToActionType` | Generated enum conversion and recording-boundary aliases |
 | `outcome/outcome-builder` | `buildStepOutcome`, `toDriverOutcome` | Result transformation |
-| `execution/instruction-executor` | `validateInstruction`, `createInstructionKey` | Validation logic |
+| `execution/instruction-executor` | `validateInstruction` | Validation logic |
 | `browser-profile/human-behavior` | `HumanBehavior` class methods | Timing/path calculations |
 
 ### Cross-Cutting Concerns
@@ -630,5 +630,3 @@ To maintain clean boundaries:
 - [API Documentation](API.md)
 - [Extending the Driver](EXTENDING.md)
 - [Driver Assumptions](ASSUMPTIONS.md)
-- [Deployment Notes](../../docs/playwright-driver-v2-implementation.md)
-- [Go AutomationEngine Contract](../../docs/automation-engine-analysis.md)

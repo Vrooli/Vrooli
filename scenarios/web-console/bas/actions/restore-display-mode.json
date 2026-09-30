@@ -1,0 +1,27 @@
+{
+  "id": "restore-display-mode",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "restore-display-mode",
+  "folder_path": "/bas/actions",
+  "description": "Restore the display mode recorded by set-display-mode-tabs through the product settings control.",
+  "metadata": {
+    "name": "restore-display-mode",
+    "description": "Restore the display mode recorded by set-display-mode-tabs through the product settings control.",
+    "execution_mode": "mutating",
+    "reset": "none",
+    "labels": { "reset": "none", "requires_confirmation": "true", "routed_isolation": "true" }
+  },
+  "tags": ["reset:none", "display-mode"],
+  "version": 1,
+  "flow_definition": {
+    "nodes": [
+      { "id": "open-settings", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/workspace.settings" } } },
+      { "id": "restore-mode", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { const mode = sessionStorage.getItem('__bas_previous_display_mode') || 'sidebar'; const button = document.querySelector(`[data-testid='display-mode-${mode}']`); if (!(button instanceof HTMLElement)) throw new Error(`cannot restore display mode: ${mode}`); button.click(); const root = document.querySelector('[data-display-mode]'); document.body.setAttribute('data-bas-display-mode-restored', root?.getAttribute('data-display-mode') === mode ? 'true' : 'false'); })()" } } },
+      { "id": "assert-restored", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "body[data-bas-display-mode-restored='true']", "failure_message": "Expected the previous product display mode to be restored", "timeout_ms": 5000 } } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "open-settings", "target": "restore-mode", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e2", "source": "restore-mode", "target": "assert-restored", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
+    ]
+  }
+}

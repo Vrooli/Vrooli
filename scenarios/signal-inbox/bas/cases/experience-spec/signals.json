@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "name": "experience-signals-spec-smoke",
+    "description": "Observer smoke for the active Signal Inbox experience page.",
+    "requirement": "OT-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "signals",
+      "surface": "experience-signals"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-signals",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "signal-inbox",
+          "scenario_path": "/signals",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open Signal Inbox" }
+      }
+    },
+    {
+      "id": "wait-signals-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.signals",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Signal Inbox visible" }
+      }
+    }
+  ]
+}

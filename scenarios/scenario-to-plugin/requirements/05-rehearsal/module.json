@@ -1,0 +1,144 @@
+{
+  "_metadata": {
+    "module": "rehearsal",
+    "description": "Rehearsal is this ramp's target-native validation: a clean-room install and command exercise that produces protocol-profile evidence. It is what converts a build claim into a runtime claim.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PLG-REHEARSE-ISOLATE",
+      "title": "When a rehearsal starts, the ramp shall install the package in a workspace-sandbox instance that has no access to the local Vrooli runtime.",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "rehearsal.isolation",
+      "description": "A rehearsal that can reach the developer's running scenarios proves nothing about an external machine. Isolation is what makes the install claim transferable, and workspace-sandbox already owns the accountability substrate for it.",
+      "tags": [
+        "workspace-sandbox",
+        "isolation",
+        "clean-room"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/rehearsal/sandbox_test.go; api: api/handlers/rehearsal/module_test.go. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-REHEARSE-COMMANDS",
+      "title": "The ramp shall execute each command the skill documents inside the rehearsal workspace and record its exit status and redacted output.",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "rehearsal.exercise",
+      "description": "The drift gate proves a command exists in the manifest; the rehearsal proves it runs after a clean install. Both are needed, because a command can be declared and still fail on a machine without the runtime it silently assumed.",
+      "tags": [
+        "rehearsal",
+        "commands",
+        "evidence"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/rehearsal/exercise_test.go; ui: ui/src/features/rehearsal/__tests__/CommandResults.test.tsx; e2e: bas/cases/05-rehearsal/command-exercise-evidence.json. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-REHEARSE-NO-STEALTH",
+      "title": "If a rehearsal install acquires a resource the declaration did not disclose, then the ramp shall fail the package and name the undisclosed acquisition.",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "rehearsal.disclosure",
+      "description": "A package advertised as a standalone capability that quietly pulls Postgres, Redis, or a model runtime is a trust violation and the specific anti-pattern the channel doctrine names. The rehearsal is the only place it is observable.",
+      "tags": [
+        "stealth-bundling",
+        "disclosure",
+        "fail-closed"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/rehearsal/disclosure_test.go; e2e: bas/cases/05-rehearsal/stealth-acquisition-blocked.json. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-REHEARSE-IDEMPOTENT",
+      "title": "The ramp shall run the install script twice within one rehearsal and fail the package when the second run is not a no-op.",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "rehearsal.idempotency",
+      "description": "Agents re-run install steps routinely, often after a partial failure. A non-idempotent install corrupts the user's machine on the second attempt, and the failure surfaces far from its cause.",
+      "tags": [
+        "idempotency",
+        "install-script",
+        "rehearsal"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/rehearsal/idempotency_test.go; cli: cli/domains/rehearsal/register_test.go. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-REHEARSE-EVIDENCE",
+      "title": "When a rehearsal finishes, the ramp shall emit a protocol-profile journey manifest carrying gate dispositions and reference-only artifacts.",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "rehearsal.evidence",
+      "description": "The shared delivery spine already defines a protocol evidence profile that does not require visual artifacts, so this ramp reports through it rather than inventing a parallel evidence shape. Verdicts carry references; recordings and logs stay with the producer.",
+      "tags": [
+        "delivery-ramp-go",
+        "protocol-profile",
+        "evidence"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/rehearsal/evidence_test.go; ui: ui/src/features/rehearsal/__tests__/JourneyManifest.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-REHEARSE-ENTITLEMENT",
+      "title": "Where a skill requires a paid entitlement, the rehearsal should prove the sign-in path resolves entitlement at run time and that no credential is present in the artifact.",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "rehearsal.entitlement",
+      "description": "A paid capability must gate on a token the user obtains after install, never on a secret shipped inside the package. Proving that in the rehearsal is what allows a paid skill to be published on the same channel as a free one without a separate trust story.",
+      "tags": [
+        "entitlement",
+        "sign-in",
+        "monetization"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/rehearsal/entitlement_test.go; ui: ui/src/features/rehearsal/__tests__/EntitlementProof.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    }
+  ]
+}

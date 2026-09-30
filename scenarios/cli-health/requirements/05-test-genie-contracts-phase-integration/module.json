@@ -1,0 +1,142 @@
+{
+  "description": "`test-genie`'s new Contracts phase (inserted between Structure and Standards) invokes `cli-health validate` via CLI subprocess and surfaces findings into the report; error findings fail the phase and warning findings produce warnings.",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-002",
+        "REQ-P0-003"
+      ],
+      "description": "A new `Contracts` phase must be inserted into `test-genie`'s phase pipeline between the existing `Structure` phase and the existing `Standards` phase. This phase must invoke `cli-health validate \u003cscenario\u003e` exclusively via CLI subprocess (no raw HTTP or direct RPC calls from test-genie). The phase must capture stdout, stderr, and the exit code from the subprocess. The phase must be skippable via a per-scenario or global config flag (e.g., `contracts.enabled: false`).",
+      "id": "REQ-P0-009",
+      "prd_ref": "OT-P0-005",
+      "status": "draft",
+      "title": "Test-genie Contracts Phase Placement and CLI Subprocess Invocation",
+      "validation": [
+        {
+          "notes": "Given the test-genie phase list, assert Contracts appears at index position immediately after Structure and before Standards",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given contracts.enabled: false in config, the Contracts phase is skipped and produces no findings",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given a mocked subprocess returning exit code 0, the Contracts phase passes",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given a mocked subprocess returning exit code 1, the Contracts phase fails",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Assert that no HTTP client or Qdrant/gRPC client is instantiated within the test-genie Contracts phase code",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end: run `vrooli scenario test cli-health`; assert the phase order in the report output is Structure → Contracts → Standards",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `vrooli scenario test development-toolchain-validator` with the Contracts phase active; assert the phase executes and produces a report section",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Contracts validation is enforced as part of the standard test-genie pipeline, ensuring no scenario bypasses manifest validation",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-009"
+      ],
+      "description": "Within test-genie's Contracts phase, findings from `cli-health validate` must be mapped to phase outcomes as follows: any error-level finding (SCHEMA_MISSING_FIELD, SCHEMA_TYPE_MISMATCH, UNRESOLVED_BINDING, ORPHAN_METHOD, STALE_OMISSION, or any future error-level code) must cause the Contracts phase to fail (phase status = FAILED, test-genie exits nonzero). Any warning-level finding must be surfaced in the phase report as a warning without failing the phase. The full structured finding list must appear in the test-genie report output.",
+      "id": "REQ-P0-010",
+      "prd_ref": "OT-P0-005",
+      "status": "draft",
+      "title": "Contracts Phase Finding-to-Phase-Outcome Mapping",
+      "validation": [
+        {
+          "notes": "Given subprocess output containing one ERROR-level finding JSON and exit code 1, the Contracts phase status is set to FAILED",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given subprocess output containing only WARNING-level findings and exit code 0, the Contracts phase status is PASSED with warnings listed",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given subprocess output containing both ERROR and WARNING findings, phase is FAILED and both finding types appear in the report",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given empty findings and exit code 0, the Contracts phase status is PASSED with no findings",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `vrooli scenario test browser-automation-studio` with an intentionally invalid manifest; assert test-genie exits nonzero and the report section shows FAILED Contracts phase with the specific error finding",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `vrooli scenario test development-toolchain-validator` with a valid manifest; assert Contracts phase is PASSED in the report",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Manifest errors surface during the standard test pipeline, blocking broken scenarios from advancing to Standards review",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Test-genie Contracts phase integration"
+}

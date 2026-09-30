@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useProjectStore, type Project } from '@/domains/projects';
+import { useProjectStore, type Project } from '@/domains/projects/store';
 import { getConfig } from '@/config';
 import type { RecordedAction, RecordingSessionProfile, ReplayPreviewResponse, SelectorValidation } from '../types/types';
 
@@ -286,23 +286,20 @@ export function TimelineFullView({
 
     let cancelled = false;
     const fetchExisting = async () => {
-      const config = await getConfig();
       await Promise.all(
         projectsWithReferenceMode.map(async (projectId) => {
           if (existingWorkflowsByProjectId[projectId] !== undefined) return;
           try {
-            const response = await fetch(`${config.API_URL}/projects/${projectId}/workflows`);
-            if (!response.ok) {
-              if (!cancelled) {
-                setExistingWorkflowsByProjectId((prev) => ({ ...prev, [projectId]: [] }));
-              }
-              return;
-            }
-            const payload = (await response.json()) as { workflows?: ExistingWorkflow[] };
+            const { fetchProjectWorkflows } = await import('@/domains/projects/services/projectApi');
+            const workflows = await fetchProjectWorkflows(projectId);
             if (!cancelled) {
               setExistingWorkflowsByProjectId((prev) => ({
                 ...prev,
-                [projectId]: Array.isArray(payload.workflows) ? payload.workflows : [],
+                [projectId]: workflows.map((w) => ({
+                  id: w.id,
+                  name: w.name,
+                  folder_path: w.folder_path,
+                })) as ExistingWorkflow[],
               }));
             }
           } catch (err) {

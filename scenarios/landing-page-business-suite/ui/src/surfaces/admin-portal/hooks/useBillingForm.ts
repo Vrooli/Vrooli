@@ -22,6 +22,11 @@ import {
   type PriceFormValues,
 } from '../services/pricing.service';
 
+function withoutRecordKey<T>(record: Record<string, T>, key: string): Record<string, T> {
+  const { [key]: _removed, ...remaining } = record;
+  return remaining;
+}
+
 /**
  * Reactive hook for billing settings form management
  *
@@ -92,8 +97,8 @@ export function useBillingForm() {
 
   // Initial load
   useEffect(() => {
-    loadStripe();
-    loadBundles();
+    void loadStripe();
+    void loadBundles();
   }, [loadStripe, loadBundles]);
 
   /**
@@ -177,9 +182,7 @@ export function useBillingForm() {
       if (field === 'stripePriceId') {
         setPriceChecks((prev) => {
           if (!prev[key]) return prev;
-          const next = { ...prev };
-          delete next[key];
-          return next;
+          return withoutRecordKey(prev, key);
         });
       }
     },
@@ -270,7 +273,7 @@ export function useBillingForm() {
           },
         };
       });
-      loadBundles();
+      void loadBundles();
     } catch (error) {
       setPriceForms((prev) => {
         const existing = prev[key];
@@ -293,7 +296,7 @@ export function useBillingForm() {
   const handleVerifyPrice = useCallback(async (bundleKey: string, priceId: string) => {
     const key = `${bundleKey}:${priceId}`;
     const formState = priceForms[key];
-    const value = formState?.values.stripePriceId.trim() || '';
+    const value = formState === undefined ? '' : formState.values.stripePriceId.trim();
 
     setPriceChecks((prev) => ({ ...prev, [key]: { status: 'checking' } }));
 
@@ -321,9 +324,7 @@ export function useBillingForm() {
       )
     );
     setPriceForms((prev) => {
-      const next = { ...prev };
-      delete next[`${bundleKey}:${priceId}`];
-      return next;
+      return withoutRecordKey(prev, `${bundleKey}:${priceId}`);
     });
   }, []);
 
@@ -360,15 +361,11 @@ export function useBillingForm() {
         )
       );
       setPriceForms((prev) => {
-        const next = { ...prev };
-        delete next[key];
-        return next;
+        return withoutRecordKey(prev, key);
       });
       setPriceChecks((prev) => {
         if (!prev[key]) return prev;
-        const next = { ...prev };
-        delete next[key];
-        return next;
+        return withoutRecordKey(prev, key);
       });
     } catch (error) {
       setPriceForms((prev) => {
@@ -393,7 +390,6 @@ export function useBillingForm() {
     setPriceForms((prev) => {
       if (orderedPriceIds.length === 0) return prev;
       const weightBase = orderedPriceIds.length * 10;
-      let changed = false;
       const next = { ...prev };
       orderedPriceIds.forEach((priceId, index) => {
         const key = `${bundleKey}:${priceId}`;
@@ -401,7 +397,6 @@ export function useBillingForm() {
         if (!current) return;
         const nextWeight = weightBase - index * 10;
         if (current.values.displayWeight === nextWeight) return;
-        changed = true;
         next[key] = {
           ...current,
           values: {
@@ -411,7 +406,7 @@ export function useBillingForm() {
           error: undefined,
         };
       });
-      return changed ? next : prev;
+      return next;
     });
   }, []);
 

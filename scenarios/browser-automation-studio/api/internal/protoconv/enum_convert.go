@@ -16,18 +16,6 @@ import (
 // All functions below delegate to internal/enums for the actual implementation.
 // =============================================================================
 
-// StringToActionType converts an action type string to the proto ActionType enum.
-// Deprecated: Import github.com/vrooli/browser-automation-studio/internal/enums instead.
-func StringToActionType(actionType string) basactions.ActionType {
-	return enums.StringToActionType(actionType)
-}
-
-// ActionTypeToString converts an ActionType enum to a proto-aligned string representation.
-// Deprecated: Import github.com/vrooli/browser-automation-studio/internal/enums instead.
-func ActionTypeToString(actionType basactions.ActionType) string {
-	return enums.ActionTypeToString(actionType)
-}
-
 // StringToSelectorType converts a selector type string to the proto SelectorType enum.
 // Deprecated: Import github.com/vrooli/browser-automation-studio/internal/enums instead.
 func StringToSelectorType(selectorType string) basbase.SelectorType {

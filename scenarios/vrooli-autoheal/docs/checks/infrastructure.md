@@ -175,9 +175,10 @@ Cloudflare Tunnel provides:
 ## infra-rdp: Remote Desktop Access
 
 **Interval:** 60 seconds
-**Platforms:** Linux (xrdp), Windows (TermService)
+**Platforms:** Linux (GNOME Remote Desktop, xrdp), Windows (TermService)
 
-Monitors remote desktop service availability.
+Monitors whether a remote client can connect **and authenticate** — remote
+desktop serviceability, not just daemon liveness.
 
 ### Why It Matters
 RDP access is used for:
@@ -185,12 +186,38 @@ RDP access is used for:
 - GUI-based development
 - Desktop automation
 
-### Status Meanings
-- **OK**: RDP service running
-- **Warning**: Not installed
-- **Critical**: Service failed
+A daemon that is configured, running, and listening still denies every client
+when its credentials are empty or unreadable. This check reports that state
+rather than certifying the host healthy because a process exists.
 
-### Troubleshooting (Linux)
-1. Check xrdp: `sudo systemctl status xrdp`
-2. Check port 3389: `ss -tlnp | grep 3389`
-3. Restart: `sudo systemctl restart xrdp`
+### What It Checks
+- Daemon liveness
+- Credential state: `present`, `empty`, or `unreadable` (absence of credential
+  output is never read as presence of credentials)
+- Client denials in the daemon journal over a 15-minute window
+- Keyring loadability: whether gnome-keyring rejected a keyring file this boot.
+  A rejected file takes the whole keyring down, not just the bad entry, and it
+  outranks the autologin posture as the named root cause — the posture is an
+  inference, the rejection is the daemon's own statement
+- Host posture: autologin user, login keyring collection, user-session daemon,
+  graphical session availability
+- Credential model (`system` or `user-session`), which decides whether autoheal
+  may repair the fault automatically
+
+### Status Meanings
+- **OK**: no RDP service installed, or running with credentials present and no denials
+- **Warning**: configured but not running, or credential state `unreadable`
+- **Critical**: credentials `empty`, clients actively denied, or no graphical session
+
+### Boundary
+`infra-rdp` owns the RDP service layer. `infra-display` owns the
+graphical-session layer and makes no statement about RDP.
+
+### Troubleshooting
+1. Full detail: `vrooli-autoheal check get infra-rdp --json`
+2. GNOME credentials: run `grdctl status` with `XDG_RUNTIME_DIR` and
+   `DBUS_SESSION_BUS_ADDRESS` set for the session user
+3. Denials: `journalctl --user-unit gnome-remote-desktop --since "15 minutes ago"`
+4. Rejected keyring (`keyringCorrupt=true`): `vrooli credentials keyring inspect --format json`,
+   then `vrooli credentials keyring repair --format json`, then log out and back in. No root needed.
+5. xrdp hosts: `sudo systemctl status xrdp` and `ss -tlnp | grep 3389`

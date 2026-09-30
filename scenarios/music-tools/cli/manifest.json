@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "music-tools",
+  "description": "Music composition CLI surface for styles, peer-take jobs, take selection, and pool reservations.",
+  "groups": [
+    {"name": "styles", "description": "Manage composition styles", "commands": [
+      {"name": "create", "description": "Create a style from JSON", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}},
+      {"name": "list", "description": "List styles", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "export", "description": "Export a style", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "compile", "description": "Compile a style", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "delete", "description": "Delete a custom style", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}},
+      {"name": "import", "description": "Import a style", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}}
+    ]},
+    {"name": "compose", "description": "Queue peer music takes", "commands": [
+      {"name": "run", "description": "Queue a composition batch", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}}
+    ]},
+    {"name": "jobs", "description": "Inspect composition jobs", "commands": [
+      {"name": "get", "description": "Get a job", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "list", "description": "List jobs", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "wait", "description": "Wait for a job", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "cancel", "description": "Cancel a queued or running job", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}}
+    ]},
+    {"name": "takes", "description": "Inspect generated takes", "commands": [
+      {"name": "list", "description": "List generated takes", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "get", "description": "Get a take", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "reserve", "description": "Reserve a take", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}},
+      {"name": "consume", "description": "Consume a reserved take", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}},
+      {"name": "release", "description": "Release a reserved take", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}},
+      {"name": "discard", "description": "Discard a take", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}}
+    ]},
+    {"name": "pool", "description": "Reserve composition takes", "commands": [
+      {"name": "draw", "description": "Draw an available take", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}},
+      {"name": "status", "description": "Show pool depth", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "configure", "description": "Configure replenishment policy", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true}}
+    ]},
+    {"name": "models", "description": "Inspect music model registry", "commands": [
+      {"name": "list", "description": "List available models", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+      {"name": "get", "description": "Get one model", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}
+    ]}
+  ],
+  "measures": {"domains": []},
+  "omitted": [
+    {"service": "CompositionService", "method": "Submit", "reason": "The CLI uses the REST composition job surface so it can expose asynchronous batch submission and job IDs."},
+    {"service": "CompositionService", "method": "ListTakes", "reason": "The CLI uses the REST take inventory surface so it can filter and reserve pool takes."},
+    {"service": "CompositionService", "method": "CompileStyle", "reason": "The compile edge is a REST style projection; no generated RPC exists for this endpoint."},
+    {"service": "CompositionService", "method": "AudioTake", "reason": "The endpoint carries opaque audio bytes; the CLI manifest records it as a REST binary edge rather than a JSON command."},
+    {"service": "ModelsService", "method": "List", "reason": "The CLI uses the REST model-registry projection so licence lanes remain visible in the JSON response."},
+    {"service": "ModelsService", "method": "Get", "reason": "The CLI uses the REST model-registry projection for one-model retrieval."}
+  ]
+}

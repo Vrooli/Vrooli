@@ -1,0 +1,21 @@
+{
+  "namespace": "app",
+  "roles": {
+    "app-background": { "target": "app-background", "css_variable": "--flow-bg" },
+    "app-border": { "target": "app-border", "css_variable": "--flow-border" },
+    "app-danger": { "target": "app-danger", "css_variable": "--flow-error" },
+    "app-foreground": { "target": "app-foreground", "css_variable": "--flow-text" },
+    "app-info": { "target": "app-info", "css_variable": "--flow-accent" },
+    "app-muted-foreground": { "target": "app-muted-foreground", "css_variable": "--flow-text-muted" },
+    "app-primary": { "target": "app-primary", "css_variable": "--flow-accent" },
+    "app-primary-foreground": { "target": "app-primary-foreground", "css_variable": "--color-white" },
+    "app-surface": { "target": "app-surface", "css_variable": "--flow-surface" },
+    "app-surface-muted": { "target": "app-surface-muted", "css_variable": "--flow-bg-secondary" },
+    "app-warning": { "target": "app-warning", "css_variable": "--flow-warning" },
+    "app-success": { "target": "app-success", "css_variable": "--flow-success" }
+  },
+  "contrast_floor": 4.5,
+  "contrast_pairs": [
+    { "foreground": "app-primary-foreground", "background": "app-primary", "ratio": 4.5 }
+  ]
+}

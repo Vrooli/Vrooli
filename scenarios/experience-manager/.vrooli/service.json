@@ -1,0 +1,176 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      },
+      "wireframes": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "subpath": "wireframes",
+        "regenerable": true,
+        "rationale": "Rendered wireframes can be reconstructed from experience specifications; 25387 bytes were measured on 2026-08-27.",
+        "budget": {
+          "max_age": "7d",
+          "max_bytes": "256MiB",
+          "rationale": "The cache measured 25387 bytes on 2026-08-27; seven days and 256 MiB bound iterative rendering."
+        }
+      }
+    },
+    "rationale": "Storage surfaces separate durable product data from regenerable rendered wireframes."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "experience-manager",
+    "displayName": "Experience Manager",
+    "description": "Experience-axis authority: machine-checkable UX spec contract (experience/), form-based authoring and workshop studio, and validation of built UIs against declared experience intent.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.4.0"
+    },
+    "generated_at": "2026-07-04T05:06:30Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "9d2078da47d8cc4a420033c4bcb994c3868c0c4f4e4be7e8b7891fc51781f35c",
+    "content_sha": "a67b3fb4f2c5e59e409ad424fdc8bb030cc5924807a4efd335929338597bf118"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "experience-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "experience-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "scenarios": {
+      "browser-automation-studio": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Capture engine for structure reconciliation: drives scenario UIs and captures per-page/state screenshots plus accessibility trees that machine-tier claims are checked against.",
+        "degraded_behavior": "Reconciliation checks report skipped (resource unavailable), never failed; spec contract validation, authoring studio, and fleet views work fully without it."
+      },
+      "image-tools": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Optional AI-image rendering of spec pages in the workshop (openrouter-image BYOK provider). Deterministic wireframe rendering does not use it.",
+        "degraded_behavior": "AI-image render option is unavailable; wireframe rendering and variant compare are unaffected."
+      }
+    },
+    "resources": {}
+  },
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

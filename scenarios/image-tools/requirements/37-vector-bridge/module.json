@@ -1,0 +1,95 @@
+{
+  "_metadata": {
+    "description": "Deterministic vector bridge ops: rasterize an SVG at an exact size, vectorize a flat raster into a clean SVG, and pack PNG renders into ICO/ICNS containers.",
+    "module": "vector-bridge",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "VEC-001",
+      "title": "rasterize op",
+      "status": "complete",
+      "prd_ref": "OT-P0-015",
+      "category": "deterministic-ops",
+      "criticality": "P0",
+      "description": "rasterize takes SVG bytes plus width, height and background and returns a PNG at that exact size, using rasterizeSVG directly (pure-Go oksvg) and the Chrome path only when the SVG requires it. Sizes above MaxSVGRasterDimension are rejected.",
+      "tags": [
+        "ops",
+        "svg"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "api/internal/ops rasterize/vectorize/iconcontainer golden tests + Aquila parity (0.0297); live CLI produced SVG/PNG/ICO/ICNS."
+        }
+      ]
+    },
+    {
+      "id": "VEC-002",
+      "title": "vectorize op",
+      "status": "complete",
+      "prd_ref": "OT-P0-015",
+      "category": "deterministic-ops",
+      "criticality": "P0",
+      "description": "vectorize quantizes a raster to a k-colour palette, builds per-colour masks, traces contours with hole hierarchy, simplifies with Ramer\u2013Douglas\u2013Peucker, optionally smooths, and emits an evenodd SVG. Options include colors, drop_background_layers, keep_colors, clip_to_largest_rounded_region, smoothing and tolerance_px.",
+      "tags": [
+        "ops",
+        "vector"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "api/internal/ops rasterize/vectorize/iconcontainer golden tests + Aquila parity (0.0297); live CLI produced SVG/PNG/ICO/ICNS."
+        }
+      ]
+    },
+    {
+      "id": "VEC-003",
+      "title": "icon_container op",
+      "status": "complete",
+      "prd_ref": "OT-P0-015",
+      "category": "deterministic-ops",
+      "criticality": "P0",
+      "description": "icon_container packs PNG renders of one source into an ICO (ICONDIR with PNG payloads, byte 0 for 256) or an ICNS ('icns' header with typed PNG entries ic11/ic12/ic07/ic08/ic13/ic09/ic14/ic10).",
+      "tags": [
+        "ops",
+        "icons"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "api/internal/ops rasterize/vectorize/iconcontainer golden tests + Aquila parity (0.0297); live CLI produced SVG/PNG/ICO/ICNS."
+        }
+      ]
+    },
+    {
+      "id": "VEC-004",
+      "title": "ico and icns are encodable and listed",
+      "status": "complete",
+      "prd_ref": "OT-P0-015",
+      "category": "deterministic-ops",
+      "criticality": "P0",
+      "description": "The codec allows SVG as the output of vectorize only and adds ico and icns to the encodable list that ops list reports.",
+      "tags": [
+        "ops",
+        "codec"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "api/internal/ops rasterize/vectorize/iconcontainer golden tests + Aquila parity (0.0297); live CLI produced SVG/PNG/ICO/ICNS."
+        }
+      ]
+    }
+  ]
+}

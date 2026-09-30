@@ -1,0 +1,725 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "kitchen",
+    "title": "Your kitchen",
+    "routes": [
+      "/kitchen"
+    ],
+    "purpose": "Keep what the person has and how they cook in one place: optional dated inventory grouped by storage, equipment chosen through tiles and a kitchen scene, and the preferences planning relies on.",
+    "prd_refs": [
+      "OT-P0-020",
+      "OT-P0-002",
+      "OT-P0-006",
+      "OT-P0-010",
+      "OT-P0-011",
+      "OT-P0-018",
+      "OT-P0-017",
+      "OT-P0-015",
+      "OT-P0-021"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "On hand lists what is in the fridge, freezer, and pantry with honest amounts — exact, estimated, qualitative, out, or not set — and when each was last checked."
+    },
+    {
+      "statement": "Use soon items lead to meals that use them without claiming there is enough."
+    },
+    {
+      "statement": "Equipment tiles are the complete way to choose appliances, cookware, and tools; the kitchen scene reflects the selection and never decides it."
+    },
+    {
+      "statement": "Selecting equipment is immediate and free, and removing it previews affected future meals."
+    },
+    {
+      "statement": "Preferences keep required rules separate from dislikes and soft priorities, and a required-rule change previews its conflicts."
+    },
+    {
+      "statement": "Inventory is optional: Skip inventory or Track only staples keeps planning useful."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The On hand tab with inventory grouped by storage and the use-soon, equipment, and preference panels on wide screens.",
+      "setup": {
+        "route": "/kitchen"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the page's data; stable skeletons reserve the layout so nothing shifts on arrival, and no sample food is shown as saved data.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "loading"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some contributing data is unknown or could not be read; what is missing is named rather than shown as zero.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its freshness window; its age is shown next to it.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control shows a busy state and says why it is unavailable, and success appears only after the durable save.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next action are stated, pending edits are kept, and nothing is edited against a fake empty account.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "Input was rejected; the offending field is identified next to it and every other edit is preserved.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; cached data, locally pending actions, and server-confirmed saves are distinguished and unsupported actions say why.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "no-results",
+      "description": "A search or filter matched nothing; the query stays visible and Reset filters is offered.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "no-results"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No inventory is recorded; Add ingredient, Skip inventory, and Track only staples are offered.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "use-soon",
+      "description": "Items flagged Use soon lead the page with Find meals.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "fixture": "use-soon"
+        }
+      }
+    },
+    {
+      "id": "equipment-tab",
+      "description": "The Equipment tab: the kitchen scene beside the tiles on desktop, a short scene above the category selector and two-column tiles on phones.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "tab": "equipment"
+        }
+      }
+    },
+    {
+      "id": "equipment-none",
+      "description": "No equipment is selected; this is valid and assembly or ready-to-eat meals are suggested.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "tab": "equipment",
+          "fixture": "equipment-none"
+        }
+      }
+    },
+    {
+      "id": "equipment-all",
+      "description": "Every item is selected; tiles stay accurate and the scene shows a bounded subset or a More selected label.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "tab": "equipment",
+          "fixture": "equipment-all"
+        }
+      }
+    },
+    {
+      "id": "equipment-details",
+      "description": "An appliance's details: count, functions, capacity, and notes.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "tab": "equipment",
+          "fixture": "equipment-details"
+        }
+      }
+    },
+    {
+      "id": "equipment-removal-preview",
+      "description": "Removing an appliance previews affected future meal methods and alternatives.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "tab": "equipment",
+          "fixture": "equipment-removal-preview"
+        }
+      }
+    },
+    {
+      "id": "scene-unavailable",
+      "description": "A scene layer is missing; the tiles remain the accurate, complete interface.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "tab": "equipment",
+          "fixture": "scene-unavailable"
+        }
+      }
+    },
+    {
+      "id": "preferences-tab",
+      "description": "The Preferences tab: Food rules, Household and servings, Time and effort, Variety and favourites, Planning routine, Nutrition targets and supplements, Shopping preferences.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "tab": "preferences"
+        }
+      }
+    },
+    {
+      "id": "rule-change-preview",
+      "description": "A required-rule change previews conflicts with future plans before it applies.",
+      "setup": {
+        "route": "/kitchen",
+        "query": {
+          "tab": "preferences",
+          "fixture": "rule-change-preview"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "primary-navigation",
+      "role": "navigation",
+      "name": "Primary",
+      "description": "The five destinations with Kitchen marked current."
+    },
+    {
+      "id": "page-title",
+      "role": "heading",
+      "name": "Your kitchen",
+      "description": "Your kitchen with a short functional subtitle."
+    },
+    {
+      "id": "kitchen-tabs",
+      "role": "tablist",
+      "name": "Kitchen",
+      "description": "On hand, Equipment, and Preferences as underlined tabs."
+    },
+    {
+      "id": "add-ingredient-action",
+      "role": "button",
+      "name": "Add ingredient",
+      "description": "Adds an inventory item with an exact, estimated, or qualitative amount."
+    },
+    {
+      "id": "inventory-search",
+      "role": "searchbox",
+      "name": "Search your ingredients",
+      "description": "Searches recorded ingredients."
+    },
+    {
+      "id": "storage-filters",
+      "role": "group",
+      "name": "Storage",
+      "description": "All, Fridge, Freezer, Pantry."
+    },
+    {
+      "id": "inventory-table",
+      "role": "table",
+      "name": "On hand",
+      "description": "Ingredient, amount, and status rows grouped by storage; card rows on phones."
+    },
+    {
+      "id": "inventory-row",
+      "role": "row",
+      "description": "One item with its icon, name, amount, status, and actions."
+    },
+    {
+      "id": "amount",
+      "role": "note",
+      "description": "The amount as recorded, such as About half a bag, Some left, 2 cans, or Amount not set."
+    },
+    {
+      "id": "status-pill",
+      "role": "status",
+      "description": "Use soon, Available, Out, or Unknown, with text as well as colour."
+    },
+    {
+      "id": "row-menu",
+      "role": "button",
+      "name": "More actions",
+      "description": "Adjust amount, mark out, flag use soon, move storage, or view evidence."
+    },
+    {
+      "id": "last-checked",
+      "role": "note",
+      "description": "When the amounts were last confirmed by recorded evidence."
+    },
+    {
+      "id": "review-amounts-action",
+      "role": "button",
+      "name": "Review amounts",
+      "description": "Walks through uncertain amounts."
+    },
+    {
+      "id": "skip-inventory-action",
+      "role": "button",
+      "name": "Skip inventory",
+      "description": "Keeps planning useful without tracking stock."
+    },
+    {
+      "id": "use-soon-panel",
+      "role": "region",
+      "name": "Use soon",
+      "description": "Use-soon items and meals that use them."
+    },
+    {
+      "id": "find-meals-link",
+      "role": "link",
+      "name": "Find meals",
+      "description": "Opens Explore with the use-soon ingredients and active rules."
+    },
+    {
+      "id": "equipment-summary",
+      "role": "region",
+      "name": "Your equipment",
+      "description": "Selected equipment with Edit equipment."
+    },
+    {
+      "id": "preferences-summary",
+      "role": "region",
+      "name": "Cooking preferences",
+      "description": "Key preferences with Edit preferences."
+    },
+    {
+      "id": "equipment-categories",
+      "role": "radiogroup",
+      "name": "Equipment category",
+      "description": "Appliances, Cookware, and Tools; visible on every device."
+    },
+    {
+      "id": "equipment-scene",
+      "role": "figure",
+      "name": "Your kitchen scene",
+      "description": "The kitchen scene reflecting the selected equipment."
+    },
+    {
+      "id": "scene-marker",
+      "role": "button",
+      "name": "Appliance details",
+      "description": "Opens an appliance's details from the scene; never toggles it."
+    },
+    {
+      "id": "equipment-tiles",
+      "role": "group",
+      "name": "Equipment",
+      "description": "Every catalog item for the category as a labelled toggle."
+    },
+    {
+      "id": "equipment-tile",
+      "role": "checkbox",
+      "description": "One device or tool with its icon, label, and selected state; cooktop and oven are distinct."
+    },
+    {
+      "id": "selected-count",
+      "role": "status",
+      "description": "How many items are selected."
+    },
+    {
+      "id": "more-equipment-action",
+      "role": "button",
+      "name": "More equipment",
+      "description": "Searches less common equipment."
+    },
+    {
+      "id": "device-details",
+      "role": "dialog",
+      "name": "Equipment details",
+      "description": "Count, functions, capacity, and notes for a device."
+    },
+    {
+      "id": "removal-preview",
+      "role": "dialog",
+      "name": "Affected meals",
+      "description": "Future meals affected by removing equipment, with alternatives."
+    },
+    {
+      "id": "preference-groups",
+      "role": "list",
+      "name": "Preferences",
+      "description": "The preference groups, drilling into sub-screens on phones."
+    },
+    {
+      "id": "rule-change-preview",
+      "role": "dialog",
+      "name": "Rule change preview",
+      "description": "Future plan conflicts caused by a required-rule change."
+    }
+  ],
+  "claims": [
+    {
+      "id": "add-ingredient-dominant",
+      "type": "single-dominant-action",
+      "statement": "Add ingredient is the one filled primary action on On hand.",
+      "tier": "aspirational",
+      "elements": [
+        "add-ingredient-action",
+        "review-amounts-action"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "amounts-are-honest",
+      "type": "state-distinct",
+      "statement": "Qualitative, estimated, exact, out, and not-set amounts read differently, and no confidence percentage is shown.",
+      "tier": "aspirational",
+      "elements": [
+        "amount",
+        "status-pill"
+      ],
+      "states": [
+        "default",
+        "partial"
+      ]
+    },
+    {
+      "id": "available-is-not-measured",
+      "type": "custom",
+      "statement": "Available never implies a measured quantity or food-safety certification.",
+      "tier": "aspirational",
+      "elements": [
+        "status-pill"
+      ]
+    },
+    {
+      "id": "last-checked-is-evidence",
+      "type": "custom",
+      "statement": "Last checked reflects recorded evidence and is not refreshed by opening the page.",
+      "tier": "aspirational",
+      "elements": [
+        "last-checked"
+      ]
+    },
+    {
+      "id": "use-soon-finds-meals",
+      "type": "affordance-present",
+      "statement": "Use soon leads to Find meals, which keeps uncertain quantities uncertain.",
+      "tier": "aspirational",
+      "elements": [
+        "use-soon-panel",
+        "find-meals-link"
+      ],
+      "states": [
+        "use-soon"
+      ]
+    },
+    {
+      "id": "inventory-is-optional",
+      "type": "element-present",
+      "statement": "An empty inventory offers Skip inventory and Track only staples, and planning stays usable.",
+      "tier": "aspirational",
+      "elements": [
+        "skip-inventory-action"
+      ],
+      "states": [
+        "empty"
+      ]
+    },
+    {
+      "id": "tiles-are-complete",
+      "type": "affordance-present",
+      "statement": "Every scene marker's information and action is also reachable from the tiles and their details.",
+      "tier": "aspirational",
+      "elements": [
+        "equipment-tiles",
+        "equipment-tile",
+        "scene-marker",
+        "device-details"
+      ],
+      "states": [
+        "equipment-tab",
+        "equipment-details"
+      ]
+    },
+    {
+      "id": "markers-open-details",
+      "type": "custom",
+      "statement": "A scene marker opens details and never silently removes equipment; markers have 44 px hit areas and hide on phones when they would overlap.",
+      "tier": "aspirational",
+      "elements": [
+        "scene-marker"
+      ],
+      "states": [
+        "equipment-tab"
+      ]
+    },
+    {
+      "id": "categories-on-phone",
+      "type": "element-present",
+      "statement": "Appliances, Cookware, and Tools stay visible and reachable on phones.",
+      "tier": "aspirational",
+      "elements": [
+        "equipment-categories"
+      ],
+      "states": [
+        "equipment-tab"
+      ],
+      "viewports": [
+        "mobile"
+      ]
+    },
+    {
+      "id": "zero-equipment-valid",
+      "type": "element-present",
+      "statement": "Selecting nothing is valid and says assembly or ready-to-eat meals will be suggested.",
+      "tier": "aspirational",
+      "elements": [
+        "selected-count"
+      ],
+      "states": [
+        "equipment-none"
+      ]
+    },
+    {
+      "id": "scene-missing-tiles-accurate",
+      "type": "element-present",
+      "statement": "With a missing scene layer, the tiles still show the accurate selection.",
+      "tier": "aspirational",
+      "elements": [
+        "equipment-tiles"
+      ],
+      "states": [
+        "scene-unavailable"
+      ]
+    },
+    {
+      "id": "removal-previews-effects",
+      "type": "element-present",
+      "statement": "Removing equipment previews affected future methods before applying.",
+      "tier": "aspirational",
+      "elements": [
+        "removal-preview"
+      ],
+      "states": [
+        "equipment-removal-preview"
+      ]
+    },
+    {
+      "id": "rule-change-previewed",
+      "type": "element-present",
+      "statement": "A required-rule change previews conflicts with future plans; history is untouched.",
+      "tier": "aspirational",
+      "elements": [
+        "rule-change-preview"
+      ],
+      "states": [
+        "rule-change-preview"
+      ]
+    },
+    {
+      "id": "phone-card-rows",
+      "type": "element-present",
+      "statement": "On phones inventory rows become cards with the name above the amount, never a sideways-scrolling table.",
+      "tier": "aspirational",
+      "elements": [
+        "inventory-row"
+      ],
+      "states": [
+        "default"
+      ],
+      "viewports": [
+        "mobile"
+      ]
+    },
+    {
+      "id": "kitchen-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Tabs, storage filters, rows and their menus, tiles, markers, and categories are keyboard reachable.",
+      "tier": "aspirational",
+      "elements": [
+        "kitchen-tabs",
+        "storage-filters",
+        "row-menu",
+        "equipment-tile",
+        "scene-marker",
+        "equipment-categories"
+      ]
+    },
+    {
+      "id": "reduced-motion-respected",
+      "type": "custom",
+      "statement": "Selecting a tile fades the matching scene layer without moving controls or resetting scroll; with reduced motion the change is instant.",
+      "tier": "aspirational",
+      "elements": [
+        "equipment-scene",
+        "equipment-tile"
+      ],
+      "states": [
+        "equipment-tab"
+      ]
+    },
+    {
+      "id": "kitchen-no-horizontal-overflow",
+      "type": "no-document-horizontal-overflow",
+      "statement": "The page never scrolls sideways; the table reflows to card rows.",
+      "tier": "aspirational",
+      "elements": [
+        "inventory-table",
+        "equipment-tiles"
+      ]
+    },
+    {
+      "id": "appearance-parity",
+      "type": "dark-parity",
+      "statement": "Light and Evening change palette and artwork only; the recipe, servings, dates, occurrences, layout, and actions are identical.",
+      "tier": "aspirational",
+      "elements": [
+        "inventory-table",
+        "equipment-tiles"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "primary-navigation": {
+        "testid": "kitchen-primary-navigation"
+      },
+      "page-title": {
+        "testid": "kitchen-page-title"
+      },
+      "kitchen-tabs": {
+        "testid": "kitchen-kitchen-tabs"
+      },
+      "add-ingredient-action": {
+        "testid": "kitchen-add-ingredient-action"
+      },
+      "inventory-search": {
+        "testid": "kitchen-inventory-search"
+      },
+      "storage-filters": {
+        "testid": "kitchen-storage-filters"
+      },
+      "inventory-table": {
+        "testid": "kitchen-inventory-table"
+      },
+      "inventory-row": {
+        "testid": "kitchen-inventory-row"
+      },
+      "amount": {
+        "testid": "kitchen-amount"
+      },
+      "status-pill": {
+        "testid": "kitchen-status-pill"
+      },
+      "row-menu": {
+        "testid": "kitchen-row-menu"
+      },
+      "last-checked": {
+        "testid": "kitchen-last-checked"
+      },
+      "review-amounts-action": {
+        "testid": "kitchen-review-amounts-action"
+      },
+      "skip-inventory-action": {
+        "testid": "kitchen-skip-inventory-action"
+      },
+      "use-soon-panel": {
+        "testid": "kitchen-use-soon-panel"
+      },
+      "find-meals-link": {
+        "testid": "kitchen-find-meals-link"
+      },
+      "equipment-summary": {
+        "testid": "kitchen-equipment-summary"
+      },
+      "preferences-summary": {
+        "testid": "kitchen-preferences-summary"
+      },
+      "equipment-categories": {
+        "testid": "kitchen-equipment-categories"
+      },
+      "equipment-scene": {
+        "testid": "kitchen-equipment-scene"
+      },
+      "scene-marker": {
+        "testid": "kitchen-scene-marker"
+      },
+      "equipment-tiles": {
+        "testid": "kitchen-equipment-tiles"
+      },
+      "equipment-tile": {
+        "testid": "kitchen-equipment-tile"
+      },
+      "selected-count": {
+        "testid": "kitchen-selected-count"
+      },
+      "more-equipment-action": {
+        "testid": "kitchen-more-equipment-action"
+      },
+      "device-details": {
+        "testid": "kitchen-device-details"
+      },
+      "removal-preview": {
+        "testid": "kitchen-removal-preview"
+      },
+      "preference-groups": {
+        "testid": "kitchen-preference-groups"
+      },
+      "rule-change-preview": {
+        "testid": "kitchen-rule-change-preview"
+      }
+    }
+  }
+}

@@ -15,7 +15,6 @@ Searched for `agent-manager` in `scenarios/` on 2025-12-18:
 |----------|--------------|-------|
 | workspace-sandbox | Required dependency | Provides sandbox creation, diff generation, patch application. agent-manager delegates all isolation operations to workspace-sandbox. |
 | agent-inbox | Consumer | Will use agent-manager for running AI chat agents. Consumes RunEvent stream for chat history. |
-| ecosystem-manager | Consumer | Currently runs agents directly; should transition to using agent-manager as central control plane. |
 | app-issue-tracker | Consumer (planned) | Intended to use agent-manager for issue resolution agents. |
 
 ## Related Resources

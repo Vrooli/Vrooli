@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "ros2",
+  "display_name": "ROS 2",
+  "category": "robotics",
+  "summary": "Distributed robotics middleware for sensors, control, messaging, and multi-node robot applications.",
+  "why_it_matters": "ROS 2 remains foundational robotics capability knowledge, but Vrooli does not currently validate any scenario that would justify actively maintaining it as a resource.",
+  "when_to_use": [
+    "A future scenario needs ROS-native robotics integration.",
+    "Operators want standardized topics, services, and action patterns for robots.",
+    "The workflow depends on existing ROS packages and middleware behavior."
+  ],
+  "example_scenarios": [
+    "Robot fleet coordination",
+    "Sensor fusion pipelines",
+    "Autonomy development stacks"
+  ],
+  "integration_kind": "native-cli",
+  "platform_support": {
+    "notes": "ROS 2 is strongest on Linux and often assumes Linux-first robotics tooling; support quality is not equal across operating systems.",
+    "linux": "partial",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "prerequisites": [
+    "Validated ROS distribution and package strategy",
+    "Hardware or simulator integration plan",
+    "Clear support boundary for nodes, bags, and workspace management"
+  ],
+  "dependencies": [],
+  "suggested_template": "native-cli",
+  "implementation_notes": [
+    "Promotion should begin with a narrow robotics workflow that actually depends on ROS 2.",
+    "Keep middleware support distinct from hardware-driver support.",
+    "Do not treat package installation as proof of usable robotics support."
+  ],
+  "operational_notes": [
+    "Version and package compatibility matter heavily.",
+    "Validation should run a real ROS graph or sample node workflow.",
+    "Tooling assumptions often depend on Linux-specific paths and packages."
+  ],
+  "risks": [
+    "Robotics middleware becomes a large maintenance surface quickly.",
+    "Cross-platform claims are especially risky for ROS-centric workflows."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "ros2"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/ros2"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

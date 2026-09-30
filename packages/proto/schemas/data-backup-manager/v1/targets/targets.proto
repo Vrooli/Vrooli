@@ -1,0 +1,123 @@
+syntax = "proto3";
+
+package vrooli.data_backup_manager.v1.targets;
+
+import "buf/validate/validate.proto";
+import "data-backup-manager/v1/sources/sources.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/targets;targets_v1";
+
+// =============================================================================
+// TARGETS DOMAIN — self-registered backup sources
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain targets
+// @imports sources
+// @stability stable
+//
+// Wire contract for TargetsService. A target is a backup source owned by
+// another scenario, keyed by (owner, name). Registration is an idempotent
+// upsert — the canonical EnsureProfile shape — so scenarios re-register on
+// boot and the catalog is reconstructable (OT-P0-001).
+//
+// Consumed by:
+//   - API: handlers/targets/connect_handler.go implements TargetsServiceHandler.
+//   - CLI: cli/domains/targets/ (self-registration + operator inspection).
+//   - UI:  ui/src/features/targets/ (catalog view) — future plan.
+// =============================================================================
+
+service TargetsService {
+  rpc RegisterTarget(RegisterTargetRequest) returns (RegisterTargetResponse);
+  rpc DeregisterTarget(DeregisterTargetRequest) returns (DeregisterTargetResponse);
+  rpc GetTarget(GetTargetRequest) returns (GetTargetResponse);
+  rpc ListTargets(ListTargetsRequest) returns (ListTargetsResponse);
+}
+
+// Target is the canonical wire shape for a registered backup source.
+message Target {
+  // UUID assigned by the API on first registration; stable across re-registers.
+  string id = 1;
+
+  // Owning scenario/service identifier (e.g. "prompt-manager").
+  string owner = 2;
+
+  // Owner-scoped unique name for this source (e.g. "store").
+  string name = 3;
+
+  // What kind of source this is; selects the SourceCapture strategy.
+  vrooli.data_backup_manager.v1.sources.SourceKind source_kind = 4;
+
+  // Source locator interpreted per source_kind: a storage-root-relative path
+  // or glob (filesystem), a db file path (sqlite), a database/schema name
+  // (postgres), a key prefix (redis), a collection name (qdrant), or a
+  // bucket/prefix (object-storage). Never holds secrets.
+  string locator = 5;
+
+  // Server time of first registration.
+  google.protobuf.Timestamp created_at = 6;
+
+  // Server time of the most recent (idempotent) registration that changed the
+  // spec; equals created_at when never updated.
+  google.protobuf.Timestamp updated_at = 7;
+
+  // True when this target is explicitly approved for critical-only protection
+  // tiers. This is a classification, not a secret-bearing flag: the target
+  // locator remains subject to the normal redaction and plaintext-credential
+  // exclusions.
+  bool critical = 8;
+}
+
+// RegisterTargetRequest upserts a target keyed by (owner, name).
+message RegisterTargetRequest {
+  string owner = 1 [(buf.validate.field).string.min_len = 1];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+  vrooli.data_backup_manager.v1.sources.SourceKind source_kind = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  string locator = 4 [(buf.validate.field).string.min_len = 1];
+
+  // Explicitly include this target in critical-primary and
+  // critical-secondary plans. Defaults to false; critical plans fail closed
+  // when any selected target is not marked critical.
+  bool critical = 5;
+}
+
+message RegisterTargetResponse {
+  Target target = 1;
+}
+
+// DeregisterTargetRequest removes a target by (owner, name).
+message DeregisterTargetRequest {
+  string owner = 1 [(buf.validate.field).string.min_len = 1];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeregisterTargetResponse {
+  // True when a row was removed; false when no matching target existed.
+  bool removed = 1;
+}
+
+// GetTargetRequest identifies a target by its assigned id.
+message GetTargetRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetTargetResponse {
+  Target target = 1;
+}
+
+// ListTargetsRequest pages the target catalog. Optional owner filter narrows
+// to a single owning scenario.
+message ListTargetsRequest {
+  string owner = 1;
+  int32 page_size = 2 [(buf.validate.field).int32.gte = 0];
+  string page_token = 3;
+}
+
+message ListTargetsResponse {
+  repeated Target targets = 1;
+  string next_page_token = 2;
+}

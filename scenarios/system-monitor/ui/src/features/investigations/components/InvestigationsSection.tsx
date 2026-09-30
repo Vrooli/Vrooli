@@ -65,7 +65,7 @@ export const InvestigationsSection = ({
     <div className="panel-accent">
       <div className="panel-accent-header">
         <h2 className="investigations-heading">
-          <AlertTriangle size={24} style={{ color: 'var(--color-warning)' }} />
+          <AlertTriangle size={24} data-sm-style="sm-style-38c5f4e767" />
           INVESTIGATIONS
         </h2>
       </div>
@@ -76,7 +76,7 @@ export const InvestigationsSection = ({
         <div className="agent-spawn-card">
           <div className="agent-spawn-header">
             <div className="agent-spawn-header-left">
-              <Bot size={16} style={{ color: 'var(--color-success)' }} />
+              <Bot size={16} data-sm-style="sm-style-eab9fc4afc" />
               <h3 className="agent-spawn-title">Investigation Agent</h3>
               <span className={`badge ${statusBadgeClass}`}>{activeAgentSummary.text}</span>
             </div>
@@ -85,7 +85,7 @@ export const InvestigationsSection = ({
               <label className="agent-checkbox-label">
                 <ToggleSwitch
                   checked={autoFixEnabled}
-                  onChange={() => setAutoFixEnabled(!autoFixEnabled)}
+                  onChange={() => { setAutoFixEnabled(!autoFixEnabled); }}
                   size="sm"
                 />
                 Auto-fix
@@ -93,7 +93,7 @@ export const InvestigationsSection = ({
 
               <button
                 className="btn-icon"
-                onClick={() => setShowNoteField(!showNoteField)}
+                onClick={() => { setShowNoteField(!showNoteField); }}
                 title="Add note for agent context"
               >
                 <MessageCircle size={16} />
@@ -101,7 +101,7 @@ export const InvestigationsSection = ({
 
               <button
                 className="btn btn-primary text-xs"
-                onClick={handleSpawnAgent}
+                onClick={() => { void handleSpawnAgent(); }}
                 disabled={isSpawningAgent}
               >
                 <Play size={14} className={isSpawningAgent ? 'animate-spin' : ''} />
@@ -111,13 +111,13 @@ export const InvestigationsSection = ({
           </div>
 
           {combinedSpawnError && (
-            <div className="error-banner text-sm" style={{ marginTop: 'var(--spacing-sm)' }}>
+            <div className="error-banner text-sm" data-sm-style="sm-style-9ed1054ccd">
               {combinedSpawnError}
             </div>
           )}
 
           {showNoteField && (
-            <div className="flex-col-gap-sm" style={{ marginTop: 'var(--spacing-sm)' }}>
+            <div className="flex-col-gap-sm" data-sm-style="sm-style-9ed1054ccd">
               <label
                 htmlFor="agent-note"
                 className="text-xs text-muted"
@@ -127,7 +127,7 @@ export const InvestigationsSection = ({
               <textarea
                 id="agent-note"
                 value={agentNote}
-                onChange={(event) => setAgentNote(event.target.value)}
+                onChange={(event) => { setAgentNote(event.target.value); }}
                 rows={3}
                 className="agent-note-textarea"
               />
@@ -161,13 +161,13 @@ export const InvestigationsSection = ({
             onChange: setScriptsSearch,
           }}
         >
-          <div style={{ marginTop: 'var(--spacing-md)' }}>
+          <div data-sm-style="sm-style-323fdcc1e0">
             <InvestigationScriptsPanel
               onOpenScriptEditor={onOpenScriptEditor}
               embedded={true}
               searchFilter={scriptsSearch}
               maxVisible={4}
-              onShowAll={() => navigate('/scripts')}
+              onShowAll={() => { void navigate('/scripts'); }}
             />
           </div>
         </CollapsibleSection>

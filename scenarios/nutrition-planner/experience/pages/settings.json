@@ -1,0 +1,570 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": [
+      "/settings"
+    ],
+    "purpose": "Change what applies everywhere — appearance, meal artwork, generation permission and usage, integrations, notifications, units and time, data and exports, and account — with an honest capability state for each.",
+    "prd_refs": [
+      "OT-P0-016",
+      "OT-P0-017",
+      "OT-P0-013",
+      "OT-P0-001",
+      "OT-P0-014",
+      "OT-P0-015",
+      "OT-P1-007",
+      "OT-P1-008",
+      "OT-P1-005",
+      "OT-P2-001"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Appearance offers Light, Evening, and Follow device, and a change applies at once without touching food data."
+    },
+    {
+      "statement": "Meal artwork presentation and image generation permission are separate controls; generation is Off unless the person opts in, with usage and budget visible."
+    },
+    {
+      "statement": "Data & exports holds backups, recipe collections, printable weeks and groceries, CSV, and staged import in one place."
+    },
+    {
+      "statement": "Integrations such as personal-planner say whether they are connected, pending, or unavailable, never a dead switch."
+    },
+    {
+      "statement": "Units, currency, timezone, and week start are explicit and editable."
+    },
+    {
+      "statement": "Data health lists actionable findings from the real diagnostics service, not a single score."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "All sections with their current values; phones show summary rows that drill into sub-screens.",
+      "setup": {
+        "route": "/settings"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the page's data; stable skeletons reserve the layout so nothing shifts on arrival, and no sample food is shown as saved data.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "loading"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some contributing data is unknown or could not be read; what is missing is named rather than shown as zero.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control shows a busy state and says why it is unavailable, and success appears only after the durable save.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next action are stated, pending edits are kept, and nothing is edited against a fake empty account.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "Input was rejected; the offending field is identified next to it and every other edit is preserved.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; cached data, locally pending actions, and server-confirmed saves are distinguished and unsupported actions say why.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No exports, integrations, or data-health findings exist yet; each section says so plainly instead of rendering blank.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Usage, integration status, or data-health values are older than their refresh window; their age is shown.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "generation-off",
+      "description": "Generation is Off with an explanation of what opting in means.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "generation-off"
+        },
+        "hash": "generation"
+      }
+    },
+    {
+      "id": "generation-ask",
+      "description": "Ask each time is on; a quote with variants and price or credit estimate appears before any job starts.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "generation-ask"
+        },
+        "hash": "generation"
+      }
+    },
+    {
+      "id": "generation-unavailable",
+      "description": "No image capability is configured; the control is disabled with an explanation.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "generation-unavailable"
+        },
+        "hash": "generation"
+      }
+    },
+    {
+      "id": "integration-unconfigured",
+      "description": "personal-planner is not configured; untimed internal prep tasks keep working.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "integration-unconfigured"
+        },
+        "hash": "integrations"
+      }
+    },
+    {
+      "id": "export-ready",
+      "description": "An export finished; a visible download link and retry are shown.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "export-ready"
+        },
+        "hash": "data"
+      }
+    },
+    {
+      "id": "import-review",
+      "description": "A staged import shows counts, format, duplicates, conflicts, and errors before any write.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "import-review"
+        },
+        "hash": "data"
+      }
+    },
+    {
+      "id": "restore-confirm",
+      "description": "Restore everything shows its impact and checkpoint and waits for explicit confirmation.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "restore-confirm"
+        },
+        "hash": "data"
+      }
+    },
+    {
+      "id": "data-health-findings",
+      "description": "Data health lists actionable findings such as stale prices or unresolved ingredients.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "data-health-findings"
+        },
+        "hash": "data"
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "primary-navigation",
+      "role": "navigation",
+      "name": "Primary",
+      "description": "The five destinations; Settings is reached from the header gear."
+    },
+    {
+      "id": "page-title",
+      "role": "heading",
+      "name": "Settings",
+      "description": "Settings."
+    },
+    {
+      "id": "settings-sections",
+      "role": "navigation",
+      "name": "Settings sections",
+      "description": "Section list; drill-in rows on phones."
+    },
+    {
+      "id": "appearance-control",
+      "role": "radiogroup",
+      "name": "Appearance",
+      "description": "Light, Evening, Follow device."
+    },
+    {
+      "id": "artwork-control",
+      "role": "radiogroup",
+      "name": "Meal artwork",
+      "description": "Immersive scenes, Editorial photos, Minimal."
+    },
+    {
+      "id": "generation-policy",
+      "role": "radiogroup",
+      "name": "Image generation",
+      "description": "Off, Ask each time, Automatic within budget."
+    },
+    {
+      "id": "generation-usage",
+      "role": "region",
+      "name": "Usage and budget",
+      "description": "Current period usage, reservations, reset date, queued jobs, and cancellation."
+    },
+    {
+      "id": "integrations",
+      "role": "region",
+      "name": "Integrations",
+      "description": "Available integrations and their state."
+    },
+    {
+      "id": "personal-planner-status",
+      "role": "status",
+      "description": "Connected, pending, needs reconnection, or not configured."
+    },
+    {
+      "id": "notifications",
+      "role": "region",
+      "name": "Notifications",
+      "description": "Opt-in reminders with the platform channels actually available."
+    },
+    {
+      "id": "units-time",
+      "role": "region",
+      "name": "Units, currency, and time",
+      "description": "Units, currency, timezone, and week start."
+    },
+    {
+      "id": "language-control",
+      "role": "combobox",
+      "name": "Language",
+      "description": "Interface language."
+    },
+    {
+      "id": "data-exports",
+      "role": "region",
+      "name": "Data & exports",
+      "description": "Backups, collections, printouts, CSV, and import."
+    },
+    {
+      "id": "export-backup-action",
+      "role": "button",
+      "name": "Export complete backup",
+      "description": "Exports a complete backup, naming any omissions."
+    },
+    {
+      "id": "print-actions",
+      "role": "group",
+      "name": "Print",
+      "description": "Recipe, week, and grocery PDFs in A4 or Letter."
+    },
+    {
+      "id": "import-action",
+      "role": "button",
+      "name": "Import",
+      "description": "Stages a file for review."
+    },
+    {
+      "id": "import-review",
+      "role": "region",
+      "name": "Import review",
+      "description": "Counts, duplicates, conflicts, and errors with Add meals only or Restore everything."
+    },
+    {
+      "id": "restore-action",
+      "role": "button",
+      "name": "Restore everything",
+      "description": "Restores after explicit confirmation and a checkpoint."
+    },
+    {
+      "id": "data-health",
+      "role": "region",
+      "name": "Data health",
+      "description": "Actionable findings from diagnostics."
+    },
+    {
+      "id": "account",
+      "role": "region",
+      "name": "Account",
+      "description": "Account and workspace details."
+    }
+  ],
+  "claims": [
+    {
+      "id": "appearance-has-no-side-effects",
+      "type": "custom",
+      "statement": "Changing appearance changes presentation only and never alters recipes, servings, plans, or starts generation.",
+      "tier": "aspirational",
+      "elements": [
+        "appearance-control"
+      ]
+    },
+    {
+      "id": "artwork-separate-from-generation",
+      "type": "element-present",
+      "statement": "Meal artwork presentation and generation permission are separate controls.",
+      "tier": "aspirational",
+      "elements": [
+        "artwork-control",
+        "generation-policy"
+      ]
+    },
+    {
+      "id": "generation-off-by-default",
+      "type": "element-present",
+      "statement": "Generation starts Off and explains what opting in does.",
+      "tier": "aspirational",
+      "elements": [
+        "generation-policy"
+      ],
+      "states": [
+        "generation-off"
+      ]
+    },
+    {
+      "id": "quote-before-spend",
+      "type": "element-present",
+      "statement": "Ask each time shows the requested variants and estimate before a job starts.",
+      "tier": "aspirational",
+      "elements": [
+        "generation-usage"
+      ],
+      "states": [
+        "generation-ask"
+      ]
+    },
+    {
+      "id": "unavailable-is-explained",
+      "type": "element-present",
+      "statement": "An unconfigured capability is disabled with an explanation, never a dead control.",
+      "tier": "aspirational",
+      "elements": [
+        "generation-policy"
+      ],
+      "states": [
+        "generation-unavailable"
+      ]
+    },
+    {
+      "id": "integration-state-is-honest",
+      "type": "element-present",
+      "statement": "personal-planner shows its real state and untimed prep keeps working when it is not configured.",
+      "tier": "aspirational",
+      "elements": [
+        "personal-planner-status"
+      ],
+      "states": [
+        "integration-unconfigured"
+      ]
+    },
+    {
+      "id": "import-reviewed-before-write",
+      "type": "element-present",
+      "statement": "Import shows a review before any live write.",
+      "tier": "aspirational",
+      "elements": [
+        "import-review"
+      ],
+      "states": [
+        "import-review"
+      ]
+    },
+    {
+      "id": "restore-is-explicit",
+      "type": "affordance-present",
+      "statement": "Restore everything requires explicit confirmation with its impact and checkpoint.",
+      "tier": "aspirational",
+      "elements": [
+        "restore-action"
+      ],
+      "states": [
+        "restore-confirm"
+      ]
+    },
+    {
+      "id": "export-has-visible-download",
+      "type": "element-present",
+      "statement": "A finished export offers a visible download link and retry.",
+      "tier": "aspirational",
+      "elements": [
+        "data-exports"
+      ],
+      "states": [
+        "export-ready"
+      ]
+    },
+    {
+      "id": "data-health-uses-real-service",
+      "type": "custom",
+      "statement": "Data health reads the diagnostics service; a failure shows an error, never an empty healthy panel.",
+      "tier": "aspirational",
+      "elements": [
+        "data-health"
+      ],
+      "states": [
+        "data-health-findings",
+        "request-error"
+      ]
+    },
+    {
+      "id": "phone-drill-in",
+      "type": "element-present",
+      "statement": "On phones sections are summary rows that open sub-screens instead of one long wall of fields.",
+      "tier": "aspirational",
+      "elements": [
+        "settings-sections"
+      ],
+      "viewports": [
+        "mobile"
+      ]
+    },
+    {
+      "id": "settings-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Every section and control is keyboard reachable with visible focus in both appearances.",
+      "tier": "aspirational",
+      "elements": [
+        "settings-sections",
+        "appearance-control",
+        "artwork-control",
+        "generation-policy",
+        "export-backup-action",
+        "import-action"
+      ]
+    },
+    {
+      "id": "settings-no-horizontal-overflow",
+      "type": "no-document-horizontal-overflow",
+      "statement": "The page never scrolls sideways.",
+      "tier": "aspirational",
+      "elements": [
+        "settings-sections"
+      ]
+    },
+    {
+      "id": "appearance-parity",
+      "type": "dark-parity",
+      "statement": "Light and Evening change palette and artwork only; the recipe, servings, dates, occurrences, layout, and actions are identical.",
+      "tier": "aspirational",
+      "elements": [
+        "settings-sections",
+        "appearance-control"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "primary-navigation": {
+        "testid": "settings-primary-navigation"
+      },
+      "page-title": {
+        "testid": "settings-page-title"
+      },
+      "settings-sections": {
+        "testid": "settings-settings-sections"
+      },
+      "appearance-control": {
+        "testid": "settings-appearance-control"
+      },
+      "artwork-control": {
+        "testid": "settings-artwork-control"
+      },
+      "generation-policy": {
+        "testid": "settings-generation-policy"
+      },
+      "generation-usage": {
+        "testid": "settings-generation-usage"
+      },
+      "integrations": {
+        "testid": "settings-integrations"
+      },
+      "personal-planner-status": {
+        "testid": "settings-personal-planner-status"
+      },
+      "notifications": {
+        "testid": "settings-notifications"
+      },
+      "units-time": {
+        "testid": "settings-units-time"
+      },
+      "language-control": {
+        "testid": "settings-language-control"
+      },
+      "data-exports": {
+        "testid": "settings-data-exports"
+      },
+      "export-backup-action": {
+        "testid": "settings-export-backup-action"
+      },
+      "print-actions": {
+        "testid": "settings-print-actions"
+      },
+      "import-action": {
+        "testid": "settings-import-action"
+      },
+      "import-review": {
+        "testid": "settings-import-review"
+      },
+      "restore-action": {
+        "testid": "settings-restore-action"
+      },
+      "data-health": {
+        "testid": "settings-data-health"
+      },
+      "account": {
+        "testid": "settings-account"
+      }
+    }
+  }
+}

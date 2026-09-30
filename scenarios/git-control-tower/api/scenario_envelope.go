@@ -6,12 +6,12 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // =============================================================================
@@ -136,6 +136,11 @@ type serviceJSONStep struct {
 // ParseServiceJSON reads raw service.json bytes and produces a ScenarioEnvelopeResponse.
 // The slug is used to build the relative path and as a fallback for the test command.
 func ParseServiceJSON(data []byte, slug string) (*ScenarioEnvelopeResponse, error) {
+	repoRoot, _ := repocontract.FindRepoRootFromEnvOrCWD()
+	return parseServiceJSON(data, repoRoot, slug)
+}
+
+func parseServiceJSON(data []byte, repoRoot, slug string) (*ScenarioEnvelopeResponse, error) {
 	var svc serviceJSON
 	if err := json.Unmarshal(data, &svc); err != nil {
 		return nil, fmt.Errorf("invalid service.json: %w", err)
@@ -146,11 +151,18 @@ func ParseServiceJSON(data []byte, slug string) (*ScenarioEnvelopeResponse, erro
 		tags = []string{}
 	}
 
+	scenarioPath := ""
+	if strings.TrimSpace(repoRoot) != "" {
+		if resolvedPath, err := resolveScenarioPathRelative(repoRoot, slug); err == nil {
+			scenarioPath = resolvedPath
+		}
+	}
+
 	return &ScenarioEnvelopeResponse{
 		Name:         svc.Service.Name,
 		DisplayName:  svc.Service.DisplayName,
 		Description:  svc.Service.Description,
-		Path:         fmt.Sprintf("scenarios/%s", slug),
+		Path:         scenarioPath,
 		Tags:         tags,
 		Dependencies: extractDependencies(svc.Dependencies),
 		Lifecycle:    extractLifecycle(svc.Lifecycle, slug),
@@ -232,7 +244,11 @@ func (s *Server) handleScenarioEnvelope(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	serviceJSONPath := filepath.Join(repoRoot, "scenarios", slug, ".vrooli", "service.json")
+	serviceJSONPath, err := repocontract.ResolveScenarioFile(repoRoot, slug, "service")
+	if err != nil {
+		http.Error(w, "failed to resolve scenario metadata path", http.StatusInternalServerError)
+		return
+	}
 	data, err := os.ReadFile(serviceJSONPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -244,7 +260,7 @@ func (s *Server) handleScenarioEnvelope(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	envelope, err := ParseServiceJSON(data, slug)
+	envelope, err := parseServiceJSON(data, repoRoot, slug)
 	if err != nil {
 		log.Printf("ERROR: parsing service.json for %q: %v", slug, err)
 		http.Error(w, "failed to parse scenario metadata", http.StatusInternalServerError)

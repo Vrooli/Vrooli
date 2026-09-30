@@ -1,0 +1,196 @@
+{
+  "_metadata": {
+    "description": "P2 requirements — expansion beyond one household on one instance, including the deliberate crossing into real value and the unification with treasury's mandate contract.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "TKE-P2-001",
+      "title": "The system may settle grants through a chain-backed rail behind the existing grant contract.",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "rails.chain",
+      "criticality": "P2",
+      "delivery_scope": "roadmap",
+      "description": "A real-value rail may be added as an adapter behind the same grant contract, with the local rail remaining first-class rather than becoming a fallback. Crossing this line re-opens questions P0 deliberately closed: key custody, irreversible loss, and whether holding value for other holders on one instance constitutes a regulated activity. None of those may be answered implicitly by shipping the adapter; each requires a recorded decision in docs/internal/DECISIONS.md first, and the no-monetary-value structural test from TKE-P0-014 must be consciously amended rather than deleted.",
+      "tags": [
+        "rails",
+        "chain",
+        "regulatory",
+        "roadmap"
+      ],
+      "depends_on": [
+        "TKE-P0-002",
+        "TKE-P0-014"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Gated on a recorded custody and regulatory decision before any implementation work begins."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P2-002",
+      "title": "The system may recognize token types across Vrooli instances relayed through vrooli-bridge.",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "rails.crossinstance",
+      "criticality": "P2",
+      "delivery_scope": "roadmap",
+      "description": "Two households, or one household across two machines, may share a token type. Trust must be relayed through vrooli-bridge rather than established by direct peer connection, consistent with the ecosystem's position that tier-to-tier communication goes through the bridge. Cross-instance events must remain journaled locally so a bridge outage degrades reach without corrupting history.",
+      "tags": [
+        "rails",
+        "cross-instance",
+        "bridge",
+        "roadmap"
+      ],
+      "depends_on": [
+        "TKE-P0-004"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred until a second instance is a real operator need rather than a hypothetical."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P2-003",
+      "title": "The system may support listings and offers between holders subject to minter policy.",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "holders.marketplace",
+      "criticality": "P2",
+      "delivery_scope": "roadmap",
+      "description": "A marketplace extends transfer into price discovery: a holder lists something, another offers, and the minter's policy bounds what is tradeable. This may reuse the reservation mechanism so a listed item is not double-committed. It should not be built before transfer has run in a real household, because a marketplace over an economy nobody trades in is a surface with no users.",
+      "tags": [
+        "holders",
+        "marketplace",
+        "product",
+        "roadmap"
+      ],
+      "depends_on": [
+        "TKE-P1-004",
+        "TKE-P1-005"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Gated on observed transfer usage in a real household."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P2-004",
+      "title": "The grant and mandate shapes may be extracted into one governed contract shared with treasury.",
+      "status": "planned",
+      "prd_ref": "OT-P2-004",
+      "category": "contract.unification",
+      "criticality": "P2",
+      "delivery_scope": "roadmap",
+      "description": "The two scenarios deliberately ship congruent shapes before sharing one. Unification may happen once both have shipped enough to know what is genuinely common rather than coincidentally similar — premature extraction would freeze the wrong abstraction across two products. Until then, congruence is maintained by the parity test in TKE-P0-002 and by recording every intentional divergence.",
+      "tags": [
+        "contract",
+        "treasury",
+        "governance",
+        "roadmap"
+      ],
+      "depends_on": [
+        "TKE-P0-002"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Gated on treasury shipping its mandate contract and on both scenarios having real usage."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P2-005",
+      "title": "A minter may delegate minting or approval authority within limits that can only narrow.",
+      "status": "planned",
+      "prd_ref": "OT-P2-005",
+      "category": "mints.delegation",
+      "criticality": "P2",
+      "delivery_scope": "roadmap",
+      "description": "A second adult may mint or approve within bounds the primary minter sets. Delegation must be one-way narrowing — a delegate can never hold authority the delegator does not, and never outlive it — which is the same attenuation the ecosystem already applies to agent scopes in agent-manager. This should reuse that semantic rather than inventing a second delegation model.",
+      "tags": [
+        "mints",
+        "delegation",
+        "authority",
+        "roadmap"
+      ],
+      "depends_on": [
+        "TKE-P0-005"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred until a two-minter household is a real need; must reuse existing attenuation semantics."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P2-006",
+      "title": "The system may support non-transferable tokens that can be earned and displayed but never redeemed.",
+      "status": "planned",
+      "prd_ref": "OT-P2-006",
+      "category": "mints.reputation",
+      "criticality": "P2",
+      "delivery_scope": "roadmap",
+      "description": "Recognition economies differ from reward economies: an achievement should be visible and permanent rather than spendable. A non-transferable, non-redeemable token class may express that, reusing the mint and journal spine while declining the transfer and redemption paths. This is the smallest possible extension that turns the scenario into a recognition tool for teams as well as a reward tool for households.",
+      "tags": [
+        "mints",
+        "reputation",
+        "product",
+        "roadmap"
+      ],
+      "depends_on": [
+        "TKE-P1-001"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred; validated by a team using it for recognition rather than by a household."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P2-007",
+      "title": "The console may surface earning and redemption patterns over time.",
+      "status": "planned",
+      "prd_ref": "OT-P2-007",
+      "category": "ui.analytics",
+      "criticality": "P2",
+      "delivery_scope": "roadmap",
+      "description": "A minter may want to know whether the economy is inflating, stalling, or rewarding what they intended. Analytics are a projection over the journal like any balance, so they may be added without new storage. They should describe rather than prescribe — the product does not tell a household how to run its economy, and any framing that scores a holder's behavior is out of scope.",
+      "tags": [
+        "ui",
+        "analytics",
+        "product",
+        "roadmap"
+      ],
+      "depends_on": [
+        "TKE-P0-004",
+        "TKE-P1-006"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred until an economy has enough history for a trend to be meaningful."
+        }
+      ]
+    }
+  ]
+}

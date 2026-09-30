@@ -2,6 +2,24 @@
 
 Common issues and how to resolve them.
 
+## Resource polling cost and freshness
+
+Autoheal resource checks normally use one typed fast fleet snapshot per bounded
+TTL. A result with `snapshotSource: fleet` and `snapshotProbeLevel: fast` is a
+stable observation. A fresh anomaly, mode drift, or reacquisition finding may
+show `snapshotSource: named_deep`; this is the intentional safety escalation.
+`fallback`, `snapshotFresh: false`, incomplete, or `undetermined` evidence
+means the control-plane status source could not provide current data. Do not
+clear an incident from that result.
+
+Use the resource check result's `snapshotMetrics` to distinguish fleet refresh,
+deep probe, coalesced-call, stale-read, refresh-failure, and latency activity.
+Compare those signals with the host-pressure and process attribution surfaces
+before assigning CPU cost to Autoheal. The model server, browser automation,
+Qdrant, and storage-retention workflows remain separate owners. Autoheal does
+not inspect `/proc`, invoke a service manager, parse shell output, or own
+retention cleanup.
+
 ## Scenario Won't Start
 
 ### Error: "This binary must be run through the Vrooli lifecycle system"
@@ -186,7 +204,7 @@ alias vrooli-autoheal='./cli/vrooli-autoheal'
 
 **Solution:** Use sudo for system-level installation:
 ```bash
-sudo vrooli-autoheal watchdog install
+sudo vrooli setup
 ```
 
 ### Watchdog keeps restarting the process

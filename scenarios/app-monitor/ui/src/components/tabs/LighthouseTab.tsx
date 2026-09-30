@@ -141,17 +141,17 @@ export default function LighthouseTab({ app, history, loading, error, onRefetch 
     try {
       setRequestingIssue(true);
       const response = await appService.reportAppIssue(scenarioName, payload);
-      const issueId = response.data?.issue_id;
+      const fixName = response.data?.name;
       snackPublisher.publish({
         variant: 'success',
-        title: 'Issue created',
-        message: issueId
-          ? `Requested Lighthouse setup (issue ${issueId}).`
+        title: 'Fix created',
+        message: fixName
+          ? `Requested Lighthouse setup (${fixName}).`
           : 'Requested Lighthouse setup.',
         autoDismiss: true,
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to file issue.';
+      const message = err instanceof Error ? err.message : 'Failed to create fix.';
       snackPublisher.publish({
         variant: 'error',
         title: 'Request failed',
@@ -559,18 +559,18 @@ function BulkMissingConfigDialog({ isOpen, onClose, snackPublisher }: BulkDialog
     try {
       setSubmitting(true);
       const response = await appService.reportAppIssue('app-monitor', payload);
-      const issueId = response.data?.issue_id;
+      const fixName = response.data?.name;
       snackPublisher.publish({
         variant: 'success',
-        title: 'Bulk request created',
-        message: issueId
-          ? `Filed issue ${issueId} for ${selected.length} scenario(s).`
+        title: 'Bulk fix created',
+        message: fixName
+          ? `Filed fix ${fixName} for ${selected.length} scenario(s).`
           : `Filed request for ${selected.length} scenario(s).`,
         autoDismiss: true,
       });
       onClose();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to file bulk issue.';
+      const message = err instanceof Error ? err.message : 'Failed to create bulk fix.';
       setError(message);
     } finally {
       setSubmitting(false);

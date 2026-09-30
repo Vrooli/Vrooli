@@ -1,0 +1,19 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking data-backup-manager operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-registration/module.json",
+    "02-source-kinds/module.json",
+    "03-destinations-encryption/module.json",
+    "04-plans-scheduling/module.json",
+    "05-verified-restore/module.json",
+    "06-storage-limits/module.json",
+    "07-catalog-observability/module.json",
+    "08-surfaces/module.json",
+    "09-post-launch/module.json",
+    "10-expansion/module.json"
+  ]
+}

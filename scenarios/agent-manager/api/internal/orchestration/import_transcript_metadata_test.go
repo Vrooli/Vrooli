@@ -1,0 +1,45 @@
+package orchestration
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"agent-manager/internal/adapters/runner/codecs"
+)
+
+func TestTranscriptGoalMetadataFindsNestedArrayAttachment(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	body := `{"type":"turn.completed","attachments":[{"type":"goal_status","condition":"tests pass","met":true}]}` + "\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	// The import path routes goal markers through the codec seam; the Claude
+	// codec walks arbitrary object/array shapes for a nested goal_status.
+	goalID, status := transcriptGoalMetadata(file, codecs.NewClaudeForTest())
+	if goalID == "" || status != "complete" {
+		t.Fatalf("goal metadata=(%q,%q), want stable id and complete", goalID, status)
+	}
+}
+
+func TestTranscriptGoalMetadataReconstructsCohortFromUserPreamble(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	body := `{"role":"user","content":"Please investigate the agent run evidence and explain which commands caused the repeated failures, then validate the proposed repair."}` + "\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	goalID, status := transcriptGoalMetadata(file)
+	if goalID == "" || status != "unmet" {
+		t.Fatalf("goal metadata=(%q,%q), want reconstructed cohort and unmet status", goalID, status)
+	}
+}

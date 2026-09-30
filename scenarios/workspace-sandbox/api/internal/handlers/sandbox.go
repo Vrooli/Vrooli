@@ -1,14 +1,49 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
+	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/types"
 )
+
+// stampWorkspaceLayout populates a sandbox's computed workspace contract
+// fields (WorkspacePath, PathIllusion, Containment) from the active
+// driver's required containment and the host containment probe. It is the
+// single call every sandbox-returning handler makes so the negotiated
+// path/containment is reported consistently on create/get/list.
+//
+// The probe is passed in so list can compute it once for the whole page
+// rather than per sandbox. A nil driver leaves the fields zero-valued.
+func stampWorkspaceLayout(sb *types.Sandbox, level driver.ContainmentLevel, info *driver.ContainmentInfo) {
+	if sb == nil {
+		return
+	}
+	sb.WorkspacePath, sb.PathIllusion, sb.Containment = driver.DeriveWorkspaceLayout(level, info, sb.MergedDir)
+}
+
+// workspaceLayoutInputs resolves the driver required-containment level and
+// the host containment probe once per request. Returns a zero level and
+// nil info when no driver is wired.
+func (h *Handlers) workspaceLayoutInputs(ctx context.Context) (driver.ContainmentLevel, *driver.ContainmentInfo) {
+	d := h.Driver()
+	if d == nil {
+		return driver.ContainmentNone, nil
+	}
+	// The containment probe requires a process starter to look up the
+	// backend binary; without one (e.g. a partially-wired test harness) we
+	// report the driver's required level with no probe rather than panic.
+	if h.Starter == nil {
+		return d.RequiredContainment(), nil
+	}
+	info, _ := driver.GetContainmentInfo(ctx, h.Starter)
+	return d.RequiredContainment(), info
+}
 
 // CreateSandbox handles sandbox creation.
 func (h *Handlers) CreateSandbox(w http.ResponseWriter, r *http.Request) {
@@ -22,6 +57,9 @@ func (h *Handlers) CreateSandbox(w http.ResponseWriter, r *http.Request) {
 	if h.HandleDomainError(w, err) {
 		return
 	}
+
+	level, info := h.workspaceLayoutInputs(r.Context())
+	stampWorkspaceLayout(sb, level, info)
 
 	h.JSONCreated(w, sb)
 }
@@ -76,14 +114,16 @@ func (h *Handlers) ListSandboxes(w http.ResponseWriter, r *http.Request) {
 		Offset:     result.Offset,
 	}
 
+	level, info := h.workspaceLayoutInputs(r.Context())
 	for _, sb := range result.Sandboxes {
+		stampWorkspaceLayout(sb, level, info)
 		sbResp := SandboxResponse{Sandbox: sb}
 
 		// Verify mount integrity for active sandboxes
 		if sb.Status == types.StatusActive {
 			health := &MountHealthInfo{Verified: true}
 
-			if err := h.Driver().VerifyMountIntegrity(r.Context(), sb); err != nil {
+			if err := driver.VerifyIfSupported(r.Context(), h.Driver(), sb); err != nil {
 				health.Healthy = false
 				health.Error = err.Error()
 				health.Hint = "The sandbox mount is not accessible. Stop and Start to remount it."
@@ -152,6 +192,9 @@ func (h *Handlers) GetSandbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	level, info := h.workspaceLayoutInputs(r.Context())
+	stampWorkspaceLayout(sb, level, info)
+
 	// Build response with health info
 	resp := SandboxResponse{Sandbox: sb}
 
@@ -159,7 +202,7 @@ func (h *Handlers) GetSandbox(w http.ResponseWriter, r *http.Request) {
 	if sb.Status == types.StatusActive {
 		health := &MountHealthInfo{Verified: true}
 
-		if err := h.Driver().VerifyMountIntegrity(r.Context(), sb); err != nil {
+		if err := driver.VerifyIfSupported(r.Context(), h.Driver(), sb); err != nil {
 			health.Healthy = false
 			health.Error = err.Error()
 			health.Hint = "The sandbox mount is not accessible. This can happen if the API was restarted. Stop and Start to remount it."
@@ -213,6 +256,22 @@ func (h *Handlers) StartSandbox(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sb, err := h.Service.Start(r.Context(), id)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	h.JSONSuccess(w, sb)
+}
+
+// ResumeSandbox handles resuming a checkpointed sandbox for a new turn.
+func (h *Handlers) ResumeSandbox(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(mux.Vars(r)["id"])
+	if err != nil {
+		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+		return
+	}
+
+	sb, err := h.Service.Resume(r.Context(), id)
 	if h.HandleDomainError(w, err) {
 		return
 	}

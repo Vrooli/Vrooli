@@ -1,0 +1,44 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.form-section",
+    "name": "FormSection",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "forms",
+    "description": "The semantic grouping component with heading, description, responsive layout, optional collapse, summary, error badge, and compatibility with sticky section navigation.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.section",
+        "reason": "Rhythm, width, and heading relationships are shared."
+      },
+      {
+        "asset": "motion.collapsible-region",
+        "reason": "Collapse animates height through the shared region rather than per-section logic."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "heading-hierarchy",
+    "semantic-structure",
+    "error-association",
+    "responsive-transformation"
+  ],
+  "requiredStates": [
+    "default",
+    "validation-error"
+  ]
+}

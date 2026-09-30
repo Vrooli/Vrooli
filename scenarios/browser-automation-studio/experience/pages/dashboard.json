@@ -1,0 +1,105 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Dashboard",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Be the single address every session starts from. The dashboard is one route with client-side tabs selected by the ?tab= query parameter, so its asynchronous content is tab-scoped rather than route-scoped. Every state below therefore pins ?tab=projects: without it the route renders the home tab and the projects grid is not in the document at all."
+  },
+  "priorities": [
+    {
+      "statement": "A caller must be able to tell 'this list is still loading' from 'this list is empty' from 'this list failed', without inferring it from elapsed time.",
+      "notes": "This is the whole reason the page declares lifecycle. Every BAS case in bas/cases/01-foundation begins here, and today each one discovers a broken upstream step 15 seconds later at an unrelated selector."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Projects tab with at least one project present.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "tab": "projects"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No projects exist and no search term is applied; the grid renders the onboarding empty state.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "tab": "projects"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The project list request failed; the grid reports the failure in place rather than only as a toast.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "tab": "projects"
+        }
+      }
+    }
+  ],
+  "regions": [
+    {
+      "id": "projects-grid",
+      "purpose": "Hold the project list for the Projects tab. This is the first asynchronous surface any BAS case meets, and every downstream step \u2014 open a project, open its Workflows tab, open the builder \u2014 is unreachable until it settles, so its terminal state is the gate the whole foundation suite depends on.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.0"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "projects-grid": {
+        "testid": "projects-grid-surface",
+        "note": "Wraps the Projects tab list region. Distinct from the inner projects.grid testid, which marks only the populated grid element and therefore does not exist in the loading, empty, or error states."
+      }
+    },
+    "elements": {
+      "projects-grid": {
+        "testid": "projects-grid-surface"
+      }
+    }
+  },
+  "claims": [
+    {
+      "id": "projects-grid-declares-terminal-state",
+      "type": "element-present",
+      "statement": "The projects grid surface is present on the dashboard Projects tab in every lifecycle state, so a caller can always read a state rather than waiting for an element to appear.",
+      "tier": "machine",
+      "elements": [
+        "projects-grid"
+      ]
+    }
+  ],
+  "elements": [
+    {
+      "id": "projects-grid",
+      "role": "region",
+      "name": "Projects",
+      "description": "The declared readiness surface for this region. Present in every lifecycle state so a caller reads a state rather than waiting for content to appear."
+    }
+  ]
+}

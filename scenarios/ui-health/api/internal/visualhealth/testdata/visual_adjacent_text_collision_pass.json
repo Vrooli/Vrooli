@@ -1,0 +1,6 @@
+{
+  "elements": [
+    {"nodeType": "text", "parentSelector": ".label", "text": "First", "display": "inline", "rect": {"x": 0, "y": 10, "width": 50, "height": 20}},
+    {"nodeType": "text", "parentSelector": ".label", "text": "Second", "display": "inline", "rect": {"x": 50, "y": 10, "width": 60, "height": 20}}
+  ]
+}

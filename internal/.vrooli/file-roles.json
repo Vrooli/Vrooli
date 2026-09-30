@@ -1,0 +1,8 @@
+{
+  "roles": [
+    {
+      "glob": "hostreqkit/hostreqkittest/*",
+      "role": "test-support"
+    }
+  ]
+}

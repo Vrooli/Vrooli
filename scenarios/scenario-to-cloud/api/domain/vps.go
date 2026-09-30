@@ -18,26 +18,43 @@ type VPSPlanStep struct {
 	Command     string `json:"command,omitempty"`
 }
 
-// VPSSetupResult represents the outcome of VPS setup operations.
+// VPSActionResult is the per-action receipt of one plan execution, keyed by
+// the plan's action id.
+type VPSActionResult struct {
+	ID             string `json:"id"`
+	OwnerOperation string `json:"owner_operation"`
+	Status         string `json:"status"`
+	DurationMs     int64  `json:"duration_ms"`
+	Detail         string `json:"detail,omitempty"`
+	Error          string `json:"error,omitempty"`
+}
+
+// VPSSetupResult represents the outcome of VPS setup operations. Steps is
+// the rendered view of the executed plan; Actions are the per-action
+// receipts; FailedStep is the id of the action that failed.
 type VPSSetupResult struct {
-	OK         bool          `json:"ok"`
-	Steps      []VPSPlanStep `json:"steps"`
-	Error      string        `json:"error,omitempty"`
-	ErrorInfo  *ErrorInfo    `json:"error_info,omitempty"`
-	FailedStep string        `json:"failed_step,omitempty"`
-	DurationMs int64         `json:"duration_ms,omitempty"`
-	Timestamp  string        `json:"timestamp"`
+	OK         bool              `json:"ok"`
+	Steps      []VPSPlanStep     `json:"steps"`
+	PlanDigest string            `json:"plan_digest,omitempty"`
+	Actions    []VPSActionResult `json:"actions,omitempty"`
+	Error      string            `json:"error,omitempty"`
+	ErrorInfo  *ErrorInfo        `json:"error_info,omitempty"`
+	FailedStep string            `json:"failed_step,omitempty"`
+	DurationMs int64             `json:"duration_ms,omitempty"`
+	Timestamp  string            `json:"timestamp"`
 }
 
 // VPSDeployResult represents the outcome of VPS deployment operations.
 type VPSDeployResult struct {
-	OK         bool          `json:"ok"`
-	Steps      []VPSPlanStep `json:"steps"`
-	Error      string        `json:"error,omitempty"`
-	ErrorInfo  *ErrorInfo    `json:"error_info,omitempty"`
-	FailedStep string        `json:"failed_step,omitempty"`
-	DurationMs int64         `json:"duration_ms,omitempty"`
-	Timestamp  string        `json:"timestamp"`
+	OK         bool              `json:"ok"`
+	Steps      []VPSPlanStep     `json:"steps"`
+	PlanDigest string            `json:"plan_digest,omitempty"`
+	Actions    []VPSActionResult `json:"actions,omitempty"`
+	Error      string            `json:"error,omitempty"`
+	ErrorInfo  *ErrorInfo        `json:"error_info,omitempty"`
+	FailedStep string            `json:"failed_step,omitempty"`
+	DurationMs int64             `json:"duration_ms,omitempty"`
+	Timestamp  string            `json:"timestamp"`
 }
 
 // VPSInspectResult represents the outcome of inspecting a deployed VPS.

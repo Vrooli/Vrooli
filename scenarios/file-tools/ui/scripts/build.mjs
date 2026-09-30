@@ -5,7 +5,11 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
-const distDir = path.join(rootDir, 'dist');
+const outDirIndex = process.argv.indexOf('--outDir');
+const requestedOutDir = outDirIndex >= 0 ? process.argv[outDirIndex + 1] : '';
+const distDir = requestedOutDir && !requestedOutDir.startsWith('-')
+  ? path.resolve(requestedOutDir)
+  : path.join(rootDir, 'dist');
 const srcDir = path.join(rootDir, 'src');
 
 async function copyDirectory(source, destination) {

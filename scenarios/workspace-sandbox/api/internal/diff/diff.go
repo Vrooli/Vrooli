@@ -5,15 +5,15 @@
 // This package relies on external commands for diff generation and patch application:
 //
 //   - diff: Used for generating unified diffs of modified files (GNU diffutils).
-//     Called via exec.CommandContext("diff", "-u", ...).
+//     Invoked via process.Starter.
 //     Required for modified file comparisons.
 //
-//   - git: Used for patch application in git repositories.
-//     Called via exec.CommandContext("git", "apply", ...).
-//     Only used when target directory is a git repository.
+//   - git: Used for binary diff generation and patch application.
+//     Invoked via process.Starter.
+//     Binary patches also use git apply outside a git repository.
 //
 //   - patch: Fallback for patch application in non-git directories.
-//     Called via exec.CommandContext("patch", "-p1", ...).
+//     Invoked via process.Starter.
 //     Used when target is not a git repository.
 //
 // # Error Handling
@@ -26,8 +26,8 @@
 // # Binary File Handling
 //
 // Binary files are detected by checking for null bytes in the first 8KB.
-// Binary files are reported in the diff output but their content is not
-// included (only a "Binary file <path>" marker).
+// Regular binary files carry Git binary patches, including original and new
+// blob identities, so review, application and retained archives use exact bytes.
 //
 // # Assumptions
 //
@@ -40,16 +40,18 @@ package diff
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
+
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
 )
 
@@ -68,6 +70,9 @@ type GenerateOptions struct {
 	// Example: if scope is "/project/src/app" and project root is "/project",
 	// PathPrefix should be "src/app" so "file.go" becomes "src/app/file.go".
 	PathPrefix string
+	// MaxPatchBytes bounds aggregate retained output. Zero preserves the normal
+	// unbounded diff interface; retained review capture supplies a hard limit.
+	MaxPatchBytes int64
 }
 
 // DefaultGeneratorConfig returns sensible defaults.
@@ -83,24 +88,24 @@ type Generator struct {
 	runner CommandRunner
 }
 
-// NewGenerator creates a new diff generator with default config.
-// Uses DefaultCommandRunner() for external command execution.
-func NewGenerator() *Generator {
+// NewGenerator creates a new diff generator with default config and a
+// CommandRunner backed by the supplied process.Starter.
+func NewGenerator(starter process.Starter) *Generator {
 	return &Generator{
 		config: DefaultGeneratorConfig(),
-		runner: DefaultCommandRunner(),
+		runner: NewExecCommandRunner(starter),
 	}
 }
 
-// NewGeneratorWithConfig creates a new diff generator with custom config.
-// Uses DefaultCommandRunner() for external command execution.
-func NewGeneratorWithConfig(cfg GeneratorConfig) *Generator {
+// NewGeneratorWithConfig creates a new diff generator with custom config
+// and a CommandRunner backed by the supplied process.Starter.
+func NewGeneratorWithConfig(cfg GeneratorConfig, starter process.Starter) *Generator {
 	if cfg.BinaryDetectionThreshold <= 0 {
 		cfg.BinaryDetectionThreshold = 8000
 	}
 	return &Generator{
 		config: cfg,
-		runner: DefaultCommandRunner(),
+		runner: NewExecCommandRunner(starter),
 	}
 }
 
@@ -177,44 +182,94 @@ func (g *Generator) GenerateDiff(ctx context.Context, s *types.Sandbox, changes 
 
 	var diffBuilder strings.Builder
 	var added, deleted, modified int
+	var totalBytes int64
 
 	for _, change := range sortedChanges {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		totalBytes += change.FileSize
+		var fileDiff string
+		var err error
 		switch change.ChangeType {
 		case types.ChangeTypeAdded:
 			added++
-			fileDiff, err := g.diffNewFile(ctx, s.UpperDir, change.FilePath, pathPrefix)
+			fileDiff, err = g.diffNewFile(ctx, s.UpperDir, change.FilePath, pathPrefix)
 			if err != nil {
 				return nil, fmt.Errorf("failed to diff new file %s: %w", change.FilePath, err)
 			}
-			diffBuilder.WriteString(fileDiff)
 
 		case types.ChangeTypeDeleted:
 			deleted++
-			fileDiff, err := g.diffDeletedFile(ctx, s.LowerDir, change.FilePath, pathPrefix)
+			fileDiff, err = g.diffDeletedFile(ctx, s.LowerDir, change.FilePath, pathPrefix)
 			if err != nil {
 				return nil, fmt.Errorf("failed to diff deleted file %s: %w", change.FilePath, err)
 			}
-			diffBuilder.WriteString(fileDiff)
 
 		case types.ChangeTypeModified:
 			modified++
-			fileDiff, err := g.diffModifiedFile(ctx, s.LowerDir, s.UpperDir, change.FilePath, pathPrefix)
+			fileDiff, err = g.diffModifiedFile(ctx, s.LowerDir, s.UpperDir, change.FilePath, pathPrefix)
 			if err != nil {
 				return nil, fmt.Errorf("failed to diff modified file %s: %w", change.FilePath, err)
 			}
-			diffBuilder.WriteString(fileDiff)
 		}
+		if opts != nil && opts.MaxPatchBytes > 0 && int64(diffBuilder.Len())+int64(len(fileDiff)) > opts.MaxPatchBytes {
+			return nil, fmt.Errorf("diff exceeds %d-byte limit", opts.MaxPatchBytes)
+		}
+		diffBuilder.WriteString(fileDiff)
 	}
 
+	unified := diffBuilder.String()
+	linesAdded, linesRemoved := countUnifiedDiffLines(unified)
+
+	// Generated is left as the zero value here. The caller (Service,
+	// using its injected clock) stamps it before returning the result
+	// to API consumers. Keeping the diff package clock-free keeps it a
+	// pure data-shaping module that tests can exercise without a clock.
 	return &types.DiffResult{
-		SandboxID:     s.ID,
-		Files:         sortedChanges,
-		UnifiedDiff:   diffBuilder.String(),
-		Generated:     time.Now(),
-		TotalAdded:    added,
-		TotalDeleted:  deleted,
-		TotalModified: modified,
+		SandboxID:   s.ID,
+		Files:       sortedChanges,
+		UnifiedDiff: unified,
+		PatchSHA256: HashPatch(unified),
+		Stats: types.DiffStats{
+			FilesChanged:  added + modified + deleted,
+			FilesAdded:    added,
+			FilesModified: modified,
+			FilesDeleted:  deleted,
+			LinesAdded:    linesAdded,
+			LinesRemoved:  linesRemoved,
+			TotalBytes:    totalBytes,
+		},
 	}, nil
+}
+
+// HashPatch identifies exactly the bytes reviewed/applied, including an empty patch.
+// It does not identify unchanged source files or certify a frozen workspace.
+func HashPatch(patch string) string {
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(patch)))
+}
+
+// countUnifiedDiffLines counts added/removed content lines in a unified diff,
+// excluding the `+++`/`---` file headers.
+func countUnifiedDiffLines(unified string) (added, removed int) {
+	for _, line := range strings.Split(unified, "\n") {
+		if len(line) == 0 {
+			continue
+		}
+		switch line[0] {
+		case '+':
+			if strings.HasPrefix(line, "+++") {
+				continue
+			}
+			added++
+		case '-':
+			if strings.HasPrefix(line, "---") {
+				continue
+			}
+			removed++
+		}
+	}
+	return added, removed
 }
 
 // diffNewFile generates a diff for a newly added file.
@@ -230,7 +285,7 @@ func (g *Generator) diffNewFile(ctx context.Context, upperDir, relPath, pathPref
 	}
 
 	// Check if it's a directory
-	info, err := os.Stat(filePath)
+	content, info, err := ReadFileBytes(upperDir, relPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", err
@@ -248,16 +303,9 @@ func (g *Generator) diffNewFile(ctx context.Context, upperDir, relPath, pathPref
 			diffPath, diffPath, gitFileMode(info), diffPath), nil
 	}
 
-	// Read file content
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", err
-	}
-
 	// Check if binary
 	if g.isBinary(content) {
-		return fmt.Sprintf("diff --git a/%s b/%s\nnew file mode %06o\nBinary file %s\n",
-			diffPath, diffPath, gitFileMode(info), diffPath), nil
+		return g.diffBinaryFile(ctx, os.DevNull, filePath, diffPath)
 	}
 
 	// Create unified diff header
@@ -309,7 +357,7 @@ func (g *Generator) diffDeletedFile(ctx context.Context, lowerDir, relPath, path
 		diffPath = filepath.ToSlash(filepath.Join(pathPrefix, relPath))
 	}
 
-	info, err := os.Stat(filePath)
+	content, info, err := ReadFileBytes(lowerDir, relPath)
 	if err != nil {
 		return "", err
 	}
@@ -324,14 +372,8 @@ func (g *Generator) diffDeletedFile(ctx context.Context, lowerDir, relPath, path
 			diffPath, diffPath, gitFileMode(info), diffPath), nil
 	}
 
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", err
-	}
-
 	if g.isBinary(content) {
-		return fmt.Sprintf("diff --git a/%s b/%s\ndeleted file mode %06o\nBinary file %s\n",
-			diffPath, diffPath, gitFileMode(info), diffPath), nil
+		return g.diffBinaryFile(ctx, filePath, os.DevNull, diffPath)
 	}
 
 	var builder strings.Builder
@@ -375,11 +417,37 @@ func (g *Generator) diffDeletedFile(ctx context.Context, lowerDir, relPath, path
 func (g *Generator) diffModifiedFile(ctx context.Context, lowerDir, upperDir, relPath, pathPrefix string) (string, error) {
 	oldPath := filepath.Join(lowerDir, relPath)
 	newPath := filepath.Join(upperDir, relPath)
+	for _, path := range []string{oldPath, newPath} {
+		info, err := os.Lstat(path)
+		if err != nil {
+			return "", err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			// Git applies a delete/add pair for link replacement and file-type
+			// changes. Never dereference either link, including dangling ones.
+			removed, err := g.diffDeletedFile(ctx, lowerDir, relPath, pathPrefix)
+			if err != nil {
+				return "", err
+			}
+			added, err := g.diffNewFile(ctx, upperDir, relPath, pathPrefix)
+			return removed + added, err
+		}
+	}
 
 	// Compute the project-relative path for diff headers
 	diffPath := relPath
 	if pathPrefix != "" {
 		diffPath = filepath.ToSlash(filepath.Join(pathPrefix, relPath))
+	}
+
+	for _, path := range []string{oldPath, newPath} {
+		binary, err := IsBinaryFile(path)
+		if err != nil {
+			return "", err
+		}
+		if binary {
+			return g.diffBinaryFile(ctx, oldPath, newPath, diffPath)
+		}
 	}
 
 	// Use the command runner for external diff command
@@ -401,6 +469,23 @@ func (g *Generator) diffModifiedFile(ctx context.Context, lowerDir, upperDir, re
 
 	// No difference (exit code 0, no error)
 	return "", nil
+}
+
+// diffBinaryFile retains Git's binary payload and blob identities, replacing
+// only its external filesystem header with the accepted project-relative path.
+func (g *Generator) diffBinaryFile(ctx context.Context, oldPath, newPath, diffPath string) (string, error) {
+	result := g.runner.Run(ctx, "", "", "git", "diff", "--no-index", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", "--", oldPath, newPath)
+	if result.ExitCode == 0 && result.Err == nil {
+		return "", nil
+	}
+	if result.ExitCode != 1 {
+		return "", fmt.Errorf("binary diff failed: %v: %s", result.Err, result.Stderr)
+	}
+	header, payload, ok := strings.Cut(result.Stdout, "\n")
+	if !ok || !strings.HasPrefix(header, "diff --git ") || !strings.Contains(payload, "\nGIT binary patch\n") {
+		return "", fmt.Errorf("binary diff did not return an applicable binary patch")
+	}
+	return fmt.Sprintf("diff --git %s %s\n%s", strconv.Quote("a/"+diffPath), strconv.Quote("b/"+diffPath), payload), nil
 }
 
 // isBinary checks if content appears to be binary.
@@ -471,6 +556,15 @@ func IsBinaryContent(content []byte) bool {
 
 // IsBinaryFile checks if a file appears to be binary.
 func IsBinaryFile(path string) (bool, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return false, err
+	}
+	// Links contain their target path, not the target's bytes. Never open
+	// devices/FIFOs during acceptance classification either.
+	if !info.Mode().IsRegular() {
+		return false, nil
+	}
 	f, err := os.Open(path)
 	if err != nil {
 		return false, err
@@ -489,37 +583,80 @@ func IsBinaryFile(path string) (bool, error) {
 	return isBinaryDefault(buf[:n]), nil
 }
 
+// ReadFileBytes reads evidence without following a leaf symlink. Symlink bytes
+// are the link target, as in Git; directories and special files have no bytes.
+// Root-scoped resolution also refuses parent paths escaping the selected layer.
+func ReadFileBytes(rootPath, filePath string) ([]byte, os.FileInfo, error) {
+	return ReadFileBytesLimit(rootPath, filePath, 0)
+}
+
+// ReadFileBytesLimit has the same rooted, no-leaf-follow semantics. A positive
+// limit rejects oversized bodies, including files that grow after Lstat.
+func ReadFileBytesLimit(rootPath, filePath string, limit int64) ([]byte, os.FileInfo, error) {
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer root.Close()
+	info, err := root.Lstat(filePath)
+	if err != nil {
+		return nil, nil, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		target, err := root.Readlink(filePath)
+		if limit > 0 && int64(len(target)) > limit {
+			return nil, info, fmt.Errorf("file %q exceeds %d-byte limit", filePath, limit)
+		}
+		return []byte(target), info, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, info, nil
+	}
+	if limit > 0 && info.Size() > limit {
+		return nil, info, fmt.Errorf("file %q exceeds %d-byte limit", filePath, limit)
+	}
+	file, err := root.Open(filePath)
+	if err != nil {
+		return nil, info, err
+	}
+	defer file.Close()
+	opened, err := file.Stat()
+	if err != nil {
+		return nil, info, err
+	}
+	if !os.SameFile(info, opened) || !opened.Mode().IsRegular() {
+		return nil, info, fmt.Errorf("file %q changed during capture", filePath)
+	}
+	var reader io.Reader = file
+	if limit > 0 {
+		reader = io.LimitReader(file, limit+1)
+	}
+	content, err := io.ReadAll(reader)
+	if limit > 0 && int64(len(content)) > limit {
+		return nil, info, fmt.Errorf("file %q exceeds %d-byte limit", filePath, limit)
+	}
+	return content, info, err
+}
+
 // GetFileContent reads file content from the appropriate layer of the sandbox.
 // For added/modified files, reads from upperDir. For deleted files, reads from lowerDir.
 // Returns empty string for binary files or if file cannot be read.
 func GetFileContent(upperDir, lowerDir, filePath string, changeType types.ChangeType) (string, error) {
-	var targetPath string
+	var rootPath string
 	switch changeType {
 	case types.ChangeTypeDeleted:
 		// Deleted files - read from lower (original) directory
-		targetPath = filepath.Join(lowerDir, filePath)
+		rootPath = lowerDir
 	default:
 		// Added/Modified files - read from upper (changed) directory
-		targetPath = filepath.Join(upperDir, filePath)
+		rootPath = upperDir
 	}
 
-	// Check if file exists
-	info, err := os.Stat(targetPath)
+	content, _, err := ReadFileBytes(rootPath, filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", nil
 		}
-		return "", err
-	}
-
-	// Skip directories and special files
-	if info.IsDir() || isSpecialFile(info) {
-		return "", nil
-	}
-
-	// Read file content
-	content, err := os.ReadFile(targetPath)
-	if err != nil {
 		return "", err
 	}
 
@@ -692,9 +829,10 @@ type Patcher struct {
 	runner CommandRunner
 }
 
-// NewPatcher creates a new patcher with the default command runner.
-func NewPatcher() *Patcher {
-	return &Patcher{runner: DefaultCommandRunner()}
+// NewPatcher creates a new patcher with a CommandRunner backed by the
+// supplied process.Starter (Round 4 Phase 7).
+func NewPatcher(starter process.Starter) *Patcher {
+	return &Patcher{runner: NewExecCommandRunner(starter)}
 }
 
 // NewPatcherWithRunner creates a patcher with a custom command runner.
@@ -740,8 +878,8 @@ func (p *Patcher) ApplyDiff(ctx context.Context, targetDir, diff string, opts Ap
 		return result, nil
 	}
 
-	// Use git apply if in a git repo
-	if p.isGitRepo(ctx, targetDir) {
+	// Git binary patches require git apply, which also supports non-repo roots.
+	if strings.Contains(diff, "\nGIT binary patch\n") || p.isGitRepo(ctx, targetDir) {
 		return p.applyWithGit(ctx, targetDir, diff, opts)
 	}
 
@@ -876,13 +1014,6 @@ func (p *Patcher) isGitRepo(ctx context.Context, dir string) bool {
 	return result.Err == nil
 }
 
-// isGitRepo is a package-level helper that uses the default command runner.
-// For testable code, use Patcher.isGitRepo instead.
-func isGitRepo(dir string) bool {
-	cmd := exec.Command("git", "-C", dir, "rev-parse", "--git-dir")
-	return cmd.Run() == nil
-}
-
 // CopyChanges copies changes from the sandbox upper layer to the target directory.
 func CopyChanges(ctx context.Context, s *types.Sandbox, changes []*types.FileChange, targetDir string) error {
 	for _, change := range changes {
@@ -937,8 +1068,10 @@ func copyFile(src, dst string) error {
 
 // GenerateFileDiff creates a diff for a single file given its ID.
 // pathPrefix is optional; if non-empty, it is prepended to file paths in diff headers.
-func GenerateFileDiff(ctx context.Context, s *types.Sandbox, change *types.FileChange, pathPrefix string) (string, error) {
-	gen := NewGenerator()
+// starter routes diff/git/patch invocations through the canonical exec
+// seam (Round 4 Phase 7).
+func GenerateFileDiff(ctx context.Context, starter process.Starter, s *types.Sandbox, change *types.FileChange, pathPrefix string) (string, error) {
+	gen := NewGenerator(starter)
 
 	switch change.ChangeType {
 	case types.ChangeTypeAdded:
@@ -1015,7 +1148,11 @@ func ParseUnifiedDiff(diff string) []*ParsedFileDiff {
 			hunkIdx = 0
 
 			// Extract path from header
-			if idx := strings.Index(line, " b/"); idx > 0 {
+			if idx := strings.Index(line, " \"b/"); idx > 0 {
+				if path, err := strconv.Unquote(line[idx+1:]); err == nil {
+					currentFile.Path = strings.TrimPrefix(path, "b/")
+				}
+			} else if idx := strings.Index(line, " b/"); idx > 0 {
 				currentFile.Path = line[idx+3:]
 			}
 			continue
@@ -1204,68 +1341,8 @@ func GetHunksForFile(diff string, filePath string) []*ParsedHunk {
 
 // --- Conflict Detection (OT-P2-002) ---
 
-// GetGitCommitHash returns the current HEAD commit hash for a git repository.
-// Returns empty string if the directory is not a git repo or git is unavailable.
-func GetGitCommitHash(ctx context.Context, repoDir string) (string, error) {
-	if !isGitRepo(repoDir) {
-		return "", nil // Not a git repo, no commit hash available
-	}
-
-	cmd := exec.CommandContext(ctx, "git", "-C", repoDir, "rev-parse", "HEAD")
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("failed to get git commit hash: %w", err)
-	}
-
-	return strings.TrimSpace(stdout.String()), nil
-}
-
-// CheckRepoChanged compares the current repo commit hash against a base hash.
-// Returns true if the repo has changed since the base hash was recorded.
-// Returns false if either hash is empty (non-git repo) or they match.
-func CheckRepoChanged(ctx context.Context, repoDir, baseHash string) (bool, string, error) {
-	if baseHash == "" {
-		return false, "", nil // No base hash to compare against
-	}
-
-	currentHash, err := GetGitCommitHash(ctx, repoDir)
-	if err != nil {
-		return false, "", err
-	}
-
-	if currentHash == "" {
-		return false, "", nil // Not a git repo anymore
-	}
-
-	return currentHash != baseHash, currentHash, nil
-}
-
-// GetChangedFilesSinceCommit returns files changed in the repo since a specific commit.
-// This helps identify which files in a sandbox might have conflicts.
-func GetChangedFilesSinceCommit(ctx context.Context, repoDir, baseCommit string) ([]string, error) {
-	if !isGitRepo(repoDir) || baseCommit == "" {
-		return nil, nil
-	}
-
-	// Get list of files changed since base commit
-	cmd := exec.CommandContext(ctx, "git", "-C", repoDir, "diff", "--name-only", baseCommit+"..HEAD")
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("failed to get changed files: %w", err)
-	}
-
-	output := strings.TrimSpace(stdout.String())
-	if output == "" {
-		return nil, nil
-	}
-
-	return strings.Split(output, "\n"), nil
-}
-
 // FindConflictingFiles identifies files that have been modified both in the sandbox
-// and in the canonical repo since sandbox creation.
+// and in the canonical repo since sandbox creation. Pure function — no exec.
 func FindConflictingFiles(sandboxChanges []*types.FileChange, repoChangedFiles []string) []string {
 	sandboxFilePaths := make(map[string]bool)
 	for _, change := range sandboxChanges {
@@ -1291,45 +1368,14 @@ type ConflictCheckResult struct {
 	ConflictingFiles []string // Files changed in both sandbox and repo
 }
 
-// CheckForConflicts performs a comprehensive conflict detection check.
-// This should be called before approving changes to detect potential issues.
-func CheckForConflicts(ctx context.Context, s *types.Sandbox, sandboxChanges []*types.FileChange) (*ConflictCheckResult, error) {
-	result := &ConflictCheckResult{
-		BaseCommitHash: s.BaseCommitHash,
-	}
-
-	// If no base commit hash, we can't detect conflicts
-	if s.BaseCommitHash == "" {
-		return result, nil
-	}
-
-	// Check if repo has changed
-	changed, currentHash, err := CheckRepoChanged(ctx, s.ProjectRoot, s.BaseCommitHash)
-	if err != nil {
-		return nil, err
-	}
-
-	result.HasChanged = changed
-	result.CurrentHash = currentHash
-
-	if !changed {
-		return result, nil
-	}
-
-	// Get list of files changed in repo
-	repoChangedFiles, err := GetChangedFilesSinceCommit(ctx, s.ProjectRoot, s.BaseCommitHash)
-	if err != nil {
-		return nil, err
-	}
-	result.RepoChangedFiles = repoChangedFiles
-
-	// Find conflicting files
-	result.ConflictingFiles = FindConflictingFiles(sandboxChanges, repoChangedFiles)
-
-	return result, nil
-}
-
 // --- Git Status Reconciliation ---
+//
+// The package-level git invocation helpers (GetGitCommitHash,
+// CheckRepoChanged, GetChangedFilesSinceCommit, CheckForConflicts,
+// GetUncommittedFiles, GetUncommittedFilePaths, ReconcilePendingWithGit)
+// were removed in Round 4 Phase 7. The corresponding methods on
+// *GitOps cover the same surface and route through CommandRunner /
+// process.Starter, which is the canonical seam.
 
 // GitFileStatus represents the status of a file in git's working tree.
 type GitFileStatus struct {
@@ -1338,78 +1384,6 @@ type GitFileStatus struct {
 	WorkTree   string // State in working tree: M, D, U, or ?
 	IsStaged   bool   // True if file has staged changes
 	IsDirty    bool   // True if file has unstaged changes
-}
-
-// GetUncommittedFiles returns all uncommitted files from git status.
-// This includes both staged and unstaged changes.
-func GetUncommittedFiles(ctx context.Context, repoDir string) ([]GitFileStatus, error) {
-	if !isGitRepo(repoDir) {
-		return nil, nil
-	}
-
-	// Use porcelain format for machine-readable output
-	// Format: XY PATH (or XY PATH -> PATH for renames)
-	cmd := exec.CommandContext(ctx, "git", "-C", repoDir, "status", "--porcelain", "-z")
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("failed to get git status: %w", err)
-	}
-
-	output := stdout.String()
-	if output == "" {
-		return nil, nil
-	}
-
-	var files []GitFileStatus
-
-	// Split by null character (from -z flag)
-	entries := strings.Split(output, "\x00")
-	for _, entry := range entries {
-		if len(entry) < 3 {
-			continue
-		}
-
-		// First two chars are the status codes
-		indexState := string(entry[0])
-		workTree := string(entry[1])
-		path := strings.TrimSpace(entry[3:])
-
-		// Handle rename entries (have " -> " in path)
-		if idx := strings.Index(path, " -> "); idx > 0 {
-			path = path[idx+4:] // Use the new path
-		}
-
-		if path == "" {
-			continue
-		}
-
-		status := GitFileStatus{
-			Path:       path,
-			IndexState: indexState,
-			WorkTree:   workTree,
-			IsStaged:   indexState != " " && indexState != "?",
-			IsDirty:    workTree != " " && workTree != "?",
-		}
-		files = append(files, status)
-	}
-
-	return files, nil
-}
-
-// GetUncommittedFilePaths returns just the paths of uncommitted files.
-// This is a convenience wrapper around GetUncommittedFiles.
-func GetUncommittedFilePaths(ctx context.Context, repoDir string) ([]string, error) {
-	files, err := GetUncommittedFiles(ctx, repoDir)
-	if err != nil {
-		return nil, err
-	}
-
-	paths := make([]string, len(files))
-	for i, f := range files {
-		paths[i] = f.Path
-	}
-	return paths, nil
 }
 
 // ReconcileResult contains the result of reconciling pending changes with git status.
@@ -1423,31 +1397,4 @@ type ReconcileResult struct {
 	// NotFound are files in DB that don't exist in git status at all
 	// (either committed or never existed)
 	NotFound []string
-}
-
-// ReconcilePendingWithGit compares database pending files with actual git status.
-// This detects files that were committed outside of workspace-sandbox.
-func ReconcilePendingWithGit(ctx context.Context, repoDir string, pendingPaths []string) (*ReconcileResult, error) {
-	uncommitted, err := GetUncommittedFilePaths(ctx, repoDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get uncommitted files: %w", err)
-	}
-
-	// Build set of uncommitted paths
-	uncommittedSet := make(map[string]bool)
-	for _, p := range uncommitted {
-		uncommittedSet[p] = true
-	}
-
-	result := &ReconcileResult{}
-	for _, pending := range pendingPaths {
-		if uncommittedSet[pending] {
-			result.StillPending = append(result.StillPending, pending)
-		} else {
-			// File is not in uncommitted list - either already committed or deleted
-			result.AlreadyCommitted = append(result.AlreadyCommitted, pending)
-		}
-	}
-
-	return result, nil
 }

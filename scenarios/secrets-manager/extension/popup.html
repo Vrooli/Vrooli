@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{APP_NAME}}</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+    <header><h1>{{APP_NAME}}</h1><p id="origin">Current site unavailable</p><p id="candidate" role="status"></p></header>
+    <section aria-labelledby="connection-title">
+      <h2 id="connection-title">Connection</h2>
+      <label>Workspace <input id="workspace" value="local" autocomplete="off"></label>
+      <label>Owner session token <input id="owner-token" type="password" autocomplete="off"></label>
+      <button id="connect">Connect for this session</button>
+      <button id="approve">Approve current site</button>
+    </section>
+    <section aria-labelledby="fill-title">
+      <h2 id="fill-title">Fill one selected field</h2>
+      <button id="discover-accounts">Find approved accounts</button>
+      <label>Account <select id="account-select"><option value="">Discover accounts first</option></select></label>
+      <button id="discover">Find fields on this page</button>
+      <label>Page field <select id="field-select"><option value="">Discover fields first</option></select></label>
+      <label>Grant ID <input id="grant-id" autocomplete="off"></label>
+      <label>Item ID <input id="item-id" autocomplete="off"></label>
+      <label>Item revision <input id="revision" type="number" min="0" value="1"></label>
+      <label>Authority field <select id="authority-field"><option value="password">Password</option><option value="username">Username</option><option value="totp">One-time code</option></select></label>
+      <button id="fill">Fill selected field</button>
+      <button id="generate">Generate and fill password</button>
+    </section>
+    <section aria-labelledby="save-title">
+      <h2 id="save-title">Save or update after review</h2>
+      <label>Vault <input id="vault-id" value="personal" autocomplete="off"></label>
+      <label>Item name <input id="save-name" placeholder="Current site login" autocomplete="off"></label>
+      <button id="save">Save new login</button>
+      <button id="update">Update selected login</button>
+      <small>Saving reads the visible form only after you click a button. No form is submitted.</small>
+    </section>
+    <button id="revoke" class="danger">Revoke session</button>
+    <p id="status" role="status" aria-live="polite"></p>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

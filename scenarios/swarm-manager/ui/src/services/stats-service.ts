@@ -14,13 +14,17 @@ import type { StatsResponse } from "../types/stats";
 
 export interface IStatsService {
   /** Fetches all stats categories from the API. */
-  getStats(): Promise<StatsResponse>;
+  getStats(options?: { goal?: string }): Promise<StatsResponse>;
 }
 
 export function createStatsService(apiClient: IApiClient): IStatsService {
   return {
-    async getStats(): Promise<StatsResponse> {
-      return apiClient.get<StatsResponse>(API_ENDPOINTS.stats);
+    async getStats(options?: { goal?: string }): Promise<StatsResponse> {
+      const goal = options?.goal?.trim();
+      const path = goal
+        ? `${API_ENDPOINTS.stats}?${new URLSearchParams({ goal }).toString()}`
+        : API_ENDPOINTS.stats;
+      return apiClient.get<StatsResponse>(path);
     },
   };
 }

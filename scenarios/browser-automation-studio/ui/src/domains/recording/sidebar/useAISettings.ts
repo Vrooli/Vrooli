@@ -4,7 +4,7 @@
  * Manages AI navigation settings including:
  * - Model selection
  * - Max steps configuration
- * - Cost estimation
+ * - Provider-neutral AI Gateway routing profile selection
  *
  * Settings are persisted to localStorage.
  */
@@ -55,38 +55,6 @@ function setStoredValue(key: string, value: string | number): void {
 }
 
 // ============================================================================
-// Cost Estimation
-// ============================================================================
-
-/**
- * Estimate cost for a navigation session.
- * Based on approximate token usage per step:
- * - ~2000 input tokens (screenshot + prompt)
- * - ~100 output tokens (action + reasoning)
- */
-export function estimateNavigationCost(model: VisionModelSpec, maxSteps: number): number {
-  const avgInputTokensPerStep = 2000;
-  const avgOutputTokensPerStep = 100;
-  const totalInputTokens = avgInputTokensPerStep * maxSteps;
-  const totalOutputTokens = avgOutputTokensPerStep * maxSteps;
-
-  const inputCost = (totalInputTokens / 1_000_000) * model.inputCostPer1MTokens;
-  const outputCost = (totalOutputTokens / 1_000_000) * model.outputCostPer1MTokens;
-
-  return inputCost + outputCost;
-}
-
-/**
- * Format cost for display.
- */
-export function formatCost(cost: number): string {
-  if (cost < 0.01) {
-    return `$${cost.toFixed(4)}`;
-  }
-  return `$${cost.toFixed(2)}`;
-}
-
-// ============================================================================
 // Hook Options
 // ============================================================================
 
@@ -108,12 +76,6 @@ export interface UseAISettingsReturn {
   updateSettings: (updates: Partial<AISettings>) => void;
   /** Reset to defaults */
   resetToDefaults: () => void;
-  /** Estimate cost with current settings */
-  estimateCost: () => number;
-  /** Estimate cost with custom settings */
-  estimateCostWith: (overrides?: Partial<AISettings>) => number;
-  /** Format cost for display */
-  formatCost: (cost: number) => string;
   /** Currently selected model spec */
   selectedModel: VisionModelSpec;
   /** All available models */
@@ -157,10 +119,8 @@ export function useAISettings(options: UseAISettingsOptions = {}): UseAISettings
       availableModels[0] ?? {
         id: 'unknown',
         displayName: 'No models available',
-        tier: 'standard' as const,
-        inputCostPer1MTokens: 0,
-        outputCostPer1MTokens: 0,
-        provider: 'openrouter' as const,
+        profile: 'local_first' as const,
+        tier: 'local' as const,
         recommended: false,
       }
     );
@@ -200,21 +160,6 @@ export function useAISettings(options: UseAISettingsOptions = {}): UseAISettings
     setStoredValue(STORAGE_KEYS.AI_MAX_STEPS, DEFAULT_AI_SETTINGS.maxSteps);
   }, []);
 
-  // Cost estimation
-  const estimateCostWithSettings = useCallback(
-    (overrides?: Partial<AISettings>) => {
-      const effectiveSettings = { ...settings, ...overrides };
-      const model =
-        availableModels.find((m) => m.id === effectiveSettings.model) ?? selectedModel;
-      return estimateNavigationCost(model, effectiveSettings.maxSteps);
-    },
-    [availableModels, selectedModel, settings]
-  );
-
-  const estimateCostCurrent = useCallback(() => {
-    return estimateNavigationCost(selectedModel, settings.maxSteps);
-  }, [selectedModel, settings.maxSteps]);
-
   // Model validation
   const isValidModel = useCallback(
     (modelId: string) => availableModels.some((m) => m.id === modelId),
@@ -225,9 +170,6 @@ export function useAISettings(options: UseAISettingsOptions = {}): UseAISettings
     settings,
     updateSettings,
     resetToDefaults,
-    estimateCost: estimateCostCurrent,
-    estimateCostWith: estimateCostWithSettings,
-    formatCost,
     selectedModel,
     availableModels,
     isValidModel,

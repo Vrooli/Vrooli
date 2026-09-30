@@ -3,14 +3,14 @@ package agentmanager
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/scenario"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // AgentService provides agent execution services for scenario-to-desktop.
@@ -76,93 +76,41 @@ func (s *AgentService) ResolveURL(ctx context.Context) (string, error) {
 	return s.client.ResolveURL(ctx)
 }
 
-// Initialize ensures the agent profile exists.
-// Call this at startup to create/update the scenario-to-desktop profile.
-func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error {
+// Initialize reconciles the scenario-owned role-only profile source.
+// Call this at startup; profile definition remains in .vrooli/agent-profiles.
+func (s *AgentService) Initialize(ctx context.Context) error {
 	if !s.enabled {
 		return nil
 	}
 
-	resp, err := s.client.EnsureProfile(ctx, &apipb.EnsureProfileRequest{
-		ProfileKey:     s.profileKey,
-		Defaults:       s.buildProfile(cfg),
-		UpdateExisting: false,
-	})
+	resp, err := s.client.ReconcileScenarioProfiles(ctx, scenario.Name())
 	if err != nil {
-		return fmt.Errorf("ensure profile: %w", err)
+		return fmt.Errorf("reconcile scenario profiles: %w", err)
 	}
 
 	s.mu.Lock()
-	if resp.Profile != nil {
-		s.profileID = resp.Profile.Id
+	for _, item := range resp.Results {
+		if item.ProfileKey == s.profileKey {
+			s.profileID = item.ProfileId
+			break
+		}
 	}
 	s.mu.Unlock()
 
-	if resp.Created {
-		log.Printf("[agent-manager] Created profile '%s' (id=%s)", s.profileName, s.profileID)
-	} else {
-		log.Printf("[agent-manager] Resolved profile '%s' (id=%s)", s.profileName, s.profileID)
-	}
+	slog.Info("reconciled agent-manager profiles",
+		"scenario", resp.Scenario,
+		"created", resp.Created,
+		"updated", resp.Updated,
+		"unchanged", resp.Unchanged,
+		"failed", resp.Failed,
+	)
 
 	return nil
-}
-
-// ProfileConfig contains agent profile configuration.
-type ProfileConfig struct {
-	RunnerType       domainpb.RunnerType
-	Model            string
-	ModelPreset      domainpb.ModelPreset
-	MaxTurns         int32
-	TimeoutSeconds   int32
-	AllowedTools     []string
-	SkipPermissions  bool
-	RequiresSandbox  bool
-	RequiresApproval bool
-}
-
-// DefaultProfileConfig returns the default configuration for pipeline investigations.
-func DefaultProfileConfig() *ProfileConfig {
-	return &ProfileConfig{
-		RunnerType:  domainpb.RunnerType_RUNNER_TYPE_CODEX,
-		ModelPreset: domainpb.ModelPreset_MODEL_PRESET_SMART,
-		MaxTurns:    75,
-		// 10 minute timeout for thorough build investigation
-		TimeoutSeconds: 600,
-		AllowedTools: []string{
-			"read_file",       // Read build logs, config files
-			"list_files",      // Browse generated desktop wrapper
-			"execute_command", // Run build commands, npm, etc.
-			"analyze_code",    // Understand build scripts
-			"write_file",      // Write investigation report
-		},
-		SkipPermissions:  true,  // Auto-approve for automated investigations
-		RequiresSandbox:  false, // In-place execution for local access
-		RequiresApproval: false, // Auto-apply (report-only by default)
-	}
-}
-
-func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
-	return &domainpb.AgentProfile{
-		Name:                 s.profileName,
-		ProfileKey:           s.profileKey,
-		Description:          "Agent profile for scenario-to-desktop pipeline investigations",
-		RunnerType:           cfg.RunnerType,
-		Model:                cfg.Model,
-		ModelPreset:          cfg.ModelPreset,
-		MaxTurns:             cfg.MaxTurns,
-		Timeout:              durationpb.New(time.Duration(cfg.TimeoutSeconds) * time.Second),
-		AllowedTools:         cfg.AllowedTools,
-		SkipPermissionPrompt: cfg.SkipPermissions,
-		RequiresSandbox:      cfg.RequiresSandbox,
-		RequiresApproval:     cfg.RequiresApproval,
-		CreatedBy:            "scenario-to-desktop",
-	}
 }
 
 func (s *AgentService) defaultProfileRef() *apipb.ProfileRef {
 	return &apipb.ProfileRef{
 		ProfileKey: s.profileKey,
-		Defaults:   s.buildProfile(DefaultProfileConfig()),
 	}
 }
 
@@ -187,10 +135,6 @@ type ExecuteRequest struct {
 	Prompt string
 	// Working directory for execution
 	WorkingDir string
-	// Optional override for runner type (uses profile default if empty)
-	RunnerType *domainpb.RunnerType
-	// Optional override for model (uses profile default if empty)
-	Model string
 	// Context attachments for structured context (optional)
 	ContextAttachments []*domainpb.ContextAttachment
 }
@@ -239,16 +183,18 @@ func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*Execut
 		Force:      true, // Bypass capacity limits for investigations
 	}
 
-	// Apply inline config overrides if provided
-	if req.RunnerType != nil || req.Model != "" {
+	// Pipeline investigations are diagnostic — the deliverable is a
+	// report on build state, logs, and packaging, not repo changes.
+	// ManualReview=true defers apply at run end so any file mutations
+	// persist as pending-review for operator approval rather than
+	// auto-applying. See workspace-sandbox/docs/AUDITABILITY_CONTRACT.md.
+	if runReq.InlineConfig == nil {
 		runReq.InlineConfig = &domainpb.RunConfigOverrides{}
-		if req.RunnerType != nil {
-			runReq.InlineConfig.RunnerType = req.RunnerType
-		}
-		if req.Model != "" {
-			runReq.InlineConfig.Model = &req.Model
-		}
 	}
+	if runReq.InlineConfig.SandboxConfig == nil {
+		runReq.InlineConfig.SandboxConfig = &domainpb.SandboxConfig{}
+	}
+	runReq.InlineConfig.SandboxConfig.ManualReview = true
 
 	run, err := s.client.CreateRun(ctx, runReq)
 	if err != nil {
@@ -325,15 +271,15 @@ func (s *AgentService) ExecuteAsync(ctx context.Context, req ExecuteRequest) (st
 		Force:      true,
 	}
 
-	if req.RunnerType != nil || req.Model != "" {
+	// Pipeline investigations are diagnostic — see Execute() above for
+	// ManualReview=true rationale.
+	if runReq.InlineConfig == nil {
 		runReq.InlineConfig = &domainpb.RunConfigOverrides{}
-		if req.RunnerType != nil {
-			runReq.InlineConfig.RunnerType = req.RunnerType
-		}
-		if req.Model != "" {
-			runReq.InlineConfig.Model = &req.Model
-		}
 	}
+	if runReq.InlineConfig.SandboxConfig == nil {
+		runReq.InlineConfig.SandboxConfig = &domainpb.SandboxConfig{}
+	}
+	runReq.InlineConfig.SandboxConfig.ManualReview = true
 
 	run, err := s.client.CreateRun(ctx, runReq)
 	if err != nil {

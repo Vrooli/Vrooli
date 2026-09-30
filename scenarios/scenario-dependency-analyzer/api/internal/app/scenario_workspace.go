@@ -4,8 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
-	types "scenario-dependency-analyzer/internal/types"
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // scenarioWorkspace makes the scenarios directory, service configs, and
@@ -16,7 +16,7 @@ type scenarioWorkspace struct {
 
 // newScenarioWorkspace builds a workspace rooted at the configured scenarios directory.
 // Falls back to environment-loaded config to remain compatible with legacy callers.
-func newScenarioWorkspace(cfg appconfig.Config) *scenarioWorkspace {
+func newScenarioWorkspace(cfg appconfig.RuntimeConfig) *scenarioWorkspace {
 	root := cfg.ScenariosDir
 	if root == "" {
 		root = appconfig.Load().ScenariosDir
@@ -28,7 +28,7 @@ func (w *scenarioWorkspace) pathFor(name string) string {
 	return filepath.Join(w.root, name)
 }
 
-func (w *scenarioWorkspace) loadConfig(name string) (*types.ServiceConfig, error) {
+func (w *scenarioWorkspace) loadConfig(name string) (*types.Manifest, error) {
 	return appconfig.LoadServiceConfig(w.pathFor(name))
 }
 

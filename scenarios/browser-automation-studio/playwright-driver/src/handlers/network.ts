@@ -52,6 +52,11 @@ interface ProceedResult {
   routes: Map<string, RouteMetadata>;
 }
 
+interface PreparedRoute extends ProceedResult {
+  urlPattern: string | RegExp;
+  urlPatternStr: string;
+}
+
 /**
  * Track registered routes per session to enable idempotency.
  * Key: sessionId
@@ -199,6 +204,25 @@ export class NetworkHandler extends BaseHandler {
     });
   }
 
+  private prepareRoute(
+    sessionId: string,
+    params: NetworkMockParams,
+    operation: NetworkOperation,
+    extraData?: Record<string, unknown>
+  ): IdempotentResult | PreparedRoute {
+    const urlPattern = this.compileUrlPattern(params.urlPattern);
+    const urlPatternStr = params.urlPattern.toString();
+    const idempotencyCheck = this.checkIdempotency(
+      sessionId,
+      urlPatternStr,
+      params.method,
+      operation,
+      extraData
+    );
+    if (idempotencyCheck.isIdempotent) return idempotencyCheck;
+    return { ...idempotencyCheck, urlPattern, urlPatternStr };
+  }
+
   async execute(
     instruction: HandlerInstruction,
     context: HandlerContext
@@ -272,18 +296,12 @@ export class NetworkHandler extends BaseHandler {
   ): Promise<HandlerResult> {
     const page = context.page;
     const sessionId = context.sessionId;
-    const urlPattern = this.compileUrlPattern(params.urlPattern);
-    const urlPatternStr = params.urlPattern.toString();
-
-    // Idempotency check
-    const idempotencyCheck = this.checkIdempotency(
-      sessionId, urlPatternStr, params.method, 'mock',
+    const preparedRoute = this.prepareRoute(
+      sessionId, params, 'mock',
       { statusCode: params.statusCode }
     );
-    if (idempotencyCheck.isIdempotent) {
-      return idempotencyCheck.result;
-    }
-    const { routeKey, routes } = idempotencyCheck;
+    if (preparedRoute.isIdempotent) return preparedRoute.result;
+    const { routeKey, routes, urlPattern, urlPatternStr } = preparedRoute;
 
     logger.debug('Setting up mock response', {
       urlPattern: params.urlPattern,
@@ -361,17 +379,9 @@ export class NetworkHandler extends BaseHandler {
   ): Promise<HandlerResult> {
     const page = context.page;
     const sessionId = context.sessionId;
-    const urlPattern = this.compileUrlPattern(params.urlPattern);
-    const urlPatternStr = params.urlPattern.toString();
-
-    // Idempotency check
-    const idempotencyCheck = this.checkIdempotency(
-      sessionId, urlPatternStr, params.method, 'block'
-    );
-    if (idempotencyCheck.isIdempotent) {
-      return idempotencyCheck.result;
-    }
-    const { routeKey, routes } = idempotencyCheck;
+    const preparedRoute = this.prepareRoute(sessionId, params, 'block');
+    if (preparedRoute.isIdempotent) return preparedRoute.result;
+    const { routeKey, routes, urlPattern, urlPatternStr } = preparedRoute;
 
     logger.debug('Setting up request blocking', {
       urlPattern: params.urlPattern,
@@ -421,17 +431,9 @@ export class NetworkHandler extends BaseHandler {
   ): Promise<HandlerResult> {
     const page = context.page;
     const sessionId = context.sessionId;
-    const urlPattern = this.compileUrlPattern(params.urlPattern);
-    const urlPatternStr = params.urlPattern.toString();
-
-    // Idempotency check
-    const idempotencyCheck = this.checkIdempotency(
-      sessionId, urlPatternStr, params.method, 'modifyRequest'
-    );
-    if (idempotencyCheck.isIdempotent) {
-      return idempotencyCheck.result;
-    }
-    const { routeKey, routes } = idempotencyCheck;
+    const preparedRoute = this.prepareRoute(sessionId, params, 'modifyRequest');
+    if (preparedRoute.isIdempotent) return preparedRoute.result;
+    const { routeKey, routes, urlPattern, urlPatternStr } = preparedRoute;
 
     logger.debug('Setting up request modification', {
       urlPattern: params.urlPattern,
@@ -487,18 +489,12 @@ export class NetworkHandler extends BaseHandler {
   ): Promise<HandlerResult> {
     const page = context.page;
     const sessionId = context.sessionId;
-    const urlPattern = this.compileUrlPattern(params.urlPattern);
-    const urlPatternStr = params.urlPattern.toString();
-
-    // Idempotency check
-    const idempotencyCheck = this.checkIdempotency(
-      sessionId, urlPatternStr, params.method, 'modifyResponse',
+    const preparedRoute = this.prepareRoute(
+      sessionId, params, 'modifyResponse',
       { statusCode: params.statusCode }
     );
-    if (idempotencyCheck.isIdempotent) {
-      return idempotencyCheck.result;
-    }
-    const { routeKey, routes } = idempotencyCheck;
+    if (preparedRoute.isIdempotent) return preparedRoute.result;
+    const { routeKey, routes, urlPattern, urlPatternStr } = preparedRoute;
 
     logger.debug('Setting up response modification', {
       urlPattern: params.urlPattern,

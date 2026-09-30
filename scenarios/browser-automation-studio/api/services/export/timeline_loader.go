@@ -12,10 +12,11 @@ import (
 
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	bastelemetry "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
+	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -65,6 +66,7 @@ func (l *TimelineLoader) LoadTimelineProto(ctx context.Context, executionID uuid
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, &parsed); err != nil {
 		return nil, fmt.Errorf("parse proto timeline: %w", err)
 	}
+	redactSensitiveTimelineEntries(parsed.Entries)
 
 	// Ensure key fields reflect current index data.
 	if strings.TrimSpace(parsed.ExecutionId) == "" {
@@ -77,6 +79,35 @@ func (l *TimelineLoader) LoadTimelineProto(ctx context.Context, executionID uuid
 	parsed.StartedAt = pb.StartedAt
 	parsed.CompletedAt = pb.CompletedAt
 	return &parsed, nil
+}
+
+// LoadReplayPackage loads the writer-owned renderer-neutral package. A missing
+// package is an expected legacy-execution condition; callers decide whether to
+// use their compatible timeline fallback.
+func (l *TimelineLoader) LoadReplayPackage(ctx context.Context, executionID uuid.UUID) (*basevidence.ReplayPackage, error) {
+	execution, err := l.repo.GetExecution(ctx, executionID)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(execution.ResultPath) == "" {
+		return nil, os.ErrNotExist
+	}
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(execution.ResultPath), "evidence.proto.json"))
+	if err != nil {
+		return nil, err
+	}
+	var pack basevidence.ReplayPackage
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, &pack); err != nil {
+		return nil, fmt.Errorf("parse replay package: %w", err)
+	}
+	redactSensitiveTimelineEntries(pack.Timeline)
+	return &pack, nil
+}
+
+func redactSensitiveTimelineEntries(entries []*bastimeline.TimelineEntry) {
+	for _, entry := range entries {
+		driver.RedactSensitiveTimelineEntry(entry)
+	}
 }
 
 // LoadTimeline assembles replay-ready timeline data for a given execution.
@@ -206,6 +237,7 @@ func timelineEntryToFrame(entry *bastimeline.TimelineEntry) TimelineFrame {
 		}
 	}
 	if entry.Context != nil {
+		frame.Condition = autocontracts.ProtoToConditionOutcome(entry.Context.Condition)
 		if entry.Context.Success != nil {
 			frame.Success = *entry.Context.Success
 		}
@@ -224,10 +256,10 @@ func timelineEntryToFrame(entry *bastimeline.TimelineEntry) TimelineFrame {
 				frame.Assertion.Message = *entry.Context.Assertion.Message
 			}
 			if entry.Context.Assertion.Expected != nil {
-				frame.Assertion.Expected = typeconv.JsonValueToAny(entry.Context.Assertion.Expected)
+				frame.Assertion.Expected = autocontracts.JsonValueToAny(entry.Context.Assertion.Expected)
 			}
 			if entry.Context.Assertion.Actual != nil {
-				frame.Assertion.Actual = typeconv.JsonValueToAny(entry.Context.Assertion.Actual)
+				frame.Assertion.Actual = autocontracts.JsonValueToAny(entry.Context.Assertion.Actual)
 			}
 		}
 	}
@@ -279,7 +311,7 @@ func timelineEntryToFrame(entry *bastimeline.TimelineEntry) TimelineFrame {
 			frame.NetworkEventCount = int(entry.Aggregates.NetworkEventCount)
 		}
 		if entry.Aggregates.ExtractedDataPreview != nil {
-			frame.ExtractedDataPreview = typeconv.JsonValueToAny(entry.Aggregates.ExtractedDataPreview)
+			frame.ExtractedDataPreview = autocontracts.JsonValueToAny(entry.Aggregates.ExtractedDataPreview)
 		}
 		if entry.Aggregates.FocusedElement != nil {
 			frame.FocusedElement = entry.Aggregates.FocusedElement

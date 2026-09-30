@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package vrooli.persona.v1.accounts;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/accounts;accounts_v1";
+
+service AccountsService {
+  rpc LinkAccount(LinkAccountRequest) returns (LinkAccountResponse);
+  rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse);
+  rpc AddAddress(AddAddressRequest) returns (AddAddressResponse);
+  rpc ListAddresses(ListAddressesRequest) returns (ListAddressesResponse);
+  rpc AddObligation(AddObligationRequest) returns (AddObligationResponse);
+  rpc ListObligations(ListObligationsRequest) returns (ListObligationsResponse);
+  rpc CancelObligation(CancelObligationRequest) returns (CancelObligationResponse);
+  rpc ReleaseAddress(ReleaseAddressRequest) returns (ReleaseAddressResponse);
+}
+
+message AccountLink {
+  string id = 1;
+  string persona_id = 2;
+  string site = 3;
+  string login_seam = 4;
+  string recovery_path = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+message Address {
+  string id = 1;
+  string persona_id = 2;
+  string label = 3;
+  string line1 = 4;
+  string line2 = 5;
+  string city = 6;
+  string region = 7;
+  string postal_code = 8;
+  string country = 9;
+  google.protobuf.Timestamp created_at = 10;
+}
+message Obligation {
+  string id = 1;
+  string persona_id = 2;
+  string account_link_id = 3;
+  string description = 4;
+  google.protobuf.Timestamp renewal_at = 5;
+  string cancel_path = 6;
+  bool cancelled = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+message LinkAccountRequest { string persona_id = 1; string site = 2; string login_seam = 3; string recovery_path = 4; }
+message LinkAccountResponse { AccountLink account = 1; }
+message ListAccountsRequest { string persona_id = 1; }
+message ListAccountsResponse { repeated AccountLink accounts = 1; }
+message AddAddressRequest { string persona_id = 1; Address address = 2; }
+message AddAddressResponse { Address address = 1; }
+message ListAddressesRequest { string persona_id = 1; }
+message ListAddressesResponse { repeated Address addresses = 1; }
+message AddObligationRequest { string persona_id = 1; string account_link_id = 2; string description = 3; google.protobuf.Timestamp renewal_at = 4; string cancel_path = 5; }
+message AddObligationResponse { Obligation obligation = 1; }
+message ListObligationsRequest { string persona_id = 1; }
+message ListObligationsResponse { repeated Obligation obligations = 1; }
+message CancelObligationRequest { string obligation_id = 1; }
+message CancelObligationResponse { Obligation obligation = 1; }
+message ReleaseAddressRequest { string persona_id = 1; string address_id = 2; string target_kind = 3; string target_id = 4; }
+message ReleaseAddressResponse { Address address = 1; string target_kind = 2; string target_id = 3; }

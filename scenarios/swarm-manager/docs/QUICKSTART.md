@@ -57,11 +57,11 @@ Expected output:
 
 Open `http://localhost:35000`.
 
-You should see:
-1. **Backlog** tab - Create/manage `idea`, `research`, `fix`, `execute` items
-2. **Scenarios** tab - Inspect scenario catalog and manage scenario lifecycle
-3. **Execution** tab - Monitor and control execution runs
-4. **Settings** tab - Theme, focus, and insights controls
+You should see the **Plan board** (`/plan`) — a single lens-driven workspace over
+backlog, scenarios, milestones, and execution runs. The old standalone
+Scenarios and Execution list tabs were absorbed into it (their routes redirect to
+`/plan`); scenario and execution **detail** pages remain directly reachable. The
+`/graph` and `/stats` lenses and the `/records` browser round out the surfaces.
 
 ## Common Commands
 

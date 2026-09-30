@@ -1,0 +1,173 @@
+syntax = "proto3";
+
+package vrooli.meta_optimization_manager.v1.coverage;
+
+import "common/v1/attestation.proto";
+import "google/protobuf/timestamp.proto";
+import "meta-optimization-manager/v1/shared/model.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/coverage;coverage_v1";
+
+// =============================================================================
+// COVERAGE DOMAIN — the readiness scoreboard
+// =============================================================================
+//
+// @stability draft
+//
+// CoverageService reads each projection's denominator (via the owner's
+// `space --projection <p> --json` verb) joined against the live registries
+// (search-hub providers / test-genie health / prompt-manager graph health),
+// computes per-projection coverage + denominator-confidence, and validates the
+// base-document integrity of the space docs themselves. It surfaces numbers +
+// confidence and never decides. The numerator is computed live, never stored.
+// See docs/concepts/COVERAGE-MODEL.md.
+// =============================================================================
+
+service CoverageService {
+  // GetStatus returns per-projection coverage + denominator-confidence + the
+  // latest empirical trend (OT-P0-001). Degrades gracefully per-projection.
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+
+  // ListCells returns the denominator grid rows, optionally filtered.
+  rpc ListCells(ListCellsRequest) returns (ListCellsResponse);
+
+  // ExplainCell returns one cell with its provenance (owner, status, basis,
+  // citations).
+  rpc ExplainCell(ExplainCellRequest) returns (ExplainCellResponse);
+
+  // ValidateBaseDocs checks the space docs themselves: referenced
+  // skills/providers/phases exist (no stale refs) and Guide rows map to exactly
+  // one skill. The self-honesty gate (OT-P0-004); `ok=false` exits non-zero.
+  rpc ValidateBaseDocs(ValidateBaseDocsRequest) returns (ValidateBaseDocsResponse);
+}
+
+// ProjectionCoverage is the computed coverage for one projection.
+message ProjectionCoverage {
+  shared.Projection projection = 1;
+  int32 now_count = 2;
+  int32 in_reach_count = 3;
+  int32 missing_count = 4;
+  int32 total_cells = 5;
+  // now_count / total_cells in [0,1]. Computed live, never persisted.
+  optional double coverage_ratio = 6;
+  shared.DenominatorConfidence denominator_confidence = 7;
+  string confidence_rationale = 8;
+  // false when the owner's `space` verb or registry was unreachable; coverage
+  // degrades, it never false-fails.
+  bool available = 9;
+  string unavailable_reason = 10;
+  repeated ConditionCount condition_counts = 11;
+  // Answer-only labelled pair: corpus-capable uses provider_direct evidence;
+  // end-to-end-answerable uses federated routing evidence. The legacy
+  // coverage_ratio remains the end-to-end ratio for compatibility.
+  int32 corpus_capable_now_count = 12;
+  int32 corpus_capable_total_cells = 13;
+  optional double corpus_capable_ratio = 14;
+  int32 end_to_end_answerable_now_count = 15;
+  int32 end_to_end_answerable_total_cells = 16;
+  optional double end_to_end_answerable_ratio = 17;
+  // Act-only audit basis copied from program-runtime's live registry census.
+  int32 manifest_scenarios = 18;
+  int32 total_scenarios = 19;
+  int32 reachable_scenarios = 20;
+  int32 unreachable_scenarios = 21;
+  string reachability_checked_at = 22;
+}
+
+message ConditionCount {
+  string condition = 1; // ok | degraded | uninstrumented | dormant
+  int32 count = 2;
+}
+
+// EmpiricalTrendPoint is the latest trials trend surfaced on the scoreboard.
+message EmpiricalTrendPoint {
+  double success_rate = 1;
+  int64 median_tokens = 2;
+  int64 median_duration_ms = 3;
+  google.protobuf.Timestamp at = 4;
+}
+
+message GetStatusRequest {
+  // Optional: restrict to one projection. Unset => all three.
+  shared.Projection projection = 1;
+}
+
+message GetStatusResponse {
+  repeated ProjectionCoverage projections = 1;
+  // Latest empirical readiness trend; unset before the first trials run.
+  EmpiricalTrendPoint latest_trial_trend = 2;
+  google.protobuf.Timestamp computed_at = 3;
+  // Answer projection self-check performed two uncached joins and compared
+  // their effective coverage. This makes order-dependent numerator defects
+  // visible instead of silently publishing one sample.
+  bool determinism_checked = 4;
+  bool deterministic = 5;
+  string determinism_evidence = 6;
+  // Change from the previous persisted projection snapshot. Empty on the
+  // first observation; never fabricated as zero.
+  repeated ProjectionDelta deltas = 7;
+}
+
+message ProjectionDelta {
+  shared.Projection projection = 1;
+  double previous_ratio = 2;
+  double current_ratio = 3;
+  double delta = 4;
+}
+
+// Citation is a single provenance pointer behind an answer/cell.
+message Citation {
+  string locator = 1; // file:line / url / command
+  string kind = 2; // code | doc | contract | runtime | external
+  string note = 3;
+}
+
+// Cell is one row of a projection's denominator grid.
+message Cell {
+  string id = 1;
+  shared.Projection projection = 2;
+  string question = 3; // the entity x archetype question
+  string owner = 4; // the provider that should answer it
+  shared.CellStatus status = 5;
+  common.v1.Basis basis = 6; // best attainable basis
+  common.v1.Sufficiency sufficiency = 7;
+  repeated string notes = 8; // gap-registry notes / approaches
+  repeated Citation citations = 9; // provenance (populated by ExplainCell)
+  string condition = 10; // health beside coverage; never folded into status
+}
+
+message ListCellsRequest {
+  shared.Projection projection = 1; // optional filter
+  shared.CellStatus status = 2; // optional filter
+}
+
+message ListCellsResponse {
+  repeated Cell cells = 1;
+}
+
+message ExplainCellRequest {
+  string cell_id = 1;
+}
+
+message ExplainCellResponse {
+  Cell cell = 1;
+}
+
+// BaseDocIssue is a broken/stale reference or shape problem in a space doc.
+message BaseDocIssue {
+  shared.Projection projection = 1;
+  string code = 2; // stale_ref | missing_provider | guide_row_not_one_skill | ...
+  string message = 3;
+  string location = 4; // doc path + cell id / line
+  shared.Severity severity = 5;
+}
+
+message ValidateBaseDocsRequest {
+  shared.Projection projection = 1; // optional; unset => all
+}
+
+message ValidateBaseDocsResponse {
+  repeated BaseDocIssue issues = 1;
+  // true when no ERROR-severity issues exist (the self-honesty gate).
+  bool ok = 2;
+}

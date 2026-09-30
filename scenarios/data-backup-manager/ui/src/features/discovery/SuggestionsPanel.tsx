@@ -1,0 +1,425 @@
+import { useEffect, useState } from "react";
+import { AlertTriangle, FolderTree, HardDrive, ShieldCheck } from "lucide-react";
+
+import { Button } from "../../components/ui/button";
+import { Dialog } from "../../components/ui/dialog";
+import { StatusChip } from "../../components/ui/status-chip";
+import {
+  useDestinationSuggestions,
+  useDismissSuggestion,
+  useInvalidateSuggestions,
+  useTargetSuggestions,
+} from "../../hooks/useSuggestions";
+import { useRegisterTarget } from "../../hooks/useTargets";
+import { useAnalyzeDestination, useCreateDestination } from "../../hooks/useDestinations";
+import {
+  BackendKind,
+  CapPolicy,
+  ReadinessSeverity,
+  type DestinationReadinessReport,
+} from "../../api/destinations";
+import type { DestinationSuggestion, TargetSuggestion } from "../../api/discovery";
+import { driveClassMeta, sourceKindSlug } from "../../lib/status";
+import { DRIVE_CLASS_STRINGS, SOURCE_KIND_STRINGS } from "../../consts/statusStrings";
+import { formatBytes } from "../../lib/format";
+import { selectors } from "../../consts/selectors";
+import { strings } from "../../consts/strings";
+import { useTranslation } from "../../i18n";
+
+/**
+ * Onboarding Suggestions panel. Surfaces discovered targets worth protecting and
+ * destinations worth backing up to, each with one-click **Enable** (which calls
+ * the existing register/create RPCs — never a separate "accept" path) and
+ * **Dismiss**. When `onboarding` is set it leads with the cold-start headline;
+ * otherwise it's a quiet helper above the storage strip.
+ */
+export function SuggestionsPanel({
+  onboarding = false,
+  maxVisibleItems,
+}: {
+  onboarding?: boolean;
+  maxVisibleItems?: number;
+}) {
+  const { t } = useTranslation();
+  const targets = useTargetSuggestions();
+  const destinations = useDestinationSuggestions();
+  const dismiss = useDismissSuggestion();
+  const register = useRegisterTarget();
+  const createDestination = useCreateDestination();
+  const analyzeDestination = useAnalyzeDestination();
+  const invalidate = useInvalidateSuggestions();
+
+  // Which suggestion is mid-enable, so only its button shows the busy state.
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [reviewSuggestion, setReviewSuggestion] = useState<DestinationSuggestion | null>(null);
+
+  const targetList = targets.data ?? [];
+  const destinationList = destinations.data ?? [];
+  const visibleTargetList = maxVisibleItems ? targetList.slice(0, maxVisibleItems) : targetList;
+  const visibleDestinationList = maxVisibleItems
+    ? destinationList.slice(0, maxVisibleItems)
+    : destinationList;
+
+  const enableTarget = async (s: TargetSuggestion) => {
+    setActiveId(s.id);
+    try {
+      await register.mutateAsync({
+        owner: s.owner,
+        name: s.name,
+        sourceKind: s.sourceKind,
+        locator: s.locator,
+        critical: false,
+      });
+      invalidate();
+    } finally {
+      setActiveId(null);
+    }
+  };
+
+  const enableDestination = async (s: DestinationSuggestion, report?: DestinationReadinessReport) => {
+    setActiveId(s.id);
+    try {
+      await createDestination.mutateAsync({
+        name: s.label,
+        backendKind: BackendKind.FILESYSTEM,
+        location: report?.recommendedDestinationLocation || s.location,
+        capBytes: 0n,
+        // Server defaults UNSPECIFIED → ALERT_BLOCK (cap-on-by-default policy).
+        capPolicy: CapPolicy.UNSPECIFIED,
+      });
+      invalidate();
+      setReviewSuggestion(null);
+    } finally {
+      setActiveId(null);
+    }
+  };
+
+  const enableLabel = (id: string) =>
+    t(activeId === id ? strings.discovery.enabling : strings.discovery.enable);
+
+  return (
+    <section
+      data-testid={selectors.discovery.panel}
+      aria-labelledby="discovery-heading"
+      className="flex flex-col gap-4 rounded-panel border border-app-border bg-app-surface p-4"
+    >
+      <div id="discovery-heading" className="flex items-start gap-3">
+        <ShieldCheck aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-app-primary" />
+        <div className="flex flex-col gap-1">
+          <h2 className="text-sm font-semibold text-app-foreground">
+            {t(onboarding ? strings.discovery.onboardingTitle : strings.discovery.title)}
+          </h2>
+          <p className="text-sm text-app-muted-foreground">
+            {t(onboarding ? strings.discovery.onboardingBody : strings.discovery.subtitle)}
+          </p>
+        </div>
+      </div>
+
+      {/* Targets to protect */}
+      <div data-testid={selectors.discovery.targetsGroup} className="flex flex-col gap-2">
+        <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-app-muted-foreground">
+          <FolderTree aria-hidden="true" className="h-4 w-4" />
+          {t(strings.discovery.targetsHeading)}
+        </h3>
+        {targetList.length === 0 ? (
+          <p className="text-sm text-app-muted-foreground">{t(strings.discovery.targetsEmpty)}</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {visibleTargetList.map((s) => {
+              const kind = sourceKindSlug(s.sourceKind);
+              return (
+                <li
+                  key={s.id}
+                  data-testid={selectors.discovery.suggestionRow({ id: s.id })}
+                  className="flex flex-wrap items-start justify-between gap-3 rounded-panel border border-app-border bg-app-surface-muted p-3"
+                >
+                  <div className="min-w-0 flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium text-app-foreground">
+                        {s.owner}/{s.name}
+                      </span>
+                      <StatusChip tone="info" labelKey={SOURCE_KIND_STRINGS[kind]} />
+                      {s.sensitive && (
+                        <StatusChip tone="warning" labelKey={strings.discovery.sensitive} />
+                      )}
+                      {s.approxBytes > 0n && (
+                        <span className="text-xs text-app-muted-foreground">
+                          {t(strings.discovery.approxSize, { size: formatBytes(s.approxBytes) })}
+                        </span>
+                      )}
+                    </div>
+                    <p className="truncate font-mono text-xs text-app-muted-foreground">{s.locator}</p>
+                    <p className="text-xs text-app-muted-foreground">{s.rationale}</p>
+                    {s.sensitive && s.warning && (
+                      <p className="text-xs text-app-warning">{s.warning}</p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <Button
+                      size="sm"
+                      data-testid={selectors.discovery.enableButton({ id: s.id })}
+                      disabled={activeId === s.id}
+                      onClick={() => void enableTarget(s)}
+                    >
+                      {enableLabel(s.id)}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      data-testid={selectors.discovery.dismissButton({ id: s.id })}
+                      onClick={() => dismiss.mutate(s.id)}
+                    >
+                      {t(strings.discovery.dismiss)}
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {visibleTargetList.length < targetList.length && (
+          <p className="text-xs text-app-muted-foreground">
+            {t(strings.common.showingOf, { shown: visibleTargetList.length, total: targetList.length })}{" "}
+            {t(strings.discovery.moreAvailable)}
+          </p>
+        )}
+      </div>
+
+      {/* Destinations to back up to */}
+      <div data-testid={selectors.discovery.destinationsGroup} className="flex flex-col gap-2">
+        <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-app-muted-foreground">
+          <HardDrive aria-hidden="true" className="h-4 w-4" />
+          {t(strings.discovery.destinationsHeading)}
+        </h3>
+        {destinationList.length === 0 ? (
+          <p className="text-sm text-app-muted-foreground">
+            {t(strings.discovery.destinationsEmpty)}
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {visibleDestinationList.map((s) => {
+              const cls = driveClassMeta(s.driveClass);
+              return (
+                <li
+                  key={s.id}
+                  data-testid={selectors.discovery.suggestionRow({ id: s.id })}
+                  className="flex flex-wrap items-start justify-between gap-3 rounded-panel border border-app-border bg-app-surface-muted p-3"
+                >
+                  <div className="min-w-0 flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium text-app-foreground">
+                        {s.label}
+                      </span>
+                      <StatusChip tone={cls.tone} labelKey={DRIVE_CLASS_STRINGS[cls.slug]} />
+                    </div>
+                    <p className="truncate font-mono text-xs text-app-muted-foreground">
+                      {s.location}
+                    </p>
+                    <p className="text-xs text-app-muted-foreground">
+                      {t(strings.discovery.freeOfTotal, {
+                        free: formatBytes(s.freeBytes),
+                        total: formatBytes(s.totalBytes),
+                      })}
+                    </p>
+                    <p className="text-xs text-app-muted-foreground">{s.rationale}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        data-testid={selectors.discovery.enableButton({ id: s.id })}
+                        disabled={activeId === s.id || !s.separateRootOk}
+                        onClick={() => setReviewSuggestion(s)}
+                      >
+                        {t(strings.discovery.review)}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        data-testid={selectors.discovery.dismissButton({ id: s.id })}
+                        onClick={() => dismiss.mutate(s.id)}
+                      >
+                        {t(strings.discovery.dismiss)}
+                      </Button>
+                    </div>
+                    {!s.separateRootOk && (
+                      <span className="text-xs text-app-warning">{t(strings.discovery.unsafe)}</span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {visibleDestinationList.length < destinationList.length && (
+          <p className="text-xs text-app-muted-foreground">
+            {t(strings.common.showingOf, {
+              shown: visibleDestinationList.length,
+              total: destinationList.length,
+            })}{" "}
+            {t(strings.discovery.moreAvailable)}
+          </p>
+        )}
+      </div>
+      <DestinationReviewDialog
+        suggestion={reviewSuggestion}
+        report={analyzeDestination.data}
+        loading={analyzeDestination.isPending}
+        error={analyzeDestination.isError}
+        active={activeId === reviewSuggestion?.id}
+        onClose={() => {
+          analyzeDestination.reset();
+          setReviewSuggestion(null);
+        }}
+        onAnalyze={(s) =>
+          analyzeDestination.mutate({
+            location: s.location,
+            proposedSubdir: "vrooli-backups",
+          })
+        }
+        onCreate={(s, report) => void enableDestination(s, report)}
+      />
+    </section>
+  );
+}
+
+function DestinationReviewDialog({
+  suggestion,
+  report,
+  loading,
+  error,
+  active,
+  onClose,
+  onAnalyze,
+  onCreate,
+}: {
+  suggestion: DestinationSuggestion | null;
+  report?: DestinationReadinessReport;
+  loading: boolean;
+  error: boolean;
+  active: boolean;
+  onClose: () => void;
+  onAnalyze: (suggestion: DestinationSuggestion) => void;
+  onCreate: (suggestion: DestinationSuggestion, report?: DestinationReadinessReport) => void;
+}) {
+  const { t } = useTranslation();
+
+  const suggestionId = suggestion?.id;
+  useEffect(() => {
+    if (suggestion) onAnalyze(suggestion);
+    // Run once per opened suggestion; mutation callbacks are intentionally
+    // excluded so a render after analysis does not re-trigger the request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestionId]);
+
+  const severity = report?.overallSeverity ?? ReadinessSeverity.UNKNOWN;
+  const canCreate =
+    Boolean(suggestion?.separateRootOk) &&
+    !loading &&
+    !error &&
+    report?.overallSeverity !== ReadinessSeverity.FAIL;
+
+  return (
+    <Dialog
+      open={Boolean(suggestion)}
+      onClose={onClose}
+      title={t(strings.discovery.reviewTitle)}
+      data-testid={selectors.discovery.destinationReview}
+      footer={
+        <>
+          <Button variant="outline" size="sm" onClick={onClose} disabled={active}>
+            {t(strings.common.cancel)}
+          </Button>
+          <Button
+            size="sm"
+            disabled={!canCreate || active}
+            onClick={() => suggestion && onCreate(suggestion, report)}
+            data-testid={selectors.discovery.reviewCreateButton}
+          >
+            {active ? t(strings.discovery.enabling) : t(strings.discovery.createReviewed)}
+          </Button>
+        </>
+      }
+    >
+      {suggestion && (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium text-app-foreground">{suggestion.label}</p>
+            <p className="font-mono text-xs text-app-muted-foreground">{suggestion.location}</p>
+          </div>
+
+          {loading && (
+            <p className="text-sm text-app-muted-foreground">{t(strings.discovery.analyzingDestination)}</p>
+          )}
+          {error && (
+            <div className="flex items-start gap-2 rounded-panel border border-app-danger/40 bg-app-danger/10 p-3 text-sm text-app-danger">
+              <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>{t(strings.discovery.readinessUnavailable)}</p>
+            </div>
+          )}
+
+          {report && (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusChip tone={severityTone(severity)} labelKey={severityLabel(severity)} />
+                {report.identity?.filesystem && (
+                  <span className="text-xs text-app-muted-foreground">
+                    {report.identity.filesystem}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-app-muted-foreground">
+                  {t(strings.discovery.recommendedLocation)}
+                </p>
+                <p className="break-all rounded-control border border-app-border bg-app-surface-muted px-3 py-2 font-mono text-xs text-app-foreground">
+                  {report.recommendedDestinationLocation || suggestion.location}
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-app-muted-foreground">
+                  {t(strings.discovery.readinessChecks)}
+                </p>
+                <ul className="flex flex-col gap-2">
+                  {report.checks.map((check) => (
+                    <li key={check.code} className="flex items-start gap-2 text-sm">
+                      <StatusChip tone={severityTone(check.severity)} labelKey={severityLabel(check.severity)} />
+                      <span className="min-w-0 text-app-muted-foreground">{check.message}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </Dialog>
+  );
+}
+
+function severityTone(severity: ReadinessSeverity) {
+  switch (severity) {
+    case ReadinessSeverity.PASS:
+      return "success";
+    case ReadinessSeverity.WARNING:
+    case ReadinessSeverity.UNKNOWN:
+      return "warning";
+    case ReadinessSeverity.FAIL:
+      return "danger";
+    default:
+      return "info";
+  }
+}
+
+function severityLabel(severity: ReadinessSeverity) {
+  switch (severity) {
+    case ReadinessSeverity.PASS:
+      return strings.discovery.readinessPass;
+    case ReadinessSeverity.WARNING:
+      return strings.discovery.readinessWarning;
+    case ReadinessSeverity.FAIL:
+      return strings.discovery.readinessFail;
+    default:
+      return strings.discovery.readinessUnknown;
+  }
+}

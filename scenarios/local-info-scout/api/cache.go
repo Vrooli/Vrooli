@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	coreRedis "github.com/vrooli/api-core/redis"
 )
 
 var (
@@ -17,27 +19,27 @@ var (
 
 // initRedis initializes the Redis client for caching
 func initRedis() {
-	redisHost := getEnv("REDIS_HOST", "localhost")
-	redisPort := getEnv("REDIS_PORT", "6379")
-	redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
+	redisConfig, err := coreRedis.Resolve(os.Getenv)
+	if err != nil {
+		cacheLogger.Warn("Redis configuration unavailable, caching disabled", map[string]interface{}{"error": err.Error()})
+		return
+	}
 
 	redisClient = redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: "", // no password for local Redis
-		DB:       0,  // use default DB
+		Addr: redisConfig.Addr, Password: redisConfig.Password, DB: redisConfig.DB,
 	})
 
 	// Test Redis connection
-	_, err := redisClient.Ping(ctx).Result()
+	_, err = redisClient.Ping(ctx).Result()
 	if err != nil {
 		cacheLogger.Warn("Redis not available, caching disabled", map[string]interface{}{
-			"address": redisAddr,
+			"address": redisConfig.Addr,
 			"error":   err.Error(),
 		})
 		redisClient = nil
 	} else {
 		cacheLogger.Info("Redis connected, caching enabled", map[string]interface{}{
-			"address": redisAddr,
+			"address": redisConfig.Addr,
 		})
 	}
 }

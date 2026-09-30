@@ -20,6 +20,7 @@ This directory contains **infrastructure utilities** that are framework-agnostic
 ## Key Principle
 
 Code in `lib/` should be:
+
 1. Pure functions with no side effects (except for necessary I/O like fetch)
 2. Framework-agnostic (no React imports)
 3. Reusable across different features

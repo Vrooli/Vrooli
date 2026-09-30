@@ -1,0 +1,38 @@
+{
+  "createdAt": "2026-09-10T00:00:00Z",
+  "description": "Run a long delivery goal as an orchestrator that admits epochs, spawns one goal worker per epoch, parks between check-ins, steers through the epoch file, applies the step-back rule and accepts epochs through a mechanical gate. Use for orchestrated long-running efforts only; phased plans, bounded tasks and direct requests do not use epochs.",
+  "entry": "SKILL.md",
+  "icon": "network",
+  "id": "large-effort-orchestration",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "large-effort-orchestration",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill read",
+      "agent-manager"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "agent-manager"
+    ]
+  },
+  "revision": 21,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "orchestration",
+    "multi-agent",
+    "effort",
+    "epochs",
+    "continuity",
+    "recovery"
+  ],
+  "updatedAt": "2026-09-30T12:00:00Z"
+}

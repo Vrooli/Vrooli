@@ -4,7 +4,13 @@ import type { LandingConfigResponse, Variant as LandingVariant } from '../../sha
 export type VariantResolution = 'unknown' | 'url_param' | 'local_storage' | 'api_select' | 'fallback';
 
 export interface LandingVariantContextType {
-  variant: LandingVariant | null;
+  request?: { route: string; locale: string; variant: string };
+  notFound?: boolean;
+  canonicalBaseUrl?: string;
+  refreshable?: boolean;
+  visitorId?: string;
+  /** Public projection exposes a resolved slug, not private variant metadata. */
+  variant: (Pick<LandingVariant, 'slug'> & Partial<LandingVariant>) | null;
   config: LandingConfigResponse | null;
   loading: boolean;
   error: string | null;

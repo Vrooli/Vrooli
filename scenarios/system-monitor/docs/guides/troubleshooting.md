@@ -32,9 +32,11 @@ The `simulate` command calls `GET /api/test/anomaly/cpu`, which does not exist i
 
 ### Data lost on restart
 
-By default, the API uses in-memory storage. All metrics, investigations, and reports are lost when the API restarts.
-
-**Fix**: Set `DATABASE_URL` to a PostgreSQL connection string to enable persistent storage. See [Configuration](../reference/configuration.md).
+The API uses durable SQLite storage by default. Set
+`SYSTEM_MONITOR_STORAGE_MODE=memory` only for tests or explicit development;
+that mode loses history on restart and is rejected in production. If SQLite
+cannot start, inspect the startup error and the Vrooli-managed data path. See
+[Configuration](../reference/configuration.md).
 
 ### CLI `--quiet` flag has no effect
 
@@ -50,9 +52,11 @@ The following endpoints are referenced by the UI but are not implemented:
 
 | Endpoint | Referenced By |
 |----------|--------------|
-| `GET /api/v1/metrics/timeline` | Sparkline charts |
-| `GET /api/v1/metrics/disk/details` | Disk detail view |
 | `POST /api/v1/processes/{pid}/kill` | Process kill dialog |
+
+Disk detail is served by the generated Connect path
+`/vrooli.system_monitor.v1.metrics.MetricsService/GetDiskDetail`. It is
+read-only and points cleanup remediation to storage-manager.
 
 ## No Authentication
 

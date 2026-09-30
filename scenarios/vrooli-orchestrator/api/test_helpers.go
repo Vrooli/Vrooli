@@ -15,6 +15,7 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/health"
 )
 
 // TestLogger provides controlled logging during tests
@@ -102,7 +103,7 @@ func setupTestDB(t *testing.T) *TestEnvironment {
 
 	// Setup router
 	router := mux.NewRouter()
-	router.HandleFunc("/health", Health).Methods("GET")
+	router.HandleFunc("/health", health.Handler()).Methods("GET")
 	router.HandleFunc("/api/v1/profiles", service.ListProfiles).Methods("GET")
 	router.HandleFunc("/api/v1/profiles", service.CreateProfile).Methods("POST")
 	router.HandleFunc("/api/v1/profiles/{profileName}", service.GetProfile).Methods("GET")
@@ -256,8 +257,8 @@ func assertErrorResponse(t *testing.T, rr *httptest.ResponseRecorder, expectedSt
 func containsIgnoreCase(s, substr string) bool {
 	return len(s) >= len(substr) &&
 		(s == substr || len(substr) == 0 ||
-		(len(s) > 0 && len(substr) > 0 &&
-		bytes.Contains(bytes.ToLower([]byte(s)), bytes.ToLower([]byte(substr)))))
+			(len(s) > 0 && len(substr) > 0 &&
+				bytes.Contains(bytes.ToLower([]byte(s)), bytes.ToLower([]byte(substr)))))
 }
 
 // createTestProfile creates a test profile in the database

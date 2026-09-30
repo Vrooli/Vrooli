@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Home",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Give the operator the first useful view of Source repository and make the primary next action clear.",
+    "prd_refs": [
+      "OT-P0-001"
+    ]
+  },
+  "states": [
+    {"id": "default", "description": "The operator can inspect source readiness and choose the next safe action."},
+    {"id": "empty", "description": "No source snapshot is selected; the page explains how to begin."},
+    {"id": "partial", "description": "Some evidence is available while another gate is still pending."},
+    {"id": "loading", "description": "Source and health evidence is being requested."},
+    {"id": "request-error", "description": "The local API is unavailable and the page offers a retry path."},
+    {"id": "stale", "description": "Evidence is older than its freshness window and is labelled stale."}
+  ]
+}

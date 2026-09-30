@@ -49,7 +49,7 @@ Browser Page (MAIN context)                            │
 ### Adding a New Action Type
 
 1. `packages/proto/schemas/.../action.proto` - Add to ActionType enum
-2. `../proto/action-type-utils.ts` - Add string ↔ enum mappings
+2. `./action-types.ts` - Add string ↔ enum mappings
 3. `../handlers/*.ts` - Implement handler (preferred)
    OR `action-executor.ts` - Add executor (if handler not suitable)
 

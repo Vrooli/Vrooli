@@ -1,0 +1,52 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "account-for-a-surprise",
+    "title": "Account for something the reconciler found",
+    "purpose": "The safety loop. Something exists at a provider that this scenario has no record of, which is cost before it is a bug. The journey proves the reconciler reports rather than acts, and that an operator can quarantine before deciding, so a reconciler defect can never destroy a running node. It stays on the findings surface throughout, because a provider-only finding has no local instance record and therefore no instance page to open.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P1-003"
+    ]
+  },
+  "steps": [
+    {
+      "page": "dashboard",
+      "state": "default",
+      "intent": "Notice an unaccounted count without opening anything, because unattributed cost should not require navigation to discover.",
+      "via": "unaccounted-badge"
+    },
+    {
+      "page": "findings",
+      "state": "default",
+      "intent": "Read what diverged and in which direction. Present at the provider and absent locally is money; the reverse is a stuck meter, and they need different responses.",
+      "via": "findings-list"
+    },
+    {
+      "page": "findings",
+      "state": "stale",
+      "intent": "Distinguish an empty list caused by a clean sweep from one caused by a sweep that has not run, so silence is never read as safety.",
+      "via": "last-sweep-status"
+    },
+    {
+      "page": "findings",
+      "state": "default",
+      "intent": "Quarantine the instance, which stops it being a surprise without destroying the evidence of what it was.",
+      "via": "quarantine-action"
+    },
+    {
+      "page": "findings",
+      "state": "default",
+      "intent": "Read the quarantined finding's own evidence in place: the provider it was seen at, the identifiers on whichever side is known, what differed, and when it was observed. A provider-only finding is by definition one this scenario holds no instance record for, so the finding itself is the whole record and the findings surface is where it renders.",
+      "via": "finding-item"
+    },
+    {
+      "page": "findings",
+      "state": "default",
+      "intent": "Understand that the finding stays open until a person decides what it is, and that nothing on this page will decide for them. Adopting it into a record or removing it at the provider are both deliberate acts taken elsewhere, which is what keeps a reconciler defect from destroying a running node.",
+      "via": "findings-list"
+    }
+  ]
+}

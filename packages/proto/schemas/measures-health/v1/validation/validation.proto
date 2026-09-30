@@ -1,0 +1,193 @@
+syntax = "proto3";
+
+package vrooli.measures_health.v1.validation;
+
+import "common/v1/maturity.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/validation;validation_v1";
+
+// =============================================================================
+// VALIDATION DOMAIN — measures coverage validation + behavioral adoption probe
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain validation
+// @stability unstable
+//
+// Native measures-health detail types. Scenario-level validation is served
+// through the shared scenario-validation/v1.ScenarioValidationService; its
+// native_detail packs ScenarioCoverageReport so the measures-health UI can keep
+// rendering domain coverage without Test Genie reading provider-specific fields.
+//
+// Severity normalization is the load-bearing producer contract, identical in
+// shape to security-health so test-genie maps it the same way: an uncovered
+// stateful domain or a hollow declaration -> ERROR (this is what feeds the
+// swarm-manager soft `measures` ladder dimension); a stale waiver ->
+// WARNING; not-expected / probe context -> INFO. `passed` is true iff no
+// Finding has SEVERITY_ERROR.
+//
+// Consumed by:
+//   - API: handlers/validation/connect_handler.go implements the shared
+//          ScenarioValidationService and this native ValidationService.
+//   - CLI: cli/domains/validate/handlers.go renders `measures-health validate
+//          scenario <name> --json` from the shared response and
+//          `measures-health coverage` from ListFleetCoverage.
+//   - UI:  ui/src/features/fleet/ renders ListFleetCoverage + the drill-down
+//          unpacked from scenario-validation native_detail.
+// =============================================================================
+
+service ValidationService {
+  // ListFleetCoverage rolls up a static coverage summary across every
+  // discovered scenario, for the fleet-view UI.
+  rpc ListFleetCoverage(ListFleetCoverageRequest) returns (ListFleetCoverageResponse);
+}
+
+// Severity classifies a Finding for filtering, rendering, and downstream
+// gating. ERROR causes `passed=false` and is the only level that feeds the
+// `measures` ladder dimension as a gap; WARNING and INFO are advisory.
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_ERROR = 1;
+  SEVERITY_WARNING = 2;
+  SEVERITY_INFO = 3;
+}
+
+// DomainStatus is a stateful domain's coverage classification.
+enum DomainStatus {
+  DOMAIN_STATUS_UNSPECIFIED = 0;
+  // COVERED: the domain has >=1 manifest `measure` block bound to it.
+  DOMAIN_STATUS_COVERED = 1;
+  // UNCOVERED: a stateful domain with no measure and no waiver -> ERROR.
+  DOMAIN_STATUS_UNCOVERED = 2;
+  // WAIVED: the domain is listed in measures.omitted[] with a reason.
+  DOMAIN_STATUS_WAIVED = 3;
+  // NOT_EXPECTED: a substrate-filtered (stateless/utility) domain, or a waiver
+  // pointing at a domain that is not actually stateful -> INFO/WARNING context.
+  DOMAIN_STATUS_NOT_EXPECTED = 4;
+}
+
+// Tier grades a measure's parameter-extraction maturity (mirrors measures-go /
+// measurescan): FULL = every param resolves deterministically or against a
+// bounded value space; PARTIAL = some params are bare; FALLBACK = all params
+// are best-effort. A measure with no params is FULL.
+enum Tier {
+  TIER_UNSPECIFIED = 0;
+  TIER_FULL = 1;
+  TIER_PARTIAL = 2;
+  TIER_FALLBACK = 3;
+}
+
+// MeasureSummary is one declared measure's projection in the coverage report.
+message MeasureSummary {
+  // Conventional "<domain>.<command>" identifier (e.g. "backlog.completed").
+  string name = 1;
+  // Curated one-line intent from the manifest measure block.
+  string intent = 2;
+  // Graded extraction tier.
+  Tier tier = 3;
+  // Side-effect class from governance.effect ("read"|"write"|"destructive").
+  string effect = 4;
+  // Number of example questions[] declared (the embedding key richness).
+  int32 question_count = 5;
+  // Behavioral-probe outcome when shared ValidateScenarioRequest.include_execution
+  // was set: true = the endpoint answered conforming to the declared result shape.
+  bool probe_passed = 6;
+  // Human detail for the probe (empty when the probe did not run).
+  string probe_detail = 7;
+  // Why the tier is not full (e.g. "window param not canonical"); empty for
+  // full-tier measures.
+  string tier_note = 8;
+}
+
+// DomainCoverage is one stateful domain's classification + the measures that
+// cover it.
+message DomainCoverage {
+  string domain = 1;
+  DomainStatus status = 2;
+  // Number of measures bound to the domain (0 unless COVERED).
+  int32 measure_count = 3;
+  // Worst tier among the domain's measures (the domain is only as strong as its
+  // weakest measure). TIER_UNSPECIFIED when not covered.
+  Tier tier = 4;
+  // Waiver reason when WAIVED; empty otherwise.
+  string waiver_reason = 5;
+  // Human note ("stateless config domain", "structural-only", ...) for
+  // NOT_EXPECTED rows; empty otherwise.
+  string note = 6;
+  // The measures bound to this domain (empty unless COVERED).
+  repeated MeasureSummary measures = 7;
+}
+
+// Finding is one normalized producer result. The field set is the exact shape
+// the test-genie `measures` phase parses from `validate … --json` (identical to
+// security-health's Finding so the producer mapping is uniform).
+message Finding {
+  // Stable machine code identifying the check (e.g. "measures.uncovered-domain",
+  // "measures.stale-waiver", "measures.hollow-declaration",
+  // "measures.tier-partial"). Tooling filters by this; do not localize.
+  string rule_id = 1;
+  Severity severity = 2;
+  string title = 3;
+  string description = 4;
+  // Actionable remediation (e.g. "declare a measure for domain `captures` or
+  // waive it in measures.omitted[]"). Never empty.
+  string remediation = 5;
+  // Location the finding is anchored to, relative to the target scenario root
+  // (e.g. "cli/manifest.json", "packages/proto/schemas/<s>/v1/domain/captures.proto").
+  string file_path = 6;
+  // Which sub-check produced the finding ("coverage" | "probe" | "tier").
+  string scanner = 7;
+}
+
+// Summary is a rollup of Finding counts by normalized severity.
+message Summary {
+  int32 errors = 1;
+  int32 warnings = 2;
+  int32 infos = 3;
+}
+
+// ScenarioCoverageReport echoes the scenario id and reports coverage. `passed`
+// is true iff no Finding has SEVERITY_ERROR. This message is packed into
+// scenario-validation/v1.ValidateScenarioResponse.native_detail.
+message ScenarioCoverageReport {
+  string scenario = 1;
+  bool passed = 2;
+  // Every derived domain (covered / waived / uncovered / not-expected), in a
+  // stable (alphabetical) order.
+  repeated DomainCoverage domains = 3;
+  // Normalized producer findings (the test-genie measures phase reads these).
+  repeated Finding findings = 4;
+  Summary summary = 5;
+  // Context that applied but could not run (e.g. "probe (scenario not
+  // running)"); surfaced as INFO, never a failure.
+  repeated string skipped_scanners = 6;
+  // Shared provider-owned maturity assessment. Automation should consume this
+  // structural object; humans should use the default CLI rendering.
+  common.v1.MaturityAssessment assessment = 7;
+}
+
+// ListFleetCoverageRequest requests the cross-scenario coverage rollup. An
+// empty `scenarios` list means "every discovered scenario".
+message ListFleetCoverageRequest {
+  repeated string scenarios = 1;
+}
+
+// FleetEntry is one scenario's static coverage rollup for the fleet dashboard.
+message FleetEntry {
+  string scenario = 1;
+  bool passed = 2;
+  int32 expected = 3;
+  int32 covered = 4;
+  int32 waived = 5;
+  int32 uncovered = 6;
+  // Worst tier across the scenario's covered domains.
+  Tier worst_tier = 7;
+  // Total measures declared by the scenario.
+  int32 measure_count = 8;
+}
+
+// ListFleetCoverageResponse lists every requested scenario's rollup, in a
+// stable (alphabetical) order.
+message ListFleetCoverageResponse {
+  repeated FleetEntry entries = 1;
+}

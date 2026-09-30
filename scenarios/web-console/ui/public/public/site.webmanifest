@@ -1,0 +1,41 @@
+{
+  "_brand": {
+    "slug": "aquila",
+    "version": 5
+  },
+  "background_color": "#0f172a",
+  "description": "Browser-based terminal with pane workspaces, durable sessions, and AI-assisted commands.",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any",
+      "sizes": "192x192",
+      "src": "icon-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any",
+      "sizes": "512x512",
+      "src": "icon-512.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "192x192",
+      "src": "maskable-icon-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "512x512",
+      "src": "maskable-icon-512.png",
+      "type": "image/png"
+    }
+  ],
+  "id": "/",
+  "name": "Aquila",
+  "scope": "/",
+  "short_name": "Aquila",
+  "start_url": "/",
+  "theme_color": "#0f172a"
+}

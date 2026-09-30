@@ -1,0 +1,159 @@
+syntax = "proto3";
+
+package vrooli.network_manager.v1.policy;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/policy;policy_v1";
+
+// PolicyService owns DNS filtering policy previews and approved changes.
+service PolicyService {
+  rpc PreviewPolicyChange(PreviewPolicyChangeRequest) returns (PreviewPolicyChangeResponse);
+  rpc ApplyPolicyChange(ApplyPolicyChangeRequest) returns (ApplyPolicyChangeResponse);
+  rpc RollbackPolicyChange(RollbackPolicyChangeRequest) returns (RollbackPolicyChangeResponse);
+  rpc PauseFiltering(PauseFilteringRequest) returns (PauseFilteringResponse);
+  rpc ResumeFiltering(ResumeFilteringRequest) returns (ResumeFilteringResponse);
+  rpc ListPolicyProfiles(ListPolicyProfilesRequest) returns (ListPolicyProfilesResponse);
+  rpc UpsertPolicyProfile(UpsertPolicyProfileRequest) returns (UpsertPolicyProfileResponse);
+  rpc EvaluatePolicySchedule(EvaluatePolicyScheduleRequest) returns (EvaluatePolicyScheduleResponse);
+  rpc DiagnoseEncryptedDnsBypass(DiagnoseEncryptedDnsBypassRequest) returns (DiagnoseEncryptedDnsBypassResponse);
+  rpc GetEndpointDohGuidance(GetEndpointDohGuidanceRequest) returns (GetEndpointDohGuidanceResponse);
+}
+
+message PolicyChange {
+  string id = 1;
+  string target = 2;
+  string action = 3;
+  string status = 4;
+  repeated string effects = 5;
+  bool rollback_supported = 6;
+}
+
+message PolicyProfile {
+  string id = 1;
+  string name = 2;
+  string device_group = 3;
+  string filtering_strength = 4;
+  string schedule = 5;
+  string override_behavior = 6;
+  string status = 7;
+  repeated string effects = 8;
+  string updated_at = 9;
+}
+
+message PolicyScheduleEvaluation {
+  string profile_id = 1;
+  string profile_name = 2;
+  string target = 3;
+  bool active = 4;
+  string status = 5;
+  repeated string effects = 6;
+  string next_change_at = 7;
+}
+
+message GuidanceCheck {
+  string id = 1;
+  string title = 2;
+  string status = 3;
+  string evidence = 4;
+  repeated string recommendations = 5;
+}
+
+message PolicyGuidanceReport {
+  string id = 1;
+  string target = 2;
+  string profile = 3;
+  string status = 4;
+  repeated GuidanceCheck checks = 5;
+  repeated string manual_steps = 6;
+  repeated string adapter_actions = 7;
+  repeated string guardrails = 8;
+  string generated_at = 9;
+}
+
+message PreviewPolicyChangeRequest {
+  string target = 1;
+  string action = 2;
+  repeated string values = 3;
+}
+
+message PreviewPolicyChangeResponse {
+  PolicyChange preview = 1;
+}
+
+message ApplyPolicyChangeRequest {
+  string preview_id = 1;
+  bool approved = 2;
+}
+
+message ApplyPolicyChangeResponse {
+  PolicyChange change = 1;
+}
+
+message RollbackPolicyChangeRequest {
+  string id = 1;
+}
+
+message RollbackPolicyChangeResponse {
+  PolicyChange change = 1;
+}
+
+message PauseFilteringRequest {
+  string target = 1;
+  string duration = 2;
+}
+
+message PauseFilteringResponse {
+  PolicyChange change = 1;
+}
+
+message ResumeFilteringRequest {
+  string target = 1;
+}
+
+message ResumeFilteringResponse {
+  PolicyChange change = 1;
+}
+
+message ListPolicyProfilesRequest {
+  string device_group = 1;
+}
+
+message ListPolicyProfilesResponse {
+  repeated PolicyProfile profiles = 1;
+}
+
+message UpsertPolicyProfileRequest {
+  PolicyProfile profile = 1;
+}
+
+message UpsertPolicyProfileResponse {
+  PolicyProfile profile = 1;
+}
+
+message EvaluatePolicyScheduleRequest {
+  string profile_id = 1;
+  string target = 2;
+  string now = 3;
+}
+
+message EvaluatePolicyScheduleResponse {
+  PolicyScheduleEvaluation evaluation = 1;
+}
+
+message DiagnoseEncryptedDnsBypassRequest {
+  string target = 1;
+  bool adapter_backed = 2;
+}
+
+message DiagnoseEncryptedDnsBypassResponse {
+  PolicyGuidanceReport report = 1;
+}
+
+message GetEndpointDohGuidanceRequest {
+  string platform = 1;
+  string browser = 2;
+  string management_mode = 3;
+}
+
+message GetEndpointDohGuidanceResponse {
+  PolicyGuidanceReport report = 1;
+}

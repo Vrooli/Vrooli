@@ -1,11 +1,11 @@
 // CSV export utilities for trend data
 // [REQ:UI-EVENTS-001]
 
-import { CheckTrend, Incident } from "./api";
+import { CheckTrend, Transition } from "./api";
 
 interface TrendExportData {
   checkTrends: CheckTrend[];
-  incidents: Incident[];
+  incidents: Transition[];
   windowHours: number;
   uptimePercentage: number;
 }

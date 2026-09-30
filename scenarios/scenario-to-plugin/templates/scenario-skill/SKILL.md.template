@@ -1,0 +1,81 @@
+---
+name: <scenario-slug>
+description: |
+  Use when <one-sentence capability description focused on what an agent
+  would be doing when this skill becomes relevant>. Wraps the Vrooli
+  <scenario-name> CLI to <2-3 concrete things this skill enables>.
+allowed-tools:
+  - Bash(<scenario-cli>:*)
+  # Add only the minimum tools needed. Avoid Bash(*), WebFetch(*), or filesystem-wide access.
+---
+
+# <Scenario Display Name>
+
+## When to use this skill
+
+<1-3 lines describing the trigger conditions in agent-task terms. What is the
+agent doing when this skill should be loaded? Be concrete; agents pattern-match
+on this language.>
+
+## When NOT to use this skill
+
+<1-3 lines. Agents respect negative signals. Examples:
+- "Don't use for simple single-file git operations — git CLI is sufficient."
+- "Don't use without the Vrooli runtime; this wraps Vrooli's <scenario-name>
+  scenario specifically and won't function standalone.">
+
+## Prerequisites
+
+- <e.g., "Vrooli runtime installed via `./scripts/install.sh`">
+- <other host requirements: OS, language runtime, network access>
+
+## Setup
+
+If `<cli-name>` is not on `PATH`, run:
+
+```bash
+./scripts/install.sh
+```
+
+The script is idempotent and pins all downloads to specific release versions
+with SHA-256 checksums. It does not modify global state outside the install
+prefix.
+
+## Workflows
+
+### <First common workflow>
+
+<2-3 lines describing the workflow.>
+
+```bash
+<cli-name> <command> <args>
+```
+
+<What the agent should expect as output, and what the next step typically is.>
+
+### <Second common workflow>
+
+<...>
+
+### <Third common workflow>
+
+<...>
+
+## Advanced
+
+For more complex flows (e.g., <example>), see [`references/advanced-workflows.md`](references/advanced-workflows.md).
+
+## Trust and audit
+
+This skill runs the wrapped CLI under <`workspace-sandbox` if applicable, or
+"the host agent's standard sandboxing" otherwise>. All Vrooli skills are
+published with Cosign signatures, SLSA L3 provenance, and SBOMs attached as
+OCI referrers. Verify with:
+
+```bash
+cosign verify ghcr.io/vrooli/skill-<scenario-slug>:<version> \
+  --certificate-identity-regexp 'https://github.com/Vrooli/.*' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+Report security issues per [skills/SECURITY.md](../SECURITY.md).

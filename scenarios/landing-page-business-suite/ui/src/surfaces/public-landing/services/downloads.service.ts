@@ -1,4 +1,4 @@
-import type { DownloadAsset } from '../../../shared/api';
+import type { DownloadAsset, SigningNotice } from '../../../shared/api';
 
 /**
  * Detected platform type
@@ -6,18 +6,17 @@ import type { DownloadAsset } from '../../../shared/api';
 export type DetectedPlatform = 'windows' | 'mac' | 'linux' | 'unknown';
 
 /**
- * Detects the current platform based on user agent and navigator platform
+ * Detects the current platform based on the user agent.
  * @returns The detected platform identifier
  */
 export function detectPlatform(): DetectedPlatform {
   if (typeof navigator === 'undefined') return 'unknown';
 
   const ua = navigator.userAgent.toLowerCase();
-  const platform = (navigator.platform || '').toLowerCase();
 
-  if (platform.includes('win') || ua.includes('windows')) return 'windows';
-  if (platform.includes('mac') || ua.includes('macintosh') || ua.includes('mac os')) return 'mac';
-  if (platform.includes('linux') || ua.includes('linux')) return 'linux';
+  if (ua.includes('windows')) return 'windows';
+  if (ua.includes('macintosh') || ua.includes('mac os')) return 'mac';
+  if (ua.includes('linux')) return 'linux';
 
   return 'unknown';
 }
@@ -29,7 +28,7 @@ export function detectPlatform(): DetectedPlatform {
  */
 export function getDownloadAssetKey(download: DownloadAsset): string {
   if (typeof download.id === 'number') {
-    return `asset-${download.id}`;
+    return `asset-${String(download.id)}`;
   }
   const version = download.release_version || 'unknown';
   const artifact = download.artifact_url || 'na';
@@ -69,7 +68,7 @@ export function openDownloadWindow(url: string): boolean {
  * @returns Human-readable variant label
  */
 export function getVariantLabel(installer: DownloadAsset): string {
-  const url = installer.artifact_url?.toLowerCase() ?? '';
+  const url = installer.artifact_url.toLowerCase();
   const notes = installer.release_notes?.toLowerCase() ?? '';
 
   // Check for specific formats
@@ -108,4 +107,67 @@ export const PLATFORM_LABELS: Record<string, string> = {
  */
 export function getPlatformLabel(platform: string): string {
   return PLATFORM_LABELS[platform.toLowerCase()] ?? platform;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
+}
+
+/** Unwraps the protobuf JSON envelopes that may wrap catalog metadata values. */
+function unwrapMetadataValue(value: unknown): unknown {
+  const record = asRecord(value);
+  if (!record) return value;
+  if (record.fields) return asRecord(record.fields);
+  if ('stringValue' in record) return record.stringValue;
+  if ('string_value' in record) return record.string_value;
+  if ('boolValue' in record) return record.boolValue;
+  if ('bool_value' in record) return record.bool_value;
+  if ('structValue' in record) return unwrapMetadataValue(record.structValue);
+  if ('struct_value' in record) return unwrapMetadataValue(record.struct_value);
+  return value;
+}
+
+function noticeText(value: unknown): string {
+  const unwrapped = unwrapMetadataValue(value);
+  return typeof unwrapped === 'string' ? unwrapped.trim() : '';
+}
+
+/**
+ * Reads the validated signing notice from a catalog entry. Returns undefined
+ * when the notice is absent, explicitly suppressed, or missing required copy.
+ */
+export function getSigningNotice(metadata?: Record<string, unknown>): SigningNotice | undefined {
+  const raw = asRecord(unwrapMetadataValue(metadata?.signing_notice));
+  if (!raw) return undefined;
+  if (raw.enabled === false) return undefined;
+  const title = noticeText(raw.title);
+  const body = noticeText(raw.body);
+  if (!title || !body) return undefined;
+  const severity = noticeText(raw.severity).toLowerCase() === 'warning' ? 'warning' : 'info';
+  const linkLabel = noticeText(raw.link_label ?? raw.linkLabel);
+  const linkUrl = noticeText(raw.link_url ?? raw.linkUrl);
+  return {
+    title,
+    body,
+    severity,
+    ...(linkLabel ? { link_label: linkLabel } : {}),
+    ...(linkUrl ? { link_url: linkUrl } : {}),
+  };
+}
+
+/**
+ * Resolves the notice to show for the selected release. A platform-specific
+ * notice wins over the app default, and an explicit `enabled: false` on the
+ * platform suppresses the app default entirely.
+ */
+export function resolveSigningNotice(
+  appMetadata?: Record<string, unknown>,
+  assetMetadata?: Record<string, unknown>,
+): SigningNotice | undefined {
+  const assetRaw = asRecord(unwrapMetadataValue(assetMetadata?.signing_notice));
+  if (assetRaw) {
+    if (assetRaw.enabled === false) return undefined;
+    return getSigningNotice(assetMetadata);
+  }
+  return getSigningNotice(appMetadata);
 }

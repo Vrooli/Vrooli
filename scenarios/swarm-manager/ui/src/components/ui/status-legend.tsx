@@ -21,7 +21,7 @@ interface StatusLegendProps {
 }
 
 export function StatusLegend({
-  items = [],
+  items,
   title = "Status Guide",
   compact = false,
   "data-testid": testId,

@@ -1,0 +1,304 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "template-manager.docs",
+      "lifecycle": "production",
+      "provider_group": "template-manager",
+      "bucket": "BUCKET_KNOW",
+      "type": "doc",
+      "description": "Template Manager factory documentation: template maintenance, generation contract, validation, drift, cleanup, changelog migration, debt workflow, and orientation guidance.",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_index",
+      "index_timestamp_field": "last_reconcile_at",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "knowledge-observatory",
+          "path": "/api/v1/search/query",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"scope\":\"path\",\"target\":\"scenarios/template-manager/docs\"}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "knowledge-observatory",
+          "path": "/api/v1/search/status",
+          "method": "HTTP_METHOD_GET",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "reindex_endpoint": {
+        "http_json": {
+          "scenario_id": "knowledge-observatory",
+          "path": "/api/v1/reindex/run",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"dry_run\":false,\"control_token\":\"{{control_token}}\"}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "relative_path",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "snippet",
+        "path_field": "path",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "tuning": {
+        "engine": "hybrid",
+        "embed_model": "nomic-embed-text"
+      },
+      "tests": {
+        "minimum": {"reviewed_positive": 1, "negative": 1},
+        "suite_id": "template-manager.docs.factory",
+        "name": "Template Manager factory docs",
+        "description": "Golden checks for factory documentation discoverability.",
+        "cases": [
+          {
+            "id": "factory-guide",
+            "query": "template maintenance validate drift cleanup changelog debt ledger",
+            "tags": ["strong", "factory-docs"],
+            "expect_ids": ["scenarios/template-manager/docs/factory/TEMPLATE-FACTORY-GUIDE.md"],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "factory-validation",
+            "query": "how to run shallow and deep template validation",
+            "tags": ["strong", "factory-docs"],
+            "expect_ids": ["scenarios/template-manager/docs/factory/TEMPLATE-FACTORY-GUIDE.md"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "factory-drift",
+            "query": "record fleet drift snapshots for templates",
+            "tags": ["weak-real", "factory-docs"],
+            "expect_ids": ["scenarios/template-manager/docs/factory/TEMPLATE-FACTORY-GUIDE.md"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "factory-cleanup",
+            "query": "cleanup retained deep validation workspaces",
+            "tags": ["weak-real", "factory-docs"],
+            "expect_ids": ["scenarios/template-manager/docs/factory/TEMPLATE-FACTORY-GUIDE.md"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "factory-changelog",
+            "query": "template changelog migration protocol version ordering",
+            "tags": ["strong", "factory-docs"],
+            "expect_ids": ["scenarios/template-manager/docs/factory/TEMPLATE-FACTORY-GUIDE.md"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "factory-debt",
+            "query": "stable keys inherited template debt ledger workflow",
+            "tags": ["strong", "factory-docs"],
+            "expect_ids": ["scenarios/template-manager/docs/factory/TEMPLATE-FACTORY-GUIDE.md"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "factory-orientation-guidance",
+            "query": "next incomplete orientation gate structured guidance",
+            "tags": ["hard", "factory-docs"],
+            "expect_ids": ["scenarios/template-manager/docs/factory/TEMPLATE-FACTORY-GUIDE.md"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "maintenance-binding",
+            "query": "binding contract versus illustrative example template maintenance",
+            "tags": ["strong", "factory-docs"],
+            "expect_ids": ["scenarios/template-manager/docs/factory/TEMPLATE-MAINTENANCE.md"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "maintenance-markers",
+            "query": "example domain marker vocabulary fenced block trailing line marker",
+            "tags": ["weak-real", "factory-docs"],
+            "expect_ids": ["scenarios/template-manager/docs/factory/TEMPLATE-MAINTENANCE.md"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "maintenance-versioning",
+            "query": "template versioning changelog semver generated scenario contract",
+            "tags": ["hard", "factory-docs"],
+            "expect_ids": ["scenarios/template-manager/docs/factory/TEMPLATE-MAINTENANCE.md"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "generation-manifest",
+            "query": "template manifest behavior required vars relocations post hooks",
+            "tags": ["strong", "factory-docs"],
+            "expect_ids": ["scenarios/template-manager/docs/factory/TEMPLATE-GENERATION-CONTRACT.md"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "generation-proto",
+            "query": "relocated proto sources packages proto schemas scenario id",
+            "tags": ["weak-real", "factory-docs"],
+            "expect_ids": ["scenarios/template-manager/docs/factory/TEMPLATE-GENERATION-CONTRACT.md"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "factory-junk",
+            "query": "zzqxr florpnax template nonsense",
+            "tags": ["gibberish"],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.8
+          }
+        ]
+      }
+    },
+    {
+      "provider_id": "template-manager.debt",
+      "lifecycle": "production",
+      "provider_group": "template-manager",
+      "bucket": "BUCKET_STATE",
+      "type": "record",
+      "description": "Template debt ledger entries recorded by Template Manager. Route here for inherited template defects, changelog holes, drift debt, and current open/closed template quality work.",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_live",
+      "index_timestamp_field": "metrics.last_indexed_at",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "template-manager",
+          "path": "/vrooli.template_manager.v1.debt.DebtService/ListDebt",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "entries",
+        "id_field": "key",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "detail",
+        "path_field": "key"
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "template-manager",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "tuning": {
+        "engine": "hybrid",
+        "embed_model": "nomic-embed-text"
+      },
+      "tests": {
+        "minimum": {"reviewed_positive": 1, "negative": 1},
+        "suite_id": "template-manager.debt.ledger",
+        "name": "Template Manager debt ledger",
+        "description": "Golden checks for inherited template debt discoverability.",
+        "cases": [
+          {
+            "id": "drift-ai-gateway",
+            "query": "ai gateway template drift debt",
+            "tags": ["strong", "debt-ledger"],
+            "expect_ids": ["drift.react-vite.ai-gateway"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "drift-api-health",
+            "query": "api health template drift debt",
+            "tags": ["strong", "debt-ledger"],
+            "expect_ids": ["drift.react-vite.api-health"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "drift-architecture-cartographer",
+            "query": "architecture cartographer template drift debt",
+            "tags": ["weak-real", "debt-ledger"],
+            "expect_ids": ["drift.react-vite.architecture-cartographer"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "drift-audio-tools",
+            "query": "audio tools template drift debt",
+            "tags": ["weak-real", "debt-ledger"],
+            "expect_ids": ["drift.react-vite.audio-tools"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "drift-brand-manager",
+            "query": "brand manager template drift debt",
+            "tags": ["hard", "debt-ledger"],
+            "expect_ids": ["drift.react-vite.brand-manager"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "drift-business-health",
+            "query": "business health template drift debt",
+            "tags": ["strong", "debt-ledger"],
+            "expect_ids": ["drift.react-vite.business-health"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "drift-storage-manager",
+            "query": "cleanup manager template drift debt",
+            "tags": ["weak-real", "debt-ledger"],
+            "expect_ids": ["drift.react-vite.ai-gateway"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "drift-cli-health",
+            "query": "cli health template drift debt",
+            "tags": ["strong", "debt-ledger"],
+            "expect_ids": ["drift.react-vite.cli-health"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "drift-code-facts",
+            "query": "code facts template drift debt",
+            "tags": ["hard", "debt-ledger"],
+            "expect_ids": ["drift.react-vite.code-facts"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "drift-data-backup-manager",
+            "query": "data backup manager template drift debt",
+            "tags": ["weak-real", "debt-ledger"],
+            "expect_ids": ["drift.react-vite.data-backup-manager"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "drift-fleet-first",
+            "query": "first fleet template drift ledger entry",
+            "tags": ["hard", "debt-ledger"],
+            "expect_ids": ["drift.react-vite.ai-gateway"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "drift-fleet-api",
+            "query": "second fleet template drift ledger entry",
+            "tags": ["hard", "debt-ledger"],
+            "expect_ids": ["drift.react-vite.api-health"],
+            "expect_within_top_k": 10
+          },
+          {
+            "id": "debt-junk",
+            "query": "zzqxr florpnax debt nonsense",
+            "tags": ["gibberish"],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.65
+          }
+        ]
+      }
+    }
+  ]
+}

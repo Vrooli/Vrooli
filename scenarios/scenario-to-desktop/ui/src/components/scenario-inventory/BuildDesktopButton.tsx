@@ -1,30 +1,73 @@
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "../ui/button";
-import { Loader2, Hammer, CheckCircle, XCircle, AlertCircle, Check, HelpCircle } from "lucide-react";
+import {
+  Loader2,
+  Hammer,
+  CheckCircle,
+  XCircle,
+  Check,
+  HelpCircle,
+} from "lucide-react";
 import { PlatformChip } from "./PlatformChip";
 import { WineInstallDialog } from "../wine";
 import { PipelineErrorDisplay } from "../pipeline";
-import type { PipelineConfig, BuildStageDetails, BuildPlatformResult } from "../../lib/api";
-import { usePipelineMutation, usePipelineStatus, usePlatformSelection, useWineCheck } from "../../hooks";
+import type { PipelineConfig } from "../../lib/api";
+import {
+  usePipelineMutation,
+  usePipelineStatus,
+  usePlatformSelection,
+  useWineCheck,
+} from "../../hooks";
 import { getPlatformIcon, getPlatformName } from "../../domain/download";
+import { platformFromFormValue } from "../../lib/pipeline-enums";
+import {
+  Platform,
+  StageStatus,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 
 interface BuildDesktopButtonProps {
   scenarioName: string;
 }
 
 const PLATFORM_OPTIONS = [
-  { id: "win", label: "Windows (.msi installer)", helper: "Most laptops and desktops" },
+  {
+    id: "win",
+    label: "Windows (.msi installer)",
+    helper: "Most laptops and desktops",
+  },
   { id: "mac", label: "macOS (.pkg installer)", helper: "MacBook + iMac" },
-  { id: "linux", label: "Linux (.AppImage/.deb)", helper: "Ubuntu, Fedora, etc." },
+  {
+    id: "linux",
+    label: "Linux (.AppImage/.deb)",
+    helper: "Ubuntu, Fedora, etc.",
+  },
 ];
+
+function platformKey(platform: Platform): "win" | "mac" | "linux" | "unknown" {
+  switch (platform) {
+    case Platform.WIN:
+      return "win";
+    case Platform.MAC:
+      return "mac";
+    case Platform.LINUX:
+      return "linux";
+    default:
+      return "unknown";
+  }
+}
 
 export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
   const queryClient = useQueryClient();
 
   // Platform selection with localStorage persistence
-  const storageKey = useMemo(() => `desktop-platforms-${scenarioName}`, [scenarioName]);
-  const { selectedPlatforms, togglePlatform } = usePlatformSelection({ storageKey });
+  const storageKey = useMemo(
+    () => `desktop-platforms-${scenarioName}`,
+    [scenarioName],
+  );
+  const { selectedPlatforms, togglePlatform } = usePlatformSelection({
+    storageKey,
+  });
 
   // Wine check for Windows builds on Linux
   const {
@@ -53,21 +96,27 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
   });
 
   // Extract build details from pipeline status
-  const buildDetails = pipelineStatus?.stages?.build?.details as BuildStageDetails | undefined;
-  const buildStatus = pipelineStatus
-    ? {
-        status: pipelineStatus.status === "completed" ? "ready" : pipelineStatus.status === "failed" ? "failed" : "building",
-        platform_results: buildDetails?.platform_results as Record<string, BuildPlatformResult> | undefined,
-        requested_platforms: buildDetails?.requested_platforms,
-      }
-    : null;
+  const buildDetails =
+    pipelineStatus?.stages.build?.details?.kind.case === "build"
+      ? pipelineStatus.stages.build.details.kind.value
+      : undefined;
+  const hasPlatformResults = Boolean(
+    buildDetails && Object.keys(buildDetails.platformResults).length > 0,
+  );
+  const buildPlatforms = buildDetails?.requestedPlatforms.length
+    ? buildDetails.requestedPlatforms
+    : [Platform.WIN, Platform.MAC, Platform.LINUX];
 
   const isBuilding = mutation.isPending || statusIsBuilding;
 
-  // Refresh scenarios list when build completes
-  if ((buildStatus?.status === "ready" || buildStatus?.status === "partial") && buildId) {
-    queryClient.invalidateQueries({ queryKey: ["scenarios-desktop-status"] });
-  }
+  // Refresh scenario inventory after a completed build.
+  useEffect(() => {
+    if (pipelineStatus?.status === StageStatus.COMPLETED && buildId) {
+      void queryClient.invalidateQueries({
+        queryKey: ["scenarios-desktop-status"],
+      });
+    }
+  }, [buildId, pipelineStatus?.status, queryClient]);
 
   // Handle build initiation
   const handleBuild = useCallback(
@@ -83,12 +132,19 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
       }
 
       const config: PipelineConfig = {
-        scenario_name: scenarioName,
-        platforms: targets,
+        scenarioName,
+        platforms: targets.map(platformFromFormValue),
       };
       runPipelineWithConfig(config);
     },
-    [selectedPlatforms, needsWineForPlatforms, setPendingPlatforms, setShowWineDialog, scenarioName, runPipelineWithConfig]
+    [
+      selectedPlatforms,
+      needsWineForPlatforms,
+      setPendingPlatforms,
+      setShowWineDialog,
+      scenarioName,
+      runPipelineWithConfig,
+    ],
   );
 
   // Handle Wine installation complete
@@ -96,26 +152,30 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
     baseWineComplete();
     if (pendingPlatforms.length > 0) {
       const config: PipelineConfig = {
-        scenario_name: scenarioName,
-        platforms: pendingPlatforms,
+        scenarioName,
+        platforms: pendingPlatforms.map(platformFromFormValue),
       };
       runPipelineWithConfig(config);
       setPendingPlatforms([]);
     }
-  }, [baseWineComplete, pendingPlatforms, scenarioName, runPipelineWithConfig, setPendingPlatforms]);
+  }, [
+    baseWineComplete,
+    pendingPlatforms,
+    scenarioName,
+    runPipelineWithConfig,
+    setPendingPlatforms,
+  ]);
 
   // Show platform chips when build has results
-  if (buildStatus?.platform_results) {
-    const platforms = buildStatus.requested_platforms || ["win", "mac", "linux"];
-
+  if (hasPlatformResults && buildDetails) {
     return (
       <div className="flex flex-col gap-3 w-full">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {platforms.map((platform) => (
+          {buildPlatforms.map((platform) => (
             <PlatformChip
               key={platform}
               platform={platform}
-              result={buildStatus.platform_results?.[platform]}
+              result={buildDetails.platformResults[platformKey(platform)]}
               scenarioName={scenarioName}
             />
           ))}
@@ -123,19 +183,15 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {buildStatus.status === "ready" && (
+            {pipelineStatus?.status === StageStatus.COMPLETED && (
               <div className="flex items-center gap-1 text-green-400">
                 <CheckCircle className="h-4 w-4" />
-                <span className="text-sm">All platforms built successfully</span>
+                <span className="text-sm">
+                  All platforms built successfully
+                </span>
               </div>
             )}
-            {buildStatus.status === "partial" && (
-              <div className="flex items-center gap-1 text-yellow-400">
-                <AlertCircle className="h-4 w-4" />
-                <span className="text-sm">Some platforms built successfully</span>
-              </div>
-            )}
-            {buildStatus.status === "failed" && (
+            {pipelineStatus?.status === StageStatus.FAILED && (
               <div className="flex items-center gap-1 text-red-400">
                 <XCircle className="h-4 w-4" />
                 <span className="text-sm">Build failed</span>
@@ -172,16 +228,15 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
   }
 
   if (isBuilding) {
-    if (buildStatus?.platform_results) {
-      const platforms = buildStatus.requested_platforms || ["win", "mac", "linux"];
+    if (hasPlatformResults && buildDetails) {
       return (
         <div className="flex flex-col gap-3 w-full">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {platforms.map((platform) => (
+            {buildPlatforms.map((platform) => (
               <PlatformChip
                 key={platform}
                 platform={platform}
-                result={buildStatus.platform_results?.[platform]}
+                result={buildDetails.platformResults[platformKey(platform)]}
                 scenarioName={scenarioName}
               />
             ))}
@@ -205,7 +260,8 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
   const selectionSummary = (() => {
     if (selectedPlatforms.length === PLATFORM_OPTIONS.length)
       return "Building installers for every platform.";
-    if (selectedPlatforms.length === 0) return "Select at least one platform to get started.";
+    if (selectedPlatforms.length === 0)
+      return "Select at least one platform to get started.";
     return `Building ${selectedPlatforms.map((p) => getPlatformName(p)).join(" + ")}.`;
   })();
 
@@ -233,7 +289,9 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
                 <button
                   key={id}
                   type="button"
-                  onClick={() => togglePlatform(id)}
+                  onClick={() => {
+                    togglePlatform(id);
+                  }}
                   className={`flex flex-col gap-1 rounded-xl border p-3 text-left transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                     active
                       ? "border-blue-400 bg-blue-950/40 shadow-inner"
@@ -267,13 +325,17 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
           </div>
         </div>
         {selectedPlatforms.length === 0 && (
-          <p className="text-xs text-red-300">Select at least one platform to build.</p>
+          <p className="text-xs text-red-300">
+            Select at least one platform to build.
+          </p>
         )}
         <Button
           variant="default"
           size="sm"
           className="gap-2"
-          onClick={() => handleBuild(selectedPlatforms)}
+          onClick={() => {
+            handleBuild(selectedPlatforms);
+          }}
           disabled={selectedPlatforms.length === 0}
         >
           <Hammer className="h-4 w-4" />

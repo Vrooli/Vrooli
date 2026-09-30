@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Vrooli Events receipt capture declaration",
+  "type": "object",
+  "required": ["schemaVersion", "policies"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "policies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["policyId", "targetScenario", "operation", "protocol", "responseType", "responseProjectionPaths", "retentionDays", "readPrincipals"],
+        "additionalProperties": false,
+        "properties": {
+          "policyId": {"type": "string", "minLength": 1},
+          "targetScenario": {"type": "string", "minLength": 1},
+          "operation": {"type": "string", "minLength": 1},
+          "protocol": {"const": "connect"},
+          "responseType": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.]*$"},
+          "responseProjectionPaths": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$"}},
+          "workReferenceProjections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["kind_path", "id_path", "relationship"],
+              "additionalProperties": false,
+              "properties": {
+                "kind_path": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$"},
+                "id_path": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$"},
+                "revision_path": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$"},
+                "relationship": {"type": "string", "minLength": 1},
+                "verified_path": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$"},
+                "visibility_path": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$"},
+                "evidence_digest_path": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$"}
+              }
+            }
+          },
+          "retentionDays": {"type": "integer", "minimum": 1},
+          "readPrincipals": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+        }
+      }
+    }
+  }
+}

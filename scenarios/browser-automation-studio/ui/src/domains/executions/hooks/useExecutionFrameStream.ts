@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useWebSocket } from '@/contexts/WebSocketContext';
+import { useWebSocket, useWebSocketMessage } from '@/contexts/WebSocketContext';
 import { logger } from '@/utils/logger';
 
 export interface ExecutionFrame {
@@ -62,7 +62,7 @@ export function useExecutionFrameStream(
   const [frameCount, setFrameCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const { isConnected, lastMessage, send } = useWebSocket();
+  const { isConnected, send } = useWebSocket();
   const subscribedIdRef = useRef<string | null>(null);
   const onFrameRef = useRef(onFrame);
   onFrameRef.current = onFrame;
@@ -137,8 +137,8 @@ export function useExecutionFrameStream(
   }, [executionId, enabled, isConnected, subscribe, unsubscribe]);
 
   // Handle WebSocket messages
-  useEffect(() => {
-    if (!lastMessage || !isSubscribed) return;
+  useWebSocketMessage((lastMessage) => {
+    if (!isSubscribed) return;
 
     // Handle subscription confirmation
     if (lastMessage.type === 'execution_frame_subscribed') {
@@ -188,7 +188,7 @@ export function useExecutionFrameStream(
         onFrameRef.current(newFrame);
       }
     }
-  }, [lastMessage, isSubscribed]);
+  });
 
   // Reset state when execution changes
   useEffect(() => {

@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import App from './App';
 
+// provider-free-exception: App owns the production BrowserRouter; wrapping it
+// in the shared MemoryRouter would create an invalid nested router.
+
 const loadAppsMock = vi.fn(async () => undefined);
 const updateAppMock = vi.fn();
 const loadResourcesMock = vi.fn(async () => undefined);

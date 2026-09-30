@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "react-component-library:AsyncPanel",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.3",
+    "1.0.2"
+  ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [],
+  "latest": "1.0.5",
+  "libraryId": "react-component-library:AsyncPanel"
+}

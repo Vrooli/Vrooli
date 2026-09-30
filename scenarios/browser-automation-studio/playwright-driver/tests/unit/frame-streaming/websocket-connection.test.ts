@@ -69,6 +69,30 @@ describe('WebSocket connection manager', () => {
     expect(mockInstances.length).toBe(2);
   });
 
+  it('ignores a stale socket close after a replacement is ready', () => {
+    const manager = new WebSocketConnectionManager({
+      url: 'ws://localhost:1234/ws',
+      sessionId: 'session-1',
+      reconnectDelayMs: 10,
+    });
+
+    manager.connect();
+    const first = mockInstances[0];
+    if (!first) throw new Error('first socket was not created');
+    manager.connect();
+    const replacement = mockInstances[1];
+    if (!replacement) throw new Error('replacement socket was not created');
+    replacement.readyState = 1;
+    replacement.emit('open');
+
+    first.emit('close');
+    jest.advanceTimersByTime(10);
+
+    expect(manager.getWebSocket()).toBe(replacement);
+    expect(manager.isReady()).toBe(true);
+    expect(mockInstances).toHaveLength(2);
+  });
+
   it('stops reconnection when closed', () => {
     const manager = new WebSocketConnectionManager({
       url: 'ws://localhost:1234/ws',

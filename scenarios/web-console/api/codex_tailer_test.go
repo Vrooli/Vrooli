@@ -2,11 +2,22 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
+
+	"web-console/backends/codex"
+	"web-console/internal/ptyfake"
+	"web-console/session"
+
+	"github.com/gorilla/mux"
+
+	intevents "web-console/internal/events"
+	intmetrics "web-console/internal/metrics"
 )
 
 func splitLines(data []byte) [][]byte {
@@ -28,7 +39,7 @@ func writeRolloutLine(t *testing.T, f *os.File, lineType string, payload interfa
 	if err != nil {
 		t.Fatal(err)
 	}
-	rl := RolloutLine{
+	rl := codex.RolloutLine{
 		Timestamp: time.Now().Format(time.RFC3339),
 		Type:      lineType,
 		Payload:   json.RawMessage(payloadBytes),
@@ -43,21 +54,39 @@ func writeRolloutLine(t *testing.T, f *os.File, lineType string, payload interfa
 	}
 }
 
-func newCodexTailerTestServer(t *testing.T) (*Server, *Session) {
+func newCodexTailerTestServer(t *testing.T) (*Server, *session.Session) {
 	t.Helper()
-	srv := newTTSTestServer()
-	srv.ttsConfig = TTSConfig{AutoEnabled: true}
-
-	fake := newFakePTYWithOutput()
+	fake := ptyfake.NewFakePTYWithOutput()
 	t.Cleanup(func() { _ = fake.Close() })
-	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
-	srv.sessions = sm
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
+	srv := &Server{
+		router:          mux.NewRouter(),
+		sessions:        sm,
+		events:          intevents.NewLogger(100),
+		metrics:         intmetrics.New(),
+		conversations:   NewConversationStore(),
+		lastTTSBySource: map[string]conversationAppendSnapshot{},
+		lastTTSAckBySrc: map[string]ttsAckSnapshot{},
+		ttsHookConfigState: hookConfigState{
+			cfg:  TTSHookConfig{AutoEnabled: true, Backend: "auto"},
+			path: filepath.Join(t.TempDir(), "tts-hook-config.json"),
+		},
+		summarizeAutoPolicy: defaultSummarizeAutoPolicy(),
+	}
+	srv.hub = NewConversationHub()
 
-	sess, err := sm.Create("", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	t.Cleanup(func() { _ = sm.Delete(sess.ID) })
+	t.Cleanup(func() {
+		_ = sm.Delete(context.Background(), sess.ID)
+		select {
+		case <-sess.Done():
+		case <-time.After(2 * time.Second):
+			t.Logf("session %s did not finish shutting down before test cleanup", sess.ID)
+		}
+	})
 	return srv, sess
 }
 
@@ -98,9 +127,9 @@ func TestExtractAssistantText_Integration_NewLines(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	writeRolloutLine(t, f, "response_item", ResponsePayload{
+	writeRolloutLine(t, f, "response_item", codex.ResponsePayload{
 		Role:    "assistant",
-		Content: []ContentItem{{Type: "output_text", Text: "TTS this"}},
+		Content: []codex.ContentItem{{Type: "output_text", Text: "TTS this"}},
 	})
 	writeRolloutLine(t, f, "event_msg", map[string]string{"message": "ignore"})
 	f.Close()
@@ -112,7 +141,7 @@ func TestExtractAssistantText_Integration_NewLines(t *testing.T) {
 	lines := splitLines(data)
 	var texts []string
 	for _, line := range lines {
-		if txt := ExtractAssistantText(line); txt != "" {
+		if txt := codex.ExtractAssistantText(line); txt != "" {
 			texts = append(texts, txt)
 		}
 	}
@@ -124,8 +153,8 @@ func TestExtractAssistantText_Integration_NewLines(t *testing.T) {
 func TestCodexTailer_E2E_RoutesToOwningSession(t *testing.T) {
 	srv, sess := newCodexTailerTestServer(t)
 
-	eventCh := sess.SubscribeConversation()
-	defer sess.UnsubscribeConversation(eventCh)
+	sub, _, _ := srv.hub.Subscribe(0)
+	defer srv.hub.Unsubscribe(sub)
 
 	ct := NewCodexTailer(srv)
 	ct.staleTimeout = 2 * time.Second
@@ -145,25 +174,137 @@ func TestCodexTailer_E2E_RoutesToOwningSession(t *testing.T) {
 	ct.scanForNewFiles()
 	time.Sleep(200 * time.Millisecond)
 
-	writeRolloutLine(t, f, "response_item", ResponsePayload{
+	writeRolloutLine(t, f, "response_item", codex.ResponsePayload{
 		Role:    "assistant",
-		Content: []ContentItem{{Type: "output_text", Text: "Hello from the tailer"}},
+		Content: []codex.ContentItem{{Type: "output_text", Text: "Hello from the tailer"}},
 	})
 	if err := f.Sync(); err != nil {
 		t.Fatal(err)
 	}
 
 	select {
-	case event := <-eventCh:
-		if event.Text != "Hello from the tailer" {
-			t.Fatalf("expected routed text, got %q", event.Text)
+	case env := <-sub.events:
+		if env.SessionID != sess.ID {
+			t.Fatalf("expected session %s, got %s", sess.ID, env.SessionID)
 		}
-		if event.SessionID != sess.ID {
-			t.Fatalf("expected session %s, got %s", sess.ID, event.SessionID)
+		payload, ok := env.Payload.(conversationEventPayload)
+		if !ok {
+			t.Fatalf("expected conversationEventPayload, got %T", env.Payload)
+		}
+		if payload.Text != "Hello from the tailer" {
+			t.Fatalf("expected routed text, got %q", payload.Text)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("timed out waiting for conversation event from CodexTailer")
 	}
 
 	ct.Stop()
+}
+
+func TestCodexTailer_BackfillsExistingRolloutContentWithoutCheckpoint(t *testing.T) {
+	srv, sess := newCodexTailerTestServer(t)
+
+	now := time.Now()
+	dateDir := filepath.Join(sessionCodexSessionsDir(sess.ID), now.Format("2006"), now.Format("01"), now.Format("02"))
+	if err := os.MkdirAll(dateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rolloutPath := filepath.Join(dateDir, "rollout-backfill.jsonl")
+	f, err := os.Create(rolloutPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRolloutLine(t, f, "response_item", codex.ResponsePayload{
+		Role:    "assistant",
+		Content: []codex.ContentItem{{Type: "output_text", Text: "Backfilled assistant message"}},
+	})
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	ct := NewCodexTailer(srv)
+	ct.staleTimeout = 2 * time.Second
+	ct.scanForNewFiles()
+	t.Cleanup(ct.Stop)
+
+	event := waitForFirstEvent(t, srv.conversations, sess.ID, 3*time.Second)
+	if event.Text != "Backfilled assistant message" {
+		t.Fatalf("expected backfilled text, got %q", event.Text)
+	}
+}
+
+func TestCodexTailer_ResumesFromCheckpointOffset(t *testing.T) {
+	srv, sess := newCodexTailerTestServer(t)
+	checkpoints := NewInMemoryAgentTranscriptCheckpointStore()
+	srv.agentCheckpointStore = checkpoints
+
+	now := time.Now()
+	dateDir := filepath.Join(sessionCodexSessionsDir(sess.ID), now.Format("2006"), now.Format("01"), now.Format("02"))
+	if err := os.MkdirAll(dateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rolloutPath := filepath.Join(dateDir, "rollout-resume.jsonl")
+	f, err := os.Create(rolloutPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	writeRolloutLine(t, f, "response_item", codex.ResponsePayload{
+		Role:    "assistant",
+		Content: []codex.ContentItem{{Type: "output_text", Text: "Old assistant message"}},
+	})
+	if err := f.Sync(); err != nil {
+		t.Fatal(err)
+	}
+	stat, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := checkpoints.Save(context.Background(), AgentTranscriptCheckpoint{
+		Source:    codexTailerSource,
+		SourceKey: rolloutPath,
+		SessionID: sess.ID,
+		Cursor:    strconv.FormatInt(stat.Size(), 10),
+		UpdatedAt: time.Now().UTC(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	ct := NewCodexTailer(srv)
+	ct.staleTimeout = 2 * time.Second
+	ct.scanForNewFiles()
+	t.Cleanup(ct.Stop)
+
+	time.Sleep(200 * time.Millisecond)
+
+	writeRolloutLine(t, f, "response_item", codex.ResponsePayload{
+		Role:    "assistant",
+		Content: []codex.ContentItem{{Type: "output_text", Text: "New assistant message"}},
+	})
+	if err := f.Sync(); err != nil {
+		t.Fatal(err)
+	}
+
+	event := waitForFirstEvent(t, srv.conversations, sess.ID, 3*time.Second)
+	if event.Text != "New assistant message" {
+		t.Fatalf("expected resumed tailer to skip old backlog and read new text, got %q", event.Text)
+	}
+
+	state := srv.conversations.ListSession(context.Background(), sess.ID)
+	if len(state.Events) != 1 {
+		t.Fatalf("expected exactly one resumed event, got %d", len(state.Events))
+	}
+
+	checkpoint, ok, err := checkpoints.Get(context.Background(), codexTailerSource, rolloutPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("expected checkpoint to be saved after reading new rollout content")
+	}
+	offset, err := strconv.ParseInt(checkpoint.Cursor, 10, 64)
+	if err != nil || offset <= stat.Size() {
+		t.Fatalf("expected checkpoint offset to advance beyond %d, got %q", stat.Size(), checkpoint.Cursor)
+	}
 }

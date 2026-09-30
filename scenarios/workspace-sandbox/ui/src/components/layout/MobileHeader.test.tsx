@@ -17,6 +17,8 @@ const mockStats: SandboxStats = {
   total: 10,
   active: 5,
   stopped: 2,
+  checkpointing: 0,
+  checkpointed: 0,
   approved: 1,
   rejected: 1,
   error: 1,

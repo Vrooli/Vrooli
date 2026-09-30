@@ -1,0 +1,444 @@
+{
+  "_metadata": {
+    "description": "Stub requirements scaffolded for operational targets that had no coverage (intent.ot_orphan fixer).",
+    "module": "uncovered-targets",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "planned",
+      "title": "Event ingestion",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P0-001.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "title": "SSE event subscribe",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P0-002.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "planned",
+      "title": "Event query",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P0-003.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "planned",
+      "title": "Health endpoint",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P0-004.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "title": "Structured event IDs",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P0-005.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "planned",
+      "title": "Correlation tracking",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P0-006.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Last-Event-ID resume",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P1-001.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "Backpressure handling",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P1-002.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "Configurable retention",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P1-003.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "planned",
+      "title": "Policy engine — access control",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P1-004.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Policy engine — rate limiting",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P1-005.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "planned",
+      "title": "Policy engine — circuit breaking",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P1-006.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "planned",
+      "title": "Policy CRUD API",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P1-007.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P1-008",
+      "prd_ref": "OT-P1-008",
+      "status": "planned",
+      "title": "SSE policy push",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P1-008.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P1-009",
+      "prd_ref": "OT-P1-009",
+      "status": "planned",
+      "title": "Dual-end policy caching",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P1-009.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P1-010",
+      "prd_ref": "OT-P1-010",
+      "status": "planned",
+      "title": "Discovery package integration",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P1-010.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P1-011",
+      "prd_ref": "OT-P1-011",
+      "status": "planned",
+      "title": "Receiver-side policy middleware",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P1-011.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P1-012",
+      "prd_ref": "OT-P1-012",
+      "status": "planned",
+      "title": "Persistent subscriptions",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P1-012.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P1-013",
+      "prd_ref": "OT-P1-013",
+      "status": "planned",
+      "title": "CLI tools",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P1-013.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P1-014",
+      "prd_ref": "OT-P1-014",
+      "status": "planned",
+      "title": "Graceful degradation",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P1-014.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Analytics dashboard",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P2-001.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Policy management UI",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P2-002.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Subscription management UI",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P2-003.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P2-004",
+      "prd_ref": "OT-P2-004",
+      "status": "planned",
+      "title": "Compliance & audit UI",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P2-004.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P2-005",
+      "prd_ref": "OT-P2-005",
+      "status": "planned",
+      "title": "Event detail & trace view",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P2-005.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P2-006",
+      "prd_ref": "OT-P2-006",
+      "status": "planned",
+      "title": "Retention settings UI",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P2-006.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P2-007",
+      "prd_ref": "OT-P2-007",
+      "status": "planned",
+      "title": "Circuit breaker dashboard",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P2-007.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P2-008",
+      "prd_ref": "OT-P2-008",
+      "status": "planned",
+      "title": "Event replay",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P2-008.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Scaffolded stub for an operational target that had no requirement; replace with real falsifiable claims.",
+      "id": "VROOLIEV-P2-009",
+      "prd_ref": "OT-P2-009",
+      "status": "planned",
+      "title": "Metrics export",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: define the real validation for OT-P2-009.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

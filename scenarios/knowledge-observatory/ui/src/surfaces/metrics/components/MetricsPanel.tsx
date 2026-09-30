@@ -9,8 +9,6 @@ import type {
   CollectionInventoryItem,
   CollectionMaintenanceResponse,
   CollectionRecordsResponse,
-  DocumentDeleteResponse,
-  IngestHealthResponse,
 } from "../../../shared/services/api";
 
 // AI_CHECK: REACT_STABILITY=1 | LAST: 2026-01-25
@@ -36,14 +34,6 @@ type MaintenanceAction = "prune-stale-chunks" | "dedupe-content";
 type CollectionDrilldownTab = "integrity" | "chunking" | "failures" | "records" | "maintenance";
 type OwnershipTone = "good" | "medium" | "poor";
 
-type DocumentOption = {
-  key: string;
-  namespace: string;
-  documentID: string;
-  label: string;
-  count: number;
-};
-
 function MetricCard({ label, percentageLabel, description, tone }: MetricCardView) {
   const styles = toneStyles[tone] ?? toneStyles.medium;
 
@@ -57,53 +47,6 @@ function MetricCard({ label, percentageLabel, description, tone }: MetricCardVie
       <p className="ko-text-xs ko-subtle mt-2">{description}</p>
     </div>
   );
-}
-
-function scoreDriverHints(
-  diagnostics: CollectionDiagnostics | null | undefined,
-  ingestHealth: IngestHealthResponse | null | undefined
-): string[] {
-  const hints: string[] = [];
-
-  if (diagnostics) {
-    const duplicateRatio = diagnostics.redundancy?.duplicate_ratio ?? 0;
-    if (duplicateRatio >= 0.15) {
-      hints.push("Redundancy is likely suppressing health; preview dedupe-content and apply if candidates look safe.");
-    }
-
-    const staleCandidates = diagnostics.stale_chunks?.candidate_delete_rows ?? 0;
-    if (staleCandidates > 0) {
-      hints.push("Stale chunk versions detected; preview prune-stale-chunks to remove superseded document chunk indexes.");
-    }
-
-    const vectorDimensions = Array.isArray(diagnostics.vector_dimensions) ? diagnostics.vector_dimensions.length : 0;
-    if (vectorDimensions > 1) {
-      hints.push("Mixed vector dimensions detected; reingest with one embedding model to restore consistency.");
-    }
-
-    const avgChars = diagnostics.chunk_length?.avg_characters ?? 0;
-    if (avgChars > 0 && (avgChars < 300 || avgChars > 1500)) {
-      hints.push("Average chunk size is outside the healthy 300-1500 range; adjust chunk_size/chunk_overlap and reingest.");
-    }
-
-    const missingFields = diagnostics.missing_payload_fields ?? {};
-    if ((missingFields.namespace ?? 0) > 0 || (missingFields.document_id ?? 0) > 0) {
-      hints.push("Missing namespace/document_id payload fields reduce traceability; reingest affected records with complete metadata.");
-    }
-  }
-
-  if (ingestHealth) {
-    const failures = ingestHealth.failures_last_24h ?? 0;
-    if (failures > 0) {
-      hints.push("Recent ingest failures detected; verify Ollama/Qdrant availability before reingesting.");
-    }
-  }
-
-  if (hints.length === 0) {
-    hints.push("No critical drivers detected in current diagnostics; continue sampling and monitor drift over time.");
-  }
-
-  return hints;
 }
 
 function inferCollectionOwnership(
@@ -189,7 +132,6 @@ export type MetricsPanelProps = {
   errorMessage: string;
   hasData: boolean;
   viewModel: MetricsViewModel;
-  ingestHealth?: IngestHealthResponse | null;
   selectedCollection: string;
   diagnostics?: CollectionDiagnostics | null;
   diagnosticsError: string;
@@ -202,9 +144,6 @@ export type MetricsPanelProps = {
   maintenanceMaxDeletes: number;
   getMaintenancePreview: (collection: string, action: MaintenanceAction) => CollectionMaintenanceResponse | null;
   getCollectionInventory: (collection: string) => CollectionInventoryItem | null;
-  documentOptions: DocumentOption[];
-  selectedDocumentKey: string;
-  documentDeletePreview?: DocumentDeleteResponse | null;
   collectionRecords: CollectionRecordsResponse | null;
   recordsLoading: boolean;
   recordsError: string;
@@ -213,7 +152,6 @@ export type MetricsPanelProps = {
   recordsDocumentFilter: string;
   onSelectCollection: (name: string) => void;
   onDrilldownTabChange: (tab: CollectionDrilldownTab) => void;
-  onSelectedDocumentKeyChange: (key: string) => void;
   onUseSampleDiagnostics: () => void;
   onUseFullDiagnostics: () => void;
   onMaintenanceMaxDeletesChange: (value: number) => void;
@@ -224,8 +162,6 @@ export type MetricsPanelProps = {
   onRecordsPreviousPage: () => void;
   onPreviewMaintenance: (collection: string, action: MaintenanceAction) => void;
   onApplyMaintenance: (collection: string, action: MaintenanceAction) => void;
-  onPreviewDeleteDocument: () => void;
-  onApplyDeleteDocument: () => void;
   collectionDeleteInFlight: boolean;
   onDeleteCollection: (collection: string) => void;
   onRetry: () => void;
@@ -237,43 +173,36 @@ export function MetricsPanel({
   errorMessage,
   hasData,
   viewModel,
-  ingestHealth,
   selectedCollection,
   diagnostics,
-  diagnosticsError,
-  diagnosticsLoading,
-  diagnosticsMode,
-  diagnosticsLimit,
-  drilldownTab,
-  maintenanceInFlight,
+  diagnosticsError: _diagnosticsError,
+  diagnosticsLoading: _diagnosticsLoading,
+  diagnosticsMode: _diagnosticsMode,
+  diagnosticsLimit: _diagnosticsLimit,
+  drilldownTab: _drilldownTab,
+  maintenanceInFlight: _maintenanceInFlight,
   maintenanceNotice,
-  maintenanceMaxDeletes,
-  getMaintenancePreview,
+  maintenanceMaxDeletes: _maintenanceMaxDeletes,
+  getMaintenancePreview: _getMaintenancePreview,
   getCollectionInventory,
-  documentOptions,
-  selectedDocumentKey,
-  documentDeletePreview,
-  collectionRecords,
-  recordsLoading,
-  recordsError,
-  recordsSearch,
-  recordsNamespaceFilter,
-  recordsDocumentFilter,
+  collectionRecords: _collectionRecords,
+  recordsLoading: _recordsLoading,
+  recordsError: _recordsError,
+  recordsSearch: _recordsSearch,
+  recordsNamespaceFilter: _recordsNamespaceFilter,
+  recordsDocumentFilter: _recordsDocumentFilter,
   onSelectCollection,
-  onDrilldownTabChange,
-  onSelectedDocumentKeyChange,
-  onUseSampleDiagnostics,
-  onUseFullDiagnostics,
-  onMaintenanceMaxDeletesChange,
-  onRecordsSearchChange,
-  onRecordsNamespaceFilterChange,
-  onRecordsDocumentFilterChange,
-  onRecordsNextPage,
-  onRecordsPreviousPage,
-  onPreviewMaintenance,
-  onApplyMaintenance,
-  onPreviewDeleteDocument,
-  onApplyDeleteDocument,
+  onDrilldownTabChange: _onDrilldownTabChange,
+  onUseSampleDiagnostics: _onUseSampleDiagnostics,
+  onUseFullDiagnostics: _onUseFullDiagnostics,
+  onMaintenanceMaxDeletesChange: _onMaintenanceMaxDeletesChange,
+  onRecordsSearchChange: _onRecordsSearchChange,
+  onRecordsNamespaceFilterChange: _onRecordsNamespaceFilterChange,
+  onRecordsDocumentFilterChange: _onRecordsDocumentFilterChange,
+  onRecordsNextPage: _onRecordsNextPage,
+  onRecordsPreviousPage: _onRecordsPreviousPage,
+  onPreviewMaintenance: _onPreviewMaintenance,
+  onApplyMaintenance: _onApplyMaintenance,
   onRetry,
 }: MetricsPanelProps) {
   const handleRetry = () => {
@@ -333,7 +262,6 @@ export function MetricsPanel({
       ? safeViewModel.totalEntriesLabel
       : "Unknown";
   const hasMetrics = safeViewModel.hasMetrics || metricCards.length > 0;
-  const ingestStatus = ingestHealth?.status?.trim() || "unknown";
 
   return (
     <div className="ko-stack">
@@ -360,22 +288,6 @@ export function MetricsPanel({
       <div className="ko-panel p-3 ko-text-xs ko-subtle">
         Each collection card shows how many items (embeddings) are currently stored. Click <strong>Open Details</strong> to
         debug or manage a specific collection.
-      </div>
-
-      <div className="ko-panel p-4">
-        <h4 className="font-semibold ko-text-strong mb-2">Ingest Pipeline</h4>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 ko-text-xs">
-          <div><span className="ko-subtle">Status:</span><span className="ko-text-strong ml-1 capitalize">{ingestStatus}</span></div>
-          <div><span className="ko-subtle">Pending:</span><span className="ko-text-strong ml-1">{ingestHealth?.pending_jobs ?? 0}</span></div>
-          <div><span className="ko-subtle">Running:</span><span className="ko-text-strong ml-1">{ingestHealth?.running_jobs ?? 0}</span></div>
-          <div><span className="ko-subtle">Failures (24h):</span><span className="ko-text-strong ml-1">{ingestHealth?.failures_last_24h ?? 0}</span></div>
-        </div>
-        <p className="ko-text-xs ko-subtle mt-2">
-          Runner interval: {ingestHealth?.runner_interval_ms ?? 500}ms
-          {typeof ingestHealth?.oldest_pending_age_ms === "number"
-            ? ` · Oldest pending age: ${Math.round(ingestHealth.oldest_pending_age_ms / 1000)}s`
-            : ""}
-        </p>
       </div>
 
       {!hasMetrics && (

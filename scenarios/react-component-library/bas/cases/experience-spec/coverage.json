@@ -1,0 +1,66 @@
+{
+  "metadata": {
+    "description": "Generated observer smoke for active experience page coverage.",
+    "execution_mode": "observer",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "coverage",
+      "surface": "experience-coverage"
+    },
+    "name": "experience-coverage-spec-smoke",
+    "requirement": "OT-P0-005",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": { "label": "Coverage report region asserted" },
+        "assert": {
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "selector": "[data-testid=\"coverage-page\"][data-experience-state=\"loading\"], [data-testid=\"coverage-page\"][data-experience-state=\"ready\"], [data-testid=\"coverage-page\"][data-experience-state=\"empty\"], [data-testid=\"coverage-page\"][data-experience-state=\"error\"]",
+          "timeout_ms": 15000
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-coverage-report-region"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Open Catalog coverage"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/coverage",
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-coverage"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Primary binding visible"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/coverage",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-coverage-primary-binding"
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-coverage", "target": "wait-coverage-primary-binding" },
+    { "id": "e2", "source": "wait-coverage-primary-binding", "target": "assert-coverage-report-region" }
+  ],
+  "settings": {
+    "viewport_height": 800,
+    "viewport_width": 1280
+  }
+}

@@ -1,0 +1,172 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "swarm-manager",
+  "key": "swarm-manager/plan-author",
+  "version": "1.0.0",
+  "description": "Author one candidate Plan Manager plan from an immutable backlog and workshop snapshot. Swarm Manager validates and binds the canonical plan reference.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "entity": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "snapshot": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "required": [
+      "entity",
+      "snapshot"
+    ],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "result": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "required": [
+      "result"
+    ],
+    "additionalProperties": false
+  },
+  "nodes": [
+    {
+      "id": "author",
+      "kind": "run",
+      "run": {
+        "profileKey": "swarm-manager/deep-work",
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "outcome": {
+                    "const": "ready"
+                  },
+                  "candidatePlan": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 65536
+                  }
+                },
+                "required": [
+                  "outcome",
+                  "candidatePlan"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "outcome": {
+                    "const": "needs_attention"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  }
+                },
+                "required": [
+                  "outcome",
+                  "reason"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "outcome": {
+                    "const": "abstained"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  }
+                },
+                "required": [
+                  "outcome",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "bindings": [
+          {
+            "name": "entity",
+            "source": "workflow_input",
+            "selector": "$.entity",
+            "limit": 1,
+            "maxBytes": 1024,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "snapshot",
+            "source": "workflow_input",
+            "selector": "$.snapshot",
+            "limit": 1,
+            "maxBytes": 65536,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
+        ],
+        "maxTurns": 12,
+        "timeoutSeconds": 900,
+        "promptRef": {
+          "skillId": "swarm-manager-workflow-plan-author"
+        }
+      }
+    }
+  ],
+  "budgets": {
+    "wallTimeSeconds": 1200,
+    "maxTurns": 12,
+    "maxTokens": 600000,
+    "maxChargeMicroUsd": 5000000,
+    "maxNodeAttempts": 2,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 1,
+    "maxWaitSeconds": 60
+  },
+  "metadata": {
+    "consumerMutationOwner": "swarm-manager"
+  }
+}

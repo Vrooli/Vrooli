@@ -436,19 +436,3 @@ func (h *PageEventHandler) HandlePageNavigated(pageID, url, title string) {
 		"title":   title,
 	}).Debug("Page navigated")
 }
-
-// EnsureMultiPagePlan ensures the plan is multi-page aware (v2 format).
-// For v1 plans, this upgrades them to v2 with a single implicit page.
-func EnsureMultiPagePlan(plan *contracts.ExecutionPlan) *contracts.ExecutionPlan {
-	if plan == nil {
-		return nil
-	}
-
-	// Already v2?
-	if plan.SchemaVersion == contracts.ExecutionPlanSchemaVersionV2 {
-		return plan
-	}
-
-	// Upgrade v1 to v2
-	return contracts.MigratePlanV1ToV2(plan)
-}

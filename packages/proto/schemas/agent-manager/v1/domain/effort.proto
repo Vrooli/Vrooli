@@ -1,0 +1,218 @@
+syntax = "proto3";
+
+package agent_manager.v1;
+
+import "agent-manager/v1/domain/watch.proto";
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
+
+// @stability experimental
+// Effort supervision extends the existing supervision owner. CLI, UI and recurring
+// runtime consumers read the same projection. Declarations are not runtime grants.
+
+// An exact subject reference. Ordering is the enrollment's declared order.
+message EffortSubject {
+  string owner = 1;
+  string kind = 2;
+  string reference = 3;
+  // Exact Agent Manager run identity, when applicable.
+  string run_id = 4;
+  // orchestrator, worker, supervisor, reviewer, investigator or repair.
+  string role = 5;
+  string assignment = 6;
+}
+
+// Monitoring configuration; authority_ref is evidence, never a bearer credential.
+message EffortEnrollment {
+  string effort_ref = 1 [(buf.validate.field).string = {min_len: 1, max_len: 512}];
+  string display_name = 2;
+  string destination_ref = 3;
+  string target_revision = 4;
+  string source_revision = 5;
+  string authority_ref = 6;
+  string supervisor_run_id = 7;
+  repeated EffortSubject subjects = 8;
+  uint64 revision = 10;
+  bool withdrawn = 11;
+  // Relative immediate directory under the configured effort root; empty for owner-only enrollment.
+  string workspace = 12;
+  string work_shape = 13;
+  google.protobuf.Timestamp updated_at = 14;
+  // Set only by authenticated owner enrollment; discovery cannot set it.
+  string authorized_by = 15;
+  string withdrawal_reason = 19;
+  // Retired steering grant, directive allowance and supervisor dispatch fields.
+  reserved 9, 16, 17, 18, 20, 21, 22, 23, 24, 25;
+  reserved "permitted_actions", "authority_expires_at", "maximum_directives", "cooldown_seconds", "supervisor_owner_subject", "supervisor_scope", "dispatch_authorization", "autonomous_supervision", "supervision_priority";
+}
+
+// Freshness of evidence, independently of runtime or outcome state.
+enum EffortFreshness {
+  EFFORT_FRESHNESS_UNSPECIFIED = 0;
+  EFFORT_FRESHNESS_FRESH = 1;
+  EFFORT_FRESHNESS_STALE = 2;
+  EFFORT_FRESHNESS_UNAVAILABLE = 3;
+}
+
+// A provider failure or schema/path/coverage finding; source is an evidence reference.
+message EffortDiscoveryFinding {
+  string source = 1;
+  string code = 2;
+  string reason = 3;
+}
+
+// Persisted scan coverage. Generation advances only when the source cut changes.
+message EffortDiscovery {
+  uint64 generation = 1;
+  string change_identity = 2;
+  google.protobuf.Timestamp last_scan_at = 3;
+  google.protobuf.Timestamp last_successful_scan_at = 4;
+  uint32 scan_limit = 5;
+  uint32 scanned_count = 6;
+  bool partial = 7;
+  repeated EffortDiscoveryFinding findings = 8;
+  uint64 byte_limit = 9;
+  string root = 10;
+  // Persisted lexical cursor for a rotating bounded manifest scan.
+  string scan_cursor = 11;
+  // Hard directory-index bound; exceeding it refuses this root scan explicitly.
+  uint32 directory_limit = 12;
+  // Standing discovery has an explicit accounting boundary; absent allowance is unknown.
+  string standing_allowance_ref = 13;
+  EffortUsage standing_usage = 14;
+}
+
+// Presence distinguishes unknown usage from an observed zero. Sums cover unique
+// owner execution identities, including supervisor/reviewer/repair assignments.
+message EffortUsage {
+  optional int64 tokens = 1;
+  optional double reported_cost_usd = 2;
+  optional double agent_seconds = 3;
+  uint32 observed_runs = 4;
+  uint32 declared_runs = 5;
+  bool partial = 6;
+  repeated string limitations = 7;
+  string source = 8;
+}
+
+// Provider-reported subscription standing. Percentage is retained only when
+// the provider reported it; token and dollar usage are never inferred here.
+message EffortQuotaObservation {
+  string provider = 1;
+  string pool = 2;
+  string window = 3;
+  google.protobuf.Timestamp observed_at = 4;
+  string standing = 5;
+  optional double used_percent = 6;
+  optional int64 window_minutes = 7;
+  google.protobuf.Timestamp reset_at = 8;
+  string source_run_id = 9;
+  string freshness = 10;
+  string provenance = 11;
+  string uncertainty = 12;
+  string evidence_ref = 13;
+}
+
+// Current owner observation with requested and effective settings kept separate.
+message EffortAssignment {
+  EffortSubject subject = 1;
+  string runtime_state = 2;
+  string requested_model = 3;
+  string effective_model = 4;
+  string requested_runner = 5;
+  string effective_runner = 6;
+  string requested_reasoning = 7;
+  string effective_reasoning = 8;
+  EffortUsage usage = 9;
+  google.protobuf.Timestamp observed_at = 10;
+  string unavailable_reason = 11;
+  string execution_identity = 12;
+}
+
+// Attributed outcome evidence; a workspace self-report cannot establish owner acceptance.
+message EffortOutcomeStanding {
+  string state = 1;
+  string attribution = 2;
+  repeated string evidence_refs = 3;
+  optional uint32 met_count = 4;
+  optional uint32 required_count = 5;
+  repeated string limitations = 6;
+}
+
+// One bounded row. Unknown facts remain explicit even if another source succeeds.
+message EffortBoardRow {
+  EffortEnrollment enrollment = 1;
+  google.protobuf.Timestamp observed_at = 2;
+  EffortFreshness freshness = 3;
+  string runtime_state = 4;
+  EffortOutcomeStanding outcome_standing = 5;
+  repeated EffortAssignment assignments = 6;
+  repeated string pending_operations = 7;
+  repeated string blockers = 8;
+  string next_action = 9;
+  string rationale = 10;
+  EffortUsage usage = 11;
+  repeated string limitations = 13;
+  repeated string evidence_refs = 14;
+  // Subject/evidence trigger: excludes supervisor activity, accounting and assessments.
+  string change_identity = 15;
+  // Full row visibility identity, including supervisory activity. Not an inference trigger.
+  string visibility_change_identity = 17;
+  // Provider observations are joined by source run when attribution exists.
+  repeated EffortQuotaObservation quota_observations = 18;
+  // Retired directive and assessment projections.
+  reserved 12, 16;
+  reserved "directives", "last_assessment";
+}
+
+// Shared operator/runtime projection. Active count spans the whole enrollment set.
+message EffortBoard {
+  repeated EffortBoardRow rows = 1;
+  EffortDiscovery discovery = 2;
+  google.protobuf.Timestamp observed_at = 3;
+  uint32 active_count = 4;
+  bool partial = 5;
+  repeated string limitations = 6;
+  string next_page_token = 7;
+  string change_identity = 8;
+  // One bounded owner read retained once for shared account/pool observations.
+  repeated EffortQuotaObservation quota_observations = 9;
+}
+
+message GetEffortBoardRequest {
+  string effort_ref = 1;
+  uint32 page_size = 2 [(buf.validate.field).uint32.lte = 100];
+  string page_token = 3;
+}
+message ListEffortsRequest {
+  uint32 page_size = 1 [(buf.validate.field).uint32.lte = 100];
+  string page_token = 2;
+}
+message ListEffortsResponse {
+  repeated EffortEnrollment efforts = 1;
+  string next_page_token = 2;
+  uint32 active_count = 3;
+}
+message EnrollEffortRequest {
+  EffortEnrollment enrollment = 1;
+  uint64 expected_revision = 2;
+  string idempotency_key = 3;
+}
+// Metadata reconciliation deliberately excludes authority and
+// withdrawal state. It lets an explicitly scoped effort coordinator keep the
+// owner projection current without renewing or revoking a grant.
+message ReconcileEffortMetadataRequest {
+  EffortEnrollment enrollment = 1;
+  uint64 expected_revision = 2;
+  string idempotency_key = 3;
+  WatchAuthority authority = 4;
+}
+message WithdrawEffortRequest {
+  string effort_ref = 1;
+  uint64 expected_revision = 2;
+  string reason = 3;
+  string idempotency_key = 4;
+}
+message ReconcileEffortDiscoveryRequest {}

@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"scenario-to-desktop-runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // ValidationError represents a secret validation failure.

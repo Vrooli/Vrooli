@@ -11,7 +11,7 @@ func calculateStalenessScore(file *TrackedFile) float64 {
 	if file.LastVisited == nil {
 		// Never visited files get high staleness based on age
 		daysSinceModified := time.Since(file.LastModified).Hours() / 24.0
-		return math.Min(100.0, daysSinceModified*2.0)
+		return math.Max(0, math.Min(100.0, daysSinceModified*2.0))
 	}
 
 	daysSinceVisit := time.Since(*file.LastVisited).Hours() / 24.0
@@ -26,12 +26,13 @@ func calculateStalenessScore(file *TrackedFile) float64 {
 	// Calculate staleness: (modifications × days_since_visit) / (visit_count + 1)
 	staleness := (modificationsEstimate * daysSinceVisit) / float64(file.VisitCount+1)
 
-	return math.Min(100.0, staleness)
+	return math.Max(0, math.Min(100.0, staleness))
 }
 
 // updateStalenessScores recalculates staleness scores for all files in a campaign
 func updateStalenessScores(campaign *Campaign) {
 	for i := range campaign.TrackedFiles {
+		campaign.TrackedFiles[i].AttentionScore = attentionScore(campaign.TrackedFiles[i], time.Now())
 		campaign.TrackedFiles[i].StalenessScore = calculateStalenessScore(&campaign.TrackedFiles[i])
 	}
 }

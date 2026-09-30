@@ -1,0 +1,1 @@
+{ "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json", "kind": "experience-page", "schemaVersion": "1.0.0", "page": { "id": "disk", "title": "Disk Metrics", "routes": ["/metrics/disk"], "purpose": "Inspect disk pressure, I/O, and measurement provenance.", "prd_refs": ["OT-P0-001", "OT-P0-005"] } }

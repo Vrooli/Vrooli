@@ -1,0 +1,86 @@
+{
+  "description": "Beyond top-level declarations, surface receiver types for methods and embedded fields for structs so cartographer's auto-placement signals can reason about ownership clusters more precisely.",
+  "module_id": "MOD-P1-014",
+  "prd_ref": "OT-P1-004",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-002"
+      ],
+      "description": "Beyond top-level declarations, Extract must surface receiver types for all methods (associating each method node with its receiver type node via a RECEIVER_OF edge) and embedded fields for struct types (representing embedded fields as nodes with EMBEDS edges). This extended coverage enables cartographer's auto-placement signals to reason about ownership clusters and interface satisfaction more precisely.",
+      "id": "REQ-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "draft",
+      "title": "Extended Method-Set and Embedded Field Coverage in Extraction",
+      "validation": [
+        {
+          "notes": "Test that a method on a named type produces a METHOD node with a RECEIVER_OF edge pointing to the receiver type node",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that a struct with embedded fields produces EMBEDS edges from the struct node to each embedded type node",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that pointer receiver methods are correctly associated with their base type (not the pointer type)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that interface method sets are represented with IMPLEMENTS candidate edges where type implements interface",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Table-driven tests for struct embedding chains (A embeds B embeds C)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract on a fixture with methods and embedded structs produces RECEIVER_OF and EMBEDS edges in the graph matching expected-graph.json",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Cartographer integration: method-set data from Extract is consumable by auto-placement logic without additional transformation",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Cartographer can determine ownership clusters based on receiver types without additional graph traversal or external analysis",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extended method-set coverage appears in the shared proto Graph envelope without requiring schema changes",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Extended Method-Set Coverage"
+}

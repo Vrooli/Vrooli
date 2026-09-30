@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.search;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/search;search_v1";
+
+service SearchService {
+  rpc SearchSkills(SearchSkillsRequest) returns (SearchSkillsResponse);
+  rpc SearchSkillContent(SearchSkillContentRequest) returns (SearchSkillContentResponse);
+  rpc SearchAgents(SearchAgentsRequest) returns (SearchAgentsResponse);
+  rpc SearchAgentContent(SearchAgentContentRequest) returns (SearchAgentContentResponse);
+  rpc SearchTeams(SearchTeamsRequest) returns (SearchTeamsResponse);
+  rpc SearchTeamContent(SearchTeamContentRequest) returns (SearchTeamContentResponse);
+}
+
+message MatchRange { int32 start = 1; int32 end = 2; }
+
+message SearchSkillsRequest { string query = 1; string tag = 2; string folder = 3; }
+message SkillSearchResult {
+  string id = 1; string name = 2; string description = 3; string content = 4;
+  string folder = 5; repeated string tags = 6; repeated string modes = 7;
+  double score = 8; string highlight = 9;
+}
+message SearchSkillsResponse { repeated SkillSearchResult results = 1; int32 total = 2; string query = 3; }
+
+message SearchSkillContentRequest {
+  string query = 1; repeated string tags = 2; repeated string folders = 3;
+  bool case_sensitive = 4; bool whole_word = 5; bool regex = 6; int32 limit = 7;
+}
+message SkillContentMatch {
+  string skill_id = 1; string skill_name = 2; string file = 3; string folder = 4;
+  int32 line_number = 5; string line = 6; repeated MatchRange match_ranges = 7;
+}
+message SearchSkillContentResponse { repeated SkillContentMatch matches = 1; int32 total = 2; string query = 3; }
+
+message SearchAgentsRequest { string query = 1; string tag = 2; string status = 3; }
+message AgentSearchResult {
+  string id = 1; string display_name = 2; string description = 3; string status = 4;
+  repeated string tags = 5; double score = 6; string highlight = 7;
+}
+message SearchAgentsResponse { repeated AgentSearchResult results = 1; int32 total = 2; string query = 3; }
+
+message SearchAgentContentRequest {
+  string query = 1; repeated string tags = 2; bool case_sensitive = 3;
+  bool whole_word = 4; bool regex = 5; int32 limit = 6;
+}
+message AgentContentMatch {
+  string agent_id = 1; string agent_name = 2; string file = 3; int32 line_number = 4;
+  string line = 5; repeated MatchRange match_ranges = 6;
+}
+message SearchAgentContentResponse { repeated AgentContentMatch matches = 1; int32 total = 2; string query = 3; }
+
+message SearchTeamsRequest { string query = 1; optional bool enabled = 2; }
+message TeamSearchResult {
+  string id = 1; string display_name = 2; string mission = 3; bool enabled = 4;
+  int32 member_count = 5; double score = 6; string highlight = 7;
+}
+message SearchTeamsResponse { repeated TeamSearchResult results = 1; int32 total = 2; string query = 3; }
+
+message SearchTeamContentRequest {
+  string query = 1; bool case_sensitive = 2; bool whole_word = 3; bool regex = 4; int32 limit = 5;
+}
+message TeamContentMatch {
+  string team_id = 1; string team_name = 2; string file = 3; int32 line_number = 4;
+  string line = 5; repeated MatchRange match_ranges = 6;
+}
+message SearchTeamContentResponse { repeated TeamContentMatch matches = 1; int32 total = 2; string query = 3; }

@@ -1,14 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { screen } from "@testing-library/react";
 import { ScenarioBadge } from "./scenario-badge";
+import { renderWithProviders } from "../../test-utils";
 
 function renderBadge(acceptanceAllow?: string[]) {
-  return render(
-    <MemoryRouter>
-      <ScenarioBadge acceptanceAllow={acceptanceAllow} />
-    </MemoryRouter>,
-  );
+  return renderWithProviders(<ScenarioBadge acceptanceAllow={acceptanceAllow} />);
 }
 
 describe("ScenarioBadge", () => {

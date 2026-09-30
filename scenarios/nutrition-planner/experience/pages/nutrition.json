@@ -1,0 +1,105 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "nutrition",
+    "title": "Nutrition (retired)",
+    "routes": [
+      "/nutrition"
+    ],
+    "purpose": "Retired as a primary route by decision D-031. Nutrition analysis now lives in the Week Nutrition view, the Today overview, and the recipe Nutrition tab; targets and supplements live in Kitchen Preferences.",
+    "prd_refs": [
+      "OT-P0-010"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "The surface at rest with persisted data present; the state a journey step assumes when it names none.",
+      "setup": {
+        "route": "/nutrition"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the page's data; stable skeletons reserve the layout so nothing shifts on arrival, and no sample food is shown as saved data.",
+      "setup": {
+        "route": "/nutrition",
+        "query": {
+          "fixture": "loading"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "The read succeeded and there is genuinely nothing yet, which is distinct from not-yet-loaded; one specific next action is offered.",
+      "setup": {
+        "route": "/nutrition",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some contributing data is unknown or could not be read; what is missing is named rather than shown as zero.",
+      "setup": {
+        "route": "/nutrition",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its freshness window; its age is shown next to it.",
+      "setup": {
+        "route": "/nutrition",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next action are stated, pending edits are kept, and nothing is edited against a fake empty account.",
+      "setup": {
+        "route": "/nutrition",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "Input was rejected; the offending field is identified next to it and every other edit is preserved.",
+      "setup": {
+        "route": "/nutrition",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control shows a busy state and says why it is unavailable, and success appears only after the durable save.",
+      "setup": {
+        "route": "/nutrition",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; cached data, locally pending actions, and server-confirmed saves are distinguished and unsupported actions say why.",
+      "setup": {
+        "route": "/nutrition",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    }
+  ]
+}

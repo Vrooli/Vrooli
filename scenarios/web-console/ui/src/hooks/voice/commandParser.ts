@@ -1,4 +1,3 @@
-// DOC: docs/internal/SEAMS.md#voice-command-parser-seam
 //
 // Voice Command Parser — detects and parses voice commands from transcribed text.
 //

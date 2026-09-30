@@ -1,0 +1,177 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "approvals",
+    "title": "Approvals",
+    "routes": [
+      "/approvals"
+    ],
+    "purpose": "Let the minter decide pending redemptions quickly, with enough context to decide well and a recorded reason when they decline.",
+    "prd_refs": [
+      "OT-P0-013",
+      "OT-P0-011"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "What is being asked for, by whom, and at what cost is readable without opening anything."
+    },
+    {
+      "statement": "Approving and denying are equally reachable; neither is the visually default choice.",
+      "notes": "A queue that makes approval the easy path stops being a decision surface."
+    },
+    {
+      "statement": "A denial captures a reason, because a refusal the holder cannot understand teaches nothing."
+    },
+    {
+      "statement": "A request already decided elsewhere is shown as decided rather than silently overwritten."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "One or more redemptions await a decision."
+    },
+    {
+      "id": "loading",
+      "description": "Queue is being fetched."
+    },
+    {
+      "id": "empty",
+      "description": "Nothing is waiting; the state is calm rather than celebratory."
+    },
+    {
+      "id": "submitting",
+      "description": "A decision is in flight."
+    },
+    {
+      "id": "success",
+      "description": "Decision recorded and the queue updated."
+    },
+    {
+      "id": "stale",
+      "description": "A listed request was decided in another session; the row reports that instead of accepting a second decision."
+    },
+    {
+      "id": "request-error",
+      "description": "Queue or decision call failed."
+    },
+    {
+      "id": "partial",
+      "description": "Queue loaded but per-request holder context failed; rows render with context marked unavailable rather than hiding the request."
+    }
+  ],
+  "elements": [
+    {
+      "id": "approval-queue",
+      "role": "table",
+      "name": "Pending redemptions",
+      "description": "Each request with holder, entry, cost and age."
+    },
+    {
+      "id": "approve-action",
+      "role": "button",
+      "name": "Approve",
+      "description": "Settles the redemption."
+    },
+    {
+      "id": "deny-action",
+      "role": "button",
+      "name": "Deny",
+      "description": "Releases the reservation and records a reason."
+    },
+    {
+      "id": "deny-reason",
+      "role": "textbox",
+      "name": "Reason",
+      "description": "Why the request was denied, shown to the holder."
+    },
+    {
+      "id": "request-context",
+      "role": "region",
+      "name": "Request context",
+      "description": "The holder's balance and recent activity, for deciding in context."
+    }
+  ],
+  "claims": [
+    {
+      "id": "decisions-equally-weighted",
+      "type": "affordance-present",
+      "statement": "Approve and deny are equally prominent and equally reachable; neither is styled as the default.",
+      "tier": "aspirational",
+      "elements": [
+        "approve-action",
+        "deny-action"
+      ]
+    },
+    {
+      "id": "context-without-navigation",
+      "type": "element-present",
+      "statement": "Enough holder context to decide is present without leaving the queue.",
+      "tier": "aspirational",
+      "elements": [
+        "request-context"
+      ]
+    },
+    {
+      "id": "denial-requires-reason",
+      "type": "affordance-present",
+      "statement": "Denying requires a reason before the decision can be submitted.",
+      "tier": "aspirational",
+      "elements": [
+        "deny-action",
+        "deny-reason"
+      ]
+    },
+    {
+      "id": "stale-decision-refused",
+      "type": "state-distinct",
+      "statement": "A row whose request was decided elsewhere is visually distinct and does not accept a second decision.",
+      "tier": "aspirational",
+      "states": [
+        "default",
+        "stale"
+      ]
+    },
+    {
+      "id": "empty-is-calm",
+      "type": "state-covered",
+      "statement": "The empty queue reads as an ordinary state, not an achievement.",
+      "tier": "aspirational",
+      "states": [
+        "empty"
+      ]
+    },
+    {
+      "id": "queue-keyboard-operable",
+      "type": "keyboard-reachable",
+      "statement": "Every decision in the queue is operable by keyboard alone.",
+      "tier": "aspirational",
+      "elements": [
+        "approve-action",
+        "deny-action"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "approval-queue": {
+        "testid": "approvals-queue"
+      },
+      "approve-action": {
+        "testid": "approvals-approve"
+      },
+      "deny-action": {
+        "testid": "approvals-deny"
+      },
+      "deny-reason": {
+        "testid": "approvals-deny-reason"
+      },
+      "request-context": {
+        "testid": "approvals-request-context"
+      }
+    }
+  }
+}

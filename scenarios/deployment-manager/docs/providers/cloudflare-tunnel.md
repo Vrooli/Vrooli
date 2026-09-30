@@ -49,7 +49,7 @@ Tier 1 deployments rely on a single Vrooli stack plus app-monitor. Cloudflare tu
 
 - Treat this as the supported remote-access method until Tier 2+ packaging exists.
 - Rotate tunnel credentials if the VPS is rebuilt.
-- Document any customer-specific hostname mappings in `docs/deployment/examples/` so deployment-manager can automate them later.
+- Document any customer-specific hostname mappings in the scenario's deployment examples so deployment-manager can automate them later.
 
 ## Related Docs
 

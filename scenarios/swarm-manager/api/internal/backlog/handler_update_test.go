@@ -10,8 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gorilla/mux"
 	"swarm-manager/internal/testutil"
+
+	"github.com/gorilla/mux"
 )
 
 // doUpdate sends a PATCH request to the Update handler and returns the recorder.
@@ -126,13 +127,13 @@ func TestUpdate_ClearsFields(t *testing.T) {
 		Name: "clear-test", Title: "Clear Test", Description: "To be cleared",
 		Status: StatusBacklog, Priority: 4, Tags: []string{"stale"},
 		Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
-		DependsOn: []string{"idea/alpha"}, Initiative: "release-hardening",
+		DependsOn: []string{"idea/alpha"}, Milestone: "release-hardening",
 		Effort: "L", AcceptanceAllow: []string{"api/**"}, AcceptanceDeny: []string{"secrets/**"},
 	})
 
 	w := doUpdate(t, h, "research", "clear-test", map[string]any{
 		"description": "", "tags": []string{}, "depends_on": []string{},
-		"initiative": "", "effort": "",
+		"milestone": "", "effort": "",
 		"acceptance_allow": []string{}, "acceptance_deny": []string{},
 	})
 	testutil.AssertStatusOK(t, w)
@@ -147,8 +148,8 @@ func TestUpdate_ClearsFields(t *testing.T) {
 	if len(saved.DependsOn) != 0 {
 		t.Fatalf("expected depends_on cleared, got %v", saved.DependsOn)
 	}
-	if saved.Initiative != "" {
-		t.Fatalf("expected initiative cleared, got %q", saved.Initiative)
+	if saved.Milestone != "" {
+		t.Fatalf("expected milestone cleared, got %q", saved.Milestone)
 	}
 	if saved.Effort != "" {
 		t.Fatalf("expected effort cleared, got %q", saved.Effort)
@@ -239,6 +240,45 @@ func TestUpdate_InProgressStatus_Rejected(t *testing.T) {
 
 	w := doUpdate(t, h, "idea", "inprog-reject", map[string]any{"status": "in_progress"})
 	testutil.AssertStatus(t, w, http.StatusBadRequest)
+}
+
+func TestUpdate_SuggestedStatusRejectedAsTarget(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	createTestItem(t, rootDir, KindIdea, newTestItem("suggested-reject", "Suggested Reject"))
+
+	w := doUpdate(t, h, "idea", "suggested-reject", map[string]any{"status": "suggested"})
+	testutil.AssertStatus(t, w, http.StatusBadRequest)
+	if !strings.Contains(w.Body.String(), `status "suggested" is not user-settable`) {
+		t.Fatalf("expected suggested rejection, got: %s", w.Body.String())
+	}
+}
+
+func TestUpdate_AcceptsSuggestedItem(t *testing.T) {
+	for _, status := range []BacklogStatus{StatusBacklog, StatusReady} {
+		t.Run(string(status), func(t *testing.T) {
+			h, rootDir := setupTestHandler(t)
+			createTestItem(t, rootDir, KindFix, BacklogItem{
+				Name:       "accept-suggested-" + string(status),
+				Title:      "Accept Suggested",
+				Status:     StatusSuggested,
+				Priority:   5,
+				FindingRef: "gct://target/readiness",
+				Created:    "2026-01-28T00:00:00Z",
+				Updated:    "2026-01-28T00:00:00Z",
+			})
+
+			w := doUpdate(t, h, "fix", "accept-suggested-"+string(status), map[string]any{"status": string(status)})
+			testutil.AssertStatusOK(t, w)
+
+			saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "fix", "accept-suggested-"+string(status), "spec.json"))
+			if saved.Status != status {
+				t.Fatalf("status = %q, want %q", saved.Status, status)
+			}
+			if saved.FindingRef != "gct://target/readiness" {
+				t.Fatalf("finding_ref = %q", saved.FindingRef)
+			}
+		})
+	}
 }
 
 func TestUpdate_ChangeDependsOn(t *testing.T) {
@@ -338,5 +378,36 @@ func TestUpdate_SpawnedFrom(t *testing.T) {
 	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "execute", "update-sf-test", "spec.json"))
 	if saved.SpawnedFrom != "research/my-research" {
 		t.Errorf("expected saved spawned_from 'research/my-research', got %q", saved.SpawnedFrom)
+	}
+}
+
+func TestUpdate_PlanRef(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	createTestItem(t, rootDir, KindExecute, newTestItem("update-plan-ref-test", "Update PlanRef Test"))
+
+	w := doUpdate(t, h, "execute", "update-plan-ref-test", map[string]any{
+		"plan_ref": map[string]any{
+			"provider": "plan-manager",
+			"planId":   "plan-456",
+			"slug":     "phase-one-plan",
+			"role":     "execution_spec",
+		},
+	})
+	testutil.AssertStatusOK(t, w)
+
+	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	if resp.Item.PlanRef == nil {
+		t.Fatalf("expected response plan_ref")
+	}
+	if resp.Item.PlanRef.PlanID != "plan-456" || resp.Item.PlanRef.Slug != "phase-one-plan" {
+		t.Fatalf("unexpected response plan_ref: %#v", resp.Item.PlanRef)
+	}
+
+	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "execute", "update-plan-ref-test", "spec.json"))
+	if saved.PlanRef == nil {
+		t.Fatalf("expected saved plan_ref")
+	}
+	if saved.PlanRef.PlanID != "plan-456" || saved.PlanRef.Role != PlanRefRoleExecutionSpec {
+		t.Fatalf("unexpected saved plan_ref: %#v", saved.PlanRef)
 	}
 }

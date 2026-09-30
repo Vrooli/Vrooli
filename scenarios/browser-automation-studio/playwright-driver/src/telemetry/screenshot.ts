@@ -18,6 +18,13 @@ export interface ScreenshotCapture {
   height: number;
 }
 
+export interface ScreenshotCaptureOptions {
+  /** Capture a specific visible element instead of the page viewport. */
+  selector?: string;
+  /** Override the environment default for this action. */
+  fullPage?: boolean;
+}
+
 /**
  * Capture screenshot from page
  *
@@ -30,7 +37,8 @@ export interface ScreenshotCapture {
  */
 export async function captureScreenshot(
   page: Page,
-  config: Config
+  config: Config,
+  options?: ScreenshotCaptureOptions
 ): Promise<ScreenshotCapture | undefined> {
   if (!config.telemetry.screenshot.enabled) {
     return undefined;
@@ -39,6 +47,12 @@ export async function captureScreenshot(
   try {
     const startTime = Date.now();
     const viewport = page.viewportSize();
+    const fullPage = options?.fullPage ?? config.telemetry.screenshot.fullPage;
+
+    // DOM assertions can succeed before the compositor has painted the final
+    // state. Give the browser one short render turn so evidence captures the
+    // visible story rather than a freshly navigated background.
+    await page.waitForTimeout(50);
 
     // Build screenshot options
     // When fullPage is false, use explicit clip to prevent viewport modification
@@ -48,7 +62,30 @@ export async function captureScreenshot(
       quality: undefined, // PNG doesn't support quality
     };
 
-    if (config.telemetry.screenshot.fullPage) {
+    if (options?.selector) {
+      const target = page.locator(options.selector).first();
+      await target.waitFor({ state: 'visible', timeout: 5000 });
+      const box = await target.boundingBox();
+      if (!box) throw new Error(`Screenshot selector is not measurable: ${options.selector}`);
+      const buffer = await target.screenshot({ type: 'png' });
+      if (buffer.length > config.telemetry.screenshot.maxSizeBytes) {
+        logger.warn('Element screenshot exceeds max size', {
+          selector: options.selector,
+          size: buffer.length,
+          max: config.telemetry.screenshot.maxSizeBytes,
+        });
+        return undefined;
+      }
+      metrics.screenshotSize.observe(buffer.length);
+      return {
+        base64: buffer.toString('base64'),
+        media_type: 'image/png',
+        width: Math.round(box.width),
+        height: Math.round(box.height),
+      };
+    }
+
+    if (fullPage) {
       screenshotOptions.fullPage = true;
     } else if (viewport) {
       // Use explicit clipping to viewport - this does NOT modify the viewport
@@ -72,7 +109,7 @@ export async function captureScreenshot(
       });
 
       // Try again with viewport-only screenshot if full page was requested
-      if (config.telemetry.screenshot.fullPage && viewport) {
+      if (fullPage && viewport) {
         // Use explicit clip to prevent any viewport modification
         const smallerBuffer = await page.screenshot({
           type: 'png',
@@ -98,9 +135,28 @@ export async function captureScreenshot(
         }
       }
 
-      // Still too large, return undefined
-      logger.warn('Screenshot too large even with viewport-only capture', {
+      // PNGs can exceed a tight transport budget even for a normal viewport.
+      // Preserve replay evidence by falling back to JPEG at the configured
+      // quality. Keep this viewport-scoped: a full-page fallback could change
+      // the frame dimensions and reintroduce the execution-viewer jitter this
+      // capture path deliberately avoids.
+      const compressed = await captureCompressedScreenshot(
+        page,
+        config.telemetry.screenshot.quality,
+        false,
+        config.telemetry.screenshot.maxSizeBytes
+      );
+      if (compressed) {
+        logger.info('Screenshot captured with JPEG fallback', {
+          pngSize: buffer.length,
+          maxSize: config.telemetry.screenshot.maxSizeBytes,
+        });
+        return compressed;
+      }
+
+      logger.warn('Screenshot too large after JPEG fallback', {
         size: buffer.length,
+        maxSize: config.telemetry.screenshot.maxSizeBytes,
       });
       return undefined;
     }
@@ -111,7 +167,7 @@ export async function captureScreenshot(
     logger.debug('Screenshot captured', {
       size: buffer.length,
       duration,
-      fullPage: config.telemetry.screenshot.fullPage,
+      fullPage,
     });
 
     metrics.screenshotSize.observe(buffer.length);

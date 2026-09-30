@@ -54,7 +54,7 @@ export function Tooltip({
 }: TooltipProps) {
   const [isVisible, setIsVisible] = useState(false)
   const [effectiveSide, setEffectiveSide] = useState<TooltipSide>(side)
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const triggerRef = useRef<HTMLDivElement>(null)
 
   const showTooltip = useCallback(() => {

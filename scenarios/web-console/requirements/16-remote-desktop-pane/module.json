@@ -1,0 +1,51 @@
+{
+  "_metadata": {
+    "module": "remote-desktop-pane",
+    "description": "Portal Everywhere acceptance obligations for Web Console's Device Control desktop viewer.",
+    "prd_ref": "OT-P0-009",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "WEBCONSOLE-DESKTOP-01",
+      "title": "Typed desktop readiness",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Given a selected Bridge node, the desktop pane shall show the current typed state—offline, no session, preboot, permission required, locked, ready, revoked, or failed—with an actionable recovery message and without presenting a stale ready state.",
+      "validation": [{"type": "automation", "status": "planned", "notes": "Add browser acceptance cases for each readiness state and preserve the state transition evidence."}]
+    },
+    {
+      "id": "WEBCONSOLE-DESKTOP-02",
+      "title": "WebRTC screen and input",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Given a ready Device Control desktop session, Web Console shall render the selected display, send pointer and keyboard input only while control is held, expose control takeover, and visibly distinguish viewer, controller, disconnected, and outcome-unknown states.",
+      "validation": [{"type": "automation", "status": "planned", "notes": "Use a deterministic fixture to prove click, key, wheel, held-input release, takeover, disconnect, and reconnect behavior."}]
+    },
+    {
+      "id": "WEBCONSOLE-DESKTOP-03",
+      "title": "Explicit clipboard actions",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "privacy",
+      "criticality": "P0",
+      "description": "Given clipboard scope is granted, the desktop pane shall provide visible bounded text transfer actions, never silently synchronize clipboard contents, and report refusal after expiry or revocation.",
+      "validation": [{"type": "automation", "status": "planned", "notes": "Prove Unicode text in both directions and no background clipboard mutation when the pane is view-only."}]
+    },
+    {
+      "id": "WEBCONSOLE-DESKTOP-04",
+      "title": "No credential leakage",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "security",
+      "criticality": "P0",
+      "description": "Given a desktop session is opened, browser state, URLs, logs, screenshots, and clipboard UI shall not contain Bridge owner credentials, node private keys, or long-lived desktop grants.",
+      "validation": [{"type": "test", "status": "planned", "notes": "Inspect browser payloads and structured logs with a seeded secret corpus."}]
+    }
+  ]
+}

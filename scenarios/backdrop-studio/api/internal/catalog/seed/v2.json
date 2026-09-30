@@ -1,0 +1,300 @@
+{
+  "version": 2,
+  "note": "Retunes every seeded style that carried an absolute spatial treatment parameter onto the relative form introduced in image-tools ops.proto, so a style tuned once holds its look at every delivery surface. A relative value is a fraction of the delivered image's short edge; the pixel figures quoted in the per-style reasons are what each resolves to on web.hero (1440x720). Styles absent from this file carry no spatial parameter and are unchanged.",
+  "retune_reasons": [
+    "engraved-colonnade.engraving: 7px hatch on a hero frame is below the period where a cross-hatch reads as line rather than as texture; ~11px lets the tone show through.",
+    "op-art-interior.line_screen: Op art lives on a bold screen. 6px read as flat grey at hero scale; ~13px restores the figure-ground beat the style is named for.",
+    "solar-bloom-horizon.bloom: Same ~18px lift at hero, now held proportional so the glow does not shrink to a rim on a large surface.",
+    "stipple-massif.stipple: Same ~7px cell at hero; stipple carries tone through dot count so the grid must stay tight.",
+    "swiss-contour.line_screen: Same ~11px pitch at hero, matching the engraving period so the two styles sit together in one catalog.",
+    "ascii-field.ascii_mosaic: ~14px = two glyph advances, so characters blit at 2:1 and stay crisp. The previous single-advance cell rendered glyphs too small to read as characters.",
+    "memphis-weave.displacement: Same ~18px throw on a ~26px wavelength at hero. Spacing had no effect at all before this phase \u2014 the implementation ignored it.",
+    "vaporwave-drift.aberration: Same ~9px channel separation at hero; fringing must scale with the frame or it vanishes on a large surface.",
+    "vaporwave-drift.bloom: Same ~22px lift at hero."
+  ],
+  "surfaces": [],
+  "styles": [
+    {
+      "id": "engraved-colonnade",
+      "name": "Engraved Colonnade",
+      "version": 2,
+      "role": "ambient",
+      "subject": "statuary_architecture",
+      "lineage": "scientific_plate",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "engraving"
+      ],
+      "placements": [
+        "framed_inset",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#2b2b28",
+        "$brand.background": "#efe9dc"
+      },
+      "treatment_params": {
+        "engraving": "{\"spacing_rel\": 0.0153, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\"}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#111827"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "op-art-interior",
+      "name": "Op Art Interior",
+      "version": 2,
+      "role": "ambient",
+      "subject": "interior",
+      "lineage": "op_art",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "line_screen"
+      ],
+      "placements": [
+        "full_bleed",
+        "corner_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#141414",
+        "$brand.background": "#f2f2f2"
+      },
+      "treatment_params": {
+        "line_screen": "{\"spacing_rel\": 0.0181, \"angle\": 45, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\"}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "solar-bloom-horizon",
+      "name": "Solar Bloom Horizon",
+      "version": 2,
+      "role": "ambient",
+      "subject": "horizon",
+      "lineage": "solarpunk",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "bloom",
+        "grain",
+        "scrim"
+      ],
+      "placements": [
+        "full_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#1d4d2b",
+        "$brand.background": "#f7f3d8"
+      },
+      "treatment_params": {
+        "bloom": "{\"radius_rel\": 0.025, \"threshold\": 0.62}",
+        "grain": "{\"amount\":0.06,\"contrast_multiplier\":1.04,\"seed\":9}",
+        "scrim": "{\"color\":\"$brand.primary\",\"opacity\":0.55,\"direction\":\"left\"}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "stipple-massif",
+      "name": "Stipple Massif",
+      "version": 2,
+      "role": "ambient",
+      "subject": "geological",
+      "lineage": "wpa_poster",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "stipple"
+      ],
+      "placements": [
+        "framed_inset",
+        "corner_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#23262f",
+        "$brand.background": "#f4f0e6"
+      },
+      "treatment_params": {
+        "stipple": "{\"spacing_rel\": 0.0097, \"seed\": 19, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\"}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#111827"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "swiss-contour",
+      "name": "Swiss Contour",
+      "version": 2,
+      "role": "ambient",
+      "subject": "cartographic",
+      "lineage": "swiss_international",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "posterize",
+        "line_screen"
+      ],
+      "placements": [
+        "framed_inset",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#b02a1f",
+        "$brand.background": "#f3f1ec"
+      },
+      "treatment_params": {
+        "posterize": "{\"levels\":5,\"dark\":\"$brand.primary\",\"light\":\"$brand.background\",\"normalize\":true}",
+        "line_screen": "{\"spacing_rel\": 0.0153, \"angle\": 0, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\"}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#111827"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "ascii-field",
+      "name": "ASCII Field",
+      "version": 2,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "demoscene",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "ascii_mosaic"
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#0d1b2a",
+        "$brand.background": "#cfe8ff"
+      },
+      "treatment_params": {
+        "ascii_mosaic": "{\"block_size_rel\": 0.02, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\"}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#111827"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "memphis-weave",
+      "name": "Memphis Weave",
+      "version": 2,
+      "role": "ambient",
+      "subject": "textile_material",
+      "lineage": "memphis",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "displacement",
+        "posterize"
+      ],
+      "placements": [
+        "full_bleed",
+        "corner_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#2d1b4e",
+        "$brand.background": "#ffd6e8"
+      },
+      "treatment_params": {
+        "displacement": "{\"amplitude_rel\": 0.025, \"spacing_rel\": 0.036, \"seed\": 5}",
+        "posterize": "{\"levels\":6,\"dark\":\"$brand.primary\",\"light\":\"$brand.background\",\"normalize\":true}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "vaporwave-drift",
+      "name": "Vaporwave Drift",
+      "version": 2,
+      "role": "ambient",
+      "subject": "object_metaphor",
+      "lineage": "vaporwave",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "aberration",
+        "bloom",
+        "scrim"
+      ],
+      "placements": [
+        "full_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#2a0f4d",
+        "$brand.background": "#ffb3de"
+      },
+      "treatment_params": {
+        "aberration": "{\"distance_rel\": 0.0125}",
+        "bloom": "{\"radius_rel\": 0.0306, \"threshold\": 0.58}",
+        "scrim": "{\"color\":\"$brand.primary\",\"opacity\":0.42,\"direction\":\"bottom\"}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5
+    }
+  ]
+}

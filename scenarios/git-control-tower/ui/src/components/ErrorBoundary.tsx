@@ -54,7 +54,7 @@ export class ErrorBoundary extends React.Component<
     return (
       <div
         style={{
-          minHeight: "100vh",
+          minHeight: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",

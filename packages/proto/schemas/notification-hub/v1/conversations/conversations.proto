@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package vrooli.notification_hub.v1.conversations;
+
+import "notification-hub/v1/shared/types.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations;conversations_v1";
+
+service ConversationsService {
+  rpc Ask(AskRequest) returns (AskResponse);
+  rpc Answer(AnswerRequest) returns (AnswerResponse);
+  rpc Wait(WaitRequest) returns (WaitResponse);
+}
+message AskRequest { string question = 1; repeated string allowed_answers = 2; string deadline = 3; string sensitivity_label = 4; string idempotency_key = 5; }
+message AskResponse { string ask_id = 1; shared.Notification notification = 2; }
+message AnswerRequest { string ask_id = 1; string answer = 2; }
+message AnswerResponse { string ask_id = 1; string answer = 2; string answered_at = 3; }
+message WaitRequest { string ask_id = 1; string deadline = 2; }
+message WaitResponse { string ask_id = 1; string state = 2; string answer = 3; string reason = 4; }

@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "focus",
+    "title": "Focus",
+    "routes": ["/focus"],
+    "purpose": "Host a durable working session — Pomodoro, countdown, open, or untimed — centered on the session objective, with interruption capture and a wrap-up that records real effort without asserting timer time is task completion.",
+    "prd_refs": ["OT-P1-005"]
+  },
+  "priorities": [
+    { "statement": "The focused view centers objective, timer/mode, next step, source link, next stop time, and pause/end; navigation recedes but stays accessible.", "notes": "Plan §13.2." },
+    { "statement": "Timer digits render from a confirmed server timestamp, not client heartbeat; refresh, tab suspension, and process restart never reset a session.", "notes": "Plan §13.4." },
+    { "statement": "Wrap-up offers Done / More to do / Blocked with optional remaining effort and notes — all feedback is genuinely optional; ending a work interval never completes the task.", "notes": "Plan §13.2, INV-03." },
+    { "statement": "A gentle stopping cue appears before the next fixed obligation; extending the timer never moves the appointment.", "notes": "Plan §13.2." }
+  ],
+  "states": [
+    { "id": "loading", "description": "The current authoritative session and its revision resolve on entry/reconnect." },
+    { "id": "idle", "description": "No active session: Start focus is available from a task, spontaneously, or via quick start." },
+    { "id": "empty", "description": "Opened without a task: spontaneous work can be recorded and classified later." },
+    { "id": "partial", "description": "A forgotten/overlong session is flagged for correction rather than confidently assigned many hours." },
+    { "id": "stale", "description": "A displayed elapsed time drifted from server time and is reconciled against the authoritative timestamp." },
+    { "id": "running", "description": "An exclusive session is running; the current work segment is open and its elapsed time renders from the server timestamp." },
+    { "id": "success", "description": "Wrap-up recorded: actuals and provenance saved; remaining effort independently editable." },
+    { "id": "permission-denied", "description": "Another current exclusive session exists (possibly another device): offer Continue, End, or Switch through a revision-checked command, never a duplicate counter." },
+    { "id": "offline", "description": "Disconnected: the timer keeps rendering from the last confirmed timestamp; pause/finish are retained as pending local corrections, marked clearly." },
+    { "id": "request-error", "description": "A transition failed: show the failure and the current authoritative session state; never hide failure behind an optimistic timer." }
+  ]
+}

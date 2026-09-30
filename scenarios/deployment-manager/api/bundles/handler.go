@@ -67,7 +67,11 @@ type Handler struct {
 	profileRepo   profiles.Repository
 	signingRepo   codesigning.Repository
 	signingGen    generation.Generator
-	log           func(string, map[string]interface{})
+	// exportAuthorize protects secret-bearing compatibility exports. The
+	// handler remains usable in isolated domain tests without a transport
+	// policy; production wiring must install the verified service boundary.
+	exportAuthorize func(context.Context) error
+	log             func(string, map[string]interface{})
 }
 
 // NewHandler creates a new bundles handler.
@@ -89,6 +93,21 @@ func NewHandlerWithSigning(secretsClient *secrets.Client, profileRepo profiles.R
 		signingGen:    generation.NewGenerator(nil),
 		log:           log,
 	}
+}
+
+// WithExportAuthorization installs the authorization boundary for exports
+// that include secret plans. Secret-free exports remain available to the
+// compatibility consumer without requiring publisher credentials.
+func (h *Handler) WithExportAuthorization(authorize func(context.Context) error) *Handler {
+	h.exportAuthorize = authorize
+	return h
+}
+
+func (h *Handler) authorizeSecretPlans(ctx context.Context) error {
+	if h.exportAuthorize == nil {
+		return nil
+	}
+	return h.exportAuthorize(ctx)
 }
 
 // ValidateBundle validates a desktop bundle manifest.
@@ -128,6 +147,10 @@ func (h *Handler) MergeBundleSecrets(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Tier == "" {
 		req.Tier = "tier-2-desktop"
+	}
+	if err := h.authorizeSecretPlans(r.Context()); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"secret-bearing bundle operation is unauthorized","details":"%s"}`, err), http.StatusForbidden)
+		return
 	}
 
 	// Re-validate manifest before merging.
@@ -174,6 +197,12 @@ func (h *Handler) AssembleBundle(w http.ResponseWriter, r *http.Request) {
 	includeSecrets := true
 	if req.IncludeSecrets != nil {
 		includeSecrets = *req.IncludeSecrets
+	}
+	if includeSecrets {
+		if err := h.authorizeSecretPlans(r.Context()); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"secret-bearing bundle assembly is unauthorized","details":"%s"}`, err), http.StatusForbidden)
+			return
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
@@ -223,9 +252,16 @@ func (h *Handler) AssembleBundle(w http.ResponseWriter, r *http.Request) {
 
 	// Validate assembled manifest to guarantee schema compliance before handing off.
 	if scenarioRoot := resolveScenarioRoot(req.Scenario); scenarioRoot != "" {
-		_ = populateAssetMetadata(manifest, scenarioRoot)
+		if err := populateAssetMetadata(manifest, scenarioRoot); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"failed to populate asset metadata","details":"%s"}`, err.Error()), http.StatusBadGateway)
+			return
+		}
 	}
-	payload, _ := json.Marshal(manifest)
+	payload, err := json.Marshal(manifest)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"failed to serialize assembled manifest","details":"%s"}`, err.Error()), http.StatusInternalServerError)
+		return
+	}
 	if err := ValidateManifestBytes(payload); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"assembled manifest failed validation","details":"%s"}`, err.Error()), http.StatusBadRequest)
 		return
@@ -269,6 +305,12 @@ func (h *Handler) ExportBundle(w http.ResponseWriter, r *http.Request) {
 	includeSecrets := true
 	if req.IncludeSecrets != nil {
 		includeSecrets = *req.IncludeSecrets
+	}
+	if includeSecrets {
+		if err := h.authorizeSecretPlans(r.Context()); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"secret-bearing bundle export is unauthorized","details":"%s"}`, err), http.StatusForbidden)
+			return
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
@@ -318,7 +360,10 @@ func (h *Handler) ExportBundle(w http.ResponseWriter, r *http.Request) {
 
 	// Validate assembled manifest before export.
 	if scenarioRoot := resolveScenarioRoot(req.Scenario); scenarioRoot != "" {
-		_ = populateAssetMetadata(manifest, scenarioRoot)
+		if err := populateAssetMetadata(manifest, scenarioRoot); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"failed to populate asset metadata","details":"%s"}`, err.Error()), http.StatusBadGateway)
+			return
+		}
 	}
 	payload, err := json.Marshal(manifest)
 	if err != nil {

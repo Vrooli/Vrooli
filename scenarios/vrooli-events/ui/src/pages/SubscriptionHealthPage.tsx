@@ -1,4 +1,6 @@
 // REQ-UI-010: Subscription health detail
+// DOC: docs/reference/api-endpoints.md#subscriptions
+// DOC: docs/guides/creating-subscriptions.md
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { HeartPulse, ArrowLeft, Send, AlertTriangle, CheckCircle, XCircle } from "lucide-react";

@@ -4,9 +4,13 @@
 
 import { useState } from "react";
 import { Copy } from "lucide-react";
-import type { BundlePreflightLogTail, BundlePreflightServiceFingerprint } from "../../lib/api";
+import type { PreflightPresentation } from "../../lib/preflightPresentation";
 import { Button } from "../ui/button";
-import { countLines, formatBytes, formatTimestamp } from "../../lib/preflight-utils";
+import {
+  countLines,
+  formatBytes,
+  formatTimestamp,
+} from "../../lib/preflight-utils";
 import { writeToClipboard } from "../../lib/browser";
 
 // ============================================================================
@@ -14,17 +18,22 @@ import { writeToClipboard } from "../../lib/browser";
 // ============================================================================
 
 interface LogTailsPanelProps {
-  logTails: BundlePreflightLogTail[];
+  logTails: PreflightPresentation["logTails"];
 }
 
 export function LogTailsPanel({ logTails }: LogTailsPanelProps) {
-  const [copyStatus, setCopyStatus] = useState<Record<string, "idle" | "copied" | "error">>({});
+  const [copyStatus, setCopyStatus] = useState<
+    Record<string, "idle" | "copied" | "error">
+  >({});
 
-  if (!logTails || logTails.length === 0) {
+  if (logTails.length === 0) {
     return null;
   }
 
-  const handleCopy = async (tail: BundlePreflightLogTail, key: string) => {
+  const handleCopy = async (
+    tail: PreflightPresentation["logTails"][number],
+    key: string,
+  ) => {
     const result = await writeToClipboard(tail.content || "");
     if (result.success) {
       setCopyStatus((prev) => ({ ...prev, [key]: "copied" }));
@@ -44,11 +53,14 @@ export function LogTailsPanel({ logTails }: LogTailsPanelProps) {
       </summary>
       <div className="mt-2 space-y-2">
         {logTails.map((tail, idx) => {
-          const copyKey = `${tail.service_id}-${idx}`;
+          const copyKey = `${tail.service_id}-${String(idx)}`;
           const lineCount = countLines(tail.content);
           const copyState = copyStatus[copyKey] || "idle";
           return (
-            <div key={copyKey} className="rounded-md border border-slate-800/70 bg-slate-950/80 p-2 space-y-2">
+            <div
+              key={copyKey}
+              className="rounded-md border border-slate-800/70 bg-slate-950/80 p-2 space-y-2"
+            >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-[11px] uppercase tracking-wide text-slate-400">
                   {tail.service_id} · {lineCount} of {tail.lines} lines
@@ -58,11 +70,17 @@ export function LogTailsPanel({ logTails }: LogTailsPanelProps) {
                   size="sm"
                   variant="outline"
                   className="h-7 px-2 text-[10px]"
-                  onClick={() => handleCopy(tail, copyKey)}
+                  onClick={() => {
+                    void handleCopy(tail, copyKey);
+                  }}
                 >
                   <Copy className="h-3 w-3" />
                   <span className="ml-1">
-                    {copyState === "copied" ? "Copied" : copyState === "error" ? "Failed" : "Copy"}
+                    {copyState === "copied"
+                      ? "Copied"
+                      : copyState === "error"
+                        ? "Failed"
+                        : "Copy"}
                   </span>
                 </Button>
               </div>
@@ -86,11 +104,11 @@ export function LogTailsPanel({ logTails }: LogTailsPanelProps) {
 // ============================================================================
 
 interface FingerprintsPanelProps {
-  fingerprints: BundlePreflightServiceFingerprint[];
+  fingerprints: PreflightPresentation["fingerprints"];
 }
 
 export function FingerprintsPanel({ fingerprints }: FingerprintsPanelProps) {
-  if (!fingerprints || fingerprints.length === 0) {
+  if (fingerprints.length === 0) {
     return null;
   }
 
@@ -101,24 +119,39 @@ export function FingerprintsPanel({ fingerprints }: FingerprintsPanelProps) {
       </summary>
       <div className="mt-2 space-y-2">
         {fingerprints.map((fp) => (
-          <div key={`${fp.service_id}-${fp.binary_path || "unknown"}`} className="rounded-md border border-slate-800/70 bg-slate-950/80 p-2 space-y-1">
-            <p className="text-[11px] uppercase tracking-wide text-slate-400">{fp.service_id}</p>
+          <div
+            key={`${fp.service_id}-${fp.binary_path || "unknown"}`}
+            className="rounded-md border border-slate-800/70 bg-slate-950/80 p-2 space-y-1"
+          >
+            <p className="text-[11px] uppercase tracking-wide text-slate-400">
+              {fp.service_id}
+            </p>
             {fp.error ? (
               <p className="text-[11px] text-amber-200">{fp.error}</p>
             ) : (
               <>
                 {fp.binary_path && (
-                  <p className="text-[11px] text-slate-300" title={fp.binary_resolved_path}>
+                  <p
+                    className="text-[11px] text-slate-300"
+                    title={fp.binary_resolved_path}
+                  >
                     {fp.binary_path}
                   </p>
                 )}
                 <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
                   {fp.platform && <span>{fp.platform}</span>}
-                  {fp.binary_size_bytes ? <span>{formatBytes(fp.binary_size_bytes)}</span> : null}
-                  {fp.binary_mtime ? <span>{formatTimestamp(fp.binary_mtime)}</span> : null}
+                  {fp.binary_size_bytes ? (
+                    <span>{formatBytes(fp.binary_size_bytes)}</span>
+                  ) : null}
+                  {fp.binary_mtime ? (
+                    <span>{formatTimestamp(fp.binary_mtime)}</span>
+                  ) : null}
                 </div>
                 {fp.binary_sha256 && (
-                  <p className="text-[10px] text-slate-500" title={fp.binary_sha256}>
+                  <p
+                    className="text-[10px] text-slate-500"
+                    title={fp.binary_sha256}
+                  >
                     {fp.binary_sha256.slice(0, 16)}
                   </p>
                 )}
@@ -140,7 +173,10 @@ interface PortSummaryPanelProps {
   telemetryPath?: string;
 }
 
-export function PortSummaryPanel({ portSummary, telemetryPath }: PortSummaryPanelProps) {
+export function PortSummaryPanel({
+  portSummary,
+  telemetryPath,
+}: PortSummaryPanelProps) {
   if (!portSummary && !telemetryPath) {
     return null;
   }

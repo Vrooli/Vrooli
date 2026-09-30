@@ -1,0 +1,147 @@
+{
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "planning",
+    "title": "Proposal workspace and review",
+    "routes": [
+      "/planning"
+    ],
+    "purpose": "Author and review scoped artifact and graph changes, then inspect authorized owner-directed application.",
+    "prd_refs": [
+      "OT-P0-004",
+      "OT-P0-005",
+      "OT-P0-006",
+      "OT-P0-007",
+      "OT-P1-004",
+      "OT-P1-005"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Make exact revision, target scope and material changes legible."
+    },
+    {
+      "statement": "Keep authority, validation limitations and dependency holds visible."
+    },
+    {
+      "statement": "Show applied, conflicted and partial outcomes with safe recovery."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Show the current selection and available next actions."
+    },
+    {
+      "id": "loading",
+      "description": "Identify pending work without implying an empty result."
+    },
+    {
+      "id": "submitting",
+      "description": "Show the submitted operation and prevent accidental duplicate effects."
+    },
+    {
+      "id": "saving",
+      "description": "Keep unsaved and persisted revision identity distinct."
+    },
+    {
+      "id": "syncing",
+      "description": "Identify the source being synchronized and keep usable context."
+    },
+    {
+      "id": "refreshing",
+      "description": "Retain usable previous content with freshness labels."
+    },
+    {
+      "id": "empty",
+      "description": "Explain a confirmed empty result and a relevant next step."
+    },
+    {
+      "id": "partial",
+      "description": "Show usable content and the omitted or failed portion."
+    },
+    {
+      "id": "stale",
+      "description": "Show source age and the consequences of stale evidence."
+    },
+    {
+      "id": "success",
+      "description": "Show the completed operation and its exact result identity."
+    },
+    {
+      "id": "validation-error",
+      "description": "Identify actionable findings while preserving draft content."
+    },
+    {
+      "id": "request-error",
+      "description": "Explain failed work without discarding context."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Identify the unmet authority boundary without suggesting bypass."
+    },
+    {
+      "id": "offline",
+      "description": "Retain available context and identify unavailable operations."
+    },
+    {
+      "id": "retry",
+      "description": "Retry safely with operation identity and visible progress."
+    },
+    {
+      "id": "reviewing",
+      "description": "Inspect immutable artifact and authored-graph differences linked from a plan."
+    },
+    {
+      "id": "conflicted",
+      "description": "Show relevant base conflicts and preserve independent edits."
+    },
+    {
+      "id": "applying",
+      "description": "Show per-entry progress and the durable operation identity."
+    },
+    {
+      "id": "recovering",
+      "description": "Reconcile owner receipts before retrying an interrupted operation."
+    },
+    {
+      "id": "abandoned",
+      "description": "Explain retained reviewed content and deletion consequences."
+    },
+    {
+      "id": "experiment",
+      "description": "Show explicit execution allowances, isolated inputs and evidence limitations."
+    }
+  ],
+  "claims": [
+    {
+      "id": "planning-priority-1",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Make exact revision, target scope and material changes legible.",
+      "rationale": "Documentation-first target; runtime bindings and evidence remain to be implemented and qualified."
+    },
+    {
+      "id": "planning-priority-2",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Keep authority, validation limitations and dependency holds visible.",
+      "rationale": "Documentation-first target; runtime bindings and evidence remain to be implemented and qualified."
+    },
+    {
+      "id": "planning-priority-3",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Show applied, conflicted and partial outcomes with safe recovery.",
+      "rationale": "Documentation-first target; runtime bindings and evidence remain to be implemented and qualified."
+    },
+    {
+      "id": "planning-accessible-recovery",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Given keyboard or compact-device use, when work is incomplete or fails, then the user can understand status and reach an appropriate next action without relying on graph geometry or color alone.",
+      "rationale": "Documentation-first target; runtime bindings and evidence remain to be implemented and qualified."
+    }
+  ]
+}

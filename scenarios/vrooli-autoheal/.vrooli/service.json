@@ -1,6 +1,103 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "mode": "development",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": false,
+        "format": "sqlite",
+        "subpath": "autoheal.sqlite",
+        "rationale": "The autoheal control-plane database is durable operational state and is bounded by its working-set requirement.",
+        "budget": {
+          "max_bytes": "1GiB",
+          "max_age": "30d",
+          "rationale": "The database is a bounded operational working set. Per-table retention ceilings total 704 MiB, leaving headroom for durable rollups, schema overhead, WAL, and future bounded tables while keeping the complete live database below 1 GiB."
+        }
+      },
+      "data_wal": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": true,
+        "subpath": "autoheal.sqlite-wal",
+        "rationale": "SQLite write-ahead-log sidecar for the canonical autoheal database; SQLite recreates it and it must be counted while the database is live.",
+        "budget": {
+          "max_bytes": "64MiB",
+          "max_age": "30d",
+          "rationale": "The live sidecar is normally short-lived and small; the ceiling detects a checkpoint failure without treating the durable database as disposable."
+        }
+      },
+      "data_shm": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": true,
+        "subpath": "autoheal.sqlite-shm",
+        "rationale": "SQLite shared-memory sidecar for the canonical autoheal database; SQLite recreates it and it must be counted while the database is live.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "SQLite shared memory is bounded and regenerable; a one-mebibyte ceiling leaves headroom above the observed 32 KiB file."
+        }
+      },
+      "deployment_report": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "format": "json",
+        "regenerable": true,
+        "subpath": "deployment/deployment-report.json",
+        "rationale": "The lifecycle deployment assessment is a resolver-owned report that can be regenerated from the current scenario state.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "The observed report is 6 KiB; one mebibyte leaves ample schema growth headroom while detecting accidental history accumulation."
+        }
+      },
+      "legacy_user_data_database": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": true,
+        "path": "$USER_DATA_DIR/vrooli/vrooli-autoheal/autoheal.sqlite",
+        "rationale": "Superseded pre-migration location; vrooli-autoheal no longer reads this path and any remaining file is reclaimable.",
+        "budget": {
+          "max_bytes": "0B",
+          "rationale": "This is a superseded location; zero bytes is the deliberate ceiling for orphan cleanup."
+        }
+      },
+      "retention_enforcement_receipt": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "regenerable": true,
+        "subpath": "retention/enforcement-receipt.json",
+        "rationale": "Storage Manager writes the latest retention-enforcement receipt under the scenario state root so operators and audits can prove the bounded-history policy ran.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "Only the latest compact receipt is retained; one mebibyte leaves ample schema headroom and detects accidental append-only behavior."
+        }
+      },
+      "logs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "Scenario operational logs observed in the canonical logs directory.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "parent": "vrooli",
     "name": "vrooli-autoheal",
@@ -9,6 +106,136 @@
     "version": "0.0.1",
     "type": "business-application",
     "category": "infrastructure",
+    "capabilities": [
+      "autoheal-health-monitoring",
+      "autoheal-host-integrity",
+      "autoheal-service-recovery",
+      "autoheal-watchdog",
+      "host-pressure-detection",
+      "workload-ownership-reconciliation",
+      "evicted-service-reclaim"
+    ],
+    "platform_capabilities": {
+      "autoheal-health-monitoring": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "native-go-checks-and-vrooli-cli",
+          "evidence": "autoheal API and scenario-check contract tests"
+        },
+        "macos": {
+          "status": "experimental",
+          "mechanism": "typed-vrooli-status-and-platform-go-log-backend",
+          "evidence": "darwin cross-build and platform contract tests; no real-host qualification"
+        },
+        "windows": {
+          "status": "experimental",
+          "mechanism": "typed-vrooli-status-and-platform-go-log-backend",
+          "evidence": "windows cross-build and platform contract tests; no real-host qualification"
+        }
+      },
+      "autoheal-host-integrity": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "control-plane-hostinventory",
+          "evidence": "hostinventory contract tests"
+        },
+        "macos": {
+          "status": "unqualified",
+          "mechanism": "hostinventory-probe-boundary-reports-not-applicable",
+          "evidence": "typed unsupported result contract; no native host qualification"
+        },
+        "windows": {
+          "status": "unqualified",
+          "mechanism": "hostinventory-probe-boundary-reports-not-applicable",
+          "evidence": "typed unsupported result contract; no native host qualification"
+        }
+      },
+      "autoheal-service-recovery": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "platform-go-native-service-backend-and-setup-grant",
+          "evidence": "service recovery unit tests"
+        },
+        "macos": {
+          "status": "experimental",
+          "mechanism": "platform-go-launchd-backend",
+          "evidence": "darwin cross-build and backend contract tests; no real-host qualification"
+        },
+        "windows": {
+          "status": "experimental",
+          "mechanism": "platform-go-scheduled-task-backend",
+          "evidence": "windows cross-build and backend contract tests; no real-host qualification"
+        }
+      },
+      "autoheal-watchdog": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "platform-go-systemd-backend",
+          "evidence": "Linux watchdog backend tests"
+        },
+        "macos": {
+          "status": "experimental",
+          "mechanism": "platform-go-launchd-backend",
+          "evidence": "darwin cross-build and backend contract tests; no real-host qualification"
+        },
+        "windows": {
+          "status": "experimental",
+          "mechanism": "platform-go-scheduled-task-backend",
+          "evidence": "windows cross-build and backend contract tests; no real-host qualification"
+        }
+      },
+      "host-pressure-detection": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "native-go-hostpressure-and-autoheal-check",
+          "evidence": "hostpressure fixtures, autoheal contract tests, and Linux runtime check"
+        },
+        "macos": {
+          "status": "experimental",
+          "mechanism": "typed-unsupported-fork-rate-with-portable-pressure-fields",
+          "evidence": "darwin cross-build and platform contract tests; fork rate is unread by decision"
+        },
+        "windows": {
+          "status": "experimental",
+          "mechanism": "typed-unsupported-fork-rate-with-portable-pressure-fields",
+          "evidence": "windows cross-build and platform contract tests; fork rate is unread by decision"
+        }
+      },
+      "workload-ownership-reconciliation": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "control-plane-hostinventory-and-declared-manifest-join",
+          "evidence": "hostinventory and workloadowner fixture contract tests"
+        },
+        "macos": {
+          "status": "experimental",
+          "mechanism": "typed-platform-census-with-explicit-unread-fields",
+          "evidence": "darwin cross-build and platform contract tests"
+        },
+        "windows": {
+          "status": "experimental",
+          "mechanism": "typed-platform-census-with-explicit-unread-fields",
+          "evidence": "windows cross-build and platform contract tests"
+        }
+      },
+      "evicted-service-reclaim": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "control-plane-lifecycle-recycle-with-saturation-brake",
+          "evidence": "watchdog reclaim policy tests and Linux lifecycle seam"
+        },
+        "macos": {
+          "status": "experimental",
+          "mechanism": "typed-lifecycle-recycle-seam-with-saturation-brake",
+          "evidence": "darwin cross-build and platform contract tests"
+        },
+        "windows": {
+          "status": "experimental",
+          "mechanism": "typed-lifecycle-recycle-seam-with-saturation-brake",
+          "evidence": "windows cross-build and platform contract tests"
+        }
+      }
+    },
     "tags": [
       "vrooli-helper",
       "emergency-response",
@@ -24,7 +251,6 @@
       "typescript",
       "vite"
     ],
-    "importance": "critical",
     "maintainers": [
       {
         "name": "Vrooli Team",
@@ -52,7 +278,7 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 36236,
+      "port": 21236,
       "description": "React dashboard for health visualization"
     }
   },
@@ -83,127 +309,373 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/vrooli-autoheal-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "vrooli-autoheal",
-            "targets": [
-              "vrooli-autoheal"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && chmod +x vrooli-autoheal && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o vrooli-autoheal-api .",
-          "description": "Build the Go API binary (vrooli-autoheal-api) for lifecycle orchestration"
-        },
-        {
-          "name": "build-loop",
-          "run": "cd cli/loop && go build -o ../vrooli-autoheal-loop .",
-          "description": "Compile cross-platform Go loop binary for watchdog"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && if [ -f package.json ]; then pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '🚀 Vrooli Autoheal initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-autoheal --help'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and UI server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./vrooli-autoheal-api",
-          "background": true,
-          "description": "Start Go API server",
-          "condition": {
-            "file_exists": "api/vrooli-autoheal-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '🚀 Vrooli Autoheal ready\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-autoheal --help'",
-          "description": "Display service URLs after startup"
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute vrooli-autoheal --preset comprehensive",
-          "description": "Run structure/unit/integration/business/performance phases"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'vrooli-autoheal-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'vrooli-autoheal.*server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
+  "hostTools": [
+    {
+      "name": "cloudflared",
+      "required": true,
+      "reason": "Infrastructure health checks and self-healing for the Cloudflare tunnel process",
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ]
+    },
+    {
+      "name": "vrooli",
+      "required": false,
+      "reason": "Structured scenario, resource, registry, and supervisor status is the authoritative monitoring input",
+      "when": [
+        "setup"
+      ],
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ]
+    },
+    {
+      "name": "journalctl",
+      "required": false,
+      "reason": "Linux journal evidence backend; absent on other platforms is reported as unsupported",
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
+    },
+    {
+      "name": "systemctl",
+      "required": false,
+      "reason": "Linux service observation and recovery backend; setup grants cover fixed recovery units",
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
+    },
+    {
+      "name": "docker",
+      "required": false,
+      "reason": "Docker resource health is monitored when Docker is installed",
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ]
+    },
+    {
+      "name": "timedatectl",
+      "required": false,
+      "reason": "Linux clock synchronization observation; unsupported elsewhere",
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
+    },
+    {
+      "name": "resolvectl",
+      "required": false,
+      "reason": "Linux resolver observation; unsupported elsewhere",
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
+    },
+    {
+      "name": "apt-get",
+      "required": false,
+      "reason": "Optional Debian/Ubuntu package-event and remediation evidence",
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
+    },
+    {
+      "name": "apt-cache",
+      "required": false,
+      "reason": "Optional Debian/Ubuntu package candidate evidence",
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
+    },
+    {
+      "name": "dpkg-query",
+      "required": false,
+      "reason": "Optional Debian/Ubuntu package state evidence",
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
+    },
+    {
+      "name": "rpm",
+      "required": false,
+      "reason": "Optional Fedora/RHEL package state evidence",
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
+    },
+    {
+      "name": "dnf",
+      "required": false,
+      "reason": "Optional Fedora/RHEL package-event evidence",
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
+    },
+    {
+      "name": "pacman",
+      "required": false,
+      "reason": "Optional Arch package state evidence",
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
+    },
+    {
+      "name": "launchctl",
+      "required": false,
+      "reason": "macOS watchdog lifecycle backend",
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "macos"
+      ]
+    },
+    {
+      "name": "log",
+      "required": false,
+      "reason": "macOS unified-log backend",
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "macos"
+      ]
+    },
+    {
+      "name": "schtasks",
+      "required": false,
+      "reason": "Windows scheduled-task watchdog backend",
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "windows"
+      ]
+    },
+    {
+      "name": "powershell.exe",
+      "required": false,
+      "reason": "Windows event-log backend",
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "windows"
+      ]
+    }
+  ],
+  "hostSafeguards": [
+    {
+      "name": "autoheal_recovery_privileges",
+      "required": false,
+      "reason": "Setup-provisioned Linux grant for fixed autoheal service recovery actions; unsupported on macOS and Windows",
+      "when": [
+        "setup"
+      ],
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ]
+    }
+  ],
   "dependencies": {
-    "resources": {
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": false,
-        "description": "Real-time status pub/sub (optional, fallback to polling)"
+    "resources": {},
+    "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "vrooli-autoheal",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "vrooli-autoheal"
+    },
+    "freshness": {
+      "inputs": [
+        "api/**",
+        "cli/*.go",
+        "cli/go.mod",
+        "cli/go.sum",
+        "cli/manifest.json",
+        "cli/domains/**",
+        "cli/internal/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "environment": {
+    "AUTOHEAL_NETWORK_TARGET": "dns.google:53",
+    "AUTOHEAL_DNS_DOMAIN": "example.com",
+    "AUTOHEAL_EXTERNAL_DNS_SERVER": "dns.google"
+  },
+  "retention": {
+    "budgets": {
+      "system_events": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "autoheal.sqlite",
+          "table": "system_events",
+          "time_column": "occurred_at"
+        },
+        "max_age": "30d",
+        "max_bytes": "128MiB",
+        "pruner": "builtin",
+        "rationale": "Host journal ingest is kept for at most 30 days, but volume is driven by host conditions Vrooli does not control. The 128 MiB ceiling is the hard small-host bound when the age horizon alone cannot contain a log storm; compact incidents preserve the durable forensic rollup."
+      },
+      "health_results": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "autoheal.sqlite",
+          "table": "health_results",
+          "time_column": "created_at"
+        },
+        "max_age": "24h",
+        "pruner": "builtin",
+        "rationale": "One row per health check per tick. Twenty-four hours is enough to diagnose current fleet behavior while outage_records and incidents retain compact durable history. The 256 MiB ceiling bounds bursts even when tick volume exceeds the normal rate.",
+        "max_bytes": "256MiB"
+      },
+      "action_logs": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "autoheal.sqlite",
+          "table": "action_logs",
+          "time_column": "created_at"
+        },
+        "max_age": "24h",
+        "max_bytes": "64MiB",
+        "pruner": "builtin",
+        "rationale": "Action attempts are high-volume operational evidence paired with health results. Twenty-four hours preserves the current diagnosis window; incidents, outage_records, and heal_trackers retain durable outcomes. The 64 MiB ceiling bounds verbose command output and burst recovery loops."
+      },
+      "host_inventory_snapshots": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "autoheal.sqlite",
+          "table": "host_inventory_snapshots",
+          "time_column": "collected_at"
+        },
+        "max_age": "90d",
+        "pruner": "builtin",
+        "rationale": "Full host inventory documents are retained for at most a quarter, but the byte ceiling is authoritative when host churn makes fingerprint snapshots accumulate faster. Current inventory remains available through the latest-snapshot read model.",
+        "max_bytes": "128MiB"
+      },
+      "incident_observations": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "autoheal.sqlite",
+          "table": "incident_observations",
+          "time_column": "observed_at"
+        },
+        "max_age": "90d",
+        "pruner": "builtin",
+        "rationale": "Incident observations preserve up to a quarter of detailed source evidence. The 128 MiB ceiling prevents open-incident evidence churn from crowding out the incident and outage rollups that remain durable outside this raw observation table.",
+        "max_bytes": "128MiB"
+      }
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
       }
     },
-    "scenarios": {}
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "pnpm",
+          "run",
+          "start"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    },
+    "loop": {
+      "role": "sidecar",
+      "build": {
+        "kind": "go_module",
+        "dir": "cli/loop",
+        "output": "cli/vrooli-autoheal-loop"
+      },
+      "run": {
+        "argv": [
+          "{{bin.loop}}"
+        ],
+        "cwd": "cli/loop",
+        "supervised_by": "api"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
   }
 }

@@ -1,0 +1,37 @@
+{
+  "createdAt": "2026-09-12T00:00:00Z",
+  "description": "Supervise delivery orchestrators from above - repair the shared infrastructure their workaround logs name, audit a sample of accepted epochs and every step-back, and report weighted cost per accepted epoch on a daily trend check and event wakes.",
+  "entry": "SKILL.md",
+  "icon": "eye",
+  "id": "large-effort-supervision",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "large-effort-supervision",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "agent-manager",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "agent-manager",
+      "prompt-manager"
+    ]
+  },
+  "revision": 20,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "supervision",
+    "effort",
+    "efficiency",
+    "orchestration",
+    "evidence"
+  ],
+  "updatedAt": "2026-09-30T18:00:00Z"
+}

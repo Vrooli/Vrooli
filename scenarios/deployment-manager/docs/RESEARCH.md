@@ -1,5 +1,9 @@
 # Research: Deployment Manager
 
+> Historical discovery notes. This page is not a current implementation or
+> release-status source; use the [documentation index](README.md), roadmap, and
+> evidence contract for maintained status.
+
 **Date**: 2025-11-21
 **Researcher**: Generator Agent
 **Purpose**: Establish uniqueness, identify integration points, and validate deployment-manager as a viable capability
@@ -332,8 +336,8 @@ No existing scenario performs this orchestration role.
 ## References
 
 - `/docs/deployment/README.md` - Deployment Hub (tier model, orchestration loop)
-- `/docs/deployment/tiers/` - Individual tier documentation
-- `/docs/deployment/guides/` - Fitness scoring, dependency swapping guides
+- `docs/tiers/` - Individual target documentation
+- `docs/guides/` - Fitness scoring, dependency swapping, and evidence guides
 - `/scenarios/scenario-dependency-analyzer/` - Dependency data source
 - `/scenarios/secrets-manager/` - Secret management integration
 - `/scenarios/app-issue-tracker/` - Migration task tracking

@@ -1,0 +1,17 @@
+{
+  "name": "@vrooli/flow-runtime",
+  "version": "1.0.0",
+  "private": false,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./node": "./src/node/index.ts"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "devDependencies": {
+    "vitest": "^2.1.4"
+  }
+}

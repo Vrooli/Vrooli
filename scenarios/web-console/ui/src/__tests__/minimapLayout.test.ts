@@ -57,7 +57,7 @@ describe("viewportFromScrollMetrics", () => {
   it("applies minViewportPercent floor", () => {
     const result = viewportFromScrollMetrics({
       scrollTop: 0,
-      scrollHeight: 100000,
+		scrollHeight: 100 * 1000,
       clientHeight: 100,
       minViewportPercent: 10,
     });

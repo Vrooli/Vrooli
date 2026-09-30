@@ -3,6 +3,7 @@ import { Search, Database, Tag, DollarSign, AlertCircle, CheckCircle, XCircle, P
 import axios from 'axios';
 import './App.css';
 import { resolveApiBase, buildApiUrl as composeApiUrl } from '@vrooli/api-base';
+import { AppShell as LibraryAppShell } from '@vrooli/react-component-library/AppShell/2';
 
 const DEFAULT_API_PORT = process.env.REACT_APP_API_PORT || '15100';
 
@@ -284,45 +285,39 @@ function App() {
     return `status-${status.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
   };
 
+  const shellItems = [
+    { id: 'search', label: 'Search APIs', href: '#search', icon: <Search size={16} />, current: activeTab === 'search' },
+    { id: 'configured', label: `Configured (${configuredAPIs.length})`, href: '#configured', icon: <Key size={16} />, current: activeTab === 'configured' },
+    { id: 'research', label: 'Request Research', href: '#research', icon: <Globe size={16} />, current: activeTab === 'research' },
+  ];
+
   return (
-    <div className="app">
-      <header className="header">
-        <div className="header-content">
-          <div className="logo">
-            <Database />
-            <h1>API Library</h1>
-          </div>
-          <div className="header-subtitle">
-            Discover, track, and manage external APIs with institutional knowledge
-          </div>
-        </div>
-      </header>
-
-      <nav className="nav-tabs">
-        <button 
-          className={`nav-tab ${activeTab === 'search' ? 'active' : ''}`}
-          onClick={() => setActiveTab('search')}
+    <LibraryAppShell
+      brand="API Library"
+      brandMark={<Database aria-hidden="true" />}
+      items={shellItems}
+      density="sidebar"
+      mobileNav="tabs"
+      mainMode="scroll"
+      header={<span className="header-subtitle">Discover, track, and manage external APIs with institutional knowledge</span>}
+      utility={<span className="text-sm">{configuredAPIs.length} configured</span>}
+      onNavigate={(item) => setActiveTab(item.id)}
+      renderLink={(item, { href, children, ...props }) => (
+        <a
+          href={href}
+          {...props}
+          onClick={(event) => {
+            event.preventDefault();
+            setActiveTab(item.id);
+          }}
         >
-          <Search size={16} />
-          Search APIs
-        </button>
-        <button 
-          className={`nav-tab ${activeTab === 'configured' ? 'active' : ''}`}
-          onClick={() => setActiveTab('configured')}
-        >
-          <Key size={16} />
-          Configured ({configuredAPIs.length})
-        </button>
-        <button 
-          className={`nav-tab ${activeTab === 'research' ? 'active' : ''}`}
-          onClick={() => setActiveTab('research')}
-        >
-          <Globe size={16} />
-          Request Research
-        </button>
-      </nav>
-
-      <main className="main-content">
+          {children}
+        </a>
+      )}
+      testId="api-library-shell"
+      mainClassName="main-content"
+    >
+      <>
         {activeTab === 'search' && (
           <div className="search-section">
             <form onSubmit={handleSearch} className="search-form">
@@ -385,7 +380,7 @@ function App() {
                   </span>
                 </div>
                 {isCompactView ? (
-                  <ul className="results-list" role="list">
+                  <ul className="results-list">
                     {searchResults.map((api) => (
                       <li key={api.id} className="results-list-item">
                         <button
@@ -583,7 +578,7 @@ function App() {
             </form>
           </div>
         )}
-      </main>
+      </>
 
       {selectedAPI && (
         <div className="modal-overlay" onClick={() => setSelectedAPI(null)}>
@@ -715,7 +710,7 @@ function App() {
           </div>
         </div>
       )}
-    </div>
+    </LibraryAppShell>
   );
 }
 

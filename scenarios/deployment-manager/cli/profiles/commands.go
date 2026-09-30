@@ -10,6 +10,7 @@ import (
 
 	"deployment-manager/cli/cmdutil"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -37,18 +38,27 @@ func (c *Commands) List(args []string) error {
 	}
 	formatVal := cmdutil.ResolveFormat(*format)
 	if strings.ToLower(formatVal) == "table" {
-		rows := make([][]string, 0, len(profiles))
+		report := cliapp.ListReport{
+			Summary: []string{
+				fmt.Sprintf("Profiles: %d", len(profiles)),
+			},
+			ResultsHeading: "Profiles",
+			RetrievalHints: []string{
+				"deployment-manager profile show <profile-id>",
+				"deployment-manager profile create <name> <scenario> --tier <tier>",
+			},
+		}
 		for _, p := range profiles {
-			rows = append(rows, []string{
+			report.Results = append(report.Results, fmt.Sprintf(
+				"%s scenario=%s tiers=%s swaps=%d version=v%d",
 				p.ID,
 				p.Scenario,
 				intSliceToString(p.Tiers),
-				fmt.Sprintf("%d swaps", p.Swaps.len()),
-				fmt.Sprintf("v%d", versionNumber(p)),
-			})
+				p.Swaps.len(),
+				versionNumber(p),
+			))
 		}
-		cmdutil.PrintTable([]string{"ID", "Scenario", "Tiers", "Swaps", "Version"}, rows)
-		return nil
+		return cliapp.RenderListReport(os.Stdout, report)
 	}
 	cmdutil.PrintByFormat(formatVal, body)
 	return nil
@@ -74,12 +84,21 @@ func (c *Commands) Create(args []string) error {
 		Secrets:  map[string]interface{}{},
 		Settings: map[string]interface{}{},
 	}
-	body, err := c.api.Request("POST", "/api/v1/profiles", nil, payload)
-	if err != nil {
+	if _, err := c.api.Request("POST", "/api/v1/profiles", nil, payload); err != nil {
 		return err
 	}
-	cliutil.PrintJSON(body)
-	return nil
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result: []string{
+			fmt.Sprintf("Profile created: %s", remaining[0]),
+		},
+		Changes: []string{
+			fmt.Sprintf("Scenario: %s", remaining[1]),
+			fmt.Sprintf("Tier: %d", cmdutil.TierToNumber(*tier)),
+		},
+		NextCommand: []string{
+			fmt.Sprintf("deployment-manager profile show %s", remaining[0]),
+		},
+	})
 }
 
 func (c *Commands) Show(args []string) error {
@@ -97,8 +116,12 @@ func (c *Commands) Show(args []string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := decodeProfile(body); err != nil {
+	profile, err := decodeProfile(body)
+	if err != nil {
 		return fmt.Errorf("parse profile: %w", err)
+	}
+	if strings.ToLower(cmdutil.ResolveFormat(*format)) != "json" {
+		return cliapp.RenderListReport(os.Stdout, profileShowReport(profile))
 	}
 	cmdutil.PrintByFormat(*format, body)
 	return nil
@@ -113,8 +136,15 @@ func (c *Commands) Delete(args []string) error {
 	if err != nil {
 		return err
 	}
-	cliutil.PrintJSON(body)
-	return nil
+	_ = body
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result: []string{
+			fmt.Sprintf("Profile deleted: %s", id),
+		},
+		NextCommand: []string{
+			"deployment-manager profiles",
+		},
+	})
 }
 
 func (c *Commands) Export(args []string) error {
@@ -145,8 +175,18 @@ func (c *Commands) Export(args []string) error {
 		if err := os.WriteFile(*outputPath, data, 0o644); err != nil {
 			return fmt.Errorf("write export: %w", err)
 		}
-		fmt.Printf("Profile exported to %s\n", *outputPath)
-		return nil
+		return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+			Result: []string{
+				fmt.Sprintf("Profile exported to %s", *outputPath),
+			},
+			Changes: []string{
+				fmt.Sprintf("Profile: %s", id),
+				fmt.Sprintf("Scenario: %s", profile.Scenario),
+			},
+			NextCommand: []string{
+				fmt.Sprintf("deployment-manager profile import %s", *outputPath),
+			},
+		})
 	}
 	cmdutil.PrintByFormat(*format, body)
 	return nil
@@ -180,6 +220,20 @@ func (c *Commands) Import(args []string) error {
 	if err != nil {
 		return err
 	}
+	if strings.ToLower(cmdutil.ResolveFormat(*format)) != "json" {
+		return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+			Result: []string{
+				fmt.Sprintf("Profile imported from %s", path),
+			},
+			Changes: []string{
+				fmt.Sprintf("Profile: %s", payload.Name),
+				fmt.Sprintf("Scenario: %s", payload.Scenario),
+			},
+			NextCommand: []string{
+				fmt.Sprintf("deployment-manager profile show %s", payload.Name),
+			},
+		})
+	}
 	cmdutil.PrintByFormat(*format, body)
 	return nil
 }
@@ -212,6 +266,19 @@ func (c *Commands) Update(args []string) error {
 	updated, err := c.api.Request("PUT", "/api/v1/profiles/"+id, nil, payload)
 	if err != nil {
 		return err
+	}
+	if strings.ToLower(cmdutil.ResolveFormat(*format)) != "json" {
+		return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+			Result: []string{
+				fmt.Sprintf("Profile updated: %s", id),
+			},
+			Changes: []string{
+				fmt.Sprintf("Tier: %s", fallbackProfileValue(*tier, "(unchanged)")),
+			},
+			NextCommand: []string{
+				fmt.Sprintf("deployment-manager profile show %s", id),
+			},
+		})
 	}
 	cmdutil.PrintByFormat(*format, updated)
 	return nil
@@ -266,8 +333,19 @@ func (c *Commands) Set(args []string) error {
 	if err != nil {
 		return err
 	}
-	cliutil.PrintJSON(updated)
-	return nil
+	_ = updated
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result: []string{
+			fmt.Sprintf("Profile setting updated: %s", id),
+		},
+		Changes: []string{
+			fmt.Sprintf("Key: %s", key),
+			fmt.Sprintf("Value: %s", strings.Join(rest, " ")),
+		},
+		NextCommand: []string{
+			fmt.Sprintf("deployment-manager profile show %s", id),
+		},
+	})
 }
 
 func (c *Commands) Swap(args []string) error {
@@ -308,8 +386,22 @@ func (c *Commands) Swap(args []string) error {
 	if err != nil {
 		return err
 	}
-	cliutil.PrintJSON(updated)
-	return nil
+	_ = updated
+	change := fmt.Sprintf("Swap removed: %s", from)
+	if action == "add" || action == "set" {
+		change = fmt.Sprintf("Swap %s -> %s", from, to)
+	}
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result: []string{
+			fmt.Sprintf("Profile swaps updated: %s", id),
+		},
+		Changes: []string{
+			change,
+		},
+		NextCommand: []string{
+			fmt.Sprintf("deployment-manager profile show %s", id),
+		},
+	})
 }
 
 func (c *Commands) Versions(args []string) error {
@@ -331,6 +423,29 @@ func (c *Commands) Versions(args []string) error {
 	if err := json.Unmarshal(body, &history); err != nil {
 		return fmt.Errorf("parse version history: %w", err)
 	}
+	if strings.ToLower(cmdutil.ResolveFormat(*format)) != "json" {
+		report := cliapp.ListReport{
+			Summary: []string{
+				fmt.Sprintf("Profile: %s", id),
+				fmt.Sprintf("Versions: %d", len(history.Versions)),
+			},
+			ResultsHeading: "Version History",
+			RetrievalHints: []string{
+				fmt.Sprintf("deployment-manager profile diff %s", id),
+				fmt.Sprintf("deployment-manager profile rollback %s --version <n>", id),
+			},
+		}
+		for _, version := range history.Versions {
+			report.Results = append(report.Results, fmt.Sprintf(
+				"v%d tiers=%s swaps=%d scenario=%s",
+				versionNumber(version),
+				intSliceToString(version.Tiers),
+				version.Swaps.len(),
+				version.Scenario,
+			))
+		}
+		return cliapp.RenderListReport(os.Stdout, report)
+	}
 	cmdutil.PrintByFormat(*format, body)
 	return nil
 }
@@ -350,8 +465,29 @@ func (c *Commands) Analyze(args []string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := decodeProfile(body); err != nil {
+	profile, err := decodeProfile(body)
+	if err != nil {
 		return fmt.Errorf("parse profile: %w", err)
+	}
+	if strings.ToLower(cmdutil.ResolveFormat(*format)) != "json" {
+		report := cliapp.ListReport{
+			Summary: []string{
+				fmt.Sprintf("Profile: %s", id),
+			},
+			ResultsHeading: "Analysis",
+			Results: []string{
+				fmt.Sprintf("Scenario: %s", profile.Scenario),
+				fmt.Sprintf("Tiers: %s", intSliceToString(profile.Tiers)),
+				fmt.Sprintf("Swaps: %d", profile.Swaps.len()),
+				fmt.Sprintf("Secrets keys: %d", len(profile.Secrets)),
+				fmt.Sprintf("Settings keys: %d", len(profile.Settings)),
+			},
+			RetrievalHints: []string{
+				fmt.Sprintf("deployment-manager profile show %s", id),
+				fmt.Sprintf("deployment-manager fitness %s", profile.Scenario),
+			},
+		}
+		return cliapp.RenderListReport(os.Stdout, report)
 	}
 	cmdutil.PrintByFormat(*format, body)
 	return nil
@@ -377,8 +513,18 @@ func (c *Commands) Save(args []string) error {
 	if err != nil {
 		return err
 	}
-	cliutil.PrintJSON(updated)
-	return nil
+	_ = updated
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result: []string{
+			fmt.Sprintf("Profile saved: %s", id),
+		},
+		Changes: []string{
+			"Current server state re-saved as a new version",
+		},
+		NextCommand: []string{
+			fmt.Sprintf("deployment-manager profile versions %s", id),
+		},
+	})
 }
 
 func (c *Commands) Diff(args []string) error {
@@ -406,8 +552,17 @@ func (c *Commands) Diff(args []string) error {
 	diff := computeProfileDiff(previous, current)
 
 	if len(diff) == 0 {
-		fmt.Printf("No differences between versions %d and %d\n", versionNumber(previous), versionNumber(current))
-		return nil
+		return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{
+			Summary: []string{
+				fmt.Sprintf("Profile: %s", id),
+				fmt.Sprintf("Compared: v%d -> v%d", versionNumber(previous), versionNumber(current)),
+			},
+			ResultsHeading: "Change Set",
+			Results:        []string{"No differences"},
+			RetrievalHints: []string{
+				fmt.Sprintf("deployment-manager profile versions %s", id),
+			},
+		})
 	}
 
 	payload := map[string]interface{}{
@@ -422,8 +577,20 @@ func (c *Commands) Diff(args []string) error {
 		cmdutil.PrintJSONMap(payload)
 		return nil
 	}
-	cmdutil.PrintJSONMap(payload)
-	return nil
+	report := cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Profile: %s", history.ProfileID),
+			fmt.Sprintf("Compared: v%d -> v%d", versionNumber(previous), versionNumber(current)),
+		},
+		ResultsHeading: "Change Set",
+		RetrievalHints: []string{
+			fmt.Sprintf("deployment-manager profile rollback %s --version %d", id, versionNumber(previous)),
+		},
+	}
+	for field, change := range diff {
+		report.Results = append(report.Results, fmt.Sprintf("%s from=%v to=%v", field, change["from"], change["to"]))
+	}
+	return cliapp.RenderListReport(os.Stdout, report)
 }
 
 func (c *Commands) Rollback(args []string) error {
@@ -471,8 +638,18 @@ func (c *Commands) Rollback(args []string) error {
 		result["server_response"] = json.RawMessage(body)
 	}
 
-	cmdutil.PrintJSONMap(result)
-	return nil
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result: []string{
+			fmt.Sprintf("Profile rolled back: %s", id),
+		},
+		Changes: []string{
+			fmt.Sprintf("Applied version: %s", selected),
+		},
+		NextCommand: []string{
+			fmt.Sprintf("deployment-manager profile show %s", id),
+			fmt.Sprintf("deployment-manager profile versions %s", id),
+		},
+	})
 }
 
 // Secrets (profile-scoped)
@@ -509,6 +686,25 @@ func (c *Commands) secretsIdentify(args []string) error {
 	body, err := c.api.Get("/api/v1/profiles/"+id+"/secrets", nil)
 	if err != nil {
 		return err
+	}
+	if strings.ToLower(cmdutil.ResolveFormat(*format)) != "json" {
+		var parsed map[string]interface{}
+		if err := json.Unmarshal(body, &parsed); err == nil {
+			report := cliapp.ListReport{
+				Summary: []string{
+					fmt.Sprintf("Profile: %s", id),
+				},
+				ResultsHeading: "Secrets",
+				RetrievalHints: []string{
+					fmt.Sprintf("deployment-manager secrets template %s --format env", id),
+					fmt.Sprintf("deployment-manager secrets validate %s", id),
+				},
+			}
+			for key, value := range parsed {
+				report.Results = append(report.Results, fmt.Sprintf("%s=%v", key, value))
+			}
+			return cliapp.RenderListReport(os.Stdout, report)
+		}
 	}
 	cmdutil.PrintByFormat(*format, body)
 	return nil
@@ -557,6 +753,17 @@ func (c *Commands) secretsValidate(args []string) error {
 	body, err := c.api.Request("POST", "/api/v1/profiles/"+id+"/secrets/validate", nil, map[string]interface{}{})
 	if err != nil {
 		return err
+	}
+	if strings.ToLower(cmdutil.ResolveFormat(*format)) != "json" {
+		return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{
+			Status: []string{
+				fmt.Sprintf("Secrets validation completed for %s", id),
+			},
+			NextSteps: []string{
+				fmt.Sprintf("deployment-manager secrets template %s --format env", id),
+				fmt.Sprintf("deployment-manager profile show %s", id),
+			},
+		})
 	}
 	cmdutil.PrintByFormat(*format, body)
 	return nil

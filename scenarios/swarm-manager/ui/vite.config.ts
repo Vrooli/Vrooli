@@ -1,42 +1,98 @@
-import { defineConfig } from "vite";
+import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
-  // ╔══════════════════════════════════════════════════════════════╗
-  // ║  INTEROP-CRITICAL: Relative base for proxy/tunnel contexts  ║
-  // ║                                                              ║
-  // ║  When served through app-monitor's proxy at                  ║
-  // ║  /apps/<name>/proxy/, absolute asset URLs (base: '/')        ║
-  // ║  resolve to the domain root, breaking all JS/CSS loading.    ║
-  // ║  Relative base ('./') makes assets resolve from the          ║
-  // ║  current directory, which works in all three contexts.       ║
-  // ║                                                              ║
-  // ║  DO NOT change to '/' or remove this setting.                ║
-  // ╚══════════════════════════════════════════════════════════════╝
-  base: './',
-  // Targets Chrome 67 to support older embedded browsers (e.g. Google TV).
-  // Only transpiles syntax (optional chaining, class fields, etc.) — does NOT
-  // polyfill missing runtime APIs. See main.tsx for runtime polyfills.
-  build: {
-    target: 'chrome67',
-  },
-  plugins: [react()],
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: ['./src/setupTests.ts'],
-    testTimeout: 30_000,
-    hookTimeout: 30_000,
-    coverage: {
-      provider: 'v8',
-      reporter: ['json-summary', 'json', 'text'],
-      reportOnFailure: true,
-      thresholds: {
-        lines: 0,
-        functions: 0,
-        branches: 0,
-        statements: 0
-      }
-    }
-  }
+// Mode-aware config so a regular `vite build` ships the lean prod artifact and
+// `vite build --mode profile` produces a perf-build channel. The perf build is
+// still a production bundle (minified, batched, no StrictMode double-renders);
+// it only differs in two ways:
+//
+//   1. `react-dom/client` aliases to `react-dom/profiling` so React's internal
+//      profiling instrumentation survives. This makes <React.Profiler>'s
+//      onRender callbacks fire (otherwise they're stripped).
+//   2. `esbuild.keepNames` preserves component/function identifiers through
+//      minification so CPU samples and React-track entries display real names
+//      (`BacklogTab`) instead of mangled ones (`hR`).
+//
+// Cost vs. regular prod: ~5–15% extra CPU per commit, ~10–20 KB extra gz.
+// Trade only when auditing.
+//
+// Triggering the perf build:
+//   - Direct:  `pnpm run build:profile` always uses --mode profile.
+//   - Via env: `VROOLI_BUILD_MODE=profile vrooli scenario restart swarm-manager`.
+//              The lifecycle builder selects the `build:profile` script for
+//              that channel, so the selection is argv the whole way down and
+//              carries no shell conditional.
+//
+// See scenarios/test-genie/docs/phases/performance/README.md for the audit
+// workflow. Capture is BAS's performance tracer (CDP trace + web-vitals);
+// performance-health interprets the React commit marks this build emits.
+export default defineConfig(({ mode }): UserConfig => {
+  const isProfile = mode === "profile";
+  return {
+    // ╔══════════════════════════════════════════════════════════════╗
+    // ║  INTEROP-CRITICAL: Relative base for proxy/tunnel contexts  ║
+    // ║                                                              ║
+    // ║  When served through app-monitor's proxy at                  ║
+    // ║  /apps/<name>/proxy/, absolute asset URLs (base: '/')        ║
+    // ║  resolve to the domain root, breaking all JS/CSS loading.    ║
+    // ║  Relative base ('./') makes assets resolve from the          ║
+    // ║  current directory, which works in all three contexts.       ║
+    // ║                                                              ║
+    // ║  DO NOT change to '/' or remove this setting.                ║
+    // ╚══════════════════════════════════════════════════════════════╝
+    base: "./",
+    // Targets Chrome 67 to support older embedded browsers (e.g. Google TV).
+    // Only transpiles syntax (optional chaining, class fields, etc.) — does NOT
+    // polyfill missing runtime APIs. See main.tsx for runtime polyfills.
+    build: {
+      target: "chrome67",
+    },
+    resolve: isProfile
+      ? {
+          alias: {
+            "react-dom/client": "react-dom/profiling",
+            // Internal references inside react-dom/client.js do `require('react-dom')`,
+            // which would resolve back to the stripped-prod bundle. Force them
+            // through the profiling entry too.
+            "react-dom$": "react-dom/profiling",
+          },
+        }
+      : undefined,
+    esbuild: isProfile
+      ? {
+          keepNames: true,
+        }
+      : undefined,
+    plugins: [react()],
+    test: {
+      globals: true,
+      environment: "jsdom",
+      setupFiles: ["./src/setupTests.ts"],
+      // The serial-isolation runner profile is expressed here rather than in
+      // package scripts, so every invocation has the same bounded worker
+      // contract on every host.
+      pool: "forks",
+      poolOptions: { forks: { minForks: 1, maxForks: 1 } },
+      // The shared audio package is a workspace file: link, so Vitest treats it
+      // as an external dependency and lets Node resolve it — which lands on its
+      // published dist/, whose emitted ESM uses extensionless relative imports
+      // Node cannot resolve. Inlining it routes the import back through Vite,
+      // where the resolve.alias above maps it to the package's TypeScript
+      // source (the same source the app bundle compiles).
+      server: { deps: { inline: [/@vrooli\/audio-capture-browser/] } },
+      testTimeout: 30_000,
+      hookTimeout: 30_000,
+      coverage: {
+        provider: "v8",
+        reporter: ["json-summary", "json", "text"],
+        reportOnFailure: true,
+        thresholds: {
+          lines: 0,
+          functions: 0,
+          branches: 0,
+          statements: 0,
+        },
+      },
+    },
+  };
 });

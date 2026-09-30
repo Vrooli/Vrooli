@@ -1,0 +1,62 @@
+{
+  "generated_at": "2026-08-27T06:03:42.904Z",
+  "scenario": "vrooli-autoheal",
+  "phase": "unit",
+  "test_framework": "vitest",
+  "total_tests": 146,
+  "passed_tests": 146,
+  "failed_tests": 0,
+  "skipped_tests": 0,
+  "duration_ms": 5792,
+  "requirements": [
+    {
+      "id": "FAIL-SAFE-001",
+      "status": "passed",
+      "evidence": "src/lib/api.test.ts:APIError > constructor > creates error with correct properties; src/lib/api.test.ts:APIError > isRetryable > marks 5xx errors as retryable; src/lib/api.test.ts:APIError > isRetryable > marks network errors (status 0) as retryable; src/lib/api.test.ts:APIError > isRetryable > marks timeout (408) as retryable; src/lib/api.test.ts:APIError > isRetryable > marks 4xx errors as non-retryable; src/lib/api.test.ts:APIError > getUserMessage > returns friendly message for DATABASE_ERROR; src/lib/api.test.ts:APIError > getUserMessage > returns original message for NOT_FOUND; src/lib/api.test.ts:APIError > getUserMessage > returns friendly message for TIMEOUT; src/lib/api.test.ts:APIError > getUserMessage > returns friendly message for SERVICE_UNAVAILABLE; src/lib/api.test.ts:APIError > getUserMessage > returns generic message for unknown codes; src/lib/api.test.ts:APIError > getSuggestedAction > suggests retry for retryable errors; src/lib/api.test.ts:APIError > getSuggestedAction > suggests checking removal for NOT_FOUND; src/lib/api.test.ts:APIError > getSuggestedAction > suggests checking scenario for non-retryable errors; src/shared/components/ErrorDisplay.test.tsx:ErrorDisplay > with generic Error > displays error message; src/shared/components/ErrorDisplay.test.tsx:ErrorDisplay > with generic Error > displays retry button when onRetry provided; src/shared/components/ErrorDisplay.test.tsx:ErrorDisplay > with generic Error > hides retry button when onRetry not provided; src/shared/components/ErrorDisplay.test.tsx:ErrorDisplay > with APIError > displays user-friendly message for DATABASE_ERROR; src/shared/components/ErrorDisplay.test.tsx:ErrorDisplay > with APIError > displays request ID when available; src/shared/components/ErrorDisplay.test.tsx:ErrorDisplay > with APIError > displays suggested action; src/shared/components/ErrorDisplay.test.tsx:ErrorDisplay > with title prop > displays custom title; src/shared/components/ErrorDisplay.test.tsx:ErrorDisplay > compact mode > renders in compact layout; src/shared/components/ErrorDisplay.test.tsx:ErrorDisplay > compact mode > shows compact retry link in compact mode",
+      "duration_ms": 239.09122800000046,
+      "test_count": 22
+    },
+    {
+      "id": "PERSIST-HISTORY-001",
+      "status": "passed",
+      "evidence": "src/App.test.tsx:App > shows uptime statistics",
+      "duration_ms": 18.370472000000063,
+      "test_count": 1
+    },
+    {
+      "id": "UI-EVENTS-001",
+      "status": "passed",
+      "evidence": "src/App.test.tsx:App > shows events timeline section; src/App.test.tsx:App > shows events filter button; src/surfaces/trends/TrendsPage.test.tsx:TrendsPage > renders the page with header; src/surfaces/trends/TrendsPage.test.tsx:TrendsPage > displays time window selector buttons; src/surfaces/trends/TrendsPage.test.tsx:TrendsPage > defaults to 24h time window; src/surfaces/trends/TrendsPage.test.tsx:TrendsPage > changes time window when button clicked; src/surfaces/trends/TrendsPage.test.tsx:TrendsPage > displays uptime percentage from API; src/surfaces/trends/TrendsPage.test.tsx:TrendsPage > displays export button; src/surfaces/trends/TrendsPage.test.tsx:TrendsPage > shows loading state for trend data; src/surfaces/trends/TrendsPage.test.tsx:TrendsPage > shows loading state for incidents; src/surfaces/trends/TrendsPage.test.tsx:TrendsPage > displays no status transitions message when none exist; src/surfaces/trends/TrendsPage.test.tsx:TrendsPage > displays incidents when available; src/surfaces/trends/TrendsPage.test.tsx:TrendsPage > shows Per-Check Health section; src/surfaces/trends/TrendsPage.test.tsx:TrendsPage > shows Status Transitions section; src/surfaces/trends/TrendsPage.test.tsx:TrendsPage > renders independent API failures with retry controls; src/surfaces/trends/TrendsPage.test.tsx:TrendsPage > falls back to client-side transition detection; src/surfaces/trends/components/CheckTrendGrid.test.tsx:CheckTrendGrid > with backend trends data > renders check trends; src/surfaces/trends/components/CheckTrendGrid.test.tsx:CheckTrendGrid > with backend trends data > displays total check counts; src/surfaces/trends/components/CheckTrendGrid.test.tsx:CheckTrendGrid > with backend trends data > displays uptime percentages; src/surfaces/trends/components/CheckTrendGrid.test.tsx:CheckTrendGrid > with backend trends data > applies correct color classes for uptime; src/surfaces/trends/components/CheckTrendGrid.test.tsx:CheckTrendGrid > with backend trends data > calls onCheckClick when row is clicked; src/surfaces/trends/components/CheckTrendGrid.test.tsx:CheckTrendGrid > with backend trends data > adds cursor-pointer class when onCheckClick provided; src/surfaces/trends/components/CheckTrendGrid.test.tsx:CheckTrendGrid > with backend trends data > handles keyboard navigation; src/surfaces/trends/components/CheckTrendGrid.test.tsx:CheckTrendGrid > with timeline events (fallback) > computes trends from events when no backend trends; src/surfaces/trends/components/CheckTrendGrid.test.tsx:CheckTrendGrid > with timeline events (fallback) > calculates correct uptime from events; src/surfaces/trends/components/CheckTrendGrid.test.tsx:CheckTrendGrid > empty state > shows empty message when no data; src/surfaces/trends/components/CheckTrendGrid.test.tsx:CheckTrendGrid > empty state > shows instruction to run tick; src/surfaces/trends/components/CheckTrendGrid.test.tsx:CheckTrendGrid > preference for backend data > uses backend trends over events when both provided; src/surfaces/trends/components/UptimeTrendChart.test.tsx:UptimeTrendChart > shows loading state while fetching data; src/surfaces/trends/components/UptimeTrendChart.test.tsx:UptimeTrendChart > renders chart when data is available; src/surfaces/trends/components/UptimeTrendChart.test.tsx:UptimeTrendChart > shows empty state when no data available; src/surfaces/trends/components/UptimeTrendChart.test.tsx:UptimeTrendChart > uses default window hours when not provided; src/surfaces/trends/components/UptimeTrendChart.test.tsx:UptimeTrendChart > uses provided window hours and bucket count; src/surfaces/trends/components/UptimeTrendChart.test.tsx:UptimeTrendChart > shows error display when fetch fails; src/surfaces/trends/components/UptimeTrendChart.test.tsx:UptimeTrendChart > renders chart with correct test id",
+      "duration_ms": 1017.4967839999999,
+      "test_count": 35
+    },
+    {
+      "id": "UI-HEALTH-001",
+      "status": "passed",
+      "evidence": "src/App.test.tsx:App > renders loading state initially; src/App.test.tsx:App > displays health status when data is loaded",
+      "duration_ms": 40.613128000000415,
+      "test_count": 2
+    },
+    {
+      "id": "UI-HEALTH-002",
+      "status": "passed",
+      "evidence": "src/App.test.tsx:App > displays status badge with correct status; src/App.test.tsx:App > groups checks by severity",
+      "duration_ms": 55.74889099999973,
+      "test_count": 2
+    },
+    {
+      "id": "UI-REFRESH-001",
+      "status": "passed",
+      "evidence": "src/App.test.tsx:App > removes header auto-refresh toggle and keeps settings access",
+      "duration_ms": 99.99409999999989,
+      "test_count": 1
+    },
+    {
+      "id": "UI-RESPONSIVE-001",
+      "status": "passed",
+      "evidence": "src/App.test.tsx:App > renders shell and summary content in a mobile-safe layout contract; src/App.test.tsx:App > keeps all primary tabs in the selector registry and scrollable shell nav",
+      "duration_ms": 33.12831199999937,
+      "test_count": 2
+    }
+  ]
+}

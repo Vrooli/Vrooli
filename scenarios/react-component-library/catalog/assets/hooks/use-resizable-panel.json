@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "hooks.use-resizable-panel",
+    "name": "useResizablePanel",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "Pointer, keyboard and persistence behavior for one resizable panel: logical axis and edge, bounded clamping against the adjacent region, snap points, a collapse threshold, and an injectable storage adapter.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "hook",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-drag",
+        "reason": "Pointer capture and cancellation keep movement outside React rendering."
+      },
+      {
+        "asset": "hooks.use-element-rect",
+        "reason": "The ceiling tracks the container without a layout read per pointer tick."
+      },
+      {
+        "asset": "hooks.use-direction",
+        "reason": "A logical edge only resolves to a physical one once the direction is known."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "gesture-alternative",
+    "pointer-independence"
+  ],
+  "rationale": "One behavior owner for every resizable region in the system. Keeping it a hook rather than a component is what lets a sidebar shell, a split pane and a terminal grid share the arithmetic while owning their own markup."
+}

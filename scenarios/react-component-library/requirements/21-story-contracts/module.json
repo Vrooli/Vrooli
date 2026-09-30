@@ -1,0 +1,101 @@
+{
+  "_metadata": {
+    "description": "Single-source story contracts for preview, generated controls, fixtures, and catalog tests.",
+    "last_validated_at": "2026-08-25T02:11:45-04:00",
+    "module": "story-contracts",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SC-001",
+      "title": "Every catalog version owns one validated story contract",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "catalog-contract",
+      "criticality": "P0",
+      "description": "Every eligible authored component and hook version contains exactly one schemaVersioned story.json. It owns one public args or hook-input schema and named stories provide only valid values, fixtures, interactions, expectations, and documented composition references.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/components/story_contract_test.go",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
+    },
+    {
+      "id": "SC-002",
+      "title": "Generated controls validate one public input boundary",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "preview",
+      "criticality": "P0",
+      "description": "The workbench renders controls from the asset-level schema, validates edits before rendering, retains the last valid specimen on failure, and does not use raw JSON as its default editing path.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/features/components/PropsExperimentPanel.test.tsx",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "automation",
+          "ref": "api/internal/components/story_contract.go",
+          "phase": "browser",
+          "status": "implemented",
+          "scenario": "react-component-library"
+        }
+      ]
+    },
+    {
+      "id": "SC-003",
+      "title": "State and external dependencies remain explicit and safe",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "safety",
+      "criticality": "P0",
+      "description": "Internal state is reached through real interactions or public controlled/default APIs. External state uses only declared provider or adapter fixtures. Contracts cannot execute setup, imports, functions, arbitrary hook mutation, storage writes, or network side effects.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/preview/static_test.go",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "automation",
+          "ref": "api/internal/componenttests/bas_executor.go",
+          "phase": "browser",
+          "status": "implemented",
+          "scenario": "react-component-library"
+        }
+      ]
+    },
+    {
+      "id": "SC-004",
+      "title": "The cutover is complete and legacy preview metadata is rejected",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "conformance",
+      "criticality": "P0",
+      "description": "The deterministic conformance report covers every authored library version and fails missing story.json, obsolete examples.json, controls, setup, invalid values, undeclared fixtures, and raw node-tag corruption. The catalog story lint command reports zero current diagnostics across the authored corpus.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/components/story_conformance_test.go",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/flows/capture-story-evidence.json",
+          "phase": "browser",
+          "status": "implemented",
+          "scenario": "react-component-library"
+        }
+      ]
+    }
+  ]
+}

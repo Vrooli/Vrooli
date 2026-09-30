@@ -1,7 +1,7 @@
 /**
  * useExecutionDetailData — Data hook for ExecutionDetailsPage.
  *
- * Encapsulates all queries (execution, prompt trace, review rounds, timeline)
+ * Encapsulates all queries (execution, prompt trace, and review rounds)
  * and mutations (cancel, retry, triggerReview) for a single execution.
  * Follows the same boundary pattern as useBacklogDetailData.
  */
@@ -16,10 +16,8 @@ import {
   canFollowUpExecution,
 } from "../lib";
 import { isExecutionActive } from "../lib/execution-utils";
-import { useActivityTimeline } from "./useActivityTimeline";
 import type { ExecutionRecord, PromptTrace } from "../types";
 import type { ReviewRound } from "../services/review-service";
-import type { TimelineEntry } from "./useActivityTimeline";
 
 export interface UseExecutionDetailDataOptions {
   executionId: string | undefined;
@@ -32,7 +30,7 @@ export interface UseExecutionDetailDataResult {
   isTraceLoading: boolean;
   reviewRounds: ReviewRound[];
   isGatheringEvidence: boolean;
-  timeline: { entries: TimelineEntry[]; isLoading: boolean; error: Error | null };
+  isAwaitingManualReview: boolean;
 
   // Loading/error
   isLoading: boolean;
@@ -48,6 +46,8 @@ export interface UseExecutionDetailDataResult {
   cancel: () => Promise<void>;
   retry: () => Promise<void>;
   triggerReview: () => Promise<void>;
+  haltContinuation: (reason?: string) => Promise<void>;
+  resumeContinuation: () => Promise<void>;
   refetch: () => void;
   actionBusy: boolean;
 }
@@ -88,14 +88,7 @@ export function useExecutionDetailData({
     ...defaultQueryOptions,
   });
 
-  // --- Activity timeline ---
   const isActive = execution ? isExecutionActive(execution) : false;
-  const timeline = useActivityTimeline({
-    backlogKind,
-    backlogName,
-    enabled: !!execution,
-    agentRunIsActive: isActive,
-  });
 
   // --- Computed values ---
   const isTerminal = execution ? canFollowUpExecution(execution.status) : false;
@@ -111,7 +104,18 @@ export function useExecutionDetailData({
   );
 
   const isGatheringEvidence = useMemo(
-    () => (reviewRounds ?? []).some((r) => r.status === "gathering"),
+    () =>
+      (reviewRounds ?? []).some(
+        (r) => r.status === "gathering" && r.current_run_status !== "needs_review",
+      ),
+    [reviewRounds],
+  );
+
+  const isAwaitingManualReview = useMemo(
+    () =>
+      (reviewRounds ?? []).some(
+        (r) => r.status === "gathering" && r.current_run_status === "needs_review",
+      ),
     [reviewRounds],
   );
 
@@ -144,6 +148,16 @@ export function useExecutionDetailData({
     [doAction, executionId],
   );
 
+  const haltContinuation = useCallback(
+    (reason?: string) => doAction(async () => { await executionService.haltContinuation(`${backlogKind}/${backlogName}`, reason); return execution as ExecutionRecord; }),
+    [backlogKind, backlogName, doAction, execution],
+  );
+
+  const resumeContinuation = useCallback(
+    () => doAction(async () => { await executionService.resumeContinuation(`${backlogKind}/${backlogName}`); return execution as ExecutionRecord; }),
+    [backlogKind, backlogName, doAction, execution],
+  );
+
   const refetch = useCallback(() => {
     void refetchExec();
   }, [refetchExec]);
@@ -154,7 +168,7 @@ export function useExecutionDetailData({
     isTraceLoading,
     reviewRounds: reviewRounds ?? [],
     isGatheringEvidence,
-    timeline,
+    isAwaitingManualReview,
     isLoading: execLoading,
     error: execError as Error | undefined,
     isActive,
@@ -164,6 +178,8 @@ export function useExecutionDetailData({
     cancel,
     retry,
     triggerReview: triggerReviewAction,
+    haltContinuation,
+    resumeContinuation,
     refetch,
     actionBusy,
   };

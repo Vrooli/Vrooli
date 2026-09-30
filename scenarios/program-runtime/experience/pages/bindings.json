@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {"id":"bindings","title":"Binding registry","routes":["/bindings"],"purpose":"Show the typed governed callable surface and explicit unbound reasons."},
+  "priorities": [],
+  "states": [
+    {"id":"default","description":"Bound and unbound capabilities are visible."},
+    {"id":"loading","description":"The registry is loading."},
+    {"id":"request-error","description":"The registry error is visible."},
+    {"id":"empty","description":"No governed bindings are available."},
+    {"id":"partial","description":"Some namespaces are available while others are pending."},
+    {"id":"stale","description":"The registry identifies data that is no longer fresh."}
+  ],
+  "regions": [
+    {
+      "id": "binding-registry",
+      "purpose": "Wait for the governed binding and unbound-capability queries to reach an explicit usable, empty, partial, or failed state.",
+      "required": true,
+      "component": {"library":{"component":"experience-surface","version":"1.0.0"}},
+      "lifecycle": {"kind":"async","states":["loading","ready","empty","partial","error"]}
+    }
+  ],
+  "elements": [
+    {"id":"registry-region","role":"region","name":"Governed callable registry"},
+    {"id":"namespace-tree","role":"list","name":"Bound operations"},
+    {"id":"unbound-list","role":"list","name":"Unbound capabilities"}
+  ],
+  "claims": [
+    {"id":"registry-region-present","type":"element-present","statement":"The binding page exposes the registry and unbound capability regions.","tier":"machine","elements":["registry-region","namespace-tree","unbound-list"],"states":["default","loading","request-error"]}
+  ],
+  "bindings": {
+    "regions": {"binding-registry":{"selector":"[data-experience-surface=\"binding-registry\"]"}},
+    "elements":{"registry-region":{"testid":"bindings-registry"},"namespace-tree":{"testid":"bindings-namespace-tree"},"unbound-list":{"testid":"bindings-unbound-list"}}
+  }
+}

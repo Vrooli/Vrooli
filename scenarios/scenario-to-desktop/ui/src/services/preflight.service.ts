@@ -3,19 +3,24 @@
  * Extracted from PreflightSection.tsx and lib/preflight-status.ts for testability.
  */
 
+import type { PreflightJobStep } from "../lib/preflight-status";
 import type {
-  BundlePreflightStep,
-  BundlePreflightResponse,
-  BundlePreflightSecret,
   BundleValidationResult,
-  BundlePreflightReady,
-} from "../lib/api";
+  PreflightReady,
+  PreflightResponse,
+  PreflightSecret,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type PreflightStepId = "validation" | "secrets" | "runtime" | "services" | "diagnostics";
+export type PreflightStepId =
+  | "validation"
+  | "secrets"
+  | "runtime"
+  | "services"
+  | "diagnostics";
 
 export type PreflightStepState =
   | "pending"
@@ -31,11 +36,11 @@ export interface PreflightStepStatus {
 }
 
 export interface PreflightExportPayload {
-  bundle_manifest_path: string;
-  start_services: boolean;
-  result: BundlePreflightResponse | null;
-  error: string | undefined;
-  missing_secrets: BundlePreflightSecret[];
+  bundleManifestPath: string;
+  startServices: boolean;
+  result: PreflightResponse | null;
+  error?: string;
+  missingSecrets: PreflightSecret[];
 }
 
 export interface PreflightDisplayState {
@@ -69,8 +74,8 @@ const JOB_STEP_STATE_LABELS: Record<string, string> = {
  * Returns null if the step is not present.
  */
 export function resolveJobStepStatus(
-  jobStepById: Map<string, BundlePreflightStep>,
-  stepId: string
+  jobStepById: Map<string, PreflightJobStep>,
+  stepId: string,
 ): PreflightStepStatus | null {
   const step = jobStepById.get(stepId);
   if (!step) {
@@ -90,7 +95,7 @@ export function getValidationStatus(
   preflightPending: boolean,
   preflightError: string | null,
   hasRun: boolean,
-  validationValid?: boolean
+  validationValid?: boolean,
 ): PreflightStepStatus {
   if (preflightPending) {
     return { state: "testing", label: "Testing" };
@@ -117,7 +122,7 @@ export function getSecretsStatus(
   preflightPending: boolean,
   preflightError: string | null,
   hasRun: boolean,
-  missingSecretsCount: number
+  missingSecretsCount: number,
 ): PreflightStepStatus {
   if (preflightPending) {
     return { state: "testing", label: "Checking" };
@@ -141,7 +146,7 @@ export function getRuntimeStatus(
   preflightPending: boolean,
   preflightError: string | null,
   hasResult: boolean,
-  hasRun: boolean
+  hasRun: boolean,
 ): PreflightStepStatus {
   if (preflightPending) {
     return { state: "testing", label: "Starting" };
@@ -165,7 +170,7 @@ export function getServicesStatus(
   preflightPending: boolean,
   preflightError: string | null,
   hasRun: boolean,
-  ready?: boolean
+  ready?: boolean,
 ): PreflightStepStatus {
   if (preflightPending) {
     return { state: "testing", label: "Starting" };
@@ -192,7 +197,7 @@ export function getDiagnosticsStatus(
   preflightPending: boolean,
   preflightError: string | null,
   hasRun: boolean,
-  diagnosticsAvailable: boolean
+  diagnosticsAvailable: boolean,
 ): PreflightStepStatus {
   if (preflightPending) {
     return { state: "testing", label: "Collecting" };
@@ -218,23 +223,25 @@ export function getDiagnosticsStatus(
  */
 export function buildPreflightPayload(
   manifestPath: string,
-  result: BundlePreflightResponse | null,
+  result: PreflightResponse | null,
   error: string | null,
-  missingSecrets: BundlePreflightSecret[]
+  missingSecrets: PreflightSecret[],
 ): PreflightExportPayload {
   return {
-    bundle_manifest_path: manifestPath,
-    start_services: true,
+    bundleManifestPath: manifestPath,
+    startServices: true,
     result,
     error: error || undefined,
-    missing_secrets: missingSecrets,
+    missingSecrets,
   };
 }
 
 /**
  * Filter secrets to only include non-empty values.
  */
-export function filterValidSecrets(secrets: Record<string, string>): Record<string, string> {
+export function filterValidSecrets(
+  secrets: Record<string, string>,
+): Record<string, string> {
   return Object.entries(secrets)
     .filter(([, value]) => value.trim())
     .reduce<Record<string, string>>((acc, [key, value]) => {
@@ -251,23 +258,24 @@ export function filterValidSecrets(secrets: Record<string, string>): Record<stri
  * Check if diagnostics data is available.
  */
 export function checkDiagnosticsAvailable(
-  portSummary: Record<string, number> | string | null,
+  portCount: number,
   telemetryPath: string | undefined,
-  logTails: unknown[] | undefined
+  logTails: unknown[] | undefined,
 ): boolean {
-  const hasPortSummary = portSummary !== null && (typeof portSummary === "string" ? portSummary.length > 0 : Object.keys(portSummary).length > 0);
-  return Boolean(hasPortSummary || telemetryPath || (logTails && logTails.length > 0));
+  return Boolean(
+    portCount > 0 || telemetryPath || (logTails && logTails.length > 0),
+  );
 }
 
 /**
  * Build the complete display state for the preflight section.
  */
 export function buildPreflightDisplayState(
-  pipelineStatus: unknown | null,
-  result: BundlePreflightResponse | null,
+  pipelineStatus: unknown,
+  result: PreflightResponse | null,
   error: string | null,
   isRunning: boolean,
-  missingSecretsCount: number
+  missingSecretsCount: number,
 ): PreflightDisplayState {
   const hasRun = Boolean(result || error || pipelineStatus);
   const isComplete = !isRunning && hasRun;
@@ -277,10 +285,12 @@ export function buildPreflightDisplayState(
   const readiness = result?.ready;
   const ports = result?.ports;
   const telemetry = result?.telemetry;
-  const logTails = result?.log_tails;
-
-  const portSummary = ports?.summary || null;
-  const diagnosticsAvailable = checkDiagnosticsAvailable(portSummary, telemetry?.path, logTails);
+  const logTails = result?.logTails;
+  const diagnosticsAvailable = checkDiagnosticsAvailable(
+    ports?.length ?? 0,
+    telemetry?.path,
+    logTails,
+  );
 
   const validationOk = validation?.valid === true;
   const secretsOk = missingSecretsCount === 0;
@@ -307,15 +317,19 @@ export function buildPreflightDisplayState(
 /**
  * Filter to get only missing required secrets.
  */
-export function getMissingSecrets(secrets: BundlePreflightSecret[] | undefined): BundlePreflightSecret[] {
+export function getMissingSecrets(
+  secrets: PreflightSecret[] | undefined,
+): PreflightSecret[] {
   if (!secrets) return [];
-  return secrets.filter((s) => s.required && !s.has_value);
+  return secrets.filter((s) => s.required && !s.hasValue);
 }
 
 /**
  * Check if all required secrets are present.
  */
-export function areSecretsComplete(secrets: BundlePreflightSecret[] | undefined): boolean {
+export function areSecretsComplete(
+  secrets: PreflightSecret[] | undefined,
+): boolean {
   return getMissingSecrets(secrets).length === 0;
 }
 
@@ -326,21 +340,23 @@ export function areSecretsComplete(secrets: BundlePreflightSecret[] | undefined)
 /**
  * Check if the bundle validation passed.
  */
-export function isValidationOk(validation: BundleValidationResult | undefined): boolean {
+export function isValidationOk(
+  validation: BundleValidationResult | undefined,
+): boolean {
   return validation?.valid === true;
 }
 
 /**
  * Check if the readiness check passed.
  */
-export function isReadinessOk(readiness: BundlePreflightReady | undefined): boolean {
+export function isReadinessOk(readiness: PreflightReady | undefined): boolean {
   return readiness?.ready === true;
 }
 
 /**
  * Check if preflight is fully OK (validation + readiness + secrets).
  */
-export function isPreflightComplete(result: BundlePreflightResponse | null): boolean {
+export function isPreflightComplete(result: PreflightResponse | null): boolean {
   if (!result) return false;
   return (
     isValidationOk(result.validation) &&

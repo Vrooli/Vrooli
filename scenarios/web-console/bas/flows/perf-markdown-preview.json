@@ -1,0 +1,87 @@
+{
+  "metadata": {
+    "name": "perf-markdown-preview",
+    "description": "Perf-capture flow (intent:performance). Assertion-free. Traces opening and scrolling a large markdown file in the file viewer, which the operator reports as slow: the whole-document parse and commit, per-fence highlighting, and scrolling a tall unvirtualized tree. The viewer opens only from a path chip or link inside a message, so the flow hunts the transcript for a .md reference and fails loudly if it finds none rather than measuring something else. Closes the viewer and restores the view mode it found. Runs against the live workspace (no routed test pool); opening a preview mints a server-side preview id with a 30m TTL. NEVER bind as a requirement automation case.",
+    "labels": {
+      "intent": "performance",
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "version": "1",
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "wait-workspace",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { const deadline = Date.now() + 90000; while (Date.now() < deadline) { const toggle = document.querySelector('[data-testid=\"workspace-toggle-view\"]'); const pane = document.querySelector('[data-testid=\"terminal-pane\"]'); if (toggle && pane) { window.__perfInitialViewMode = toggle.getAttribute('data-view-mode') || 'terminal'; return window.__perfInitialViewMode; } const retry = document.querySelector('[data-testid=\"health-retry-button\"]'); if (retry instanceof HTMLButtonElement && !retry.disabled) retry.click(); await new Promise((resolve) => setTimeout(resolve, 250)); } throw new Error('perf-markdown-preview: workspace with a view toggle did not appear'); })()"
+        },
+        "metadata": { "label": "Wait for the workspace and record the current view mode" }
+      }
+    },
+    {
+      "id": "ensure-messages-view",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { const toggle = () => document.querySelector('[data-testid=\"workspace-toggle-view\"]'); const mode = () => toggle()?.getAttribute('data-view-mode') || 'terminal'; if (mode() !== 'messages') { const button = toggle(); if (button instanceof HTMLElement) button.click(); } const deadline = Date.now() + 25000; while (Date.now() < deadline) { if (document.querySelector('[data-testid=\"messages-scroll\"]') && document.querySelector('[data-event-id]')) { await new Promise((resolve) => setTimeout(resolve, 2000)); return true; } await new Promise((resolve) => setTimeout(resolve, 100)); } throw new Error('perf-markdown-preview: messages view did not render rows'); })()"
+        },
+        "metadata": { "label": "Ensure the Messages view is showing" }
+      }
+    },
+    {
+      "id": "find-and-open-markdown",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { const el = document.querySelector('[data-testid=\"messages-scroll\"]'); if (!el) throw new Error('perf-markdown-preview: scroller not found'); const frame = () => new Promise((resolve) => requestAnimationFrame(() => resolve())); const findChip = () => [...document.querySelectorAll('button[title^=\"Open \"]')].find((button) => (button.getAttribute('title') || '').trim().toLowerCase().endsWith('.md')); const findLink = () => [...document.querySelectorAll('.markdown-content a')].find((anchor) => (anchor.getAttribute('href') || '').toLowerCase().endsWith('.md')); let target = findChip() || findLink(); for (let i = 0; i < 120 && !target; i++) { if (el.scrollTop <= 0) break; el.scrollTop = Math.max(0, el.scrollTop - 720); await frame(); await new Promise((resolve) => setTimeout(resolve, 40)); target = findChip() || findLink(); } if (!target) { const field = document.querySelector('[data-testid=\"messages-search-field\"]'); if (field instanceof HTMLElement) { field.click(); await new Promise((resolve) => setTimeout(resolve, 400)); const deadlineInput = Date.now() + 8000; let input = null; while (Date.now() < deadlineInput && !input) { input = document.querySelector('[data-testid=\"msg-nav-search\"]'); if (!input) await new Promise((resolve) => setTimeout(resolve, 150)); } if (input instanceof HTMLInputElement) { const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set; setter?.call(input, '.md'); input.dispatchEvent(new Event('input', { bubbles: true })); await new Promise((resolve) => setTimeout(resolve, 2500)); const hit = document.querySelector('[data-testid^=\"msg-jump-item-\"]'); if (hit instanceof HTMLElement) { hit.click(); await new Promise((resolve) => setTimeout(resolve, 1500)); target = findChip() || findLink(); } } } } if (!target) throw new Error('perf-markdown-preview: no .md reference found in this transcript, including via in-app search'); const label = target.getAttribute('title') || target.getAttribute('href') || ''; window.__perfMarkdownTarget = label; target.click(); const deadline = Date.now() + 30000; while (Date.now() < deadline) { const preview = document.querySelector('[data-testid=\"file-preview-markdown\"]'); if (preview) return { target: label }; await new Promise((resolve) => setTimeout(resolve, 100)); } throw new Error('perf-markdown-preview: markdown preview did not render for ' + label); })()"
+        },
+        "metadata": { "label": "Find a .md reference and open it in the file viewer" }
+      }
+    },
+    {
+      "id": "hold-render-settle",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { await new Promise((resolve) => setTimeout(resolve, 4000)); const preview = document.querySelector('[data-testid=\"file-preview-markdown\"]'); const root = preview?.querySelector('.markdown-content'); const blocks = root ? root.children.length : 0; const fences = document.querySelectorAll('[data-testid=\"file-preview-markdown\"] pre').length; document.body.setAttribute('data-perf-md-blocks', String(blocks)); document.body.setAttribute('data-perf-md-fences', String(fences)); return { blocks: blocks, fences: fences, scrollHeight: preview ? preview.scrollHeight : 0 }; })()"
+        },
+        "metadata": { "label": "Hold 4s while the document renders and settles" }
+      }
+    },
+    {
+      "id": "scroll-the-document",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { const el = document.querySelector('[data-testid=\"file-preview-markdown\"]'); if (!el) throw new Error('perf-markdown-preview: preview container not found'); const frame = () => new Promise((resolve) => requestAnimationFrame(() => resolve())); let steps = 0; for (let i = 0; i < 80; i++) { const atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 2; if (atEnd) break; el.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: 120 })); el.scrollTop = el.scrollTop + 500; await frame(); steps++; } return { steps: steps, scrollTop: el.scrollTop }; })()"
+        },
+        "metadata": { "label": "Scroll the rendered document, one step per frame" }
+      }
+    },
+    {
+      "id": "close-and-restore",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { const close = document.querySelector('[data-testid=\"messages-file-viewer-panel.close\"]'); if (close instanceof HTMLElement) close.click(); await new Promise((resolve) => setTimeout(resolve, 800)); const want = window.__perfInitialViewMode || 'terminal'; const toggle = () => document.querySelector('[data-testid=\"workspace-toggle-view\"]'); const mode = () => toggle()?.getAttribute('data-view-mode') || 'terminal'; if (mode() !== want) { const button = toggle(); if (button instanceof HTMLElement) button.click(); } const deadline = Date.now() + 15000; while (Date.now() < deadline) { if (mode() === want) return 'restored'; await new Promise((resolve) => setTimeout(resolve, 100)); } throw new Error('perf-markdown-preview: could not restore the original view mode'); })()"
+        },
+        "metadata": { "label": "Close the viewer and restore the view mode" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "wait-workspace", "target": "ensure-messages-view", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "ensure-messages-view", "target": "find-and-open-markdown", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "find-and-open-markdown", "target": "hold-render-settle", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "hold-render-settle", "target": "scroll-the-document", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "scroll-the-document", "target": "close-and-restore", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

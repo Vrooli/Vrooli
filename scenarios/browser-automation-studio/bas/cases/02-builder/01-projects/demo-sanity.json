@@ -9,11 +9,14 @@
   ],
   "metadata": {
     "description": "Ensures the demo project and default workflow remain available after boot.",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "2",
-    "execution_mode": "observer"
+    "name": "Demo Sanity",
+    "version": "2"
   },
   "nodes": [
     {

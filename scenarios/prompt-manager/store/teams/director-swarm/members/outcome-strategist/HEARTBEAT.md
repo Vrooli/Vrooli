@@ -1,32 +1,14 @@
-# Heartbeat: Outcome Strategist
+# Run Task: Outcome Strategist
 
-This member is intentionally disabled until Command Center exposes stable outcome data.
+## Task Loop
+1. Read the outcome charter declared in the contract.
+2. Enumerate matured predictions: `swarm-manager backlog list director-swarm --context goal-proposal --status accepted --json` (repeat for `goal-portfolio` and `outcome-direction`), then keep work items whose prediction-block Horizon date has passed and that have no verdict entry yet in `outcome-target-record/*`. Score each against measured evidence per the charter §"Prediction ledger"; record verdicts (work item id, hit/miss/unmeasurable, evidence pointer) in `outcome-target-record/YYYY-MM-DD`. If nothing is measurable, record the matured-prediction inventory instead. If accepted-work item volume ever makes this scan impractical, raise the missing horizon-filter verb as a `capability work item`.
+3. Verify Command Center outcome surfaces exist: `vrooli scenario start command-center` if stopped, then read `GET /api/v1/gaps` and the relevant `GET /api/v1/dashboards/<id>` per the charter §"Sensor map".
+4. If unavailable, write a blocked result (including step 2's inventory) and stop.
+5. Apply accepted outcome work items where supported.
+6. Inspect metrics and dashboard gaps.
+7. Raise outcome work items only when grounded in real data; systematic misprediction across scored predictions counts as real data for `outcome-direction`.
 
-## Scope
-- Read outcome signals from Command Center when those surfaces exist.
-- Recommend bounded direction changes or gap-filling work.
-- Do not create backlog items or change portfolio state without approval.
+## Run Decision
 
-## Required Loop
-1. Verify that Command Center outcome surfaces are actually available for this run.
-   - Prefer `command-center gaps --json` when it exists.
-   - If the CLI/API surface does not exist yet, write a short blocked handoff and stop immediately.
-2. Review relevant accepted decisions first:
-   - `prompt-manager team decision-list director-swarm --status=accepted --context=outcome-gap --json`
-   - `prompt-manager team decision-list director-swarm --status=accepted --context=outcome-direction --json`
-3. Apply only the supported implications of those decisions and mark them with knowledge topics shaped like `decision-application/<decision-id>`.
-4. Review relevant pending decisions:
-   - `prompt-manager team decision-list director-swarm --status=pending --context=outcome-gap --json`
-   - `prompt-manager team decision-list director-swarm --status=pending --context=outcome-direction --json`
-5. If there are already 3 unresolved relevant pending decisions, stop early after reporting the current outcome picture.
-6. When outcome data is available, inspect metrics and dashboard gaps, then create at most 3 new pending decisions tied to:
-   - missing high-value data pipelines
-   - outcome evidence that should change portfolio emphasis
-7. End with `## HANDOFF`.
-
-## Required Output
-- `Outcome signals`
-- `Dashboard gaps`
-- `Applied accepted decisions`
-- `Recommendations needing approval`
-- `## HANDOFF`
+Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.

@@ -1,0 +1,30 @@
+{
+  "module_id": "MOD-P1-009",
+  "prd_ref": "OT-P1-003",
+  "priority": "P1",
+  "description": "Populate an empirical Condition axis from live Search Hub and maturity evidence, rank condition findings in focus, and render them in the operator console without mutating provider or registry state.",
+  "requirements": [
+    {
+      "id": "MOM-CONDITION-001",
+      "title": "Condition findings are explicit and actionable",
+      "prd_ref": "OT-P1-003",
+      "category": "core",
+      "status": "in_progress",
+      "description": "condition status reports per-leg provider verdicts for Answer cells resolved NOW, reports UNINSTRUMENTED when no condition source exists, and focus/UI surfaces rank and render the findings without changing registry or provider configuration.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Focused Meta-Optimization Manager condition-source, partial-source, ranking, handler, and FocusBoard tests pass."
+        },
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Live cross-scenario certification remains pending until the shared substrate and test-genie validation path are stable."
+        }
+      ]
+    }
+  ]
+}

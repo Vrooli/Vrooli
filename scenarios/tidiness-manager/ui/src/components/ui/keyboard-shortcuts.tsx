@@ -26,7 +26,7 @@ export function KeyboardShortcuts({ onNavigate }: KeyboardShortcutsProps) {
   const [pressedKeys, setPressedKeys] = useState<string[]>([]);
 
   useEffect(() => {
-    let timeout: NodeJS.Timeout;
+    let timeout: ReturnType<typeof setTimeout>;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger shortcuts when typing in inputs
@@ -104,7 +104,7 @@ export function KeyboardShortcuts({ onNavigate }: KeyboardShortcutsProps) {
     if (!acc[shortcut.section]) {
       acc[shortcut.section] = [];
     }
-    acc[shortcut.section].push(shortcut);
+    acc[shortcut.section]?.push(shortcut);
     return acc;
   }, {} as Record<string, Shortcut[]>);
 

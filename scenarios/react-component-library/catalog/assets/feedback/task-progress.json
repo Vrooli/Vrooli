@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.task-progress",
+    "name": "TaskProgress",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "feedback",
+    "description": "The progress component for measurable or indeterminate work, with messages, substeps, elapsed state, cancellation, retry, and continuation in the background.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.progress",
+        "reason": "Progress rendering is shared."
+      },
+      {
+        "asset": "primitives.text",
+        "reason": "Copy uses the shared text styles rather than local typography."
+      },
+      {
+        "asset": "controls.button",
+        "reason": "Actions are shared buttons so affordances look and behave the same everywhere."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "status-announced",
+    "non-color-status",
+    "contrast-floor",
+    "text-scale-resilience",
+    "forced-colors-legibility",
+    "content-reflow",
+    "recovery-path",
+    "reduced-motion"
+  ],
+  "requiredStates": [
+    "loading",
+    "success",
+    "request-error",
+    "retry"
+  ]
+}

@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/proto"
 )
 
-// ProtoRunStatusToLocal maps a proto RunStatus enum to the local RunStatus string type.
 func ProtoRunStatusToLocal(s domainpb.RunStatus) RunStatus {
 	switch s {
 	case domainpb.RunStatus_RUN_STATUS_PENDING:
@@ -28,21 +28,6 @@ func ProtoRunStatusToLocal(s domainpb.RunStatus) RunStatus {
 	}
 }
 
-// localRunnerTypeToProto maps a local RunnerType string to the proto enum.
-func localRunnerTypeToProto(rt RunnerType) domainpb.RunnerType {
-	switch rt {
-	case RunnerTypeClaudeCode:
-		return domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE
-	case RunnerTypeCodex:
-		return domainpb.RunnerType_RUNNER_TYPE_CODEX
-	case RunnerTypeOpenCode:
-		return domainpb.RunnerType_RUNNER_TYPE_OPENCODE
-	default:
-		return domainpb.RunnerType_RUNNER_TYPE_UNSPECIFIED
-	}
-}
-
-// protoRunPhaseToString maps a proto RunPhase enum to a simple string.
 func protoRunPhaseToString(p domainpb.RunPhase) string {
 	switch p {
 	case domainpb.RunPhase_RUN_PHASE_QUEUED:
@@ -70,7 +55,6 @@ func protoRunPhaseToString(p domainpb.RunPhase) string {
 	}
 }
 
-// protoEventTypeToString maps a proto RunEventType enum to the simple string the UI expects.
 func protoEventTypeToString(et domainpb.RunEventType) string {
 	switch et {
 	case domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE:
@@ -98,124 +82,64 @@ func protoEventTypeToString(et domainpb.RunEventType) string {
 	}
 }
 
-// TranslateProtoEvent converts a proto RunEvent to TranslatedEvent format.
+// TranslateProtoEvent preserves Agent Manager event detail while keeping the
+// inbox transport independent of any runner-specific protocol.
 func TranslateProtoEvent(ev *domainpb.RunEvent) *TranslatedEvent {
 	if ev == nil {
 		return nil
 	}
-
-	event := &TranslatedEvent{
-		ID:       ev.GetId(),
-		Sequence: ev.GetSequence(),
-		Type:     protoEventTypeToString(ev.GetEventType()),
-	}
-
+	event := &TranslatedEvent{ID: ev.GetId(), Sequence: ev.GetSequence(), Type: protoEventTypeToString(ev.GetEventType()), Role: "system"}
 	if ts := ev.GetTimestamp(); ts != nil {
 		event.Timestamp = ts.AsTime()
 	}
-
-	switch d := ev.Data.(type) {
+	switch data := ev.Data.(type) {
 	case *domainpb.RunEvent_Message:
-		translateMessageEvent(event, d.Message)
+		event.Role, event.Content = data.Message.GetRole(), data.Message.GetContent()
 	case *domainpb.RunEvent_ToolCall:
-		translateToolCallEvent(event, d.ToolCall)
+		event.Role, event.ToolName, event.ToolCallID = "assistant", data.ToolCall.GetToolName(), data.ToolCall.GetToolCallId()
+		if input := data.ToolCall.GetInput(); input != nil {
+			encoded, _ := json.Marshal(input.AsMap())
+			event.ToolInput = string(encoded)
+		}
 	case *domainpb.RunEvent_ToolResult:
-		translateToolResultEvent(event, d.ToolResult)
+		event.Role, event.ToolName, event.ToolCallID = "tool", data.ToolResult.GetToolName(), data.ToolResult.GetToolCallId()
+		event.ToolOutput, event.ToolSuccess = data.ToolResult.GetOutput(), data.ToolResult.GetSuccess()
+		if message := data.ToolResult.GetError(); message != "" {
+			event.ToolOutput, event.ToolSuccess = message, false
+		}
 	case *domainpb.RunEvent_Status:
-		translateStatusEvent(event, d.Status)
+		event.RunStatus, event.Content = data.Status.GetNewStatus(), data.Status.GetReason()
 	case *domainpb.RunEvent_Error:
-		translateErrorEvent(event, d.Error)
+		event.Content = data.Error.GetMessage()
 	case *domainpb.RunEvent_Log:
-		translateLogEvent(event, d.Log)
+		event.Content = data.Log.GetMessage()
+		event.RawData = marshalRaw(data.Log)
 	case *domainpb.RunEvent_Metric:
-		translateMetricEvent(event, d.Metric)
+		event.Content = data.Metric.GetName()
+		event.RawData = marshalRaw(data.Metric)
 	case *domainpb.RunEvent_Artifact:
-		translateArtifactEvent(event, d.Artifact)
+		event.Content = data.Artifact.GetType()
+		event.RawData = marshalRaw(data.Artifact)
 	case *domainpb.RunEvent_MessageDeleted:
-		translateMessageDeletedEvent(event, d.MessageDeleted)
+		event.Content = data.MessageDeleted.GetTargetEventId()
+		event.RawData = marshalRaw(data.MessageDeleted)
 	case *domainpb.RunEvent_Compaction:
-		translateCompactionEvent(event, d.Compaction)
-	default:
-		// Unknown/unhandled oneof variant (progress, cost, rate_limit, etc.)
-		event.Role = "system"
+		event.Content = data.Compaction.GetSummary()
+		event.CompactionTrigger = data.Compaction.GetTrigger()
+		event.CompactionFocus = data.Compaction.GetFocus()
+		event.CompactionMessagesCompacted = data.Compaction.GetMessagesCompacted()
+		event.CompactionTokensBefore = data.Compaction.GetTokensBefore()
+		event.CompactionTokensAfter = data.Compaction.GetTokensAfter()
+		event.CompactionOriginalCommand = data.Compaction.GetOriginalCommand()
 	}
-
 	return event
 }
 
-func translateMessageEvent(event *TranslatedEvent, msg *domainpb.MessageEventData) {
-	event.Role = msg.GetRole()
-	event.Content = msg.GetContent()
-}
-
-func translateToolCallEvent(event *TranslatedEvent, tc *domainpb.ToolCallEventData) {
-	event.Role = "assistant"
-	event.ToolName = tc.GetToolName()
-	event.ToolCallID = tc.GetToolCallId()
-	if input := tc.GetInput(); input != nil {
-		inputBytes, _ := json.Marshal(input.AsMap())
-		event.ToolInput = string(inputBytes)
+func marshalRaw(message proto.Message) string {
+	// The generated protojson encoder is intentionally used through the shared
+	// options so inbox event payloads retain the same wire names as the API.
+	if encoded, err := protoMarshalOpts.Marshal(message); err == nil {
+		return string(encoded)
 	}
-}
-
-func translateToolResultEvent(event *TranslatedEvent, tr *domainpb.ToolResultEventData) {
-	event.Role = "tool"
-	event.ToolName = tr.GetToolName()
-	event.ToolCallID = tr.GetToolCallId()
-	event.ToolOutput = tr.GetOutput()
-	event.ToolSuccess = tr.GetSuccess()
-	if errMsg := tr.GetError(); errMsg != "" {
-		event.ToolOutput = errMsg
-		event.ToolSuccess = false
-	}
-}
-
-func translateStatusEvent(event *TranslatedEvent, st *domainpb.StatusEventData) {
-	event.Role = "system"
-	event.RunStatus = st.GetNewStatus()
-	event.Content = st.GetReason()
-}
-
-func translateErrorEvent(event *TranslatedEvent, errData *domainpb.ErrorEventData) {
-	event.Role = "system"
-	event.Content = errData.GetMessage()
-}
-
-func translateLogEvent(event *TranslatedEvent, logData *domainpb.LogEventData) {
-	event.Role = "system"
-	event.Content = logData.GetMessage()
-	rawBytes, _ := protoMarshalOpts.Marshal(logData)
-	event.RawData = string(rawBytes)
-}
-
-func translateMetricEvent(event *TranslatedEvent, metricData *domainpb.MetricEventData) {
-	event.Role = "system"
-	event.Content = metricData.GetName()
-	rawBytes, _ := protoMarshalOpts.Marshal(metricData)
-	event.RawData = string(rawBytes)
-}
-
-func translateArtifactEvent(event *TranslatedEvent, artData *domainpb.ArtifactEventData) {
-	event.Role = "system"
-	event.Content = artData.GetType()
-	rawBytes, _ := protoMarshalOpts.Marshal(artData)
-	event.RawData = string(rawBytes)
-}
-
-func translateMessageDeletedEvent(event *TranslatedEvent, mdData *domainpb.MessageDeletedEventData) {
-	event.Role = "system"
-	event.Content = mdData.GetTargetEventId()
-	rawBytes, _ := protoMarshalOpts.Marshal(mdData)
-	event.RawData = string(rawBytes)
-}
-
-func translateCompactionEvent(event *TranslatedEvent, compaction *domainpb.CompactionEventData) {
-	event.Role = "system"
-	event.Content = compaction.GetSummary()
-	event.CompactionTrigger = compaction.GetTrigger()
-	event.CompactionFocus = compaction.GetFocus()
-	event.CompactionMessagesCompacted = compaction.GetMessagesCompacted()
-	event.CompactionTokensBefore = compaction.GetTokensBefore()
-	event.CompactionTokensAfter = compaction.GetTokensAfter()
-	event.CompactionOriginalCommand = compaction.GetOriginalCommand()
+	return ""
 }

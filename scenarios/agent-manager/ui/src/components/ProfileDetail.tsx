@@ -1,29 +1,16 @@
 import { Edit, Trash2 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { networkAccessLabel, runnerTypeLabel } from "../lib/utils";
+import { networkAccessLabel, sandboxModeLabel } from "../lib/utils";
 import { formatStandardDateTime } from "../lib/dateTime";
 import type { AgentProfile } from "../types";
-import { ModelPreset } from "../types";
+import { SandboxMode } from "../types";
 import { durationMs, type Duration } from "@bufbuild/protobuf/wkt";
 
 const durationToMinutes = (duration: Duration | undefined): number => {
   if (!duration) return 30;
   const ms = durationMs(duration);
   return Math.max(1, Math.round(ms / 60_000));
-};
-
-const modelPresetLabel = (preset?: ModelPreset) => {
-  switch (preset) {
-    case ModelPreset.FAST:
-      return "Fast";
-    case ModelPreset.CHEAP:
-      return "Cheap";
-    case ModelPreset.SMART:
-      return "Smart";
-    default:
-      return "";
-  }
 };
 
 interface ProfileDetailProps {
@@ -67,18 +54,12 @@ export function ProfileDetail({ profile, onEdit, onDelete }: ProfileDetailProps)
 
       {/* Badges */}
       <div className="flex flex-wrap gap-2">
-        <Badge variant="secondary">{runnerTypeLabel(profile.runnerType)}</Badge>
-        {profile.modelPreset !== ModelPreset.UNSPECIFIED && (
-          <Badge variant="outline">Preset: {modelPresetLabel(profile.modelPreset)}</Badge>
+        <Badge variant="secondary">{profile.roleRef}</Badge>
+        {profile.sandboxConfig?.mode != null && profile.sandboxConfig.mode !== SandboxMode.UNSPECIFIED && (
+          <Badge variant="outline">Sandbox: {sandboxModeLabel(profile.sandboxConfig.mode)}</Badge>
         )}
-        {profile.model && profile.model.trim() !== "" && (
-          <Badge variant="outline">{profile.model}</Badge>
-        )}
-        {profile.requiresSandbox && (
-          <Badge variant="outline">Sandbox Required</Badge>
-        )}
-        {profile.requiresApproval && (
-          <Badge variant="outline">Approval Required</Badge>
+        {profile.sandboxConfig?.manualReview && (
+          <Badge variant="outline">Manual Review</Badge>
         )}
         {profile.networkAccess != null && (
           <Badge variant="outline">Net: {networkAccessLabel(profile.networkAccess)}</Badge>
@@ -104,6 +85,12 @@ export function ProfileDetail({ profile, onEdit, onDelete }: ProfileDetailProps)
             <span className="text-muted-foreground">Timeout</span>
             <p className="font-medium">{durationToMinutes(profile.timeout)} minutes</p>
           </div>
+          {profile.effort && (
+            <div>
+              <span className="text-muted-foreground">Reasoning Effort</span>
+              <p className="font-medium">{profile.effort}</p>
+            </div>
+          )}
         </div>
 
         {profile.profileKey && (
@@ -112,19 +99,6 @@ export function ProfileDetail({ profile, onEdit, onDelete }: ProfileDetailProps)
             <code className="block mt-1 text-xs bg-muted px-2 py-1 rounded">
               {profile.profileKey}
             </code>
-          </div>
-        )}
-
-        {profile.fallbackRunnerTypes && profile.fallbackRunnerTypes.length > 0 && (
-          <div className="text-sm">
-            <span className="text-muted-foreground">Fallback Runners</span>
-            <div className="flex flex-wrap gap-1 mt-1">
-              {profile.fallbackRunnerTypes.map((rt, i) => (
-                <Badge key={i} variant="outline" className="text-xs">
-                  {runnerTypeLabel(rt)}
-                </Badge>
-              ))}
-            </div>
           </div>
         )}
 

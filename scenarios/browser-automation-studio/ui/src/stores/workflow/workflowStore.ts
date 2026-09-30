@@ -1,18 +1,28 @@
 import { create } from 'zustand';
 import type { Node, Edge } from 'reactflow';
-import {
-  ListWorkflowsResponseSchema,
-  WorkflowVersionListSchema,
-  RestoreWorkflowVersionResponseSchema,
-  type ListWorkflowsResponse,
-  type WorkflowVersionList,
-  type WorkflowVersion as ProtoWorkflowVersion,
-  type RestoreWorkflowVersionResponse,
+import type {
+  WorkflowVersionList,
+  WorkflowVersion as ProtoWorkflowVersion,
 } from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
-import { getConfig } from '../../config';
+import {
+  bulkDeleteProjectWorkflowsViaApi,
+  fetchProjectWorkflows,
+} from '../../domains/projects/services/projectApi';
+import {
+  createWorkflowViaApi,
+  deleteWorkflowViaApi,
+  flowDefinitionFromJson,
+  getWorkflowViaApi,
+  listWorkflowsViaApi,
+  listWorkflowVersionsViaApi,
+  modifyWorkflowViaApi,
+  parseChangeSource,
+  restoreWorkflowVersionViaApi,
+  updateWorkflowViaApi,
+} from '../../domains/workflows/services/workflowApi';
 import { logger } from '../../utils/logger';
-import { parseProtoStrict } from '../../utils/proto';
-import { getAIRequestHeadersSync } from '../../utils/apiHeaders';
+import { protoMessageToJson } from '../../utils/proto';
+import { WorkflowSummarySchema } from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
 
 // Import types
 import type {
@@ -30,12 +40,11 @@ import { buildFlowDefinition, sanitizeNodesForPersistence, sanitizeEdgesForPersi
 import { computeWorkflowFingerprint } from './utils/fingerprint';
 import {
   parseWorkflowSummaryMessage,
-  parseWorkflowFromCreateResponse,
-  parseWorkflowFromUpdateResponse,
+  parseWorkflowFromCreateProto,
+  parseWorkflowFromUpdateProto,
   parseWorkflowVersionMessage,
 } from './utils/proto';
 import {
-  normalizeVersionSummary,
   normalizeWorkflowPayloadOrThrow,
   buildWorkflowLoadState,
 } from './utils/normalization';
@@ -53,10 +62,6 @@ const clearAutosaveTimer = () => {
     autosaveTimeout = null;
   }
 };
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
 
 // ============================================================================
 // Store Implementation
@@ -84,44 +89,36 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
   loadWorkflows: async (projectId?: string) => {
     try {
-      const config = await getConfig();
-      let url = `${config.API_URL}/workflows`;
+      // Project-scoped listing uses ProjectsService.ListProjectWorkflows
+      // (Connect-RPC). Cross-project /workflows is still REST until that
+      // domain migrates — see plan Phase 7.
       if (projectId) {
-        url = `${config.API_URL}/projects/${projectId}/workflows`;
+        const items = await fetchProjectWorkflows(projectId);
+        const workflows = items
+          .map((it) => parseWorkflowSummaryMessage({
+            id: it.id,
+            name: it.name,
+            description: it.description,
+            project_id: it.project_id,
+            folder_path: it.folder_path,
+            version: it.version,
+            created_at: it.created_at,
+            updated_at: it.updated_at,
+          } as Record<string, unknown>))
+          .filter((w): w is Workflow => Boolean(w));
+        set({ workflows });
+        return;
       }
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Failed to load workflows: ${response.status}`);
-      }
-      const data: unknown = await response.json();
-
-      let workflows: Workflow[] = [];
-      try {
-        const protoList = parseProtoStrict<ListWorkflowsResponse>(ListWorkflowsResponseSchema, data);
-        workflows = (protoList.workflows ?? []).map((item, idx) => {
+      const protoList = await listWorkflowsViaApi();
+      const workflows = (protoList.workflows ?? [])
+        .map((item, idx) => {
           const parsed = parseWorkflowSummaryMessage(item);
           if (!parsed) {
             logger.warn('Skipping invalid workflow in proto list', { component: 'WorkflowStore', action: 'loadWorkflows', index: idx });
           }
           return parsed;
-        }).filter((item): item is Workflow => Boolean(item));
-      } catch (err) {
-        logger.error('Failed to parse workflow list proto', { component: 'WorkflowStore', action: 'loadWorkflows' }, err);
-        // Fallback for legacy payloads
-        const dataObj = isRecord(data) ? data : {};
-        const legacyList = Array.isArray(dataObj.workflows)
-          ? (dataObj.workflows as Record<string, unknown>[])
-          : [];
-        workflows = legacyList
-          .map((entry, idx) => {
-            const parsed = parseWorkflowSummaryMessage(entry);
-            if (!parsed) {
-              logger.warn('Skipping invalid workflow in legacy list', { component: 'WorkflowStore', action: 'loadWorkflows', index: idx });
-            }
-            return parsed;
-          })
-          .filter((item): item is Workflow => Boolean(item));
-      }
+        })
+        .filter((item): item is Workflow => Boolean(item));
 
       set({ workflows });
     } catch (error) {
@@ -132,14 +129,12 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   loadWorkflow: async (id: string) => {
     try {
       clearAutosaveTimer();
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/workflows/${id}`);
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `Failed to load workflow: ${response.status}`);
+      const resp = await getWorkflowViaApi(id);
+      const summaryRecord = resp.workflow ? protoMessageToJson(WorkflowSummarySchema, resp.workflow) : null;
+      if (!summaryRecord) {
+        throw new Error('Workflow not found');
       }
-      const payload: unknown = await response.json();
-      const normalized = normalizeWorkflowPayloadOrThrow(payload, 'loadWorkflow');
+      const normalized = normalizeWorkflowPayloadOrThrow(summaryRecord, 'loadWorkflow');
       set(buildWorkflowLoadState(normalized));
     } catch (error) {
       logger.error('Failed to load workflow', { component: 'WorkflowStore', action: 'loadWorkflow', workflowId: id }, error);
@@ -165,28 +160,13 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   createWorkflow: async (name: string, folderPath: string, projectId?: string) => {
     try {
       clearAutosaveTimer();
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/workflows/create`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          project_id: projectId,
-          name,
-          folder_path: folderPath,
-          flow_definition: {
-            nodes: [],
-            edges: []
-          }
-        }),
+      const resp = await createWorkflowViaApi({
+        projectId: projectId ?? '',
+        name,
+        folderPath,
+        flowDefinition: flowDefinitionFromJson({ nodes: [], edges: [] }),
       });
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || `Failed to create workflow: ${response.status}`);
-      }
-      const payload: unknown = await response.json();
-      const normalized = parseWorkflowFromCreateResponse(payload);
+      const normalized = parseWorkflowFromCreateProto(resp);
       if (!normalized) {
         throw new Error('Failed to parse created workflow payload');
       }
@@ -228,11 +208,10 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     set({ isSaving: true, lastSaveError: null, hasVersionConflict: effectiveOptions.force ? false : state.hasVersionConflict });
 
     try {
-      const config = await getConfig();
       const serializableNodes = sanitizeNodesForPersistence(nodes ?? []);
       const serializableEdges = sanitizeEdgesForPersistence(edges ?? []);
       const sanitizedViewport = sanitizeViewportSettings(currentWorkflow.executionViewport);
-      const flowDefinition = buildFlowDefinition(
+      const flowDefinitionJson = buildFlowDefinition(
         currentWorkflow.flowDefinition,
         serializableNodes,
         serializableEdges,
@@ -241,39 +220,31 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       const expectedVersion = effectiveOptions.force && conflictWorkflow
         ? conflictWorkflow.version
         : currentWorkflow.version;
-      const payload: Record<string, unknown> = {
-        name: currentWorkflow.name,
-        description: currentWorkflow.description ?? '',
-        folder_path: currentWorkflow.folderPath,
-        flow_definition: flowDefinition,
-        expected_version: expectedVersion,
-        source,
-      };
-
-      if (Array.isArray(currentWorkflow.tags)) {
-        payload.tags = currentWorkflow.tags;
-      }
 
       const changeDescription = effectiveOptions.changeDescription?.trim() || (effectiveOptions.force ? 'Force save after conflict' : '');
-      if (changeDescription) {
-        payload.change_description = changeDescription;
+
+      let resp;
+      try {
+        resp = await updateWorkflowViaApi({
+          workflowId: currentWorkflow.id,
+          name: currentWorkflow.name,
+          description: currentWorkflow.description ?? '',
+          folderPath: currentWorkflow.folderPath ?? '',
+          tags: Array.isArray(currentWorkflow.tags) ? currentWorkflow.tags : [],
+          flowDefinition: flowDefinitionFromJson(flowDefinitionJson),
+          expectedVersion: expectedVersion,
+          source: parseChangeSource(source),
+          changeDescription,
+        });
+      } catch (err) {
+        const errAny = err as { code?: string; message?: string };
+        // Map Connect error codes to legacy status numbers the rest of the
+        // store branches on (conflict → 409, etc.).
+        const status = errAny.code === 'aborted' ? 409 : 500;
+        throw { message: errAny.message ?? 'Failed to save workflow', status };
       }
 
-      const response = await fetch(`${config.API_URL}/workflows/${currentWorkflow.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const message = await response.text();
-        throw { message: message || `Failed to save workflow: ${response.status}` , status: response.status };
-      }
-
-      const responsePayload: unknown = await response.json();
-      const normalized = parseWorkflowFromUpdateResponse(responsePayload);
+      const normalized = parseWorkflowFromUpdateProto(resp);
       if (!normalized) {
         throw new Error('Failed to parse workflow save payload');
       }
@@ -462,23 +433,13 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   generateWorkflow: async (prompt: string, name: string, folderPath: string, projectId?: string) => {
     try {
       clearAutosaveTimer();
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/workflows/create`, {
-        method: 'POST',
-        headers: getAIRequestHeadersSync(),
-        body: JSON.stringify({
-          project_id: projectId,
-          name,
-          folder_path: folderPath,
-          ai_prompt: prompt
-        }),
+      const resp = await createWorkflowViaApi({
+        projectId: projectId ?? '',
+        name,
+        folderPath,
+        aiPrompt: prompt,
       });
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || `Failed to generate workflow: ${response.status}`);
-      }
-      const payload: unknown = await response.json();
-      const normalized = parseWorkflowFromCreateResponse(payload);
+      const normalized = parseWorkflowFromCreateProto(resp);
       if (!normalized) {
         throw new Error('Failed to parse generated workflow payload');
       }
@@ -498,21 +459,12 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
     try {
       clearAutosaveTimer();
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/workflows/${currentWorkflow.id}/modify`, {
-        method: 'POST',
-        headers: getAIRequestHeadersSync(),
-        body: JSON.stringify({
-          modification_prompt: prompt,
-          current_flow: { nodes, edges }
-        }),
+      const resp = await modifyWorkflowViaApi({
+        workflowId: currentWorkflow.id,
+        modificationPrompt: prompt,
+        currentFlow: flowDefinitionFromJson({ nodes, edges }),
       });
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || `Failed to modify workflow: ${response.status}`);
-      }
-      const payload: unknown = await response.json();
-      const normalized = parseWorkflowFromUpdateResponse(payload);
+      const normalized = parseWorkflowFromUpdateProto(resp);
       if (!normalized) {
         throw new Error('Failed to parse modified workflow payload');
       }
@@ -527,13 +479,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   deleteWorkflow: async (id: string) => {
     try {
       clearAutosaveTimer();
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/workflows/${id}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to delete workflow: ${response.status}`);
-      }
+      await deleteWorkflowViaApi(id);
       const workflows = get().workflows.filter(w => w.id !== id);
       set({ workflows });
       if (get().currentWorkflow?.id === id) {
@@ -568,26 +514,8 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     }
 
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/projects/${projectId}/workflows/bulk-delete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ workflow_ids: workflowIds }),
-      });
-
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || `Failed to delete workflows: ${response.status}`);
-      }
-
-      const data: unknown = await response.json();
-      const dataRecord = isRecord(data) ? data : {};
-      const deletedIds = Array.isArray(dataRecord.deleted_ids)
-        ? (dataRecord.deleted_ids as string[])
-        : workflowIds;
-      const deletedSet = new Set(deletedIds);
+      const result = await bulkDeleteProjectWorkflowsViaApi(projectId, workflowIds);
+      const deletedSet = new Set(result.deleted_ids.length > 0 ? result.deleted_ids : workflowIds);
 
       const current = get().currentWorkflow;
       if (current && deletedSet.has(current.id)) {
@@ -617,7 +545,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       };
     });
 
-      return deletedIds;
+      return Array.from(deletedSet);
     } catch (error) {
       logger.error('Failed to bulk delete workflows', { component: 'WorkflowStore', action: 'bulkDeleteWorkflows', projectId, count: workflowIds.length }, error);
       throw error;
@@ -641,42 +569,11 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     set({ isVersionHistoryLoading: true, versionHistoryError: null });
 
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/workflows/${workflowId}/versions?limit=50`);
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || `Failed to load workflow versions (${response.status})`);
-      }
-
-      const payload: unknown = await response.json();
-      let summaries: WorkflowVersionSummary[] = [];
-
-      try {
-        const protoList = parseProtoStrict<WorkflowVersionList>(WorkflowVersionListSchema, payload);
-        summaries = (protoList.versions ?? [])
-          .map((item) => parseWorkflowVersionMessage(item))
-          .filter((item: WorkflowVersionSummary | null): item is WorkflowVersionSummary => item !== null)
-          .sort((a: WorkflowVersionSummary, b: WorkflowVersionSummary) => b.version - a.version);
-      } catch (err) {
-        logger.error('Failed to parse workflow version list proto, falling back to raw payload', {
-          component: 'WorkflowStore',
-          action: 'loadWorkflowVersions',
-        }, err);
-      }
-
-      const payloadObj = payload as { versions?: unknown };
-      if (summaries.length === 0 && Array.isArray(payloadObj?.versions)) {
-        summaries = payloadObj.versions
-          .map((item: unknown) => {
-            try {
-              return normalizeVersionSummary(item as Record<string, unknown>);
-            } catch {
-              return null;
-            }
-          })
-          .filter((item: WorkflowVersionSummary | null): item is WorkflowVersionSummary => item !== null)
-          .sort((a: WorkflowVersionSummary, b: WorkflowVersionSummary) => b.version - a.version);
-      }
+      const protoList: WorkflowVersionList = await listWorkflowVersionsViaApi(workflowId);
+      const summaries: WorkflowVersionSummary[] = (protoList.versions ?? [])
+        .map((item) => parseWorkflowVersionMessage(item))
+        .filter((item: WorkflowVersionSummary | null): item is WorkflowVersionSummary => item !== null)
+        .sort((a: WorkflowVersionSummary, b: WorkflowVersionSummary) => b.version - a.version);
 
       set({
         versionHistory: summaries,
@@ -709,41 +606,11 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     set({ restoringVersion: version, lastSaveError: null });
 
     try {
-      const config = await getConfig();
-      const payload = changeDescription && changeDescription.trim().length > 0
-        ? JSON.stringify({ change_description: changeDescription.trim() })
-        : undefined;
-
-      const response = await fetch(`${config.API_URL}/workflows/${workflowId}/versions/${version}/restore`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: payload,
-      });
-
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || `Failed to restore version (${response.status})`);
-      }
-
-      const data: unknown = await response.json();
-      const dataRecord = isRecord(data) ? data : null;
-
-      let restoredWorkflowPayload: unknown = dataRecord?.workflow ?? data;
-      let restoredVersionPayload: ProtoWorkflowVersion | null = null;
-
-      try {
-        const proto = parseProtoStrict<RestoreWorkflowVersionResponse>(RestoreWorkflowVersionResponseSchema, data);
-        if (proto.workflow) {
-          restoredWorkflowPayload = proto.workflow;
-        }
-        if (proto.restoredVersion) {
-          restoredVersionPayload = proto.restoredVersion;
-        }
-      } catch (err) {
-        logger.error('Failed to parse restore workflow proto response', { component: 'WorkflowStore', action: 'restoreWorkflowVersion', workflowId }, err);
-      }
+      const proto = await restoreWorkflowVersionViaApi(workflowId, version, changeDescription?.trim() ?? '');
+      const restoredWorkflowPayload = proto.workflow
+        ? protoMessageToJson(WorkflowSummarySchema, proto.workflow)
+        : null;
+      const restoredVersionPayload: ProtoWorkflowVersion | null = proto.restoredVersion ?? null;
 
       const normalized = normalizeWorkflowPayloadOrThrow(restoredWorkflowPayload, 'restoreWorkflowVersion');
 
@@ -810,14 +677,12 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     }
 
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/workflows/${currentWorkflow.id}`);
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || `Failed to refresh workflow snapshot: ${response.status}`);
+      const resp = await getWorkflowViaApi(currentWorkflow.id);
+      const summaryRecord = resp.workflow ? protoMessageToJson(WorkflowSummarySchema, resp.workflow) : null;
+      if (!summaryRecord) {
+        throw new Error('Workflow not found');
       }
-      const payload: unknown = await response.json();
-      const normalized = normalizeWorkflowPayloadOrThrow(payload, 'refreshConflictWorkflow');
+      const normalized = normalizeWorkflowPayloadOrThrow(summaryRecord, 'refreshConflictWorkflow');
       set({
         conflictWorkflow: normalized,
         conflictMetadata: {

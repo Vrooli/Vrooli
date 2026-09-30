@@ -1,204 +1,151 @@
-/**
- * Recording Buffer - In-Memory TimelineEntry Storage
- *
- * Stores proto TimelineEntry objects in memory during a recording session.
- * Each session has its own buffer keyed by session ID.
- *
- * PROTO-FIRST ARCHITECTURE:
- * This buffer stores TimelineEntry directly (the canonical proto format),
- * eliminating the need for intermediate types like RecordedAction.
- *
- * ┌─────────────────────────────────────────────────────────────────────────┐
- * │ BUFFER BEHAVIOR:                                                        │
- * │                                                                         │
- * │   bufferTimelineEntry()                                                 │
- * │        │                                                                │
- * │        ├──▶ Duplicate? (same entry.id) ──▶ Return false (no-op)         │
- * │        │                                                                │
- * │        ├──▶ Buffer full? ──▶ Evict oldest (FIFO), then add              │
- * │        │                                                                │
- * │        └──▶ Add to buffer, return true                                  │
- * └─────────────────────────────────────────────────────────────────────────┘
- *
- * IDEMPOTENCY: Same entry ID inserted twice is a no-op (safe for retries)
- * MEMORY SAFETY: Buffer size is capped, oldest entries evicted when full
- *
- * SEAM: Session Cleanup Integration
- * This module registers with the session cleanup registry so that buffer
- * cleanup happens automatically when sessions are closed or reset.
- * See infra/session-cleanup-registry.ts for the cleanup pattern.
- */
-
-import type { TimelineEntry } from '../../proto/recording';
-import { MAX_RECORDING_BUFFER_SIZE, logger } from '../../utils';
+import { timelineEntryToJson, type TimelineEntry } from '../../proto/recording';
+import { MAX_RECORDING_BUFFER_SIZE } from '../../utils';
 import { registerSessionCleanup } from '../../infra';
 
-// In-memory entry buffers keyed by session ID
-const entryBuffers = new Map<string, TimelineEntry[]>();
+type BufferedEntry = {
+  entry: TimelineEntry;
+  visible: boolean;
+  acknowledged: boolean;
+  delivered: boolean;
+  delivering: boolean;
+  acknowledgeOnDelivery: boolean;
+  deliver?: () => Promise<void>;
+};
+type RecordingBuffer = {
+  entries: Map<string, BufferedEntry>;
+  evictions: number;
+  drain?: Promise<void>;
+};
 
-// Track eviction counts for observability
-const evictionCounts = new Map<string, number>();
+// The same bounded owner retains pending work, delivery progress and replay
+// identity. Only acknowledged entries can be evicted or hidden by a clear.
+const buffers = new Map<string, RecordingBuffer>();
 
-// Track seen entry IDs per session for deduplication
-const seenEntryIds = new Map<string, Set<string>>();
-
-// Track last sequence number per session for ordering validation
-const lastSequenceNums = new Map<string, number>();
-
-export function initRecordingBuffer(sessionId: string): void {
-  entryBuffers.set(sessionId, []);
-  evictionCounts.set(sessionId, 0);
-  seenEntryIds.set(sessionId, new Set());
-  lastSequenceNums.set(sessionId, -1);
+function getBuffer(sessionId: string): RecordingBuffer {
+  let buffer = buffers.get(sessionId);
+  if (!buffer) {
+    buffer = { entries: new Map(), evictions: 0 };
+    buffers.set(sessionId, buffer);
+  }
+  return buffer;
 }
 
-/**
- * Buffer a TimelineEntry.
- *
- * Hardened: Enforces maximum buffer size with FIFO eviction.
- * Logs a warning when eviction occurs to signal potential issues.
- *
- * Idempotency: Entries with the same ID are deduplicated (no-op on second insert).
- * This makes buffering safe for replay scenarios where callbacks might fire twice.
- *
- * @returns true if entry was buffered, false if it was a duplicate (already seen)
- */
-export function bufferTimelineEntry(sessionId: string, entry: TimelineEntry): boolean {
-  let buffer = entryBuffers.get(sessionId);
-
-  if (!buffer) {
-    buffer = [];
-    entryBuffers.set(sessionId, buffer);
-    evictionCounts.set(sessionId, 0);
-    seenEntryIds.set(sessionId, new Set());
-    lastSequenceNums.set(sessionId, -1);
+export function assertRecordingAcknowledged(sessionId: string): void {
+  const buffer = buffers.get(sessionId);
+  if (buffer?.drain || [...buffer?.entries.values() ?? []].some((item) => !item.acknowledged)) {
+    throw new Error('Recording delivery is still pending; retain the session and retry or acknowledge committed entries');
   }
+}
 
-  // Idempotency: Check if we've already seen this entry ID
-  const seen = seenEntryIds.get(sessionId);
-  if (seen?.has(entry.id)) {
-    logger.debug('Recording buffer: duplicate entry ignored', {
-      sessionId,
-      entryId: entry.id,
-      sequenceNum: entry.sequenceNum,
-      hint: 'Entry already buffered, treating as idempotent retry',
-    });
+export function initRecordingBuffer(sessionId: string): void {
+  assertRecordingAcknowledged(sessionId);
+  buffers.set(sessionId, { entries: new Map(), evictions: 0 });
+}
+
+export function bufferTimelineEntry(sessionId: string, entry: TimelineEntry): boolean {
+  const buffer = getBuffer(sessionId);
+  const existing = buffer.entries.get(entry.id);
+  if (existing) {
+    if (JSON.stringify(timelineEntryToJson(existing.entry)) !== JSON.stringify(timelineEntryToJson(entry))) {
+      throw new Error('Recording observation identity conflicts with its original contents');
+    }
     return false;
   }
-
-  // Validate sequence ordering (warn but don't reject - network timing can cause reordering)
-  const lastSeq = lastSequenceNums.get(sessionId) ?? -1;
-  if (entry.sequenceNum <= lastSeq) {
-    logger.warn('Recording buffer: out-of-order entry received', {
-      sessionId,
-      entryId: entry.id,
-      sequenceNum: entry.sequenceNum,
-      lastSequenceNum: lastSeq,
-      hint: 'Entry arrived out of order, may indicate network issues',
-    });
-  }
-
-  // Hardened: Enforce maximum buffer size
-  if (buffer.length >= MAX_RECORDING_BUFFER_SIZE) {
-    // Evict oldest entry (FIFO)
-    const evictedEntry = buffer.shift();
-
-    // Also remove from seen set to allow memory cleanup
-    if (evictedEntry) {
-      seen?.delete(evictedEntry.id);
+  if (buffer.entries.size >= MAX_RECORDING_BUFFER_SIZE) {
+    for (const [id, item] of buffer.entries) {
+      if (item.acknowledged && !item.delivering) {
+        buffer.entries.delete(id);
+        buffer.evictions++;
+        break;
+      }
     }
-
-    // Track eviction count
-    const evictions = (evictionCounts.get(sessionId) || 0) + 1;
-    evictionCounts.set(sessionId, evictions);
-
-    // Log warning on first eviction and periodically thereafter
-    if (evictions === 1 || evictions % 100 === 0) {
-      logger.warn('Recording buffer full, evicting old entries', {
-        sessionId,
-        maxSize: MAX_RECORDING_BUFFER_SIZE,
-        totalEvictions: evictions,
-        hint: 'Consider stopping recording or increasing buffer size',
-      });
-    }
+    if (buffer.entries.size >= MAX_RECORDING_BUFFER_SIZE) throw new Error('Recording delivery capacity exhausted; unacknowledged entries are retained');
   }
-
-  // Add entry to buffer and track it
-  buffer.push(entry);
-  seen?.add(entry.id);
-  lastSequenceNums.set(sessionId, Math.max(lastSeq, entry.sequenceNum));
-
+  buffer.entries.set(entry.id, {
+    entry, visible: true, acknowledged: false, delivered: false,
+    delivering: false, acknowledgeOnDelivery: true,
+  });
   return true;
 }
 
-/**
- * Get all buffered TimelineEntry objects for a session.
- */
-export function getTimelineEntries(sessionId: string): TimelineEntry[] {
-  return entryBuffers.get(sessionId) || [];
+export function getBufferedTimelineEntry(sessionId: string, entryId: string): TimelineEntry | undefined {
+  return buffers.get(sessionId)?.entries.get(entryId)?.entry;
 }
 
-/**
- * Get the count of buffered entries.
- */
+export async function deliverTimelineEntry(
+  sessionId: string, entry: TimelineEntry, deliver: () => Promise<void>, acknowledgeOnDelivery = true,
+): Promise<void> {
+  const buffer = getBuffer(sessionId);
+  const item = buffer.entries.get(entry.id);
+  if (!item) throw new Error('Recording entry was not admitted');
+  if (item.delivered) return;
+  item.deliver ??= deliver;
+  item.acknowledgeOnDelivery = acknowledgeOnDelivery;
+  await flushRecordingDeliveries(sessionId);
+  if (!item.delivered) throw new Error('Recording delivery did not complete');
+}
+
+export function flushRecordingDeliveries(sessionId: string): Promise<void> {
+  const buffer = getBuffer(sessionId);
+  if (buffer.drain) return buffer.drain;
+  buffer.drain = (async () => {
+    for (const item of buffer.entries.values()) {
+      if (item.delivered || !item.deliver) continue;
+      item.delivering = true;
+      try {
+        await item.deliver();
+        item.delivered = true;
+        if (item.acknowledgeOnDelivery) item.acknowledged = true;
+      } finally { item.delivering = false; }
+    }
+  })().finally(() => { buffer.drain = undefined; });
+  return buffer.drain;
+}
+
+/** The consumer calls this only after committing the named observations. */
+export function acknowledgeTimelineEntries(sessionId: string, ids: string[], clear = false): void {
+  const buffer = getBuffer(sessionId);
+  for (const id of ids) {
+    if (!buffer.entries.has(id)) throw new Error(`Unknown recording entry ${id}`);
+  }
+  for (const id of ids) {
+    const item = buffer.entries.get(id)!;
+    item.acknowledged = true;
+    item.delivered = true;
+    if (clear) item.visible = false;
+  }
+}
+
+export function getTimelineEntries(sessionId: string): TimelineEntry[] {
+  const entries: TimelineEntry[] = [];
+  for (const item of buffers.get(sessionId)?.entries.values() ?? []) {
+    if (item.visible) entries.push(item.entry);
+  }
+  return entries;
+}
+
 export function getTimelineEntryCount(sessionId: string): number {
   return getTimelineEntries(sessionId).length;
 }
 
-/**
- * Get buffer statistics for monitoring.
- */
 export function getBufferStats(sessionId: string): {
-  entryCount: number;
-  evictionCount: number;
-  maxSize: number;
+  entryCount: number; evictionCount: number; maxSize: number; pendingCount: number;
 } {
+  const buffer = buffers.get(sessionId);
   return {
-    entryCount: getTimelineEntryCount(sessionId),
-    evictionCount: evictionCounts.get(sessionId) || 0,
+    entryCount: getTimelineEntryCount(sessionId), evictionCount: buffer?.evictions ?? 0,
     maxSize: MAX_RECORDING_BUFFER_SIZE,
+    pendingCount: [...buffer?.entries.values() ?? []].filter((item) => !item.acknowledged).length,
   };
 }
 
-/**
- * Clear all buffered entries for a session but keep the buffer initialized.
- */
-export function clearTimelineEntries(sessionId: string): void {
-  entryBuffers.set(sessionId, []);
-  evictionCounts.set(sessionId, 0);
-  seenEntryIds.set(sessionId, new Set());
-  lastSequenceNums.set(sessionId, -1);
-}
-
-/**
- * Remove the buffer entirely for a session (cleanup on session end).
- */
 export function removeRecordingBuffer(sessionId: string): void {
-  entryBuffers.delete(sessionId);
-  evictionCounts.delete(sessionId);
-  seenEntryIds.delete(sessionId);
-  lastSequenceNums.delete(sessionId);
+  assertRecordingAcknowledged(sessionId);
+  buffers.delete(sessionId);
 }
 
-/**
- * Check if an entry ID has already been buffered.
- * Useful for external code to check before attempting to buffer.
- */
 export function isEntryBuffered(sessionId: string, entryId: string): boolean {
-  const seen = seenEntryIds.get(sessionId);
-  return seen?.has(entryId) ?? false;
+  return buffers.get(sessionId)?.entries.has(entryId) ?? false;
 }
 
-// =============================================================================
-// Session Cleanup Integration
-// =============================================================================
-
-/**
- * Register buffer cleanup with the session cleanup registry.
- * This ensures buffers are cleaned up when sessions are closed/reset,
- * without the session layer needing to know about recording internals.
- */
-registerSessionCleanup('recording-buffer', (sessionId: string): void => {
-  removeRecordingBuffer(sessionId);
-});
-
+registerSessionCleanup('recording-buffer', removeRecordingBuffer);

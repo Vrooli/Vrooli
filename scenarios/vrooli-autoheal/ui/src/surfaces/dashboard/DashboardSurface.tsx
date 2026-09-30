@@ -1,7 +1,10 @@
-import { Activity, AlertCircle, AlertTriangle, CheckCircle, ChevronDown, ChevronRight, HardDrive } from "lucide-react";
+import { Activity, AlertCircle, AlertTriangle, CheckCircle, ChevronDown, ChevronRight, HardDrive, HelpCircle } from "lucide-react";
+import { memo, Profiler } from "react";
 import { CheckCard, EventsTimeline, PlatformInfo, SummaryCard, SystemProtection, UptimeStats } from "./components";
 import { Card } from "../../shared/ui/primitives";
+import { selectors } from "../../consts/selectors";
 import type { CheckCategory, HealthResult, StatusResponse } from "../../lib/api";
+import { onProfilerRender } from "../../lib/profiler";
 
 export interface EnrichedCheck extends HealthResult {
   title?: string;
@@ -15,6 +18,7 @@ export interface CollapsedGroups {
   critical: boolean;
   warning: boolean;
   ok: boolean;
+  notApplicable: boolean;
 }
 
 type GroupKey = keyof CollapsedGroups;
@@ -46,6 +50,12 @@ const GROUP_CONFIG: Record<
     headerClass: "bg-accent-success/10 text-accent-success hover:bg-accent-success/20",
     countClass: "text-accent-success/80",
   },
+  notApplicable: {
+    title: "Not Applicable",
+    icon: HelpCircle,
+    headerClass: "bg-surface-overlay/60 text-text-muted hover:bg-surface-overlay",
+    countClass: "text-text-muted",
+  },
 };
 
 interface CheckGroupSectionProps {
@@ -56,7 +66,7 @@ interface CheckGroupSectionProps {
   onSelectCheck: (checkId: string) => void;
 }
 
-function CheckGroupSection({
+const CheckGroupSection = memo(function CheckGroupSection({
   group,
   checks,
   collapsed,
@@ -74,17 +84,17 @@ function CheckGroupSection({
     <div className="space-y-1.5 sm:space-y-2">
       <button
         onClick={() => onToggleGroup(group)}
-        className={`flex w-full flex-wrap items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium transition-colors ${config.headerClass}`}
+        className={`flex min-w-0 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium transition-colors ${config.headerClass}`}
       >
         {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-        <Icon size={16} />
-        <span>{config.title}</span>
+        <Icon size={16} className="shrink-0" />
+        <span className="min-w-0 truncate">{config.title}</span>
         <span className={`ml-auto text-xs font-normal ${config.countClass}`}>
           {checks.length} {checks.length === 1 ? "check" : "checks"}
         </span>
       </button>
       {!collapsed && (
-        <div className="rounded-lg border border-border-default/70 bg-surface-elevated/40 divide-y divide-border-default/70 sm:space-y-2 sm:divide-y-0 sm:border-none sm:bg-transparent">
+        <div className="min-w-0 rounded-lg border border-border-default/70 bg-surface-elevated/40 divide-y divide-border-default/70 sm:space-y-2 sm:divide-y-0 sm:border-none sm:bg-transparent">
           {checks.map((check) => (
             <CheckCard
               key={check.checkId}
@@ -97,7 +107,7 @@ function CheckGroupSection({
       )}
     </div>
   );
-}
+});
 
 interface DashboardSurfaceProps {
   data: StatusResponse | undefined;
@@ -107,6 +117,7 @@ interface DashboardSurfaceProps {
     critical: EnrichedCheck[];
     warning: EnrichedCheck[];
     ok: EnrichedCheck[];
+    notApplicable: EnrichedCheck[];
   };
   collapsedGroups: CollapsedGroups;
   onToggleGroup: (group: keyof CollapsedGroups) => void;
@@ -116,7 +127,7 @@ interface DashboardSurfaceProps {
   onSelectCheck: (checkId: string) => void;
 }
 
-export function DashboardSurface({
+function DashboardSurfaceImpl({
   data,
   checksMetadataCount,
   enrichedChecks,
@@ -130,7 +141,10 @@ export function DashboardSurface({
 }: DashboardSurfaceProps) {
   return (
     <div className="min-w-0">
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:mb-6 sm:gap-4 md:grid-cols-4">
+      <div
+        className="mb-5 grid min-w-0 grid-cols-2 gap-3 sm:mb-6 sm:gap-4 md:grid-cols-4"
+        data-testid={selectors.summary.grid}
+      >
         <SummaryCard
           title="Total Checks"
           value={data?.summary.total || 0}
@@ -154,6 +168,12 @@ export function DashboardSurface({
           value={data?.summary.critical || 0}
           icon={AlertCircle}
           tone="danger"
+        />
+        <SummaryCard
+          title="Not Applicable"
+          value={data?.summary.notApplicable || 0}
+          icon={HelpCircle}
+          tone="neutral"
         />
       </div>
 
@@ -203,8 +223,18 @@ export function DashboardSurface({
       </div>
 
       <div className="mt-6">
-        <EventsTimeline />
+        <Profiler id="EventsTimeline" onRender={onProfilerRender}>
+          <EventsTimeline />
+        </Profiler>
       </div>
     </div>
+  );
+}
+
+export function DashboardSurface(props: DashboardSurfaceProps) {
+  return (
+    <Profiler id="DashboardSurface" onRender={onProfilerRender}>
+      <DashboardSurfaceImpl {...props} />
+    </Profiler>
   );
 }

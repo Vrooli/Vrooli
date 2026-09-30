@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "x-first-run": true,
+  "journey": {
+    "id": "first-run",
+    "title": "Start a new Offer Desk",
+    "purpose": "A new operator understands the empty graph, creates the first offer, declares its trigger, and sees why activation remains an explicit operator decision.",
+    "prd_refs": ["OT-P0-001", "OT-P0-003", "OT-P0-005"]
+  },
+  "steps": [
+    { "page": "dashboard", "state": "empty", "intent": "Understand that no offer graph or evaluated sources exist", "via": "empty-guidance" },
+    { "page": "offers", "state": "empty", "intent": "Create the first offer node", "via": "offer-table" },
+    { "page": "triggers", "state": "empty", "intent": "Declare the first machine-evaluable trigger", "via": "trigger-editor" },
+    { "page": "dashboard", "state": "posture-unavailable", "intent": "Read the board with explicit source availability and no fabricated zero", "via": "source-availability" },
+    { "page": "offers", "state": "promotion-blocked", "intent": "Understand that only an operator can activate the offer", "via": "role-requirement" }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "metadata": {
+    "name": "validation-workspace-complete-gate",
+    "description": "Given a real packaged desktop artifact, when an operator selects it and executes the validation matrix, then the complete evidence gate is visible and passing.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"STD-E2E-GENERATION\"]",
+      "purpose": "validation-workspace-complete-gate",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {"viewport_width": 1440, "viewport_height": 900},
+  "nodes": [
+    {"id":"navigate","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"scenario-to-desktop","scenario_path":"/?view=validation&scenario=scenario-to-desktop","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"Open the desktop validation workspace"}}},
+    {"id":"scenario","action":{"type":"ACTION_TYPE_INPUT","input":{"selector":"@selector/validation.scenarioName","clear_first":true,"value":"secrets-manager"},"metadata":{"label":"Select the packaged secrets-manager scenario"}}},
+    {"id":"artifact","action":{"type":"ACTION_TYPE_INPUT","input":{"selector":"@selector/validation.artifactDigest","clear_first":true,"value":"sha256:45401dabd3e49145ab69a2e6f6eb0d44907bef2c777a2ede4d2372cd39c72bc4"},"metadata":{"label":"Pin the immutable AppImage digest"}}},
+    {"id":"create","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/validation.createMatrix"},"metadata":{"label":"Create the immutable validation matrix"}}},
+    {"id":"wait-cell","action":{"type":"ACTION_TYPE_WAIT","wait":{"selector":"@selector/validation.matrixCell","timeout_ms":15000},"metadata":{"label":"Wait for the complete matrix cell"}}},
+    {"id":"run","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/validation.startRun"},"metadata":{"label":"Run the packaged desktop artifact"}}},
+    {"id":"wait-run","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/validation.waitRun"},"metadata":{"label":"Wait for the server-owned desktop run"}}},
+    {"id":"assert-gate","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/validation.gateSummary","mode":"ASSERTION_MODE_TEXT_CONTAINS","expected":{"stringValue":"pass"},"timeout_ms":60000},"metadata":{"label":"Require a passing release gate"}}},
+    {"id":"assert-cell","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/validation.matrixCell","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Complete cell remains visible"}}},
+    {"id":"capture","action":{"type":"ACTION_TYPE_SCREENSHOT","screenshot":{"full_page":true},"metadata":{"label":"Capture complete gate and evidence review"}}}
+  ],
+  "edges":[
+    {"id":"e1","source":"navigate","target":"scenario"},
+    {"id":"e2","source":"scenario","target":"artifact"},
+    {"id":"e3","source":"artifact","target":"create"},
+    {"id":"e4","source":"create","target":"wait-cell"},
+    {"id":"e5","source":"wait-cell","target":"run"},
+    {"id":"e6","source":"run","target":"wait-run"},
+    {"id":"e7","source":"wait-run","target":"assert-gate"},
+    {"id":"e8","source":"assert-gate","target":"assert-cell"},
+    {"id":"e9","source":"assert-cell","target":"capture"}
+  ]
+}

@@ -1,0 +1,365 @@
+syntax = "proto3";
+
+package vrooli.program_runtime.v1.bindings;
+
+import "program-runtime/v1/shared/library.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings;bindings_v1";
+
+// BindingRegistryService projects the repository's typed Connect-RPC surface
+// from scenario CLI manifests. Governance is copied from the manifest; this
+// contract intentionally does not introduce another policy vocabulary.
+service BindingRegistryService {
+  rpc ListBindings(ListBindingsRequest) returns (ListBindingsResponse);
+  rpc ListUnbound(ListUnboundRequest) returns (ListUnboundResponse);
+  rpc ResolveActCells(ResolveActCellsRequest) returns (ResolveActCellsResponse);
+  rpc DoctorBindings(DoctorBindingsRequest) returns (DoctorBindingsResponse);
+  rpc DescribeBinding(DescribeBindingRequest) returns (DescribeBindingResponse);
+  rpc ResolveIntent(ResolveIntentRequest) returns (ResolveIntentResponse);
+  rpc SweepBindings(SweepBindingsRequest) returns (SweepBindingsResponse);
+}
+
+service BindingConditionService {
+  rpc GetBindingCondition(GetBindingConditionRequest) returns (GetBindingConditionResponse);
+}
+
+enum UnboundReason {
+  UNBOUND_REASON_UNSPECIFIED = 0;
+  UNBOUND_REASON_NO_MANIFEST = 1;
+  UNBOUND_REASON_LOCAL_BINDING = 2;
+  UNBOUND_REASON_OMITTED_RPC = 3;
+  UNBOUND_REASON_EXTERNAL_TOOL_ONLY = 4;
+  UNBOUND_REASON_MALFORMED_MANIFEST = 5;
+}
+
+message Binding {
+  string id = 1;
+  string scenario = 2;
+  string group = 3;
+  string command = 4;
+  string service = 5;
+  string method = 6;
+  string request_type = 7;
+  string response_type = 8;
+  string effect = 9;
+  bool run_eligible = 10;
+  bool requires_confirmation = 11;
+  repeated string permissions = 12;
+  string description = 13;
+  string signature = 14;
+  bool reachable = 15;
+  string reachability_reason = 16;
+  // rows_field is the descriptor/manifest-selected repeated response field
+  // that becomes the primary Handle row collection. It is empty when the
+  // response is scalar-only or when selection is deliberately refused.
+  string rows_field = 17;
+  // meta_fields are the response fields retained outside the primary rows.
+  repeated string meta_fields = 18;
+  // row_field_candidates makes an ambiguous response fail closed with an
+  // actionable diagnostic instead of relying on JSON map ordering.
+  repeated string row_field_candidates = 19;
+}
+
+message UnboundCapability {
+  string scenario = 1;
+  string group = 2;
+  string command = 3;
+  string service = 4;
+  string method = 5;
+  UnboundReason reason = 6;
+  string detail = 7;
+}
+
+message ListBindingsRequest {
+  string scenario = 1;
+  string group = 2;
+  bool reachable_only = 3;
+}
+
+message ListBindingsResponse {
+  repeated Binding bindings = 1;
+  string reachability_checked_at = 2;
+}
+
+message SweepBindingsRequest {
+  string scenario = 1;
+  string effect = 2;
+  bool dry_run = 3;
+}
+
+message SweepBindingResult {
+  string binding_id = 1;
+  string scenario = 2;
+  bool attempted = 3;
+  string skipped_reason = 4;
+  string outcome = 5;
+  string reason = 6;
+  int64 latency_ms = 7;
+}
+
+message SweepBindingsResponse {
+  repeated SweepBindingResult results = 1;
+  int32 eligible = 2;
+  int32 attempted = 3;
+  int32 skipped = 4;
+  int32 succeeded = 5;
+  int32 failed = 6;
+  int32 refused = 7;
+  string provenance = 8;
+}
+
+message ListUnboundRequest {
+  string scenario = 1;
+}
+
+message ListUnboundResponse {
+  repeated UnboundCapability capabilities = 1;
+}
+
+message DoctorBindingsRequest {
+  string scenario = 1;
+}
+
+message SkippedManifest {
+  string path = 1;
+  string scenario = 2;
+  string parse_error = 3;
+}
+
+message BindingIssue {
+  string scenario = 1;
+  string binding_id = 2;
+  string argument = 3;
+  string request_type = 4;
+  string reason = 5;
+  string proto_path = 6;
+  repeated string candidate_fields = 7;
+}
+
+message DoctorBindingsResponse {
+  int32 bindings = 1;
+  int32 callable = 2;
+  int32 uncallable = 3;
+  int32 partial = 4;
+  int32 zero_arg = 5;
+  int32 misroutes = 6;
+  repeated BindingIssue issues = 7;
+
+  // Semantic manifest-to-proto findings. These counts use the same shared
+  // argument resolver as callable/uncallable classification and make the
+  // runtime doctor useful as an independent convergence check.
+  int32 field_collisions = 8;
+  int32 control_flags_bound = 9;
+  int32 required_fields_unpopulated = 10;
+  int32 binds_where_rename_suffices = 11;
+  // Arguments that resolve onto a structured field a bare CLI string cannot
+  // populate. These pass every callability check, so they are only visible as
+  // their own dimension.
+  int32 scalar_bound_to_message = 12;
+  repeated SkippedManifest skipped_manifests = 13;
+  int32 skipped_manifest_count = 14;
+  repeated string reachable_scenarios = 15;
+  repeated string unreachable_scenarios = 16;
+  int32 manifest_scenarios = 17;
+  int32 total_scenarios = 18;
+  string reachability_checked_at = 19;
+  map<string, string> reachability_checked_at_by_scenario = 20;
+}
+
+enum ConditionStatus {
+  CONDITION_STATUS_UNSPECIFIED = 0;
+  CONDITION_STATUS_HEALTHY = 1;
+  CONDITION_STATUS_DEGRADED = 2;
+  CONDITION_STATUS_DORMANT = 3;
+  CONDITION_STATUS_UNINSTRUMENTED = 4;
+  CONDITION_STATUS_UNAVAILABLE = 5;
+}
+
+message ConditionFamily {
+  ConditionStatus status = 1;
+  string reason = 2;
+}
+
+message ServingCondition {
+  ConditionFamily family = 1;
+  double failure_rate = 2;
+  double degradation_rate = 3;
+  int64 latency_p50_ms = 4;
+  int64 latency_p95_ms = 5;
+  int64 probe_invocations = 6;
+  int64 organic_invocations = 7;
+  int64 synthetic_invocations = 8;
+}
+
+message FreshnessCondition {
+  ConditionFamily family = 1;
+  int64 age_seconds = 2;
+  ConditionStatus drift_status = 3;
+  string drift_reason = 4;
+  string source_path = 5;
+  string source_mtime = 6;
+  string generation_mtime = 7;
+}
+
+message ExerciseCondition {
+  ConditionFamily family = 1;
+  int64 invocations = 2;
+  int64 distinct_callers = 3;
+  string last_invoked_at = 4;
+  int64 synthetic_invocations = 5;
+  int64 unattributed_remainder = 6;
+  // Stable population label for this observation. Condition rows currently
+  // use the fleet receipt aggregate; local-ledger exercise is reported in the
+  // response summary because the two populations overlap and cannot be added.
+  string basis = 7;
+}
+
+message ExerciseBasisSummary {
+  // Stable machine-readable population label.
+  string basis = 1;
+  int32 instrumented_bindings = 2;
+  int32 total_bindings = 3;
+  int64 invocations = 4;
+}
+
+message BindingCondition {
+  string binding_id = 1;
+  string scenario = 2;
+  ConditionStatus status = 3;
+  string verdict = 4;
+  ServingCondition serving = 5;
+  FreshnessCondition freshness = 6;
+  ExerciseCondition exercise = 7;
+  bool sustained_degradation = 8;
+  string sustained_degradation_reason = 9;
+}
+
+// ScenarioCondition is the producer-owned rollup consumed by coverage
+// boards. One scenario contributes one condition, regardless of how many
+// manifest bindings it exposes.
+message ScenarioCondition {
+  string scenario = 1;
+  ConditionStatus status = 2;
+  string verdict = 3;
+  int32 binding_count = 4;
+  int32 dormant_bindings = 5;
+  int32 degraded_bindings = 6;
+  int32 healthy_bindings = 7;
+}
+
+message GetBindingConditionRequest {
+  string binding_id = 1;
+  string scenario = 2;
+  int64 window_seconds = 3;
+}
+
+message GetBindingConditionResponse {
+  repeated BindingCondition conditions = 1;
+  int64 window_seconds = 2;
+  int32 total_bindings = 3;
+  // Deprecated receipt-basis alias retained for wire compatibility. New
+  // consumers must read ledger_exercise and receipt_exercise explicitly.
+  int32 instrumented_bindings = 4 [deprecated = true];
+  repeated ScenarioCondition scenario_conditions = 5;
+  ExerciseBasisSummary ledger_exercise = 6;
+  ExerciseBasisSummary receipt_exercise = 7;
+}
+
+message DescribeBindingRequest {
+  string id = 1;
+}
+
+message BindingArgument {
+  string name = 1;
+  string proto_path = 2;
+  string kind = 3;
+  bool required = 4;
+  string reason = 5;
+}
+
+message DescribeBindingResponse {
+  Binding binding = 1;
+  string resolved_source = 2;
+  bool callable = 3;
+  repeated BindingArgument arguments = 4;
+}
+
+message ActCell {
+  string id = 1;
+  repeated string operations = 2;
+  string authored_status = 3;
+}
+
+enum ActVerdict {
+  ACT_VERDICT_UNSPECIFIED = 0;
+  ACT_VERDICT_NOW = 1;
+  ACT_VERDICT_IN_REACH = 2;
+  ACT_VERDICT_AUTHORED = 3;
+}
+
+message ActCellVerdict {
+  string id = 1;
+  ActVerdict verdict = 2;
+  repeated string resolved_operations = 3;
+  repeated string unresolved_operations = 4;
+  repeated string reasons = 5;
+  string authored_status = 6;
+  bool audited = 7;
+}
+
+message ResolveActCellsRequest {
+  repeated ActCell cells = 1;
+}
+
+message ResolveActCellsResponse {
+  repeated ActCellVerdict cells = 1;
+  int32 audited_cells = 2;
+  int32 total_cells = 3;
+  string denominator_confidence = 4;
+  int32 manifest_scenarios = 5;
+  int32 total_scenarios = 6;
+  int32 reachable_scenarios = 7;
+  int32 unreachable_scenarios = 8;
+  string reachability_checked_at = 9;
+}
+
+message ResolveIntentRequest {
+  string intent = 1;
+  int32 limit = 2;
+  // fast is provider-direct, judged is conservative single-selection, and
+  // deep permits bounded intent expansion before judging. Empty defaults to
+  // judged at the API boundary.
+  string mode = 3;
+}
+
+message DiscoverResult {
+  // Empty is an intentional null verdict. Consumers must inspect reason.
+  string binding_id = 1;
+  string confidence = 2;
+  string method = 3;
+  string reason = 4;
+  repeated string alternatives = 5;
+  Binding binding = 6;
+  repeated BindingArgument arguments = 7;
+  // A library result is mutually exclusive with binding. It is returned when
+  // a seeded or explicitly promoted reusable program is the best governed
+  // capability for the intent.
+  vrooli.program_runtime.v1.shared.LibraryProgram library = 8;
+  // True when discovery could not reach a verdict because a dependency failed,
+  // as distinct from reaching the verdict "nothing governed serves this".
+  //
+  // Both cases carry an empty binding_id, so before this field a caller could
+  // only tell them apart by string-matching `reason`. That mattered: the skill
+  // instructs an agent to treat an empty binding_id as a stop, so a degraded
+  // judge or an unreachable Search Hub silently taught agents that no
+  // capability existed. A null verdict is a stop; unavailable is a retry.
+  bool unavailable = 9;
+}
+
+message ResolveIntentResponse {
+  repeated Binding bindings = 1;
+  string reason = 2;
+  bool fallback = 3;
+  DiscoverResult result = 4;
+  string mode = 5;
+}

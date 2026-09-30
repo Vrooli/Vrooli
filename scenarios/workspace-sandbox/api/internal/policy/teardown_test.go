@@ -2,13 +2,15 @@ package policy
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
-	"workspace-sandbox/internal/types"
-
 	"github.com/google/uuid"
+
+	"workspace-sandbox/internal/process"
+	"workspace-sandbox/internal/types"
 )
 
 // =============================================================================
@@ -53,7 +55,7 @@ func TestHookTeardownPolicy_SuccessfulHook(t *testing.T) {
 		Name:    "success-hook",
 		Command: "/bin/true",
 	}}
-	p := NewHookTeardownPolicy(hooks)
+	p := NewHookTeardownPolicy(process.NewOSExecStarter(), hooks)
 
 	results := p.RunPreTeardownHooks(context.Background(), testSandboxWithDir(t), "delete")
 	if len(results) != 1 {
@@ -75,7 +77,7 @@ func TestHookTeardownPolicy_FailingHook_DoesNotBlock(t *testing.T) {
 		Name:    "failing-hook",
 		Command: "/bin/false",
 	}}
-	p := NewHookTeardownPolicy(hooks)
+	p := NewHookTeardownPolicy(process.NewOSExecStarter(), hooks)
 
 	results := p.RunPreTeardownHooks(context.Background(), testSandboxWithDir(t), "stop")
 	if len(results) != 1 {
@@ -97,7 +99,7 @@ func TestHookTeardownPolicy_Timeout(t *testing.T) {
 		Command: "sleep",
 		Args:    []string{"60"},
 	}}
-	p := NewHookTeardownPolicy(hooks,
+	p := NewHookTeardownPolicy(process.NewOSExecStarter(), hooks,
 		WithTeardownGlobalTimeout(500*time.Millisecond),
 	)
 
@@ -123,7 +125,7 @@ func TestHookTeardownPolicy_EnvVars(t *testing.T) {
 		Name:    "env-check",
 		Command: "env",
 	}}
-	p := NewHookTeardownPolicy(hooks)
+	p := NewHookTeardownPolicy(process.NewOSExecStarter(), hooks)
 
 	sbx := testSandboxWithDir(t)
 	results := p.RunPreTeardownHooks(context.Background(), sbx, "delete")
@@ -144,6 +146,21 @@ func TestHookTeardownPolicy_EnvVars(t *testing.T) {
 	if !strings.Contains(output, "SANDBOX_ID="+sbx.ID.String()) {
 		t.Errorf("missing SANDBOX_ID in env output:\n%s", output)
 	}
+
+	// Inherited parent-process env: pre-2026-04-28 the hook env was
+	// SANDBOX_*-only, which made the default vrooli-heal-from-sandbox
+	// hook fail with "$HOME is not defined" on every teardown.
+	// Hooks must inherit at minimum HOME and PATH from the parent.
+	if homeVal := os.Getenv("HOME"); homeVal != "" {
+		if !strings.Contains(output, "HOME="+homeVal) {
+			t.Errorf("missing inherited HOME=%s in hook env (regression of 2026-04-28 $HOME-not-defined bug):\n%s", homeVal, output)
+		}
+	}
+	if pathVal := os.Getenv("PATH"); pathVal != "" {
+		if !strings.Contains(output, "PATH="+pathVal) {
+			t.Errorf("missing inherited PATH in hook env:\n%s", output)
+		}
+	}
 }
 
 // TestHookTeardownPolicy_MultipleHooks verifies that all hooks execute even
@@ -154,7 +171,7 @@ func TestHookTeardownPolicy_MultipleHooks(t *testing.T) {
 		{Name: "second-fails", Command: "/bin/false"},
 		{Name: "third-succeeds", Command: "/bin/true"},
 	}
-	p := NewHookTeardownPolicy(hooks)
+	p := NewHookTeardownPolicy(process.NewOSExecStarter(), hooks)
 
 	results := p.RunPreTeardownHooks(context.Background(), testSandboxWithDir(t), "delete")
 	if len(results) != 3 {

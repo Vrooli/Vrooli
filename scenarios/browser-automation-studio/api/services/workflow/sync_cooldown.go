@@ -23,4 +23,3 @@ func (s *WorkflowService) shouldSyncProject(projectID uuid.UUID) bool {
 func (s *WorkflowService) recordProjectSync(projectID uuid.UUID) {
 	s.projectSyncTimes.Store(projectID, time.Now())
 }
-

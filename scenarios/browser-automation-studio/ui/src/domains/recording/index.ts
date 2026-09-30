@@ -82,8 +82,6 @@ export type {
   ActionType,
   ActionPayload,
   RecordingState,
-  StartRecordingResponse,
-  StopRecordingResponse,
   GetActionsResponse,
   GenerateWorkflowResponse,
   SelectorValidation,
@@ -151,3 +149,5 @@ export {
   STREAM_PRESETS,
   DEFAULT_STREAM_PRESET,
 } from './constants';
+
+export type { StartRecordingResponse, StopRecordingResponse } from './api/schemas';

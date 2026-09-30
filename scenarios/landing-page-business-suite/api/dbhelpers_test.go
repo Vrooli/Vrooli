@@ -5,6 +5,13 @@ import (
 	"testing"
 )
 
+func TestDialectHelperPlaceholderSupportsMultiDigitIndices(t *testing.T) {
+	helper := NewDialectHelper("postgres")
+	if got := helper.Placeholder(12); got != "$12" {
+		t.Fatalf("Placeholder(12) = %q, want $12", got)
+	}
+}
+
 func TestNewDialectHelper_Postgres(t *testing.T) {
 	h := NewDialectHelper("postgres")
 	if !h.IsPostgres() {

@@ -168,11 +168,11 @@ func (ts *TournamentScheduler) RunTournament(tournamentID string) error {
 	completedMatches := 0
 
 	logger.Info("Starting tournament", map[string]interface{}{
-		"tournament_name":      tournament.Name,
-		"agents":               len(tournament.ParticipantIDs),
-		"injections":           len(tournament.InjectionIDs),
-		"total_matches":        totalMatches,
-		"tournament_id":        tournament.ID,
+		"tournament_name": tournament.Name,
+		"agents":          len(tournament.ParticipantIDs),
+		"injections":      len(tournament.InjectionIDs),
+		"total_matches":   totalMatches,
+		"tournament_id":   tournament.ID,
 	})
 
 	for _, agentID := range tournament.ParticipantIDs {

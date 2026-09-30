@@ -1,0 +1,142 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "swarm-manager",
+  "key": "swarm-manager/evidence-request",
+  "version": "1.0.3",
+  "description": "Gather bounded requested review evidence from an immutable thread snapshot.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "entity": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "executionId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "executionId",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "snapshot": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "required": [
+      "entity",
+      "snapshot"
+    ],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "result": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "required": [
+      "result"
+    ],
+    "additionalProperties": false
+  },
+  "nodes": [
+    {
+      "id": "gather",
+      "kind": "run",
+      "run": {
+        "profileKey": "swarm-manager/review-evidence",
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "outcome": {
+                "type": "string",
+                "enum": ["fulfilled", "needs_attention"],
+                "description": "Use fulfilled when every requested artifact was captured; use needs_attention only when at least one artifact could not be captured."
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {"type": "string", "minLength": 1},
+                    "criterion_id": {"type": "string", "minLength": 1},
+                    "type": {"type": "string", "minLength": 1},
+                    "title": {"type": "string", "minLength": 1},
+                    "description": {"type": "string", "minLength": 1},
+                    "producer": {"type": "string", "minLength": 1},
+                    "trust": {"type": "string", "enum": ["authoritative", "observed", "reported", "operator_verified"]},
+                    "settlement": {"type": "string", "enum": ["settled", "refuted", "unavailable"]},
+                    "test_results": {"type": "array"}
+                  },
+                  "required": ["id", "criterion_id", "type", "title", "description", "producer", "trust", "settlement"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "outcome",
+              "summary",
+              "evidence"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "bindings": [
+          {
+            "name": "snapshot",
+            "source": "workflow_input",
+            "selector": "$.snapshot",
+            "limit": 1,
+            "maxBytes": 65536,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
+        ],
+        "maxTurns": 12,
+        "timeoutSeconds": 1200,
+        "promptRef": {
+          "skillId": "swarm-manager-workflow-evidence-request"
+        }
+      }
+    }
+  ],
+  "budgets": {
+    "wallTimeSeconds": 1800,
+    "maxTurns": 12,
+    "maxTokens": 600000,
+    "maxChargeMicroUsd": 3000000,
+    "maxNodeAttempts": 2,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 1,
+    "maxWaitSeconds": 60
+  },
+  "metadata": {
+    "consumerMutationOwner": "swarm-manager"
+  }
+}

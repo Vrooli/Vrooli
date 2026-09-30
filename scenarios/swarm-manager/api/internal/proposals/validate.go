@@ -1,0 +1,571 @@
+package proposals
+
+import (
+	"errors"
+	"fmt"
+	"regexp"
+	"strings"
+
+	"swarm-manager/internal/backlog"
+)
+
+// CurrentState is the read-only snapshot of the milestone that a proposal
+// will be validated and applied against. Constructed from a materialized
+// graph.json (graph.MaterializedGraph) plus the set of known milestone
+// names for move_milestone validation.
+//
+// Kept narrow so callers can build one from any source — tests use a fixture
+// literal; the HTTP layer hydrates from the graph Materializer.
+type CurrentState struct {
+	// MilestoneName is the milestone the proposal targets.
+	MilestoneName string
+
+	// Nodes indexes members of the milestone by ref ("kind/name").
+	Nodes map[string]GraphNode
+
+	// Edges lists dependency edges within the milestone. Order-insensitive.
+	Edges []GraphEdge
+
+	// KnownMilestones is the set of milestone names that exist on disk.
+	// Used by OpMoveMilestone to reject phantom destinations.
+	KnownMilestones map[string]struct{}
+
+	// InProgressRefs is the subset of Nodes whose items are currently
+	// StatusInProgress — gates OpInterruptInProgress to realistic targets.
+	InProgressRefs map[string]struct{}
+
+	// Standalone marks a state built for an unattached backlog item. Only the
+	// explicitly safe item-local operations may be proposed in this scope.
+	Standalone bool
+}
+
+// HasNode reports whether a ref is a member of the milestone's current graph.
+func (s *CurrentState) HasNode(ref string) bool {
+	_, ok := s.Nodes[ref]
+	return ok
+}
+
+// HasEdge reports whether an edge exists in the milestone's current graph.
+func (s *CurrentState) HasEdge(from, to string) bool {
+	for _, e := range s.Edges {
+		if e.From == from && e.To == to {
+			return true
+		}
+	}
+	return false
+}
+
+// refPattern accepts "kind/name" where each segment is lowercase
+// alphanumerics and hyphens, matching the sanitization the rest of
+// the system applies to user-supplied names.
+var refPattern = regexp.MustCompile(`^[a-z][a-z0-9-]*/[a-z0-9][a-z0-9-]*$`)
+
+// validateRef checks the "kind/name" shape and that kind is a known backlog
+// kind. Callers still need to check membership via CurrentState.HasNode.
+func validateRef(ref string) error {
+	if !refPattern.MatchString(ref) {
+		return fmt.Errorf("invalid ref %q: expected kind/name with lowercase letters, digits, hyphens", ref)
+	}
+	kind := strings.SplitN(ref, "/", 2)[0]
+	if _, err := backlog.ParseBacklogKind(kind); err != nil {
+		return fmt.Errorf("invalid ref %q: %w", ref, err)
+	}
+	return nil
+}
+
+// Validate checks a mutation_list proposal for schema and semantic errors
+// against the given CurrentState. Proposals in FormFullGraph must be passed
+// through Normalize first.
+//
+// Returns a joined error describing *all* problems found — not just the
+// first — so the agent can revise in a single turn. Any error satisfies
+// errors.Is(err, ErrInvalidProposal).
+func Validate(p Proposal, state CurrentState) error {
+	if p.Form != FormMutationList {
+		return fmt.Errorf("%w: Validate requires form=%s (got %s); call Normalize first", ErrInvalidProposal, FormMutationList, p.Form)
+	}
+
+	var problems []error
+	if p.ApplyMode != "" && p.ApplyMode != ApplyModeDirect && p.ApplyMode != ApplyModeReconciliation && p.ApplyMode != ApplyModeAttention {
+		problems = append(problems, fmt.Errorf("apply_mode must be direct, reconciliation, or attention"))
+	}
+	seenDependencies := map[string]bool{}
+	for _, dependency := range p.Dependencies {
+		if strings.TrimSpace(dependency) == "" || seenDependencies[dependency] {
+			problems = append(problems, fmt.Errorf("dependencies must contain unique non-empty values"))
+			break
+		}
+		seenDependencies[dependency] = true
+	}
+	seenIDs := make(map[string]int, len(p.Mutations))
+	newItems := make(map[string]int, len(p.Mutations)) // ref -> mutation index
+
+	for i, m := range p.Mutations {
+		prefix := fmt.Sprintf("mutations[%d]", i)
+		if strings.TrimSpace(m.ID) == "" {
+			problems = append(problems, fmt.Errorf("%s: id is required", prefix))
+		} else if prev, dup := seenIDs[m.ID]; dup {
+			problems = append(problems, fmt.Errorf("%s: duplicate id %q (first used by mutations[%d])", prefix, m.ID, prev))
+		} else {
+			seenIDs[m.ID] = i
+		}
+
+		if m.Op == "" {
+			problems = append(problems, fmt.Errorf("%s: op is required", prefix))
+			continue
+		}
+		if !isKnownOp(m.Op) {
+			problems = append(problems, fmt.Errorf("%s: %w %q", prefix, ErrUnknownOp, m.Op))
+			continue
+		}
+
+		if err := validateMutation(m, i, state, newItems); err != nil {
+			problems = append(problems, fmt.Errorf("%s: %w", prefix, err))
+		}
+		if state.Standalone && !isStandaloneAllowedOp(m.Op) {
+			problems = append(problems, fmt.Errorf("%s: %w: %q", prefix, ErrStandaloneOperation, m.Op))
+		}
+	}
+
+	if len(problems) == 0 {
+		return nil
+	}
+	return errors.Join(append([]error{ErrInvalidProposal}, problems...)...)
+}
+
+func isStandaloneAllowedOp(op Op) bool {
+	switch op {
+	case OpUpdateItem, OpChangeStatus, OpChangePriority, OpArchiveItem, OpRecreateItem, OpResetArtifacts:
+		return true
+	default:
+		return false
+	}
+}
+
+func isKnownOp(op Op) bool {
+	for _, known := range AllOps() {
+		if op == known {
+			return true
+		}
+	}
+	return false
+}
+
+// validateMutation returns a non-nil error with an actionable message if the
+// mutation is malformed. newItems is mutated to track add_item/split_item
+// outputs so later mutations can reference them.
+func validateMutation(m Mutation, idx int, state CurrentState, newItems map[string]int) error {
+	switch m.Op {
+	case OpCreateGoal:
+		return validateCreateGoal(m)
+	case OpAddItem:
+		return validateAddItem(m, idx, state, newItems)
+	case OpUpdateItem:
+		return validateUpdateItem(m, state, newItems)
+	case OpChangeStatus:
+		return validateChangeStatus(m, state, newItems)
+	case OpChangePriority:
+		return validateChangePriority(m, state, newItems)
+	case OpAddEdge:
+		return validateEdge(m, state, newItems, true)
+	case OpRemoveEdge:
+		return validateEdge(m, state, newItems, false)
+	case OpMoveMilestone:
+		return validateMoveMilestone(m, state, newItems)
+	case OpArchiveItem:
+		return validateTargetExists(m, state, newItems)
+	case OpInterruptInProgress:
+		return validateInterrupt(m, state)
+	case OpSplitItem:
+		return validateSplitItem(m, idx, state, newItems)
+	case OpMergeItems:
+		return validateMergeItems(m, idx, state, newItems)
+	case OpRecreateItem:
+		return validateTargetExists(m, state, newItems)
+	case OpResetArtifacts:
+		if err := validateTargetExists(m, state, newItems); err != nil {
+			return err
+		}
+		return validateResetArtifactScopes(m.ResetScope)
+	case OpRecreateMilestone:
+		if strings.TrimSpace(m.Target) == "" {
+			return fmt.Errorf("op %s requires milestone target", m.Op)
+		}
+		if strings.Contains(m.Target, "/") {
+			return fmt.Errorf("op %s target must be an milestone name", m.Op)
+		}
+		if state.MilestoneName != m.Target {
+			return fmt.Errorf("op %s target %q does not match proposal milestone %q", m.Op, m.Target, state.MilestoneName)
+		}
+		return nil
+	}
+	return fmt.Errorf("%w: %s", ErrUnknownOp, m.Op)
+}
+
+func validateCreateGoal(m Mutation) error {
+	if strings.TrimSpace(m.Target) != "" {
+		return fmt.Errorf("op %s must not have a target", m.Op)
+	}
+	if m.Goal == nil {
+		return fmt.Errorf("op %s requires goal spec", m.Op)
+	}
+	if strings.TrimSpace(m.Goal.Name) == "" || strings.TrimSpace(m.Goal.Title) == "" {
+		return fmt.Errorf("op %s requires goal name and title", m.Op)
+	}
+	if m.Goal.Priority < MinItemPriority || m.Goal.Priority > MaxItemPriority {
+		return fmt.Errorf("goal priority must be between %d and %d", MinItemPriority, MaxItemPriority)
+	}
+	seenTargets := map[string]struct{}{}
+	for _, target := range m.Goal.Targets {
+		if err := validateRef(strings.TrimSpace(target)); err != nil {
+			return fmt.Errorf("invalid goal target: %w", err)
+		}
+		if _, duplicate := seenTargets[target]; duplicate {
+			return fmt.Errorf("duplicate goal target %q", target)
+		}
+		seenTargets[target] = struct{}{}
+	}
+	seenMilestones := map[string]struct{}{}
+	for _, milestone := range m.Goal.Milestones {
+		if strings.TrimSpace(milestone.Name) == "" || strings.TrimSpace(milestone.Title) == "" {
+			return fmt.Errorf("create_goal milestones require name and title")
+		}
+		if !hasAcceptanceCriteria(&milestone) {
+			return fmt.Errorf("create_goal milestones require acceptance_criteria")
+		}
+		if _, duplicate := seenMilestones[milestone.Name]; duplicate {
+			return fmt.Errorf("duplicate goal milestone %q", milestone.Name)
+		}
+		seenMilestones[milestone.Name] = struct{}{}
+	}
+	return nil
+}
+
+func validateResetArtifactScopes(scopes []ResetArtifactScope) error {
+	if len(scopes) == 0 {
+		return fmt.Errorf("op %s requires a non-empty reset_scope", OpResetArtifacts)
+	}
+	known := make(map[ResetArtifactScope]struct{}, len(AllResetArtifactScopes()))
+	for _, scope := range AllResetArtifactScopes() {
+		known[scope] = struct{}{}
+	}
+	seen := make(map[ResetArtifactScope]struct{}, len(scopes))
+	for _, scope := range scopes {
+		if _, ok := known[scope]; !ok {
+			return fmt.Errorf("unknown reset scope %q", scope)
+		}
+		if _, duplicate := seen[scope]; duplicate {
+			return fmt.Errorf("duplicate reset scope %q", scope)
+		}
+		seen[scope] = struct{}{}
+	}
+	return nil
+}
+
+func validateAddItem(m Mutation, idx int, state CurrentState, newItems map[string]int) error {
+	if m.Item == nil {
+		return fmt.Errorf("op %s requires item spec", m.Op)
+	}
+	if err := validateItemSpec(*m.Item); err != nil {
+		return err
+	}
+	ref := m.Item.Ref()
+	if _, collides := state.Nodes[ref]; collides {
+		return fmt.Errorf("%w: %s already exists in milestone", ErrDuplicateItem, ref)
+	}
+	if prev, dup := newItems[ref]; dup {
+		return fmt.Errorf("%w: %s already staged by mutations[%d]", ErrDuplicateItem, ref, prev)
+	}
+	// Validate depends_on against existing nodes ∪ items staged by earlier
+	// mutations in the batch. Without this, a typo'd or out-of-order ref
+	// only surfaces at apply time, which (a) fails per-mutation rather than
+	// rejecting the whole proposal up-front and (b) historically left
+	// orphan disk state when combined with a downstream panic.
+	for _, dep := range m.Item.DependsOn {
+		if dep == ref {
+			return fmt.Errorf("depends_on must not reference self: %s", ref)
+		}
+		if state.HasNode(dep) || hasStagedNewItem(dep, newItems) {
+			continue
+		}
+		return fmt.Errorf("%w: depends_on=%s", ErrTargetNotFound, dep)
+	}
+	newItems[ref] = idx
+	return nil
+}
+
+func validateUpdateItem(m Mutation, state CurrentState, newItems map[string]int) error {
+	if err := validateRef(m.Target); err != nil {
+		return err
+	}
+	if !state.HasNode(m.Target) && !hasStagedNewItem(m.Target, newItems) {
+		return fmt.Errorf("%w: %s", ErrTargetNotFound, m.Target)
+	}
+	if m.Patch == nil {
+		return fmt.Errorf("op %s requires patch", m.Op)
+	}
+	if patchIsEmpty(m.Patch) {
+		return fmt.Errorf("op %s patch must set at least one field", m.Op)
+	}
+	if m.Patch.Priority != nil {
+		if *m.Patch.Priority < MinItemPriority || *m.Patch.Priority > MaxItemPriority {
+			return fmt.Errorf("patch.priority must be between %d and %d", MinItemPriority, MaxItemPriority)
+		}
+	}
+	if m.Patch.Effort != nil {
+		if err := validateEffortValue(*m.Patch.Effort); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateChangeStatus(m Mutation, state CurrentState, newItems map[string]int) error {
+	if err := validateRef(m.Target); err != nil {
+		return err
+	}
+	if !state.HasNode(m.Target) && !hasStagedNewItem(m.Target, newItems) {
+		return fmt.Errorf("%w: %s", ErrTargetNotFound, m.Target)
+	}
+	status := backlog.BacklogStatus(strings.ToLower(strings.TrimSpace(m.Status)))
+	if status == "" {
+		return fmt.Errorf("op %s requires status", m.Op)
+	}
+	if backlog.IsTerminalStatus(status) {
+		return fmt.Errorf("%w: %s is terminal", ErrTerminalStatusWrite, status)
+	}
+	// Explicitly forbid lifecycle-controlled states so agents can't drive
+	// them via proposals; queue/in_progress/in_review/review_pending are
+	// owned by the execution + review systems respectively.
+	switch status {
+	case backlog.StatusQueued, backlog.StatusInProgress, backlog.StatusInReview, backlog.StatusReviewPending:
+		return fmt.Errorf("status %s is controlled by the execution/review system and cannot be set via proposals", status)
+	}
+	// What remains: backlog, researching, ready — the user-settable set.
+	switch status {
+	case backlog.StatusBacklog, backlog.StatusResearching, backlog.StatusReady:
+		return nil
+	}
+	return fmt.Errorf("status %s is not a valid proposal target", status)
+}
+
+func validateChangePriority(m Mutation, state CurrentState, newItems map[string]int) error {
+	if err := validateRef(m.Target); err != nil {
+		return err
+	}
+	if !state.HasNode(m.Target) && !hasStagedNewItem(m.Target, newItems) {
+		return fmt.Errorf("%w: %s", ErrTargetNotFound, m.Target)
+	}
+	if m.Priority == nil {
+		return fmt.Errorf("op %s requires priority", m.Op)
+	}
+	if *m.Priority < MinItemPriority || *m.Priority > MaxItemPriority {
+		return fmt.Errorf("priority must be between %d and %d", MinItemPriority, MaxItemPriority)
+	}
+	return nil
+}
+
+func validateEdge(m Mutation, state CurrentState, newItems map[string]int, adding bool) error {
+	if err := validateRef(m.From); err != nil {
+		return fmt.Errorf("from: %w", err)
+	}
+	if err := validateRef(m.To); err != nil {
+		return fmt.Errorf("to: %w", err)
+	}
+	if m.From == m.To {
+		return fmt.Errorf("edge must have distinct endpoints (got %s -> %s)", m.From, m.To)
+	}
+	if !state.HasNode(m.From) && !hasStagedNewItem(m.From, newItems) {
+		return fmt.Errorf("%w: from=%s", ErrTargetNotFound, m.From)
+	}
+	if !state.HasNode(m.To) && !hasStagedNewItem(m.To, newItems) {
+		return fmt.Errorf("%w: to=%s", ErrTargetNotFound, m.To)
+	}
+	if adding && state.HasEdge(m.From, m.To) {
+		return fmt.Errorf("edge already exists: %s -> %s", m.From, m.To)
+	}
+	if !adding && !state.HasEdge(m.From, m.To) {
+		return fmt.Errorf("edge does not exist: %s -> %s", m.From, m.To)
+	}
+	return nil
+}
+
+func validateMoveMilestone(m Mutation, state CurrentState, newItems map[string]int) error {
+	if err := validateRef(m.Target); err != nil {
+		return err
+	}
+	if !state.HasNode(m.Target) && !hasStagedNewItem(m.Target, newItems) {
+		return fmt.Errorf("%w: %s", ErrTargetNotFound, m.Target)
+	}
+	dest := strings.TrimSpace(m.Milestone)
+	if dest == "" {
+		return nil // detach: allowed
+	}
+	if dest == state.MilestoneName {
+		return fmt.Errorf("move_milestone destination %q is the current milestone", dest)
+	}
+	if state.KnownMilestones != nil {
+		if _, ok := state.KnownMilestones[dest]; !ok {
+			return fmt.Errorf("move_milestone destination %q is not a known milestone", dest)
+		}
+	}
+	return nil
+}
+
+func validateTargetExists(m Mutation, state CurrentState, newItems map[string]int) error {
+	if err := validateRef(m.Target); err != nil {
+		return err
+	}
+	if !state.HasNode(m.Target) && !hasStagedNewItem(m.Target, newItems) {
+		return fmt.Errorf("%w: %s", ErrTargetNotFound, m.Target)
+	}
+	return nil
+}
+
+func validateInterrupt(m Mutation, state CurrentState) error {
+	if err := validateRef(m.Target); err != nil {
+		return err
+	}
+	if !state.HasNode(m.Target) {
+		return fmt.Errorf("%w: %s", ErrTargetNotFound, m.Target)
+	}
+	if state.InProgressRefs != nil {
+		if _, inProgress := state.InProgressRefs[m.Target]; !inProgress {
+			return fmt.Errorf("interrupt_in_progress requires %s to be in_progress", m.Target)
+		}
+	}
+	return nil
+}
+
+func validateSplitItem(m Mutation, idx int, state CurrentState, newItems map[string]int) error {
+	if err := validateRef(m.Target); err != nil {
+		return err
+	}
+	if !state.HasNode(m.Target) {
+		return fmt.Errorf("%w: %s", ErrTargetNotFound, m.Target)
+	}
+	if len(m.Into) < 2 {
+		return fmt.Errorf("op %s requires into[] with at least 2 new items", m.Op)
+	}
+	for j, spec := range m.Into {
+		if err := validateItemSpec(spec); err != nil {
+			return fmt.Errorf("into[%d]: %w", j, err)
+		}
+		ref := spec.Ref()
+		if _, collides := state.Nodes[ref]; collides {
+			return fmt.Errorf("into[%d]: %w: %s", j, ErrDuplicateItem, ref)
+		}
+		if prev, dup := newItems[ref]; dup {
+			return fmt.Errorf("into[%d]: %w: %s already staged by mutations[%d]", j, ErrDuplicateItem, ref, prev)
+		}
+		newItems[ref] = idx
+	}
+	return nil
+}
+
+// validateMergeItems enforces the merge contract:
+//   - len(Sources) >= 2; sources are unique; every source is a current
+//     member of the milestone graph; no source is in_progress (operator
+//     must emit interrupt_in_progress as a prior mutation).
+//   - Item is a well-formed spec whose ref does not collide with any
+//     existing non-source item, nor with any item staged earlier in the
+//     batch. (Colliding with one of the *sources* is also rejected: the
+//     merged item must be a new identity, not a rename of a source.)
+//
+// Edge handling is enforced at apply time, not validate time — there is
+// nothing for validate to check edge-side beyond what state already
+// guarantees (the graph's edges are well-formed by construction).
+func validateMergeItems(m Mutation, idx int, state CurrentState, newItems map[string]int) error {
+	if m.Item == nil {
+		return fmt.Errorf("op %s requires item spec for the merged item", m.Op)
+	}
+	if err := validateItemSpec(*m.Item); err != nil {
+		return fmt.Errorf("merged item: %w", err)
+	}
+	if len(m.Sources) < 2 {
+		return fmt.Errorf("op %s requires sources[] with at least 2 items", m.Op)
+	}
+	mergedRef := m.Item.Ref()
+	seen := make(map[string]struct{}, len(m.Sources))
+	for j, src := range m.Sources {
+		if err := validateRef(src); err != nil {
+			return fmt.Errorf("sources[%d]: %w", j, err)
+		}
+		if _, dup := seen[src]; dup {
+			return fmt.Errorf("sources[%d]: duplicate source %s", j, src)
+		}
+		seen[src] = struct{}{}
+		if !state.HasNode(src) {
+			return fmt.Errorf("sources[%d]: %w: %s", j, ErrTargetNotFound, src)
+		}
+		if state.InProgressRefs != nil {
+			if _, inProgress := state.InProgressRefs[src]; inProgress {
+				return fmt.Errorf("sources[%d]: %s is in_progress; emit interrupt_in_progress as a prior mutation before merging", j, src)
+			}
+		}
+		if src == mergedRef {
+			return fmt.Errorf("sources[%d]: merged item ref %s must differ from each source", j, mergedRef)
+		}
+	}
+	// Collision check for the merged item against pre-existing non-source
+	// items and items staged earlier in the batch. Sources are excluded
+	// from the existing-item check because they will be archived as part
+	// of this same op — but the apply layer is what enforces the archive,
+	// so collisions with non-source nodes must reject up-front.
+	if _, collides := state.Nodes[mergedRef]; collides {
+		if _, isSource := seen[mergedRef]; !isSource {
+			return fmt.Errorf("%w: merged item %s already exists in milestone", ErrDuplicateItem, mergedRef)
+		}
+	}
+	if prev, dup := newItems[mergedRef]; dup {
+		return fmt.Errorf("%w: merged item %s already staged by mutations[%d]", ErrDuplicateItem, mergedRef, prev)
+	}
+	newItems[mergedRef] = idx
+	return nil
+}
+
+func validateItemSpec(spec ItemSpec) error {
+	if strings.TrimSpace(spec.Kind) == "" {
+		return fmt.Errorf("item.kind is required")
+	}
+	if _, err := backlog.ParseBacklogKind(spec.Kind); err != nil {
+		return fmt.Errorf("item.kind: %w", err)
+	}
+	if strings.TrimSpace(spec.Name) == "" {
+		return fmt.Errorf("item.name is required")
+	}
+	if !refPattern.MatchString(spec.Kind + "/" + spec.Name) {
+		return fmt.Errorf("item.name %q must be lowercase alphanumeric and hyphens", spec.Name)
+	}
+	if strings.TrimSpace(spec.Title) == "" {
+		return fmt.Errorf("item.title is required")
+	}
+	if spec.Priority != 0 && (spec.Priority < MinItemPriority || spec.Priority > MaxItemPriority) {
+		return fmt.Errorf("item.priority must be between %d and %d", MinItemPriority, MaxItemPriority)
+	}
+	if spec.Effort != "" {
+		if err := validateEffortValue(spec.Effort); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateEffortValue(raw string) error {
+	switch strings.ToUpper(strings.TrimSpace(raw)) {
+	case "", "XS", "S", "M", "L", "XL":
+		return nil
+	}
+	return fmt.Errorf("effort must be XS, S, M, L, or XL")
+}
+
+func patchIsEmpty(p *ItemPatch) bool {
+	return p.Title == nil && p.Description == nil && p.Priority == nil &&
+		p.Tags == nil && p.DependsOn == nil && p.Effort == nil &&
+		p.AcceptanceAllow == nil && p.AcceptanceDeny == nil && p.Note == nil
+}
+
+func hasStagedNewItem(ref string, newItems map[string]int) bool {
+	_, ok := newItems[ref]
+	return ok
+}

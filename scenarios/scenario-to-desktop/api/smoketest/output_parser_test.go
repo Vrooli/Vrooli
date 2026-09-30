@@ -96,7 +96,7 @@ func TestOutputParser_ParseResult(t *testing.T) {
 }
 
 func TestOutputParser_CustomConfig(t *testing.T) {
-	config := Config{
+	config := SmokeTestConfig{
 		SuccessMarker:       "TEST_OK",
 		UploadSuccessMarker: "UPLOAD_OK",
 		UploadErrorMarker:   "UPLOAD_FAIL",

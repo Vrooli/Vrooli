@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent } from '@/test-utils';
 import userEvent from '@testing-library/user-event';
 import { AISettingsModal, type AISettingsModalProps } from './AISettingsModal';
 import { VISION_MODELS } from '../ai-navigation/types';
@@ -47,9 +47,8 @@ describe('AISettingsModal', () => {
     it('should display tier badges for models', () => {
       render(<AISettingsModal {...defaultProps} />);
 
-      expect(screen.getAllByText('BUDGET').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('STANDARD').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('PREMIUM').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('LOCAL').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('REMOTE').length).toBeGreaterThan(0);
     });
 
     it('should show recommended badge for recommended models', () => {
@@ -66,24 +65,20 @@ describe('AISettingsModal', () => {
       expect(screen.getByRole('slider')).toBeInTheDocument();
     });
 
-    it('should display cost estimate', () => {
+    it('should explain gateway-reported usage', () => {
       render(<AISettingsModal {...defaultProps} />);
 
-      expect(screen.getByText('Estimated cost per navigation:')).toBeInTheDocument();
+      expect(screen.getByText(/usage and any applicable charge are reported by AI Gateway/i)).toBeInTheDocument();
     });
   });
 
   describe('initial state', () => {
     it('should initialize with current settings', () => {
-      const customSettings = { model: 'gpt-4o', maxSteps: 35 };
+      const customSettings = { model: 'remote_only', maxSteps: 35 };
       render(<AISettingsModal {...defaultProps} currentSettings={customSettings} />);
 
-      // The GPT-4o model should be selected (radio should be checked visually)
-      // Use exact match to avoid matching "GPT-4o Mini"
-      const modelButtons = screen.getAllByRole('button').filter(
-        (btn) => btn.textContent?.includes('GPT-4o') && !btn.textContent?.includes('Mini')
-      );
-      expect(modelButtons[0]).toHaveClass('border-purple-500');
+      const hostedButton = screen.getByRole('button', { name: /Hosted vision/i });
+      expect(hostedButton).toHaveClass('border-purple-500');
 
       // Max steps should show 35
       expect(screen.getByText('35 steps')).toBeInTheDocument();
@@ -95,15 +90,11 @@ describe('AISettingsModal', () => {
       const user = userEvent.setup();
       render(<AISettingsModal {...defaultProps} />);
 
-      // Click on GPT-4o (use exact match to avoid GPT-4o Mini)
-      const modelButtons = screen.getAllByRole('button').filter(
-        (btn) => btn.textContent?.includes('GPT-4o') && !btn.textContent?.includes('Mini')
-      );
-      const gpt4oButton = modelButtons[0];
-      await user.click(gpt4oButton);
+      const hostedButton = screen.getByRole('button', { name: /Hosted vision/i });
+      await user.click(hostedButton);
 
       // Should now have purple border (selected)
-      expect(gpt4oButton).toHaveClass('border-purple-500');
+      expect(hostedButton).toHaveClass('border-purple-500');
     });
   });
 
@@ -124,11 +115,7 @@ describe('AISettingsModal', () => {
       const onSaveSettings = vi.fn();
       render(<AISettingsModal {...defaultProps} onSaveSettings={onSaveSettings} />);
 
-      // Change model (use exact match to avoid GPT-4o Mini)
-      const modelButtons = screen.getAllByRole('button').filter(
-        (btn) => btn.textContent?.includes('GPT-4o') && !btn.textContent?.includes('Mini')
-      );
-      await user.click(modelButtons[0]);
+      await user.click(screen.getByRole('button', { name: /Hosted vision/i }));
 
       // Change max steps
       const slider = screen.getByRole('slider');
@@ -139,7 +126,7 @@ describe('AISettingsModal', () => {
       await user.click(saveButton);
 
       expect(onSaveSettings).toHaveBeenCalledWith({
-        model: 'gpt-4o',
+        model: 'remote_only',
         maxSteps: 30,
       });
     });
@@ -200,47 +187,12 @@ describe('AISettingsModal', () => {
     });
   });
 
-  describe('cost estimation', () => {
-    it('should update cost estimate when model changes', async () => {
-      const user = userEvent.setup();
-      render(<AISettingsModal {...defaultProps} />);
-
-      // Get initial cost
-      const costElement = screen.getByText(/Estimated cost per navigation:/i).parentElement;
-      const initialCost = costElement?.textContent;
-
-      // Change to premium model (more expensive) - Claude Sonnet 4 is unique
-      const premiumButton = screen.getByText('Claude Sonnet 4').closest('button');
-      if (!premiumButton) throw new Error('Claude Sonnet 4 button not found');
-      await user.click(premiumButton);
-
-      // Cost should have changed
-      const newCost = costElement?.textContent;
-      expect(newCost).not.toBe(initialCost);
-    });
-
-    it('should update cost estimate when max steps changes', () => {
-      render(<AISettingsModal {...defaultProps} />);
-
-      const costElement = screen.getByText(/Estimated cost per navigation:/i).parentElement;
-      const initialCost = costElement?.textContent;
-
-      // Increase max steps
-      const slider = screen.getByRole('slider');
-      fireEvent.change(slider, { target: { value: '50' } });
-
-      // Cost should have increased
-      const newCost = costElement?.textContent;
-      expect(newCost).not.toBe(initialCost);
-    });
-  });
-
   describe('reset on reopen', () => {
     it('should reset to current settings when modal reopens', () => {
       const { rerender } = render(
         <AISettingsModal
           {...defaultProps}
-          currentSettings={{ model: 'qwen3-vl-30b', maxSteps: 20 }}
+          currentSettings={{ model: 'local_first', maxSteps: 20 }}
         />
       );
 
@@ -255,7 +207,7 @@ describe('AISettingsModal', () => {
         <AISettingsModal
           {...defaultProps}
           isOpen={false}
-          currentSettings={{ model: 'gpt-4o', maxSteps: 30 }}
+          currentSettings={{ model: 'remote_only', maxSteps: 30 }}
         />
       );
 
@@ -263,7 +215,7 @@ describe('AISettingsModal', () => {
         <AISettingsModal
           {...defaultProps}
           isOpen={true}
-          currentSettings={{ model: 'gpt-4o', maxSteps: 30 }}
+          currentSettings={{ model: 'remote_only', maxSteps: 30 }}
         />
       );
 

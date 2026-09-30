@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.score-gauge",
+    "name": "ScoreGauge",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "A bounded score summary with an explicit threshold and accessible value.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ],
+    "suggests": []
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "non-color-status",
+    "dark-parity",
+    "forced-colors-legibility"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "request-error"
+  ],
+  "qualityGates": [
+    "accessibility",
+    "surface-discipline",
+    "composition"
+  ],
+  "rationale": "Operators need one stable, readable score primitive before the workbench composes health views."
+}

@@ -81,4 +81,18 @@ describe('Health Route', () => {
     const json = mockRes.getJSON();
     expect(json.sessions).toBe(1);
   });
+
+  it('does not refresh idle activity while health is polled', async () => {
+    const { sessionId } = await sessionManager.startSession({
+      execution_id: 'exec-idle', workflow_id: 'workflow-idle', base_url: 'https://example.com',
+      viewport: { width: 1280, height: 720 }, reuse_mode: 'fresh', required_capabilities: {},
+    });
+    const session = sessionManager.peekSession(sessionId);
+    session.lastUsedAt = new Date(Date.now() - 10 * 60 * 1000);
+    for (let index = 0; index < 3; index++) {
+      handleHealth(createMockHttpRequest({ method: 'GET', url: '/health' }), createMockHttpResponse(), sessionManager);
+    }
+    await sessionManager.cleanupIdleSessions();
+    expect(() => sessionManager.peekSession(sessionId)).toThrow();
+  });
 });

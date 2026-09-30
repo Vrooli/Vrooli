@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"fmt"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"io"
 	"net"
 	"net/http"
@@ -14,6 +15,10 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func newTestHubBase(t *testing.T) *Hub {
@@ -41,6 +46,51 @@ func waitForMessage(t *testing.T, ch <-chan any) any {
 		t.Fatal("timed out waiting for update")
 	}
 	return nil
+}
+
+func waitForClientCount(t *testing.T, hub *Hub, want int) {
+	t.Helper()
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if got := hub.GetClientCount(); got == want {
+			return
+		}
+		select {
+		case <-ticker.C:
+		case <-timer.C:
+			t.Fatalf("timed out waiting for %d clients; got %d", want, hub.GetClientCount())
+		}
+	}
+}
+
+func waitForClientSubscription(t *testing.T, hub *Hub, subscribed func(*Client) bool) {
+	t.Helper()
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for {
+		hub.mu.RLock()
+		found := false
+		for client := range hub.clients {
+			if subscribed(client) {
+				found = true
+				break
+			}
+		}
+		hub.mu.RUnlock()
+		if found {
+			return
+		}
+		select {
+		case <-ticker.C:
+		case <-timer.C:
+			t.Fatal("timed out waiting for client subscription state")
+		}
+	}
 }
 
 func TestHubBroadcastsToRegisteredClients(t *testing.T) {
@@ -228,7 +278,8 @@ func TestHubDropsUnresponsiveClient(t *testing.T) {
 		}
 
 		hub.register <- client
-		time.Sleep(50 * time.Millisecond) // allow welcome message to fill buffer
+		welcome := waitForMessage(t, client.Send)
+		client.Send <- welcome // Keep the one-slot buffer full for the backpressure case.
 
 		blockedUpdate := contracts.EventEnvelope{
 			SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
@@ -240,11 +291,7 @@ func TestHubDropsUnresponsiveClient(t *testing.T) {
 		}
 
 		hub.BroadcastEnvelope(blockedUpdate)
-		time.Sleep(50 * time.Millisecond) // allow hub to process removal
-
-		if count := hub.GetClientCount(); count != 0 {
-			t.Fatalf("expected hub to drop unresponsive client, still have %d", count)
-		}
+		waitForClientCount(t, hub, 0)
 
 		select {
 		case _, ok := <-client.Send:
@@ -261,7 +308,6 @@ func TestServeWSSubscribeFiltersMessages(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] websocket subscription filters non-matching executions", func(t *testing.T) {
 		hub := newTestHub(t)
 		server := startTestWebSocketServer(t, hub)
-		defer server.Close()
 
 		conn := dialTestWebSocket(t, server)
 		defer conn.Close()
@@ -275,7 +321,9 @@ func TestServeWSSubscribeFiltersMessages(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("failed to send subscribe message: %v", err)
 		}
-		time.Sleep(50 * time.Millisecond)
+		waitForClientSubscription(t, hub, func(client *Client) bool {
+			return client.ExecutionID != nil && *client.ExecutionID == executionID
+		})
 
 		matching := contracts.EventEnvelope{
 			SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
@@ -321,7 +369,6 @@ func TestServeWSUnsubscribeRestoresBroadcasts(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] unsubscribe removes execution filter", func(t *testing.T) {
 		hub := newTestHub(t)
 		server := startTestWebSocketServer(t, hub)
-		defer server.Close()
 
 		conn := dialTestWebSocket(t, server)
 		defer conn.Close()
@@ -335,12 +382,14 @@ func TestServeWSUnsubscribeRestoresBroadcasts(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("failed to send subscribe message: %v", err)
 		}
-		time.Sleep(50 * time.Millisecond)
+		waitForClientSubscription(t, hub, func(client *Client) bool {
+			return client.ExecutionID != nil && *client.ExecutionID == executionID
+		})
 
 		if err := conn.WriteJSON(map[string]any{"type": "unsubscribe"}); err != nil {
 			t.Fatalf("failed to send unsubscribe message: %v", err)
 		}
-		time.Sleep(50 * time.Millisecond)
+		waitForClientSubscription(t, hub, func(client *Client) bool { return client.ExecutionID == nil })
 
 		event := contracts.EventEnvelope{
 			SchemaVersion:  contracts.EventEnvelopeSchemaVersion,
@@ -380,7 +429,7 @@ func startTestWebSocketServer(t *testing.T, hub *Hub) *httptest.Server {
 		hub.ServeWS(conn, nil)
 	})
 
-	return httptest.NewServer(handler)
+	return testutil.StartHTTPServer(t, handler)
 }
 
 func dialTestWebSocket(t *testing.T, server *httptest.Server) *websocket.Conn {
@@ -423,25 +472,15 @@ func TestGetClientCount(t *testing.T) {
 		}
 
 		hub.register <- client1
-		time.Sleep(50 * time.Millisecond)
-
-		if count := hub.GetClientCount(); count != 1 {
-			t.Fatalf("expected 1 client after registration, got %d", count)
-		}
+		_ = waitForMessage(t, client1.Send)
+		waitForClientCount(t, hub, 1)
 
 		hub.register <- client2
-		time.Sleep(50 * time.Millisecond)
-
-		if count := hub.GetClientCount(); count != 2 {
-			t.Fatalf("expected 2 clients after second registration, got %d", count)
-		}
+		_ = waitForMessage(t, client2.Send)
+		waitForClientCount(t, hub, 2)
 
 		hub.unregister <- client1
-		time.Sleep(50 * time.Millisecond)
-
-		if count := hub.GetClientCount(); count != 1 {
-			t.Fatalf("expected 1 client after unregister, got %d", count)
-		}
+		waitForClientCount(t, hub, 1)
 	})
 }
 
@@ -538,20 +577,11 @@ func TestHubCleanupOnClientDisconnect(t *testing.T) {
 		}
 
 		hub.register <- client
-		time.Sleep(50 * time.Millisecond)
-
-		initialCount := hub.GetClientCount()
-		if initialCount != 1 {
-			t.Fatalf("expected 1 client after registration, got %d", initialCount)
-		}
+		_ = waitForMessage(t, client.Send)
+		waitForClientCount(t, hub, 1)
 
 		hub.unregister <- client
-		time.Sleep(50 * time.Millisecond)
-
-		finalCount := hub.GetClientCount()
-		if finalCount != 0 {
-			t.Errorf("expected 0 clients after unregister, got %d", finalCount)
-		}
+		waitForClientCount(t, hub, 0)
 
 		// Verify the client is removed from the hub - channel closing is implementation detail
 		// that's handled asynchronously, so we just verify client count decreased
@@ -562,20 +592,11 @@ func TestHubCleanupOnClientDisconnect(t *testing.T) {
 // Recording Action Streaming Tests
 // =============================================================================
 
-// testEntry creates a test UnifiedTimelineEntry for testing
-func testEntry(id, actionType string) *UnifiedTimelineEntry {
-	return &UnifiedTimelineEntry{
-		ID:        id,
-		Type:      "action",
-		Timestamp: "2024-01-01T00:00:00Z",
-		PageID:    "page-1",
-		Action: &TimelineAction{
-			ID:          id,
-			ActionType:  actionType,
-			SequenceNum: 1,
-			Timestamp:   "2024-01-01T00:00:00Z",
-			Confidence:  1.0,
-		},
+// testEntry creates the canonical stream payload used by recording and execution.
+func testEntry(id string, actionType basactions.ActionType) *bastimeline.TimelineEntry {
+	return &bastimeline.TimelineEntry{
+		Id: id, SequenceNum: 1, Timestamp: timestamppb.New(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)),
+		Action: &basactions.ActionDefinition{Type: actionType},
 	}
 }
 
@@ -596,7 +617,7 @@ func TestBroadcastRecordingEntryToSubscribedClient(t *testing.T) {
 		hub.register <- client
 		_ = waitForMessage(t, client.Send) // Drain welcome message
 
-		hub.BroadcastRecordingEntry(sessionID, testEntry("action-1", "click"))
+		hub.BroadcastTimelineEntry(sessionID, testEntry("action-1", basactions.ActionType_ACTION_TYPE_CLICK))
 
 		msg := waitForMessage(t, client.Send)
 		recordingMsg, ok := msg.(map[string]any)
@@ -604,17 +625,14 @@ func TestBroadcastRecordingEntryToSubscribedClient(t *testing.T) {
 			t.Fatalf("expected map, got %T", msg)
 		}
 
-		if recordingMsg["type"] != "recording_action" {
-			t.Errorf("expected type 'recording_action', got %v", recordingMsg["type"])
+		if recordingMsg["type"] != "TIMELINE_MESSAGE_TYPE_ENTRY" {
+			t.Errorf("expected typed timeline message, got %v", recordingMsg["type"])
 		}
 		if recordingMsg["session_id"] != sessionID {
 			t.Errorf("expected session_id '%s', got %v", sessionID, recordingMsg["session_id"])
 		}
 		if recordingMsg["entry"] == nil {
 			t.Error("expected entry to be present")
-		}
-		if recordingMsg["timestamp"] == nil {
-			t.Error("expected timestamp to be present")
 		}
 	})
 }
@@ -647,7 +665,7 @@ func TestBroadcastRecordingEntryFiltersNonSubscribed(t *testing.T) {
 		_ = waitForMessage(t, subscribedOther.Send) // Drain welcome
 		_ = waitForMessage(t, unsubscribed.Send)    // Drain welcome
 
-		hub.BroadcastRecordingEntry(sessionID, testEntry("action-1", "click"))
+		hub.BroadcastTimelineEntry(sessionID, testEntry("action-1", basactions.ActionType_ACTION_TYPE_CLICK))
 
 		// Neither client should receive the entry
 		select {
@@ -671,7 +689,6 @@ func TestRecordingSubscriptionViaWebSocket(t *testing.T) {
 	t.Run("[REQ:BAS-RECORD-MODE] websocket subscribe_recording enables recording action streaming", func(t *testing.T) {
 		hub := newTestHub(t)
 		server := startTestWebSocketServer(t, hub)
-		defer server.Close()
 
 		conn := dialTestWebSocket(t, server)
 		defer conn.Close()
@@ -700,19 +717,20 @@ func TestRecordingSubscriptionViaWebSocket(t *testing.T) {
 			t.Errorf("expected session_id '%s', got %v", sessionID, confirmation["session_id"])
 		}
 
-		// Allow subscription to be processed
-		time.Sleep(50 * time.Millisecond)
+		waitForClientSubscription(t, hub, func(client *Client) bool {
+			return client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID
+		})
 
 		// Broadcast a recording entry
-		hub.BroadcastRecordingEntry(sessionID, testEntry("action-2", "type"))
+		hub.BroadcastTimelineEntry(sessionID, testEntry("action-2", basactions.ActionType_ACTION_TYPE_INPUT))
 
 		// Should receive the entry
 		var actionMsg map[string]any
 		if err := conn.ReadJSON(&actionMsg); err != nil {
 			t.Fatalf("failed to read recording entry: %v", err)
 		}
-		if actionMsg["type"] != "recording_action" {
-			t.Errorf("expected type 'recording_action', got %v", actionMsg["type"])
+		if actionMsg["type"] != "TIMELINE_MESSAGE_TYPE_ENTRY" {
+			t.Errorf("expected typed timeline message, got %v", actionMsg["type"])
 		}
 		if actionMsg["session_id"] != sessionID {
 			t.Errorf("expected session_id '%s', got %v", sessionID, actionMsg["session_id"])
@@ -725,7 +743,6 @@ func TestRecordingUnsubscriptionViaWebSocket(t *testing.T) {
 	t.Run("[REQ:BAS-RECORD-MODE] websocket unsubscribe_recording stops recording action streaming", func(t *testing.T) {
 		hub := newTestHub(t)
 		server := startTestWebSocketServer(t, hub)
-		defer server.Close()
 
 		conn := dialTestWebSocket(t, server)
 		defer conn.Close()
@@ -747,7 +764,9 @@ func TestRecordingUnsubscriptionViaWebSocket(t *testing.T) {
 		if err := conn.ReadJSON(&confirmation); err != nil {
 			t.Fatalf("failed to read confirmation: %v", err)
 		}
-		time.Sleep(50 * time.Millisecond)
+		waitForClientSubscription(t, hub, func(client *Client) bool {
+			return client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID
+		})
 
 		// Now unsubscribe
 		if err := conn.WriteJSON(map[string]any{
@@ -755,10 +774,10 @@ func TestRecordingUnsubscriptionViaWebSocket(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("failed to send unsubscribe_recording: %v", err)
 		}
-		time.Sleep(50 * time.Millisecond)
+		waitForClientSubscription(t, hub, func(client *Client) bool { return client.RecordingSessionID == nil })
 
 		// Broadcast a recording action
-		hub.BroadcastRecordingEntry(sessionID, testEntry("action-3", "click"))
+		hub.BroadcastTimelineEntry(sessionID, testEntry("action-3", basactions.ActionType_ACTION_TYPE_CLICK))
 
 		// Should NOT receive the action
 		_ = conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
@@ -800,7 +819,7 @@ func TestMultipleRecordingSessionsIsolation(t *testing.T) {
 		_ = waitForMessage(t, clientB.Send) // Drain welcome
 
 		// Broadcast to session A
-		hub.BroadcastRecordingEntry(sessionA, testEntry("action-A", "click"))
+		hub.BroadcastTimelineEntry(sessionA, testEntry("action-A", basactions.ActionType_ACTION_TYPE_CLICK))
 
 		// Client A should receive
 		msgA := waitForMessage(t, clientA.Send)
@@ -821,7 +840,7 @@ func TestMultipleRecordingSessionsIsolation(t *testing.T) {
 		}
 
 		// Now broadcast to session B
-		hub.BroadcastRecordingEntry(sessionB, testEntry("action-B", "click"))
+		hub.BroadcastTimelineEntry(sessionB, testEntry("action-B", basactions.ActionType_ACTION_TYPE_CLICK))
 
 		// Client B should receive
 		msgB := waitForMessage(t, clientB.Send)
@@ -862,12 +881,9 @@ func TestBroadcastRecordingEntryWithFullBuffer(t *testing.T) {
 		// Don't drain welcome - let buffer fill
 
 		// Try to broadcast - should not panic or block
-		hub.BroadcastRecordingEntry(sessionID, testEntry("action-1", "click"))
-		hub.BroadcastRecordingEntry(sessionID, testEntry("action-2", "click"))
-		hub.BroadcastRecordingEntry(sessionID, testEntry("action-3", "click"))
-
-		// Should complete without hanging (test will timeout if it blocks)
-		time.Sleep(50 * time.Millisecond)
+		hub.BroadcastTimelineEntry(sessionID, testEntry("action-1", basactions.ActionType_ACTION_TYPE_CLICK))
+		hub.BroadcastTimelineEntry(sessionID, testEntry("action-2", basactions.ActionType_ACTION_TYPE_CLICK))
+		hub.BroadcastTimelineEntry(sessionID, testEntry("action-3", basactions.ActionType_ACTION_TYPE_CLICK))
 
 		// Client count should still be correct (we don't drop clients for recording, just skip)
 		// Note: The implementation skips full buffers rather than dropping clients for recording
@@ -906,6 +922,7 @@ func TestBroadcastBinaryFrameDropsWithFullBuffer(t *testing.T) {
 			Send:               make(chan any, 4),
 			BinarySend:         make(chan []byte, 1), // Tiny buffer - only 1 frame
 			Hub:                hub,
+			RecordingFrames:    true,
 			RecordingSessionID: &sessionID,
 		}
 
@@ -918,15 +935,45 @@ func TestBroadcastBinaryFrameDropsWithFullBuffer(t *testing.T) {
 		hub.BroadcastBinaryFrame(sessionID, testFrame) // Should be dropped
 		hub.BroadcastBinaryFrame(sessionID, testFrame) // Should be dropped
 
-		// Allow time for processing
-		time.Sleep(100 * time.Millisecond)
-
 		// At least 2 frames should have been dropped
 		droppedCount := hub.GetDroppedFrameCount()
 		if droppedCount < 2 {
 			t.Errorf("expected at least 2 dropped frames, got %d", droppedCount)
 		}
 	})
+}
+
+func TestBroadcastBinaryFrameDropsAtByteBudget(t *testing.T) {
+	hub := newTestHub(t)
+	sessionID := "test-session-binary-byte-budget"
+	client := &Client{
+		ID: uuid.New(), Send: make(chan any, 4), BinarySend: make(chan []byte, 4), Hub: hub,
+		RecordingFrames: true, RecordingSessionID: &sessionID,
+	}
+	hub.register <- client
+	_ = waitForMessage(t, client.Send)
+
+	frame := make([]byte, MaxClientBinaryQueueBytes*3/4)
+	hub.BroadcastBinaryFrame(sessionID, frame)
+	hub.BroadcastBinaryFrame(sessionID, frame)
+	queued := client.queuedBinaryFrameBytes()
+	if queued != len(frame) || queued > MaxClientBinaryQueueBytes || len(client.BinarySend) != 1 {
+		t.Fatalf("queued=%d channel_frames=%d, want one %d-byte frame under %d-byte cap", queued, len(client.BinarySend), len(frame), MaxClientBinaryQueueBytes)
+	}
+	if dropped := hub.GetDroppedFrameCount(); dropped != 1 {
+		t.Fatalf("dropped frames=%d, want 1 for byte-cap rejection", dropped)
+	}
+
+	first := <-client.BinarySend
+	client.releaseBinaryFrame(first)
+	if queued := client.queuedBinaryFrameBytes(); queued != 0 {
+		t.Fatalf("queued after completed write=%d, want 0", queued)
+	}
+	hub.BroadcastBinaryFrame(sessionID, frame)
+	if queued := client.queuedBinaryFrameBytes(); queued != len(frame) {
+		t.Fatalf("queued after release=%d, want %d", queued, len(frame))
+	}
+	t.Logf("BAS_MOTION_RELAY_QUEUE max_queued_bytes=%d cap_bytes=%d dropped=%d", queued, MaxClientBinaryQueueBytes, hub.GetDroppedFrameCount())
 }
 
 // TestBroadcastBinaryFrameToSubscribedClient verifies binary frames are sent to subscribed clients
@@ -941,6 +988,7 @@ func TestBroadcastBinaryFrameToSubscribedClient(t *testing.T) {
 			Send:               make(chan any, 4),
 			BinarySend:         make(chan []byte, 4),
 			Hub:                hub,
+			RecordingFrames:    true,
 			RecordingSessionID: &sessionID,
 		}
 
@@ -975,6 +1023,7 @@ func TestBroadcastBinaryFrameFiltersNonSubscribed(t *testing.T) {
 			Send:               make(chan any, 4),
 			BinarySend:         make(chan []byte, 4),
 			Hub:                hub,
+			RecordingFrames:    true,
 			RecordingSessionID: &otherSessionID,
 		}
 
@@ -1030,21 +1079,197 @@ func TestRecordingActionStreamingSequence(t *testing.T) {
 
 		// Send sequence of entries
 		for i := 1; i <= 5; i++ {
-			hub.BroadcastRecordingEntry(sessionID, testEntry(fmt.Sprintf("action-%d", i), "click"))
+			hub.BroadcastTimelineEntry(sessionID, testEntry(fmt.Sprintf("action-%d", i), basactions.ActionType_ACTION_TYPE_CLICK))
 		}
 
 		// Verify all received in order
 		for i := 1; i <= 5; i++ {
 			msg := waitForMessage(t, client.Send)
 			if msgMap, ok := msg.(map[string]any); ok {
-				entry := msgMap["entry"].(*UnifiedTimelineEntry)
+				entry := msgMap["entry"].(map[string]any)
 				expectedID := fmt.Sprintf("action-%d", i)
-				if entry.ID != expectedID {
-					t.Errorf("expected entry id '%s', got %v", expectedID, entry.ID)
+				if entry["id"] != expectedID {
+					t.Errorf("expected entry id '%s', got %v", expectedID, entry["id"])
 				}
 			} else {
 				t.Fatalf("expected map, got %T", msg)
 			}
 		}
 	})
+}
+
+// [REQ:BAS-RH-J13] Received button/key transitions must not overtake an admitted input.
+func TestRecordingInputPreservesConnectionOrder(t *testing.T) {
+	hub := newTestHubBase(t)
+	first, second, release := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	effects := make(chan int, 2)
+	hub.SetInputForwarder(func(_ string, input map[string]any) (*driver.ForwardInputResponse, error) {
+		n := int(input["sequence"].(float64))
+		if n == 1 {
+			close(first)
+			<-release
+		}
+		effects <- n
+		if n == 2 {
+			close(second)
+		}
+		return &driver.ForwardInputResponse{Status: "ok", AppliedSequence: uint64(n), InputID: fmt.Sprintf("input-%d", n)}, nil
+	})
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		hub.ServeWS(conn, nil)
+	}))
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if err := conn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	var connected map[string]any
+	if err := conn.ReadJSON(&connected); err != nil || connected["type"] != "connected" {
+		t.Fatalf("read connection confirmation: message=%v err=%v", connected, err)
+	}
+	send := func(sequence int) {
+		t.Helper()
+		if err := conn.WriteJSON(map[string]any{"type": "recording_input", "session_id": "input-order", "input": map[string]any{"sequence": sequence, "input_id": fmt.Sprintf("input-%d", sequence)}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	send(1)
+	select {
+	case <-first:
+	case <-time.After(time.Second):
+		close(release)
+		t.Fatal("first input not admitted")
+	}
+	// A blocked browser must not hold the global hub lock.
+	counted := make(chan int, 1)
+	go func() { counted <- hub.GetClientCount() }()
+	select {
+	case count := <-counted:
+		if count != 1 {
+			t.Errorf("client count %d, want 1", count)
+		}
+	case <-time.After(time.Second):
+		close(release)
+		t.Fatal("blocked browser input stalled the hub")
+	}
+	send(2)
+	overlap := false
+	select {
+	case <-second:
+		overlap = true
+	case <-time.After(150 * time.Millisecond):
+	}
+	close(release)
+	if overlap {
+		t.Error("second input overtook the first while it was still executing")
+	}
+	for want := 1; want <= 2; want++ {
+		select {
+		case got := <-effects:
+			if got != want {
+				t.Errorf("effect %d, want %d", got, want)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("input failed to finish")
+		}
+	}
+	for want := 1; want <= 2; want++ {
+		var ack map[string]any
+		if err := conn.ReadJSON(&ack); err != nil {
+			t.Fatalf("read input receipt %d: %v", want, err)
+		}
+		if ack["type"] != "recording_input_applied" || ack["session_id"] != "input-order" || ack["input_id"] != fmt.Sprintf("input-%d", want) || ack["applied_sequence"] != float64(want) {
+			t.Errorf("receipt %d has wrong content: %v", want, ack)
+		}
+	}
+}
+
+func TestSubscriptionAfterDisconnectDoesNotSendOrResubscribe(t *testing.T) {
+	hub := newTestHub(t)
+	client := &Client{ID: uuid.New(), Send: make(chan any, 1), Hub: hub}
+	hub.register <- client
+	_ = waitForMessage(t, client.Send)
+	hub.unregister <- client
+	select {
+	case _, ok := <-client.Send:
+		if ok {
+			t.Fatal("expected disconnected send channel")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("client was not disconnected")
+	}
+	for _, kind := range []string{"subscribe", "subscribe_recording", "subscribe_execution_frames", "subscribe_driver_status", "subscribe_export"} {
+		client.handleSubscription(kind, map[string]any{"execution_id": uuid.NewString(), "session_id": "recording", "export_id": "export"})
+	}
+	if client.ExecutionID != nil || client.RecordingSessionID != nil || client.ExecutionFrameStreamID != nil || client.DriverStatusSubscribed || client.ExportSubscriptionID != nil {
+		t.Fatal("a disconnected client was resubscribed")
+	}
+}
+
+// [REQ:BAS-RH-J05] Event-only consumers do not receive unused image traffic.
+func TestRecordingFrameSubscriptionIntent(t *testing.T) {
+	for _, choice := range []string{"default", "enabled", "events only"} {
+		t.Run(choice, func(t *testing.T) {
+			hub := newTestHub(t)
+			client := &Client{ID: uuid.New(), Hub: hub, Send: make(chan any, 4), BinarySend: make(chan []byte, 1)}
+			hub.register <- client
+			_ = waitForMessage(t, client.Send)
+			msg := map[string]any{"session_id": "recording"}
+			if choice != "default" {
+				msg["frames"] = choice == "enabled"
+			}
+			client.handleSubscription("subscribe_recording", msg)
+			_ = waitForMessage(t, client.Send)
+			wantFrames := choice != "events only"
+			if got := hub.HasRecordingFrameSubscribers("recording"); got != wantFrames {
+				t.Errorf("frame consumers=%v, want %v", got, wantFrames)
+			}
+			for i := 0; i < 3; i++ {
+				hub.BroadcastBinaryFrame("recording", []byte{0xff, 0xd8})
+			}
+			wantQueued, wantDropped := 0, int64(0)
+			if wantFrames {
+				wantQueued = 1
+				wantDropped = 2
+			}
+			if got := len(client.BinarySend); got != wantQueued {
+				t.Errorf("queued images=%d, want %d", got, wantQueued)
+			}
+			if got := hub.GetDroppedFrameCount(); got != wantDropped {
+				t.Errorf("dropped images=%d, want %d", got, wantDropped)
+			}
+			hub.BroadcastPageEvent("recording", map[string]any{"type": "created"})
+			event := waitForMessage(t, client.Send).(map[string]any)
+			if event["type"] != "page_event" {
+				t.Fatalf("page event lost: %v", event)
+			}
+			client.handleSubscription("unsubscribe_recording", nil)
+			if hub.HasRecordingFrameSubscribers("recording") {
+				t.Fatal("unsubscribed client remains a frame consumer")
+			}
+		})
+	}
+}
+
+func TestRecordingFrameSubscriptionChoiceReplacesPreviousChoice(t *testing.T) {
+	hub := newTestHub(t)
+	client := &Client{ID: uuid.New(), Hub: hub, Send: make(chan any, 4), BinarySend: make(chan []byte, 1)}
+	hub.register <- client
+	_ = waitForMessage(t, client.Send)
+	for _, enabled := range []bool{false, true, false} {
+		client.handleSubscription("subscribe_recording", map[string]any{"session_id": "recording", "frames": enabled})
+		_ = waitForMessage(t, client.Send)
+		if got := hub.HasRecordingFrameSubscribers("recording"); got != enabled {
+			t.Errorf("replacement choice=%v, want %v", got, enabled)
+		}
+	}
 }

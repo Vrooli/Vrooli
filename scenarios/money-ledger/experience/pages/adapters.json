@@ -1,0 +1,506 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "adapters",
+    "title": "Adapters",
+    "routes": [
+      "/adapters"
+    ],
+    "purpose": "State exactly what each source of money events can and cannot currently tell us, so an operator can judge which figures elsewhere are complete.",
+    "prd_refs": [
+      "OT-P0-004",
+      "OT-P0-006",
+      "OT-P1-004",
+      "OT-P1-005"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Which adapters are unavailable, why, and how old their last success is"
+    },
+    {
+      "statement": "What is therefore missing from figures on other pages"
+    },
+    {
+      "statement": "That manual and file adapters sit in the same list as API adapters"
+    },
+    {
+      "statement": "Configuration and run controls, ranked below the three above"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The adapter list at rest.",
+      "setup": {
+        "route": "/adapters"
+      }
+    },
+    {
+      "id": "idle",
+      "description": "Nothing in flight; the surface is at rest and its controls are usable.",
+      "setup": {
+        "route": "/adapters"
+      }
+    },
+    {
+      "id": "pending",
+      "description": "A user-triggered operation is in flight and its outcome is not yet known.",
+      "setup": {
+        "route": "/adapters",
+        "query": {
+          "fixture": "pending"
+        }
+      }
+    },
+    {
+      "id": "success",
+      "description": "An operation completed; the result is announced, not merely rendered.",
+      "setup": {
+        "route": "/adapters",
+        "query": {
+          "fixture": "success"
+        }
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/adapters",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control is disabled and says why.",
+      "setup": {
+        "route": "/adapters",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "syncing",
+      "description": "A background read is refreshing data the user is already looking at.",
+      "setup": {
+        "route": "/adapters",
+        "query": {
+          "fixture": "syncing"
+        }
+      }
+    },
+    {
+      "id": "refreshing",
+      "description": "A user-requested re-read of data already on screen.",
+      "setup": {
+        "route": "/adapters",
+        "query": {
+          "fixture": "refreshing"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No adapters are registered at all. Distinct from every adapter being unavailable.",
+      "setup": {
+        "route": "/adapters",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some contributing source could not be read; what is missing is named.",
+      "setup": {
+        "route": "/adapters",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/adapters",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "Input was rejected before submission; the offending field is identified.",
+      "setup": {
+        "route": "/adapters",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next action are stated.",
+      "setup": {
+        "route": "/adapters",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "retrying",
+      "description": "An automatic retry is in progress; attempt count and next attempt are visible.",
+      "setup": {
+        "route": "/adapters",
+        "query": {
+          "fixture": "retrying"
+        }
+      }
+    },
+    {
+      "id": "permission-denied",
+      "description": "The caller's role does not permit this; what role would is stated.",
+      "setup": {
+        "route": "/adapters",
+        "query": {
+          "fixture": "permission-denied"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; queued or read-only behavior is explained.",
+      "setup": {
+        "route": "/adapters",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "adapter-unavailable",
+      "description": "An adapter ran and failed. It reports a reason and the age of its last success, and never a zero result.",
+      "setup": {
+        "route": "/adapters",
+        "query": {
+          "fixture": "adapter-unavailable"
+        }
+      }
+    },
+    {
+      "id": "adapter-never-run",
+      "description": "A registered adapter that has never executed. Deliberately distinct from one that ran and failed — different facts, different next actions.",
+      "setup": {
+        "route": "/adapters",
+        "query": {
+          "fixture": "adapter-never-run"
+        }
+      }
+    },
+    {
+      "id": "credentials-missing",
+      "description": "An adapter cannot authenticate because its credential is absent from the secret store. Named as a configuration gap, never as a data result.",
+      "setup": {
+        "route": "/adapters",
+        "query": {
+          "fixture": "credentials-missing"
+        }
+      }
+    },
+    {
+      "id": "all-available",
+      "description": "Every registered adapter is available and within its freshness window — the only state in which figures elsewhere stand without a caveat.",
+      "setup": {
+        "route": "/adapters",
+        "query": {
+          "fixture": "all-available"
+        }
+      }
+    },
+    {
+      "id": "operator-inputs-empty",
+      "description": "The thirteen operator fields are present but unanswered; absent is shown as absent, never as zero.",
+      "setup": {"route": "/adapters", "query": {"fixture": "operator-inputs-empty"}}
+    },
+    {
+      "id": "operator-inputs-saving",
+      "description": "An operator-input dry run or apply is in flight and the affected controls say why.",
+      "setup": {"route": "/adapters", "query": {"fixture": "operator-inputs-saving"}}
+    },
+    {
+      "id": "operator-inputs-success",
+      "description": "An operator-input apply completed and its report names written and skipped fields.",
+      "setup": {"route": "/adapters", "query": {"fixture": "operator-inputs-success"}}
+    },
+    {
+      "id": "operator-inputs-validation-error",
+      "description": "An operator-input value was rejected before apply and the field is identified.",
+      "setup": {"route": "/adapters", "query": {"fixture": "operator-inputs-validation-error"}}
+    },
+    {
+      "id": "operator-inputs-partial",
+      "description": "Some operator fields are current while others remain absent; the missing paths are listed.",
+      "setup": {"route": "/adapters", "query": {"fixture": "operator-inputs-partial"}}
+    },
+    {
+      "id": "operator-inputs-stale",
+      "description": "A supplied operator field is outside its declared window and is marked stale with its age.",
+      "setup": {"route": "/adapters", "query": {"fixture": "operator-inputs-stale"}}
+    }
+  ],
+  "elements": [
+    {
+      "id": "adapter-list",
+      "role": "list",
+      "name": "Adapters",
+      "description": "Every registered adapter in one list — API, file import and manual entry together, with no visual hierarchy between them."
+    },
+    {
+      "id": "adapter-availability",
+      "role": "status",
+      "description": "Per-adapter disposition: available, unavailable, or never-run. Carries a text label, never colour alone."
+    },
+    {
+      "id": "failure-reason",
+      "role": "note",
+      "description": "Why an unavailable adapter failed, in the operator's terms. Inline, not behind a drill-in."
+    },
+    {
+      "id": "last-success-age",
+      "role": "status",
+      "description": "How long ago this adapter last succeeded. The figure that lets an operator judge how much of the position is missing."
+    },
+    {
+      "id": "missing-impact",
+      "role": "note",
+      "description": "What is therefore absent from figures elsewhere — the bridge between this page and the position surface."
+    },
+    {
+      "id": "credential-gap",
+      "role": "alert",
+      "description": "Assertive notice that a credential is missing from the secret store, naming the adapter and the remedy. Never displays the credential or its handle."
+    },
+    {
+      "id": "manual-adapter-entry",
+      "role": "listitem",
+      "description": "Manual entry's row in the adapter list, carrying the same fields and prominence as any API adapter."
+    },
+    {
+      "id": "empty-guidance",
+      "role": "note",
+      "description": "Guidance for registering a first adapter when none exist."
+    },
+    {
+      "id": "operator-input-surface",
+      "role": "region",
+      "name": "Operator financial inputs",
+      "description": "The thirteen fields requested from the operator, grouped by monetary, measure, and refused-derived-rate class."
+    },
+    {
+      "id": "operator-input-status",
+      "role": "table",
+      "name": "Operator input status",
+      "description": "Each field's absent, current, or stale status, observed time, and reason."
+    },
+    {
+      "id": "operator-input-report",
+      "role": "status",
+      "description": "Dry-run or apply report naming fields written and fields skipped with reasons."
+    },
+    {
+      "id": "operator-input-derived-rate-refusal",
+      "role": "note",
+      "description": "Explains why subscriptions.mrr is derived and cannot be entered as a journal posting."
+    }
+  ],
+  "claims": [
+    {
+      "id": "unavailable-names-reason-and-age",
+      "type": "element-present",
+      "statement": "An unavailable adapter states why it failed and how old its last success is, without opening a detail view.",
+      "tier": "machine",
+      "viewports": ["desktop", "mobile"],
+      "elements": [
+        "failure-reason",
+        "last-success-age"
+      ],
+      "states": [
+        "adapter-unavailable"
+      ],
+      "rationale": "OT-P1-004 verbatim. 'Unavailable' with no reason and no age gives the operator nothing to act on and nothing to judge the position by."
+    },
+    {
+      "id": "never-run-differs-from-failed",
+      "type": "state-distinct",
+      "statement": "An adapter that has never run is perceivably different from one that ran and failed.",
+      "tier": "manual",
+      "states": [
+        "adapter-never-run",
+        "adapter-unavailable"
+      ],
+      "elements": [
+        "adapter-availability"
+      ],
+      "rationale": "The same class of distinction as a missing figure versus a zero, one level down. They have different causes and different remedies; collapsing them hides a configuration error inside an outage. The live UI distinguishes these from adapter metadata; the current route-only capture provider cannot create the two adapter histories in one validation matrix."
+    },
+    {
+      "id": "unavailable-states-what-is-missing",
+      "type": "element-present",
+      "statement": "An unavailable adapter states what is consequently absent from figures on other surfaces.",
+      "tier": "machine",
+      "elements": [
+        "missing-impact"
+      ],
+      "states": [
+        "adapter-unavailable"
+      ],
+      "rationale": "Priority 2. Without this, the operator must infer the blast radius of an outage, which is exactly the inference the product exists to remove."
+    },
+    {
+      "id": "credential-gap-is-not-a-data-result",
+      "type": "state-covered",
+      "statement": "A missing credential is presented as a configuration gap with a remedy, never as an empty or zero result.",
+      "tier": "machine",
+      "states": [
+        "credentials-missing"
+      ],
+      "elements": [
+        "credential-gap"
+      ],
+      "rationale": "SECURITY.md: an adapter that cannot reach its credential must report unavailable with a reason and never fall back to an unauthenticated path or an empty result."
+    },
+    {
+      "id": "manual-adapter-sits-with-the-others",
+      "type": "element-present",
+      "statement": "Manual entry appears in the same adapter list as API adapters, not in a separate or secondary section.",
+      "tier": "machine",
+      "elements": [
+        "adapter-list",
+        "manual-adapter-entry"
+      ],
+      "states": [
+        "default",
+        "all-available"
+      ],
+      "rationale": "OT-P0-006. Manual and file adapters are ordinary adapters by construction; the UI must not reintroduce the hierarchy the contract removed."
+    },
+    {
+      "id": "problems-read-before-inventory",
+      "type": "reading-order",
+      "statement": "Unavailable adapters read before available ones.",
+      "tier": "machine",
+      "elements": [
+        "adapter-availability",
+        "adapter-list"
+      ],
+      "states": [
+        "adapter-unavailable"
+      ],
+      "locales": [
+        "en",
+        "ar"
+      ],
+      "rationale": "Priority 1. What is broken is the reason to open this page. Direction-aware so the order survives RTL."
+    },
+    {
+      "id": "empty-differs-from-all-unavailable",
+      "type": "state-distinct",
+      "statement": "Having no adapters registered is perceivably different from having adapters that are all unavailable.",
+      "tier": "manual",
+      "states": [
+        "empty",
+        "adapter-unavailable"
+      ],
+      "elements": [
+        "empty-guidance"
+      ],
+      "rationale": "'Nothing configured' and 'everything broken' are different situations with different next actions, and both render as an absence of data. The live UI renders empty guidance separately from unavailable rows; the current route-only capture provider cannot mutate the adapter registry between state captures."
+    },
+    {
+      "id": "availability-is-never-colour-only",
+      "type": "custom",
+      "statement": "Every adapter disposition carries a text label rather than relying on a status tint.",
+      "tier": "manual",
+      "elements": [
+        "adapter-availability"
+      ],
+      "rationale": "PRD accessibility rule. Availability is the most consequential fact on this page and must survive without colour perception."
+    },
+    {
+      "id": "operator-sees-absence-before-entry",
+      "type": "element-present",
+      "statement": "The operator sees all thirteen fields with status and age before entering a value, and absent is not rendered as zero.",
+      "tier": "machine",
+      "elements": ["operator-input-surface", "operator-input-status"],
+      "states": ["operator-inputs-empty"],
+      "rationale": "The replacement must be a trustworthy entry path, not a form that hides which source facts are missing."
+    },
+    {
+      "id": "operator-dry-run-precedes-apply",
+      "type": "state-covered",
+      "statement": "A dry-run report names every field to write and every field skipped, and apply is a separate explicit action.",
+      "tier": "manual",
+      "elements": ["operator-input-report"],
+      "states": ["operator-inputs-success"],
+      "rationale": "The existing importer owns the three-class classification; the console exposes that report before changing the journal. The route-only capture provider cannot invoke the separate dry-run action, so this mutation-path claim is manually attested rather than machine-gated."
+    },
+    {
+      "id": "derived-rate-is-refused",
+      "type": "element-present",
+      "statement": "subscriptions.mrr is displayed as a refused derived rate and cannot be submitted as a posting.",
+      "tier": "machine",
+      "elements": ["operator-input-derived-rate-refusal"],
+      "states": ["operator-inputs-empty", "operator-inputs-partial"],
+      "rationale": "MRR is computed from telemetry and has no direct journal basis in this scenario."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "adapter-list": {
+        "testid": "adapter-list"
+      },
+      "adapter-availability": {
+        "testid": "adapter-availability"
+      },
+      "failure-reason": {
+        "testid": "adapter-failure-reason"
+      },
+      "last-success-age": {
+        "testid": "adapter-last-success-age"
+      },
+      "missing-impact": {
+        "testid": "adapter-missing-impact"
+      },
+      "credential-gap": {
+        "testid": "adapter-credential-gap"
+      },
+      "manual-adapter-entry": {
+        "testid": "adapter-row-manual"
+      },
+      "empty-guidance": {
+        "testid": "adapter-empty-guidance"
+      },
+      "operator-input-surface": {
+        "testid": "operator-input-surface"
+      },
+      "operator-input-status": {
+        "testid": "operator-input-status"
+      },
+      "operator-input-report": {
+        "testid": "operator-input-report"
+      },
+      "operator-input-derived-rate-refusal": {
+        "testid": "operator-input-derived-rate-refusal"
+      }
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "name": "experience-review-spec-smoke",
+    "description": "Generated observer smoke for active experience page review.",
+    "requirement": "OT-P1-006",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "review",
+      "surface": "experience-review"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-review",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "personal-planner",
+          "scenario_path": "/review",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open review" }
+      }
+    },
+    {
+      "id": "wait-review-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.review",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "review page visible" }
+      }
+    }
+  ]
+}

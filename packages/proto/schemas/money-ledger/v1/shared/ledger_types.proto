@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package vrooli.money_ledger.v1.shared;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/shared;shared_v1";
+
+// Basis is shared by ingestion and the durable journal because every admitted
+// event carries its evidence class across both domains.
+enum Basis {
+  BASIS_UNSPECIFIED = 0;
+  BASIS_AUTHORITATIVE = 1;
+  BASIS_DERIVED = 2;
+  BASIS_OPERATOR_ASSERTED = 3;
+  // Reserved for OT-P2-006; projected values are intentionally not admitted yet.
+  BASIS_PROJECTED = 4;
+}
+
+// MoneyEvent is the normalized event shape at the single ingestion door and
+// the durable journal boundary.
+message MoneyEvent {
+  string id = 1;
+  string external_id = 2 [(buf.validate.field).string.min_len = 1];
+  string adapter_id = 3 [(buf.validate.field).string.min_len = 1];
+  string account_id = 4 [(buf.validate.field).string.min_len = 1];
+  string book_id = 5 [(buf.validate.field).string.min_len = 1];
+  int64 amount_minor = 6;
+  string currency = 7 [(buf.validate.field).string.len = 3];
+  google.protobuf.Timestamp occurred_at = 8 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp fetched_at = 9 [(buf.validate.field).required = true];
+  Basis basis = 10 [(buf.validate.field).enum = {defined_only: true, not_in: [0, 4]}];
+  string description = 11;
+  string category = 12;
+}
+
+message AuditEntry {
+  string id = 1;
+  string entity_type = 2;
+  string entity_id = 3;
+  string actor = 4;
+  string reason = 5;
+  string prior_value = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+// Posting is the immutable journal record shared by journal reads and the
+// ingestion response.
+message Posting {
+  string id = 1;
+  MoneyEvent event = 2;
+  string reversal_of = 3;
+  string actor = 4;
+  repeated AuditEntry audit = 5;
+}

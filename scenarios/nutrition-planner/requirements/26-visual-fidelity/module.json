@@ -1,0 +1,152 @@
+{
+  "_metadata": {
+    "description": "Reference-quality visual fidelity: captures at the R27.5 viewports in both appearances compared with the approved concept mockups, cross-mockup decisions honored, typography, and measured media budgets.",
+    "module": "visual-fidelity",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "VIS-001",
+      "title": "Captures match the approved mockups",
+      "status": "planned",
+      "prd_ref": "OT-P0-021",
+      "category": "reporting",
+      "criticality": "P0",
+      "description": "Every primary surface, Explore, recipe detail, recipe map, cooking mode, inventory, equipment, preferences, and one long editor shall be captured at 360x800, 390x844, 768x1024, 1024x768, and 1440x1000 plus 320 px width and 200 percent zoom in Light and Evening, compared with the corresponding images in docs/reference/mockups/ for hierarchy, whitespace, image proportions, alignment, contrast, component consistency, and reachability, with each verdict and residual gap recorded.",
+      "tags": [
+        "visual",
+        "fidelity",
+        "captures"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned: per-surface verdicts with capture references are recorded in docs/internal/REDESIGN_LEDGER.md and no surface has an open material gap (R27.5, R29.2)."
+        },
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: the scenario's visual capture flow produces the R27.5 matrix for every surface from the running app with real fonts and assets."
+        }
+      ]
+    },
+    {
+      "id": "VIS-002",
+      "title": "Cross-mockup decisions and corrections are honored",
+      "status": "planned",
+      "prd_ref": "OT-P0-021",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The scenario shall implement the resolutions in docs/reference/mockups/README.md: underlined primary navigation and in-page tabs, segmented controls only for modes, one selection token per appearance, icon plus small-caps storage and aisle headers, an appearance control and Settings gear at the header's right, five bottom tabs, one icon family, distinct cooktop and oven icons, heart for favorites and bookmark for saving, neutral tag chips, and functional copy without slogans.",
+      "tags": [
+        "visual",
+        "consistency",
+        "components"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned: a review pass checks each resolution on every surface in both appearances (R29.3, decisions D-027 and D-028)."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: navigation, tabs, and segmented controls each come from one shared component used by every surface."
+        }
+      ]
+    },
+    {
+      "id": "VIS-003",
+      "title": "Specific visual defects are absent",
+      "status": "planned",
+      "prd_ref": "OT-P0-021",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The scenario shall ensure the phone hero never buries its actions, bottom navigation never obscures content, Week never shows a tiny seven-column phone layout, meal-card buttons stay aligned when titles wrap, grocery amounts stay aligned, equipment hotspots align with their objects, timer text fits at large font sizes, overlays work with a software keyboard, and ordinary-photo and no-photo states look intentional.",
+      "tags": [
+        "visual",
+        "defects",
+        "mobile"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned: each R27.5 specific check is recorded with a capture reference in docs/internal/REDESIGN_LEDGER.md."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: card action rows use a stable layout that keeps + Plan aligned for one-line and three-line titles (R10.1)."
+        }
+      ]
+    },
+    {
+      "id": "VIS-004",
+      "title": "Editorial typography and spacing follow the design language",
+      "status": "planned",
+      "prd_ref": "OT-P0-021",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The scenario shall use at most two self-hosted, licensed type families, an editorial serif for the wordmark, page and recipe titles, meal names, and timer numerals and an accessible sans for controls and metadata, with the R05.1 size ranges, a 4 px spacing base, 10 to 18 px radii, subtle elevation, wrapped long names instead of shrunken text, and fonts that never block content.",
+      "tags": [
+        "typography",
+        "spacing",
+        "fonts"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: font files are bundled with recorded licenses and subsets, and font-display settings never block first content (R05.1)."
+        },
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned: type scale and spacing captures are compared with the mockups in both appearances."
+        }
+      ]
+    },
+    {
+      "id": "VIS-005",
+      "title": "Media budgets are measured",
+      "status": "planned",
+      "prd_ref": "OT-P0-021",
+      "category": "performance",
+      "criticality": "P0",
+      "description": "The scenario shall keep optimized heroes near 250 to 600 KB, collection thumbnails near 30 to 100 KB, and the initially visible compact equipment layers near 1 MB, load only the current appearance and composition, lazy-load below-fold images, and record measured exceptions with justification.",
+      "tags": [
+        "performance",
+        "media",
+        "budgets"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "planned",
+          "notes": "Planned: measured transfer sizes on Today, Meals, and Equipment at phone and desktop widths meet the R25.4 targets or carry a recorded exception."
+        },
+        {
+          "type": "lighthouse",
+          "phase": "performance",
+          "status": "planned",
+          "notes": "Planned: the lighthouse budget for primary pages reports no layout-shift regression from media loading."
+        }
+      ]
+    }
+  ]
+}

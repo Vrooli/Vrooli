@@ -250,8 +250,8 @@ describe('DEFAULT_STRATEGY_ORDER', () => {
     expect(DEFAULT_STRATEGY_ORDER[1]).toBe('cdp-injection');
   });
 
-  it('should have route-injection last (legacy)', () => {
-    expect(DEFAULT_STRATEGY_ORDER[2]).toBe('route-injection');
+  it('should keep legacy route-injection out of auto-detection', () => {
+    expect(DEFAULT_STRATEGY_ORDER).toEqual(['init-script', 'cdp-injection']);
   });
 });
 

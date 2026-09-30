@@ -20,6 +20,8 @@ type FileSystem interface {
 	OpenFile(path string, flag int, perm fs.FileMode) (File, error)
 	// Remove removes a file or empty directory.
 	Remove(path string) error
+	// Rename atomically moves a file within the same filesystem.
+	Rename(oldPath, newPath string) error
 }
 
 // File abstracts os.File for testing.
@@ -55,6 +57,10 @@ func (RealFileSystem) OpenFile(path string, flag int, perm fs.FileMode) (File, e
 
 func (RealFileSystem) Remove(path string) error {
 	return os.Remove(path)
+}
+
+func (RealFileSystem) Rename(oldPath, newPath string) error {
+	return os.Rename(oldPath, newPath)
 }
 
 // Ensure RealFileSystem implements FileSystem.

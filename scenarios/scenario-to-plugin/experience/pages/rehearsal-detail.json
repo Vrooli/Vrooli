@@ -1,0 +1,307 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "rehearsal-detail",
+    "title": "Rehearsal",
+    "routes": [
+      "/packages/:packageId/rehearsal"
+    ],
+    "purpose": "Show the clean-room install journey \u2014 every gate disposition and every documented command's result \u2014 so a reader can judge whether this package genuinely works on a machine with no Vrooli runtime.",
+    "prd_refs": [
+      "OT-P0-006",
+      "OT-P1-004"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "A skeptical reader can decide from this page whether the package really installs and runs.",
+      "notes": "This page is the ramp's evidence surface. If it does not convince an outsider, the package is not ready to publish."
+    },
+    {
+      "statement": "A cancelled or timed-out rehearsal reads as 'not judged', never as a package failure.",
+      "notes": "Attributing an infrastructure timeout to an author is the most likely honesty regression in this product."
+    },
+    {
+      "statement": "Long-running progress is perceivable without the operator refreshing or guessing."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A completed rehearsal with all gates passed."
+    },
+    {
+      "id": "loading",
+      "description": "Rehearsal detail is loading."
+    },
+    {
+      "id": "syncing",
+      "description": "The rehearsal is running; progress streams in."
+    },
+    {
+      "id": "partial",
+      "description": "Some commands have run and others have not."
+    },
+    {
+      "id": "success",
+      "description": "Every gate passed and every command succeeded."
+    },
+    {
+      "id": "request-error",
+      "description": "The rehearsal could not be loaded."
+    },
+    {
+      "id": "unavailable",
+      "description": "The rehearsal was cancelled or timed out; the package was not judged."
+    },
+    {
+      "id": "failed",
+      "description": "A required gate failed and the package cannot advance."
+    },
+    {
+      "id": "empty",
+      "description": "No rehearsal has been run for this package yet."
+    },
+    {
+      "id": "stale",
+      "description": "The journey predates the latest attestation and may not describe the current artifact."
+    }
+  ],
+  "elements": [
+    {
+      "id": "journey-manifest",
+      "role": "region",
+      "name": "Journey manifest"
+    },
+    {
+      "id": "gate-result-list",
+      "role": "list",
+      "name": "Gate results"
+    },
+    {
+      "id": "gate-result-item",
+      "role": "listitem",
+      "name": "Gate result"
+    },
+    {
+      "id": "command-results-table",
+      "role": "table",
+      "name": "Command results"
+    },
+    {
+      "id": "command-exit-status",
+      "role": "status",
+      "name": "Command exit status"
+    },
+    {
+      "id": "command-output",
+      "role": "note",
+      "name": "Redacted command output"
+    },
+    {
+      "id": "progress-indicator",
+      "role": "progressbar",
+      "name": "Rehearsal progress"
+    },
+    {
+      "id": "cancel-rehearsal",
+      "role": "button",
+      "name": "Cancel rehearsal"
+    },
+    {
+      "id": "unavailable-explainer",
+      "role": "alert",
+      "name": "Why this rehearsal was not judged"
+    },
+    {
+      "id": "failure-explainer",
+      "role": "alert",
+      "name": "Which gate failed"
+    },
+    {
+      "id": "idempotency-result",
+      "role": "status",
+      "name": "Second install run result"
+    },
+    {
+      "id": "disclosure-result",
+      "role": "status",
+      "name": "Undisclosed acquisitions"
+    },
+    {
+      "id": "entitlement-result",
+      "role": "status",
+      "name": "Entitlement sign-in proof"
+    }
+  ],
+  "claims": [
+    {
+      "id": "journey-present",
+      "type": "element-present",
+      "statement": "The journey manifest is present.",
+      "tier": "aspirational",
+      "elements": [
+        "journey-manifest"
+      ]
+    },
+    {
+      "id": "command-results-present",
+      "type": "element-present",
+      "statement": "Every documented command shows its exit status.",
+      "tier": "aspirational",
+      "elements": [
+        "command-results-table",
+        "command-exit-status"
+      ]
+    },
+    {
+      "id": "commands-affordances",
+      "type": "affordance-present",
+      "statement": "The command results table offers filter by result and search by command.",
+      "tier": "aspirational",
+      "elements": [
+        "command-results-table"
+      ],
+      "params": {
+        "affordances": [
+          "filter",
+          "search"
+        ],
+        "targetRole": "table"
+      }
+    },
+    {
+      "id": "progress-perceivable",
+      "type": "state-covered",
+      "statement": "A running rehearsal shows progress rather than an indefinite blank.",
+      "tier": "aspirational",
+      "elements": [
+        "progress-indicator"
+      ],
+      "states": [
+        "syncing"
+      ]
+    },
+    {
+      "id": "long-running-affordances",
+      "type": "affordance-present",
+      "statement": "A running rehearsal offers progress, refresh, and cancel.",
+      "tier": "aspirational",
+      "elements": [
+        "progress-indicator",
+        "cancel-rehearsal"
+      ],
+      "params": {
+        "affordances": [
+          "progress",
+          "refresh",
+          "cancel"
+        ]
+      }
+    },
+    {
+      "id": "unavailable-distinct-from-failed",
+      "type": "state-distinct",
+      "statement": "An unavailable rehearsal is visually and textually distinct from a failed one.",
+      "tier": "aspirational",
+      "elements": [
+        "unavailable-explainer",
+        "failure-explainer"
+      ],
+      "states": [
+        "unavailable",
+        "failed"
+      ],
+      "rationale": "A timeout means the package was not judged; rendering it as a failure blames the author for an infrastructure problem."
+    },
+    {
+      "id": "unavailable-is-explained",
+      "type": "state-covered",
+      "statement": "The unavailable state states that the package was not judged and why.",
+      "tier": "aspirational",
+      "elements": [
+        "unavailable-explainer"
+      ],
+      "states": [
+        "unavailable"
+      ]
+    },
+    {
+      "id": "stealth-and-idempotency-visible",
+      "type": "element-present",
+      "statement": "The idempotency re-run result and the undisclosed-acquisition result are both shown.",
+      "tier": "aspirational",
+      "elements": [
+        "idempotency-result",
+        "disclosure-result"
+      ],
+      "rationale": "These two gates are the ones an outside reader most needs to see, and they have no analogue in any registry scanner."
+    },
+    {
+      "id": "output-is-redacted",
+      "type": "element-present",
+      "statement": "Command output is displayed in its redacted form.",
+      "tier": "aspirational",
+      "elements": [
+        "command-output"
+      ]
+    },
+    {
+      "id": "cancel-is-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Cancel is keyboard reachable while a rehearsal runs.",
+      "tier": "aspirational",
+      "elements": [
+        "cancel-rehearsal"
+      ],
+      "states": [
+        "syncing"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "journey-manifest": {
+        "testid": "journey-manifest"
+      },
+      "gate-result-list": {
+        "testid": "gate-result-list"
+      },
+      "gate-result-item": {
+        "testid": "gate-result-item"
+      },
+      "command-results-table": {
+        "testid": "command-results-table"
+      },
+      "command-exit-status": {
+        "testid": "command-exit-status"
+      },
+      "command-output": {
+        "testid": "command-output"
+      },
+      "progress-indicator": {
+        "testid": "progress-indicator"
+      },
+      "cancel-rehearsal": {
+        "testid": "cancel-rehearsal"
+      },
+      "unavailable-explainer": {
+        "testid": "unavailable-explainer"
+      },
+      "failure-explainer": {
+        "testid": "failure-explainer"
+      },
+      "idempotency-result": {
+        "testid": "idempotency-result"
+      },
+      "disclosure-result": {
+        "testid": "disclosure-result"
+      },
+      "entitlement-result": {
+        "testid": "entitlement-result"
+      }
+    }
+  }
+}

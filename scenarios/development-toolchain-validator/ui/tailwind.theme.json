@@ -1,0 +1,60 @@
+{
+  "colors": {
+    "app-background": "var(--color-background)",
+    "app-shell": "var(--color-shell)",
+    "app-surface": "var(--color-surface)",
+    "app-surface-muted": "var(--color-surface-muted)",
+    "app-surface-raised": "var(--color-surface-raised)",
+    "app-surface-overlay": "rgb(var(--color-surface-overlay) / <alpha-value>)",
+    "app-surface-input": "rgb(var(--color-surface-input) / <alpha-value>)",
+    "app-foreground": "var(--color-foreground)",
+    "app-muted-foreground": "var(--color-muted-foreground)",
+    "app-border": "var(--color-border)",
+    "app-border-strong": "rgb(var(--color-border-strong) / <alpha-value>)",
+    "app-border-subtle": "rgb(var(--color-border-subtle) / <alpha-value>)",
+    "app-primary": "var(--color-primary)",
+    "app-primary-foreground": "var(--color-primary-foreground)",
+    "app-accent": "rgb(var(--color-accent-default) / <alpha-value>)",
+    "app-accent-hover": "rgb(var(--color-accent-hover) / <alpha-value>)",
+    "app-success": "var(--color-success)",
+    "app-danger": "var(--color-danger)",
+    "app-warning": "var(--color-warning)",
+    "app-info": "var(--color-info)",
+    "app-focus": "var(--color-focus)",
+    "status-pass": "rgb(var(--color-status-pass) / <alpha-value>)",
+    "status-pass-bg": "rgb(var(--color-status-pass-bg) / <alpha-value>)",
+    "status-stale": "rgb(var(--color-status-stale) / <alpha-value>)",
+    "status-stale-bg": "rgb(var(--color-status-stale-bg) / <alpha-value>)",
+    "status-unexpected": "rgb(var(--color-status-unexpected) / <alpha-value>)",
+    "status-unexpected-bg": "rgb(var(--color-status-unexpected-bg) / <alpha-value>)",
+    "status-failure": "rgb(var(--color-status-failure) / <alpha-value>)",
+    "status-failure-bg": "rgb(var(--color-status-failure-bg) / <alpha-value>)",
+    "status-neutral": "rgb(var(--color-status-neutral) / <alpha-value>)",
+    "status-neutral-bg": "rgb(var(--color-status-neutral-bg) / <alpha-value>)"
+  },
+  "borderRadius": {
+    "control": "var(--radius-control)",
+    "panel": "var(--radius-panel)",
+    "sheet": "var(--radius-sheet)",
+    "pill": "var(--radius-pill)"
+  },
+  "fontFamily": {
+    "sans": "var(--font-sans)",
+    "mono": "var(--font-mono)"
+  },
+  "spacing": {
+    "touch": "var(--touch-target)",
+    "sidebar": "var(--sidebar-width)"
+  },
+  "minWidth": {
+    "touch": "var(--touch-target)",
+    "sidebar": "var(--sidebar-min-width)"
+  },
+  "maxWidth": {
+    "sidebar": "var(--sidebar-max-width)"
+  },
+  "transitionDuration": {
+    "fast": "var(--motion-duration-fast)",
+    "default": "var(--motion-duration-default)"
+  }
+}

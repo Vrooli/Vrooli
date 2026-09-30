@@ -1,0 +1,8 @@
+{
+  "handlers": [
+    {"id":"native-text","version":"1.0.0","formats":["text/plain","text/markdown","text/csv","text/tab-separated-values"],"capabilities":["content","tables"],"tier":1,"runtime":"in-process"},
+    {"id":"native-markup","version":"1.0.0","formats":["text/html","application/xml","text/xml"],"capabilities":["content","elements"],"tier":1,"runtime":"in-process"},
+    {"id":"doc-parse","version":"0.1.0","formats":["application/pdf","application/rtf","application/epub+zip","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/vnd.openxmlformats-officedocument.presentationml.presentation","application/vnd.oasis.opendocument.text"],"capabilities":["content","tables","geometry"],"tier":1,"runtime":"resource"},
+    {"id":"doc-ocr","version":"0.1.0","formats":["image/png","image/jpeg","image/tiff","image/bmp","application/pdf"],"capabilities":["content","geometry","ocr"],"tier":2,"runtime":"resource"}
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "_metadata": {
+    "description": "Object removal always has a working provider: a standalone builtin mask_fill for flat/smooth backgrounds, with iopaint provisioned through a governed host-tool installer for the quality path.",
+    "module": "object-removal-fallback",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MASKFILL-001",
+      "title": "builtin mask_fill provider",
+      "status": "complete",
+      "prd_ref": "OT-P0-016",
+      "category": "ai-enhancement",
+      "criticality": "P0",
+      "description": "mask_fill dilates the mask, grows it over connected pixels differing from a local background estimate beyond halo_threshold, solves the Laplace equation inside the grown mask, and composites the result. It is registered as a standalone builtin provider ranked below iopaint.",
+      "tags": [
+        "ai",
+        "object-removal"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "api/internal/ai maskfill unit tests + pointer-fixture regression; live removal matches a0-clean (SSIM 0.9997)."
+        }
+      ]
+    },
+    {
+      "id": "MASKFILL-002",
+      "title": "Governed iopaint provisioning",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-016",
+      "category": "ai-enhancement",
+      "criticality": "P1",
+      "description": "iopaint gains a governed installer handler (uv tool install, pinned, into ~/.vrooli) and is declared in image-tools hostTools[] as optional, with the backends matrix regenerated.",
+      "tags": [
+        "ai",
+        "host-tool"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "provider-conformance",
+          "status": "pending",
+          "notes": "iopaint remains a manual host tool (vrooli host install iopaint reports manual_action_required); mask_fill covers the always-available path."
+        }
+      ]
+    }
+  ]
+}

@@ -4,10 +4,10 @@ AI chat inbox serving as the conversational hub for Vrooli's agent ecosystem.
 
 ## Overview
 
-Agent Inbox is a unified chat management interface that acts as a "dispatcher + timeline" for AI conversations. It handles normal chat via OpenRouter while dispatching specialized tasks to other Vrooli scenarios as tools. Think of it like an intelligent foreman that can:
+Agent Inbox is a unified chat management interface that acts as a "dispatcher + timeline" for AI conversations. It handles normal chat via OpenRouter while surfacing relevant Vrooli CLI commands through Search Hub context.
 
 - **Chat**: Normal conversation, planning, brainstorming via OpenRouter (Claude, GPT-4, etc.)
-- **Dispatch**: Spawn coding agents, track issues, run investigations via scenario tools
+- **Dispatch**: Spawn coding agents, track issues, and run investigations through command-backed actions
 - **Organize**: Email-like inbox with labels, read/unread status, archive
 
 ## Key Architecture
@@ -15,10 +15,10 @@ Agent Inbox is a unified chat management interface that acts as a "dispatcher + 
 Agent Inbox follows an **"inbox as dispatcher"** pattern:
 
 - **Inbox calls OpenRouter** for assistant messages (normal chat, reasoning, planning)
-- **Inbox uses tools** to delegate work to specialized scenarios:
+- **Inbox uses Search Hub command discovery** to identify relevant scenario commands:
   - `agent-manager`: Spawn Claude Code/Codex/OpenCode for coding tasks
   - Future: `app-issue-tracker`, investigation scenarios, etc.
-- **Tool results** stream back and display in the chat timeline
+- **Tool call records** stream back and display in the chat timeline
 
 This separation keeps chat cheap/fast while coding agents handle expensive/stateful work.
 
@@ -38,7 +38,7 @@ This separation keeps chat cheap/fast while coding agents handle expensive/state
 - Auto-generate chat names using local Ollama
 - Keyboard shortcuts (j/k navigation, Cmd+N new chat)
 
-### Tool Calling
+### Command-Backed Tool Calls
 - **spawn_coding_agent**: Run Claude Code, Codex, or OpenCode on a task
 - **check_agent_status**: Monitor running agent progress
 - **stop_agent**: Cancel a running agent
@@ -99,7 +99,6 @@ agent-inbox models          # List available models
 | GET | /api/v1/labels | List labels |
 | POST | /api/v1/labels | Create label |
 | GET | /api/v1/models | List OpenRouter models |
-| GET | /api/v1/tools | List available tools |
 
 ## Environment Variables
 
@@ -108,7 +107,7 @@ agent-inbox models          # List available models
 | `API_PORT` | Yes | Port for Go API server |
 | `UI_PORT` | Yes | Port for React UI |
 | `OPENROUTER_API_KEY` | Yes | OpenRouter API key |
-| `AI_SQLITE_PATH` | No | Custom path for SQLite database (default: `~/.vrooli/data/sqlite/databases/agent-inbox.db`) |
+| `AI_SQLITE_PATH` | No | Custom path for SQLite database (default: scenario `api-core/storage` data path) |
 
 ## Development
 

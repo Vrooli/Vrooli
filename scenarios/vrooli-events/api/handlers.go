@@ -9,14 +9,22 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/provenance"
+	// Register the optional program-runtime event payload with the process-wide
+	// protobuf resolver. Events remain generic at the envelope boundary, but
+	// protojson must know every payload type that the platform accepts.
+	_ "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/broker"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/convert"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/store"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -39,6 +47,89 @@ const (
 	ErrCodeInvalidParam   = "INVALID_PARAM"
 )
 
+const (
+	receiptEventType                 = "vrooli.events.receipt.v1"
+	obsoleteReceiptObservedEventType = "vrooli.receipt.observed.v1"
+)
+
+// validateReceipt keeps the generic event store safe for the platform receipt
+// projection. Receipts are still ordinary durable events, but their bounded
+// safe projection and correlation fields are validated centrally rather than
+// trusted as arbitrary scenario metadata.
+func validateReceipt(env *domain.EventEnvelope) *envelopeValidationError {
+	if env.EventType != receiptEventType {
+		return nil
+	}
+	if env.Target == nil || strings.TrimSpace(env.Target.Scenario) == "" || strings.TrimSpace(env.Target.Operation) == "" || strings.TrimSpace(env.Target.Protocol) == "" {
+		return &envelopeValidationError{Field: "target", Message: "receipt target scenario, operation, and protocol are required"}
+	}
+	if env.Data == nil || (!strings.HasSuffix(env.Data.TypeUrl, "/vrooli.vrooli_events.v1.domain.ReceiptData") && !strings.HasSuffix(env.Data.TypeUrl, "/vrooli.events.v1.domain.ReceiptData")) {
+		return &envelopeValidationError{Field: "data", Message: "receipt data must pack ReceiptData"}
+	}
+	return nil
+}
+
+func (s *Server) handleDeleteEventsByType(w http.ResponseWriter, r *http.Request) {
+	eventType := strings.TrimSpace(r.URL.Query().Get("type"))
+	if eventType != obsoleteReceiptObservedEventType {
+		writeError(w, http.StatusBadRequest, ErrCodeInvalidParam, "only obsolete receipt observation events may be deleted by type")
+		return
+	}
+	cleaner, ok := s.store.(interface {
+		DeleteByEventType(context.Context, string) (int64, error)
+	})
+	if !ok {
+		writeError(w, http.StatusInternalServerError, ErrCodeStoreWrite, "event store does not support obsolete receipt cleanup")
+		return
+	}
+	deleted, err := cleaner.DeleteByEventType(r.Context(), eventType)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, ErrCodeStoreWrite, "failed to delete obsolete receipt observations")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"event_type": eventType, "deleted": deleted})
+}
+
+// applyReceiptProvenance makes Agent Manager run attribution optional but
+// authoritative when present. Receipt bodies never establish agent ownership:
+// only verified token claims can do that.
+func applyReceiptProvenance(env *domain.EventEnvelope, p provenance.Provenance) *envelopeValidationError {
+	if env.EventType != receiptEventType {
+		return nil
+	}
+	if p.VerificationStatus == provenance.VerificationInvalid {
+		return &envelopeValidationError{Field: "identity", Message: "supplied Agent Manager identity token is invalid or expired"}
+	}
+	if p.VerificationStatus == provenance.VerificationUnavailable {
+		return &envelopeValidationError{Field: "identity", Message: "supplied Agent Manager identity token could not be verified"}
+	}
+	if !p.IsVerifiedAgent() {
+		if env.Attribution != nil || (env.Correlation != nil && (strings.TrimSpace(env.Correlation.AgentRunId) != "" || strings.TrimSpace(env.Correlation.TaskId) != "" || strings.TrimSpace(env.Correlation.WorkflowExecutionId) != "" || strings.TrimSpace(env.Correlation.WorkflowNodeId) != "" || env.Correlation.Attempt != 0)) {
+			return &envelopeValidationError{Field: "attribution", Message: "agent attribution requires verified Agent Manager identity"}
+		}
+		return nil
+	}
+	if strings.TrimSpace(p.ProfileKey) == "" {
+		return &envelopeValidationError{Field: "identity", Message: "verified Agent Manager identity has no agent profile"}
+	}
+	if env.Correlation != nil && strings.TrimSpace(env.Correlation.AgentRunId) != "" && env.Correlation.AgentRunId != p.RunID {
+		return &envelopeValidationError{Field: "correlation.agentRunId", Message: "receipt run correlation does not match verified Agent Manager identity"}
+	}
+	if env.Attribution != nil && (env.Attribution.SubjectId != p.ProfileKey || env.Attribution.SubjectKind != "agent" || !env.Attribution.Verified) {
+		return &envelopeValidationError{Field: "attribution", Message: "receipt attribution does not match verified Agent Manager identity"}
+	}
+	if env.Correlation == nil {
+		env.Correlation = &domain.EventCorrelation{}
+	}
+	env.Correlation.AgentRunId = p.RunID
+	env.Correlation.TaskId = p.TaskID
+	env.Correlation.WorkflowExecutionId = p.WorkflowExecutionID
+	env.Correlation.WorkflowNodeId = p.WorkflowNodeID
+	env.Correlation.Attempt = p.Attempt
+	env.Attribution = &domain.EventAttribution{SubjectKind: "agent", SubjectId: p.ProfileKey, Verified: true}
+	return nil
+}
+
 // envelopeValidationError describes a missing or invalid field in an inbound EventEnvelope.
 // Keeping validation rules as data (not inline if-chains) means adding a new required
 // field is a single-line table entry rather than a scattered code change.
@@ -57,11 +148,39 @@ func validateEnvelope(env *domain.EventEnvelope) *envelopeValidationError {
 	}{
 		{env.EventId, "eventId", "eventId is required"},
 		{env.EventType, "eventType", "eventType is required"},
-		{env.SourceScenario, "sourceScenario", "sourceScenario is required"},
+		{func() string {
+			if env.Source != nil {
+				return env.Source.Scenario
+			}
+			return ""
+		}(), "source.scenario", "source scenario is required"},
 	}
 	for _, r := range rules {
 		if r.value == "" {
 			return &envelopeValidationError{Field: r.field, Message: r.message}
+		}
+	}
+	for i, reference := range env.WorkReferences {
+		if reference == nil {
+			return &envelopeValidationError{Field: fmt.Sprintf("workReferences[%d]", i), Message: "work reference must not be null"}
+		}
+		if reference.Visibility == domain.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_UNSPECIFIED {
+			reference.Visibility = domain.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC
+		}
+		if reference.State == domain.WorkReferenceState_WORK_REFERENCE_STATE_UNSPECIFIED {
+			reference.State = domain.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE
+		}
+		if reference.SourceEventId == "" {
+			reference.SourceEventId = env.EventId
+		}
+		if reference.SourceRunId == "" && env.Correlation != nil {
+			reference.SourceRunId = env.Correlation.AgentRunId
+		}
+		if reference.State != domain.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE && strings.TrimSpace(reference.UnavailableReason) == "" {
+			return &envelopeValidationError{Field: fmt.Sprintf("workReferences[%d].unavailableReason", i), Message: "non-active work references require unavailable_reason"}
+		}
+		if reference.State == domain.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE && (strings.TrimSpace(reference.Kind) == "" || strings.TrimSpace(reference.Id) == "" || strings.TrimSpace(reference.Relationship) == "") {
+			return &envelopeValidationError{Field: fmt.Sprintf("workReferences[%d]", i), Message: "active work reference kind, id, and relationship are required"}
 		}
 	}
 	return nil
@@ -80,7 +199,19 @@ func parseQueryFilters(q map[string][]string) (store.QueryFilters, *paramError) 
 	filters := store.QueryFilters{
 		EventType:     get("type"),
 		Source:        get("source"),
+		Target:        get("target"),
 		CorrelationID: get("correlation_id"),
+		EventID:       get("event_id"),
+		WorkKind:      get("work_kind"),
+		WorkID:        get("work_id"),
+		Visibility:    get("visibility"),
+	}
+	// agent_run_id is the canonical receipt correlation query. The storage
+	// index intentionally reuses the correlation column for this one universal
+	// high-cardinality key; richer correlation coordinates are filtered from the
+	// canonical envelope below.
+	if runID := get("agent_run_id"); runID != "" {
+		filters.CorrelationID = runID
 	}
 
 	if v := get("since"); v != "" {
@@ -96,6 +227,9 @@ func parseQueryFilters(q map[string][]string) (store.QueryFilters, *paramError) 
 			return filters, &paramError{Param: "limit", Message: "limit must be an integer"}
 		}
 		filters.Limit = n
+	}
+	if visibility := get("visibility"); visibility != "" && visibility != "public" && visibility != "private" {
+		return filters, &paramError{Param: "visibility", Message: "visibility must be public or private"}
 	}
 
 	return filters, nil
@@ -131,6 +265,18 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, ErrCodeMissingField, ve.Message)
 		return
 	}
+	if ve := validateReceipt(&env); ve != nil {
+		writeError(w, http.StatusBadRequest, ErrCodeMissingField, ve.Message)
+		return
+	}
+	if ve := applyReceiptProvenance(&env, provenance.FromContext(r.Context())); ve != nil {
+		status := http.StatusBadRequest
+		if ve.Field == "identity" {
+			status = http.StatusUnauthorized
+		}
+		writeError(w, status, ErrCodeValidation, ve.Message)
+		return
+	}
 
 	event, err := convert.EnvelopeToEvent(&env)
 	if err != nil {
@@ -141,10 +287,10 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 	// Dry-run: full validation passes, but skip persistence and broadcast.
 	if isDryRun(r) {
 		writeJSON(w, 0, map[string]any{
-			"dry_run":        true,
-			"eventId":        env.EventId,
-			"eventType":      env.EventType,
-			"sourceScenario": env.SourceScenario,
+			"dry_run":    true,
+			"event_id":   env.EventId,
+			"event_type": env.EventType,
+			"source":     env.GetSource(),
 		})
 		return
 	}
@@ -161,6 +307,11 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	event.ID = id
+	if err := s.enqueueSubscriptions(r.Context(), event); err != nil {
+		log.Printf("subscription fan-out enqueue error: %v", err)
+		writeError(w, http.StatusInternalServerError, ErrCodeStoreWrite, "failed to enqueue subscription deliveries")
+		return
+	}
 
 	// Broadcast asynchronously so ingestion latency is not affected by slow subscribers.
 	go func() {
@@ -188,14 +339,105 @@ func (s *Server) handleQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	events, err := s.store.Query(r.Context(), filters)
+	events, err := queryStoreEvents(r.Context(), s.store, filters)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, ErrCodeStoreRead, "failed to query events")
 		log.Printf("query error: %v", err)
 		return
 	}
 
-	writeEventList(w, events)
+	writeEventList(w, filterCanonicalEvents(events, r.URL.Query()))
+}
+
+// queryStoreEvents keeps the Store abstraction at the API boundary. Store
+// implementations own any database cursor; callers receive an already
+// materialized event slice rather than a raw *sql.Rows handle.
+func queryStoreEvents(ctx context.Context, events store.Store, filters store.QueryFilters) ([]store.Event, error) {
+	return events.Query(ctx, filters)
+}
+
+func filterCanonicalEvents(events []store.Event, query map[string][]string) []store.Event {
+	get := func(key string) string {
+		if values := query[key]; len(values) > 0 {
+			return values[0]
+		}
+		return ""
+	}
+	workflow, node, task := get("workflow_execution_id"), get("workflow_node_id"), get("task_id")
+	filtered := make([]store.Event, 0, len(events))
+	for _, event := range events {
+		env, err := convert.EventToEnvelope(event)
+		if err != nil {
+			continue
+		}
+		correlation := env.GetCorrelation()
+		if workflow != "" && correlation.GetWorkflowExecutionId() != workflow {
+			continue
+		}
+		if node != "" && correlation.GetWorkflowNodeId() != node {
+			continue
+		}
+		if task != "" && correlation.GetTaskId() != task {
+			continue
+		}
+		matchedReference := false
+		workKind, workID, visibility := get("work_kind"), get("work_id"), get("visibility")
+		for _, reference := range env.WorkReferences {
+			if workKind != "" && reference.GetKind() != workKind {
+				continue
+			}
+			if workID != "" && reference.GetId() != workID {
+				continue
+			}
+			if visibility != "" && workReferenceVisibilityName(reference.GetVisibility()) != visibility {
+				continue
+			}
+			matchedReference = workKind != "" || workID != "" || visibility != ""
+			break
+		}
+		if (workKind != "" || workID != "" || visibility != "") && !matchedReference {
+			continue
+		}
+		if sanitizePrivateReferences(env) {
+			payload, marshalErr := proto.Marshal(env)
+			if marshalErr != nil {
+				continue
+			}
+			event.Payload = payload
+		}
+		filtered = append(filtered, event)
+	}
+	return filtered
+}
+
+func workReferenceVisibilityName(visibility domain.WorkReferenceVisibility) string {
+	if visibility == domain.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PRIVATE {
+		return "private"
+	}
+	return "public"
+}
+
+// sanitizePrivateReferences keeps the existence of withheld evidence visible
+// without returning private work identifiers to an unauthenticated query.
+func sanitizePrivateReferences(env *domain.EventEnvelope) bool {
+	changed := false
+	for _, reference := range env.WorkReferences {
+		if reference.GetVisibility() != domain.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PRIVATE {
+			continue
+		}
+		reference.Kind = ""
+		reference.Id = ""
+		reference.Revision = ""
+		reference.Relationship = ""
+		reference.SourceEventId = ""
+		reference.SourceRunId = ""
+		reference.EvidenceDigest = ""
+		reference.Verified = false
+		reference.State = domain.WorkReferenceState_WORK_REFERENCE_STATE_UNAVAILABLE
+		reference.UnavailableReason = "private work-reference evidence withheld"
+		changed = true
+	}
+	return changed
 }
 
 // writeEventList serializes a slice of store.Event as a JSON array of proto EventEnvelopes.
@@ -349,20 +591,35 @@ func writeSSEMessage(w http.ResponseWriter, msg broker.SSEMessage) {
 // the store is unreachable lets load balancers route traffic away from this instance.
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC().Format(time.RFC3339)
+	if s.descriptorSource != nil {
+		if snapshot, err := s.descriptorSource.Snapshot(); snapshot != nil {
+			w.Header().Set("X-Proto-Descriptor-Digest", snapshot.Digest)
+			w.Header().Set("X-Proto-Descriptor-Generation", strconv.FormatUint(snapshot.Generation, 10))
+			w.Header().Set("X-Proto-Descriptor-Loaded-At", snapshot.LoadedAt.Format(time.RFC3339Nano))
+			if reloadErr := s.descriptorSource.LastReloadError(); reloadErr != nil {
+				w.Header().Set("X-Proto-Descriptor-Reload-Error", reloadErr.Error())
+			}
+		} else if err != nil {
+			w.Header().Set("X-Proto-Descriptor-Reload-Error", err.Error())
+		}
+	}
+
+	buildIdentity := strings.TrimSpace(os.Getenv("VROOLI_BUILD_IDENTITY"))
 
 	stats, err := s.store.Stats(r.Context())
 	if err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
-			"status":    "unhealthy",
-			"service":   "vrooli-events",
-			"timestamp": now,
-			"readiness": false,
-			"error":     err.Error(),
+			"status":         "unhealthy",
+			"service":        "vrooli-events",
+			"timestamp":      now,
+			"readiness":      false,
+			"error":          err.Error(),
+			"build_identity": buildIdentity,
 		})
 		return
 	}
 
-	writeJSON(w, 0, map[string]any{
+	resp := map[string]any{
 		"status":      "healthy",
 		"service":     "vrooli-events",
 		"timestamp":   now,
@@ -372,7 +629,11 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 			"totalEvents":       stats.TotalEvents,
 			"totalPayloadBytes": stats.TotalPayloadBytes,
 		},
-	})
+	}
+	if buildIdentity != "" {
+		resp["build_identity"] = buildIdentity
+	}
+	writeJSON(w, 0, resp)
 }
 
 // orEmpty returns s if non-nil, otherwise an empty slice of the same type.

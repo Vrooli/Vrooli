@@ -36,7 +36,7 @@ func (s *Server) handleHookPromptSubmit(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	result := s.appendUserConversationEvent(req.UserPrompt, req.WebConsoleSessionID, "prompt_submit_hook")
+	result := s.AppendUser(req.UserPrompt, req.WebConsoleSessionID, "prompt_submit_hook")
 	log.Printf("hook-prompt-submit: session=%s appended=%v code=%s",
 		sanitizeID(req.WebConsoleSessionID), result.Appended, result.Code)
 

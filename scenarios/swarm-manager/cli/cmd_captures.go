@@ -2,15 +2,23 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
+	"net/textproto"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"connectrpc.com/connect"
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func (a *App) cmdCapturesList(args []string) error {
@@ -20,7 +28,7 @@ func (a *App) cmdCapturesList(args []string) error {
 		return err
 	}
 
-	body, err := a.getV1("/captures", nil)
+	body, err := a.core.Get("/captures", nil)
 	if err != nil {
 		return err
 	}
@@ -92,7 +100,14 @@ func (a *App) cmdCapturesCreate(args []string) error {
 		if err != nil {
 			return fmt.Errorf("open file %s: %w", filePath, err)
 		}
-		part, err := writer.CreateFormFile("files", filepath.Base(filePath))
+		header := make(textproto.MIMEHeader)
+		header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="files"; filename="%s"`, filepath.Base(filePath)))
+		contentType := mime.TypeByExtension(strings.ToLower(filepath.Ext(filePath)))
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+		header.Set("Content-Type", contentType)
+		part, err := writer.CreatePart(header)
 		if err != nil {
 			file.Close()
 			return fmt.Errorf("create form file: %w", err)
@@ -108,7 +123,7 @@ func (a *App) cmdCapturesCreate(args []string) error {
 		return fmt.Errorf("finalize multipart request: %w", err)
 	}
 
-	body, err := a.requestMultipartV1("POST", "/captures", formBody.Bytes(), writer.FormDataContentType())
+	body, err := a.requestMultipart("POST", "/captures", formBody.Bytes(), writer.FormDataContentType())
 	if err != nil {
 		return err
 	}
@@ -148,7 +163,7 @@ func (a *App) cmdCapturesGet(args []string) error {
 	}
 	id := strings.TrimSpace(*idFlag)
 
-	body, err := a.getV1("/captures/"+id, nil)
+	body, err := a.core.Get("/captures/"+id, nil)
 	if err != nil {
 		return err
 	}
@@ -207,7 +222,7 @@ func (a *App) cmdCapturesDelete(args []string) error {
 	}
 	id := strings.TrimSpace(*idFlag)
 
-	if _, err := a.requestV1("DELETE", "/captures/"+id, nil, nil); err != nil {
+	if _, err := a.core.Request("DELETE", "/captures/"+id, nil, nil); err != nil {
 		return err
 	}
 
@@ -227,36 +242,29 @@ func (a *App) cmdCapturesClassify(args []string) error {
 	}
 	id := strings.TrimSpace(*idFlag)
 
-	body, err := a.requestV1("POST", "/captures/"+id+"/classify", nil, nil)
+	h, base := cliapp.NewConnectHTTPClient(a.core)
+	response, err := apiconnect.NewTransitionServiceClient(h, base).StartTransition(context.Background(), connect.NewRequest(&apipb.StartTransitionRequest{
+		TransitionKey: "capture.classify",
+		SubjectRef:    &apipb.SubjectReference{Subject: "capture", Value: id},
+	}))
 	if err != nil {
 		return err
 	}
-	if printJSONIfRequested(*jsonOut, body) {
+	if *jsonOut {
+		payload, marshalErr := protojson.Marshal(response.Msg)
+		if marshalErr != nil {
+			return fmt.Errorf("encode transition response: %w", marshalErr)
+		}
+		cliutil.PrintJSON(payload)
 		return nil
-	}
-
-	type classifyResponse struct {
-		TaskID  string `json:"task_id"`
-		RunID   string `json:"run_id"`
-		BaseURL string `json:"base_url"`
-		Created string `json:"created"`
-	}
-	response, err := decodeResponse[classifyResponse](body)
-	if err != nil {
-		return err
 	}
 
 	printSection("Result")
 	fmt.Printf("  Classification triggered for capture: %s\n", id)
-	if response.RunID != "" {
-		fmt.Printf("  Run ID: %s\n", response.RunID)
-	}
-	if response.TaskID != "" {
-		fmt.Printf("  Task ID: %s\n", response.TaskID)
-	}
+	fmt.Printf("  Execution ID: %s\n", response.Msg.GetExecutionId())
 	printCommandListSection("Next Steps", []string{
 		cliCommand("captures", "get", "--id", id),
-		cliCommand("agent-manager", "run-get", "--id", response.RunID),
+		cliCommand("transitions", "apply", "--transition", "capture.classify", "--execution-id", response.Msg.GetExecutionId()),
 	})
 	return nil
 }

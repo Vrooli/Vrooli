@@ -1,0 +1,41 @@
+# image-tools Python backend dependencies — the GOVERNED, RANGED inputs.
+#
+# This is the source-of-intent for the per-scenario isolated venv. It is compiled
+# (uv pip compile --generate-hashes) into requirements.lock, which is the fully
+# pinned + hashed version SSOT that the venv is actually synced from. Edit ranges
+# HERE, then regenerate the lock (see internal/pydeps/README.md) — never edit
+# requirements.lock by hand.
+#
+# App-compatibility CEILINGS live here (not in the shared SDA governance ranges):
+#   transformers <5 — diffusers 0.38 loads SD/InstructPix2Pix checkpoints through
+#   the transformers 4.x CLIP layout (CLIPTextModel.text_model), which 5.x removed.
+#   >=4.49 keeps Qwen2.5-VL support (Qwen-Image-Edit-2509). The SDA governance
+#   range (>=4.41) carries only the security/license posture.
+#
+# SCOPE: the proven, runnable Python backends only —
+#   * diffusers generative/edit stack: instruct-pix2pix, qwen-image-edit,
+#     sd-1.5-inpainting (edit_instruct / inpaint / outpaint / background_replace),
+#     plus the conditioning/adapter layer (LoRA / ControlNet / IP-Adapter) which
+#     loads adapter weights through diffusers' PEFT backend (peft);
+#   * ONNX Runtime inference stack: denoise/deblur/segment/detect/tagging/
+#     embedding/colorize and the other CPU-floor onnx ops.
+# The basicsr/facexlib RestoreFormer++ face-restore path is intentionally EXCLUDED:
+# its execution adapter is gated (sidecar restore.py refuses to run pending the
+# restoration golden path), and its old basicsr/facexlib stack would pin torch/
+# torchvision down for the whole env. It is added — and proven — when that vertical
+# lands, not before.
+
+# --- diffusers generative / edit stack ---
+torch>=2.4
+torchvision>=0.19
+diffusers>=0.36,<0.40
+transformers>=4.49,<5
+accelerate>=0.30
+peft>=0.11
+huggingface_hub>=0.24
+safetensors>=0.4
+Pillow>=9
+
+# --- ONNX Runtime inference stack ---
+onnxruntime>=1.17
+numpy>=1.26

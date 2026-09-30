@@ -9,7 +9,7 @@
  * - Use config values from the control surface for tunability
  * - Keep query utilities pure and testable
  *
- * DOC: docs/internal/UTILS_UNIFICATION_NOTES.md
+ * DOC: docs/internal/SEAMS.md#shared-ui-and-test-utility-boundaries
  */
 
 import { dataFetchingConfig } from "../config";

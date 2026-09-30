@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package vrooli.template_manager.v1.validation;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/validation;validation_v1";
+
+// ValidationRunService exposes persisted template validation and drift history.
+service ValidationRunService {
+  rpc RunTemplateValidation(RunTemplateValidationRequest) returns (RunTemplateValidationResponse);
+  rpc ListValidationRuns(ListValidationRunsRequest) returns (ListValidationRunsResponse);
+  rpc GetValidationRun(GetValidationRunRequest) returns (GetValidationRunResponse);
+  rpc RecordFleetDrift(RecordFleetDriftRequest) returns (RecordFleetDriftResponse);
+  rpc ListDriftSnapshots(ListDriftSnapshotsRequest) returns (ListDriftSnapshotsResponse);
+}
+
+enum ValidationMode {
+  VALIDATION_MODE_UNSPECIFIED = 0;
+  VALIDATION_MODE_SHALLOW = 1;
+  VALIDATION_MODE_DEEP = 2;
+  VALIDATION_MODE_DRIFT = 3;
+}
+
+message ValidationRun {
+  string id = 1;
+  string template_id = 2;
+  ValidationMode mode = 3;
+  string target = 4;
+  string status = 5;
+  google.protobuf.Timestamp started_at = 6;
+  google.protobuf.Timestamp finished_at = 7;
+  repeated PhaseResult phase_results = 8;
+  repeated ValidationFinding findings = 9;
+  string trigger = 10;
+}
+
+message PhaseResult {
+  string phase = 1;
+  string status = 2;
+  int32 finding_count = 3;
+}
+
+message ValidationFinding {
+  string key = 1;
+  string severity = 2;
+  string summary = 3;
+  string source = 4;
+}
+
+message DriftSnapshot {
+  string id = 1;
+  string template_id = 2;
+  string target = 3;
+  string status = 4;
+  int32 drift_count = 5;
+  google.protobuf.Timestamp captured_at = 6;
+}
+
+message ListValidationRunsRequest {
+  string template_id = 1;
+}
+
+message ListValidationRunsResponse {
+  repeated ValidationRun runs = 1;
+}
+
+message GetValidationRunRequest {
+  string id = 1;
+}
+
+message GetValidationRunResponse {
+  ValidationRun run = 1;
+}
+
+message ListDriftSnapshotsRequest {
+  string template_id = 1;
+}
+
+message ListDriftSnapshotsResponse {
+  repeated DriftSnapshot snapshots = 1;
+}
+
+message RunTemplateValidationRequest {
+  string template_id = 1;
+  ValidationMode mode = 2;
+}
+
+message RunTemplateValidationResponse {
+  ValidationRun run = 1;
+}
+
+message RecordFleetDriftRequest {}
+
+message RecordFleetDriftResponse {
+  DriftSnapshot snapshot = 1;
+}

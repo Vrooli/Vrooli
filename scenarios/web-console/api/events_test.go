@@ -1,78 +1,116 @@
 package main
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
+	"context"
 	"testing"
+	"time"
+
+	"web-console/internal/events"
+
+	"connectrpc.com/connect"
+
+	eventsH "web-console/handlers/events"
+
+	eventsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/events"
 )
+
+// callEventsList invokes the EventsService.List Connect RPC directly
+// against the supplied event logger. Lives here in the test file so we
+// keep production code clean — the handler is the public boundary, the
+// test is just an adapter.
+func callEventsList(el *events.Logger, limit int32) (*eventsv1.ListResponse, error) {
+	h := eventsH.NewConnectHandler(eventsH.Deps{Service: testEventsService{el: el}})
+	resp, err := h.List(context.Background(), connect.NewRequest(&eventsv1.ListRequest{Limit: limit}))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
+}
+
+type testEventsService struct{ el *events.Logger }
+
+func (s testEventsService) Recent(_ context.Context, limit int) []eventsH.Event {
+	in := s.el.Recent(limit)
+	out := make([]eventsH.Event, len(in))
+	for i, e := range in {
+		out[i] = eventsH.Event{
+			Type:      e.Type,
+			SessionID: e.SessionID,
+			Timestamp: e.Timestamp.UTC().Format(time.RFC3339Nano),
+			Details:   e.Details,
+		}
+	}
+	return out
+}
+
+func (s testEventsService) Count(_ context.Context) int { return s.el.Count() }
 
 // [REQ:P1-004a] Structured Event Logging - event logger tests
 
 func TestEventLogger_EmitAndRecent(t *testing.T) {
-	el := NewEventLogger(100)
+	el := events.NewLogger(100)
 
-	el.Emit(EventSessionCreated, "sess-1", map[string]string{"shell": "/bin/bash"})
-	el.Emit(EventSessionConnected, "sess-1", nil)
-	el.Emit(EventSessionDisconnected, "sess-1", nil)
+	el.Emit(events.SessionCreated, "sess-1", map[string]string{"shell": "/bin/bash"})
+	el.Emit(events.SessionConnected, "sess-1", nil)
+	el.Emit(events.SessionDisconnected, "sess-1", nil)
 
-	events := el.Recent(10)
-	if len(events) != 3 {
-		t.Fatalf("expected 3 events, got %d", len(events))
+	evts := el.Recent(10)
+	if len(evts) != 3 {
+		t.Fatalf("expected 3 events, got %d", len(evts))
 	}
 
-	if events[0].Type != EventSessionCreated {
-		t.Errorf("expected first event type %q, got %q", EventSessionCreated, events[0].Type)
+	if evts[0].Type != events.SessionCreated {
+		t.Errorf("expected first event type %q, got %q", events.SessionCreated, evts[0].Type)
 	}
-	if events[0].SessionID != "sess-1" {
-		t.Errorf("expected session ID %q, got %q", "sess-1", events[0].SessionID)
+	if evts[0].SessionID != "sess-1" {
+		t.Errorf("expected session ID %q, got %q", "sess-1", evts[0].SessionID)
 	}
-	if events[0].Details["shell"] != "/bin/bash" {
-		t.Errorf("expected detail shell=/bin/bash, got %q", events[0].Details["shell"])
+	if evts[0].Details["shell"] != "/bin/bash" {
+		t.Errorf("expected detail shell=/bin/bash, got %q", evts[0].Details["shell"])
 	}
-	if events[1].Type != EventSessionConnected {
-		t.Errorf("expected second event type %q, got %q", EventSessionConnected, events[1].Type)
+	if evts[1].Type != events.SessionConnected {
+		t.Errorf("expected second event type %q, got %q", events.SessionConnected, evts[1].Type)
 	}
-	if events[2].Type != EventSessionDisconnected {
-		t.Errorf("expected third event type %q, got %q", EventSessionDisconnected, events[2].Type)
+	if evts[2].Type != events.SessionDisconnected {
+		t.Errorf("expected third event type %q, got %q", events.SessionDisconnected, evts[2].Type)
 	}
 }
 
 func TestEventLogger_RecentLimitsOutput(t *testing.T) {
-	el := NewEventLogger(100)
+	el := events.NewLogger(100)
 
 	for i := 0; i < 5; i++ {
-		el.Emit(EventSessionCreated, "sess", nil)
+		el.Emit(events.SessionCreated, "sess", nil)
 	}
 
-	events := el.Recent(3)
-	if len(events) != 3 {
-		t.Fatalf("expected 3 events, got %d", len(events))
+	evts := el.Recent(3)
+	if len(evts) != 3 {
+		t.Fatalf("expected 3 events, got %d", len(evts))
 	}
 }
 
 func TestEventLogger_BoundedHistory(t *testing.T) {
-	el := NewEventLogger(3) // Small buffer
+	el := events.NewLogger(3) // Small buffer
 
 	for i := 0; i < 10; i++ {
-		el.Emit(EventSessionCreated, "sess", nil)
+		el.Emit(events.SessionCreated, "sess", nil)
 	}
 
-	events := el.Recent(0)
-	if len(events) != 3 {
-		t.Fatalf("expected history capped at 3, got %d", len(events))
+	evts := el.Recent(0)
+	if len(evts) != 3 {
+		t.Fatalf("expected history capped at 3, got %d", len(evts))
 	}
 }
 
 func TestEventLogger_Count(t *testing.T) {
-	el := NewEventLogger(100)
+	el := events.NewLogger(100)
 
 	if el.Count() != 0 {
 		t.Fatalf("expected 0 events initially, got %d", el.Count())
 	}
 
-	el.Emit(EventSessionCreated, "s1", nil)
-	el.Emit(EventSessionDeleted, "s1", nil)
+	el.Emit(events.SessionCreated, "s1", nil)
+	el.Emit(events.SessionDeleted, "s1", nil)
 
 	if el.Count() != 2 {
 		t.Fatalf("expected 2 events, got %d", el.Count())
@@ -80,25 +118,25 @@ func TestEventLogger_Count(t *testing.T) {
 }
 
 func TestEventLogger_AllEventTypes(t *testing.T) {
-	el := NewEventLogger(100)
+	el := events.NewLogger(100)
 
 	types := []string{
-		EventSessionCreated,
-		EventSessionConnected,
-		EventSessionDisconnected,
-		EventSessionTerminated,
-		EventSessionDeleted,
-		EventPaneResized,
+		events.SessionCreated,
+		events.SessionConnected,
+		events.SessionDisconnected,
+		events.SessionTerminated,
+		events.SessionDeleted,
+		events.PaneResized,
 	}
 	for _, et := range types {
 		el.Emit(et, "sess", nil)
 	}
 
-	events := el.Recent(0)
-	if len(events) != len(types) {
-		t.Fatalf("expected %d events, got %d", len(types), len(events))
+	evts := el.Recent(0)
+	if len(evts) != len(types) {
+		t.Fatalf("expected %d events, got %d", len(types), len(evts))
 	}
-	for i, evt := range events {
+	for i, evt := range evts {
 		if evt.Type != types[i] {
 			t.Errorf("event[%d]: expected type %q, got %q", i, types[i], evt.Type)
 		}
@@ -109,56 +147,46 @@ func TestEventLogger_AllEventTypes(t *testing.T) {
 }
 
 func TestEventLogger_NilDetails(t *testing.T) {
-	el := NewEventLogger(100)
-	el.Emit(EventSessionCreated, "s1", nil)
+	el := events.NewLogger(100)
+	el.Emit(events.SessionCreated, "s1", nil)
 
-	events := el.Recent(1)
-	if len(events) != 1 {
+	evts := el.Recent(1)
+	if len(evts) != 1 {
 		t.Fatal("expected 1 event")
 	}
-	if events[0].Details != nil {
+	if evts[0].Details != nil {
 		t.Error("expected nil details for event emitted with nil details")
 	}
 }
 
-// [REQ:P1-004a] EventSessionPolicyUpdate constant is used instead of inline string
+// [REQ:P1-004a] events.SessionPolicyUpdate constant is used instead of inline string
 func TestEventLogger_PolicyUpdateConstant(t *testing.T) {
-	if EventSessionPolicyUpdate != "session.policy_updated" {
-		t.Errorf("expected %q, got %q", "session.policy_updated", EventSessionPolicyUpdate)
+	if events.SessionPolicyUpdate != "session.policy_updated" {
+		t.Errorf("expected %q, got %q", "session.policy_updated", events.SessionPolicyUpdate)
 	}
 
-	el := NewEventLogger(100)
-	el.Emit(EventSessionPolicyUpdate, "s1", map[string]string{"mode": "preset", "duration": "1h"})
+	el := events.NewLogger(100)
+	el.Emit(events.SessionPolicyUpdate, "s1", map[string]string{"mode": "preset", "duration": "1h"})
 
-	events := el.Recent(1)
-	if len(events) != 1 {
+	evts := el.Recent(1)
+	if len(evts) != 1 {
 		t.Fatal("expected 1 event")
 	}
-	if events[0].Type != EventSessionPolicyUpdate {
-		t.Errorf("expected type %q, got %q", EventSessionPolicyUpdate, events[0].Type)
+	if evts[0].Type != events.SessionPolicyUpdate {
+		t.Errorf("expected type %q, got %q", events.SessionPolicyUpdate, evts[0].Type)
 	}
 }
 
-// [REQ:P1-004a] GET /api/v1/events returns recent events
-func TestHandleEvents_ReturnsRecentEvents(t *testing.T) {
-	events := NewEventLogger(100)
-	events.Emit(EventSessionCreated, "s1", map[string]string{"shell": "/bin/bash"})
-	events.Emit(EventSessionConnected, "s1", nil)
-	events.Emit(EventSessionDeleted, "s1", nil)
+// [REQ:P1-004a] EventsService.List returns recent events
+func TestEventsService_List_ReturnsRecentEvents(t *testing.T) {
+	el := events.NewLogger(100)
+	el.Emit(events.SessionCreated, "s1", map[string]string{"shell": "/bin/bash"})
+	el.Emit(events.SessionConnected, "s1", nil)
+	el.Emit(events.SessionDeleted, "s1", nil)
 
-	srv := &Server{events: events}
-	req := httptest.NewRequest("GET", "/api/v1/events", nil)
-	w := httptest.NewRecorder()
-
-	srv.handleEvents(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", w.Code)
-	}
-
-	var resp EventsResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode failed: %v", err)
+	resp, err := callEventsList(el, 0)
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
 	}
 	if len(resp.Events) != 3 {
 		t.Fatalf("expected 3 events, got %d", len(resp.Events))
@@ -168,58 +196,44 @@ func TestHandleEvents_ReturnsRecentEvents(t *testing.T) {
 	}
 }
 
-// [REQ:P1-004a] GET /api/v1/events?limit=invalid falls back to default 50
-func TestHandleEvents_InvalidLimitFallback(t *testing.T) {
-	events := NewEventLogger(100)
+// [REQ:P1-004a] EventsService.List with limit<=0 falls back to default 50
+func TestEventsService_List_DefaultLimit(t *testing.T) {
+	el := events.NewLogger(100)
 	for i := 0; i < 5; i++ {
-		events.Emit(EventSessionCreated, "s", nil)
+		el.Emit(events.SessionCreated, "s", nil)
 	}
 
-	srv := &Server{events: events}
-
-	// Negative limit should be ignored, returning default (50, capped to actual count)
-	req := httptest.NewRequest("GET", "/api/v1/events?limit=-1", nil)
-	w := httptest.NewRecorder()
-	srv.handleEvents(w, req)
-
-	var resp EventsResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode failed: %v", err)
+	resp, err := callEventsList(el, -1)
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
 	}
-	// Default 50, but only 5 events exist
 	if len(resp.Events) != 5 {
-		t.Fatalf("expected 5 events with invalid limit, got %d", len(resp.Events))
+		t.Fatalf("expected 5 events with negative limit, got %d", len(resp.Events))
 	}
 
-	// Non-numeric limit should also fall back
-	req2 := httptest.NewRequest("GET", "/api/v1/events?limit=abc", nil)
-	w2 := httptest.NewRecorder()
-	srv.handleEvents(w2, req2)
-
-	var resp2 EventsResponse
-	if err := json.NewDecoder(w2.Body).Decode(&resp2); err != nil {
-		t.Fatalf("decode failed: %v", err)
+	resp2, err := callEventsList(el, 0)
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
 	}
 	if len(resp2.Events) != 5 {
-		t.Fatalf("expected 5 events with non-numeric limit, got %d", len(resp2.Events))
+		t.Fatalf("expected 5 events with zero limit, got %d", len(resp2.Events))
 	}
 }
 
 // [REQ:P1-004a] Subscriber receives emitted events in real time
 func TestEventLogger_SubscriberNotification(t *testing.T) {
-	el := NewEventLogger(100)
+	el := events.NewLogger(100)
 
-	ch := make(chan Event, 10)
-	el.mu.Lock()
-	el.subscribers = append(el.subscribers, ch)
-	el.mu.Unlock()
+	ch := make(chan events.Event, 10)
+	unsub := el.Subscribe(ch)
+	defer unsub()
 
-	el.Emit(EventSessionCreated, "sub-test", map[string]string{"source": "test"})
+	el.Emit(events.SessionCreated, "sub-test", map[string]string{"source": "test"})
 
 	select {
 	case evt := <-ch:
-		if evt.Type != EventSessionCreated {
-			t.Errorf("expected type %q, got %q", EventSessionCreated, evt.Type)
+		if evt.Type != events.SessionCreated {
+			t.Errorf("expected type %q, got %q", events.SessionCreated, evt.Type)
 		}
 		if evt.SessionID != "sub-test" {
 			t.Errorf("expected session ID %q, got %q", "sub-test", evt.SessionID)
@@ -232,22 +246,16 @@ func TestEventLogger_SubscriberNotification(t *testing.T) {
 	}
 }
 
-// [REQ:P1-004a] GET /api/v1/events?limit=9999 is capped at 1000
-func TestHandleEvents_LimitCappedAt1000(t *testing.T) {
-	events := NewEventLogger(2000)
+// [REQ:P1-004a] EventsService.List caps limit at 1000
+func TestEventsService_List_LimitCappedAt1000(t *testing.T) {
+	el := events.NewLogger(2000)
 	for i := 0; i < 1500; i++ {
-		events.Emit(EventSessionCreated, "s", nil)
+		el.Emit(events.SessionCreated, "s", nil)
 	}
 
-	srv := &Server{events: events}
-	req := httptest.NewRequest("GET", "/api/v1/events?limit=9999", nil)
-	w := httptest.NewRecorder()
-
-	srv.handleEvents(w, req)
-
-	var resp EventsResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode failed: %v", err)
+	resp, err := callEventsList(el, 9999)
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
 	}
 	if len(resp.Events) != 1000 {
 		t.Errorf("expected events capped at 1000, got %d", len(resp.Events))
@@ -257,22 +265,16 @@ func TestHandleEvents_LimitCappedAt1000(t *testing.T) {
 	}
 }
 
-// [REQ:P1-004a] GET /api/v1/events?limit=N respects limit
-func TestHandleEvents_RespectsLimit(t *testing.T) {
-	events := NewEventLogger(100)
+// [REQ:P1-004a] EventsService.List respects caller-supplied limit
+func TestEventsService_List_RespectsLimit(t *testing.T) {
+	el := events.NewLogger(100)
 	for i := 0; i < 10; i++ {
-		events.Emit(EventSessionCreated, "s", nil)
+		el.Emit(events.SessionCreated, "s", nil)
 	}
 
-	srv := &Server{events: events}
-	req := httptest.NewRequest("GET", "/api/v1/events?limit=3", nil)
-	w := httptest.NewRecorder()
-
-	srv.handleEvents(w, req)
-
-	var resp EventsResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode failed: %v", err)
+	resp, err := callEventsList(el, 3)
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
 	}
 	if len(resp.Events) != 3 {
 		t.Fatalf("expected 3 events, got %d", len(resp.Events))

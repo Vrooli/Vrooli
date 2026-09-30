@@ -38,7 +38,7 @@ describe('useResizableSidebar', () => {
       const { result } = renderHook(() => useResizableSidebar())
 
       expect(result.current.width).toBe(280) // default width
-      expect(result.current.isResizing).toBe(false)
+      expect(result.current.panelRef).toBeDefined()
     })
 
     it('should use custom default width when provided', () => {

@@ -4,17 +4,39 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
+	"github.com/santhosh-tekuri/jsonschema/v5"
 	"github.com/sirupsen/logrus"
 )
 
-const defaultOllamaModel = "llama3.2"
+const defaultOllamaRole = "chat.small"
+
+// The provider and parser enforce the same contract. Array responses are wrapped
+// at the parser boundary to retain the previously supported response shape.
+// Optional text may be absent or null; both decode to the existing empty string.
+// Required fields remain non-null and are never synthesized from invalid output.
+const suggestionResponseSchema = `{
+ "type":"object", "required":["suggestions"], "additionalProperties":false,
+ "properties":{"suggestions":{"type":"array","items":{
+  "type":"object", "required":["action","confidence","category"],
+  "additionalProperties":false,
+  "properties":{
+   "action":{"type":"string","pattern":"^[\\s\\S]*\\S[\\s\\S]*$"},
+   "description":{"type":["string","null"]}, "elementText":{"type":["string","null"]},
+   "selector":{"type":["string","null"]}, "reasoning":{"type":["string","null"]},
+   "confidence":{"type":"number","minimum":0,"maximum":1},
+   "category":{"type":"string","enum":["authentication","navigation","data-entry","actions","content"]}
+  }
+ }}}
+}`
+
+var compiledSuggestionSchema = jsonschema.MustCompileString("bas-suggestions.json", suggestionResponseSchema)
 
 // ollamaSuggestionGenerator handles AI-powered workflow suggestions using Ollama.
 type ollamaSuggestionGenerator struct {
-	log    *logrus.Logger
 	client OllamaClient
-	model  string
+	role   string
 }
 
 // OllamaSuggestionOption configures the ollamaSuggestionGenerator.
@@ -27,18 +49,17 @@ func WithOllamaClient(client OllamaClient) OllamaSuggestionOption {
 	}
 }
 
-// WithOllamaModel sets the Ollama model to use.
-func WithOllamaModel(model string) OllamaSuggestionOption {
+// WithOllamaRole sets the Ollama role to use.
+func WithOllamaRole(role string) OllamaSuggestionOption {
 	return func(g *ollamaSuggestionGenerator) {
-		g.model = model
+		g.role = role
 	}
 }
 
 // newOllamaSuggestionGenerator creates a new Ollama suggestion generator.
 func newOllamaSuggestionGenerator(log *logrus.Logger, opts ...OllamaSuggestionOption) *ollamaSuggestionGenerator {
 	generator := &ollamaSuggestionGenerator{
-		log:   log,
-		model: defaultOllamaModel,
+		role: defaultOllamaRole,
 	}
 
 	// Apply options first
@@ -57,27 +78,36 @@ func newOllamaSuggestionGenerator(log *logrus.Logger, opts ...OllamaSuggestionOp
 // generateAISuggestions uses Ollama to generate intelligent automation suggestions
 // based on page elements and context.
 func (g *ollamaSuggestionGenerator) generateAISuggestions(ctx context.Context, elements []ElementInfo, pageContext PageContext) ([]AISuggestion, error) {
+	if len(elements) == 0 {
+		return []AISuggestion{}, nil
+	}
 	// Build prompt for Ollama
 	prompt := g.buildElementAnalysisPrompt(elements, pageContext)
 
 	// Query Ollama via the client interface
-	response, err := g.client.Query(ctx, g.model, prompt)
+	suggestionsPayload, err := g.client.Query(ctx, g.role, prompt, suggestionResponseSchema)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call ollama: %w", err)
 	}
 
-	// Parse the response
-	var ollamaResponse struct {
+	payload := strings.TrimSpace(suggestionsPayload)
+	if strings.HasPrefix(payload, "[") {
+		payload = `{"suggestions":` + payload + `}`
+	}
+	var value any
+	if err := json.Unmarshal([]byte(payload), &value); err != nil {
+		return nil, fmt.Errorf("decode Ollama suggestions: %w", err)
+	}
+	if err := compiledSuggestionSchema.Validate(value); err != nil {
+		return nil, fmt.Errorf("invalid Ollama suggestions: %w", err)
+	}
+	var response struct {
 		Suggestions []AISuggestion `json:"suggestions"`
 	}
-
-	if err := json.Unmarshal([]byte(response), &ollamaResponse); err != nil {
-		// If JSON parsing fails, try to extract from the raw response
-		g.log.WithError(err).Warn("Failed to parse Ollama JSON response, trying fallback parsing")
-		return g.parseOllamaFallback(response)
+	if err := json.Unmarshal([]byte(payload), &response); err != nil {
+		return nil, fmt.Errorf("decode validated Ollama suggestions: %w", err)
 	}
-
-	return ollamaResponse.Suggestions, nil
+	return response.Suggestions, nil
 }
 
 // buildElementAnalysisPrompt creates a structured prompt for element analysis.
@@ -124,13 +154,4 @@ Focus on:
 5. Prefer robust selectors (ID > data attributes > semantic classes)
 
 Return only valid JSON without additional text.`, string(contextJSON), string(elementsJSON))
-}
-
-// parseOllamaFallback attempts to extract suggestions from malformed Ollama response.
-func (g *ollamaSuggestionGenerator) parseOllamaFallback(response string) ([]AISuggestion, error) {
-	g.log.WithField("response", response).Debug("Attempting fallback parsing of Ollama response")
-
-	// For now, return empty suggestions if we can't parse
-	// In a real implementation, you might try regex extraction or other parsing strategies
-	return []AISuggestion{}, nil
 }

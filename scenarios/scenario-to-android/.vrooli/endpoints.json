@@ -1,0 +1,184 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.scenario_to_android.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.scenario_to_android.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "capabilities_describe",
+      "path": "/api/v1/capabilities/describe",
+      "method": "GET",
+      "summary": "Describe declared scenario dependencies and their current recovery actions.",
+      "description": "",
+      "category": "capabilities",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operational capability inventory is a plain JSON probe for lifecycle tooling.",
+        "proto_payloads": {
+          "request": { "transport": "none", "conformance": "none" },
+          "response": { "transport": "json", "conformance": "external_shape" },
+          "error": { "transport": "json", "conformance": "external_shape" }
+        }
+      }
+    },
+    {
+      "id": "android_targets",
+      "path": "/api/v1/android/targets",
+      "method": "GET",
+      "summary": "Probe local and device-control Android targets",
+      "description": "",
+      "category": "ramp",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint.",
+        "proto_payloads": {
+          "request": { "transport": "none", "conformance": "none" },
+          "response": { "transport": "json", "conformance": "external_shape" },
+          "error": { "transport": "json", "conformance": "external_shape" }
+        }
+      }
+    },
+    {
+      "id": "android_conformance_plan",
+      "path": "/api/v1/android/conformance-plan",
+      "method": "GET",
+      "summary": "Show the generated-app Android conformance contract",
+      "description": "",
+      "category": "ramp",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint.",
+        "proto_payloads": {
+          "request": { "transport": "none", "conformance": "none" },
+          "response": { "transport": "json", "conformance": "external_shape" },
+          "error": { "transport": "json", "conformance": "external_shape" }
+        }
+      }
+    },
+    {
+      "id": "android_readiness",
+      "path": "/api/v1/android/readiness",
+      "method": "GET",
+      "summary": "Show Google Android release readiness rungs",
+      "description": "",
+      "category": "ramp",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint.",
+        "proto_payloads": {
+          "request": { "transport": "none", "conformance": "none" },
+          "response": { "transport": "json", "conformance": "external_shape" },
+          "error": { "transport": "json", "conformance": "external_shape" }
+        }
+      }
+    },
+    {
+      "id": "android_distribution",
+      "path": "/api/v1/android/distribution",
+      "method": "GET",
+      "summary": "Show independent Android distribution channels",
+      "description": "",
+      "category": "ramp",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint.",
+        "proto_payloads": {
+          "request": { "transport": "none", "conformance": "none" },
+          "response": { "transport": "json", "conformance": "external_shape" },
+          "error": { "transport": "json", "conformance": "external_shape" }
+        }
+      }
+    },
+    {
+      "id": "android_generate",
+      "path": "/api/v1/android/generate",
+      "method": "POST",
+      "summary": "Render a generated Android project without building artifacts",
+      "description": "",
+      "category": "ramp",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator generation control surface accepts a JSON request and returns a generated-project descriptor.",
+        "proto_payloads": {
+          "request": { "transport": "json", "conformance": "external_shape" },
+          "response": { "transport": "json", "conformance": "external_shape" },
+          "error": { "transport": "json", "conformance": "external_shape" }
+        }
+      }
+    },
+    {
+      "id": "android_build",
+      "path": "/api/v1/android/build",
+      "method": "POST",
+      "summary": "Build a debug APK and AAB from a scenario web bundle",
+      "description": "",
+      "category": "ramp",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator build control surface accepts a JSON request and returns an immutable artifact descriptor.",
+        "proto_payloads": {
+          "request": { "transport": "json", "conformance": "external_shape" },
+          "response": { "transport": "json", "conformance": "external_shape" },
+          "error": { "transport": "json", "conformance": "external_shape" }
+        }
+      }
+    },
+    {
+      "id": "android_signing_provision",
+      "path": "/api/v1/android/signing/provision",
+      "method": "POST",
+      "summary": "Generate and store the Android upload key through secrets-manager",
+      "description": "",
+      "category": "ramp",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Provisioning returns metadata only; key material is never returned.",
+        "proto_payloads": {
+          "request": { "transport": "json", "conformance": "external_shape" },
+          "response": { "transport": "json", "conformance": "external_shape" },
+          "error": { "transport": "json", "conformance": "external_shape" }
+        }
+      }
+    }
+  ]
+}

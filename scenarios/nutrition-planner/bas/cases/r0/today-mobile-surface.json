@@ -1,0 +1,40 @@
+{
+  "metadata": {
+    "name": "nutrition-planner-today-mobile-surface",
+    "description": "Open Today at a narrow viewport and verify the honest full-day surface renders.",
+    "requirement": "ACT-022",
+    "version": "1",
+    "labels": { "reset": "none", "surface": "today", "viewport": "mobile" },
+    "execution_mode": "observer"
+  },
+  "settings": { "viewport_width": 390, "viewport_height": 844 },
+  "nodes": [
+    {
+      "id": "open-today",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "nutrition-planner",
+          "scenario_path": "/today",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open Today" }
+      }
+    },
+    {
+      "id": "assert-today",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.today",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "Today heading did not render at mobile width"
+        },
+        "metadata": { "label": "Today surface is visible" }
+      }
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "program": {
+    "id": "prog_499a4bdb-473d-4ee0-9777-906ab286ba54",
+    "session_id": "sess_dea841b5-b2c8-41da-b746-927f2b829fa1",
+    "provenance": "PROVENANCE_OPERATOR",
+    "status": "PROGRAM_STATUS_SUCCEEDED",
+    "stdout": "{\"errors\": [], \"evidence\": [\"agent-manager:workflow-execution/10d8bc44-12ed-458e-9f7c-da8c2dda027f\"], \"phase\": \"report\", \"program\": \"web-search.record-attempt\", \"signals\": {\"contributing_finding_ids\": [], \"entry_id\": \"649cb168-9105-4871-a046-c9d5942985dd\", \"existing\": false, \"quality\": {}}, \"status\": \"ok\", \"version\": \"1\"}\n",
+    "context_bytes": "324",
+    "created_at": "2026-09-05T07:23:02.123037839Z",
+    "output_limit_bytes": "65536",
+    "agent_bytes": "324",
+    "completed_at": "2026-09-05T07:23:03.175747637Z",
+    "wall_time_millis": "1050",
+    "cpu_time_millis": "60",
+    "library_version": "batch-inference@1,concurrent-fanout@1,delegated-run@1,failure-triage@1,fleet-fanout@1,handle-shaping@1,morning-vision-walk-prep@5,probe@1,registry-sweep@1,typed-inference@1"
+  },
+  "terminal": true,
+  "waited_millis": "1085"
+}

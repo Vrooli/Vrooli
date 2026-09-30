@@ -1,0 +1,341 @@
+package agentsessions
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"testing"
+
+	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/sourceledger"
+)
+
+// The session prompt exists to be cached. Two sessions of the same kind must
+// share every stable band byte-for-byte, and the shared prefix must be long
+// enough to be worth caching. The defect these tests guard against: the session
+// ID was emitted third, above every stable instruction, so no two sessions
+// shared a prefix beyond roughly forty bytes.
+
+func promptForSession(id string, kind Kind, message string) string {
+	return buildInitialPrompt(
+		Session{ID: id, Kind: kind, SkillID: skillIDForKind(kind)},
+		Message{Content: message},
+		nil,
+	)
+}
+
+func sharedPrefixLen(a, b string) int {
+	limit := len(a)
+	if len(b) < limit {
+		limit = len(b)
+	}
+	for i := 0; i < limit; i++ {
+		if a[i] != b[i] {
+			return i
+		}
+	}
+	return limit
+}
+
+func TestInitialPromptSharesStablePrefixAcrossSessionsOfOneKind(t *testing.T) {
+	for _, kind := range []Kind{KindMetaOrchestration, KindSwarmOperations, KindWorkflowAuthoring} {
+		t.Run(string(kind), func(t *testing.T) {
+			first := promptForSession("sess_aaaaaaaaaaaaaaaa", kind, "What should I do?")
+			second := promptForSession("sess_bbbbbbbbbbbbbbbb", kind, "Something else entirely.")
+
+			shared := sharedPrefixLen(first, second)
+			// The universal doctrine plus the kind band are both stable, so the
+			// shared prefix must cover them. A regression that promotes any
+			// volatile value above them shows up here as a collapsed prefix.
+			wantAtLeast := len(sessionDoctrine)
+			if shared < wantAtLeast {
+				t.Fatalf("shared prefix = %d bytes, want >= %d (the universal doctrine must be identical and first)\n--- first ---\n%s", shared, wantAtLeast, first)
+			}
+			if !strings.Contains(first[:shared], subjectForKind(kind)) {
+				t.Fatalf("kind band fell outside the shared prefix for %s; shared prefix:\n%s", kind, first[:shared])
+			}
+		})
+	}
+}
+
+func TestPromptStructureStableBandsDoNotTellTheAgentToRunSearch(t *testing.T) {
+	for _, kind := range []Kind{KindMetaOrchestration, KindSwarmOperations, KindWorkflowAuthoring} {
+		band := sessionDoctrine + "\n" + kindBand(Session{Kind: kind, SkillID: skillIDForKind(kind)})
+		for _, forbidden := range []string{"search-hub", "run a search", "Nothing writes automatically"} {
+			if strings.Contains(band, forbidden) {
+				t.Errorf("%s stable band contains retired instruction %q:\n%s", kind, forbidden, band)
+			}
+		}
+	}
+}
+
+func TestPromptStructureEveryKindBandNamesTerminalArtifacts(t *testing.T) {
+	tests := map[Kind][]string{
+		KindMetaOrchestration: {"accepted goal, milestone, or backlog proposal", "rejected or deferred disposition", "no-change recommendation"},
+		KindSwarmOperations:   {"applied registered transition", "explicit keep or leave-alone decision", "no-change recommendation"},
+		KindWorkflowAuthoring: {"accepted workflow mutation", "reviewed design record", "no-change recommendation"},
+	}
+	for kind, artifacts := range tests {
+		band := subjectForKind(kind)
+		for _, artifact := range artifacts {
+			if !strings.Contains(band, artifact) {
+				t.Errorf("%s kind band does not name terminal artifact %q:\n%s", kind, artifact, band)
+			}
+		}
+	}
+}
+
+func TestInitialPromptEmitsVolatileIdentityBelowStableBands(t *testing.T) {
+	prompt := promptForSession("sess_cafebabecafebabe", KindMetaOrchestration, "Plan this.")
+
+	doctrineAt := strings.Index(prompt, "<session-doctrine>")
+	kindAt := strings.Index(prompt, "<session-kind")
+	identityAt := strings.Index(prompt, "<session-identity>")
+	messageAt := strings.Index(prompt, "<operator-message>")
+
+	if doctrineAt < 0 || kindAt < 0 || identityAt < 0 || messageAt < 0 {
+		t.Fatalf("prompt is missing a required section:\n%s", prompt)
+	}
+	if !(doctrineAt < kindAt && kindAt < identityAt && identityAt < messageAt) {
+		t.Fatalf("sections are out of volatility order (doctrine=%d kind=%d identity=%d message=%d):\n%s", doctrineAt, kindAt, identityAt, messageAt, prompt)
+	}
+	if strings.Index(prompt, "sess_cafebabecafebabe") < doctrineAt {
+		t.Fatalf("the session ID appeared above the universal doctrine, which collapses the cacheable prefix:\n%s", prompt)
+	}
+}
+
+func TestInitialPromptKeepsTheOperatorMessageOutsideTheContextBlock(t *testing.T) {
+	prompt := promptForSession("sess_0123456789abcdef", KindSwarmOperations, "Which item matters most?")
+
+	closeAt := strings.Index(prompt, "</context>")
+	messageAt := strings.Index(prompt, "<operator-message>")
+	if closeAt < 0 || messageAt < 0 {
+		t.Fatalf("prompt is missing the context block or the operator message:\n%s", prompt)
+	}
+	if closeAt > messageAt {
+		t.Fatalf("the operator message must sit outside the context block:\n%s", prompt)
+	}
+}
+
+func TestEverySessionPromptSectionIsRegistered(t *testing.T) {
+	// A section the registry does not name is an untracked block that tests and
+	// clients cannot interpret. newPromptSection panics on an unregistered kind;
+	// this asserts the registry stays complete for the kinds the builder emits.
+	emitted := []string{
+		promptSectionKindDoctrine,
+		promptSectionKindSubject,
+		promptSectionKindStarterJob,
+		promptSectionKindProposalTarget,
+		promptSectionKindLedgerWake,
+		promptSectionKindFallback,
+		promptSectionKindIdentity,
+		promptSectionKindStartupBrief,
+		promptSectionKindRelatedWork,
+		promptSectionKindContext,
+		promptSectionKindImages,
+		promptSectionKindOperatorMsg,
+	}
+	for _, kind := range emitted {
+		spec, ok := promptSectionSpecs[kind]
+		if !ok {
+			t.Fatalf("section kind %q is emitted by the builder but not registered", kind)
+		}
+		if strings.TrimSpace(spec.Element) == "" {
+			t.Fatalf("section kind %q has no XML element name", kind)
+		}
+	}
+	if len(promptSectionSpecs) != len(emitted) {
+		t.Fatalf("registry has %d entries but the builder emits %d; an unemitted section is dead weight", len(promptSectionSpecs), len(emitted))
+	}
+}
+
+func TestLedgerWakeFallsBackWhenSourceLedgerErrors(t *testing.T) {
+	svc := newTestService(t, &fakeSessionSpawner{})
+	svc.SetSourceLedger(fakePromptLedger{err: errors.New("source ledger down")})
+	prompt := svc.buildInitialPrompt(context.Background(), Session{ID: "sess_fallback", Kind: KindSwarmOperations, SkillID: SkillSwarmOperations}, Message{Content: "Review."}, nil)
+	if !strings.Contains(prompt, "<continuity-fallback>") || strings.Contains(prompt, "<ledger-wake") {
+		t.Fatalf("fallback prompt sections = %s", prompt)
+	}
+
+	svc.SetSourceLedger(fakePromptLedger{wake: sourceledger.WakeResult{Entries: []sourceledger.Entry{{ID: "entry-1", Kind: "decision", Body: "Keep the current boundary."}}}})
+	prompt = svc.buildInitialPrompt(context.Background(), Session{ID: "sess_wake", Kind: KindSwarmOperations, SkillID: SkillSwarmOperations}, Message{Content: "Review."}, nil)
+	if !strings.Contains(prompt, "<ledger-wake scope=\"session:swarm-operations\">") || strings.Contains(prompt, "<continuity-fallback>") {
+		t.Fatalf("wake prompt sections = %s", prompt)
+	}
+	if strings.Index(prompt, "<ledger-wake") > strings.Index(prompt, "<session-identity>") {
+		t.Fatalf("ledger wake must precede identity: %s", prompt)
+	}
+}
+
+func TestKindBandInlinesCachedSkillAndFallsBackToReadInstruction(t *testing.T) {
+	svc := newTestService(t, &fakeSessionSpawner{})
+	svc.promptClient = fakePromptClient{content: "# Complete operations methodology\nUse the registered transitions."}
+	first := svc.buildInitialPrompt(context.Background(), Session{ID: "sess_skill_a", Kind: KindSwarmOperations, SkillID: SkillSwarmOperations}, Message{Content: "Review."}, nil)
+	second := svc.buildInitialPrompt(context.Background(), Session{ID: "sess_skill_b", Kind: KindSwarmOperations, SkillID: SkillSwarmOperations}, Message{Content: "Different."}, nil)
+	if !strings.Contains(first, "<skill-content>\n# Complete operations methodology") {
+		t.Fatalf("kind band did not inline skill: %s", first)
+	}
+	firstKind := first[strings.Index(first, "<session-kind") : strings.Index(first, "</session-kind>")+len("</session-kind>")]
+	secondKind := second[strings.Index(second, "<session-kind") : strings.Index(second, "</session-kind>")+len("</session-kind>")]
+	if firstKind != secondKind {
+		t.Fatalf("same-kind skill bands differ:\n--- first ---\n%s\n--- second ---\n%s", firstKind, secondKind)
+	}
+
+	coldSvc := newTestService(t, &fakeSessionSpawner{})
+	coldSvc.promptClient = fakePromptClient{err: errors.New("prompt manager down")}
+	fallback := coldSvc.buildInitialPrompt(context.Background(), Session{ID: "sess_skill_cold", Kind: KindSwarmOperations, SkillID: SkillSwarmOperations}, Message{Content: "Review."}, nil)
+	if !strings.Contains(fallback, "prompt-manager skill read swarm-manager-operations-session") || strings.Contains(fallback, "<skill-content>") {
+		t.Fatalf("skill fallback = %s", fallback)
+	}
+}
+
+type fakePromptLedger struct {
+	wake sourceledger.WakeResult
+	err  error
+}
+
+type fakePromptClient struct {
+	content string
+	err     error
+}
+
+func (f fakePromptClient) ReadSkill(context.Context, string, map[string]string, bool) (string, error) {
+	return f.content, f.err
+}
+
+func (f fakePromptClient) ReadSkillWithExperiment(context.Context, string, map[string]string, bool, string) (promptmanager.ReadSkillResult, error) {
+	return promptmanager.ReadSkillResult{Content: f.content}, f.err
+}
+
+func (f fakePromptLedger) Wake(context.Context, string, int) (sourceledger.WakeResult, error) {
+	return f.wake, f.err
+}
+
+func (f fakePromptLedger) WriteResolution(context.Context, sourceledger.Resolution) error {
+	return f.err
+}
+
+func TestContinuationPromptStaysPlainWhenNothingIsAttached(t *testing.T) {
+	// A follow-up with no context is the common case. Wrapping it in XML would
+	// add tokens and break the prefix the conversation already established.
+	got := buildContinuationPrompt(Message{Content: "  Keep going.  "}, nil)
+	if got != "Keep going." {
+		t.Fatalf("continuation prompt = %q, want the trimmed message alone", got)
+	}
+}
+
+// The preview exists so the operator can judge the prompt before sending it.
+// If it were assembled anywhere but the real builders it would drift, and a
+// preview that disagrees with what is sent is worse than no preview.
+func TestPreviewPromptMatchesWhatStartWouldSend(t *testing.T) {
+	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
+	svc := newTestService(t, spawner)
+	svc.SetRelatedWorkSearcher(fakeRelatedWorkSearcher{entries: []RelatedWorkEntry{{Ref: "goal:quality-gates", Title: "Quality gates", Summary: "Tighten planning validation."}}})
+	ctx := context.Background()
+
+	draft, err := svc.Create(ctx, CreateRequest{Kind: KindMetaOrchestration, Title: "Plan quality gates"})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	const message = "Turn this into goals."
+	preview, err := svc.PreviewPrompt(ctx, ContinueRequest{SessionID: draft.ID, Message: message})
+	if err != nil {
+		t.Fatalf("PreviewPrompt() error = %v", err)
+	}
+	if !preview.Initial {
+		t.Error("a draft session must preview the initial-prompt builder")
+	}
+
+	if _, err := svc.Start(ctx, ContinueRequest{SessionID: draft.ID, Message: message}); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	if preview.Prompt != spawner.spawnReq.Prompt {
+		t.Fatalf("preview did not match the spawned prompt\n--- preview ---\n%s\n--- sent ---\n%s", preview.Prompt, spawner.spawnReq.Prompt)
+	}
+}
+
+type fakeRelatedWorkSearcher struct {
+	entries []RelatedWorkEntry
+	err     error
+}
+
+func (f fakeRelatedWorkSearcher) SearchRelatedWork(context.Context, string, int) ([]RelatedWorkEntry, error) {
+	return append([]RelatedWorkEntry(nil), f.entries...), f.err
+}
+
+func TestRelatedWorkSectionDistinguishesHitsEmptyAndUnavailable(t *testing.T) {
+	svc := newTestService(t, &fakeSessionSpawner{})
+	session := Session{ID: "sess_related", Kind: KindMetaOrchestration, SkillID: SkillMetaOrchestrator}
+	message := Message{Content: "Improve session recall."}
+
+	svc.SetRelatedWorkSearcher(fakeRelatedWorkSearcher{entries: []RelatedWorkEntry{{
+		Ref: "record:rec-1", Title: "Prior recall work", Summary: "A solved instance from another scenario.",
+	}}})
+	hits := svc.buildInitialPrompt(context.Background(), session, message, nil)
+	if !strings.Contains(hits, `<related-work status="hits">`) || !strings.Contains(hits, `ref="record:rec-1"`) {
+		t.Fatalf("hits prompt = %s", hits)
+	}
+
+	svc.SetRelatedWorkSearcher(fakeRelatedWorkSearcher{})
+	empty := svc.buildInitialPrompt(context.Background(), session, message, nil)
+	if !strings.Contains(empty, `<related-work status="empty">`) || !strings.Contains(empty, "retrieval ran") {
+		t.Fatalf("empty prompt = %s", empty)
+	}
+
+	svc.SetRelatedWorkSearcher(fakeRelatedWorkSearcher{err: errors.New("search unavailable")})
+	unavailable := svc.buildInitialPrompt(context.Background(), session, message, nil)
+	if !strings.Contains(unavailable, `<related-work status="unavailable">`) || !strings.Contains(unavailable, "Do not infer that no related work exists") {
+		t.Fatalf("unavailable prompt = %s", unavailable)
+	}
+	if empty == unavailable {
+		t.Fatal("empty and unavailable related-work sections must differ")
+	}
+}
+
+func TestRelatedWorkSortsAfterStartupBriefBeforeAttachedContext(t *testing.T) {
+	svc := newTestService(t, &fakeSessionSpawner{})
+	svc.SetRelatedWorkSearcher(fakeRelatedWorkSearcher{})
+	prompt := svc.buildInitialPrompt(context.Background(), Session{ID: "sess_order", Kind: KindMetaOrchestration}, Message{
+		Content: "Place this idea.",
+		Context: []ContextItem{
+			{Type: ContextGoal, Ref: "goal-a", Title: "Goal A", Summary: "Attached goal."},
+			{Type: ContextStartupBrief, Ref: StartupBriefMetaOrchestrationRef, Title: "Brief", Summary: "Portfolio state."},
+		},
+	}, nil)
+	briefAt := strings.Index(prompt, "<startup-brief>")
+	relatedAt := strings.Index(prompt, "<related-work")
+	attachedAt := strings.Index(prompt, "<attached-context>")
+	if !(briefAt >= 0 && briefAt < relatedAt && relatedAt < attachedAt) {
+		t.Fatalf("related-work order is wrong (brief=%d related=%d attached=%d):\n%s", briefAt, relatedAt, attachedAt, prompt)
+	}
+}
+
+func TestPreviewPromptDoesNotMutateTheSession(t *testing.T) {
+	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
+	svc := newTestService(t, spawner)
+	ctx := context.Background()
+
+	draft, err := svc.Create(ctx, CreateRequest{Kind: KindSwarmOperations, Title: "Check status"})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if _, err := svc.PreviewPrompt(ctx, ContinueRequest{SessionID: draft.ID, Message: "What matters most?"}); err != nil {
+		t.Fatalf("PreviewPrompt() error = %v", err)
+	}
+
+	after, err := svc.Get(ctx, draft.ID)
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+	if len(after.Messages) != 0 {
+		t.Errorf("preview appended %d message(s); it must be read-only", len(after.Messages))
+	}
+	if after.Status != StatusDraft {
+		t.Errorf("preview moved the session to %q; it must stay draft", after.Status)
+	}
+	if spawner.spawnCalls != 0 {
+		t.Errorf("preview spawned %d run(s); it must not spawn", spawner.spawnCalls)
+	}
+}

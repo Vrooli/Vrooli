@@ -1,4 +1,4 @@
-// DOC: docs/internal/COHERENCE-NOTES.md#styling-patterns
+// DOC: docs/concepts/ARCHITECTURE.md#code-organization-pattern
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 

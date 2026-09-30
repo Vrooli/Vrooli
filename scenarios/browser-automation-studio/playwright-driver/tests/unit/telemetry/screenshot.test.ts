@@ -105,7 +105,7 @@ describe('Screenshot', () => {
       expect(screenshot?.base64).toBe(smallBuffer.toString('base64'));
     });
 
-    it('should return undefined when screenshot exceeds size limit', async () => {
+    it('should fall back to a bounded JPEG when a viewport PNG exceeds the size limit', async () => {
       const configSmallMax = createTestConfig({
         telemetry: {
           screenshot: {
@@ -123,11 +123,20 @@ describe('Screenshot', () => {
       });
 
       const largeBuffer = Buffer.alloc(200);
-      screenshotMock.mockResolvedValue(largeBuffer);
+      const compressedBuffer = Buffer.from('compressed');
+      screenshotMock
+        .mockResolvedValueOnce(largeBuffer)
+        .mockResolvedValueOnce(compressedBuffer);
 
       const screenshot = await captureScreenshot(mockPage, configSmallMax);
 
-      expect(screenshot).toBeUndefined();
+      expect(screenshotMock).toHaveBeenCalledTimes(2);
+      expect(screenshotMock.mock.calls[1]?.[0]).toEqual(expect.objectContaining({
+        type: 'jpeg',
+        quality: 80,
+      }));
+      expect(screenshot?.base64).toBe(compressedBuffer.toString('base64'));
+      expect(screenshot?.media_type).toBe('image/jpeg');
     });
 
     it('should return undefined when screenshots disabled', async () => {

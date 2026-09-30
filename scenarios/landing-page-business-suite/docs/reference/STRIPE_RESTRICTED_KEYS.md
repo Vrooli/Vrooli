@@ -8,7 +8,7 @@ audience: ["developers", "operators"]
 
 # Stripe Restricted Keys
 
-Use Stripe's restricted keys to shrink blast radius while keeping all billing features working (checkout, portal, subscription cancel, webhook reconciliation). The app still reads the value from `STRIPE_SECRET_KEY` (now labeled “Restricted Key”) but the value should be the restricted key (`rk_...`), not a full-access secret (`sk_...`).
+Use Stripe's restricted keys to shrink blast radius while keeping all billing features working (checkout, portal, subscription cancel, webhook reconciliation). Provision the restricted key (`rk_...`) through Vrooli's credential authority; LPBS resolves it in process and does not read the secret from the environment.
 
 ## Required permissions
 
@@ -31,11 +31,27 @@ Everything else should stay **No access**. If you do not cancel subscriptions fr
 
 ## Wire it into this app
 
-You can set these via the admin portal (Billing → Stripe) or environment variables:
+Set `STRIPE_MODE` to `test` or `live`, then provision the matching namespace.
+When it is absent, LPBS defaults to live-mode migration behavior:
 
-- `STRIPE_PUBLISHABLE_KEY`: `pk_...` (unchanged)
-- `STRIPE_SECRET_KEY`: the **restricted** key `rk_...` (admin UI labels this as “Restricted Key”)
-- `STRIPE_WEBHOOK_SECRET`: `whsec_...` from your webhook endpoint configuration
+- Test: `stripe-test-publishable-key`, `stripe-test-secret-key`, and `stripe-test-webhook-secret`
+- Live: `stripe-live-publishable-key`, `stripe-live-secret-key`, and `stripe-live-webhook-secret`
+
+The legacy `stripe-publishable-key`, `stripe-secret-key`, and
+`stripe-webhook-secret` fields remain a live-mode migration fallback. Test mode
+never reads them. Secret values stay in the credential authority and are never
+put in browser code.
+
+The Stripe catalog must use the same mode as the credentials. In test mode,
+set `BUNDLE_ENVIRONMENT=test` and `STRIPE_PLANS_PATH` to a separately
+provisioned test catalog with bundle environment `test`; do not point test mode
+at the production `.vrooli/plans.json` file. LPBS rejects an explicit mode and
+catalog environment mismatch. Live mode defaults to the production catalog.
+
+Keep the publishable and restricted server keys in the same Stripe mode. LPBS
+rejects a recognizable `pk_test_`/`pk_live_` versus `sk_`/`rk_` mismatch before
+persistence. Webhook secrets are validated separately by Stripe's signature
+checks.
 
 Webhook setup: in Stripe → Developers → Webhooks, add `https://<your-domain>/api/v1/webhooks/stripe` and select:
 - `checkout.session.completed`
@@ -54,6 +70,6 @@ Webhook setup: in Stripe → Developers → Webhooks, add `https://<your-domain>
 
 ## Rotation tips
 
-- Keep separate test and live restricted keys; never reuse the old `sk_...` key here.
+- Keep separate test and live restricted keys; never reuse a key across modes.
 - Rotate keys per environment; update the webhook secret when regenerating endpoints.
 - Remove unused restricted keys from the Stripe Dashboard after a rotation window.

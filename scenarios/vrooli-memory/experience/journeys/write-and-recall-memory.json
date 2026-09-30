@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.1.0",
+  "journey": {
+    "id": "inspect-harness-memory-state",
+    "title": "Inspect harness memory state",
+    "purpose": "Verify that coding-harness projection, import, capture, and maintenance state is visible while corpus inspection remains owned by Source Ledger.",
+    "prd_refs": ["OT-P0-001", "OT-P0-002"]
+  },
+  "steps": [
+    {
+      "page": "dashboard",
+      "intent": "Inspect projection health, import runs, capture, and maintenance state."
+    },
+    {
+      "page": "settings",
+      "intent": "Verify the harness-facing configuration boundary and follow the Source Ledger link for corpus recall."
+    }
+  ]
+}

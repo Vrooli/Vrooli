@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "learn-a-figure-is-incomplete",
+    "title": "An operator learns a figure is incomplete",
+    "purpose": "The honesty path. An adapter that cannot run must never let the product show a confident wrong number, because a silent zero is indistinguishable from a real one.",
+    "prd_refs": [
+      "OT-P1-004"
+    ]
+  },
+  "steps": [
+    {
+      "page": "dashboard",
+      "state": "position-partial",
+      "intent": "See that the position is partial and which adapter is missing",
+      "via": "completeness-banner"
+    },
+    {
+      "page": "adapters",
+      "state": "adapter-unavailable",
+      "intent": "Read the failure reason and the age of the last successful sync",
+      "via": "failure-reason"
+    },
+    {
+      "page": "dashboard",
+      "intent": "Confirm no figure anywhere reports zero on account of the outage",
+      "via": "runway-figure"
+    }
+  ]
+}

@@ -20,7 +20,7 @@
  * - Action editing (selector and payload)
  */
 
-import { useCallback, useEffect, useRef, useState, useMemo, useId, type ReactNode } from 'react';
+import { Profiler, useCallback, useEffect, useRef, useState, useMemo, useId, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RecordingHeader } from './capture/RecordingHeader';
 import { TabBar } from './capture/TabBar';
@@ -31,7 +31,7 @@ import { WorkflowPickerModal } from './conversion/WorkflowPickerModal';
 import { WorkflowInfoCard, type ExecutionConfigSettings } from './timeline/WorkflowInfoCard';
 import type { ReplayPreviewResponse } from './types/types';
 import type { WorkflowSettingsTyped } from '@/types/workflow';
-import { SessionManager } from '@/views/SettingsView/sections/sessions';
+import { SessionManager } from '@/views/SettingsView/sections/sessions/SessionManager/SessionManager';
 import { useRecordingSession } from './hooks/useRecordingSession';
 import { useSessionProfiles } from './hooks/useSessionProfiles';
 import { useRecordMode, type InsertActionData } from './hooks/useRecordMode';
@@ -51,40 +51,31 @@ import { mergeConsecutiveActions, type MergedAction } from './utils/mergeActions
 import { getConfig } from '@/config';
 import { useStreamSettings } from './capture/streamSettingsState';
 import type { StreamSettingsValues } from './capture/StreamSettings';
-import type { StreamConnectionStatus, FrameStats } from './capture/PlaywrightView';
 import { DEFAULT_STREAM_FPS, DEFAULT_STREAM_QUALITY } from './constants';
 import type { TimelineMode } from './types/timeline-unified';
-import { mergeActionsWithAISteps } from './types/timeline-unified';
+import { attachTimelinePageIdentities, mergeActionsWithAISteps } from './types/timeline-unified';
 import { UnifiedSidebar, useUnifiedSidebar, useAISettings } from './sidebar';
 import { useAIConversation } from './ai-conversation';
 import { HumanInterventionOverlay } from './ai-navigation';
-import { useExecutionStore, useStartWorkflow, useExecutionEvents } from '@/domains/executions';
+import { useExecutionStore } from '@/domains/executions/store';
+import { useStartWorkflow } from '@/domains/executions/hooks/useStartWorkflow';
+import { useExecutionEvents } from '@/domains/executions/hooks/useExecutionEvents';
+import { useSessionStore } from './stores/sessionStore';
 import { useExecutionExport } from '@/domains/executions/viewer/useExecutionExport';
 import { useReplayCustomization } from '@/domains/executions/viewer/useReplayCustomization';
 import { useExportStore } from '@/domains/exports';
-import {
-  ExportDialog,
-  ExportDialogProvider,
-  buildExportDialogContextValue,
-} from '@/domains/executions/export';
+import { ExportDialog } from '@/domains/executions/export/components/ExportDialog';
+import { ExportDialogProvider } from '@/domains/executions/export/context/ExportDialogProvider';
+import { buildExportDialogContextValue } from '@/domains/executions/export/context/ExportDialogContext';
 import { ExportSuccessPanel } from '@/domains/exports/ExportSuccessPanel';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { ConfirmDialog } from '@shared/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { extractConsoleLogs, extractNetworkEvents, extractDomSnapshots } from './utils/artifact-extraction';
+import { onProfilerRender } from '@/lib/profiler';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
-
-const parseNavigationState = (
-  value: unknown
-): { url?: string; can_go_back?: boolean; can_go_forward?: boolean } => {
-  if (!isRecord(value)) return {};
-  const url = typeof value.url === 'string' ? value.url : undefined;
-  const canGoBack = typeof value.can_go_back === 'boolean' ? value.can_go_back : undefined;
-  const canGoForward = typeof value.can_go_forward === 'boolean' ? value.can_go_forward : undefined;
-  return { url, can_go_back: canGoBack, can_go_forward: canGoForward };
-};
 
 const parseWorkflowGenerationResult = (
   value: unknown
@@ -110,9 +101,7 @@ export type WorkflowTypeParam = 'action' | 'flow' | 'case';
 
 type WorkflowNode = {
   id: string;
-  type?: string;
-  data?: Record<string, unknown>;
-  action?: {
+  action: {
     type: string;
     metadata?: { label?: string };
     navigate?: { url?: string };
@@ -213,7 +202,6 @@ export function RecordModePage({
     sessionProfileId,
     sessionError,
     actualViewport: sessionActualViewport,
-    initialRestoredUrl,
     ensureSession,
     setSessionProfileId,
     retryState,
@@ -245,6 +233,11 @@ export function RecordModePage({
   const [previewViewport, setPreviewViewport] = useState<{ width: number; height: number } | null>(null);
 
   // Browser navigation state and handlers (extracted to hook)
+  const navigationPage = useSessionStore(s => {
+    if (!s.isValidated || s.sessionId !== sessionId) return undefined;
+    const page = s.activePageId ? s.pages.get(s.activePageId) : undefined;
+    return page?.sessionId === sessionId && page.status === 'active' ? page : null;
+  });
   const {
     previewUrl,
     setPreviewUrl,
@@ -255,12 +248,21 @@ export function RecordModePage({
     handleGoForward,
     handleRefresh,
     handleFetchNavigationStack,
+    refreshNavigationState,
     handleNavigateToIndex,
-    updateNavigationState,
+    handleNavigate,
+    isInitialNavigationComplete,
+    navigationError,
   } = useBrowserNavigation({
     sessionId,
+    pageId: navigationPage?.id ?? null,
+    observedUrl: navigationPage === undefined ? undefined : navigationPage?.url ?? '',
     initialUrl,
   });
+
+  useEffect(() => {
+    if (navigationPage) void refreshNavigationState();
+  }, [navigationPage, refreshNavigationState]);
 
   // Handler for PreviewContainer's browser viewport changes (for session creation)
   const handleBrowserViewportChange = useCallback((viewport: { width: number; height: number }) => {
@@ -274,8 +276,7 @@ export function RecordModePage({
   const streamSettingsRef = useRef<StreamSettingsValues | null>(null);
   streamSettingsRef.current = streamSettings;
 
-  // Connection status for header indicator
-  const [connectionStatus, setConnectionStatus] = useState<StreamConnectionStatus | null>(null);
+  const setConnectionStatus = useSessionStore(s => s.setConnectionStatus);
 
   // Workflow selection and execution state
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(initialWorkflowId ?? null);
@@ -297,9 +298,14 @@ export function RecordModePage({
   const [showReplayStyle, setShowReplayStyle] = useState(false);
   const [showPreviewSettings, setShowPreviewSettings] = useState(false);
 
-  // Metadata from content panels for PreviewContainer's BrowserChrome
-  const [recordingPageTitle, setRecordingPageTitle] = useState<string>('');
-  const [recordingFrameStats, setRecordingFrameStats] = useState<FrameStats | null>(null);
+  // Live recording metadata is stored in sessionStore so stream updates do not rerender this whole page.
+  const setRecordingPageTitle = useSessionStore(s => s.setRecordingPageTitle);
+  const setRecordingFrameStats = useSessionStore(s => s.setRecordingFrameStats);
+  const clearLivePreviewMetadata = useSessionStore(s => s.clearLivePreviewMetadata);
+
+  useEffect(() => {
+    clearLivePreviewMetadata();
+  }, [clearLivePreviewMetadata, sessionId]);
   const [executionWorkflowName, setExecutionWorkflowName] = useState<string | null>(null);
   const [executionCurrentUrl, setExecutionCurrentUrl] = useState<string>('');
   const [executionFooter, setExecutionFooter] = useState<ReactNode>(null);
@@ -463,25 +469,25 @@ export function RecordModePage({
 
   // Dismiss error handler - clear error details and add to dismissed set
   const handleDismissError = useCallback(() => {
-    const errorMessage = sessionError ?? error;
+    const errorMessage = sessionError ?? navigationError ?? error;
     if (errorMessage && errorDetails) {
       const errorKey = `${errorDetails.source}-${errorMessage}`;
       setDismissedErrors(prev => new Set(prev).add(errorKey));
     }
     setErrorDetails(null);
-  }, [sessionError, error, errorDetails]);
+  }, [sessionError, navigationError, error, errorDetails]);
 
   // Update error details when sessionError or error changes
   useEffect(() => {
-    const errorMessage = sessionError ?? error;
+    const errorMessage = sessionError ?? navigationError ?? error;
     if (errorMessage) {
-      const source: ErrorDetails['source'] = sessionError ? 'session' : 'recording';
+      const source: ErrorDetails['source'] = sessionError ? 'session' : navigationError ? 'api' : 'recording';
       const errorKey = `${source}-${errorMessage}`;
       if (!dismissedErrors.has(errorKey)) {
         setErrorDetails(createErrorDetails(errorMessage, source));
       }
     }
-  }, [sessionError, error, createErrorDetails, dismissedErrors]);
+  }, [sessionError, navigationError, error, createErrorDetails, dismissedErrors]);
 
   // Handle Execute button click - opens workflow picker with optional confirmation
   const handleExecuteClick = useCallback(async () => {
@@ -587,14 +593,16 @@ export function RecordModePage({
 
     const fetchWorkflowDefinition = async () => {
       try {
-        const config = await getConfig();
-        console.log('[RecordingSession] Fetching workflow:', `${config.API_URL}/workflows/${selectedWorkflowId}`);
-        const response = await fetch(`${config.API_URL}/workflows/${selectedWorkflowId}`);
-        if (!response.ok) {
-          console.error('[RecordingSession] Failed to fetch workflow definition, status:', response.status);
+        const { getWorkflowViaApi } = await import('@/domains/workflows/services/workflowApi');
+        const { toJson } = await import('@bufbuild/protobuf');
+        const { WorkflowSummarySchema } = await import('@vrooli/proto-types/browser-automation-studio/v1/api/service_pb');
+        console.log('[RecordingSession] Fetching workflow via Connect:', selectedWorkflowId);
+        const resp = await getWorkflowViaApi(selectedWorkflowId);
+        if (!resp.workflow) {
+          console.error('[RecordingSession] Failed to fetch workflow definition: workflow missing');
           return;
         }
-        const data: unknown = await response.json();
+        const data = toJson(WorkflowSummarySchema, resp.workflow, { useProtoFieldName: true });
         console.log('[RecordingSession] Raw workflow data:', JSON.stringify(data, null, 2).slice(0, 1000));
 
         const parseNodes = (value: unknown): WorkflowNode[] => {
@@ -602,20 +610,15 @@ export function RecordModePage({
           return value
             .map((node) => {
               if (!isRecord(node) || typeof node.id !== 'string') return null;
-              const parsedNode: WorkflowNode = { id: node.id };
-              if (typeof node.type === 'string') parsedNode.type = node.type;
-              if (isRecord(node.data)) parsedNode.data = node.data;
-              if (isRecord(node.action) && typeof node.action.type === 'string') {
-                const action: WorkflowNode['action'] = { type: node.action.type };
-                if (isRecord(node.action.metadata) && typeof node.action.metadata.label === 'string') {
-                  action.metadata = { label: node.action.metadata.label };
-                }
-                if (isRecord(node.action.navigate) && typeof node.action.navigate.url === 'string') {
-                  action.navigate = { url: node.action.navigate.url };
-                }
-                parsedNode.action = action;
+              if (!isRecord(node.action) || typeof node.action.type !== 'string') return null;
+              const action: WorkflowNode['action'] = { type: node.action.type };
+              if (isRecord(node.action.metadata) && typeof node.action.metadata.label === 'string') {
+                action.metadata = { label: node.action.metadata.label };
               }
-              return parsedNode;
+              if (isRecord(node.action.navigate) && typeof node.action.navigate.url === 'string') {
+                action.navigate = { url: node.action.navigate.url };
+              }
+              return { id: node.id, action };
             })
             .filter((node): node is WorkflowNode => node !== null);
         };
@@ -661,7 +664,6 @@ export function RecordModePage({
   const {
     openPages,
     activePageId,
-    pages: pagesMap,
     switchToPage,
     closePage,
     createPage,
@@ -676,36 +678,7 @@ export function RecordModePage({
 
       // Auto-switch to new tabs (e.g., opened by clicking target="_blank" links)
       // This gives the user immediate feedback of the new tab
-      void switchToPage(page.id);
-    },
-    onPageClosed: (pageId) => {
-      console.log('[RecordModePage] Page closed:', pageId);
-      // If the closed page was the one being viewed, clear the URL
-      // The openPages array will be updated after this callback, so we check
-      // if we're closing the active page and there will be no pages left
-      if (pageId === activePageId) {
-        // Check how many open pages remain (excluding the one being closed)
-        const remainingPages = openPages.filter(p => p.id !== pageId);
-        if (remainingPages.length === 0) {
-          // No more pages - clear the URL to show the empty state
-          setPreviewUrl('');
-        }
-      }
-    },
-    onActivePageChanged: (pageId) => {
-      console.log('[RecordModePage] Active page changed:', pageId);
-      // Update the URL bar to show the new page's URL
-      const page = pagesMap.get(pageId);
-      if (page?.url) {
-        setPreviewUrl(page.url);
-      }
-    },
-    onPageNavigated: (pageId, url, _title, isActive) => {
-      console.log('[RecordModePage] Page navigated:', pageId, url, 'isActive:', isActive);
-      // Update the URL bar if the active page navigated
-      if (isActive && url) {
-        setPreviewUrl(url);
-      }
+      if (useSessionStore.getState().activePageId !== page.id) void switchToPage(page.id);
     },
   });
 
@@ -733,7 +706,11 @@ export function RecordModePage({
     workflowEdges: mode === 'execution' ? workflowEdges : undefined,
   });
 
-  const mergedActions = useMemo(() => mergeConsecutiveActions(actions), [actions]);
+  const identifiedActions = useMemo(
+    () => attachTimelinePageIdentities(actions, timelineEntries),
+    [actions, timelineEntries]
+  );
+  const mergedActions = useMemo(() => mergeConsecutiveActions(identifiedActions), [identifiedActions]);
 
   // Merge timeline items with AI steps for the final display
   const mergedTimelineItems = useMemo(() => {
@@ -847,35 +824,6 @@ export function RecordModePage({
     return actionIndices;
   }, [mode, selectedIndicesArray, selectedIndices, mergedTimelineItems]);
 
-  const lastActionUrl = actions.length > 0 ? actions[actions.length - 1]?.url ?? '' : '';
-
-  // Set previewUrl from tab restoration when available
-  // This runs when the backend restores tabs during session creation
-  useEffect(() => {
-    if (initialRestoredUrl && !previewUrl) {
-      setPreviewUrl(initialRestoredUrl);
-      // Also update lastNavigatedUrlRef to prevent duplicate navigation
-      lastNavigatedUrlRef.current = initialRestoredUrl;
-    }
-  }, [initialRestoredUrl, previewUrl, setPreviewUrl]);
-
-  // Update previewUrl from last action if needed
-  useEffect(() => {
-    if (!previewUrl && lastActionUrl) {
-      setPreviewUrl(lastActionUrl);
-    }
-  }, [lastActionUrl, previewUrl, setPreviewUrl]);
-
-  // Track whether initial URL navigation has been done to avoid double-navigation
-  const initialUrlNavigatedRef = useRef(false);
-  // Track the last URL we actually navigated to - prevents duplicate navigation
-  // when onPageNavigated updates previewUrl to the same value
-  const lastNavigatedUrlRef = useRef<string | null>(null);
-  // Track whether initial navigation is complete (for AI auto-start)
-  const [isInitialNavigationComplete, setIsInitialNavigationComplete] = useState(!initialUrl);
-  // Ref to avoid stale closure when setting completion state
-  const isInitialNavigationCompleteRef = useRef(!initialUrl);
-
   // Create session when we have a URL or when in recording mode with a profile
   // (profile may have saved tabs to restore, which provides the initial URL)
   // This is separate from navigation to avoid race conditions
@@ -884,7 +832,7 @@ export function RecordModePage({
     if (sessionId) return;
 
     // In recording mode with a profile, create session immediately
-    // (backend will restore tabs and provide initial URL via initialRestoredUrl)
+    // (backend restores tabs; the canonical page snapshot supplies their URLs)
     const profileId = selectedProfileId ?? sessionProfileId;
     const shouldCreateWithoutUrl = mode === 'recording' && profileId;
 
@@ -907,7 +855,7 @@ export function RecordModePage({
         );
         if (cancelled || !newSessionId) return;
         // Session is now created, the navigation effect will handle navigation
-        // If tabs were restored, initialRestoredUrl will be set and trigger setPreviewUrl
+        // Restored tabs are observed through the canonical page snapshot.
       } catch (err) {
         if (cancelled) return;
         console.warn('Failed to create session for URL', err);
@@ -920,81 +868,6 @@ export function RecordModePage({
       cancelled = true;
     };
   }, [previewUrl, sessionId, ensureSession, previewViewport, selectedProfileId, sessionProfileId, mode]);
-
-  useEffect(() => {
-    // Don't navigate if no URL or no session yet
-    // We wait for the session to be created by the effect above
-    if (!previewUrl || !sessionId) {
-      return;
-    }
-
-    // CRITICAL: Skip navigation if we already navigated to this URL
-    // This prevents duplicate navigation when onPageNavigated updates previewUrl
-    // to the same value (causes flickering/white screen)
-    if (lastNavigatedUrlRef.current === previewUrl) {
-      return;
-    }
-
-    const abortController = new AbortController();
-    let cancelled = false;
-
-    const syncPreviewToSession = async () => {
-      const isInitialNavigation = initialUrl && !initialUrlNavigatedRef.current;
-      if (isInitialNavigation) {
-        initialUrlNavigatedRef.current = true;
-      }
-
-      // Mark this URL as being navigated to BEFORE the request
-      // This prevents race conditions where another update comes in
-      lastNavigatedUrlRef.current = previewUrl;
-
-      try {
-        // NOTE: No artificial delay here. The session is ready when sessionId is set
-        // (ensureSession completes before setting sessionId). The navigate endpoint
-        // waits for the page to load before returning, so no post-delay is needed either.
-
-        const config = await getConfig();
-        const response = await fetch(`${config.API_URL}/recordings/live/${sessionId}/navigate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: previewUrl }),
-          signal: abortController.signal,
-        });
-
-        // Update navigation state from response
-        if (response.ok && !cancelled) {
-          try {
-            const data: unknown = await response.json();
-            updateNavigationState(parseNavigationState(data));
-          } catch {
-            // Ignore JSON parse errors
-          }
-
-          // Mark initial navigation as complete immediately on success
-          // The navigate endpoint already waits for page load, so no additional delay needed
-          if (isInitialNavigation) {
-            isInitialNavigationCompleteRef.current = true;
-            setIsInitialNavigationComplete(true);
-          }
-        }
-      } catch (err) {
-        if (abortController.signal.aborted || cancelled) return;
-        console.warn('Failed to sync preview URL to recording session', err);
-        // Still mark as complete on error so UI isn't stuck
-        if (isInitialNavigation && !isInitialNavigationCompleteRef.current) {
-          isInitialNavigationCompleteRef.current = true;
-          setIsInitialNavigationComplete(true);
-        }
-      }
-    };
-
-    void syncPreviewToSession();
-
-    return () => {
-      cancelled = true;
-      abortController.abort();
-    };
-  }, [sessionId, previewUrl, initialUrl, updateNavigationState]); // Note: isInitialNavigationComplete intentionally NOT in deps to avoid re-triggering navigation
 
   // NOTE: Viewport sync is centralized in RecordingSession via ViewportSyncManager.
   // PreviewContainer measures bounds and calls handleBrowserViewportChange.
@@ -1231,10 +1104,11 @@ export function RecordModePage({
   );
 
   const hasUnstableSelectors = lowConfidenceCount > 0 || mediumConfidenceCount > 0;
-  const displayError = sessionError ?? error;
+  const displayError = sessionError ?? navigationError ?? error;
 
   return (
-    <ViewportProvider sessionId={sessionId} actualViewport={sessionActualViewport}>
+    <Profiler id="RecordingSession" onRender={onProfilerRender}>
+    <ViewportProvider sessionId={sessionId} pageId={navigationPage?.id ?? null} actualViewport={sessionActualViewport}>
     <div className="flex flex-col h-full bg-flow-bg text-flow-text">
       <RecordingHeader
         isRecording={mode === 'recording' && isRecording}
@@ -1254,7 +1128,6 @@ export function RecordModePage({
         selectedSessionProfileId={selectedProfileId}
         onSelectSessionProfile={handleSelectSessionProfile}
         onCreateSessionProfile={handleCreateSessionProfile}
-        connectionStatus={connectionStatus}
         onConfigureSession={handleConfigureSession}
         onNavigateToSessionSettings={handleNavigateToSessionSettings}
         workflowType={workflowType}
@@ -1431,7 +1304,7 @@ export function RecordModePage({
                   actionCount={timelineItemCount}
                   previewUrl={previewUrl}
                   onPreviewUrlChange={setPreviewUrl}
-                  onNavigate={setPreviewUrl}
+                  onNavigate={handleNavigate}
                   onGoBack={handleGoBack}
                   onGoForward={handleGoForward}
                   onRefresh={handleRefresh}
@@ -1440,9 +1313,7 @@ export function RecordModePage({
                   onFetchNavigationStack={handleFetchNavigationStack}
                   onNavigateToIndex={handleNavigateToIndex}
                   onOpenHistorySettings={handleOpenHistorySettings}
-                  pageTitle={recordingPageTitle || undefined}
-                  placeholder={actions[actions.length - 1]?.url || 'Search or enter URL'}
-                  frameStats={recordingFrameStats}
+                  placeholder="Search or enter URL"
                   targetFps={streamSettings?.fps ?? DEFAULT_STREAM_FPS}
                   showStats={showStats}
                   mode="recording"
@@ -1451,7 +1322,7 @@ export function RecordModePage({
                 >
                   <RecordPreviewPanel
                     previewUrl={previewUrl}
-                    onPreviewUrlChange={setPreviewUrl}
+                    onPreviewUrlChange={handleNavigate}
                     sessionId={sessionId}
                     activePageId={activePageId}
                     actions={actions}
@@ -1557,5 +1428,6 @@ export function RecordModePage({
       <ConfirmDialog state={confirmDialogState} onClose={closeConfirmDialog} />
     </div>
     </ViewportProvider>
+    </Profiler>
   );
 }

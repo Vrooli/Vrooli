@@ -1,6 +1,8 @@
 // Package domain defines the core domain types for the scenario-to-cloud scenario.
 package domain
 
+import "encoding/json"
+
 // HealthLevel represents the overall health of a deployment.
 type HealthLevel string
 
@@ -93,4 +95,9 @@ type HealthResponse struct {
 	Recommendations []Recommendation `json:"recommendations,omitempty"`
 	DurationMs      int64            `json:"duration_ms"`
 	Timestamp       string           `json:"timestamp"`
+	// Observation is the typed vrooli.scenario_to_cloud.v1.health
+	// HealthObservation (proto JSON) carrying deployment identity, observed
+	// release, observation time and freshness. Consumers that decide
+	// readiness must read it instead of OK/Health.
+	Observation json.RawMessage `json:"observation,omitempty"`
 }

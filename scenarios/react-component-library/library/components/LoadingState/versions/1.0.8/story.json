@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Loading",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Loading workspace"
+        }
+      ],
+      "id": "loading",
+      "mode": "live",
+      "name": "Loading workspace",
+      "role": "anatomy"
+    },
+    {"id":"loading-boundary","name":"loading","args":{"state":"loading"},"expect":[{"kind":"role","role":"status"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Loading error","args":{"state":"error"},"expect":[{"kind":"role","role":"status"}],"role":"boundary","mode":"pinned"}
+  ],
+  "title": "LoadingState"
+}

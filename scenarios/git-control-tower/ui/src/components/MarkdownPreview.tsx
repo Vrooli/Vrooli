@@ -1,7 +1,9 @@
 import { Check, Copy } from "lucide-react";
 import {
+  Profiler,
   memo,
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
   useState,
@@ -11,7 +13,9 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { BundledLanguage, Highlighter } from "shiki";
+import { onProfilerRender } from "../lib/profiler";
 import { MermaidDiagram } from "./MermaidDiagram";
+import { ResizableMarkdownTable } from "@vrooli/react-component-library/markdown-renderer/0";
 
 interface MarkdownPreviewProps {
   content: string;
@@ -24,6 +28,35 @@ interface MarkdownCodeBlockProps {
 }
 
 let highlighterPromise: Promise<Highlighter> | null = null;
+
+function toBundledLanguage(value: string): BundledLanguage | null {
+  switch (value) {
+    case "typescript":
+    case "javascript":
+    case "python":
+    case "go":
+    case "json":
+    case "bash":
+    case "sql":
+    case "html":
+    case "css":
+    case "yaml":
+    case "markdown":
+    case "jsx":
+    case "tsx":
+    case "rust":
+    case "java":
+    case "c":
+    case "cpp":
+    case "ruby":
+    case "php":
+    case "swift":
+    case "kotlin":
+      return value;
+    default:
+      return null;
+  }
+}
 
 async function getHighlighter(): Promise<Highlighter> {
   if (!highlighterPromise) {
@@ -125,17 +158,22 @@ const MarkdownCodeBlock = memo(function MarkdownCodeBlock({
 
         const loadedLangs = highlighter.getLoadedLanguages();
         let langToUse: string = normalizedLang || "text";
+        let bundledLanguage = toBundledLanguage(langToUse);
 
-        if (langToUse !== "text" && !loadedLangs.includes(langToUse as BundledLanguage)) {
+        if (langToUse !== "text" && (!bundledLanguage || !loadedLangs.includes(bundledLanguage))) {
           try {
-            await highlighter.loadLanguage(langToUse as BundledLanguage);
+            if (!bundledLanguage) {
+              throw new Error("Unsupported language");
+            }
+            await highlighter.loadLanguage(bundledLanguage);
           } catch {
             langToUse = "text";
+            bundledLanguage = null;
           }
         }
 
         const html = highlighter.codeToHtml(code, {
-          lang: langToUse as BundledLanguage | "text",
+          lang: bundledLanguage ?? "text",
           theme: "github-dark",
         });
         if (!cancelled) {
@@ -210,9 +248,14 @@ function extractTextContent(children: ReactNode): string {
   return "";
 }
 
-export const MarkdownPreview = memo(function MarkdownPreview({
+const MarkdownPreviewImpl = memo(function MarkdownPreviewImpl({
   content,
 }: MarkdownPreviewProps) {
+  // Defer the actual markdown render so a large doc doesn't block input.
+  // The 2026-05-03 audit measured a 39 ms first-render commit (62 ms long-
+  // task). React schedules the parse at low priority via this deferred
+  // value, letting urgent updates (typing, clicks) yield in between.
+  const deferredContent = useDeferredValue(content);
   const components = useMemo(
     () => ({
       // Headers
@@ -297,11 +340,7 @@ export const MarkdownPreview = memo(function MarkdownPreview({
       ),
       // Tables
       table: ({ children }: { children?: ReactNode }) => (
-        <div className="overflow-x-auto mb-4">
-          <table className="min-w-full border border-slate-700 rounded">
-            {children}
-          </table>
-        </div>
+        <ResizableMarkdownTable>{children}</ResizableMarkdownTable>
       ),
       thead: ({ children }: { children?: ReactNode }) => (
         <thead className="bg-slate-800">{children}</thead>
@@ -310,8 +349,8 @@ export const MarkdownPreview = memo(function MarkdownPreview({
         <tbody className="divide-y divide-slate-700">{children}</tbody>
       ),
       tr: ({ children }: { children?: ReactNode }) => <tr>{children}</tr>,
-      th: ({ children }: { children?: ReactNode }) => (
-        <th className="px-4 py-2 text-left text-sm font-semibold text-slate-200">
+      th: ({ children, ...props }: ComponentPropsWithoutRef<"th"> & { children?: ReactNode }) => (
+        <th {...props} className="px-4 py-2 text-left text-sm font-semibold text-slate-200">
           {children}
         </th>
       ),
@@ -345,8 +384,16 @@ export const MarkdownPreview = memo(function MarkdownPreview({
       data-testid="markdown-preview"
     >
       <ReactMarkdown components={components} remarkPlugins={[remarkGfm]}>
-        {content}
+        {deferredContent}
       </ReactMarkdown>
     </div>
   );
 });
+
+export function MarkdownPreview(props: MarkdownPreviewProps) {
+  return (
+    <Profiler id="MarkdownPreview" onRender={onProfilerRender}>
+      <MarkdownPreviewImpl {...props} />
+    </Profiler>
+  );
+}

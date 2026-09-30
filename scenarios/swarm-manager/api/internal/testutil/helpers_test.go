@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -66,15 +67,6 @@ func TestMakeDir(t *testing.T) {
 	}
 }
 
-func TestAssertStatus(t *testing.T) {
-	rec := httptest.NewRecorder()
-	rec.WriteHeader(200)
-
-	// This should not fail (we're just checking it doesn't panic)
-	mockT := &testing.T{}
-	AssertStatus(mockT, rec, 200)
-}
-
 func TestDecodeJSON(t *testing.T) {
 	rec := httptest.NewRecorder()
 	if _, err := rec.WriteString(`{"name": "test", "value": 123}`); err != nil {
@@ -119,16 +111,32 @@ func TestAssertFileExists(t *testing.T) {
 		t.Fatalf("Failed to write file: %v", err)
 	}
 
-	// This should not cause a test failure
-	mockT := &testing.T{}
-	AssertFileExists(mockT, path)
+	AssertFileExists(t, path)
 }
 
 func TestAssertFileNotExists(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "does-not-exist.txt")
 
-	// This should not cause a test failure
-	mockT := &testing.T{}
-	AssertFileNotExists(mockT, path)
+	AssertFileNotExists(t, path)
+}
+
+func TestAssertStatus(t *testing.T) {
+	cases := []struct {
+		name   string
+		status int
+	}{
+		{name: "ok", status: http.StatusOK},
+		{name: "accepted", status: http.StatusAccepted},
+		{name: "server_error", status: http.StatusInternalServerError},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			rec.WriteHeader(tc.status)
+
+			AssertStatus(t, rec, tc.status)
+		})
+	}
 }

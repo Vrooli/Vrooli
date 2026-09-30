@@ -17,7 +17,7 @@ describe("API utilities", () => {
       // Mock successful response
       fetchMock.mockResolvedValue(mockResponses.success({
         status: "healthy",
-        service: "landing-manager",
+        service: "landing-page-business-suite",
         timestamp: "2025-11-21T00:00:00Z",
       }));
 
@@ -25,7 +25,7 @@ describe("API utilities", () => {
 
       expect(result).toEqual({
         status: "healthy",
-        service: "landing-manager",
+        service: "landing-page-business-suite",
         timestamp: "2025-11-21T00:00:00Z",
       });
       expect(globalThis.fetch).toHaveBeenCalledTimes(1);
@@ -42,7 +42,7 @@ describe("API utilities", () => {
     it("should include correct headers", async () => {
       fetchMock.mockResolvedValue(mockResponses.success({
         status: "healthy",
-        service: "landing-manager",
+        service: "landing-page-business-suite",
         timestamp: "",
       }));
 

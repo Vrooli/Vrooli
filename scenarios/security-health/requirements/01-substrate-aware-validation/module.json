@@ -1,0 +1,33 @@
+{
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "description": "Detect the substrates a target scenario actually contains and run only the applicable scanners; unsupported substrates emit an INFO observation rather than a failure.",
+  "requirements": [
+    {
+      "id": "REQ-P0-001",
+      "title": "Filesystem substrate detection",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "status": "planned",
+      "description": "A detector must walk a scenario's api/, ui/src/, and cli/ directories plus lockfile presence (go.mod, pnpm-lock.yaml) and classify which substrates exist (Go, pnpm UI), returning a structured result that also lists substrates seen but unsupported (e.g. Python).",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "Given a scenario with go.mod, the detector reports the Go substrate present." },
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "Given a scenario with pnpm-lock.yaml under ui/, the detector reports the pnpm UI substrate present." },
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "Given a scenario with a requirements.txt (Python), the detector records it under Unsupported, not as a failure." }
+      ]
+    },
+    {
+      "id": "REQ-P0-002",
+      "title": "Applicable-scanner selection",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "status": "planned",
+      "description": "ValidateScenario must run only the scanners whose Applies(substrate) returns true for the detected substrates, and must aggregate their findings into one normalized result set.",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "A Go-only scenario invokes gosec/govulncheck but not pnpm audit." },
+        { "type": "test", "phase": "integration", "status": "pending", "notes": "A scenario with both Go and pnpm UI invokes scanners for both substrates and merges findings." }
+      ]
+    }
+  ]
+}

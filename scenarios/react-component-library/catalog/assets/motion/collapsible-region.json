@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "motion.collapsible-region",
+    "name": "CollapsibleRegion",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "motion",
+    "description": "The disclosure region animating dynamic height without clipping artifacts, surviving interruption, and preserving its accessible expanded semantics throughout.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      },
+      {
+        "asset": "hooks.use-reduced-motion",
+        "reason": "Motion policy is resolved through the shared hook so the preference can be overridden and tested."
+      },
+      {
+        "asset": "motion.presence",
+        "reason": "Enter and exit lifecycle, interruption, and nesting are owned once rather than per animated component."
+      },
+      {
+        "asset": "hooks.use-disclosure",
+        "reason": "Expansion state uses the shared controlled contract."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "transition-class-conformance",
+    "reduced-motion",
+    "no-layout-animation",
+    "motion-duration-conformance",
+    "status-announced",
+    "keyboard-operable"
+  ]
+}

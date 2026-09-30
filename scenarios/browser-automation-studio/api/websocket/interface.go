@@ -3,6 +3,7 @@ package websocket
 import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
 // Re-export gorilla/websocket constants for use by handlers
@@ -32,21 +33,15 @@ type HubInterface interface {
 	// BroadcastEnvelope sends a normalized automation event envelope to all connected clients.
 	BroadcastEnvelope(event any)
 
-	// BroadcastRecordingEntry sends a unified timeline entry to clients subscribed to a recording session.
-	// Returns BroadcastResult with metrics for observability.
-	BroadcastRecordingEntry(sessionID string, entry *UnifiedTimelineEntry) BroadcastResult
+	// BroadcastTimelineEntry sends the canonical TimelineEntry stream payload.
+	BroadcastTimelineEntry(sessionID string, entry *bastimeline.TimelineEntry) BroadcastResult
 
-	// BroadcastRecordingFrame sends a frame to clients subscribed to a specific recording session.
-	// This eliminates the need for clients to poll for frames.
-	BroadcastRecordingFrame(sessionID string, frame *RecordingFrame)
-
-	// BroadcastBinaryFrame sends raw binary frame data (JPEG bytes) to clients subscribed to a recording session.
-	// More efficient than BroadcastRecordingFrame as it avoids base64 encoding overhead.
+	// BroadcastBinaryFrame sends the canonical source header and JPEG payload.
 	BroadcastBinaryFrame(sessionID string, jpegData []byte)
 
-	// HasRecordingSubscribers returns true if any clients are subscribed to the given session.
-	// Used by the frame push endpoint to avoid unnecessary work.
-	HasRecordingSubscribers(sessionID string) bool
+	// HasRecordingFrameSubscribers reports binary-frame consumers for the session.
+	// Event-only recording subscribers do not require binary frame delivery.
+	HasRecordingFrameSubscribers(sessionID string) bool
 
 	// BroadcastPerfStats sends performance statistics to clients subscribed to a recording session.
 	// Used by the debug performance mode to stream aggregated timing data.

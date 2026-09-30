@@ -49,7 +49,7 @@ Non-goals: Enterprise file sharing, real-time collaboration
 
 ## 🤝 Dependencies & Launch Plan
 Required resources: PostgreSQL database, MinIO object storage, Redis cache
-Scenario dependencies: crypto-tools for encryption, network-tools for remote ops
+Scenario dependencies: crypto-tools for encryption; remote ops integration deferred until a current network capability is selected.
 Operational risks: File corruption, storage exhaustion, permission conflicts
 Launch sequencing: Core operations → Metadata → Organization → Advanced features
 

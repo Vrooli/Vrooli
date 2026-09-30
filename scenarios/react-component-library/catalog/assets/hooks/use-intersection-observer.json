@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-intersection-observer",
+    "name": "useIntersectionObserver",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A pooled viewport-observation primitive for visibility, lazy loading, scroll reveal, prefetching, and infinite pagination.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "hook",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  }
+}

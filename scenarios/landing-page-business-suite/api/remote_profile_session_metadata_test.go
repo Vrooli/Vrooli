@@ -1,14 +1,18 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"landing-page-business-suite-api/internal/administration"
+)
 
 func TestRemoteProfileSessionMetadataBuildParse(t *testing.T) {
-	agent := buildRemoteProfileSessionUserAgent(RemoteProfileSessionMetadata{
+	agent := administration.BuildRemoteProfileSessionUserAgent(administration.RemoteProfileSessionMetadata{
 		ConnectorID: "connector-123",
 		ProfileTag:  "prod",
 		Origin:      "local-host",
 	})
-	meta, ok := parseRemoteProfileSessionUserAgent(agent)
+	meta, ok := administration.ParseRemoteProfileSessionUserAgent(agent)
 	if !ok {
 		t.Fatalf("expected metadata to parse")
 	}
@@ -24,7 +28,7 @@ func TestRemoteProfileSessionMetadataBuildParse(t *testing.T) {
 }
 
 func TestRemoteProfileSessionMetadataParseRejectsNonConnectorAgent(t *testing.T) {
-	if _, ok := parseRemoteProfileSessionUserAgent("Mozilla/5.0"); ok {
+	if _, ok := administration.ParseRemoteProfileSessionUserAgent("Mozilla/5.0"); ok {
 		t.Fatalf("expected parse to fail for non-connector user agent")
 	}
 }

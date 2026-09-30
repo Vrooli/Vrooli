@@ -48,19 +48,34 @@ export type ApiErrorType = "network" | "timeout" | "http" | "parse";
 export class ApiError extends Error {
   readonly type: ApiErrorType;
   readonly status?: number;
+  readonly cause?: unknown;
   readonly isClientError: boolean;
   readonly isServerError: boolean;
   readonly isRetryable: boolean;
+  /**
+   * Machine-readable error code from the server's JSON envelope, when present
+   * (e.g. "plan_stale"). Empty string when the response was plain text or had
+   * no `error` field.
+   */
+  readonly code: string;
+  /**
+   * Structured details payload from the server's JSON envelope, when present.
+   * Shape is endpoint-specific; e.g. `{ missingPaths: [...] }` for plan_stale.
+   */
+  readonly details?: unknown;
 
   constructor(
     type: ApiErrorType,
     message: string,
-    options?: { status?: number; cause?: unknown }
+    options?: { status?: number; cause?: unknown; code?: string; details?: unknown }
   ) {
-    super(message, { cause: options?.cause });
+    super(message);
     this.name = "ApiError";
     this.type = type;
     this.status = options?.status;
+    this.cause = options?.cause;
+    this.code = options?.code ?? "";
+    this.details = options?.details;
     this.isClientError = type === "http" && !!options?.status && options.status >= 400 && options.status < 500;
     this.isServerError = type === "http" && !!options?.status && options.status >= 500;
     // Network errors and 5xx are typically retryable; 4xx are not
@@ -194,11 +209,31 @@ export class ApiClient implements IApiClient {
 
       if (!res.ok) {
         let detail = "";
+        let code = "";
+        let details: unknown;
         try {
           detail = (await res.text()).trim();
         } catch { /* ignore read failures */ }
-        const message = detail || `Request failed with status ${res.status}`;
-        throw new ApiError("http", message, { status: res.status });
+        // Server-side handlers emit a JSON envelope when the error carries a
+        // structured code/details payload (see scenarios/swarm-manager/api
+        // /internal/apierr/mapper.go). Parse opportunistically; fall back to
+        // the raw text if the body is plain.
+        if (detail.startsWith("{")) {
+          try {
+            const parsed = JSON.parse(detail) as {
+              error?: string;
+              message?: string;
+              details?: unknown;
+            };
+            if (typeof parsed.error === "string") code = parsed.error;
+            if (typeof parsed.message === "string" && parsed.message) {
+              detail = parsed.message;
+            }
+            if (parsed.details !== undefined) details = parsed.details;
+          } catch { /* not JSON; keep raw text */ }
+        }
+        const message = normalizeErrorDetail(detail, res.status);
+        throw new ApiError("http", message, { status: res.status, code, details });
       }
 
       // Handle response based on requested type or content-type
@@ -288,9 +323,15 @@ export function createApiClient(baseUrl: string, timeoutMs?: number): IApiClient
 }
 
 /**
- * Default API base URL - resolved from VITE_API_BASE_URL or window.location.
- * This is computed once at module load.
+ * Single in-app source of truth for the resolved API base URL.
+ *
+ * `resolveApiBase()` (from @vrooli/api-base) is called in exactly ONE place in
+ * the app — here — and every other module consumes these exported constants so
+ * the whole UI agrees on one resolved base. `API_BASE` is the plain resolved
+ * base (no suffix); `DEFAULT_API_BASE` is the suffixed variant used by the
+ * default HTTP client. Both are computed once at module load.
  */
+export const API_BASE = resolveApiBase();
 export const DEFAULT_API_BASE = resolveApiBase({ appendSuffix: true });
 
 /**
@@ -298,3 +339,27 @@ export const DEFAULT_API_BASE = resolveApiBase({ appendSuffix: true });
  * Most application code should use this unless testing or using a custom base URL.
  */
 export const defaultApiClient: IApiClient = createApiClient(DEFAULT_API_BASE);
+
+function normalizeErrorDetail(detail: string, status: number): string {
+  const trimmed = detail.trim();
+  if (!trimmed) {
+    return `Request failed with status ${status}`;
+  }
+
+  if (looksLikeHtmlError(trimmed)) {
+    if (/cloudflare|cf-error|cf-wrapper/i.test(trimmed)) {
+      return `The Vrooli tunnel returned ${status}. The upstream service may be unavailable or timed out.`;
+    }
+    return `The server returned an HTML error page with status ${status}.`;
+  }
+
+  return trimmed;
+}
+
+function looksLikeHtmlError(value: string): boolean {
+  return (
+    /^<!doctype\s+html/i.test(value) ||
+    /^<html[\s>]/i.test(value) ||
+    /<title>[^<]*(bad gateway|service unavailable|gateway timeout|error\s+5\d\d)[^<]*<\/title>/i.test(value)
+  );
+}

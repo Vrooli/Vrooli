@@ -1,0 +1,16 @@
+{
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "local-voice",
+    "title": "Local voice availability",
+    "purpose": "Draft coverage contract for the free-tier local voice refusal check.",
+    "storyRef": "../../../react-component-library/library/components/VoiceInputButton/versions/4.3.1/story.json"
+  },
+  "states": [{ "id": "available", "example": "idle", "description": "The workspace does not display a subscription or credit refusal for local voice." }],
+  "elements": [{ "id": "local-voice-availability", "role": "status", "description": "Machine-readable local voice availability marker." }],
+  "claims": [],
+  "bindings": { "elements": {
+    "local-voice-availability": { "selector": "body[data-local-voice-refusal=\"false\"]" }
+  } }
+}

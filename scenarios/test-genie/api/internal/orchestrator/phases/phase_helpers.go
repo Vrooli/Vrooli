@@ -8,16 +8,21 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
-	"unicode/utf8"
 
+	"github.com/vrooli/envkit-go"
 	"test-genie/internal/shared"
 )
 
-var commandLookup = exec.LookPath
-var phaseCommandExecutor = runCommand
-var phaseCommandCapture = runCommandCapture
+var (
+	commandLookup        = exec.LookPath
+	phaseCommandExecutor = runCommand
+	phaseCommandCapture  = runCommandCapture
+)
+
+func normalizeCommandInvocation(name string, args []string) (string, []string) {
+	return name, append([]string(nil), args...)
+}
 
 // ParseJSON parses JSON from a string into a target value.
 // This is the standard helper for parsing JSON across phases.
@@ -32,45 +37,32 @@ func EnsureCommandAvailable(name string) error {
 	return nil
 }
 
-func ensureExecutable(path string) error {
-	info, err := os.Stat(path)
-	if err != nil {
-		return fmt.Errorf("required executable missing: %s: %w", path, err)
-	}
-	if info.IsDir() {
-		return fmt.Errorf("expected executable but found directory: %s", path)
-	}
-	if runtime.GOOS == "windows" {
-		// Windows does not expose POSIX execute bits, so existence is enough.
-		return nil
-	}
-	if info.Mode()&0o111 == 0 {
-		return fmt.Errorf("file is not executable: %s", path)
-	}
-	return nil
-}
-
 // Logging functions - aliases to shared package for backwards compatibility.
 // New code should use shared.Log* directly.
-var (
-	logPhaseStep    = shared.LogStep
-	logPhaseSuccess = shared.LogSuccess
-)
+var logPhaseStep = shared.LogStep
+
+// phaseCommandEnv is the environment of every phase command: color disabled
+// so logs stay readable, and the build-width floor composed over the
+// inherited environment so a phase's go, pnpm or vite never runs wide.
+func phaseCommandEnv(parent envkit.Env) envkit.Env {
+	return envkit.Toolchain(envkit.WithOverlay(parent, envkit.SameScenario, envkit.Env{
+		"NO_COLOR=1",
+		"FORCE_COLOR=0",
+		"CLICOLOR=0",
+		"TERM=dumb",
+	}), envkit.ToolchainOptions{})
+}
 
 func runCommand(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	name, args = normalizeCommandInvocation(name, args)
 	cmd := exec.CommandContext(ctx, name, args...)
 	if dir != "" {
 		cmd.Dir = dir
 	}
-	cmd.Env = append(os.Environ(),
-		"NO_COLOR=1",
-		"FORCE_COLOR=0",
-		"CLICOLOR=0",
-		"TERM=dumb",
-	)
+	cmd.Env = phaseCommandEnv(envkit.Env(os.Environ()))
 	if logWriter == nil {
 		logWriter = io.Discard
 	}
@@ -83,17 +75,12 @@ func runCommandCapture(ctx context.Context, dir string, logWriter io.Writer, nam
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
+	name, args = normalizeCommandInvocation(name, args)
 	cmd := exec.CommandContext(ctx, name, args...)
 	if dir != "" {
 		cmd.Dir = dir
 	}
-	// Disable ANSI color in captured output to keep logs readable.
-	cmd.Env = append(os.Environ(),
-		"NO_COLOR=1",
-		"FORCE_COLOR=0",
-		"CLICOLOR=0",
-		"TERM=dumb",
-	)
+	cmd.Env = phaseCommandEnv(envkit.Env(os.Environ()))
 	var output bytes.Buffer
 	if logWriter != nil {
 		cmd.Stdout = io.MultiWriter(logWriter, &output)
@@ -104,59 +91,6 @@ func runCommandCapture(ctx context.Context, dir string, logWriter io.Writer, nam
 	}
 	err := cmd.Run()
 	return output.String(), err
-}
-
-// stripANSIWriter removes ANSI escape sequences from writes before forwarding.
-type stripANSIWriter struct {
-	target io.Writer
-}
-
-func (w *stripANSIWriter) Write(p []byte) (int, error) {
-	clean := stripANSI(p)
-	n, err := w.target.Write(clean)
-	if err != nil {
-		return 0, err
-	}
-	if n != len(clean) {
-		return 0, io.ErrShortWrite
-	}
-	// Report that we've consumed the full input so io.Copy doesn't treat stripping
-	// as a short write and close the underlying exec pipes (which can SIGPIPE the
-	// child process).
-	return len(p), nil
-}
-
-// stripANSI removes ANSI escape sequences from a byte slice.
-func stripANSI(p []byte) []byte {
-	var out []rune
-	for i := 0; i < len(p); {
-		r, size := utf8.DecodeRune(p[i:])
-		// Detect CSI sequences: ESC [
-		if r == 0x1b && i+1 < len(p) && p[i+1] == '[' {
-			// Skip until letter terminator
-			j := i + 2
-			for j < len(p) {
-				if (p[j] >= 'A' && p[j] <= 'Z') || (p[j] >= 'a' && p[j] <= 'z') {
-					j++
-					break
-				}
-				j++
-			}
-			i = j
-			continue
-		}
-		out = append(out, r)
-		i += size
-	}
-	return []byte(string(out))
-}
-
-// wrapLogSansANSI ensures downstream logs are ANSI-free.
-func wrapLogSansANSI(w io.Writer) io.Writer {
-	if w == nil {
-		return nil
-	}
-	return &stripANSIWriter{target: w}
 }
 
 // OverrideCommandLookup temporarily replaces the binary lookup used by phases.
@@ -220,16 +154,4 @@ func ResolveScenarioBaseURL(ctx context.Context, logWriter io.Writer, scenarioNa
 		return "", err
 	}
 	return fmt.Sprintf("http://127.0.0.1:%s", port), nil
-}
-
-// StartScenario starts a scenario using vrooli CLI.
-func StartScenario(ctx context.Context, scenarioName string, logWriter io.Writer) error {
-	shared.LogStep(logWriter, "starting scenario %s", scenarioName)
-	return phaseCommandExecutor(ctx, "", logWriter, "vrooli", "scenario", "start", scenarioName, "--clean-stale")
-}
-
-// RestartScenario restarts a scenario (stop then start) using vrooli CLI.
-func RestartScenario(ctx context.Context, scenarioName string, logWriter io.Writer) error {
-	shared.LogStep(logWriter, "restarting scenario %s", scenarioName)
-	return phaseCommandExecutor(ctx, "", logWriter, "vrooli", "scenario", "restart", scenarioName, "--clean-stale")
 }

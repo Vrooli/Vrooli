@@ -1,0 +1,140 @@
+{
+  "version": "1",
+  "environment": "production",
+  "target": {
+    "type": "vps",
+    "vps": {
+      "host": "138.197.95.182",
+      "port": 22,
+      "user": "root",
+      "workdir": "/root/Vrooli"
+    }
+  },
+  "scenario": {
+    "id": "landing-page-business-suite"
+  },
+  "dependencies": {
+    "scenarios": ["landing-page-business-suite"],
+    "resources": ["postgres"],
+    "analyzer": {
+      "tool": "scenario-dependency-analyzer"
+    }
+  },
+  "bundle": {
+    "include_packages": true,
+    "include_autoheal": true,
+    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"],
+    "resources": ["postgres"]
+  },
+  "ports": {
+    "api": 18080,
+    "ui": 20080
+  },
+  "edge": {
+    "domain": "vrooli.com",
+    "dns_policy": "required",
+    "mail_dns": [
+      {"name": "mailgun", "spf_mechanism": "include:mailgun.org", "dkim": [{"selector": "k1", "type": "TXT"}]}
+    ],
+    "health_path": "/api/v1/health",
+    "caddy": {
+      "enabled": true
+    }
+  },
+  "secrets": {
+    "summary": {
+      "total_secrets": 4,
+      "per_install_generated": 1,
+      "user_prompt": 1,
+      "remote_fetch": 0,
+      "infrastructure": 0
+    },
+    "bundle_secrets": [
+      {
+        "id": "service-secret",
+        "class": "per_install_generated",
+        "required": true,
+        "description": "Service identity used by LPBS and its local release handoff.",
+        "target": {
+          "type": "env",
+          "name": "LPBS_SERVICE_SECRET"
+        },
+        "descriptor": {
+          "logical_id": "vrooli/landing-page-business-suite",
+          "field": "service-secret"
+        }
+      },
+      {
+        "id": "admin-default-password",
+        "class": "user_prompt",
+        "required": true,
+        "description": "Password for the seeded administrator account. Recover a locked-out administrator by rotating this binding and restarting.",
+        "capability": "administrator sign-in",
+        "target": {
+          "type": "env",
+          "name": "ADMIN_DEFAULT_PASSWORD"
+        },
+        "descriptor": {
+          "logical_id": "vrooli/landing-page-business-suite",
+          "field": "admin-default-password"
+        }
+      },
+      {
+        "id": "mailgun-api-key",
+        "class": "user_prompt",
+        "required": false,
+        "description": "Mailgun API key for transactional sign-in email delivery through the HTTPS API.",
+        "capability": "customer sign-in email (Mailgun)",
+        "target": { "type": "env", "name": "MAILGUN_API_KEY" },
+        "descriptor": { "logical_id": "vrooli/landing-page-business-suite", "field": "mailgun-api-key" }
+      },
+      {
+        "id": "smtp-password",
+        "class": "user_prompt",
+        "required": false,
+        "description": "SMTP provider password for transactional sign-in email delivery.",
+        "capability": "customer sign-in email (SMTP fallback)",
+        "target": {
+          "type": "env",
+          "name": "SMTP_PASSWORD"
+        },
+        "descriptor": {
+          "logical_id": "vrooli/landing-page-business-suite",
+          "field": "smtp-password"
+        }
+      },
+      {
+        "id": "sendgrid-api-key",
+        "class": "user_prompt",
+        "required": false,
+        "description": "Restricted SendGrid API key for transactional sign-in email delivery.",
+        "capability": "customer sign-in email",
+        "target": { "type": "env", "name": "SENDGRID_API_KEY" },
+        "descriptor": { "logical_id": "vrooli/landing-page-business-suite", "field": "sendgrid-api-key" }
+      },
+      {
+        "id": "sendgrid-webhook-public-key",
+        "class": "user_prompt",
+        "required": false,
+        "description": "Public key used to verify SendGrid Signed Event Webhook requests.",
+        "capability": "sign-in email delivery tracking",
+        "target": { "type": "env", "name": "SENDGRID_WEBHOOK_PUBLIC_KEY" },
+        "descriptor": { "logical_id": "vrooli/landing-page-business-suite", "field": "sendgrid-webhook-public-key" }
+      }
+    ]
+  },
+  "local_credential_handoffs": [
+    {
+      "consumer_scenario": "landing-page-business-suite",
+      "consumer_path": "/api/v1/admin/remote-profiles",
+      "auth_descriptor": {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "service-secret"
+      },
+      "profile_tag": "prod",
+      "profile_label": "Production",
+      "api_base": "https://vrooli.com/api/v1",
+      "secret_id": "service-secret"
+    }
+  ]
+}

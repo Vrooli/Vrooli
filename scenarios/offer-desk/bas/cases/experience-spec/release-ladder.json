@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "description": "Observer smoke for the typed release ladder and its prerequisite source.",
+    "execution_mode": "observer",
+    "labels": { "reset": "none", "spec_entry_id": "release-ladder", "surface": "experience-release-ladder" },
+    "name": "experience-release-ladder-spec-smoke",
+    "requirement": "OT-P0-001",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "id": "navigate-release-ladder",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "offer-desk", "scenario_path": "/release-ladder", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000 },
+        "metadata": { "label": "Open Release Ladder" }
+      }
+    },
+    {
+      "id": "wait-release-ladder-schedule",
+      "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/pages.releaseLadderSchedule", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }, "metadata": { "label": "Schedule visible" } }
+    },
+    {
+      "id": "wait-release-ladder-prerequisites",
+      "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/pages.releaseLadderPrerequisites", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }, "metadata": { "label": "Prerequisite region visible" } }
+    }
+  ],
+  "settings": { "viewport_height": 800, "viewport_width": 1280 }
+}

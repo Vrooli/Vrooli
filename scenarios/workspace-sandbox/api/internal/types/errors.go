@@ -234,6 +234,60 @@ func NewDriverError(operation string, err error) *DriverError {
 	}
 }
 
+// IsolationProfileNotFoundError indicates the requested isolation profile
+// could not be loaded from the profile store. The only realistic trigger
+// is a typo in the request — the builtin profiles ("full", "vrooli-aware")
+// are guaranteed by DefaultProfiles().
+type IsolationProfileNotFoundError struct {
+	ProfileID string
+}
+
+func (e *IsolationProfileNotFoundError) Error() string {
+	return fmt.Sprintf("isolation profile not found: %q. Use a builtin profile or define a custom one.", e.ProfileID)
+}
+
+func (e *IsolationProfileNotFoundError) HTTPStatus() int   { return http.StatusBadRequest }
+func (e *IsolationProfileNotFoundError) IsRetryable() bool { return false }
+
+// Hint returns actionable guidance for resolving this error.
+func (e *IsolationProfileNotFoundError) Hint() string {
+	return "Use a builtin profile ('full' or 'vrooli-aware'), or list profiles via GET /api/v1/profiles."
+}
+
+// Details returns structured information for API responses.
+func (e *IsolationProfileNotFoundError) Details() map[string]interface{} {
+	return map[string]interface{}{"profileId": e.ProfileID}
+}
+
+// NewIsolationProfileNotFoundError creates an IsolationProfileNotFoundError.
+func NewIsolationProfileNotFoundError(profileID string) *IsolationProfileNotFoundError {
+	return &IsolationProfileNotFoundError{ProfileID: profileID}
+}
+
+// ExecutionModeUnavailableError means the caller requested protected
+// execution but the selected driver/host cannot provide it. Copying a
+// workspace is intentionally not accepted as a protected-mode substitute.
+type ExecutionModeUnavailableError struct {
+	Mode   string
+	Driver string
+	Reason string
+}
+
+func (e *ExecutionModeUnavailableError) Error() string {
+	return fmt.Sprintf("execution mode %q is unavailable for driver %q: %s", e.Mode, e.Driver, e.Reason)
+}
+
+func (e *ExecutionModeUnavailableError) HTTPStatus() int   { return http.StatusConflict }
+func (e *ExecutionModeUnavailableError) IsRetryable() bool { return true }
+func (e *ExecutionModeUnavailableError) Code() string      { return "EXECUTION_MODE_UNAVAILABLE" }
+func (e *ExecutionModeUnavailableError) Hint() string {
+	return "Request tracking mode for copy-only execution, or select a driver and host that provide the requested protected containment."
+}
+
+func (e *ExecutionModeUnavailableError) Details() map[string]interface{} {
+	return map[string]interface{}{"mode": e.Mode, "driver": e.Driver, "reason": e.Reason}
+}
+
 // --- Idempotency and Concurrency Errors ---
 
 // ConcurrentModificationError indicates an update conflicted with a concurrent change.
@@ -429,4 +483,83 @@ func truncateHash(hash string) string {
 		return hash[:8]
 	}
 	return hash
+}
+
+// --- Home Overlay Errors ---
+
+// HomeOverlayUnavailableError indicates the driver tried to mount a
+// per-sandbox $HOME overlay and failed (mount syscall errored, post-mount
+// verification failed, or the layout was invalid). Surfaces internally so
+// the driver can record HomeOverlayState=Absent on the sandbox; never
+// returned to callers as a 5xx — it becomes HomeOverlayRequiredError at
+// exec time when the requested profile needs the overlay.
+//
+// DOC: home-overlay seam. See docs/internal/SEAMS.md.
+type HomeOverlayUnavailableError struct {
+	Cause error
+}
+
+func (e *HomeOverlayUnavailableError) Error() string {
+	if e.Cause == nil {
+		return "home overlay unavailable"
+	}
+	return fmt.Sprintf("home overlay unavailable: %v", e.Cause)
+}
+
+func (e *HomeOverlayUnavailableError) HTTPStatus() int   { return http.StatusInternalServerError }
+func (e *HomeOverlayUnavailableError) IsRetryable() bool { return true }
+func (e *HomeOverlayUnavailableError) Unwrap() error     { return e.Cause }
+func (e *HomeOverlayUnavailableError) Code() string      { return "HOME_OVERLAY_UNAVAILABLE" }
+
+// NewHomeOverlayUnavailableError wraps cause as a HomeOverlayUnavailableError.
+func NewHomeOverlayUnavailableError(cause error) *HomeOverlayUnavailableError {
+	return &HomeOverlayUnavailableError{Cause: cause}
+}
+
+// HomeOverlayRequiredError indicates a process-launch attempt where the
+// requested isolation profile sets HomeOverlayRequirement=required, but
+// the sandbox's HomeOverlayState is anything other than Present. The
+// handler returns HTTP 409. Recoverable by selecting a profile that
+// does not require the overlay or recreating the sandbox after fixing
+// the mount.
+//
+// DOC: home-overlay seam. See docs/internal/SEAMS.md.
+type HomeOverlayRequiredError struct {
+	SandboxID string
+	Profile   string
+	State     string // current HomeOverlayState
+}
+
+func (e *HomeOverlayRequiredError) Error() string {
+	return fmt.Sprintf(
+		"isolation profile %q requires a home overlay but sandbox %s has state=%q; recreate the sandbox or select a profile that does not require the overlay",
+		e.Profile, e.SandboxID, e.State,
+	)
+}
+
+func (e *HomeOverlayRequiredError) HTTPStatus() int   { return http.StatusConflict }
+func (e *HomeOverlayRequiredError) IsRetryable() bool { return false }
+func (e *HomeOverlayRequiredError) Code() string      { return "HOME_OVERLAY_REQUIRED" }
+
+// Hint returns actionable guidance for resolving this error.
+func (e *HomeOverlayRequiredError) Hint() string {
+	return "Recreate the sandbox after fixing the home-overlay mount cause (check workspace-sandbox logs), or pick a profile that does not require host $HOME visibility (e.g., 'full')."
+}
+
+// Details returns structured information for API responses.
+func (e *HomeOverlayRequiredError) Details() map[string]interface{} {
+	return map[string]interface{}{
+		"sandboxId":        e.SandboxID,
+		"profile":          e.Profile,
+		"homeOverlayState": e.State,
+	}
+}
+
+// NewHomeOverlayRequiredError creates a HomeOverlayRequiredError.
+func NewHomeOverlayRequiredError(sandboxID, profile, state string) *HomeOverlayRequiredError {
+	return &HomeOverlayRequiredError{
+		SandboxID: sandboxID,
+		Profile:   profile,
+		State:     state,
+	}
 }

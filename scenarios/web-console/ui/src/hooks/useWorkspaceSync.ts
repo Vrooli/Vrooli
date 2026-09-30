@@ -7,7 +7,8 @@ import {
   deleteTabGroup,
   type WorkspacePaneDTO,
   type TabGroupDTO,
-} from "../lib/api";
+} from "../api/workspace";
+import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 
 
 /** Debounce delay (ms) for pane reorder saves. */
@@ -32,12 +33,58 @@ export function useWorkspaceSync() {
     }, REORDER_DEBOUNCE_MS);
   }, []);
 
+  /**
+   * Persist the outcome of a pane move: the new order, plus the moved pane's
+   * group and color, which a drop can change (see the store's
+   * groupIdForDropPosition / withGroupAssigned).
+   *
+   * Every reorder surface — sidebar grip, tab strip, grid arrange-drag, the
+   * touch context menu's Move Up/Down — funnels through here so none of them
+   * can persist an order while silently dropping the membership change that
+   * came with it. Reads the store directly because the caller has just
+   * mutated it and any props it holds are a render behind.
+   */
+  const syncPaneMove = useCallback((sessionId: string) => {
+    const { panes, activePane } = useWorkspaceStore.getState();
+    syncPaneOrder(panes.map((pane) => pane.sessionId), activePane);
+    const moved = panes.find((pane) => pane.sessionId === sessionId);
+    if (!moved) return;
+    updateWorkspacePane(sessionId, {
+      group_id: moved.groupId,
+      header_color: moved.headerColor,
+    }).catch((err) => console.error("Failed to sync pane move:", err));
+  }, [syncPaneOrder]);
+
   /** Immediate save of a single pane's metadata. */
   const syncPaneUpdate = useCallback(
     (sessionId: string, update: Partial<Omit<WorkspacePaneDTO, "session_id">>) => {
       updateWorkspacePane(sessionId, update).catch((err) =>
         console.error("Failed to sync pane update:", err),
       );
+    },
+    [],
+  );
+
+  /** Awaitable bulk save of the same metadata patch to many panes. Returns
+   *  the session ids whose save failed so the caller can surface the partial
+   *  failure (unlike the fire-and-forget single-pane path). */
+  const syncPaneUpdates = useCallback(
+    async (
+      sessionIds: string[],
+      update: Partial<Omit<WorkspacePaneDTO, "session_id">>,
+    ): Promise<string[]> => {
+      const results = await Promise.allSettled(
+        sessionIds.map((id) => updateWorkspacePane(id, update)),
+      );
+      const failed: string[] = [];
+      results.forEach((result, i) => {
+        if (result.status === "rejected") {
+          const id = sessionIds[i];
+          if (id) failed.push(id);
+          console.error("Failed to sync pane update:", result.reason);
+        }
+      });
+      return failed;
     },
     [],
   );
@@ -76,7 +123,9 @@ export function useWorkspaceSync() {
 
   return {
     syncPaneOrder,
+    syncPaneMove,
     syncPaneUpdate,
+    syncPaneUpdates,
     syncActivePane,
     syncCreateGroup,
     syncUpdateGroup,

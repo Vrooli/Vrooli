@@ -14,7 +14,7 @@ interface ComplianceOverviewProps {
   overallScore?: number;
   configuredComponents?: number;
   securityScore?: number;
-  vaultHealth?: number;
+  credentialCoverage?: number;
   vulnerabilitySummary: VulnerabilitySummary;
   isComplianceLoading: boolean;
 }
@@ -23,7 +23,7 @@ export const ComplianceOverview = ({
   overallScore,
   configuredComponents,
   securityScore,
-  vaultHealth,
+  credentialCoverage,
   vulnerabilitySummary,
   isComplianceLoading
 }: ComplianceOverviewProps) => (
@@ -39,10 +39,10 @@ export const ComplianceOverview = ({
         <div className="mt-3 space-y-2">
           <p><strong className="text-white">Key Metrics:</strong></p>
           <ul className="ml-4 space-y-1">
-            <li><strong className="text-white">Overall Score:</strong> Weighted combination of security score and vault health</li>
+            <li><strong className="text-white">Overall Score:</strong> Weighted combination of security score and credential coverage</li>
             <li><strong className="text-white">Configured Components:</strong> Number of resources with complete secret configurations</li>
             <li><strong className="text-white">Security Score:</strong> Based on vulnerability severity distribution and remediation progress</li>
-            <li><strong className="text-white">Vault Health:</strong> Percentage of required secrets properly stored and validated</li>
+            <li><strong className="text-white">Credential Coverage:</strong> Percentage of required credentials properly stored and validated</li>
           </ul>
         </div>
         <div className="mt-3">
@@ -75,7 +75,7 @@ export const ComplianceOverview = ({
           <StatCard label="Overall Score" value={`${overallScore ?? 0}%`} />
           <StatCard label="Configured Components" value={`${configuredComponents ?? 0}`} />
           <StatCard label="Security Score" value={`${securityScore ?? 0}%`} />
-          <StatCard label="Vault Health" value={`${vaultHealth ?? 0}%`} />
+          <StatCard label="Credential Coverage" value={`${credentialCoverage ?? 0}%`} />
         </div>
       )}
       <div className="rounded-2xl border border-white/5 bg-black/30 p-4">

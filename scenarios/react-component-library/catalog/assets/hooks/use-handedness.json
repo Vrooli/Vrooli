@@ -1,0 +1,6 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": { "id": "hooks.use-handedness", "name": "Use Handedness", "kind": "runtime-hook", "domain": "hooks", "description": "Provides reach-side and writing-direction context for logical gesture behavior.", "targets": ["react-vite"], "slot": "non-renderable", "delivery": "adopted", "target": { "priority": "P1", "maturity": "verified" } }
+}

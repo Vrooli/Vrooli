@@ -1,35 +1,43 @@
+---
+name: "skill-authoring-practice"
+description: "Authoring guide for Practice skills that define systematic engineering methodologies. Covers process structure, convergence patterns, knowledge capture, and artifact requirements."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["meta","practice"]
+  tags: ["skill","practice","authoring"]
+  icon: "wrench"
+  status: "active"
+  revision: 28
+  createdAt: "2026-02-03T02:40:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Meta focus: Practice Skill Authoring
 
-Guide for creating **Practice** skills (where `modes[0] = "Practice"`). Practice skills define systematic engineering methodologies—repeatable approaches to recurring challenges that apply across scenarios, tools, and tech stacks.
+Guide for creating **practice** skills (the authored skill declares `modes[0] = "practice"`). Practice skills define systematic engineering methodologies — repeatable approaches to recurring challenges that apply across scenarios, tools, and tech stacks.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 ---
 
 ### **1. What Practice Skills Are**
 
-Practice skills encode **how to approach a class of problems systematically**. They differ from other categories:
-
-| Category | Focus | Scope | Example |
-|----------|-------|-------|---------|
-| Steer | What to build | Single scenario (`{{TARGET}}`) | "React components should handle all states" |
-| Search | Where to find info | Single scenario (`{{TARGET}}`) | "Trace auth flow through codebase" |
-| Tools | How to use X | Specific tool | "Use scenario-to-desktop CLI correctly" |
-| **Practice** | How to think | **Any codebase** | "Debug using hypothesis-driven analysis" |
+Practice skills encode **how to approach a class of problems systematically**. The six skill categories and how they differ are the SSOT in `docs/agent-system/PRIMITIVES.md` §"Skill" (the category taxonomy table) — read it there, do not restate it. The practice-specific contrast: where Steer optimizes what to build in one scenario, Platform shared-package evolution, Search where to find information, Tools how to use one tool, and Meta skill-system governance, Practice optimizes **how to think** — a repeatable methodology that applies to any codebase with no `{{TARGET}}`.
 
 **Key characteristics:**
-- **Methodology-focused** — Defines a repeatable process, not a destination
-- **Scenario-agnostic** — No `{{TARGET}}` placeholder; applies anywhere
-- **Knowledge-producing** — Generates artifacts (tests, docs, findings) that outlive the session
-- **Falsifiable** — Includes decision points where hypotheses can be validated or rejected
+- **Methodology-focused** — defines a repeatable process, not a destination
+- **Scenario-agnostic** — no `{{TARGET}}` placeholder; applies anywhere
+- **Knowledge-producing** — generates artifacts (tests, docs, findings) that outlive the session
+- **Falsifiable** — includes decision points where hypotheses can be validated or rejected
 
-**Examples of Practice skills:**
-- Scientific Debugging — hypothesis-driven root cause analysis
-- Code Review — systematic evaluation of changes for quality and correctness
-- Incident Response — structured approach to production issues
-- Performance Investigation — profiling and optimization methodology
-- Security Audit — systematic vulnerability discovery
+Examples: Scientific Debugging, Code Review, Incident Response, Performance Investigation, Security Audit.
 
 ---
 
@@ -49,24 +57,9 @@ Practice skills encode **how to approach a class of problems systematically**. T
 
 ---
 
-### **3. Recommended Structure**
+### **3. The Process Section**
 
-Practice skills follow a consistent structure:
-
-1. **Focus statement** — What methodology this skill teaches
-2. **When to use** — Problem patterns this methodology addresses
-3. **The process** — Step-by-step workflow with decision points
-4. **Convergence patterns** — Decision trees, tables, or diagrams for consistent application
-5. **Artifacts** — What the process produces (tests, docs, findings)
-6. **Anti-patterns** — Common mistakes and how to avoid them
-7. **Boundaries** — What this methodology does NOT cover
-8. **Output expectations** — What must be produced when applying this skill
-
----
-
-### **4. The Process Section**
-
-The core of every Practice skill is a **repeatable process**. Structure it as numbered phases with clear entry/exit criteria.
+The core of every Practice skill is a **repeatable process**, structured as numbered phases with clear entry/exit criteria.
 
 **Phase template:**
 ```markdown
@@ -85,194 +78,52 @@ The core of every Practice skill is a **repeatable process**. Structure it as nu
 **Artifacts:** [What this phase produces]
 ```
 
-Each phase should be:
-- **Independently valuable** — Produces something useful even if stopped early
-- **Observable** — Has clear completion criteria
-- **Documented** — Produces artifacts that persist beyond the session
+Each phase must be **independently valuable** (produces something useful even if stopped early), **observable** (clear completion criteria), and **documented** (artifacts persist beyond the session).
 
 ---
 
-### **5. Convergence Patterns**
+### **4. Convergence Patterns for Methodologies**
 
-Practice skills must include convergence patterns so agents apply the methodology consistently. Choose visual decision aids appropriate to your methodology:
+Canon owns the pattern forms (`docs/agent-system/SKILL_AUTHORING.md` §"Convergence patterns"). The practice-specific rule: pick the form that matches the methodology's shape — linear flow with feedback loops (debugging), parallel tracks that synthesize (review), triage-first branches (incident response), condition tables (escalation decisions), checklists (phase exit gates). Example of a linear flow with a feedback loop:
 
-#### **Process Flow Diagrams**
-
-Show the overall workflow and decision branches. The structure depends on your methodology's nature.
-
-**Example A — Linear with feedback loops (debugging):**
 ```
 Observe ──▶ Hypothesize ──▶ Test ──▶ Analyze ──┬──▶ Fix ──▶ Verify
                  ▲                              │
                  └──── (rejected) ◀─────────────┘
 ```
 
-**Example B — Parallel tracks (code review):**
-```
-┌─────────────────────────────────────────────────┐
-│                  CODE REVIEW                    │
-├─────────────────────────────────────────────────┤
-│  Correctness    Security    Performance    Style│
-│      │              │            │           │  │
-│      ▼              ▼            ▼           ▼  │
-│   [checks]      [checks]     [checks]    [checks]│
-│      │              │            │           │  │
-│      └──────────────┴────────────┴───────────┘  │
-│                      ▼                          │
-│               Synthesize Findings               │
-└─────────────────────────────────────────────────┘
-```
-
-**Example C — Triage-first (incident response):**
-```
-Alert ──▶ Assess Severity ──┬──▶ Critical ──▶ Mitigate ──▶ Investigate
-                            ├──▶ High ──▶ Investigate ──▶ Fix
-                            └──▶ Low ──▶ Queue for later
-```
-
-#### **Decision Tables**
-
-Use tables when outcomes depend on multiple conditions. Structure depends on what decisions your methodology requires.
-
-**Example — When to escalate (incident response):**
-
-| User Impact | Data at Risk | Action |
-|-------------|--------------|--------|
-| Widespread | Yes | Immediate escalation, all hands |
-| Widespread | No | Page on-call, begin mitigation |
-| Limited | Yes | Security team + on-call |
-| Limited | No | Standard investigation |
-
-**Example — Review depth (code review):**
-
-| Change Type | Test Coverage | Review Depth |
-|-------------|---------------|--------------|
-| Security-critical | Any | Deep review + security team |
-| Core logic | < 80% | Request more tests first |
-| Core logic | >= 80% | Standard review |
-| Config/docs | Any | Quick review |
-
-#### **Checklists**
-
-Use checklists for phases requiring thoroughness. Tailor to what your methodology needs to verify.
-
-**Example — Before approving (code review):**
-```markdown
-- [ ] Does the change do what the PR description claims?
-- [ ] Are edge cases handled?
-- [ ] Are there adequate tests?
-- [ ] Any security implications?
-```
-
-**Example — Before closing incident:**
-```markdown
-- [ ] Root cause identified and documented?
-- [ ] Fix deployed and verified?
-- [ ] Monitoring added to catch recurrence?
-- [ ] Post-mortem scheduled if warranted?
-```
+The falsifiability characteristic lives here: every methodology needs at least one point where a hypothesis can be *rejected* and the flow routes back, not just forward.
 
 ---
 
-### **6. Knowledge Capture**
+### **5. Knowledge Capture**
 
-Practice skills must specify how knowledge is captured and transferred. Every application of the skill should produce artifacts that:
-
-1. **Persist** — Outlive the session (tests, docs, code comments)
-2. **Explain** — Document the "why," not just the "what"
-3. **Prevent** — Help future agents avoid the same issues
-
-**Common artifact types** (choose what fits your methodology):
-
-| Artifact Type | Example Use Cases |
-|---------------|-------------------|
-| Tests | Debugging (regression tests), Code Review (suggested tests) |
-| Documentation | Incident Response (post-mortems), Security Audit (findings reports) |
-| Code comments | Any methodology that reveals non-obvious behavior |
-| Runbooks | Incident Response (how to handle specific failures) |
-| Metrics/dashboards | Performance Investigation (before/after benchmarks) |
-
-When authoring, specify which artifacts your methodology produces and where they should live.
+Every application of a Practice skill must produce artifacts that **persist** (outlive the session), **explain** (document the why), and **prevent** (help future agents avoid the same issues). When authoring, specify which artifact types the methodology produces (tests, findings docs, code comments, runbooks, benchmarks) and where they live.
 
 ---
 
-### **7. Anti-Pattern Section**
+### **6. Anti-Patterns Section**
 
-Every Practice skill should include an anti-patterns section warning against common mistakes. The specific anti-patterns depend on your methodology.
+Every Practice skill includes an anti-patterns table warning against the methodology's characteristic mistakes:
 
-**Template:**
 ```markdown
-### **Anti-Patterns**
-
 | Anti-Pattern | Why It Fails | Better Approach |
 |--------------|--------------|-----------------|
-| [Common mistake] | [Consequence] | [Correct approach] |
+| Shotgun debugging | Obscures the cause | Systematic hypothesis testing |
 ```
 
-**Example anti-patterns by methodology:**
-
-*Debugging:*
-- Shotgun debugging → obscures cause → systematic hypothesis testing
-- Fixing symptoms → bug returns → find root cause first
-
-*Code Review:*
-- Rubber-stamping → bugs slip through → use checklists
-- Style nitpicking → misses real issues → prioritize correctness
-
-*Incident Response:*
-- Premature root cause → wrong fix → stabilize first, investigate second
-- Hero culture → burnout, knowledge silos → documented runbooks
-
 ---
 
-### **8. Boundaries**
+### **7. Output Expectations**
 
-Practice skills should explicitly state what they do NOT cover, pointing to other resources where appropriate.
-
-**Template:**
-```markdown
-### **Boundaries**
-
-This methodology covers [specific scope].
-
-Does NOT cover:
-- **[Related but different thing]** — [Where to look instead]
-- **[Adjacent concern]** — [Where to look instead]
-```
-
-Be specific about scope to prevent misapplication.
-
----
-
-### **9. Registration**
-
-To publish a Practice skill:
-
-1. **Create the directory** in `scenarios/prompt-manager/store/skills/packs/core/<skill-id>/`
-2. **Add SKILL.md** with the skill content
-3. **Add skill.json** with metadata including `modes: ["practice"]`
-4. **Run sync** via `prompt-manager skill sync`
-5. **Verify** via `prompt-manager skill show <id>`
-
----
-
-### **10. Output Expectations**
-
-You may update:
-- Practice skills for clarity, additional patterns, or improved workflows
-- Related skills that reference Practice methodologies
+You may update Practice skills for clarity, additional patterns, or improved workflows.
 
 You must:
-- Include a clear, numbered process with phases
-- Include convergence patterns (diagrams, tables, checklists) appropriate to the methodology
-- Specify artifacts produced by the methodology
-- Include anti-patterns section with methodology-specific pitfalls
+- Include a clear, numbered process with phases and entry/exit criteria
+- Include convergence patterns matched to the methodology's shape (§4)
+- Ensure the process is falsifiable (decision points where hypotheses can fail)
+- Specify the artifacts the methodology produces (§5)
+- Include a methodology-specific anti-patterns table (§6)
 - Keep the methodology scenario-agnostic (no `{{TARGET}}`)
-- Ensure the process is falsifiable (has decision points where hypotheses can fail)
 
-**Avoid:**
-- Scenario-specific guidance (use Steer instead)
-- Tool-specific instructions (use Tools instead)
-- Vague advice without concrete steps
-- Processes without observable completion criteria
-- Examples that only apply to one type of methodology
+Registration follows `docs/agent-system/SKILL_AUTHORING.md` §"Registration and metadata"; the authored skill declares `modes[0] = "practice"`.

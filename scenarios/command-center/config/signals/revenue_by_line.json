@@ -1,0 +1,50 @@
+{
+  "id": "revenue_by_line",
+  "label": "Revenue by line",
+  "description": "Successful checkout revenue split by subscription, credit top-up and other session types.",
+  "unit": "currency",
+  "format": "currency.compact",
+  "kind": "panel",
+  "shape": "rows",
+  "columns": {
+    "key": {
+      "type": "string"
+    },
+    "value": {
+      "type": "number"
+    },
+    "share": {
+      "type": "number"
+    },
+    "label": {
+      "type": "string",
+      "optional": true
+    },
+    "detail": {
+      "type": "string",
+      "optional": true
+    }
+  },
+  "source": {
+    "team": "monetization",
+    "binding": "scenario:landing-page-business-suite",
+    "read": "/api/v1/admin/dashboard/revenue",
+    "select": "revenue_by_line",
+    "ttlSeconds": 300,
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "featureId": "revenue_by_line",
+    "contractVersion": "revenue-summary.v1",
+    "selector": "revenue_by_line",
+    "expectedUnit": "currency",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "IN-REACH",
+  "sample": {
+    "value": 0,
+    "series": [
+      0
+    ],
+    "basis": "authored zero baseline; production validation pending"
+  }
+}

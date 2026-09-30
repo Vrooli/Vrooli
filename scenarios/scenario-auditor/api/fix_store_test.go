@@ -39,8 +39,8 @@ func TestAutomatedFixStoreEnableDefaults(t *testing.T) {
 	if len(cfg.Severities) == 0 {
 		t.Errorf("expected severities to default to critical/high")
 	}
-	if cfg.Model != openRouterModel {
-		t.Errorf("expected default model %q, got %q", openRouterModel, cfg.Model)
+	if cfg.Model != openRouterModel() {
+		t.Errorf("expected default model %q, got %q", openRouterModel(), cfg.Model)
 	}
 }
 

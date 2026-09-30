@@ -1,0 +1,22 @@
+{
+  "composition": "conversion-funnel",
+  "slots": {
+    "funnel": {
+      "shape": "rows",
+      "role": "primary",
+      "whenUnbound": "decorative",
+      "columns": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        },
+        "share": {
+          "type": "number"
+        }
+      }
+    }
+  },
+  "generatedFrom": "ui/src/scenes"
+}

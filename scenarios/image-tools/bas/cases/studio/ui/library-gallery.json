@@ -1,0 +1,58 @@
+{
+  "metadata": {
+    "name": "library-gallery",
+    "description": "Stage-4 Library journey driving the outputs gallery end-to-end against the real backend: navigates to /library and asserts the gallery composes — the root and the filter input render, which proves the surface derives its grid from JobsService.ListJobs (the Stage-4 contract decision: outputs come from succeeded jobs, with no separate outputs backend) without crashing. On a fresh scenario with no prior outputs the empty state renders; once jobs exist the grid renders with thumbnails. A Library that fails to compose, a broken ListJobs derivation, or a crash on empty data all fail here. Grid rendering, multi-select bulk-download, and reopen-in-Workspace are unit-covered by LibraryView.test; the reopen handoff shares the workspaceIntent path proven by home-launchpad.",
+    "requirement": "IMG-P0-010",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "purpose": "library-gallery-smoke"
+    },
+    "execution_mode": "read_only"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-library",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "@scenario/self",
+          "scenario_path": "/library",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Navigate to the Library" }
+      }
+    },
+    {
+      "id": "wait-library-root",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/library.root",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Library surface composed" }
+      }
+    },
+    {
+      "id": "assert-library-search",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/library.search",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "Library filter input not visible — the Library surface failed to compose (check LibraryView mounts and the ListJobs query is wired through ui/src/api/jobs.ts)."
+        },
+        "metadata": { "label": "Assert the Library composed and derives from ListJobs" }
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "settings-page",
+    "title": "Preferences",
+    "purpose": "Local preferences page composition.",
+    "storyRef": "../../ui/src/pages/SettingsPage.story.json"
+  },
+  "states": [
+    {
+      "id": "preferences",
+      "example": "preferences",
+      "description": "Theme and locale controls"
+    }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "generic",
+      "description": "Preferences"
+    }
+  ],
+  "claims": [],
+  "bindings": {
+    "elements": {
+      "surface": {
+        "selector": "[data-testid=\"settings-page\"]"
+      }
+    }
+  }
+}

@@ -39,8 +39,6 @@ export interface CompletionOptions {
   onEvent?: (event: StreamingEvent) => void;
   /** AbortSignal for cancellation */
   signal?: AbortSignal;
-  /** Force a specific tool to be called */
-  forcedTool?: { scenario: string; toolName: string };
   /** Skills to inject into tool context */
   skills?: SkillPayloadForAPI[];
 }

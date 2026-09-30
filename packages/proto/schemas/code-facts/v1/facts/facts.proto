@@ -1,0 +1,512 @@
+syntax = "proto3";
+
+package vrooli.code_facts.v1.facts;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts;facts_v1";
+
+// =============================================================================
+// CODE FACTS SERVICE
+// =============================================================================
+//
+// @domain target + surface + facts + proof + cache
+// @stability stable
+//
+// Code Facts is the shared code-evidence broker for Vrooli. It resolves a
+// bounded target, describes scenario/generic surfaces, brokers language graph
+// providers, and returns typed evidence that downstream validators can consume
+// without parsing implementation source themselves.
+// =============================================================================
+
+service CodeFactsService {
+  // DescribeCodeFacts returns a selective report for the requested fact
+  // families. Unsupported families are represented with typed evidence instead
+  // of being omitted.
+  rpc DescribeCodeFacts(DescribeCodeFactsRequest) returns (CodeFactsReport) {}
+
+  // Search returns a lexical, provenance-preserving view over node facts. It
+  // is intentionally separate from DescribeCodeFacts so the Search Hub leaf
+  // never needs to ship a full fleet report to answer one identifier query.
+  rpc Search(SearchRequest) returns (SearchResponse) {}
+
+  // DescribeFleetImports returns IMPORTS facts for many or all scenarios.
+  // It stays language-level: import_path attributes are not resolved to
+  // owning scenarios here.
+  rpc DescribeFleetImports(DescribeFleetImportsRequest) returns (DescribeFleetImportsResponse) {}
+
+  // ListSurfaces returns the surface inventory portion of DescribeCodeFacts.
+  rpc ListSurfaces(ListSurfacesRequest) returns (ListSurfacesResponse) {}
+
+  // CheckProtoAdoption returns analyzer-backed proof-family evidence for
+  // generated proto adoption.
+  rpc CheckProtoAdoption(CheckProtoAdoptionRequest) returns (ProofReport) {}
+
+  // CheckEndpointProof returns analyzer-backed proof-family evidence for one
+  // endpoint or all endpoints in a target.
+  rpc CheckEndpointProof(CheckEndpointProofRequest) returns (ProofReport) {}
+
+  // GetCacheStatus returns inspectable cache metadata for a target/options
+  // tuple.
+  rpc GetCacheStatus(GetCacheStatusRequest) returns (CacheStatus) {}
+
+  // InspectCache returns matching cache entries with key/hash evidence.
+  rpc InspectCache(InspectCacheRequest) returns (CacheStatus) {}
+
+  // ClearCache plans or clears cache entries for a target/options tuple.
+  rpc ClearCache(ClearCacheRequest) returns (ClearCacheResponse) {}
+
+  // GetIndexStatus returns the durable active generation and reconciliation jobs.
+  rpc GetIndexStatus(GetIndexStatusRequest) returns (IndexStatus) {}
+
+  // ReconcileIndex applies bounded catalog changes to the selected generation.
+  rpc ReconcileIndex(ReconcileIndexRequest) returns (IndexControlResponse) {}
+
+  // Reindex starts a full shadow-generation rebuild.
+  rpc Reindex(ReindexRequest) returns (IndexControlResponse) {}
+
+  // CancelIndexJob durably requests cancellation of an active index job.
+  rpc CancelIndexJob(CancelIndexJobRequest) returns (IndexControlResponse) {}
+
+  // PromoteIndexGeneration validates and promotes a complete shadow generation.
+  rpc PromoteIndexGeneration(PromoteIndexGenerationRequest) returns (IndexControlResponse) {}
+
+  // RollbackIndexGeneration restores a retained complete generation.
+  rpc RollbackIndexGeneration(RollbackIndexGenerationRequest) returns (IndexControlResponse) {}
+
+  // CleanupIndex plans or deletes retired derived generations.
+  rpc CleanupIndex(CleanupIndexRequest) returns (IndexControlResponse) {}
+}
+
+enum TargetKind {
+  TARGET_KIND_UNSPECIFIED = 0;
+  TARGET_KIND_PATH = 1;
+  TARGET_KIND_SCENARIO = 2;
+  TARGET_KIND_REPO = 3;
+  TARGET_KIND_MODULE = 4;
+  TARGET_KIND_PROJECT = 5;
+  TARGET_KIND_CONTROL_PLANE = 6;
+  TARGET_KIND_PACKAGE = 7;
+  TARGET_KIND_RESOURCE = 8;
+  TARGET_KIND_TOOL = 9;
+  TARGET_KIND_SAFEGUARD = 10;
+  TARGET_KIND_DOCS = 11;
+  TARGET_KIND_TEAM = 12;
+}
+
+enum FactFamily {
+  FACT_FAMILY_UNSPECIFIED = 0;
+  FACT_FAMILY_SURFACES = 1;
+  FACT_FAMILY_PARSE_UNITS = 2;
+  FACT_FAMILY_IMPORTS = 3;
+  FACT_FAMILY_SYMBOLS = 4;
+  FACT_FAMILY_REFERENCES = 5;
+  FACT_FAMILY_CALLS = 6;
+  FACT_FAMILY_PROTO_ADOPTION = 7;
+  FACT_FAMILY_ENDPOINT_PROOFS = 8;
+  FACT_FAMILY_CLI_PROOFS = 9;
+  FACT_FAMILY_UI_WIDGET_PROOFS = 10;
+  // FILE_DOMAIN is an opinion-bearing family produced by architecture
+  // cartographer. Code Facts exposes the contract and caches returned facts,
+  // but does not infer domain ownership itself.
+  FACT_FAMILY_FILE_DOMAIN = 11;
+  FACT_FAMILY_ALL = 99;
+}
+
+enum EvidenceStatus {
+  EVIDENCE_STATUS_UNSPECIFIED = 0;
+  EVIDENCE_STATUS_PROVEN = 1;
+  EVIDENCE_STATUS_MISSING = 2;
+  EVIDENCE_STATUS_CONTRADICTED = 3;
+  EVIDENCE_STATUS_UNSUPPORTED = 4;
+  EVIDENCE_STATUS_UNKNOWN = 5;
+}
+
+enum SurfaceKind {
+  SURFACE_KIND_UNSPECIFIED = 0;
+  SURFACE_KIND_API = 1;
+  SURFACE_KIND_CLI = 2;
+  SURFACE_KIND_UI = 3;
+  SURFACE_KIND_SIDECAR = 4;
+  SURFACE_KIND_WORKER = 5;
+  SURFACE_KIND_JOB = 6;
+  // Runtime modules ship inside generated artifacts and require independent
+  // discovery, test policy, and coverage evidence.
+  SURFACE_KIND_RUNTIME = 7;
+}
+
+enum SurfaceStatus {
+  SURFACE_STATUS_UNSPECIFIED = 0;
+  SURFACE_STATUS_KNOWN = 1;
+  SURFACE_STATUS_MISSING = 2;
+  SURFACE_STATUS_UNSUPPORTED = 3;
+  SURFACE_STATUS_AMBIGUOUS = 4;
+  SURFACE_STATUS_UNKNOWN = 5;
+}
+
+message CodeTarget {
+  TargetKind kind = 1;
+  string path = 2;
+  string scenario = 3;
+  string repo_root = 4;
+  repeated string language_filter = 5;
+  bool strict = 6;
+  string package_name = 7;
+}
+
+message DescribeCodeFactsRequest {
+  CodeTarget target = 1;
+  repeated FactFamily include = 2;
+  repeated string endpoint_ids = 3;
+  repeated string command_ids = 4;
+  repeated string widget_ids = 5;
+  int32 max_depth = 6;
+  bool use_cache = 7;
+  // Optional page size for large reports. Zero preserves the historical
+  // single-response behavior.
+  int32 page_size = 8;
+  // Decimal fact offset returned by the previous response's next_page_token.
+  string page_token = 9;
+}
+
+message SearchRequest {
+  string query = 1;
+  int32 limit = 2;
+  CodeTarget target = 3;
+  repeated FactFamily families = 4;
+  // Expand matching node hits with graph edges resolved from the authoritative
+  // Describe path at query time. Edges are never embedded in the Search Hub
+  // corpus.
+  bool expand_edges = 5;
+  repeated string roles = 6;
+  repeated string languages = 7;
+  string scope = 8;
+  // Explicit provider-stage budgets supplied by Search Hub. Zero uses the
+  // provider default; a caller deadline always remains the outer bound.
+  int32 budget_ms = 9;
+  int32 lexical_budget_ms = 10;
+  int32 semantic_budget_ms = 11;
+  int32 graph_budget_ms = 12;
+}
+
+message SearchHit {
+  string id = 1;
+  string title = 2;
+  string text = 3;
+  double score = 4;
+  string path = 5;
+  string analyzer = 6;
+  EvidenceStatus evidence_status = 7;
+  string fact_kind = 8;
+  repeated SearchExpansion edge_expansions = 9;
+  string source_hash = 10;
+  string generation = 11;
+  string role = 12;
+  string scope = 13;
+  string retrieval_regime = 14;
+  string retrieval_explanation = 15;
+  string proof_status = 16;
+  int32 start_line = 17;
+  int32 end_line = 18;
+  repeated SearchRankFactor rank_factors = 19;
+}
+
+message SearchRankFactor {
+  string name = 1;
+  double value = 2;
+  string leg = 3;
+  int32 rank = 4;
+}
+
+message SearchExpansion {
+  string id = 1;
+  string title = 2;
+  string text = 3;
+  string path = 4;
+  string analyzer = 5;
+  EvidenceStatus evidence_status = 6;
+  string fact_kind = 7;
+  FactFamily family = 8;
+}
+
+message SearchResponse {
+  repeated SearchHit results = 1;
+  repeated string degraded_stages = 2;
+  string generation = 3;
+  string retrieval_regime = 4;
+}
+
+enum IndexJobState {
+  INDEX_JOB_STATE_UNSPECIFIED = 0;
+  INDEX_JOB_STATE_QUEUED = 1;
+  INDEX_JOB_STATE_RUNNING = 2;
+  INDEX_JOB_STATE_CANCELLATION_REQUESTED = 3;
+  INDEX_JOB_STATE_SUCCEEDED = 4;
+  INDEX_JOB_STATE_FAILED = 5;
+  INDEX_JOB_STATE_CANCELLED = 6;
+  INDEX_JOB_STATE_INTERRUPTED = 7;
+}
+
+message IndexJob {
+  string id = 1;
+  string kind = 2;
+  IndexJobState state = 3;
+  string generation = 4;
+  int64 processed = 5;
+  int64 total = 6;
+  string cursor = 7;
+  string error = 8;
+  int64 created_at_unix = 9;
+  int64 updated_at_unix = 10;
+  bool cancellation_requested = 11;
+}
+
+message GetIndexStatusRequest {}
+
+message IndexStatus {
+  string active_generation = 1;
+  string previous_generation = 2;
+  string state = 3;
+  int64 source_files = 4;
+  int64 search_documents = 5;
+  int64 semantic_cards = 6;
+  int64 graph_facts = 7;
+  int64 storage_bytes = 8;
+  int64 last_reconcile_at_unix = 9;
+  string last_reconcile_outcome = 10;
+  string descriptor_digest = 11;
+  string source_digest = 12;
+  repeated string degraded_stages = 13;
+  repeated IndexJob active_jobs = 14;
+}
+
+message ReconcileIndexRequest {
+  string generation = 1;
+}
+
+message ReindexRequest {
+  string generation = 1;
+  bool confirmed = 2;
+}
+
+message CancelIndexJobRequest {
+  string job_id = 1;
+}
+
+message PromoteIndexGenerationRequest {
+  string generation = 1;
+  bool confirmed = 2;
+}
+
+message RollbackIndexGenerationRequest {
+  string generation = 1;
+  bool confirmed = 2;
+}
+
+message CleanupIndexRequest {
+  bool dry_run = 1;
+  bool confirmed = 2;
+}
+
+message IndexControlResponse {
+  IndexJob job = 1;
+  IndexStatus status = 2;
+  string message = 3;
+}
+
+message DescribeFleetImportsRequest {
+  repeated string scenarios = 1;
+  int32 limit = 2;
+  bool use_cache = 3;
+  string repo_root = 4;
+  repeated string language_filter = 5;
+}
+
+message CodeFactsResult {
+  string scenario = 1;
+  CodeFactsReport report = 2;
+  string error = 3;
+}
+
+message DescribeFleetImportsResponse {
+  repeated CodeFactsResult results = 1;
+}
+
+message ListSurfacesRequest {
+  CodeTarget target = 1;
+  bool use_cache = 2;
+}
+
+message CheckProtoAdoptionRequest {
+  CodeTarget target = 1;
+  repeated string surfaces = 2;
+  bool use_cache = 3;
+}
+
+message CheckEndpointProofRequest {
+  CodeTarget target = 1;
+  repeated string endpoint_ids = 2;
+  bool use_cache = 3;
+}
+
+message GetCacheStatusRequest {
+  CodeTarget target = 1;
+}
+
+message InspectCacheRequest {
+  CodeTarget target = 1;
+  string cache_key = 2;
+}
+
+message ClearCacheRequest {
+  CodeTarget target = 1;
+  bool dry_run = 2;
+  bool all = 3;
+}
+
+message TargetContext {
+  CodeTarget requested = 1;
+  TargetKind resolved_kind = 2;
+  string root_path = 3;
+  string scenario = 4;
+  bool scenario_aware = 5;
+  repeated string root_paths = 6;
+}
+
+message SourceRange {
+  string file = 1;
+  int32 start_line = 2;
+  int32 start_column = 3;
+  int32 end_line = 4;
+  int32 end_column = 5;
+}
+
+message Evidence {
+  EvidenceStatus status = 1;
+  double confidence = 2;
+  SourceRange range = 3;
+  string symbol = 4;
+  string analyzer = 5;
+  string message = 6;
+}
+
+message ParseUnit {
+  string id = 1;
+  string language = 2;
+  string root_path = 3;
+  string config_path = 4;
+  EvidenceStatus status = 5;
+  repeated Evidence evidence = 6;
+  // Neutral observations; downstream policy decides adapter correctness.
+  ToolchainObservation toolchain = 7;
+  // Optional module-relative Go package patterns for a bounded control-plane scan.
+  repeated string package_patterns = 8;
+}
+
+message ToolchainObservation {
+  string ecosystem = 1;
+  repeated string manifest_paths = 2;
+  repeated string lockfile_paths = 3;
+  repeated string build_systems = 4;
+  repeated string runner_indicators = 5;
+  string package_manager = 6;
+  string toolchain_identity = 7;
+  EvidenceStatus status = 8;
+  repeated Evidence evidence = 9;
+}
+
+message Surface {
+  string id = 1;
+  SurfaceKind kind = 2;
+  string path = 3;
+  SurfaceStatus status = 4;
+  repeated Evidence evidence = 5;
+}
+
+message GenericFact {
+  string id = 1;
+  FactFamily family = 2;
+  string kind = 3;
+  string subject = 4;
+  repeated Evidence evidence = 5;
+  map<string, string> attributes = 6;
+}
+
+message Warning {
+  string code = 1;
+  string message = 2;
+  EvidenceStatus status = 3;
+}
+
+message CacheMetadata {
+  string cache_key = 1;
+  bool hit = 2;
+  string analyzer_version = 3;
+  string graph_hash = 4;
+  int64 age_seconds = 5;
+  string state = 6;
+  string reason = 7;
+  string source_hash = 8;
+  string config_hash = 9;
+  string provider_version = 10;
+  string schema_version = 11;
+  int64 created_at_unix = 12;
+  int64 last_used_at_unix = 13;
+  int64 hit_count = 14;
+  string scope = 15;
+  string logical_key = 16;
+  int64 payload_bytes = 17;
+  string codec = 18;
+}
+
+message CacheScopeSummary {
+  string scope = 1;
+  int64 row_count = 2;
+  int64 payload_bytes = 3;
+}
+
+message CacheStatus {
+  CodeTarget target = 1;
+  string cache_key = 2;
+  int64 entries = 3;
+  repeated CacheMetadata entries_metadata = 4;
+  int64 total_rows = 5;
+  int64 total_payload_bytes = 6;
+  int64 budget_bytes = 7;
+  double utilization = 8;
+  repeated CacheScopeSummary scopes = 9;
+  int64 last_sweep_at_unix = 10;
+}
+
+message ClearCacheResponse {
+  string cache_key = 1;
+  int64 matched_entries = 2;
+  int64 cleared_entries = 3;
+  bool dry_run = 4;
+}
+
+message CodeFactsReport {
+  TargetContext target = 1;
+  repeated ParseUnit parse_units = 2;
+  repeated Surface surfaces = 3;
+  repeated GenericFact facts = 4;
+  repeated Evidence evidence = 5;
+  repeated Warning warnings = 6;
+  CacheMetadata cache = 7;
+  string next_page_token = 8;
+  int32 total_facts = 9;
+}
+
+message ListSurfacesResponse {
+  TargetContext target = 1;
+  repeated Surface surfaces = 2;
+  repeated Warning warnings = 3;
+  CacheMetadata cache = 4;
+}
+
+message ProofReport {
+  TargetContext target = 1;
+  FactFamily family = 2;
+  repeated GenericFact facts = 3;
+  repeated Evidence evidence = 4;
+  repeated Warning warnings = 5;
+  CacheMetadata cache = 6;
+}

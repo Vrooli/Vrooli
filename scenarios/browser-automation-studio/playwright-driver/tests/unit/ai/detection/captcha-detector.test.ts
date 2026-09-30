@@ -1,7 +1,6 @@
 import type { Page } from 'rebrowser-playwright';
 import {
   detectCaptcha,
-  createMockCaptchaDetector,
   NO_CAPTCHA_RESULT,
   type CaptchaDetectionResult,
 } from '../../../../src/ai/detection';
@@ -57,22 +56,6 @@ describe('CAPTCHA detector', () => {
 
     expect(result.detected).toBe(false);
     expect(result.reason).toContain('Detection error');
-  });
-
-  it('creates a mock detector with a fixed result', async () => {
-    const mockResult: CaptchaDetectionResult = {
-      detected: true,
-      type: 'hcaptcha',
-      confidence: 'medium',
-      reason: 'hCaptcha detected',
-      instructions: 'Solve the challenge',
-      selector: '.h-captcha',
-    };
-
-    const detector = createMockCaptchaDetector(mockResult);
-    const result = await detector.detect({} as Page);
-
-    expect(result).toEqual(mockResult);
   });
 
   it('exports NO_CAPTCHA_RESULT as a stable baseline', () => {

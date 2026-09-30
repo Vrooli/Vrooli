@@ -28,7 +28,6 @@ export function WaitlistManagement() {
     <AdminLayout maxWidth="default">
       <div className={LAYOUT.pageSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Manage Waitlist Signups"
           description="View and manage email addresses collected from the coming soon page."
           icon={Mail}
@@ -38,12 +37,12 @@ export function WaitlistManagement() {
           actions={
             <>
               {emails.length > 0 && (
-                <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
+                <Button variant="outline" size="sm" onClick={() => { void handleExport(); }} className="gap-2">
                   <Download className="h-4 w-4" />
                   Export CSV
                 </Button>
               )}
-              <Button variant="ghost" size="sm" onClick={loadData} className="gap-2">
+              <Button variant="ghost" size="sm" onClick={() => { void loadData(); }} className="gap-2">
                 <RefreshCw className="h-4 w-4" />
                 Refresh
               </Button>
@@ -110,7 +109,7 @@ export function WaitlistManagement() {
                 </a>
                 <ToggleSwitch
                   checked={comingSoonEnabled}
-                  onToggle={handleToggleComingSoon}
+                  onToggle={() => { void handleToggleComingSoon(); }}
                   loading={togglingComingSoon}
                   disabled={togglingComingSoon}
                   aria-label="Toggle coming soon mode"
@@ -183,7 +182,8 @@ export function WaitlistManagement() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDelete(email.id)}
+                            aria-label={`Delete waitlist signup for ${email.email}`}
+                            onClick={() => { void handleDelete(email.id); }}
                             disabled={deleting === email.id}
                             className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
                           >

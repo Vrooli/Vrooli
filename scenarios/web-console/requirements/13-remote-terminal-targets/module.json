@@ -1,0 +1,154 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-08-31T09:22:08-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P1-013a",
+      "title": "Target selector and readiness facts",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-013",
+      "category": "ui",
+      "description": "The launcher exposes a target selector, disables non-dispatchable targets, and shows readiness facts or the failing rung.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/terminal-launcher.test.tsx",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-013b",
+      "title": "CLI target vocabulary",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-013",
+      "category": "cli",
+      "description": "The terminal CLI exposes local, Bridge-node, and SSH target names matching the launcher vocabulary.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/domains/targets/register.go",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-013c",
+      "title": "Live devices and machines roster",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-013",
+      "category": "ui",
+      "description": "Web Console presents connected browser devices and linked terminal machines together, with live device identity, lease state, and safe disconnect actions.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/devices/module_test.go",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/fleet/__tests__/FleetDrawer.test.tsx",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/fleet/__tests__/DeviceCard.test.tsx",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/fleet/__tests__/MachineCard.test.tsx",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/machines-drawer.test.tsx",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-foundation/02-devices/two-viewers-lease-handover.json",
+          "phase": "integration",
+          "status": "implemented"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-foundation/02-devices/devices-and-machines-overlay.json",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-013d",
+      "title": "Target capability readiness",
+      "status": "in_progress",
+      "category": "core",
+      "description": "The target catalog emits one four-state capability readiness fact for each declared coding agent, and a missing capability does not change target dispatchability.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/target_catalog_test.go",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/machine-picker.test.tsx",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-013e",
+      "title": "Capability-derived launcher",
+      "status": "in_progress",
+      "category": "ui",
+      "description": "The launcher derives coding-agent cards from the selected target capability facts, keeps unavailable cards visible with recovery text, and keeps an empty shell available.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/components/launcher/agentGrid.test.ts",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/machine-picker.test.tsx",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-013f",
+      "title": "Governed target capability installation",
+      "status": "in_progress",
+      "category": "core",
+      "description": "A missing resource-backed capability exposes a target-scoped governed install action on the launcher and machines surfaces, while unsupported platforms return an explicit not_applicable reason.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/remote_capability_install_test.go",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/fleet/__tests__/FleetDrawer.test.tsx",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
+    }
+  ]
+}

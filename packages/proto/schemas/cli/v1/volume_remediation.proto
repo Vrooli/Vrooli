@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — `host volume` output contract
+// =============================================================================
+//
+// @stability experimental
+//
+// Typed view of `vrooli host volume <action> --json`. The control plane owns
+// detection and remediation of host storage state; scenarios observe, request
+// and report it through this contract rather than carrying a private host-repair
+// implementation of their own.
+//
+// Every mutating action is gated inside the control plane: the device identity
+// is re-observed immediately before acting, a filesystem check requires the
+// volume to be unmounted, and a repair requires an explicit data-loss
+// acknowledgement. This contract reports what those gates decided; it never
+// carries a command, argument, or option that a caller could influence.
+//
+// IMPORTANT: `dirty` is a tristate string ("unknown", "yes", "no"), not a bool.
+// A host that cannot determine filesystem health must not be able to report it
+// as healthy, which is exactly what a two-valued field would force.
+// =============================================================================
+
+// VolumeDevice identifies one storage volume.
+message VolumeDevice {
+  // Device specifier: /dev/sda1, /dev/disk2s1, or a Windows drive letter.
+  string path = 1;
+  string filesystem = 2;
+  // uuid and serial are the identifiers that survive a replug. A mutating
+  // action is refused unless at least one is present, so a renumbered device
+  // can never inherit another disk's approval.
+  string uuid = 3;
+  string serial = 4;
+  // Empty when the volume is not mounted.
+  string mountpoint = 5;
+  int64 total_bytes = 6;
+}
+
+// VolumeState is a read-only observation of a volume.
+message VolumeState {
+  VolumeDevice device = 1;
+  bool mounted = 2;
+  bool read_only = 3;
+  // "unknown" | "yes" | "no" — see the tristate note above.
+  string dirty = 4;
+  // Provenance of the dirty verdict, e.g. a driver-published state file.
+  string evidence = 5;
+  repeated string observations = 6;
+}
+
+// VolumeRemediationResponse is the result of one `host volume` action.
+message VolumeRemediationResponse {
+  // "inspect" | "check" | "repair" | "unmount" | "mount_read_write"
+  string action = 1;
+  // "verified" | "changed" | "already_satisfied" | "refused" | "unsupported" |
+  // "failed"
+  string status = 2;
+  bool changed = 3;
+  bool dry_run = 4;
+  // The exact argv that ran, or would have run under --dry-run. Recording it is
+  // what makes the operation auditable rather than opaque.
+  repeated string command = 5;
+  // Which execution path served the request: "udisks2", "native-tools",
+  // "diskutil", or "repair-volume".
+  string backend = 6;
+  // Bounded tool output.
+  string detail = 7;
+  VolumeState state = 8;
+  // Set when a safety gate rejected the request.
+  string refusal_reason = 9;
+  // Set when this host has no automated path, naming the command an operator
+  // can run instead. An unsupported platform still leaves a way forward.
+  string operator_command = 10;
+  // Verdict of a check action: "unknown" | "yes" | "no". A check that ran and
+  // found problems is still a successful *action*, so this is where its answer
+  // lives — reading only `status` would report an inconsistent filesystem as
+  // fine.
+  string consistent = 11;
+}

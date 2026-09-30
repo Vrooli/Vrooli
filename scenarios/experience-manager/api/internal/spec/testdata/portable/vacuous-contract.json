@@ -1,0 +1,10 @@
+{
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "custom",
+      "statement": "A contract file exists.",
+      "tier": "manual"
+    }
+  ]
+}

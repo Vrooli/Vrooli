@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.data-toolbar",
+    "name": "DataToolbar",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "The collection action surface holding search, filters, saved views, sort, refresh, export, density, and column controls with responsive overflow.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "controls.toolbar",
+        "reason": "Grouping, roving focus, and overflow are shared."
+      },
+      {
+        "asset": "data-display.filter-bar",
+        "reason": "Query controls are shared."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "freshness-disclosure"
+  ]
+}

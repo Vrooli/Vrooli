@@ -1,0 +1,26 @@
+[
+  {
+    "name": "true-poll-loop",
+    "gapSeconds": 10,
+    "stateChange": false,
+    "expectedCount": 1,
+    "expectedWallClockMs": 21000,
+    "expectedTokens": 42
+  },
+  {
+    "name": "legitimate-retry",
+    "gapSeconds": 10,
+    "stateChange": true,
+    "expectedCount": 0,
+    "expectedWallClockMs": 0,
+    "expectedTokens": 0
+  },
+  {
+    "name": "slow-single-call",
+    "gapSeconds": 60,
+    "stateChange": false,
+    "expectedCount": 0,
+    "expectedWallClockMs": 0,
+    "expectedTokens": 0
+  }
+]

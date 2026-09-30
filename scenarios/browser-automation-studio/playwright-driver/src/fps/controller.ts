@@ -277,11 +277,13 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 // Re-export types for convenience
-export {
+export type {
   FpsControllerConfig,
   FpsControllerState,
   FpsAdjustmentResult,
   FpsAdjustmentDiagnostics,
+};
+export {
   DEFAULT_FPS_CONFIG,
   createInitialState,
 };

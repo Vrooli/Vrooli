@@ -65,7 +65,7 @@ export function StepProvider({ selectedProvider, onSelectProvider }: StepProvide
       <Callout
         type="info"
         message="Not sure which provider to choose? We'll help you pick the best option for your needs."
-        actions={[{ label: 'Learn more', onClick: () => setShowHelp(true) }]}
+        actions={[{ label: 'Learn more', onClick: () => { setShowHelp(true); } }]}
       />
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -77,7 +77,7 @@ export function StepProvider({ selectedProvider, onSelectProvider }: StepProvide
             <button
               key={provider.id}
               type="button"
-              onClick={() => onSelectProvider(provider.id)}
+              onClick={() => { onSelectProvider(provider.id); }}
               className={cn(
                 'relative rounded-2xl border-2 p-5 text-left transition-all duration-200',
                 'hover:border-blue-500/50 hover:bg-blue-500/5',
@@ -136,7 +136,7 @@ export function StepProvider({ selectedProvider, onSelectProvider }: StepProvide
 
       <HelpModal
         open={showHelp}
-        onClose={() => setShowHelp(false)}
+        onClose={() => { setShowHelp(false); }}
         title="Which Storage Provider Should I Choose?"
       >
         <ProviderComparisonHelp />

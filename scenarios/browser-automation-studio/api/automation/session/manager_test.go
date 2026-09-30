@@ -3,169 +3,50 @@ package session
 import (
 	"context"
 	"encoding/json"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
-	"net/http/httptest"
+	"path/filepath"
 	"sync"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/fakedriver"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
-// mockHTTPHandler creates a test HTTP server that responds to session lifecycle requests.
-func mockHTTPHandler(t *testing.T, sessionID string) http.Handler {
-	t.Helper()
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/session/start", func(w http.ResponseWriter, r *http.Request) {
-		_ = r.Body.Close()
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"session_id": sessionID,
-			"actual_viewport": map[string]any{
-				"width":  1280,
-				"height": 720,
-				"source": "requested",
-				"reason": "UI-requested dimensions used",
-			},
-		})
-	})
-
-	mux.HandleFunc("/session/"+sessionID+"/close", func(w http.ResponseWriter, r *http.Request) {
-		_ = r.Body.Close()
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"success": true,
-		})
-	})
-
-	return mux
-}
-
-func TestManager_ApplyDefaults_Viewport(t *testing.T) {
-	t.Parallel()
-
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	srv := httptest.NewServer(mockHTTPHandler(t, "test-session-1"))
-	defer srv.Close()
-
-	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
-	if err != nil {
-		t.Fatalf("failed to create client: %v", err)
-	}
-
-	m := NewManagerWithClient(client,
-		WithLogger(log),
-		WithDefaultViewport(1920, 1080),
-	)
-
-	// Test with zero viewport dimensions
-	spec := Spec{
-		ExecutionID:    uuid.New(),
-		WorkflowID:     uuid.New(),
-		Mode:           ModeRecording,
-		ViewportWidth:  0, // Should use default
-		ViewportHeight: 0, // Should use default
-	}
-
-	applied := m.applyDefaults(spec)
-
-	if applied.ViewportWidth != 1920 {
-		t.Errorf("expected viewport width 1920, got %d", applied.ViewportWidth)
-	}
-	if applied.ViewportHeight != 1080 {
-		t.Errorf("expected viewport height 1080, got %d", applied.ViewportHeight)
-	}
-
-	// Test with explicit viewport dimensions
-	spec2 := Spec{
-		ExecutionID:    uuid.New(),
-		WorkflowID:     uuid.New(),
-		Mode:           ModeRecording,
-		ViewportWidth:  800, // Should be preserved
-		ViewportHeight: 600, // Should be preserved
-	}
-
-	applied2 := m.applyDefaults(spec2)
-
-	if applied2.ViewportWidth != 800 {
-		t.Errorf("expected viewport width 800, got %d", applied2.ViewportWidth)
-	}
-	if applied2.ViewportHeight != 600 {
-		t.Errorf("expected viewport height 600, got %d", applied2.ViewportHeight)
-	}
-}
-
-func TestManager_ApplyDefaults_FrameStreaming(t *testing.T) {
-	t.Parallel()
-
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	srv := httptest.NewServer(mockHTTPHandler(t, "test-session-2"))
-	defer srv.Close()
-
-	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
-	if err != nil {
-		t.Fatalf("failed to create client: %v", err)
-	}
-
-	m := NewManagerWithClient(client, WithLogger(log))
-
-	// Test frame streaming defaults
-	spec := Spec{
-		ExecutionID:    uuid.New(),
-		WorkflowID:     uuid.New(),
-		Mode:           ModeRecording,
-		ViewportWidth:  1280,
-		ViewportHeight: 720,
-		FrameStreaming: &FrameStreamingConfig{
-			Quality: 0,  // Should use default 55
-			FPS:     0,  // Should use default 6
-			Scale:   "", // Should use default "css"
+func TestManager_ApplyDefaults(t *testing.T) {
+	m := &Manager{defaultViewport: Viewport{Width: 1920, Height: 1080}}
+	for _, tc := range []struct {
+		name           string
+		spec           Spec
+		width          int
+		height         int
+		frameStreaming *FrameStreamingConfig
+	}{
+		{name: "viewport defaults", spec: Spec{Mode: ModeRecording}, width: 1920, height: 1080},
+		{name: "explicit viewport preserved", spec: Spec{Mode: ModeRecording, ViewportWidth: 800, ViewportHeight: 600}, width: 800, height: 600},
+		{
+			name:  "frame streaming defaults",
+			spec:  Spec{Mode: ModeRecording, ViewportWidth: 1280, ViewportHeight: 720, FrameStreaming: &FrameStreamingConfig{}},
+			width: 1280, height: 720, frameStreaming: &FrameStreamingConfig{Quality: 55, FPS: 6, Scale: "css"},
 		},
-	}
-
-	applied := m.applyDefaults(spec)
-
-	if applied.FrameStreaming == nil {
-		t.Fatal("expected FrameStreaming to be non-nil")
-	}
-	if applied.FrameStreaming.Quality != 55 {
-		t.Errorf("expected Quality 55, got %d", applied.FrameStreaming.Quality)
-	}
-	if applied.FrameStreaming.FPS != 6 {
-		t.Errorf("expected FPS 6, got %d", applied.FrameStreaming.FPS)
-	}
-	if applied.FrameStreaming.Scale != "css" {
-		t.Errorf("expected Scale 'css', got '%s'", applied.FrameStreaming.Scale)
-	}
-
-	// Test with explicit values
-	spec2 := Spec{
-		ExecutionID:    uuid.New(),
-		WorkflowID:     uuid.New(),
-		Mode:           ModeRecording,
-		ViewportWidth:  1280,
-		ViewportHeight: 720,
-		FrameStreaming: &FrameStreamingConfig{
-			Quality: 80,      // Should be preserved
-			FPS:     12,      // Should be preserved
-			Scale:   "device", // Should be preserved
+		{
+			name:  "explicit frame streaming preserved",
+			spec:  Spec{Mode: ModeRecording, ViewportWidth: 1280, ViewportHeight: 720, FrameStreaming: &FrameStreamingConfig{Quality: 80, FPS: 12, Scale: "device"}},
+			width: 1280, height: 720, frameStreaming: &FrameStreamingConfig{Quality: 80, FPS: 12, Scale: "device"},
 		},
-	}
-
-	applied2 := m.applyDefaults(spec2)
-
-	if applied2.FrameStreaming.Quality != 80 {
-		t.Errorf("expected Quality 80, got %d", applied2.FrameStreaming.Quality)
-	}
-	if applied2.FrameStreaming.FPS != 12 {
-		t.Errorf("expected FPS 12, got %d", applied2.FrameStreaming.FPS)
-	}
-	if applied2.FrameStreaming.Scale != "device" {
-		t.Errorf("expected Scale 'device', got '%s'", applied2.FrameStreaming.Scale)
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := m.applyDefaults(tc.spec)
+			require.Equal(t, tc.width, got.ViewportWidth)
+			require.Equal(t, tc.height, got.ViewportHeight)
+			require.Equal(t, tc.frameStreaming, got.FrameStreaming)
+		})
 	}
 }
 
@@ -176,8 +57,7 @@ func TestManager_Get_ExistingSession(t *testing.T) {
 	log.SetLevel(logrus.DebugLevel)
 
 	sessionID := "test-session-get"
-	srv := httptest.NewServer(mockHTTPHandler(t, sessionID))
-	defer srv.Close()
+	srv := fakedriver.StartSessionServer(t, sessionID)
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -218,8 +98,7 @@ func TestManager_Get_NotFound(t *testing.T) {
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
-	srv := httptest.NewServer(mockHTTPHandler(t, "test-session"))
-	defer srv.Close()
+	srv := fakedriver.StartSessionServer(t, "test-session")
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -242,8 +121,7 @@ func TestManager_Close_RemovesSession(t *testing.T) {
 	log.SetLevel(logrus.DebugLevel)
 
 	sessionID := "test-session-close"
-	srv := httptest.NewServer(mockHTTPHandler(t, sessionID))
-	defer srv.Close()
+	srv := fakedriver.StartSessionServer(t, sessionID)
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -287,6 +165,40 @@ func TestManager_Close_RemovesSession(t *testing.T) {
 	}
 }
 
+func TestManager_DirectSessionCloseDeregistersSession(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/session/start", func(w http.ResponseWriter, r *http.Request) {
+		_ = r.Body.Close()
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"session_id":      "direct-close-session",
+			"actual_viewport": map[string]any{"width": 1280, "height": 720, "source": "requested"},
+		})
+	})
+	mux.HandleFunc("/session/direct-close-session/close", func(w http.ResponseWriter, r *http.Request) {
+		_ = r.Body.Close()
+		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
+	})
+	srv := testutil.StartHTTPServer(t, mux)
+
+	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
+	if err != nil {
+		t.Fatalf("create client: %v", err)
+	}
+	m := NewManagerWithClient(client)
+	sess, err := m.Create(context.Background(), Spec{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Mode: ModeExecution})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if err := sess.Close(context.Background()); err != nil {
+		t.Fatalf("direct session close: %v", err)
+	}
+	if got := m.ActiveCount(); got != 0 {
+		t.Fatalf("active sessions after direct close = %d, want 0", got)
+	}
+}
+
 func TestManager_CloseAll(t *testing.T) {
 	t.Parallel()
 
@@ -313,8 +225,7 @@ func TestManager_CloseAll(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
 	})
 
-	srv := httptest.NewServer(mux)
-	defer srv.Close()
+	srv := testutil.StartHTTPServer(t, mux)
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -378,8 +289,7 @@ func TestManager_ActiveCount(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
 	})
 
-	srv := httptest.NewServer(mux)
-	defer srv.Close()
+	srv := testutil.StartHTTPServer(t, mux)
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -457,8 +367,7 @@ func TestManager_ConcurrentAccess(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
 	})
 
-	srv := httptest.NewServer(mux)
-	defer srv.Close()
+	srv := testutil.StartHTTPServer(t, mux)
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -522,8 +431,7 @@ func TestManager_ReuseMode_Default(t *testing.T) {
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
-	srv := httptest.NewServer(mockHTTPHandler(t, "test-session"))
-	defer srv.Close()
+	srv := fakedriver.StartSessionServer(t, "test-session")
 
 	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
 	if err != nil {
@@ -565,218 +473,76 @@ func TestManager_ReuseMode_Default(t *testing.T) {
 	}
 }
 
+func TestManager_BuildRequestCarriesSessionProfileVersion(t *testing.T) {
+	m := &Manager{}
+	request := m.buildRequest(Spec{
+		ExecutionID:           uuid.New(),
+		WorkflowID:            uuid.New(),
+		Mode:                  ModeExecution,
+		SessionProfileVersion: "opaque-profile-context-version",
+	})
+
+	require.Equal(t, "opaque-profile-context-version", request.SessionProfileVersion)
+}
+
 // =============================================================================
 // buildArtifactPaths Tests
 // =============================================================================
 
-func TestManager_BuildArtifactPaths_NilCapabilities(t *testing.T) {
-	t.Parallel()
-
-	m := &Manager{
-		executionArtifactsRoot: "/data/artifacts",
-	}
-
-	spec := Spec{
-		ExecutionID: uuid.New(),
-	}
-
-	// Should return nil when capabilities is nil
-	paths := m.buildArtifactPaths(spec, nil)
-	if paths != nil {
-		t.Error("expected nil paths when capabilities is nil")
-	}
-}
-
-func TestManager_BuildArtifactPaths_EmptyRoot(t *testing.T) {
-	t.Parallel()
-
-	m := &Manager{
-		executionArtifactsRoot: "", // Empty root
-	}
-
-	spec := Spec{
-		ExecutionID: uuid.New(),
-	}
-	caps := &driver.CapabilityRequest{
-		Video: true,
-	}
-
-	// Should return nil when root is empty
-	paths := m.buildArtifactPaths(spec, caps)
-	if paths != nil {
-		t.Error("expected nil paths when root is empty")
-	}
-}
-
-func TestManager_BuildArtifactPaths_WhitespaceRoot(t *testing.T) {
-	t.Parallel()
-
-	m := &Manager{
-		executionArtifactsRoot: "   ", // Whitespace only
-	}
-
-	spec := Spec{
-		ExecutionID: uuid.New(),
-	}
-	caps := &driver.CapabilityRequest{
-		Video: true,
-	}
-
-	// Should return nil when root is whitespace only
-	paths := m.buildArtifactPaths(spec, caps)
-	if paths != nil {
-		t.Error("expected nil paths when root is whitespace")
-	}
-}
-
-func TestManager_BuildArtifactPaths_NoArtifactsRequested(t *testing.T) {
-	t.Parallel()
-
-	m := &Manager{
-		executionArtifactsRoot: "/data/artifacts",
-	}
-
-	spec := Spec{
-		ExecutionID: uuid.New(),
-	}
-	caps := &driver.CapabilityRequest{
-		Video:   false,
-		HAR:     false,
-		Tracing: false,
-	}
-
-	// Should return nil when no artifacts are requested
-	paths := m.buildArtifactPaths(spec, caps)
-	if paths != nil {
-		t.Error("expected nil paths when no artifacts are requested")
-	}
-}
-
-func TestManager_BuildArtifactPaths_VideoOnly(t *testing.T) {
-	t.Parallel()
-
-	m := &Manager{
-		executionArtifactsRoot: "/data/artifacts",
-	}
-
+func TestManager_BuildArtifactPaths(t *testing.T) {
 	execID := uuid.New()
-	spec := Spec{
-		ExecutionID: execID,
+	const root = "/data/artifacts"
+	artifactRoot := filepath.Join(root, execID.String(), "artifacts")
+	allPaths := &driver.ArtifactPaths{
+		Root:             artifactRoot,
+		VideoDir:         filepath.Join(artifactRoot, "videos"),
+		HARPath:          filepath.Join(artifactRoot, "har", "execution-"+execID.String()+".har"),
+		TracePath:        filepath.Join(artifactRoot, "traces", "execution-"+execID.String()+".zip"),
+		PerfDir:          filepath.Join(artifactRoot, "performance"),
+		AccessibilityDir: filepath.Join(artifactRoot, "accessibility"),
 	}
-	caps := &driver.CapabilityRequest{
-		Video: true,
-	}
-
-	paths := m.buildArtifactPaths(spec, caps)
-	if paths == nil {
-		t.Fatal("expected non-nil paths")
-	}
-
-	expectedRoot := "/data/artifacts/" + execID.String() + "/artifacts"
-	if paths.Root != expectedRoot {
-		t.Errorf("expected Root %q, got %q", expectedRoot, paths.Root)
-	}
-
-	expectedVideoDir := expectedRoot + "/videos"
-	if paths.VideoDir != expectedVideoDir {
-		t.Errorf("expected VideoDir %q, got %q", expectedVideoDir, paths.VideoDir)
-	}
-
-	if paths.HARPath != "" {
-		t.Errorf("expected empty HARPath, got %q", paths.HARPath)
-	}
-
-	if paths.TracePath != "" {
-		t.Errorf("expected empty TracePath, got %q", paths.TracePath)
-	}
-}
-
-func TestManager_BuildArtifactPaths_HAROnly(t *testing.T) {
-	t.Parallel()
-
-	m := &Manager{
-		executionArtifactsRoot: "/data/artifacts",
-	}
-
-	execID := uuid.New()
-	spec := Spec{
-		ExecutionID: execID,
-	}
-	caps := &driver.CapabilityRequest{
-		HAR: true,
-	}
-
-	paths := m.buildArtifactPaths(spec, caps)
-	if paths == nil {
-		t.Fatal("expected non-nil paths")
-	}
-
-	expectedHARPath := "/data/artifacts/" + execID.String() + "/artifacts/har/execution-" + execID.String() + ".har"
-	if paths.HARPath != expectedHARPath {
-		t.Errorf("expected HARPath %q, got %q", expectedHARPath, paths.HARPath)
-	}
-
-	if paths.VideoDir != "" {
-		t.Errorf("expected empty VideoDir, got %q", paths.VideoDir)
-	}
-}
-
-func TestManager_BuildArtifactPaths_TracingOnly(t *testing.T) {
-	t.Parallel()
-
-	m := &Manager{
-		executionArtifactsRoot: "/data/artifacts",
-	}
-
-	execID := uuid.New()
-	spec := Spec{
-		ExecutionID: execID,
-	}
-	caps := &driver.CapabilityRequest{
-		Tracing: true,
-	}
-
-	paths := m.buildArtifactPaths(spec, caps)
-	if paths == nil {
-		t.Fatal("expected non-nil paths")
-	}
-
-	expectedTracePath := "/data/artifacts/" + execID.String() + "/artifacts/traces/execution-" + execID.String() + ".zip"
-	if paths.TracePath != expectedTracePath {
-		t.Errorf("expected TracePath %q, got %q", expectedTracePath, paths.TracePath)
-	}
-}
-
-func TestManager_BuildArtifactPaths_AllArtifacts(t *testing.T) {
-	t.Parallel()
-
-	m := &Manager{
-		executionArtifactsRoot: "/data/artifacts",
-	}
-
-	execID := uuid.New()
-	spec := Spec{
-		ExecutionID: execID,
-	}
-	caps := &driver.CapabilityRequest{
-		Video:   true,
-		HAR:     true,
-		Tracing: true,
-	}
-
-	paths := m.buildArtifactPaths(spec, caps)
-	if paths == nil {
-		t.Fatal("expected non-nil paths")
-	}
-
-	if paths.VideoDir == "" {
-		t.Error("expected non-empty VideoDir")
-	}
-	if paths.HARPath == "" {
-		t.Error("expected non-empty HARPath")
-	}
-	if paths.TracePath == "" {
-		t.Error("expected non-empty TracePath")
+	for _, tc := range []struct {
+		name string
+		root string
+		caps *driver.CapabilityRequest
+		want *driver.ArtifactPaths
+	}{
+		{name: "nil capabilities", root: root},
+		{name: "empty root", caps: &driver.CapabilityRequest{Video: true}},
+		{name: "whitespace root", root: "   ", caps: &driver.CapabilityRequest{Video: true}},
+		{name: "no artifacts", root: root, caps: &driver.CapabilityRequest{}},
+		{
+			name: "video only", root: root, caps: &driver.CapabilityRequest{Video: true},
+			want: &driver.ArtifactPaths{Root: artifactRoot, VideoDir: allPaths.VideoDir},
+		},
+		{
+			name: "HAR only", root: root, caps: &driver.CapabilityRequest{HAR: true},
+			want: &driver.ArtifactPaths{Root: artifactRoot, HARPath: allPaths.HARPath},
+		},
+		{
+			name: "tracing only", root: root, caps: &driver.CapabilityRequest{Tracing: true},
+			want: &driver.ArtifactPaths{Root: artifactRoot, TracePath: allPaths.TracePath},
+		},
+		{
+			name: "performance trace only", root: root, caps: &driver.CapabilityRequest{PerfTrace: true},
+			want: &driver.ArtifactPaths{Root: artifactRoot, PerfDir: allPaths.PerfDir},
+		},
+		{
+			name: "accessibility only", root: root, caps: &driver.CapabilityRequest{Accessibility: true},
+			want: &driver.ArtifactPaths{Root: artifactRoot, AccessibilityDir: allPaths.AccessibilityDir},
+		},
+		{
+			name: "all artifacts", root: root,
+			caps: &driver.CapabilityRequest{Video: true, HAR: true, Tracing: true, PerfTrace: true, Accessibility: true},
+			want: allPaths,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := &Manager{executionArtifactsRoot: tc.root}
+			got := m.buildArtifactPaths(Spec{ExecutionID: execID}, tc.caps)
+			require.Equal(t, tc.want, got)
+		})
 	}
 }
 
@@ -784,174 +550,111 @@ func TestManager_BuildArtifactPaths_AllArtifacts(t *testing.T) {
 // buildFrameCallbackURL Tests
 // =============================================================================
 
-func TestManager_BuildFrameCallbackURL_RecordingMode(t *testing.T) {
-	t.Parallel()
-
-	m := &Manager{
-		apiHost: "127.0.0.1",
-		apiPort: "8080",
-	}
-
+func TestManager_BuildFrameCallbackURL(t *testing.T) {
 	execID := uuid.New()
-	spec := Spec{
-		ExecutionID: execID,
-		Mode:        ModeRecording,
-	}
-
-	url := m.buildFrameCallbackURL(spec)
-
-	expected := "http://127.0.0.1:8080/api/v1/recordings/live/" + execID.String() + "/frame"
-	if url != expected {
-		t.Errorf("expected URL %q, got %q", expected, url)
-	}
-}
-
-func TestManager_BuildFrameCallbackURL_ExecutionMode(t *testing.T) {
-	t.Parallel()
-
-	m := &Manager{
-		apiHost: "127.0.0.1",
-		apiPort: "8080",
-	}
-
-	execID := uuid.New()
-	spec := Spec{
-		ExecutionID: execID,
-		Mode:        ModeExecution,
-	}
-
-	url := m.buildFrameCallbackURL(spec)
-
-	expected := "http://127.0.0.1:8080/api/v1/executions/" + execID.String() + "/frames"
-	if url != expected {
-		t.Errorf("expected URL %q, got %q", expected, url)
-	}
-}
-
-func TestManager_BuildFrameCallbackURL_HybridMode(t *testing.T) {
-	t.Parallel()
-
-	m := &Manager{
-		apiHost: "127.0.0.1",
-		apiPort: "8080",
-	}
-
-	execID := uuid.New()
-	spec := Spec{
-		ExecutionID: execID,
-		Mode:        ModeHybrid, // Not recording mode
-	}
-
-	url := m.buildFrameCallbackURL(spec)
-
-	// Hybrid mode uses execution endpoint (not recording endpoint)
-	expected := "http://127.0.0.1:8080/api/v1/executions/" + execID.String() + "/frames"
-	if url != expected {
-		t.Errorf("expected URL %q, got %q", expected, url)
-	}
-}
-
-func TestManager_BuildFrameCallbackURL_CustomHostPort(t *testing.T) {
-	t.Parallel()
-
-	m := &Manager{
-		apiHost: "192.168.1.100",
-		apiPort: "9090",
-	}
-
-	execID := uuid.New()
-	spec := Spec{
-		ExecutionID: execID,
-		Mode:        ModeRecording,
-	}
-
-	url := m.buildFrameCallbackURL(spec)
-
-	expected := "http://192.168.1.100:9090/api/v1/recordings/live/" + execID.String() + "/frame"
-	if url != expected {
-		t.Errorf("expected URL %q, got %q", expected, url)
+	for _, tc := range []struct {
+		name   string
+		host   string
+		port   string
+		mode   Mode
+		route  string
+		suffix string
+	}{
+		{name: "recording mode", host: "127.0.0.1", port: "8080", mode: ModeRecording, route: "/api/v1/recordings/live/", suffix: "/frame"},
+		{name: "execution mode", host: "127.0.0.1", port: "8080", mode: ModeExecution, route: "/api/v1/executions/", suffix: "/frames"},
+		{name: "hybrid mode", host: "127.0.0.1", port: "8080", mode: ModeHybrid, route: "/api/v1/executions/", suffix: "/frames"},
+		{name: "custom host and port", host: "192.168.1.100", port: "9090", mode: ModeRecording, route: "/api/v1/recordings/live/", suffix: "/frame"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := &Manager{apiHost: tc.host, apiPort: tc.port}
+			got := m.buildFrameCallbackURL(Spec{ExecutionID: execID, Mode: tc.mode})
+			want := "http://" + tc.host + ":" + tc.port + tc.route + execID.String() + tc.suffix
+			require.Equal(t, want, got)
+		})
 	}
 }
 
 // =============================================================================
-// WithAPIEndpoint Option Tests
+// Manager Option Tests
 // =============================================================================
 
-func TestManager_WithAPIEndpoint(t *testing.T) {
-	t.Parallel()
-
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	srv := httptest.NewServer(mockHTTPHandler(t, "test-session"))
-	defer srv.Close()
-
-	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
-	if err != nil {
-		t.Fatalf("failed to create client: %v", err)
-	}
-
-	m := NewManagerWithClient(client,
-		WithLogger(log),
-		WithAPIEndpoint("custom.host", "3000"),
-	)
-
-	if m.apiHost != "custom.host" {
-		t.Errorf("expected apiHost 'custom.host', got '%s'", m.apiHost)
-	}
-	if m.apiPort != "3000" {
-		t.Errorf("expected apiPort '3000', got '%s'", m.apiPort)
+func TestManagerOptions(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		options   []Option
+		host      string
+		port      string
+		root      string
+		checkAPI  bool
+		checkRoot bool
+	}{
+		{
+			name:    "API endpoint",
+			options: []Option{WithAPIEndpoint("custom.host", "3000")},
+			host:    "custom.host", port: "3000", checkAPI: true,
+		},
+		{
+			name:    "artifact root",
+			options: []Option{WithExecutionArtifactsRoot("/custom/artifacts")},
+			root:    "/custom/artifacts", checkRoot: true,
+		},
+		{
+			name:    "artifact root trims whitespace",
+			options: []Option{WithExecutionArtifactsRoot("  /artifacts/path  ")},
+			root:    "/artifacts/path", checkRoot: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := NewManagerWithClient(nil, tc.options...)
+			if tc.checkAPI {
+				require.Equal(t, tc.host, m.apiHost)
+				require.Equal(t, tc.port, m.apiPort)
+			}
+			if tc.checkRoot {
+				require.Equal(t, tc.root, m.executionArtifactsRoot)
+			}
+		})
 	}
 }
 
-// =============================================================================
-// WithExecutionArtifactsRoot Option Tests
-// =============================================================================
-
-func TestManager_WithExecutionArtifactsRoot(t *testing.T) {
-	t.Parallel()
-
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	srv := httptest.NewServer(mockHTTPHandler(t, "test-session"))
-	defer srv.Close()
-
-	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
-	if err != nil {
-		t.Fatalf("failed to create client: %v", err)
-	}
-
-	m := NewManagerWithClient(client,
-		WithLogger(log),
-		WithExecutionArtifactsRoot("/custom/artifacts"),
-	)
-
-	if m.executionArtifactsRoot != "/custom/artifacts" {
-		t.Errorf("expected executionArtifactsRoot '/custom/artifacts', got '%s'", m.executionArtifactsRoot)
-	}
-}
-
-func TestManager_WithExecutionArtifactsRoot_TrimsWhitespace(t *testing.T) {
-	t.Parallel()
-
-	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-
-	srv := httptest.NewServer(mockHTTPHandler(t, "test-session"))
-	defer srv.Close()
-
-	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
-	if err != nil {
-		t.Fatalf("failed to create client: %v", err)
-	}
-
-	m := NewManagerWithClient(client,
-		WithLogger(log),
-		WithExecutionArtifactsRoot("  /artifacts/path  "),
-	)
-
-	if m.executionArtifactsRoot != "/artifacts/path" {
-		t.Errorf("expected whitespace to be trimmed, got '%s'", m.executionArtifactsRoot)
-	}
+func TestRepeatedStartPreservesTransportSequenceAcrossLiveHandles(t *testing.T) {
+	var mu sync.Mutex
+	highWater := float64(17)
+	var sequences []float64
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		if request.URL.Path == "/session/start" {
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"session_id": "same-session", "lease_id": "same-lease", "last_instruction_sequence": highWater}))
+			return
+		}
+		var body map[string]any
+		require.NoError(t, json.NewDecoder(request.Body).Decode(&body))
+		sequence, _ := body["operation_sequence"].(float64)
+		sequences = append(sequences, sequence)
+		if sequence > highWater {
+			highWater = sequence
+		}
+		_, _ = w.Write([]byte(`{"success":true}`))
+	}))
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	manager := NewManagerWithClient(client)
+	spec := Spec{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Mode: ModeExecution}
+	first, err := manager.Create(context.Background(), spec)
+	require.NoError(t, err)
+	instruction := contracts.CompiledInstruction{NodeID: "node", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_CLICK}}
+	_, err = first.Run(context.Background(), instruction)
+	require.NoError(t, err)
+	second, err := manager.Create(context.Background(), spec)
+	require.NoError(t, err)
+	_, err = first.Run(context.Background(), instruction)
+	require.NoError(t, err)
+	_, err = second.Run(context.Background(), instruction)
+	require.NoError(t, err)
+	mu.Lock()
+	defer mu.Unlock()
+	require.Equal(t, []float64{18, 19, 20}, sequences, "start retries cannot fork/reset transport ownership")
 }

@@ -1,8 +1,15 @@
 package orchestration
 
 import (
+	"context"
 	"testing"
 	"time"
+
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/testutil"
+
+	"github.com/google/uuid"
 )
 
 // =============================================================================
@@ -245,5 +252,84 @@ func TestNewTerminator_CustomConfig(t *testing.T) {
 	}
 	if term.config.MaxRetries != 10 {
 		t.Errorf("MaxRetries = %d, want 10", term.config.MaxRetries)
+	}
+}
+
+func TestTerminatorTreatsAlreadyExitedProcessAsSuccessfulStop(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	task := &domain.Task{ID: uuid.New(), Title: "termination", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Tag: "agent-manager-test-no-process-" + uuid.NewString(), Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	terminator := NewTerminator(repos.Runs, nil, TerminatorConfig{MaxRetries: 1})
+	result, err := terminator.Terminate(ctx, run.ID)
+	if err != nil || !result.Success || !result.ProcessWasGone || result.FinalMethod != "not_found" || result.Attempts != 1 {
+		t.Fatalf("terminate exited process = %+v, err=%v", result, err)
+	}
+	byTag, err := terminator.TerminateByTag(ctx, "agent-manager-test-missing-"+uuid.NewString())
+	if err != nil || !byTag.Success || !byTag.ProcessWasGone || byTag.FinalMethod != "not_found" {
+		t.Fatalf("terminate missing tag = %+v, err=%v", byTag, err)
+	}
+}
+
+func TestTerminatorRejectsMissingAndNonStoppableRuns(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	terminator := NewTerminator(repos.Runs, nil, TerminatorConfig{MaxRetries: 1})
+	if _, err := terminator.Terminate(ctx, uuid.New()); err == nil {
+		t.Fatal("missing run accepted")
+	}
+	task := &domain.Task{ID: uuid.New(), Title: "completed", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	completed := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted}
+	if err := repos.Runs.Create(ctx, completed); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := terminator.Terminate(ctx, completed.ID); err == nil {
+		t.Fatal("terminal run accepted for stop")
+	}
+}
+
+func TestTerminatorUsesRunnerStopBeforeProcessEscalation(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	task := &domain.Task{ID: uuid.New(), Title: "runner stop", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	run := &domain.Run{
+		ID: uuid.New(), TaskID: task.ID, Tag: "agent-manager-runner-stop-" + uuid.NewString(),
+		Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting,
+		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	mock := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	stopped := false
+	mock.StopFunc = func(_ context.Context, got uuid.UUID) error {
+		if got != run.ID {
+			t.Fatalf("runner Stop run ID = %s, want %s", got, run.ID)
+		}
+		stopped = true
+		return nil
+	}
+	registry := runner.NewRegistry()
+	if err := registry.Register(mock); err != nil {
+		t.Fatal(err)
+	}
+	result, err := NewTerminator(repos.Runs, registry, TerminatorConfig{MaxRetries: 1}).Terminate(ctx, run.ID)
+	if err != nil || !stopped || !result.Success || result.FinalMethod != "runner" || result.ProcessWasGone {
+		t.Fatalf("Terminate = %#v, err=%v, stopped=%t", result, err, stopped)
 	}
 }

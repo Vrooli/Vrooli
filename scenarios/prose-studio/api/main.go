@@ -1,0 +1,149 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	proseH "prose-studio/handlers/prose"
+	"prose-studio/internal/modules"
+	prose "prose-studio/internal/prose"
+	"prose-studio/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
+
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/preflight"
+	apiserver "github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	_ "modernc.org/sqlite"
+
+	healthH "prose-studio/handlers/health"
+)
+
+// scenarioStorageRoots resolves all filesystem storage classes once at
+// startup. File writers must select their class through fileRootPath so a
+// test-mode request uses the lease-owned root instead of the live tree.
+func scenarioStorageRoots() (storage.Paths, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("create storage resolver: %w", err)
+	}
+	scenarioID, err := storage.ScenarioNamespace("prose-studio")
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("resolve prose-studio storage namespace: %w", err)
+	}
+	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
+}
+
+func main() {
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "prose-studio"}) {
+		return
+	}
+
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		Scenario:     "prose-studio",
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		log.Fatalf("Database connection failed: %v", err)
+	}
+
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
+	}
+	primaryFileRoots, err := scenarioStorageRoots()
+	if err != nil {
+		log.Fatalf("file storage configuration failed: %v", err)
+	}
+	fileRoots := filerouting.New(primaryFileRoots)
+
+	if strings.TrimSpace(os.Getenv("AI_GATEWAY_URL")) == "" {
+		resolveCtx, resolveCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if gatewayURL, resolveErr := discovery.ResolveScenarioURLDefault(resolveCtx, "ai-gateway"); resolveErr == nil {
+			_ = os.Setenv("AI_GATEWAY_URL", strings.TrimRight(gatewayURL, "/"))
+		} else {
+			log.Printf("ai-gateway discovery unavailable; prose generation will fail closed: %v", resolveErr)
+		}
+		resolveCancel()
+	}
+	proseService := prose.New(db.Primary())
+	if declarationsRoot := findDeclarationsRoot(); declarationsRoot != "" {
+		// Recorded so a reindex request that names no root rescans this
+		// scenario's own declarations rather than being refused.
+		proseService.SetDeclarationsRoot(declarationsRoot)
+		if _, err := proseService.Reindex(context.Background(), declarationsRoot); err != nil {
+			// A malformed declaration is retained as invalid by Reindex and must
+			// never make the API unavailable. Unexpected filesystem failures are
+			// observable but remain non-fatal for the same startup guarantee.
+			log.Printf("prose declaration scan: %v", err)
+		}
+	}
+
+	srv := server.New(
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+		healthH.Module(db, "prose-studio-api", "1.0.0"),
+		proseH.Module(proseService),
+	)
+
+	// Top-level mux that mounts the API handler plus, when in development
+	// mode, the dev-only RoutingService used by test-genie to install a
+	// runtime test DB pool without restarting this scenario.
+	rootMux := http.NewServeMux()
+	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
+
+	rootMux.Handle("/", srv.Handler())
+
+	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
+	// request context so *database.RoutedDB routes the call to the
+	// installed test pool. Self-disables in production mode.
+	handler := apihttp.TestModeMiddleware(rootMux)
+
+	if err := apiserver.Run(apiserver.Config{
+		Handler: handler,
+		// Long-form assembly can perform one gateway request per section. Keep
+		// the server response window longer than the bounded generation budget;
+		// the api-core default is 30s, which can close the connection while a
+		// valid document is still being committed.
+		WriteTimeout: 10 * time.Minute,
+		Cleanup:      func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
+}
+
+func findDeclarationsRoot() string {
+	if root := strings.TrimSpace(os.Getenv("PROSE_DECLARATIONS_ROOT")); root != "" {
+		return root
+	}
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".vrooli")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}

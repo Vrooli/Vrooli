@@ -1,0 +1,87 @@
+{
+  "description": "Ship a UI surface where an operator can drop a fixture directory (TS source + expected-graph.json) and see the diff between expected and actual extraction. Mirrors `go-code-graph`'s P1 capability.",
+  "module_id": "MOD-P1-013",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-010",
+        "REQ-P0-011"
+      ],
+      "description": "Ship a UI surface that allows an operator to provide a fixture directory containing TypeScript source files and an expected-graph.json, trigger an extraction, and view a structured diff between the expected and actual graphs. The diff must highlight added nodes, removed nodes, changed node properties (including leading_comments changes), added edges, and removed edges. This mirrors the equivalent capability in go-code-graph and serves as an interactive companion to the CI golden-fixture gate.",
+      "id": "REQ-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "draft",
+      "title": "Fixture Validator UI for Expected vs Actual Graph Diffing",
+      "validation": [
+        {
+          "notes": "Test graph diff algorithm correctly identifies added nodes between two Graph structs",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test graph diff algorithm correctly identifies removed edges between two Graph structs",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test graph diff algorithm correctly identifies changed leading_comments on a node",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test diff rendering component highlights additions in green and removals in red",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-FIXTURE-VALIDATOR: Upload ts-jsdoc-tags fixture with a deliberately mutated expected-graph.json; UI shows diff highlighting the changed leading_comments field",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Fixture validator UI triggers an Extract RPC call and receives a real graph for comparison",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "UI displays 'no differences found' when expected-graph.json matches actual extraction exactly",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "An operator can validate a new fixture and update expected-graph.json without running CLI commands",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Diff output is sufficiently granular for a developer to identify which declaration's comment changed",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Fixture Validator UI"
+}

@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gorilla/mux"
-
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/orchestrator/workspace"
+
+	"github.com/gorilla/mux"
 )
 
 func TestServer_handlePlaybooksSeedApply_Success(t *testing.T) {

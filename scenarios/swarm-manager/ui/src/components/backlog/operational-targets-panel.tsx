@@ -199,17 +199,21 @@ export function OperationalTargetsPanel({
   const [requirementsExpanded, setRequirementsExpanded] = useState(true);
 
   const groupedTargets = useMemo(() => {
-    const groups = CRITICALITY_ORDER.reduce<Record<string, ArchiveTarget[]>>((acc, level) => {
-      acc[level] = targets.filter((t) => t.criticality === level);
-      return acc;
-    }, {} as Record<string, ArchiveTarget[]>);
+    const groups: Partial<Record<(typeof CRITICALITY_ORDER)[number] | "Other", ArchiveTarget[]>> =
+      {};
+    for (const level of CRITICALITY_ORDER) {
+      groups[level] = targets.filter((t) => t.criticality === level);
+    }
     const knownIds = new Set<string>(CRITICALITY_ORDER);
     const other = targets.filter((t) => !knownIds.has(t.criticality));
     if (other.length > 0) groups["Other"] = other;
     return groups;
   }, [targets]);
 
-  const allRequirements = useMemo(() => countAllRequirements(requirements), [requirements]);
+  const allRequirements = useMemo(
+    () => countAllRequirements(requirements) as ArchiveRequirement[],
+    [requirements],
+  );
 
   const targetReviewStats = useMemo(() => {
     let reviewed = 0, flagged = 0;
@@ -219,7 +223,7 @@ export function OperationalTargetsPanel({
 
   const reqReviewStats = useMemo(() => {
     let reviewed = 0, flagged = 0;
-    for (const r of allRequirements as { review_status?: string }[]) { const s = r.review_status ?? "unreviewed"; if (s !== "unreviewed") reviewed++; if (s === "flagged") flagged++; }
+    for (const r of allRequirements) { const s = r.review_status ?? "unreviewed"; if (s !== "unreviewed") reviewed++; if (s === "flagged") flagged++; }
     return { reviewed, flagged, total: allRequirements.length };
   }, [allRequirements]);
 

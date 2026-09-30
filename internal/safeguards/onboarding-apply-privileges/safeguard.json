@@ -1,0 +1,71 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "onboarding_apply_privileges",
+  "description": "Install the literal, per-host sudoers grant that lets onboarding apply selected elevated host requirements without a second prompt.",
+  "handler": "onboarding_apply_privileges",
+  "risk": "high",
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "developer-utility",
+  "capability_role": "control",
+  "storage": {
+    "entries": {
+      "sudoers": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/sudoers.d/vrooli-onboarding-apply",
+          "macos": "/etc/sudoers.d/vrooli-onboarding-apply",
+          "windows": null
+        },
+        "kind": "file",
+        "regenerable": false,
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The grant is setup-managed host policy and contains only exact selected control-plane argv."
+      }
+    },
+    "rationale": "The grant is host policy, never scenario data."
+  },
+  "verificationCheck": {
+    "files": [
+      "/etc/sudoers.d/vrooli-onboarding-apply"
+    ]
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "not_applicable",
+      "evidence": "Windows does not expose the Linux host interface used by safeguard onboarding_apply_privileges; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
+    }
+  },
+  "risk_class": "reload_live"
+}

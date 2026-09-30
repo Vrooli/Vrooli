@@ -1,130 +1,170 @@
 {
-  "description": "Pluggable SandboxDriver interface with cross-platform fallback for non-Linux environments",
-  "module_id": "MOD-P2-025",
-  "prd_ref": "OT-P2-004",
-  "priority": "P2",
+  "_metadata": {
+    "last_validated_at": "2026-07-17T00:01:00-04:00"
+  },
   "requirements": [
     {
-      "category": "feature",
-      "description": "Define a SandboxDriver interface with pluggable implementations. First-class Linux overlayfs driver, with clear fallback strategy for non-Linux environments without hardcoding Linux assumptions into APIs.",
       "id": "REQ-P2-004-001",
-      "prd_ref": "OT-P2-004",
-      "status": "complete",
       "title": "SandboxDriver Interface Definition",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-004",
+      "category": "feature",
+      "description": "Define a SandboxDriver interface with pluggable implementations. First-class Linux overlayfs driver, with an explicit tracking-only copy contract for non-Linux environments and no hardcoded Linux assumptions in APIs.",
       "validation": [
         {
-          "notes": "Driver interface exists with all required methods (Type, Version, IsAvailable, Mount, etc.)",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestDriverInterfaceMethods",
+          "phase": "unit",
           "status": "implemented",
-          "type": "test"
+          "notes": "Driver interface exists with all required methods (Type, Version, IsAvailable, Mount, etc.)"
         },
         {
-          "notes": "DriverType enum includes overlayfs, copy, and none types",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestDriverTypeConstants",
+          "phase": "unit",
           "status": "implemented",
-          "type": "test"
+          "notes": "DriverType enum includes overlayfs, copy, and none types"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/config/config_test.go::TestStoragePathsIgnoreApplicationEnvironment",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Authoritative storage paths ignore desktop-session and application-level directory variables."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/config/config_test.go::TestPrepareStoragePathsRejectsFileAndUsesNoFallback",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "An unusable authoritative directory fails closed without selecting an alternate path."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/driver/exec/backend_test.go::TestBuildStartOpts_LevelDispatch",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Protected containment requests fail closed when the platform backend is unavailable."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/guides/macos-shakeout.md",
+          "phase": "business",
+          "status": "pending",
+          "notes": "Real-Apple-hardware driver selection and Seatbelt evidence are required before this cross-platform contract can be complete."
         }
       ]
     },
     {
+      "id": "REQ-P2-004-002",
+      "title": "CopyDriver Implementation",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-004",
       "category": "feature",
       "description": "Cross-platform CopyDriver that works on any OS using file copies instead of overlayfs. Copies scope directory to create snapshot, compares workspace against original for diff generation. Higher disk usage but universal compatibility.",
-      "id": "REQ-P2-004-002",
-      "prd_ref": "OT-P2-004",
-      "status": "complete",
-      "title": "CopyDriver Implementation",
       "validation": [
         {
-          "notes": "CopyDriver returns correct driver type",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestCopyDriverType",
+          "phase": "unit",
           "status": "implemented",
-          "type": "test"
+          "notes": "CopyDriver returns correct driver type"
         },
         {
-          "notes": "CopyDriver.IsAvailable returns true on any platform",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestCopyDriverIsAvailable",
+          "phase": "unit",
           "status": "implemented",
-          "type": "test"
+          "notes": "CopyDriver.IsAvailable returns true on any platform"
         },
         {
-          "notes": "CopyDriver correctly creates workspace via Mount",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestCopyDriverMount",
+          "phase": "unit",
           "status": "implemented",
-          "type": "test"
+          "notes": "CopyDriver correctly creates workspace via Mount"
         },
         {
-          "notes": "CopyDriver correctly detects added, modified, deleted files",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestCopyDriverGetChangedFiles",
+          "phase": "unit",
           "status": "implemented",
-          "type": "test"
+          "notes": "CopyDriver correctly detects added, modified, deleted files"
         },
         {
-          "notes": "CopyDriver mount state tracking works correctly",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestCopyDriverIsMounted",
+          "phase": "unit",
           "status": "implemented",
-          "type": "test"
+          "notes": "CopyDriver mount state tracking works correctly"
         },
         {
-          "notes": "CopyDriver mount integrity verification",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestCopyDriverVerifyMountIntegrity",
+          "phase": "unit",
           "status": "implemented",
-          "type": "test"
+          "notes": "CopyDriver mount integrity verification"
         },
         {
-          "notes": "CopyDriver file removal with path traversal protection",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestCopyDriverRemoveFromUpper",
+          "phase": "unit",
           "status": "implemented",
-          "type": "test"
+          "notes": "CopyDriver file removal with path traversal protection"
         },
         {
-          "notes": "CopyDriver Unmount is a safe no-op",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestCopyDriverUnmount",
+          "phase": "unit",
           "status": "implemented",
-          "type": "test"
+          "notes": "CopyDriver Unmount is a safe no-op"
+        },
+        {
+          "type": "manual",
+          "ref": "docs/guides/macos-shakeout.md",
+          "phase": "business",
+          "status": "pending",
+          "notes": "The copy driver is build-verified; its macOS behavior remains pending the documented Apple-hardware shakeout."
         }
       ]
     },
     {
+      "id": "REQ-P2-004-003",
+      "title": "Automatic Driver Selection",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-004",
       "category": "feature",
       "description": "SelectDriver function automatically chooses the best available driver. Prefers overlayfs on Linux, falls back to CopyDriver on other platforms. DriverInfo provides information about available drivers.",
-      "id": "REQ-P2-004-003",
-      "prd_ref": "OT-P2-004",
-      "status": "complete",
-      "title": "Automatic Driver Selection",
       "validation": [
         {
-          "notes": "SelectDriver returns a valid driver",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestSelectDriverReturnsDriver",
+          "phase": "unit",
           "status": "implemented",
-          "type": "test"
+          "notes": "SelectDriver returns a valid driver"
         },
         {
-          "notes": "SelectDriver falls back to CopyDriver when overlayfs unavailable",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestSelectDriverFallsBackToCopy",
+          "phase": "unit",
           "status": "implemented",
-          "type": "test"
+          "notes": "SelectDriver falls back to CopyDriver when overlayfs unavailable"
         },
         {
-          "notes": "DriverInfo returns info about all available drivers",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestDriverInfoReturnsAllDrivers",
+          "phase": "unit",
           "status": "implemented",
-          "type": "test"
+          "notes": "DriverInfo returns info about all available drivers"
+        },
+        {
+          "type": "manual",
+          "ref": "docs/guides/macos-shakeout.md",
+          "phase": "business",
+          "status": "pending",
+          "notes": "Darwin cross-builds and unit tests are insufficient to claim real-host selection behavior."
         }
       ]
     }
-  ],
-  "title": "Cross-Platform Driver Interface"
+  ]
 }

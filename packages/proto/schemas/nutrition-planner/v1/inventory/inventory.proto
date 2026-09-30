@@ -1,0 +1,21 @@
+syntax = "proto3";
+package vrooli.nutrition_planner.v1.inventory;
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/inventory;inventory_v1";
+service InventoryService { rpc ListEvents(ListEventsRequest) returns (ListEventsResponse); rpc RecordEvent(RecordEventRequest) returns (RecordEventResponse); rpc PrepareBatch(PrepareBatchRequest) returns (PrepareBatchResponse); rpc ConsumeBatchPortion(ConsumeBatchPortionRequest) returns (BatchResponse); rpc UndoBatchPortion(ConsumeBatchPortionRequest) returns (BatchResponse); rpc StageReceiptProposal(StageReceiptProposalRequest) returns (ReceiptProposalResponse); rpc ListReceiptProposals(ListReceiptProposalsRequest) returns (ListReceiptProposalsResponse); rpc ApplyReceiptProposal(ApplyReceiptProposalRequest) returns (ReceiptProposalResponse); }
+message InventoryEvent { string id=1; string workspace_id=2; string kind=3; string item_id=4; string batch_id=5; string amount=6; string unit=7; string recipe_id=8; string created_at=9; }
+message ListEventsRequest { string workspace_id=1; }
+message ListEventsResponse { repeated InventoryEvent events=1; }
+message RecordEventRequest { string workspace_id=1; string id=2; string kind=3; string item_id=4; string batch_id=5; string amount=6; string unit=7; string recipe_id=8; string created_at=9; }
+message RecordEventResponse { InventoryEvent event=1; }
+message Batch { string id=1; string recipe_id=2; int64 recipe_revision=3; string yield_amount=4; string available_amount=5; string unit=6; }
+message PrepareRequirement { string item_id=1; string amount=2; string unit=3; }
+message PrepareBatchRequest { string workspace_id=1; string event_id=2; string batch_id=3; string recipe_id=4; int64 recipe_revision=5; string yield_amount=6; string unit=7; repeated PrepareRequirement requirements=8; }
+message PrepareBatchResponse { Batch batch=1; }
+message ConsumeBatchPortionRequest { string workspace_id=1; string event_id=2; string batch_id=3; string amount=4; string unit=5; string recipe_id=6; }
+message BatchResponse { Batch batch=1; }
+message ReceiptProposal { string id=1; string workspace_id=2; string source_id=3; string transaction_id=4; string line_key=5; string description=6; string item_id=7; string amount=8; string unit=9; string price=10; string status=11; string event_id=12; string created_at=13; string applied_at=14; }
+message StageReceiptProposalRequest { string workspace_id=1; string source_id=2; string transaction_id=3; string line_key=4; string description=5; string item_id=6; string amount=7; string unit=8; string price=9; }
+message ListReceiptProposalsRequest { string workspace_id=1; }
+message ListReceiptProposalsResponse { repeated ReceiptProposal proposals=1; }
+message ApplyReceiptProposalRequest { string workspace_id=1; string proposal_id=2; }
+message ReceiptProposalResponse { ReceiptProposal proposal=1; }

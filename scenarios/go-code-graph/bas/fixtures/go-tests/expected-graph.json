@@ -1,0 +1,1430 @@
+{
+  "nodes": [
+    {
+      "id": "file:helper/helper.go",
+      "kind": "file",
+      "name": "helper.go",
+      "path": "helper/helper.go",
+      "attributes": [
+        [
+          "is_test",
+          "false"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "lines",
+          "5"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/helper"
+        ]
+      ]
+    },
+    {
+      "id": "file:lib/external_test.go",
+      "kind": "file",
+      "name": "external_test.go",
+      "path": "lib/external_test.go",
+      "attributes": [
+        [
+          "is_test",
+          "true"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "lines",
+          "13"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib_test"
+        ]
+      ]
+    },
+    {
+      "id": "file:lib/lib.go",
+      "kind": "file",
+      "name": "lib.go",
+      "path": "lib/lib.go",
+      "attributes": [
+        [
+          "is_test",
+          "false"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "lines",
+          "7"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib"
+        ]
+      ]
+    },
+    {
+      "id": "file:lib/lib_test.go",
+      "kind": "file",
+      "name": "lib_test.go",
+      "path": "lib/lib_test.go",
+      "attributes": [
+        [
+          "is_test",
+          "true"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "lines",
+          "13"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib"
+        ]
+      ]
+    },
+    {
+      "id": "go_call:package:github.com/vrooli/fixtures/go-tests/lib:lib/lib.go:2",
+      "kind": "go_call",
+      "name": "fmt.Sprint",
+      "path": "lib/lib.go",
+      "attributes": [
+        [
+          "argument_types",
+          "string"
+        ],
+        [
+          "callee",
+          "fmt.Sprint"
+        ],
+        [
+          "callee_kind",
+          "go_func"
+        ],
+        [
+          "callee_package",
+          "fmt"
+        ],
+        [
+          "callee_symbol",
+          "go_func:package:fmt:Sprint"
+        ],
+        [
+          "enclosing_symbol",
+          "Live"
+        ],
+        [
+          "end_column",
+          "27"
+        ],
+        [
+          "end_line",
+          "6"
+        ],
+        [
+          "file_id",
+          "file:lib/lib.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib"
+        ],
+        [
+          "start_column",
+          "9"
+        ],
+        [
+          "start_line",
+          "6"
+        ]
+      ]
+    },
+    {
+      "id": "go_call:package:github.com/vrooli/fixtures/go-tests/lib:lib/lib_test.go:4",
+      "kind": "go_call",
+      "name": "helper.FromTest",
+      "path": "lib/lib_test.go",
+      "attributes": [
+        [
+          "argument_types",
+          ""
+        ],
+        [
+          "callee",
+          "helper.FromTest"
+        ],
+        [
+          "callee_kind",
+          "go_func"
+        ],
+        [
+          "callee_package",
+          "github.com/vrooli/fixtures/go-tests/helper"
+        ],
+        [
+          "callee_symbol",
+          "go_func:package:github.com/vrooli/fixtures/go-tests/helper:FromTest"
+        ],
+        [
+          "enclosing_symbol",
+          "TestLive"
+        ],
+        [
+          "end_column",
+          "22"
+        ],
+        [
+          "end_line",
+          "10"
+        ],
+        [
+          "file_id",
+          "file:lib/lib_test.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib"
+        ],
+        [
+          "start_column",
+          "5"
+        ],
+        [
+          "start_line",
+          "10"
+        ]
+      ]
+    },
+    {
+      "id": "go_call:package:github.com/vrooli/fixtures/go-tests/lib:lib/lib_test.go:6",
+      "kind": "go_call",
+      "name": "t.Fatal",
+      "path": "lib/lib_test.go",
+      "attributes": [
+        [
+          "argument_types",
+          "string"
+        ],
+        [
+          "callee",
+          "t.Fatal"
+        ],
+        [
+          "callee_kind",
+          "go_method"
+        ],
+        [
+          "callee_package",
+          "testing"
+        ],
+        [
+          "callee_symbol",
+          "go_method:package:testing:Fatal"
+        ],
+        [
+          "enclosing_symbol",
+          "TestLive"
+        ],
+        [
+          "end_column",
+          "36"
+        ],
+        [
+          "end_line",
+          "11"
+        ],
+        [
+          "file_id",
+          "file:lib/lib_test.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib"
+        ],
+        [
+          "receiver_type",
+          "*testing.T"
+        ],
+        [
+          "start_column",
+          "3"
+        ],
+        [
+          "start_line",
+          "11"
+        ]
+      ]
+    },
+    {
+      "id": "go_call:package:github.com/vrooli/fixtures/go-tests/lib_test:lib/external_test.go:4",
+      "kind": "go_call",
+      "name": "lib.Live",
+      "path": "lib/external_test.go",
+      "attributes": [
+        [
+          "argument_types",
+          ""
+        ],
+        [
+          "callee",
+          "lib.Live"
+        ],
+        [
+          "callee_kind",
+          "go_func"
+        ],
+        [
+          "callee_package",
+          "github.com/vrooli/fixtures/go-tests/lib"
+        ],
+        [
+          "callee_symbol",
+          "go_func:package:github.com/vrooli/fixtures/go-tests/lib:Live"
+        ],
+        [
+          "enclosing_symbol",
+          "TestExternal"
+        ],
+        [
+          "end_column",
+          "15"
+        ],
+        [
+          "end_line",
+          "10"
+        ],
+        [
+          "file_id",
+          "file:lib/external_test.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib_test"
+        ],
+        [
+          "start_column",
+          "5"
+        ],
+        [
+          "start_line",
+          "10"
+        ]
+      ]
+    },
+    {
+      "id": "go_call:package:github.com/vrooli/fixtures/go-tests/lib_test:lib/external_test.go:6",
+      "kind": "go_call",
+      "name": "t.Fatal",
+      "path": "lib/external_test.go",
+      "attributes": [
+        [
+          "argument_types",
+          "string"
+        ],
+        [
+          "callee",
+          "t.Fatal"
+        ],
+        [
+          "callee_kind",
+          "go_method"
+        ],
+        [
+          "callee_package",
+          "testing"
+        ],
+        [
+          "callee_symbol",
+          "go_method:package:testing:Fatal"
+        ],
+        [
+          "enclosing_symbol",
+          "TestExternal"
+        ],
+        [
+          "end_column",
+          "34"
+        ],
+        [
+          "end_line",
+          "11"
+        ],
+        [
+          "file_id",
+          "file:lib/external_test.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib_test"
+        ],
+        [
+          "receiver_type",
+          "*testing.T"
+        ],
+        [
+          "start_column",
+          "3"
+        ],
+        [
+          "start_line",
+          "11"
+        ]
+      ]
+    },
+    {
+      "id": "go_func:package:github.com/vrooli/fixtures/go-tests/helper:FromTest",
+      "kind": "go_func",
+      "name": "FromTest",
+      "path": "helper/helper.go",
+      "attributes": [
+        [
+          "exported",
+          "true"
+        ],
+        [
+          "file_id",
+          "file:helper/helper.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/helper"
+        ]
+      ]
+    },
+    {
+      "id": "go_func:package:github.com/vrooli/fixtures/go-tests/lib:Live",
+      "kind": "go_func",
+      "name": "Live",
+      "path": "lib/lib.go",
+      "attributes": [
+        [
+          "exported",
+          "true"
+        ],
+        [
+          "file_id",
+          "file:lib/lib.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib"
+        ]
+      ]
+    },
+    {
+      "id": "go_func:package:github.com/vrooli/fixtures/go-tests/lib:TestLive",
+      "kind": "go_func",
+      "name": "TestLive",
+      "path": "lib/lib_test.go",
+      "attributes": [
+        [
+          "exported",
+          "true"
+        ],
+        [
+          "file_id",
+          "file:lib/lib_test.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib"
+        ]
+      ]
+    },
+    {
+      "id": "go_func:package:github.com/vrooli/fixtures/go-tests/lib_test:TestExternal",
+      "kind": "go_func",
+      "name": "TestExternal",
+      "path": "lib/external_test.go",
+      "attributes": [
+        [
+          "exported",
+          "true"
+        ],
+        [
+          "file_id",
+          "file:lib/external_test.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib_test"
+        ]
+      ]
+    },
+    {
+      "id": "go_import_spec:package:github.com/vrooli/fixtures/go-tests/lib:lib/lib.go:1",
+      "kind": "go_import_spec",
+      "name": "fmt",
+      "path": "lib/lib.go",
+      "attributes": [
+        [
+          "alias",
+          ""
+        ],
+        [
+          "end_column",
+          "13"
+        ],
+        [
+          "end_line",
+          "3"
+        ],
+        [
+          "file_id",
+          "file:lib/lib.go"
+        ],
+        [
+          "import_path",
+          "fmt"
+        ],
+        [
+          "is_blank",
+          "false"
+        ],
+        [
+          "is_dot",
+          "false"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib"
+        ],
+        [
+          "start_column",
+          "8"
+        ],
+        [
+          "start_line",
+          "3"
+        ]
+      ]
+    },
+    {
+      "id": "go_import_spec:package:github.com/vrooli/fixtures/go-tests/lib:lib/lib_test.go:1",
+      "kind": "go_import_spec",
+      "name": "testing",
+      "path": "lib/lib_test.go",
+      "attributes": [
+        [
+          "alias",
+          ""
+        ],
+        [
+          "end_column",
+          "11"
+        ],
+        [
+          "end_line",
+          "4"
+        ],
+        [
+          "file_id",
+          "file:lib/lib_test.go"
+        ],
+        [
+          "import_path",
+          "testing"
+        ],
+        [
+          "is_blank",
+          "false"
+        ],
+        [
+          "is_dot",
+          "false"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib"
+        ],
+        [
+          "start_column",
+          "2"
+        ],
+        [
+          "start_line",
+          "4"
+        ]
+      ]
+    },
+    {
+      "id": "go_import_spec:package:github.com/vrooli/fixtures/go-tests/lib:lib/lib_test.go:2",
+      "kind": "go_import_spec",
+      "name": "github.com/vrooli/fixtures/go-tests/helper",
+      "path": "lib/lib_test.go",
+      "attributes": [
+        [
+          "alias",
+          ""
+        ],
+        [
+          "end_column",
+          "46"
+        ],
+        [
+          "end_line",
+          "6"
+        ],
+        [
+          "file_id",
+          "file:lib/lib_test.go"
+        ],
+        [
+          "import_path",
+          "github.com/vrooli/fixtures/go-tests/helper"
+        ],
+        [
+          "is_blank",
+          "false"
+        ],
+        [
+          "is_dot",
+          "false"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib"
+        ],
+        [
+          "start_column",
+          "2"
+        ],
+        [
+          "start_line",
+          "6"
+        ]
+      ]
+    },
+    {
+      "id": "go_import_spec:package:github.com/vrooli/fixtures/go-tests/lib_test:lib/external_test.go:1",
+      "kind": "go_import_spec",
+      "name": "testing",
+      "path": "lib/external_test.go",
+      "attributes": [
+        [
+          "alias",
+          ""
+        ],
+        [
+          "end_column",
+          "11"
+        ],
+        [
+          "end_line",
+          "4"
+        ],
+        [
+          "file_id",
+          "file:lib/external_test.go"
+        ],
+        [
+          "import_path",
+          "testing"
+        ],
+        [
+          "is_blank",
+          "false"
+        ],
+        [
+          "is_dot",
+          "false"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib_test"
+        ],
+        [
+          "start_column",
+          "2"
+        ],
+        [
+          "start_line",
+          "4"
+        ]
+      ]
+    },
+    {
+      "id": "go_import_spec:package:github.com/vrooli/fixtures/go-tests/lib_test:lib/external_test.go:2",
+      "kind": "go_import_spec",
+      "name": "github.com/vrooli/fixtures/go-tests/lib",
+      "path": "lib/external_test.go",
+      "attributes": [
+        [
+          "alias",
+          ""
+        ],
+        [
+          "end_column",
+          "43"
+        ],
+        [
+          "end_line",
+          "6"
+        ],
+        [
+          "file_id",
+          "file:lib/external_test.go"
+        ],
+        [
+          "import_path",
+          "github.com/vrooli/fixtures/go-tests/lib"
+        ],
+        [
+          "is_blank",
+          "false"
+        ],
+        [
+          "is_dot",
+          "false"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib_test"
+        ],
+        [
+          "start_column",
+          "2"
+        ],
+        [
+          "start_line",
+          "6"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:github.com/vrooli/fixtures/go-tests/lib:lib/lib.go:3",
+      "kind": "go_reference",
+      "name": "Sprint",
+      "path": "lib/lib.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "Live"
+        ],
+        [
+          "end_column",
+          "19"
+        ],
+        [
+          "end_line",
+          "6"
+        ],
+        [
+          "file_id",
+          "file:lib/lib.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib"
+        ],
+        [
+          "referenced_kind",
+          "go_func"
+        ],
+        [
+          "referenced_name",
+          "Sprint"
+        ],
+        [
+          "referenced_package",
+          "fmt"
+        ],
+        [
+          "referenced_symbol",
+          "go_func:package:fmt:Sprint"
+        ],
+        [
+          "start_column",
+          "13"
+        ],
+        [
+          "start_line",
+          "6"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:github.com/vrooli/fixtures/go-tests/lib:lib/lib_test.go:3",
+      "kind": "go_reference",
+      "name": "T",
+      "path": "lib/lib_test.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "TestLive"
+        ],
+        [
+          "end_column",
+          "27"
+        ],
+        [
+          "end_line",
+          "9"
+        ],
+        [
+          "file_id",
+          "file:lib/lib_test.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib"
+        ],
+        [
+          "referenced_kind",
+          "go_type"
+        ],
+        [
+          "referenced_name",
+          "T"
+        ],
+        [
+          "referenced_package",
+          "testing"
+        ],
+        [
+          "referenced_symbol",
+          "go_type:package:testing:T"
+        ],
+        [
+          "start_column",
+          "26"
+        ],
+        [
+          "start_line",
+          "9"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:github.com/vrooli/fixtures/go-tests/lib:lib/lib_test.go:5",
+      "kind": "go_reference",
+      "name": "FromTest",
+      "path": "lib/lib_test.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "TestLive"
+        ],
+        [
+          "end_column",
+          "20"
+        ],
+        [
+          "end_line",
+          "10"
+        ],
+        [
+          "file_id",
+          "file:lib/lib_test.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib"
+        ],
+        [
+          "referenced_kind",
+          "go_func"
+        ],
+        [
+          "referenced_name",
+          "FromTest"
+        ],
+        [
+          "referenced_package",
+          "github.com/vrooli/fixtures/go-tests/helper"
+        ],
+        [
+          "referenced_symbol",
+          "go_func:package:github.com/vrooli/fixtures/go-tests/helper:FromTest"
+        ],
+        [
+          "start_column",
+          "12"
+        ],
+        [
+          "start_line",
+          "10"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:github.com/vrooli/fixtures/go-tests/lib:lib/lib_test.go:7",
+      "kind": "go_reference",
+      "name": "t",
+      "path": "lib/lib_test.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "TestLive"
+        ],
+        [
+          "end_column",
+          "4"
+        ],
+        [
+          "end_line",
+          "11"
+        ],
+        [
+          "file_id",
+          "file:lib/lib_test.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib"
+        ],
+        [
+          "referenced_kind",
+          "go_var"
+        ],
+        [
+          "referenced_name",
+          "t"
+        ],
+        [
+          "referenced_package",
+          "github.com/vrooli/fixtures/go-tests/lib"
+        ],
+        [
+          "referenced_symbol",
+          "go_var:package:github.com/vrooli/fixtures/go-tests/lib:t"
+        ],
+        [
+          "start_column",
+          "3"
+        ],
+        [
+          "start_line",
+          "11"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:github.com/vrooli/fixtures/go-tests/lib:lib/lib_test.go:8",
+      "kind": "go_reference",
+      "name": "Fatal",
+      "path": "lib/lib_test.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "TestLive"
+        ],
+        [
+          "end_column",
+          "10"
+        ],
+        [
+          "end_line",
+          "11"
+        ],
+        [
+          "file_id",
+          "file:lib/lib_test.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib"
+        ],
+        [
+          "referenced_kind",
+          "go_method"
+        ],
+        [
+          "referenced_name",
+          "Fatal"
+        ],
+        [
+          "referenced_package",
+          "testing"
+        ],
+        [
+          "referenced_symbol",
+          "go_method:package:testing:Fatal"
+        ],
+        [
+          "start_column",
+          "5"
+        ],
+        [
+          "start_line",
+          "11"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:github.com/vrooli/fixtures/go-tests/lib_test:lib/external_test.go:3",
+      "kind": "go_reference",
+      "name": "T",
+      "path": "lib/external_test.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "TestExternal"
+        ],
+        [
+          "end_column",
+          "31"
+        ],
+        [
+          "end_line",
+          "9"
+        ],
+        [
+          "file_id",
+          "file:lib/external_test.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib_test"
+        ],
+        [
+          "referenced_kind",
+          "go_type"
+        ],
+        [
+          "referenced_name",
+          "T"
+        ],
+        [
+          "referenced_package",
+          "testing"
+        ],
+        [
+          "referenced_symbol",
+          "go_type:package:testing:T"
+        ],
+        [
+          "start_column",
+          "30"
+        ],
+        [
+          "start_line",
+          "9"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:github.com/vrooli/fixtures/go-tests/lib_test:lib/external_test.go:5",
+      "kind": "go_reference",
+      "name": "Live",
+      "path": "lib/external_test.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "TestExternal"
+        ],
+        [
+          "end_column",
+          "13"
+        ],
+        [
+          "end_line",
+          "10"
+        ],
+        [
+          "file_id",
+          "file:lib/external_test.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib_test"
+        ],
+        [
+          "referenced_kind",
+          "go_func"
+        ],
+        [
+          "referenced_name",
+          "Live"
+        ],
+        [
+          "referenced_package",
+          "github.com/vrooli/fixtures/go-tests/lib"
+        ],
+        [
+          "referenced_symbol",
+          "go_func:package:github.com/vrooli/fixtures/go-tests/lib:Live"
+        ],
+        [
+          "start_column",
+          "9"
+        ],
+        [
+          "start_line",
+          "10"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:github.com/vrooli/fixtures/go-tests/lib_test:lib/external_test.go:7",
+      "kind": "go_reference",
+      "name": "t",
+      "path": "lib/external_test.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "TestExternal"
+        ],
+        [
+          "end_column",
+          "4"
+        ],
+        [
+          "end_line",
+          "11"
+        ],
+        [
+          "file_id",
+          "file:lib/external_test.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib_test"
+        ],
+        [
+          "referenced_kind",
+          "go_var"
+        ],
+        [
+          "referenced_name",
+          "t"
+        ],
+        [
+          "referenced_package",
+          "github.com/vrooli/fixtures/go-tests/lib_test"
+        ],
+        [
+          "referenced_symbol",
+          "go_var:package:github.com/vrooli/fixtures/go-tests/lib_test:t"
+        ],
+        [
+          "start_column",
+          "3"
+        ],
+        [
+          "start_line",
+          "11"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:github.com/vrooli/fixtures/go-tests/lib_test:lib/external_test.go:8",
+      "kind": "go_reference",
+      "name": "Fatal",
+      "path": "lib/external_test.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "TestExternal"
+        ],
+        [
+          "end_column",
+          "10"
+        ],
+        [
+          "end_line",
+          "11"
+        ],
+        [
+          "file_id",
+          "file:lib/external_test.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:github.com/vrooli/fixtures/go-tests/lib_test"
+        ],
+        [
+          "referenced_kind",
+          "go_method"
+        ],
+        [
+          "referenced_name",
+          "Fatal"
+        ],
+        [
+          "referenced_package",
+          "testing"
+        ],
+        [
+          "referenced_symbol",
+          "go_method:package:testing:Fatal"
+        ],
+        [
+          "start_column",
+          "5"
+        ],
+        [
+          "start_line",
+          "11"
+        ]
+      ]
+    },
+    {
+      "id": "package:github.com/vrooli/fixtures/go-tests/helper",
+      "kind": "package",
+      "name": "helper",
+      "path": "github.com/vrooli/fixtures/go-tests/helper",
+      "attributes": [
+        [
+          "import_path",
+          "github.com/vrooli/fixtures/go-tests/helper"
+        ],
+        [
+          "internal",
+          "false"
+        ],
+        [
+          "language",
+          "go"
+        ]
+      ]
+    },
+    {
+      "id": "package:github.com/vrooli/fixtures/go-tests/lib",
+      "kind": "package",
+      "name": "lib",
+      "path": "github.com/vrooli/fixtures/go-tests/lib",
+      "attributes": [
+        [
+          "import_path",
+          "github.com/vrooli/fixtures/go-tests/lib"
+        ],
+        [
+          "internal",
+          "false"
+        ],
+        [
+          "language",
+          "go"
+        ]
+      ]
+    },
+    {
+      "id": "package:github.com/vrooli/fixtures/go-tests/lib_test",
+      "kind": "package",
+      "name": "lib_test",
+      "path": "github.com/vrooli/fixtures/go-tests/lib_test",
+      "attributes": [
+        [
+          "import_path",
+          "github.com/vrooli/fixtures/go-tests/lib_test"
+        ],
+        [
+          "internal",
+          "false"
+        ],
+        [
+          "language",
+          "go"
+        ]
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "import:package:github.com/vrooli/fixtures/go-tests/lib->package:fmt",
+      "kind": "import",
+      "from": "package:github.com/vrooli/fixtures/go-tests/lib",
+      "to": "package:fmt",
+      "attributes": [
+        [
+          "symbol_ids",
+          "go_func:package:fmt:Sprint"
+        ],
+        [
+          "symbol_kinds",
+          "go_func"
+        ],
+        [
+          "test_only",
+          "false"
+        ]
+      ]
+    },
+    {
+      "id": "import:package:github.com/vrooli/fixtures/go-tests/lib->package:github.com/vrooli/fixtures/go-tests/helper",
+      "kind": "import",
+      "from": "package:github.com/vrooli/fixtures/go-tests/lib",
+      "to": "package:github.com/vrooli/fixtures/go-tests/helper",
+      "attributes": [
+        [
+          "symbol_ids",
+          "go_func:package:github.com/vrooli/fixtures/go-tests/helper:FromTest"
+        ],
+        [
+          "symbol_kinds",
+          "go_func"
+        ],
+        [
+          "test_only",
+          "true"
+        ]
+      ]
+    },
+    {
+      "id": "import:package:github.com/vrooli/fixtures/go-tests/lib->package:testing",
+      "kind": "import",
+      "from": "package:github.com/vrooli/fixtures/go-tests/lib",
+      "to": "package:testing",
+      "attributes": [
+        [
+          "symbol_ids",
+          "go_method:package:testing:Fatal,go_type:package:testing:T"
+        ],
+        [
+          "symbol_kinds",
+          "go_method,go_type"
+        ],
+        [
+          "test_only",
+          "true"
+        ]
+      ]
+    },
+    {
+      "id": "import:package:github.com/vrooli/fixtures/go-tests/lib_test->package:github.com/vrooli/fixtures/go-tests/lib",
+      "kind": "import",
+      "from": "package:github.com/vrooli/fixtures/go-tests/lib_test",
+      "to": "package:github.com/vrooli/fixtures/go-tests/lib",
+      "attributes": [
+        [
+          "symbol_ids",
+          "go_func:package:github.com/vrooli/fixtures/go-tests/lib:Live"
+        ],
+        [
+          "symbol_kinds",
+          "go_func"
+        ],
+        [
+          "test_only",
+          "true"
+        ]
+      ]
+    },
+    {
+      "id": "import:package:github.com/vrooli/fixtures/go-tests/lib_test->package:testing",
+      "kind": "import",
+      "from": "package:github.com/vrooli/fixtures/go-tests/lib_test",
+      "to": "package:testing",
+      "attributes": [
+        [
+          "symbol_ids",
+          "go_method:package:testing:Fatal,go_type:package:testing:T"
+        ],
+        [
+          "symbol_kinds",
+          "go_method,go_type"
+        ],
+        [
+          "test_only",
+          "true"
+        ]
+      ]
+    }
+  ]
+}

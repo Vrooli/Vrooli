@@ -5,6 +5,8 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"time"
+
+	"scenario-to-cloud/identity"
 )
 
 // NullRawMessage is a json.RawMessage that handles NULL values from the database.
@@ -74,12 +76,84 @@ const (
 	StatusStopped       DeploymentStatus = "stopped"
 )
 
+// DesiredState is the operator's intent for a deployment's workload.
+type DesiredState string
+
+// Desired states.
+const (
+	DesiredRunning DesiredState = "running"
+	DesiredStopped DesiredState = "stopped"
+	DesiredRetired DesiredState = "retired"
+)
+
+// Normalized returns the state with the running default applied.
+func (d DesiredState) Normalized() DesiredState {
+	if d == "" {
+		return DesiredRunning
+	}
+	return d
+}
+
+// PersistentDataBindings is the recorded legacy conversion of a deployment:
+// each mapping binds one mutable directory (scenario-relative) to a declared
+// binding id. Unmapped directories are carried, never deleted.
+type PersistentDataBindings struct {
+	SchemaVersion int                       `json:"schema_version"`
+	Mappings      []PersistentDataMapping   `json:"mappings"`
+	RecordedAt    time.Time                 `json:"recorded_at"`
+	Inventory     []PersistentDataInventory `json:"inventory,omitempty"`
+}
+
+// PersistentDataMapping maps <scenario>/<path> onto a binding id.
+type PersistentDataMapping struct {
+	BindingID string `json:"binding_id"`
+	Scenario  string `json:"scenario"`
+	Path      string `json:"path"`
+}
+
+// PersistentDataInventory is one observed mutable directory at adoption time.
+type PersistentDataInventory struct {
+	Scenario string `json:"scenario"`
+	Path     string `json:"path"`
+	Bytes    int64  `json:"bytes"`
+	Files    int64  `json:"files"`
+	Mapped   bool   `json:"mapped"`
+}
+
+// Specs renders the mappings as <binding id>=<scenario>/<path> (the plan
+// compiler's input form).
+func (b PersistentDataBindings) Specs() []string {
+	out := make([]string, 0, len(b.Mappings))
+	for _, m := range b.Mappings {
+		out = append(out, m.BindingID+"="+m.Scenario+"/"+m.Path)
+	}
+	return out
+}
+
 // Deployment represents a deployment record in the database.
 // It tracks the full lifecycle of deploying a scenario to a VPS target.
 type Deployment struct {
-	ID              string           `json:"id"`
-	Name            string           `json:"name"`
-	ScenarioID      string           `json:"scenario_id"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	ScenarioID string `json:"scenario_id"`
+	// Environment separates installations of one scenario (production,
+	// staging, ...). Empty on input means identity.DefaultEnvironment.
+	Environment string `json:"environment"`
+	// Target is the bound target identity. The manifest's target.vps block
+	// remains the SSH transport configuration until the reach layer owns it.
+	Target identity.TargetRef `json:"target"`
+	// Fence is incremented whenever an operation acquires the deployment;
+	// every target effect carries it and refuses a lower value.
+	Fence uint64 `json:"fence"`
+	// DesiredState is the operator's intent for the workload: running or
+	// stopped. It is distinct from Status (the observed/projected lifecycle)
+	// so an intentional stop is never read as drift and never restarted by
+	// observation. Empty means running.
+	DesiredState DesiredState `json:"desired_state"`
+	// PersistentData records the legacy data-binding conversion: which
+	// mutable directories map onto which declared bindings. It is written by
+	// the adopt endpoint and read by release.activate; nothing else moves data.
+	PersistentData  NullRawMessage   `json:"persistent_data,omitempty"`
 	Status          DeploymentStatus `json:"status"`
 	Manifest        json.RawMessage  `json:"manifest"`
 	BundlePath      *string          `json:"bundle_path,omitempty"`
@@ -104,12 +178,6 @@ type Deployment struct {
 	ProgressStep    *string `json:"progress_step,omitempty"`
 	ProgressPercent float64 `json:"progress_percent"`
 
-	// Idempotency tracking - tracks completed steps for replay-safe execution
-	// CompletedSteps: JSON array of step IDs that completed successfully in the current run
-	// RunID: UUID for the current execution run; changes on each fresh execution
-	CompletedSteps NullRawMessage `json:"completed_steps,omitempty"`
-	RunID          *string        `json:"run_id,omitempty"`
-
 	// Timestamps
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
@@ -117,11 +185,22 @@ type Deployment struct {
 	LastInspectedAt *time.Time `json:"last_inspected_at,omitempty"`
 }
 
+// Ref returns the stable identity of the deployment.
+func (d *Deployment) Ref() identity.DeploymentRef {
+	return identity.DeploymentRef{
+		ID:          d.ID,
+		ScenarioID:  d.ScenarioID,
+		Environment: identity.NormalizeEnvironment(d.Environment),
+		Target:      d.Target,
+	}
+}
+
 // DeploymentSummary is a lightweight view of a deployment for list views.
 type DeploymentSummary struct {
 	ID              string           `json:"id"`
 	Name            string           `json:"name"`
 	ScenarioID      string           `json:"scenario_id"`
+	Environment     string           `json:"environment"`
 	Status          DeploymentStatus `json:"status"`
 	Domain          string           `json:"domain,omitempty"`
 	Host            string           `json:"host,omitempty"`
@@ -134,10 +213,11 @@ type DeploymentSummary struct {
 
 // ListFilter contains options for filtering deployment lists.
 type ListFilter struct {
-	Status     *DeploymentStatus `json:"status,omitempty"`
-	ScenarioID *string           `json:"scenario_id,omitempty"`
-	Limit      int               `json:"limit,omitempty"`
-	Offset     int               `json:"offset,omitempty"`
+	Status      *DeploymentStatus `json:"status,omitempty"`
+	ScenarioID  *string           `json:"scenario_id,omitempty"`
+	Environment *string           `json:"environment,omitempty"`
+	Limit       int               `json:"limit,omitempty"`
+	Offset      int               `json:"offset,omitempty"`
 }
 
 // CreateDeploymentRequest is the request body for creating a new deployment.
@@ -155,6 +235,9 @@ type ExecuteDeploymentRequest struct {
 	ProvidedSecrets  map[string]string `json:"provided_secrets,omitempty"`   // User-provided secrets (user_prompt class)
 	RunPreflight     bool              `json:"run_preflight,omitempty"`      // Run VPS preflight checks before deployment
 	ForceBundleBuild bool              `json:"force_bundle_build,omitempty"` // Build a new bundle even if one exists
+	// RequestKey is the caller's idempotency key. Equal replays return the
+	// same operation; a missing key admits a fresh operation.
+	RequestKey string `json:"request_key,omitempty"`
 }
 
 // UpdateDeploymentStatusRequest is used to update deployment status.

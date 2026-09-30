@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package vrooli.persona.v1.journal;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/journal;journal_v1";
+
+service JournalService {
+  rpc Append(AppendRequest) returns (AppendResponse);
+  rpc List(ListRequest) returns (ListResponse);
+}
+
+message JournalEntry {
+  string id = 1;
+  string persona_id = 2;
+  string actor = 3;
+  string verb = 4;
+  string run_id = 5;
+  string authorising_human = 6;
+  google.protobuf.Timestamp at = 7;
+  string outcome = 8;
+  string constraint = 9;
+  map<string, string> details = 10;
+}
+
+message AppendRequest { JournalEntry entry = 1; }
+message AppendResponse { JournalEntry entry = 1; }
+message ListRequest { string persona_id = 1; int32 limit = 2; }
+message ListResponse { repeated JournalEntry entries = 1; }

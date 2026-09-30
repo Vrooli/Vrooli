@@ -1,0 +1,6 @@
+{
+  "$schema": "./setpoint.schema.json",
+  "schemaVersion": "1.0.0",
+  "bars": [],
+  "notGradeable": [{"metricId":"all","reason":"Setpoints are pending an operator decision."}]
+}

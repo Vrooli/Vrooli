@@ -12,7 +12,6 @@
 //
 // # Interfaces
 //
-//   - ApprovalPolicy: Decides whether changes can be auto-approved
 //   - AttributionPolicy: Controls commit authorship and message format
 //   - ValidationPolicy: Runs pre-commit validation hooks
 //   - TeardownPolicy: Runs pre-teardown hooks before sandbox unmount/delete
@@ -29,18 +28,6 @@ import (
 
 	"workspace-sandbox/internal/types"
 )
-
-// ApprovalPolicy decides whether sandbox changes can be approved and how.
-type ApprovalPolicy interface {
-	// CanAutoApprove decides if the given changes can be automatically approved
-	// without human intervention. Returns true if auto-approval is allowed,
-	// false if human review is required.
-	CanAutoApprove(ctx context.Context, sandbox *types.Sandbox, changes []*types.FileChange) (bool, string)
-
-	// ValidateApproval performs any additional validation before approval.
-	// Returns an error if the approval should be blocked.
-	ValidateApproval(ctx context.Context, sandbox *types.Sandbox, req *types.ApprovalRequest) error
-}
 
 // AttributionPolicy controls how commits are attributed.
 type AttributionPolicy interface {

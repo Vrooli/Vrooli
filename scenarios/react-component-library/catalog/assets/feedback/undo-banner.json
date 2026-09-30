@@ -1,0 +1,61 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.undo-banner",
+    "name": "UndoBanner",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "feedback",
+    "description": "The reversible-action surface explaining what changed, offering undo before it expires, reporting rollback progress, and handling the case where undo itself fails.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "feedback.snackbar",
+        "reason": "Presentation and lifetime are shared."
+      },
+      {
+        "asset": "services.undo-manager",
+        "reason": "Reversal, grouping, and expiry belong to the shared history service."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "status-announced",
+    "non-color-status",
+    "contrast-floor",
+    "text-scale-resilience",
+    "forced-colors-legibility",
+    "content-reflow",
+    "recovery-path",
+    "optimistic-rollback"
+  ],
+  "requiredStates": [
+    "default",
+    "submitting",
+    "success",
+    "request-error"
+  ],
+  "beauty": {
+    "signatureMoment": {
+      "description": "A destructive action completes immediately with a visible, time-bounded way back, so the interface feels forgiving rather than interrogative."
+    }
+  },
+  "rationale": "Pairs with the undoable-destructive-action discipline: prefer reversible soft deletion with visible undo, and escalate to a confirmation dialog only where reversal is genuinely impossible."
+}

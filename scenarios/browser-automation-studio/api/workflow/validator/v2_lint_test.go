@@ -54,239 +54,229 @@ func TestValidateV2_ValidNavigateWorkflow(t *testing.T) {
 	assert.Empty(t, result.Errors)
 }
 
-func TestValidateV2_LoopForeach_Valid(t *testing.T) {
-	v := &Validator{}
-	result := v.ValidateV2(&basworkflows.WorkflowDefinitionV2{
-		Nodes: []*basworkflows.WorkflowNodeV2{
-			{
-				Id: "loop-1",
-				Action: &basactions.ActionDefinition{
-					Type: basactions.ActionType_ACTION_TYPE_LOOP,
-					Params: &basactions.ActionDefinition_Loop{
-						Loop: &basactions.LoopParams{
-							LoopType:      basactions.LoopType_LOOP_TYPE_FOREACH,
-							ArraySource:   ptr("${items}"),
-							ItemVariable:  ptr("item"),
-							MaxIterations: ptr(int32(100)),
-						},
-					},
-					Metadata: &basactions.ActionMetadata{Label: ptr("Loop items")},
-				},
-				Position: &basbase.NodePosition{X: 0, Y: 0},
+func TestValidateV2_LoopForeachCases(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		params       *basactions.LoopParams
+		valid        bool
+		errorCode    string
+		warningCodes []string
+	}{
+		{
+			name: "valid",
+			params: &basactions.LoopParams{
+				LoopType:    basactions.LoopType_LOOP_TYPE_FOREACH,
+				ArraySource: ptr("${items}"), ItemVariable: ptr("item"),
+				MaxIterations: ptr(int32(100)),
 			},
+			valid: true,
 		},
-	})
-
-	assert.True(t, result.Valid)
-	assert.Empty(t, result.Errors)
-	assert.Empty(t, result.Warnings) // Has item_variable and max_iterations
-}
-
-func TestValidateV2_LoopForeach_MissingArraySource(t *testing.T) {
-	v := &Validator{}
-	result := v.ValidateV2(&basworkflows.WorkflowDefinitionV2{
-		Nodes: []*basworkflows.WorkflowNodeV2{
-			{
-				Id: "loop-1",
-				Action: &basactions.ActionDefinition{
-					Type: basactions.ActionType_ACTION_TYPE_LOOP,
-					Params: &basactions.ActionDefinition_Loop{
-						Loop: &basactions.LoopParams{
-							LoopType:     basactions.LoopType_LOOP_TYPE_FOREACH,
-							ItemVariable: ptr("item"),
-						},
-					},
-					Metadata: &basactions.ActionMetadata{Label: ptr("Loop")},
-				},
+		{
+			name: "missing array source",
+			params: &basactions.LoopParams{
+				LoopType: basactions.LoopType_LOOP_TYPE_FOREACH, ItemVariable: ptr("item"),
 			},
+			errorCode:    "WF_V2_LOOP_FOREACH_SOURCE_REQUIRED",
+			warningCodes: []string{"WF_V2_LOOP_MAX_ITERATIONS"},
 		},
-	})
-
-	assert.False(t, result.Valid)
-	require.Len(t, result.Errors, 1)
-	assert.Equal(t, "WF_V2_LOOP_FOREACH_SOURCE_REQUIRED", result.Errors[0].Code)
-	// Should also warn about missing max_iterations
-	assert.NotEmpty(t, result.Warnings)
-}
-
-func TestValidateV2_LoopForeach_MissingItemVariable(t *testing.T) {
-	v := &Validator{}
-	result := v.ValidateV2(&basworkflows.WorkflowDefinitionV2{
-		Nodes: []*basworkflows.WorkflowNodeV2{
-			{
-				Id: "loop-1",
-				Action: &basactions.ActionDefinition{
-					Type: basactions.ActionType_ACTION_TYPE_LOOP,
-					Params: &basactions.ActionDefinition_Loop{
-						Loop: &basactions.LoopParams{
-							LoopType:    basactions.LoopType_LOOP_TYPE_FOREACH,
-							ArraySource: ptr("${items}"),
-							// No item_variable
-						},
-					},
-					Metadata: &basactions.ActionMetadata{Label: ptr("Loop")},
-				},
+		{
+			name: "missing item variable",
+			params: &basactions.LoopParams{
+				LoopType: basactions.LoopType_LOOP_TYPE_FOREACH, ArraySource: ptr("${items}"),
 			},
+			valid:        true,
+			warningCodes: []string{"WF_V2_LOOP_FOREACH_ITEM_VAR", "WF_V2_LOOP_MAX_ITERATIONS"},
 		},
-	})
-
-	assert.True(t, result.Valid) // Missing item_variable is just a warning
-	assert.Empty(t, result.Errors)
-	// Should warn about missing item_variable and max_iterations
-	var codes []string
-	for _, w := range result.Warnings {
-		codes = append(codes, w.Code)
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := (&Validator{}).ValidateV2(&basworkflows.WorkflowDefinitionV2{
+				Nodes: []*basworkflows.WorkflowNodeV2{{
+					Id: "loop-1",
+					Action: &basactions.ActionDefinition{
+						Type:     basactions.ActionType_ACTION_TYPE_LOOP,
+						Params:   &basactions.ActionDefinition_Loop{Loop: tc.params},
+						Metadata: &basactions.ActionMetadata{Label: ptr("Loop")},
+					},
+				}},
+			})
+			assert.Equal(t, tc.valid, result.Valid)
+			if tc.errorCode == "" {
+				assert.Empty(t, result.Errors)
+			} else {
+				require.Len(t, result.Errors, 1)
+				assert.Equal(t, tc.errorCode, result.Errors[0].Code)
+			}
+			require.Len(t, result.Warnings, len(tc.warningCodes))
+			actualWarnings := make([]string, 0, len(result.Warnings))
+			for _, warning := range result.Warnings {
+				actualWarnings = append(actualWarnings, warning.Code)
+			}
+			for _, code := range tc.warningCodes {
+				assert.Contains(t, actualWarnings, code)
+			}
+		})
 	}
-	assert.Contains(t, codes, "WF_V2_LOOP_FOREACH_ITEM_VAR")
-	assert.Contains(t, codes, "WF_V2_LOOP_MAX_ITERATIONS")
 }
 
-func TestValidateV2_LoopRepeat_Valid(t *testing.T) {
-	v := &Validator{}
-	result := v.ValidateV2(&basworkflows.WorkflowDefinitionV2{
-		Nodes: []*basworkflows.WorkflowNodeV2{
-			{
-				Id: "loop-1",
-				Action: &basactions.ActionDefinition{
-					Type: basactions.ActionType_ACTION_TYPE_LOOP,
-					Params: &basactions.ActionDefinition_Loop{
-						Loop: &basactions.LoopParams{
-							LoopType:      basactions.LoopType_LOOP_TYPE_REPEAT,
-							Count:         ptr(int32(5)),
-							MaxIterations: ptr(int32(10)),
-						},
-					},
-					Metadata: &basactions.ActionMetadata{Label: ptr("Repeat 5x")},
-				},
+func TestValidateV2_LoopRepeatCases(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		params    *basactions.LoopParams
+		valid     bool
+		errorCode string
+	}{
+		{
+			name: "valid",
+			params: &basactions.LoopParams{
+				LoopType: basactions.LoopType_LOOP_TYPE_REPEAT,
+				Count:    ptr(int32(5)), MaxIterations: ptr(int32(10)),
 			},
+			valid: true,
 		},
-	})
-
-	assert.True(t, result.Valid)
-	assert.Empty(t, result.Errors)
+		{
+			name:      "missing count",
+			params:    &basactions.LoopParams{LoopType: basactions.LoopType_LOOP_TYPE_REPEAT},
+			errorCode: "WF_V2_LOOP_REPEAT_COUNT_REQUIRED",
+		},
+		{
+			name:      "unspecified type",
+			params:    &basactions.LoopParams{},
+			errorCode: "WF_V2_LOOP_TYPE_REQUIRED",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := (&Validator{}).ValidateV2(&basworkflows.WorkflowDefinitionV2{
+				Nodes: []*basworkflows.WorkflowNodeV2{{
+					Id: "loop-1",
+					Action: &basactions.ActionDefinition{
+						Type:     basactions.ActionType_ACTION_TYPE_LOOP,
+						Params:   &basactions.ActionDefinition_Loop{Loop: tc.params},
+						Metadata: &basactions.ActionMetadata{Label: ptr("Loop")},
+					},
+				}},
+			})
+			assert.Equal(t, tc.valid, result.Valid)
+			if tc.errorCode == "" {
+				assert.Empty(t, result.Errors)
+				return
+			}
+			require.Len(t, result.Errors, 1)
+			assert.Equal(t, tc.errorCode, result.Errors[0].Code)
+		})
+	}
 }
 
-func TestValidateV2_LoopRepeat_MissingCount(t *testing.T) {
-	v := &Validator{}
-	result := v.ValidateV2(&basworkflows.WorkflowDefinitionV2{
-		Nodes: []*basworkflows.WorkflowNodeV2{
-			{
-				Id: "loop-1",
-				Action: &basactions.ActionDefinition{
-					Type: basactions.ActionType_ACTION_TYPE_LOOP,
-					Params: &basactions.ActionDefinition_Loop{
-						Loop: &basactions.LoopParams{
-							LoopType: basactions.LoopType_LOOP_TYPE_REPEAT,
-							// No count
-						},
-					},
-					Metadata: &basactions.ActionMetadata{Label: ptr("Repeat")},
-				},
-			},
+func TestValidateV2_SubflowTargets(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		target *basactions.SubflowParams
+		valid  bool
+		code   string
+	}{
+		{
+			name: "workflow ID",
+			target: &basactions.SubflowParams{Target: &basactions.SubflowParams_WorkflowId{
+				WorkflowId: "550e8400-e29b-41d4-a716-446655440000",
+			}},
+			valid: true,
 		},
-	})
-
-	assert.False(t, result.Valid)
-	require.Len(t, result.Errors, 1)
-	assert.Equal(t, "WF_V2_LOOP_REPEAT_COUNT_REQUIRED", result.Errors[0].Code)
+		{
+			name: "workflow path",
+			target: &basactions.SubflowParams{Target: &basactions.SubflowParams_WorkflowPath{
+				WorkflowPath: "actions/login.json",
+			}},
+			valid: true,
+		},
+		{name: "missing target", target: &basactions.SubflowParams{}, code: "WF_V2_SUBFLOW_TARGET_REQUIRED"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := (&Validator{}).ValidateV2(&basworkflows.WorkflowDefinitionV2{
+				Nodes: []*basworkflows.WorkflowNodeV2{{
+					Id: "subflow-1",
+					Action: &basactions.ActionDefinition{
+						Type:     basactions.ActionType_ACTION_TYPE_SUBFLOW,
+						Params:   &basactions.ActionDefinition_Subflow{Subflow: tc.target},
+						Metadata: &basactions.ActionMetadata{Label: ptr("Run subflow")},
+					},
+				}},
+			})
+			assert.Equal(t, tc.valid, result.Valid)
+			if tc.code == "" {
+				assert.Empty(t, result.Errors)
+				return
+			}
+			require.Len(t, result.Errors, 1)
+			assert.Equal(t, tc.code, result.Errors[0].Code)
+		})
+	}
 }
 
-func TestValidateV2_LoopUnspecifiedType(t *testing.T) {
-	v := &Validator{}
-	result := v.ValidateV2(&basworkflows.WorkflowDefinitionV2{
-		Nodes: []*basworkflows.WorkflowNodeV2{
-			{
-				Id: "loop-1",
-				Action: &basactions.ActionDefinition{
-					Type: basactions.ActionType_ACTION_TYPE_LOOP,
-					Params: &basactions.ActionDefinition_Loop{
-						Loop: &basactions.LoopParams{
-							// No loop_type specified
-						},
-					},
-					Metadata: &basactions.ActionMetadata{Label: ptr("Loop")},
-				},
+func TestValidateV2_GestureCases(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		params        *basactions.GestureParams
+		label         string
+		valid         bool
+		errorCode     string
+		checkWarnings bool
+		warningCodes  []string
+	}{
+		{
+			name: "sustained swipe",
+			params: &basactions.GestureParams{
+				GestureType: basactions.GestureType_GESTURE_TYPE_SWIPE,
+				Selector:    ptr("[data-testid='canvas']"),
+				Direction:   basactions.SwipeDirection_SWIPE_DIRECTION_RIGHT.Enum(),
+				Distance:    ptr(int32(520)), DurationMs: ptr(int32(900)), Steps: ptr(int32(36)),
+				StepDelayMs: ptr(int32(25)), TraceLabel: ptr("graph-sustained-pan"),
 			},
+			label: "Sustained pan", valid: true, checkWarnings: true,
 		},
-	})
-
-	assert.False(t, result.Valid)
-	require.Len(t, result.Errors, 1)
-	assert.Equal(t, "WF_V2_LOOP_TYPE_REQUIRED", result.Errors[0].Code)
-}
-
-func TestValidateV2_Subflow_ValidByID(t *testing.T) {
-	v := &Validator{}
-	result := v.ValidateV2(&basworkflows.WorkflowDefinitionV2{
-		Nodes: []*basworkflows.WorkflowNodeV2{
-			{
-				Id: "subflow-1",
-				Action: &basactions.ActionDefinition{
-					Type: basactions.ActionType_ACTION_TYPE_SUBFLOW,
-					Params: &basactions.ActionDefinition_Subflow{
-						Subflow: &basactions.SubflowParams{
-							Target: &basactions.SubflowParams_WorkflowId{
-								WorkflowId: "550e8400-e29b-41d4-a716-446655440000",
-							},
-						},
-					},
-					Metadata: &basactions.ActionMetadata{Label: ptr("Run subflow")},
-				},
+		{
+			name: "swipe requires direction",
+			params: &basactions.GestureParams{
+				GestureType: basactions.GestureType_GESTURE_TYPE_SWIPE,
+				TraceLabel:  ptr("graph-sustained-pan"),
 			},
+			label: "Sustained pan", errorCode: "WF_V2_GESTURE_DIRECTION_REQUIRED",
 		},
-	})
-
-	assert.True(t, result.Valid)
-	assert.Empty(t, result.Errors)
-}
-
-func TestValidateV2_Subflow_ValidByPath(t *testing.T) {
-	v := &Validator{}
-	result := v.ValidateV2(&basworkflows.WorkflowDefinitionV2{
-		Nodes: []*basworkflows.WorkflowNodeV2{
-			{
-				Id: "subflow-1",
-				Action: &basactions.ActionDefinition{
-					Type: basactions.ActionType_ACTION_TYPE_SUBFLOW,
-					Params: &basactions.ActionDefinition_Subflow{
-						Subflow: &basactions.SubflowParams{
-							Target: &basactions.SubflowParams_WorkflowPath{
-								WorkflowPath: "actions/login.json",
-							},
-						},
-					},
-					Metadata: &basactions.ActionMetadata{Label: ptr("Run login")},
-				},
+		{
+			name: "zoom warns without trace label",
+			params: &basactions.GestureParams{
+				GestureType: basactions.GestureType_GESTURE_TYPE_ZOOM, Steps: ptr(int32(8)),
 			},
+			label: "Wheel zoom", valid: true, checkWarnings: true,
+			warningCodes: []string{"WF_V2_GESTURE_TRACE_LABEL_RECOMMENDED"},
 		},
-	})
-
-	assert.True(t, result.Valid)
-	assert.Empty(t, result.Errors)
-}
-
-func TestValidateV2_Subflow_MissingTarget(t *testing.T) {
-	v := &Validator{}
-	result := v.ValidateV2(&basworkflows.WorkflowDefinitionV2{
-		Nodes: []*basworkflows.WorkflowNodeV2{
-			{
-				Id: "subflow-1",
-				Action: &basactions.ActionDefinition{
-					Type: basactions.ActionType_ACTION_TYPE_SUBFLOW,
-					Params: &basactions.ActionDefinition_Subflow{
-						Subflow: &basactions.SubflowParams{
-							// No target specified
-						},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := (&Validator{}).ValidateV2(&basworkflows.WorkflowDefinitionV2{
+				Nodes: []*basworkflows.WorkflowNodeV2{{
+					Id: "gesture-1",
+					Action: &basactions.ActionDefinition{
+						Type:     basactions.ActionType_ACTION_TYPE_GESTURE,
+						Params:   &basactions.ActionDefinition_Gesture{Gesture: tc.params},
+						Metadata: &basactions.ActionMetadata{Label: ptr(tc.label)},
 					},
-					Metadata: &basactions.ActionMetadata{Label: ptr("Subflow")},
-				},
-			},
-		},
-	})
-
-	assert.False(t, result.Valid)
-	require.Len(t, result.Errors, 1)
-	assert.Equal(t, "WF_V2_SUBFLOW_TARGET_REQUIRED", result.Errors[0].Code)
+				}},
+			})
+			assert.Equal(t, tc.valid, result.Valid)
+			if tc.errorCode != "" {
+				require.Len(t, result.Errors, 1)
+				assert.Equal(t, tc.errorCode, result.Errors[0].Code)
+			} else {
+				assert.Empty(t, result.Errors)
+			}
+			if tc.checkWarnings {
+				require.Len(t, result.Warnings, len(tc.warningCodes))
+				actualWarnings := make([]string, 0, len(result.Warnings))
+				for _, warning := range result.Warnings {
+					actualWarnings = append(actualWarnings, warning.Code)
+				}
+				assert.ElementsMatch(t, tc.warningCodes, actualWarnings)
+			}
+		})
+	}
 }
 
 func TestValidateV2_Click_MissingSelector(t *testing.T) {

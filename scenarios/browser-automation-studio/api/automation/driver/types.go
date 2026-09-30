@@ -15,6 +15,23 @@ type Viewport struct {
 	Height int `json:"height"`
 }
 
+// ObservedSession is the non-sensitive session inventory exposed by the
+// driver observability endpoint. It is intentionally distinct from the
+// lease-protected command surface: the API uses it only to recover sessions
+// whose owning execution is already terminal.
+type ObservedSession struct {
+	ID               string `json:"id"`
+	OwnerExecutionID string `json:"owner_execution_id"`
+	WorkflowID       string `json:"workflow_id"`
+	CreatedAt        string `json:"created_at"`
+	LastUsedAt       string `json:"last_used_at"`
+}
+
+// ObservedSessionsResponse is returned by GET /observability/sessions.
+type ObservedSessionsResponse struct {
+	Sessions []ObservedSession `json:"sessions"`
+}
+
 // ViewportSource describes what determined the actual viewport dimensions.
 // This attribution helps users understand why dimensions may differ from requested.
 type ViewportSource string
@@ -49,16 +66,26 @@ type FrameStreamingConfig struct {
 
 // CapabilityRequest specifies required browser capabilities for execution.
 type CapabilityRequest struct {
-	Tabs       bool `json:"tabs,omitempty"`
-	Iframes    bool `json:"iframes,omitempty"`
-	Uploads    bool `json:"uploads,omitempty"`
-	Downloads  bool `json:"downloads,omitempty"`
-	HAR        bool `json:"har,omitempty"`
-	Video      bool `json:"video,omitempty"`
-	Tracing    bool `json:"tracing,omitempty"`
-	ViewportW  int  `json:"viewport_width,omitempty"`
-	ViewportH  int  `json:"viewport_height,omitempty"`
-	MaxTimeout int  `json:"max_timeout_ms,omitempty"`
+	Tabs      bool `json:"tabs,omitempty"`
+	Iframes   bool `json:"iframes,omitempty"`
+	Uploads   bool `json:"uploads,omitempty"`
+	Downloads bool `json:"downloads,omitempty"`
+	HAR       bool `json:"har,omitempty"`
+	Video     bool `json:"video,omitempty"`
+	Tracing   bool `json:"tracing,omitempty"`
+	// PerfTrace requests a CDP performance trace (devtools.timeline + CPU
+	// profiler + blink.user_timing) plus an injected web-vitals observer
+	// for the session. The driver streams the trace + web-vitals JSON into
+	// ArtifactPaths.PerfDir on close.
+	PerfTrace bool `json:"performance_trace,omitempty"`
+	// Accessibility requests a CDP accessibility-tree snapshot
+	// (Accessibility.getFullAXTree joined with per-node geometry +
+	// data-testid). The driver writes the normalized snapshot JSON into
+	// ArtifactPaths.AccessibilityDir on close.
+	Accessibility bool `json:"accessibility,omitempty"`
+	ViewportW     int  `json:"viewport_width,omitempty"`
+	ViewportH     int  `json:"viewport_height,omitempty"`
+	MaxTimeout    int  `json:"max_timeout_ms,omitempty"`
 }
 
 // ArtifactPaths controls where the driver should store execution-level artifacts.
@@ -67,6 +94,41 @@ type ArtifactPaths struct {
 	VideoDir  string `json:"video_dir,omitempty"`
 	HARPath   string `json:"har_path,omitempty"`
 	TracePath string `json:"trace_path,omitempty"`
+	// PerfDir is the directory the driver writes performance.json (the CDP
+	// trace) and performance.web-vitals.json into when PerfTrace is set.
+	PerfDir string `json:"perf_dir,omitempty"`
+	// AccessibilityDir is the directory the driver writes accessibility.json
+	// (the normalized AX-tree snapshot) into when Accessibility is set.
+	AccessibilityDir string `json:"accessibility_dir,omitempty"`
+}
+
+// AppTarget is an already-running, target-owned renderer that the
+// Playwright driver may attach to during a validation run. The target owns
+// process launch and cleanup; BAS only owns workflow execution.
+type AppTarget struct {
+	TargetKind     string `json:"target_kind,omitempty"`
+	TargetID       string `json:"target_id"`
+	CDPEndpoint    string `json:"cdp_endpoint"`
+	RendererID     string `json:"renderer_id"`
+	RendererURL    string `json:"renderer_url"`
+	RendererTitle  string `json:"renderer_title,omitempty"`
+	ScenarioName   string `json:"scenario_name"`
+	ArtifactDigest string `json:"artifact_digest"`
+	ContextID      string `json:"context_id"`
+	CDPTransport   string `json:"cdp_transport"`
+}
+
+// ValidationContext binds a BAS session to one immutable validation cell and
+// its leased test storage. Electron execution must carry this context so a
+// target cannot be reused as an unscoped browser session.
+type ValidationContext struct {
+	ContextID        string `json:"context_id"`
+	ScenarioName     string `json:"scenario_name"`
+	ArtifactDigest   string `json:"artifact_digest"`
+	TargetID         string `json:"target_id"`
+	WorkflowID       string `json:"workflow_id"`
+	ProfileID        string `json:"profile_id"`
+	IsolationLeaseID string `json:"isolation_lease_id"`
 }
 
 // CreateSessionRequest is the unified request to create a browser session.
@@ -78,6 +140,8 @@ type CreateSessionRequest struct {
 	Viewport    Viewport          `json:"viewport"`
 	ReuseMode   string            `json:"reuse_mode"`
 	Labels      map[string]string `json:"labels,omitempty"`
+	// SessionProfileVersion binds label-pooled contexts to a profile identity and revision.
+	SessionProfileVersion string `json:"session_profile_version,omitempty"`
 
 	// Recording mode - storage state as raw JSON
 	StorageState json.RawMessage `json:"storage_state,omitempty"`
@@ -96,6 +160,22 @@ type CreateSessionRequest struct {
 
 	// Browser profile for anti-detection and human-like behavior
 	BrowserProfile *sessionprofilepersistence.BrowserProfile `json:"browser_profile,omitempty"`
+
+	// Execution mode - deterministic fake media devices
+	FakeMedia *FakeMediaConfig `json:"fake_media,omitempty"`
+
+	// Electron validation mode attaches to an existing target instead of
+	// launching a second browser.
+	AppTarget         *AppTarget         `json:"app_target,omitempty"`
+	ValidationContext *ValidationContext `json:"validation_context,omitempty"`
+}
+
+// FakeMediaConfig requests deterministic fake capture devices for a session.
+// Chromium serves fake media process-wide, so the driver pools a dedicated
+// browser instance per distinct microphone WAV.
+type FakeMediaConfig struct {
+	// Absolute WAV path used as the fake microphone capture source.
+	MicrophoneWav string `json:"microphone_wav,omitempty"`
 }
 
 // CreateSessionRequestFromUUID creates a session request using uuid.UUID types.
@@ -109,8 +189,11 @@ func CreateSessionRequestFromUUID(executionID, workflowID uuid.UUID) *CreateSess
 
 // CreateSessionResponse is the response from creating a session.
 type CreateSessionResponse struct {
-	SessionID      string          `json:"session_id"`
-	ActualViewport *ActualViewport `json:"actual_viewport,omitempty"`
+	ActivePageID            string          `json:"active_page_id"`
+	LastInstructionSequence uint64          `json:"last_instruction_sequence"`
+	SessionID               string          `json:"session_id"`
+	LeaseID                 string          `json:"lease_id"`
+	ActualViewport          *ActualViewport `json:"actual_viewport,omitempty"`
 }
 
 // StartRecordingRequest is the request to start recording user actions.
@@ -118,27 +201,29 @@ type StartRecordingRequest struct {
 	CallbackURL      string `json:"callback_url"`
 	FrameCallbackURL string `json:"frame_callback_url"`
 	PageCallbackURL  string `json:"page_callback_url"`
+	RoutedTestMode   bool   `json:"routed_test_mode,omitempty"`
 	FrameQuality     int    `json:"frame_quality"`
 	FrameFPS         int    `json:"frame_fps"`
 }
 
 // StartRecordingResponse is the response from starting recording.
 type StartRecordingResponse struct {
+	RecordingID string `json:"recording_id"`
 	SessionID   string `json:"session_id"`
-	IsRecording bool   `json:"is_recording"`
 	StartedAt   string `json:"started_at"`
 }
 
 // StopRecordingResponse is the response from stopping recording.
 type StopRecordingResponse struct {
+	RecordingID string `json:"recording_id"`
 	SessionID   string `json:"session_id"`
-	IsRecording bool   `json:"is_recording"`
 	ActionCount int    `json:"action_count"`
 	StoppedAt   string `json:"stopped_at"`
 }
 
 // RecordingStatusResponse is the response from getting recording status.
 type RecordingStatusResponse struct {
+	RecordingID string `json:"recording_id"`
 	SessionID   string `json:"session_id"`
 	IsRecording bool   `json:"is_recording"`
 	ActionCount int    `json:"action_count"`
@@ -162,6 +247,7 @@ type RecordedAction struct {
 	Payload     map[string]interface{} `json:"payload,omitempty"`
 	URL         string                 `json:"url"`
 	FrameID     string                 `json:"frameId,omitempty"`
+	FramePath   []string               `json:"framePath,omitempty"`
 	CursorPos   *contracts.Point       `json:"cursorPos,omitempty"`
 
 	// Multi-page support fields
@@ -207,65 +293,50 @@ type GetActionsResponse struct {
 
 // NavigateRequest is the request to navigate the session.
 type NavigateRequest struct {
-	URL       string `json:"url"`
-	WaitUntil string `json:"wait_until,omitempty"`
-	TimeoutMs int    `json:"timeout_ms,omitempty"`
-	Capture   bool   `json:"capture,omitempty"`
+	ExpectedPageID string `json:"expected_page_id,omitempty"`
+	URL            string `json:"url"`
+	WaitUntil      string `json:"wait_until,omitempty"`
+	TimeoutMs      int    `json:"timeout_ms,omitempty"`
+	Capture        bool   `json:"capture,omitempty"`
 }
 
 // NavigateResponse is the response from navigation.
 type NavigateResponse struct {
-	URL          string `json:"url"`
-	Title        string `json:"title"`
-	CanGoBack    bool   `json:"can_go_back"`
-	CanGoForward bool   `json:"can_go_forward"`
-	StatusCode   int    `json:"status_code,omitempty"`
-	Screenshot   string `json:"screenshot,omitempty"`
+	DriverPageID string  `json:"driver_page_id"`
+	URL          string  `json:"url"`
+	Title        string  `json:"title"`
+	CanGoBack    bool    `json:"can_go_back"`
+	CanGoForward bool    `json:"can_go_forward"`
+	StatusCode   int     `json:"status_code,omitempty"`
+	Screenshot   string  `json:"screenshot,omitempty"`
+	FaviconURL   *string `json:"favicon_url,omitempty"`
 }
 
-// ReloadRequest is the request to reload the current page.
-type ReloadRequest struct {
-	WaitUntil string `json:"wait_until,omitempty"`
-	TimeoutMs int    `json:"timeout_ms,omitempty"`
+// HistoryNavigation identifies a supported browser history operation.
+type HistoryNavigation string
+
+const (
+	HistoryReload  HistoryNavigation = "reload"
+	HistoryBack    HistoryNavigation = "go-back"
+	HistoryForward HistoryNavigation = "go-forward"
+)
+
+// HistoryNavigationRequest carries options shared by reload, back and forward.
+type HistoryNavigationRequest struct {
+	ExpectedPageID string `json:"expected_page_id,omitempty"`
+	WaitUntil      string `json:"wait_until,omitempty"`
+	TimeoutMs      int    `json:"timeout_ms,omitempty"`
 }
 
-// ReloadResponse is the response from page reload.
-type ReloadResponse struct {
-	SessionID    string `json:"session_id"`
-	URL          string `json:"url"`
-	Title        string `json:"title"`
-	CanGoBack    bool   `json:"can_go_back"`
-	CanGoForward bool   `json:"can_go_forward"`
-}
-
-// GoBackRequest is the request to navigate back in browser history.
-type GoBackRequest struct {
-	WaitUntil string `json:"wait_until,omitempty"`
-	TimeoutMs int    `json:"timeout_ms,omitempty"`
-}
-
-// GoBackResponse is the response from navigating back.
-type GoBackResponse struct {
-	SessionID    string `json:"session_id"`
-	URL          string `json:"url"`
-	Title        string `json:"title"`
-	CanGoBack    bool   `json:"can_go_back"`
-	CanGoForward bool   `json:"can_go_forward"`
-}
-
-// GoForwardRequest is the request to navigate forward in browser history.
-type GoForwardRequest struct {
-	WaitUntil string `json:"wait_until,omitempty"`
-	TimeoutMs int    `json:"timeout_ms,omitempty"`
-}
-
-// GoForwardResponse is the response from navigating forward.
-type GoForwardResponse struct {
-	SessionID    string `json:"session_id"`
-	URL          string `json:"url"`
-	Title        string `json:"title"`
-	CanGoBack    bool   `json:"can_go_back"`
-	CanGoForward bool   `json:"can_go_forward"`
+// HistoryNavigationResponse is the resulting browser location and history state.
+type HistoryNavigationResponse struct {
+	DriverPageID string  `json:"driver_page_id"`
+	SessionID    string  `json:"session_id"`
+	URL          string  `json:"url"`
+	Title        string  `json:"title"`
+	CanGoBack    bool    `json:"can_go_back"`
+	CanGoForward bool    `json:"can_go_forward"`
+	FaviconURL   *string `json:"favicon_url,omitempty"`
 }
 
 // NavigationStateResponse is the response containing current navigation state.
@@ -281,7 +352,7 @@ type NavigationStateResponse struct {
 type NavigationStackEntry struct {
 	URL       string `json:"url"`
 	Title     string `json:"title"`
-	Timestamp string `json:"timestamp"`
+	Timestamp string `json:"timestamp,omitempty"`
 }
 
 // NavigationStackResponse is the response containing the navigation history stack.
@@ -294,18 +365,17 @@ type NavigationStackResponse struct {
 
 // UpdateViewportRequest is the request to update viewport.
 type UpdateViewportRequest struct {
-	Width  int `json:"width"`
-	Height int `json:"height"`
+	ExpectedPageID string `json:"expected_page_id"`
+	Width          int    `json:"width"`
+	Height         int    `json:"height"`
 }
 
 // UpdateViewportResponse is the response from updating viewport.
 type UpdateViewportResponse struct {
-	SessionID      string          `json:"session_id"`
-	ActualViewport *ActualViewport `json:"actual_viewport,omitempty"`
-	// Deprecated: Use ActualViewport.Width instead
-	Width int `json:"width"`
-	// Deprecated: Use ActualViewport.Height instead
-	Height int `json:"height"`
+	SessionID    string `json:"session_id"`
+	DriverPageID string `json:"driver_page_id"`
+	Width        int    `json:"width"`
+	Height       int    `json:"height"`
 }
 
 // ValidateSelectorRequest is the request to validate a selector.
@@ -357,15 +427,15 @@ type UpdateStreamSettingsRequest struct {
 
 // UpdateStreamSettingsResponse is the response from updating stream settings.
 type UpdateStreamSettingsResponse struct {
-	SessionID    string `json:"session_id"`
-	Quality      int    `json:"quality"`
-	FPS          int    `json:"fps"`
-	CurrentFPS   int    `json:"current_fps"`
-	Scale        string `json:"scale"`
-	IsStreaming  bool   `json:"is_streaming"`
-	Updated      bool   `json:"updated"`
-	ScaleWarning string `json:"scale_warning,omitempty"`
-	PerfMode     bool   `json:"perf_mode"`
+	SessionID    string  `json:"session_id"`
+	Quality      int     `json:"quality"`
+	FPS          int     `json:"fps"`
+	CurrentFPS   float64 `json:"current_fps"`
+	Scale        string  `json:"scale"`
+	IsStreaming  bool    `json:"is_streaming"`
+	Updated      bool    `json:"updated"`
+	ScaleWarning string  `json:"scale_warning,omitempty"`
+	PerfMode     bool    `json:"perf_mode"`
 }
 
 // CaptureScreenshotRequest is the request to capture a screenshot.
@@ -383,31 +453,35 @@ type CaptureScreenshotResponse struct {
 	CapturedAt string `json:"captured_at"`
 }
 
+// FrameSource is the immutable driver ownership receipt captured with a frame.
+// LeaseID is private to the driver/API boundary and must not reach viewers.
+type FrameSource struct {
+	SessionID   string `json:"session_id"`
+	ExecutionID string `json:"execution_id"`
+	LeaseID     string `json:"lease_id"`
+	PageID      string `json:"page_id"`
+}
+
 // GetFrameResponse is the response from getting a frame.
 type GetFrameResponse struct {
-	Data        string `json:"data"`
-	MediaType   string `json:"media_type"`
-	Width       int    `json:"width"`
-	Height      int    `json:"height"`
-	CapturedAt  string `json:"captured_at"`
-	ContentHash string `json:"content_hash"`
-	PageTitle   string `json:"page_title,omitempty"`
-	PageURL     string `json:"page_url,omitempty"`
-}
-
-// RunInstructionRequest wraps an instruction for execution.
-type RunInstructionRequest struct {
-	Instruction contracts.CompiledInstruction `json:"instruction"`
-}
-
-// RunInstructionsRequest wraps multiple instructions (used for simple ops like navigate).
-type RunInstructionsRequest struct {
-	Instructions []map[string]interface{} `json:"instructions"`
+	Source      *FrameSource `json:"source,omitempty"`
+	PageID      string       `json:"page_id,omitempty"`
+	SessionID   string       `json:"session_id"`
+	Image       string       `json:"image"`
+	Mime        string       `json:"mime"`
+	Width       int          `json:"width"`
+	Height      int          `json:"height"`
+	CapturedAt  string       `json:"captured_at"`
+	ContentHash string       `json:"content_hash"`
+	PageTitle   string       `json:"page_title,omitempty"`
+	PageURL     string       `json:"page_url,omitempty"`
 }
 
 // StepOutcomeResponse extends StepOutcome with driver-specific fields for JSON decoding.
 type StepOutcomeResponse struct {
 	contracts.StepOutcome
+	// Decode typed JsonValue fields through their protobuf owner, not into raw maps.
+	ConditionWire json.RawMessage `json:"condition,omitempty"`
 
 	ScreenshotBase64    string `json:"screenshot_base64,omitempty"`
 	ScreenshotMediaType string `json:"screenshot_media_type,omitempty"`
@@ -440,6 +514,23 @@ type CloseSessionResponse struct {
 	VideoPaths []string `json:"video_paths,omitempty"`
 	TracePath  string   `json:"trace_path,omitempty"`
 	HARPath    string   `json:"har_path,omitempty"`
+}
+
+// CloseSessionRequest proves that the caller still owns the execution lease.
+type CloseSessionRequest struct {
+	ExecutionID string `json:"execution_id"`
+	LeaseID     string `json:"lease_id"`
+}
+
+// ReleaseSessionRequest proves that the caller owns the lease it releases.
+type ReleaseSessionRequest struct {
+	ExecutionID string `json:"execution_id"`
+	LeaseID     string `json:"lease_id"`
+}
+
+// ReleaseSessionResponse confirms that the session is idle and reusable.
+type ReleaseSessionResponse struct {
+	Success bool `json:"success,omitempty"`
 }
 
 // ArtifactDownload captures a streamed artifact response from the driver.
@@ -497,10 +588,10 @@ type ServiceWorkerInfo struct {
 
 // ServiceWorkerControl represents the service worker control settings for a session.
 type ServiceWorkerControl struct {
-	Mode            string                         `json:"mode"` // allow, block, block-on-domain, unregister-all
-	DomainOverrides []ServiceWorkerDomainOverride  `json:"domainOverrides,omitempty"`
-	BlockedDomains  []string                       `json:"blockedDomains,omitempty"`
-	UnregisterOnStart bool                         `json:"unregisterOnStart,omitempty"`
+	Mode              string                        `json:"mode"` // allow, block, block-on-domain, unregister-all
+	DomainOverrides   []ServiceWorkerDomainOverride `json:"domainOverrides,omitempty"`
+	BlockedDomains    []string                      `json:"blockedDomains,omitempty"`
+	UnregisterOnStart bool                          `json:"unregisterOnStart,omitempty"`
 }
 
 // ServiceWorkerDomainOverride represents per-domain service worker control.
@@ -511,10 +602,10 @@ type ServiceWorkerDomainOverride struct {
 
 // GetServiceWorkersResponse is the response from getting service workers.
 type GetServiceWorkersResponse struct {
-	SessionID string              `json:"session_id"`
-	Workers   []ServiceWorkerInfo `json:"workers"`
+	SessionID string               `json:"session_id"`
+	Workers   []ServiceWorkerInfo  `json:"workers"`
 	Control   ServiceWorkerControl `json:"control"`
-	Message   string              `json:"message,omitempty"`
+	Message   string               `json:"message,omitempty"`
 }
 
 // UnregisterServiceWorkersResponse is the response from unregistering service workers.

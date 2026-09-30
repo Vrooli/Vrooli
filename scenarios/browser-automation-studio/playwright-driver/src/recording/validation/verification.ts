@@ -286,23 +286,23 @@ export async function waitForScriptReady(
   timeoutMs = 5000,
   pollIntervalMs = 100
 ): Promise<InjectionVerification> {
-  const startTime = Date.now();
-
-  while (Date.now() - startTime < timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    if (page.isClosed()) throw new Error('Recording readiness page is closed');
     const verification = await verifyScriptInjection(page);
-
-    if (verification.ready) {
+    if (page.isClosed()) throw new Error('Recording readiness page is closed');
+    if (verification.ready || verification.initError || Date.now() >= deadline) {
       return verification;
     }
 
-    // If there was an init error, no point waiting
-    if (verification.initError) {
-      return verification;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    await new Promise<void>((resolve) => {
+      const finish = (): void => {
+        clearTimeout(timer);
+        page.off('close', finish);
+        resolve();
+      };
+      const timer = setTimeout(finish, Math.min(pollIntervalMs, deadline - Date.now()));
+      page.once('close', finish);
+    });
   }
-
-  // Return final state on timeout
-  return verifyScriptInjection(page);
 }

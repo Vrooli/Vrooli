@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
@@ -191,13 +192,4 @@ type AssertionOutcome struct {
 }
 
 // ConditionOutcome captures branch condition results.
-type ConditionOutcome struct {
-	Type     string // selector, variable, expression
-	Outcome  bool   // Condition result
-	Negated  bool   // Whether condition was negated
-	Operator string // Comparison operator (if applicable)
-	Variable string // Variable name (if applicable)
-	Selector string // Selector (if applicable)
-	Actual   any    // Actual value evaluated
-	Expected any    // Expected value (if applicable)
-}
+type ConditionOutcome = contracts.ConditionOutcome

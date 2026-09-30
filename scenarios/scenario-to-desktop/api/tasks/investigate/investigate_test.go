@@ -29,7 +29,7 @@ func newTestInput(effort domain.InvestigationEffort) shared.TaskInput {
 					Logs:      []string{"building...", "npm ERR! missing peer dep"},
 				},
 			},
-			Config: &pipeline.Config{
+			Config: &pipeline.PipelineConfig{
 				ScenarioName: "test-app",
 				Platforms:    []string{"linux"},
 			},

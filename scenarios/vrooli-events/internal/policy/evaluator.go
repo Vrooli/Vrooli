@@ -1,3 +1,5 @@
+// DOC: docs/guides/managing-policies.md
+// DOC: docs/concepts/ARCHITECTURE.md#policy-engine
 package policy
 
 import (

@@ -1,0 +1,867 @@
+{
+  "entries":  [
+    {
+      "node_id":  "493ee300-0f71-45a4-8b56-668ab348e4a7",
+      "title":  "Level 3 drill active offer",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "0060be65-2cc0-486e-941f-30879c43f217",
+      "title":  "property-services",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "01c1c54d-4ad1-4210-8627-60086557a459",
+      "title":  "lead-generation",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "0b9aca1f-c8bc-4ffb-b7be-f0cf9bef1785",
+      "title":  "tier-4",
+      "rank_reason":  "active and earning nothing",
+      "status":  "IDEA",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "127625ce-d99f-4465-80a3-245d3aea8fe7",
+      "title":  "business",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "153e6270-47db-442b-ae22-bf34a95b8090",
+      "title":  "skill-registries",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "24a33f1a-d3bb-48a3-9e78-f661e7503688",
+      "title":  "app-development",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "29d5e401-74f4-43eb-9b6c-525e1308b709",
+      "title":  "consumer-products",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "3b3db917-9c1e-41d1-ae0c-39e1c3b48d99",
+      "title":  "swarm-manager",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "549ba40e-667d-480f-ae10-3b226bf7f213",
+      "title":  "oss-discovery",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "6035edd0-87b7-431e-9ed5-39da8f61d280",
+      "title":  "web-console",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "6b1d6efd-c5c7-499e-a677-26c3bed77f67",
+      "title":  "in-product-expansion",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "7454c75d-c8d9-4b6a-aade-c673fcce7c84",
+      "title":  "tier-3",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "887da007-0d32-4cc0-bda4-b6091aa96ac7",
+      "title":  "tier-1",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "8a83cd5f-ed22-4f7e-b203-ce3d411f1544",
+      "title":  "elder-care",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "906f3702-c9df-4251-b7ec-1c7dfeee1a26",
+      "title":  "subscription",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "97dae364-c97f-43d6-9a81-ea8d3d094a69",
+      "title":  "app-stores",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "a0b198a9-64d4-4e27-85ed-5bbfccf4f456",
+      "title":  "agent-manager",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "a23fef52-c648-46b3-9d31-867cd1533aca",
+      "title":  "git-control-tower",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "a7b2c76d-dcb1-4d48-a9e3-23edb1087dff",
+      "title":  "affiliate-commerce",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "ae4dae5e-fc49-46b2-b4ad-153fc4e5675f",
+      "title":  "consulting",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "befef413-d7d7-4d0d-8c03-956017e556a4",
+      "title":  "web-seo",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "bfcaf399-8907-4fde-b593-26f1e62ea6a8",
+      "title":  "tier-2",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "c7ad0fcb-378c-448b-84aa-9913caa635f8",
+      "title":  "prompt-manager",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "db6bb789-c4cf-4992-9510-ac101e1a70cf",
+      "title":  "workspace-sandbox",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "e0a6aff2-5c04-4033-99f5-2415812d8824",
+      "title":  "community-content",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "e7b580fe-6ce9-44cb-9340-6a1bbbde1736",
+      "title":  "family-with-kids",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "e8a170c9-9e9f-40ec-85f3-560921922842",
+      "title":  "lifestyle",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "f87252a4-bf00-4fea-b11e-71acf9d7a149",
+      "title":  "flipping",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "f414b38a-fbda-4009-b9e2-1e33520986be",
+      "title":  "Phase 5 live operator node",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "actuals_available":  true
+    },
+    {
+      "node_id":  "32fc106c-d30e-437e-9bfe-1983d5b08e04",
+      "title":  "Phase 5 refusal drill node",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "30224206-8145-4afe-b761-a73db8522b08",
+      "title":  "Phase 5 multi-clause trigger node",
+      "rank_reason":  "active and earning nothing",
+      "status":  "IDEA",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "1c79a7c9-e5b9-473b-99a4-2e134b782a6d",
+      "title":  "Phase 6 proposal live drill",
+      "rank_reason":  "active and earning nothing",
+      "status":  "RETIRED",
+      "actuals_available":  true
+    },
+    {
+      "node_id":  "15da20d1-af48-4069-9baf-6feccd7177da",
+      "title":  "flipping",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "292b0df1-863c-478a-b9d0-94e2f85d5157",
+      "title":  "elder-care",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "3fb91362-e35e-4fe3-b427-f6f7b74b1709",
+      "title":  "workspace-sandbox",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "50791750-e6db-4cb2-8239-1557869159fa",
+      "title":  "consulting",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "5248f61d-e553-49da-ac7f-b73b48dcd3d8",
+      "title":  "business",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "53b0a2f6-2732-4fa0-9009-1e093b46c22e",
+      "title":  "tier-2",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "5487033c-c822-417a-aa0a-45a995714a40",
+      "title":  "skill-registries",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "54c64e6b-5824-4066-8b3b-4bbf1093d64b",
+      "title":  "swarm-manager",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "58ebb2a6-f7d1-468b-8b1b-d30c58288b86",
+      "title":  "web-seo",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "61fa8b24-c8d5-43b6-b797-f13b3972d164",
+      "title":  "family-with-kids",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "633def18-c7fb-4bd2-a51c-9da37a05ba6c",
+      "title":  "prompt-manager",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "6929d62f-efcc-4d92-923a-0e43ebc85c81",
+      "title":  "in-product-expansion",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "6eae4e65-eca7-44dd-8756-47c9712e3264",
+      "title":  "lead-generation",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "7618c0fb-7633-47a1-96ac-0e965b485855",
+      "title":  "tier-3",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "9c9e2835-22b7-4c7e-b88b-f7ade5efdef9",
+      "title":  "tier-1",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "a9d1b2dc-eb38-4dcd-af59-a0d71300be4d",
+      "title":  "tier-4",
+      "rank_reason":  "active and earning nothing",
+      "status":  "IDEA",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "af81fd1d-81b0-4208-9c0b-687269bfa63f",
+      "title":  "agent-manager",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "b42b77bc-1410-4888-b042-07ce047c1de0",
+      "title":  "app-development",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "b937b4fa-906a-4ac0-8370-bec0c7d2f96a",
+      "title":  "app-stores",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "c630cb52-3c6e-4525-a926-0f40df3a0cbb",
+      "title":  "affiliate-commerce",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "c638dc0b-065e-4af4-a00c-0d073b6dfb41",
+      "title":  "lifestyle",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "c77e4fcf-e87d-4317-a7cd-2bac5c6cf3be",
+      "title":  "oss-discovery",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "ce0d5963-1269-43b2-aa33-8fe4a45303df",
+      "title":  "git-control-tower",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "dd0fbea8-7224-4477-9bb0-ad88a1ee0a14",
+      "title":  "subscription",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "dd171395-55b3-4b0a-84fc-19cf07767612",
+      "title":  "property-services",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "de66831a-65f5-43ad-a3e1-f8dec40e48ac",
+      "title":  "community-content",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "e1f162de-a548-407f-a359-d2c897b0f82f",
+      "title":  "consumer-products",
+      "rank_reason":  "blocked: trigger not met",
+      "status":  "CANDIDATE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    },
+    {
+      "node_id":  "eeb9b04c-ea98-4f39-9a44-6f764561ed60",
+      "title":  "web-console",
+      "rank_reason":  "active and earning nothing",
+      "status":  "ACTIVE",
+      "availability":  [
+        {
+          "source":  "money-ledger.actuals",
+          "reason":  "no ledger account mapping"
+        }
+      ]
+    }
+  ],
+  "position":  {
+    "cash_minor":  "107250",
+    "currency":  "USD",
+    "partial":  true,
+    "availability":  [
+      {
+        "adapter_id":  "drill-manual",
+        "reason":  "adapter has no configured upstream; supply an explicit file or manual event",
+        "last_success_at":  "2026-08-14T03:13:37.300077579Z"
+      },
+      {
+        "adapter_id":  "phase3-manual",
+        "reason":  "adapter has no configured upstream; supply an explicit file or manual event",
+        "last_success_at":  "2026-08-16T05:30:31.008809605Z"
+      }
+    ],
+    "inputs":  [
+      {
+        "source":  "drill-manual",
+        "basis":  "BASIS_OPERATOR_ASSERTED",
+        "age_seconds":  "265372",
+        "available":  true
+      },
+      {
+        "source":  "operator-inputs",
+        "basis":  "BASIS_OPERATOR_ASSERTED",
+        "age_seconds":  "166433",
+        "available":  true
+      },
+      {
+        "source":  "drill-manual",
+        "reason":  "adapter has no configured upstream; supply an explicit file or manual event"
+      },
+      {
+        "source":  "phase3-manual",
+        "reason":  "adapter has no configured upstream; supply an explicit file or manual event"
+      }
+    ],
+    "runway_reason":  "runway is undefined until the journal has a positive burn rate"
+  },
+  "evaluation":  {
+    "last_run_at":  "2026-08-17T04:53:58.799270201Z",
+    "last_result":  "EVALUATION_SUCCEEDED",
+    "nodes_scored":  1,
+    "age_seconds":  "151"
+  },
+  "goals":  [
+    {
+      "goal":  {
+        "id":  "75ff16a9-1392-494a-85a6-7fbf76251237",
+        "name":  "Production runway",
+        "metric":  "revenue",
+        "comparator":  ">=",
+        "threshold_minor":  "100",
+        "sustain_periods":  1,
+        "buffer_multiple":  1,
+        "sustain_period_unit":  "MONTH"
+      },
+      "explanation":  "UNKNOWN: no revenue/income observation exists",
+      "required_periods":  1,
+      "period_unit":  "MONTH"
+    },
+    {
+      "goal":  {
+        "id":  "a2aff5f3-e3df-4174-8398-926bd129c797",
+        "name":  "default-alive",
+        "metric":  "revenue",
+        "comparator":  ">=",
+        "sustain_periods":  3,
+        "buffer_multiple":  1.25,
+        "comparand_metric":  "burn",
+        "sustain_period_unit":  "MONTH"
+      },
+      "explanation":  "UNKNOWN: comparand burn unavailable: no expense observation exists",
+      "required_periods":  3,
+      "period_unit":  "MONTH"
+    },
+    {
+      "goal":  {
+        "id":  "5be75ab9-80d1-4c99-842c-401814e10b31",
+        "name":  "default-alive-minimum",
+        "metric":  "revenue",
+        "comparator":  ">=",
+        "sustain_periods":  3,
+        "buffer_multiple":  1,
+        "comparand_metric":  "burn",
+        "sustain_period_unit":  "MONTH"
+      },
+      "explanation":  "UNKNOWN: comparand burn unavailable: no expense observation exists",
+      "required_periods":  3,
+      "period_unit":  "MONTH"
+    },
+    {
+      "goal":  {
+        "id":  "2c584bda-5033-4569-8a01-af5b9b0cc4f3",
+        "name":  "runway-floor",
+        "metric":  "runway",
+        "comparator":  ">=",
+        "threshold_minor":  "3",
+        "sustain_periods":  1,
+        "buffer_multiple":  1,
+        "sustain_period_unit":  "MONTH"
+      },
+      "explanation":  "UNKNOWN: runway is undefined until the journal has a positive burn rate",
+      "required_periods":  1,
+      "period_unit":  "MONTH"
+    },
+    {
+      "goal":  {
+        "id":  "45fc16ec-3da3-455a-bc78-5c36b86d2277",
+        "name":  "services-capacity",
+        "metric":  "services_capacity",
+        "comparator":  "<=",
+        "sustain_periods":  3,
+        "buffer_multiple":  1,
+        "threshold_ratio":  0.3,
+        "sustain_period_unit":  "WEEK"
+      },
+      "explanation":  "UNKNOWN: timeAllocation.services observation is absent",
+      "required_periods":  3,
+      "period_unit":  "WEEK"
+    },
+    {
+      "goal":  {
+        "id":  "bfdaf33a-c047-46a0-b843-464014c875a5",
+        "name":  "services-trap",
+        "metric":  "services_revenue",
+        "comparator":  ">",
+        "sustain_periods":  2,
+        "buffer_multiple":  1,
+        "comparand_metric":  "subscription_revenue",
+        "sustain_period_unit":  "MONTH"
+      },
+      "explanation":  "UNKNOWN: comparand subscription_revenue unavailable: subscription_revenue observation is absent",
+      "required_periods":  2,
+      "period_unit":  "MONTH"
+    }
+  ],
+  "default_alive_gap":  "unavailable: revenue and burn observations are incomplete",
+  "posture_source":  "money-ledger.position",
+  "posture_age_seconds":  "265372"
+}

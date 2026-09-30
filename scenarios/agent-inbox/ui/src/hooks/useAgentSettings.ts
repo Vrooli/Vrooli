@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from "react";
-import type { RunnerType } from "../lib/api";
 import { fetchProjectRoot } from "../lib/api";
 
 const STORAGE_KEY = "agent-mode-settings";
@@ -8,21 +7,12 @@ const STORAGE_KEY = "agent-mode-settings";
  * Agent mode settings persisted to localStorage.
  */
 export interface AgentModeSettings {
-  /** Default runner type */
-  defaultRunner: RunnerType;
   /** Default project path */
   defaultProjectPath: string;
-  /** Default model (empty = use runner default) */
-  defaultModel: string;
-  /** Default max turns (0 = no limit) */
-  defaultMaxTurns: number;
 }
 
 const DEFAULT_SETTINGS: AgentModeSettings = {
-  defaultRunner: "claude-code",
-  defaultProjectPath: "",
-  defaultModel: "",
-  defaultMaxTurns: 0
+  defaultProjectPath: ""
 };
 
 /**

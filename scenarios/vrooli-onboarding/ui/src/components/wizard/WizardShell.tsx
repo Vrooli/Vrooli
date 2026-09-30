@@ -1,10 +1,13 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "../ui/button";
-import { cn } from "../../lib/utils";
-import { STEP_LABELS } from "../../types";
+import FormWizard from "@vrooli/react-component-library/FormWizard";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { useLayoutEffect, useRef } from "react";
+import { AlertCircle, CheckCircle2, LoaderCircle } from "lucide-react";
+import type { WizardStep } from "../../api/session";
+import { i18n } from "../../i18n";
 
 interface WizardShellProps {
   currentStep: number;
+  steps: WizardStep[];
   onNext: () => void;
   onPrev: () => void;
   onGoToStep?: (step: number) => void;
@@ -13,147 +16,137 @@ interface WizardShellProps {
   showPrev?: boolean;
   showNext?: boolean;
   children: React.ReactNode;
+  target?: string;
+  onTargetChange?: (target: string) => void;
+  targetOptions?: Array<{ id: string; name?: string; status?: string }>;
+  operatorStateError?: string | null;
+  operatorStateSaveState?: "idle" | "saving" | "saved" | "failed" | "conflict";
+  onRetryOperatorStateSave?: () => void;
 }
 
+/** The library FormWizard is the single owner of progress and navigation. */
 export function WizardShell({
   currentStep,
+  steps,
   onNext,
   onPrev,
   onGoToStep,
   nextDisabled = false,
-  nextLabel = "Next",
+  nextLabel = i18n.t("onboarding.shell.next"),
   showPrev = true,
   showNext = true,
   children,
+  operatorStateError,
+  operatorStateSaveState = "idle",
+  onRetryOperatorStateSave,
 }: WizardShellProps) {
+  const active = steps[currentStep];
+  const act = actForStep(active?.id);
+  const actLabel = act === "decide" ? i18n.t("onboarding.shell.decide") : act === "adjust" ? i18n.t("onboarding.shell.adjust") : i18n.t("onboarding.shell.commit");
+  const shellRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return;
+    const measure = () => {
+      shell.dataset.planEvidenceTapTargetMin = getComputedStyle(shell).getPropertyValue("--tap-target-min").trim();
+      const indicator = shell.querySelector<HTMLElement>("[data-rcl-selection-indicator]");
+      if (indicator) shell.dataset.planEvidenceSwitchMarginBlockStart = getComputedStyle(indicator).marginBlockStart;
+    };
+    measure();
+    const observer = new MutationObserver(measure);
+    observer.observe(shell, { childList: true, subtree: true });
+    const frame = requestAnimationFrame(measure);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  });
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)] flex-col bg-slate-950 text-slate-50" data-testid="wizard-shell">
-      {/* Step indicator */}
-      <section className="border-b border-white/10 bg-white/5 px-2 py-2 sm:px-6 sm:py-4" aria-label="Wizard progress">
-        <div className="mx-auto max-w-3xl">
-          {/* Mobile: compact current-step label + dot indicators */}
-          <div className="flex items-center justify-between sm:hidden mb-2">
-            <span className="text-xs font-medium text-slate-50">
-              Step {currentStep + 1}: {STEP_LABELS[currentStep]}
-            </span>
-            <span className="text-xs text-slate-300">
-              {currentStep + 1}/{STEP_LABELS.length}
-            </span>
-          </div>
-          <div className="flex items-center justify-center gap-2 sm:hidden mb-2" aria-label="Step progress" role="list">
-            {STEP_LABELS.map((label, i) => {
-              const isCompleted = i < currentStep;
-              const isClickable = isCompleted && onGoToStep;
-              return isClickable ? (
-                <button
-                  key={label}
-                  type="button"
-                  role="listitem"
-                  className="h-2 w-2 rounded-full bg-emerald-500 transition-colors cursor-pointer hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
-                  aria-label={`Go back to ${label} (completed)`}
-                  onClick={() => onGoToStep(i)}
-                />
-              ) : (
-                <div
-                  key={label}
-                  role="listitem"
-                  className={cn(
-                    "h-2 w-2 rounded-full transition-colors",
-                    isCompleted
-                      ? "bg-emerald-500"
-                      : i === currentStep
-                        ? "bg-slate-50"
-                        : "bg-white/20"
-                  )}
-                  aria-label={`${label}${isCompleted ? " (completed)" : i === currentStep ? " (current)" : ""}`}
-                />
-              );
-            })}
-          </div>
-
-          {/* Desktop: full step labels with numbers */}
-          <ol className="hidden sm:flex items-center justify-between mb-3" aria-label="Wizard steps" data-testid="wizard-steps-desktop">
-            {STEP_LABELS.map((label, i) => {
-              const isCompleted = i < currentStep;
-              const isClickable = isCompleted && onGoToStep;
-              return (
-                <li key={label} className="flex items-center gap-2" aria-current={i === currentStep ? "step" : undefined}>
-                  <button
-                    type="button"
-                    className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors",
-                      isCompleted
-                        ? "bg-emerald-500 text-white"
-                        : i === currentStep
-                          ? "bg-slate-50 text-slate-900"
-                          : "bg-white/10 text-slate-300",
-                      isClickable
-                        ? "cursor-pointer hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
-                        : "cursor-default"
-                    )}
-                    data-testid={`step-indicator-${i}`}
-                    onClick={() => isClickable && onGoToStep(i)}
-                    tabIndex={isClickable ? 0 : -1}
-                    aria-label={isClickable ? `Go back to ${label}` : undefined}
-                    aria-hidden={!isClickable ? "true" : undefined}
-                  >
-                    {isCompleted ? "\u2713" : i + 1}
-                  </button>
-                  <span
-                    className={cn(
-                      "text-sm",
-                      i === currentStep ? "text-slate-50 font-medium" : "text-slate-300"
-                    )}
-                  >
-                    {label}
-                    <span className="sr-only">
-                      {isCompleted ? " (completed)" : i === currentStep ? " (current)" : ""}
-                    </span>
-                  </span>
-                  {i < STEP_LABELS.length - 1 && (
-                    <div className="mx-2 h-px w-8 bg-white/10" aria-hidden="true" />
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-          {/* Progress bar */}
-          <div className="h-1 w-full rounded-full bg-white/10" role="progressbar" aria-valuenow={currentStep} aria-valuemin={0} aria-valuemax={STEP_LABELS.length - 1} aria-label="Wizard progress">
-            <div
-              className="h-1 rounded-full bg-emerald-500 transition-all duration-300"
-              style={{ width: `${(currentStep / (STEP_LABELS.length - 1)) * 100}%` }}
-              data-testid="progress-bar"
-            />
-          </div>
+    <div ref={shellRef} className="onboarding-wizard" data-testid="wizard-shell" data-act={act} data-step-id={active?.id} data-rcl-progress-count="1">
+      <div className="wizard-progress" aria-label={`${actLabel}: ${active?.title ?? i18n.t("onboarding.shell.setup")}`}>
+        <div className="wizard-progress__meta">
+          <span><strong>{actLabel}</strong><span aria-hidden="true"> · </span>{active?.title}</span>
+          <span className="wizard-progress__count">{currentStep + 1} / {steps.length}</span>
         </div>
+        <div className="wizard-progress__segments" role="list" aria-label={i18n.t("onboarding.shell.progressSteps")}>
+          {steps.map((step, index) => {
+            const reachable = Boolean(onGoToStep);
+            return (
+              <button
+                key={step.id}
+                type="button"
+                className="wizard-progress__segment"
+                data-state={index < currentStep ? "done" : index === currentStep ? "active" : "pending"}
+                aria-current={index === currentStep ? "step" : undefined}
+                aria-label={`${index + 1}. ${step.title}`}
+                disabled={!reachable}
+                onClick={() => onGoToStep?.(index)}
+              />
+            );
+          })}
+        </div>
+      </div>
+      <section className="wizard-stage" aria-label={i18n.t("onboarding.shell.setup")}>
+        {operatorStateSaveState !== "idle" && <div data-testid="operator-state-save-state">
+          <div
+            className={`operator-state-save-banner operator-state-save-banner--${operatorStateSaveState}`}
+            role={operatorStateError ? "alert" : "status"}
+            data-testid="operator-state-save-error"
+          >
+            {operatorStateSaveState === "saving" && <LoaderCircle className="operator-state-save-banner__icon operator-state-save-banner__icon--spin" aria-hidden="true" />}
+            {operatorStateSaveState === "saved" && <CheckCircle2 className="operator-state-save-banner__icon" aria-hidden="true" />}
+            {(operatorStateSaveState === "failed" || operatorStateSaveState === "conflict") && <AlertCircle className="operator-state-save-banner__icon" aria-hidden="true" />}
+            <span className="operator-state-save-banner__message">
+              {operatorStateError ?? (
+                operatorStateSaveState === "saving"
+                  ? i18n.t("onboarding.shell.savingPreferences")
+                  : operatorStateSaveState === "saved"
+                    ? i18n.t("onboarding.shell.savedPreferences")
+                    : operatorStateSaveState === "failed"
+                      ? i18n.t("onboarding.shell.failedPreferences")
+                      : i18n.t("onboarding.shell.conflictingPreferences")
+              )}
+            </span>
+            {(operatorStateSaveState === "failed" || operatorStateSaveState === "conflict") && onRetryOperatorStateSave && <Button type="button" size="sm" variant="secondary" onClick={onRetryOperatorStateSave} data-testid="operator-state-save-retry">{i18n.t("onboarding.shell.retryPreferences")}</Button>}
+          </div>
+        </div>}
+        <FormWizard
+          key={steps.map((step) => step.id).join("/")}
+          steps={steps.map((step) => ({
+            id: step.id,
+            title: step.title,
+            // The server-owned currentStep determines the only mounted screen.
+            // FormWizard synchronizes its internal index in an effect, so every
+            // slot carries that same screen to avoid an empty transitional frame.
+            content: children,
+          }))}
+          initialStep={currentStep}
+          activeStep={currentStep}
+          onStepChange={(index) => {
+            if (onGoToStep) onGoToStep(index);
+            else if (index > currentStep) onNext();
+            else if (index < currentStep) onPrev();
+          }}
+          showStepNavigation={false}
+          showHeading={false}
+          showPrevious={showPrev && currentStep > 0}
+          showNext={showNext}
+          showSave={false}
+          nextLabel={nextLabel}
+          nextDisabled={nextDisabled}
+          nextTestId="wizard-next"
+          previousTestId="wizard-prev"
+          nextAriaLabel={nextLabel}
+          previousAriaLabel={i18n.t("onboarding.shell.previous")}
+          className="wizard-form"
+        />
       </section>
-
-      {/* Content - reduced padding on mobile, extra bottom padding for sticky nav */}
-      <div className="flex-1 overflow-auto px-3 py-4 sm:px-6 sm:py-8 pb-20 sm:pb-8">
-        <div className="mx-auto max-w-3xl">{children}</div>
-      </div>
-
-      {/* Navigation - sticky on mobile for thumb access */}
-      <div className="sticky bottom-0 border-t border-white/10 bg-slate-950/95 backdrop-blur-sm px-3 py-2.5 sm:static sm:bg-white/5 sm:px-6 sm:py-4" style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}>
-        <div className="mx-auto flex max-w-3xl items-center justify-between">
-          <div>
-            {showPrev && currentStep > 0 && (
-              <Button variant="outline" onClick={onPrev} data-testid="wizard-prev" aria-label="Go to previous step">
-                <ChevronLeft className="mr-1 h-4 w-4" aria-hidden="true" />
-                Back
-              </Button>
-            )}
-          </div>
-          <div>
-            {showNext && (
-              <Button onClick={onNext} disabled={nextDisabled} data-testid="wizard-next" aria-label={nextLabel}>
-                {nextLabel}
-                <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
     </div>
   );
+}
+
+export function actForStep(stepID?: string): "decide" | "adjust" | "commit" {
+  if (stepID === "welcome" || stepID === "plan") return "decide";
+  if (stepID === "scenarios" || stepID === "core-set" || stepID === "resources" || stepID === "operating-mode" || stepID === "host") return "adjust";
+  return "commit";
 }

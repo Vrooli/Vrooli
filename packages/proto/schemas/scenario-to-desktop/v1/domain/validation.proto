@@ -1,0 +1,198 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_desktop.v1.domain;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domain";
+
+// AppTarget is the target-owned contract for attaching BAS to a running
+// generated desktop application. The CDP endpoint is loopback-only; bridge
+// transports must be represented by a target-owned authenticated adapter and
+// must not put a raw debugging port on a LAN interface.
+message AppTarget {
+  string target_id = 1 [(buf.validate.field).string.min_len = 1];
+  string scenario_name = 2 [(buf.validate.field).string.min_len = 1];
+  string artifact_digest = 3 [(buf.validate.field).string.min_len = 1];
+  string process_id = 4 [(buf.validate.field).string.min_len = 1];
+  string cdp_endpoint = 5 [(buf.validate.field).string.min_len = 1];
+  string cdp_transport = 6 [(buf.validate.field).string.min_len = 1];
+  bool loopback_only = 7;
+  bool authenticated = 8;
+  string renderer_id = 9 [(buf.validate.field).string.min_len = 1];
+  optional string bridge_node_id = 10;
+  google.protobuf.Timestamp launched_at = 11;
+  string context_id = 12 [(buf.validate.field).string.min_len = 1];
+  string renderer_url = 13 [(buf.validate.field).string.min_len = 1];
+  optional string renderer_title = 14;
+}
+
+message ElectronLaunchRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  string artifact_path = 2 [(buf.validate.field).string.min_len = 1];
+  string artifact_digest = 3 [(buf.validate.field).string.min_len = 1];
+  string validation_context_id = 4 [(buf.validate.field).string.min_len = 1];
+  bool enable_cdp = 5;
+  bool require_loopback_cdp = 6;
+  optional string bridge_node_id = 7;
+}
+
+message ValidationContext {
+  string context_id = 1 [(buf.validate.field).string.min_len = 1];
+  string scenario_name = 2 [(buf.validate.field).string.min_len = 1];
+  string artifact_digest = 3 [(buf.validate.field).string.min_len = 1];
+  string target_id = 4 [(buf.validate.field).string.min_len = 1];
+  string journey_id = 5 [(buf.validate.field).string.min_len = 1];
+  string profile_id = 6 [(buf.validate.field).string.min_len = 1];
+  string isolation_lease_id = 7 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Timestamp expires_at = 8;
+}
+
+enum ValidationTargetCapability {
+  VALIDATION_TARGET_CAPABILITY_UNSPECIFIED = 0;
+  VALIDATION_TARGET_CAPABILITY_ELECTRON_CDP = 1;
+  VALIDATION_TARGET_CAPABILITY_NATIVE_WINDOW = 2;
+  VALIDATION_TARGET_CAPABILITY_FILE_PICKER = 3;
+  VALIDATION_TARGET_CAPABILITY_TRAY = 4;
+  VALIDATION_TARGET_CAPABILITY_UPDATER = 5;
+  VALIDATION_TARGET_CAPABILITY_PROCESS_METRICS = 6;
+  VALIDATION_TARGET_CAPABILITY_CRASH_RECOVERY = 7;
+  VALIDATION_TARGET_CAPABILITY_OFFLINE_NETWORK = 8;
+  VALIDATION_TARGET_CAPABILITY_NETWORK_CONTROL = 9;
+  VALIDATION_TARGET_CAPABILITY_CREDENTIAL_CONTROL = 10;
+  VALIDATION_TARGET_CAPABILITY_PROVIDER_CONTROL = 11;
+  VALIDATION_TARGET_CAPABILITY_COMMUNICATION_PEER = 12;
+  VALIDATION_TARGET_CAPABILITY_NATIVE_MENU = 13;
+  VALIDATION_TARGET_CAPABILITY_NOTIFICATION = 14;
+  VALIDATION_TARGET_CAPABILITY_MULTI_WINDOW = 15;
+  VALIDATION_TARGET_CAPABILITY_CLEAN_SHUTDOWN = 16;
+  VALIDATION_TARGET_CAPABILITY_UPDATE_FEED = 17;
+}
+
+enum ValidationEnvironmentProfile {
+  VALIDATION_ENVIRONMENT_PROFILE_UNSPECIFIED = 0;
+  VALIDATION_ENVIRONMENT_PROFILE_NORMAL = 1;
+  VALIDATION_ENVIRONMENT_PROFILE_OFFLINE = 2;
+  VALIDATION_ENVIRONMENT_PROFILE_SLOW_NETWORK = 3;
+  VALIDATION_ENVIRONMENT_PROFILE_MISSING_CREDENTIAL = 4;
+  VALIDATION_ENVIRONMENT_PROFILE_PROVIDER_FAILURE = 5;
+  VALIDATION_ENVIRONMENT_PROFILE_UPDATE_INTERRUPTED = 6;
+  VALIDATION_ENVIRONMENT_PROFILE_CRASH_RECOVERY = 7;
+  VALIDATION_ENVIRONMENT_PROFILE_HIGH_LATENCY = 8;
+  VALIDATION_ENVIRONMENT_PROFILE_PACKET_LOSS = 9;
+  VALIDATION_ENVIRONMENT_PROFILE_PROVIDER_UNAVAILABLE = 10;
+  VALIDATION_ENVIRONMENT_PROFILE_RECONNECT = 11;
+  VALIDATION_ENVIRONMENT_PROFILE_EXPIRED_CREDENTIAL = 12;
+  VALIDATION_ENVIRONMENT_PROFILE_UNAVAILABLE_CREDENTIAL = 13;
+  VALIDATION_ENVIRONMENT_PROFILE_WRONG_SCOPE_CREDENTIAL = 14;
+  VALIDATION_ENVIRONMENT_PROFILE_UPDATE_DISCOVERY = 15;
+  VALIDATION_ENVIRONMENT_PROFILE_UPDATE_DOWNLOAD = 16;
+  VALIDATION_ENVIRONMENT_PROFILE_UPDATE_VERIFICATION = 17;
+  VALIDATION_ENVIRONMENT_PROFILE_UPDATE_ROLLBACK = 18;
+  VALIDATION_ENVIRONMENT_PROFILE_UPDATE_RESTART = 19;
+  VALIDATION_ENVIRONMENT_PROFILE_UPDATE_FAILURE = 20;
+  VALIDATION_ENVIRONMENT_PROFILE_COMMUNICATION_BUNDLED_PRIVATE = 21;
+  VALIDATION_ENVIRONMENT_PROFILE_COMMUNICATION_TIER_ONE = 22;
+  VALIDATION_ENVIRONMENT_PROFILE_COMMUNICATION_SHARED_PROVIDER = 23;
+  VALIDATION_ENVIRONMENT_PROFILE_COMMUNICATION_FALLBACK = 24;
+  VALIDATION_ENVIRONMENT_PROFILE_COMMUNICATION_TIER_TWO_PEER = 25;
+}
+
+enum ValidationDisposition {
+  VALIDATION_DISPOSITION_UNSPECIFIED = 0;
+  VALIDATION_DISPOSITION_PASS = 1;
+  VALIDATION_DISPOSITION_FAILED = 2;
+  VALIDATION_DISPOSITION_DEGRADED = 3;
+  VALIDATION_DISPOSITION_UNAVAILABLE = 4;
+  VALIDATION_DISPOSITION_UNSUPPORTED = 5;
+  VALIDATION_DISPOSITION_REFUSED = 6;
+  VALIDATION_DISPOSITION_NOT_RUN = 7;
+}
+
+// ValidationCell is the immutable identity of one journey/target/profile
+// combination. A missing lease, target capability, or required evidence can
+// only produce a non-pass disposition.
+message ValidationCell {
+  string cell_id = 1 [(buf.validate.field).string.min_len = 1];
+  string scenario_name = 2 [(buf.validate.field).string.min_len = 1];
+  string artifact_digest = 3 [(buf.validate.field).string.min_len = 1];
+  string target_id = 4 [(buf.validate.field).string.min_len = 1];
+  string journey_id = 5 [(buf.validate.field).string.min_len = 1];
+  ValidationEnvironmentProfile environment_profile = 6;
+  ValidationDisposition disposition = 7;
+  repeated ValidationTargetCapability required_capabilities = 8;
+  optional string reason = 9;
+  optional string isolation_lease_id = 10;
+  repeated LayeredEvidence evidence = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp completed_at = 13;
+  bool required = 14;
+  bool applicable = 15;
+}
+
+message LayeredEvidence {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_BAS_WORKFLOW = 1;
+    KIND_DESKTOP_RUNTIME = 2;
+    KIND_TARGET = 3;
+    KIND_MACHINE_ASSERTION = 4;
+  }
+
+  Kind kind = 1;
+  string evidence_id = 2 [(buf.validate.field).string.min_len = 1];
+  string uri = 3 [(buf.validate.field).string.min_len = 1];
+  string sha256 = 4 [(buf.validate.field).string.min_len = 1];
+  optional string media_type = 5;
+  bool redacted = 6;
+}
+
+// JourneyCatalogItem is discovered from the authoritative workflow/platform
+// providers. It is deliberately descriptive; scenario authors do not maintain
+// a second desktop workflow definition.
+message JourneyCatalogItem {
+  string journey_id = 1 [(buf.validate.field).string.min_len = 1];
+  string display_name = 2 [(buf.validate.field).string.min_len = 1];
+  string source_path = 3;
+  string execution_mode = 4;
+  bool required = 5;
+  repeated ValidationTargetCapability required_capabilities = 6;
+}
+
+message ValidationTargetDescriptor {
+  string target_id = 1 [(buf.validate.field).string.min_len = 1];
+  string display_name = 2 [(buf.validate.field).string.min_len = 1];
+  repeated ValidationTargetCapability capabilities = 3;
+  bool available = 4;
+  optional string reason = 5;
+}
+
+message ValidationMatrix {
+  string matrix_id = 1 [(buf.validate.field).string.min_len = 1];
+  string scenario_name = 2 [(buf.validate.field).string.min_len = 1];
+  string artifact_digest = 3 [(buf.validate.field).string.min_len = 1];
+  repeated JourneyCatalogItem journeys = 4;
+  repeated ValidationTargetDescriptor targets = 5;
+  repeated ValidationEnvironmentProfile environment_profiles = 6;
+  repeated ValidationCell cells = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+// ReleaseGate is computed from the immutable matrix snapshot. A gate is pass
+// only when every required applicable cell is complete, passing, and has
+// evidence; omitted or incomplete required coverage is explicitly blocked.
+message ReleaseGate {
+  string matrix_id = 1 [(buf.validate.field).string.min_len = 1];
+  ValidationDisposition disposition = 2;
+  bool passed = 3;
+  int32 required_cell_count = 4;
+  int32 passing_cell_count = 5;
+  repeated string missing_cell_ids = 6;
+  repeated string failed_cell_ids = 7;
+  optional string reason = 8;
+  // Matrix-wide chapter satisfaction. The key is the stable journey/profile
+  // selection identity and the value is the target that supplied the passing
+  // evidence. A chapter is still unsatisfied when no capable target passes.
+  map<string, string> satisfying_target_ids = 9;
+}

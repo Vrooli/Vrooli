@@ -1,0 +1,12 @@
+{
+  "service": {
+    "name": "app"
+  },
+  "dependencies": {
+    "resources": {
+      "absent-store": {
+        "required": true
+      }
+    }
+  }
+}

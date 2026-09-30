@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "llama-cpp",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
+  "description": "llama.cpp multimodal runner (llama-mtmd-cli / llama-cli) for the image-tools caption backend",
+  "commands": [
+    "llama-mtmd-cli",
+    "llama-cli"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "manual": true,
+  "installHint": "Build or install llama.cpp and place llama-mtmd-cli (or llama-cli) on PATH or in ~/.vrooli/bin; see https://github.com/ggml-org/llama.cpp. No stable single-binary release is pinned, so it is not auto-fetched.",
+  "bundling": "host-required",
+  "capability": "gpu-driver-health",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  }
+}

@@ -123,71 +123,12 @@
       },
       "alternatives": null,
       "source": "declared"
-    },
-    {
-      "name": "vault",
-      "type": "resource",
-      "resource_type": "",
-      "requirements": {
-        "ram_mb": 0,
-        "disk_mb": 0,
-        "cpu_cores": 0,
-        "network": "",
-        "source": "",
-        "confidence": ""
-      },
-      "tier_support": {
-        "desktop": {
-          "supported": true,
-          "fitness_score": 0.9,
-          "notes": "",
-          "reason": "",
-          "alternatives": null
-        },
-        "enterprise": {
-          "supported": true,
-          "fitness_score": 0.98,
-          "notes": "",
-          "reason": "",
-          "alternatives": null
-        },
-        "local": {
-          "supported": true,
-          "fitness_score": 1,
-          "notes": "",
-          "reason": "",
-          "alternatives": null
-        },
-        "mobile": {
-          "supported": true,
-          "fitness_score": 0.4,
-          "notes": "",
-          "reason": "",
-          "alternatives": null
-        },
-        "saas": {
-          "supported": true,
-          "fitness_score": 0.85,
-          "notes": "",
-          "reason": "",
-          "alternatives": null
-        },
-        "server": {
-          "supported": true,
-          "fitness_score": 0.95,
-          "notes": "",
-          "reason": "",
-          "alternatives": null
-        }
-      },
-      "alternatives": null,
-      "source": "declared"
     }
   ],
   "aggregates": {
     "desktop": {
-      "fitness_score": 0.7999999999999999,
-      "dependency_count": 3,
+      "fitness_score": 0.75,
+      "dependency_count": 2,
       "blocking_dependencies": [
         "postgres"
       ],
@@ -199,7 +140,7 @@
     },
     "enterprise": {
       "fitness_score": 0.98,
-      "dependency_count": 3,
+      "dependency_count": 2,
       "blocking_dependencies": null,
       "estimated_requirements": {
         "ram_mb": 0,
@@ -209,7 +150,7 @@
     },
     "local": {
       "fitness_score": 1,
-      "dependency_count": 3,
+      "dependency_count": 2,
       "blocking_dependencies": null,
       "estimated_requirements": {
         "ram_mb": 0,
@@ -218,12 +159,11 @@
       }
     },
     "mobile": {
-      "fitness_score": 0.3333333333333333,
-      "dependency_count": 3,
+      "fitness_score": 0.30000000000000004,
+      "dependency_count": 2,
       "blocking_dependencies": [
         "claude-code",
-        "postgres",
-        "vault"
+        "postgres"
       ],
       "estimated_requirements": {
         "ram_mb": 0,
@@ -232,8 +172,8 @@
       }
     },
     "saas": {
-      "fitness_score": 0.8833333333333333,
-      "dependency_count": 3,
+      "fitness_score": 0.8999999999999999,
+      "dependency_count": 2,
       "blocking_dependencies": null,
       "estimated_requirements": {
         "ram_mb": 0,
@@ -243,7 +183,7 @@
     },
     "server": {
       "fitness_score": 0.9499999999999998,
-      "dependency_count": 3,
+      "dependency_count": 2,
       "blocking_dependencies": null,
       "estimated_requirements": {
         "ram_mb": 0,

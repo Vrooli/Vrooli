@@ -1,0 +1,24 @@
+{
+  "artifact": "offer-desk-board-rehearsal",
+  "capturedAt": "2026-08-16",
+  "command": "offer-desk offers board-show --json",
+  "healthy_join": {
+    "node": "f414b38a-fbda-4009-b9e2-1e33520986be",
+    "actuals_available": true,
+    "rank_reason": "active and earning nothing"
+  },
+  "degraded_join": {
+    "position_partial": true,
+    "cash_minor": "107750",
+    "posture_source": "money-ledger.position",
+    "default_alive_gap": "unavailable: revenue and burn observations are incomplete",
+    "availability": "money-ledger.actuals: no ledger account mapping",
+    "synthetic_zero_used": false
+  },
+  "outage_drill": {
+    "source": "money-ledger",
+    "stopped_result": "money-ledger.actuals unavailable: connection refused",
+    "recovered_result": "actuals_available true and evaluation succeeded",
+    "synthetic_zero_used": false
+  }
+}

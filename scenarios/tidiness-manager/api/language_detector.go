@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 )
@@ -38,87 +37,43 @@ func NewLanguageDetector(scenarioPath string) *LanguageDetector {
 	}
 }
 
-// DetectLanguages walks the scenario directory and identifies all languages
+// DetectLanguages classifies the same filtered inventory used for file metrics.
 func (ld *LanguageDetector) DetectLanguages() (map[Language]*LanguageInfo, error) {
+	files, err := NewLightScanner(ld.scenarioPath, 0).collectFileMetrics()
+	if err != nil {
+		return nil, err
+	}
+	return languagesFromFileMetrics(files), nil
+}
+
+// Language grouping never chooses directories or walks the tree independently.
+// A scan passes its already-filtered inventory so every metric has one scope.
+func languagesFromFileMetrics(files []FileMetric) map[Language]*LanguageInfo {
 	languages := make(map[Language]*LanguageInfo)
-
-	// Directories to scan for source code
-	scanDirs := []struct {
-		path string
-		name string
-	}{
-		{filepath.Join(ld.scenarioPath, "api"), "api"},
-		{filepath.Join(ld.scenarioPath, "ui", "src"), "ui"},
-		{filepath.Join(ld.scenarioPath, "cli"), "cli"},
+	extensions := map[string]Language{
+		".go": LanguageGo, ".ts": LanguageTypeScript, ".tsx": LanguageTypeScript,
+		".js": LanguageJavaScript, ".jsx": LanguageJavaScript,
+		".py": LanguagePython, ".rs": LanguageRust,
 	}
-
-	// Extension to language mapping
-	extMap := map[string]Language{
-		".go":  LanguageGo,
-		".ts":  LanguageTypeScript,
-		".tsx": LanguageTypeScript,
-		".js":  LanguageJavaScript,
-		".jsx": LanguageJavaScript,
-		".py":  LanguagePython,
-		".rs":  LanguageRust,
-	}
-
-	for _, scanDir := range scanDirs {
-		if _, err := os.Stat(scanDir.path); os.IsNotExist(err) {
-			continue // Skip if directory doesn't exist
+	for _, file := range files {
+		language, ok := extensions[file.Extension]
+		if !ok {
+			continue
 		}
-
-		err := filepath.Walk(scanDir.path, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return nil // Skip files we can't access
+		info := languages[language]
+		if info == nil {
+			primaryDir := "."
+			if first, _, nested := strings.Cut(filepath.ToSlash(file.Path), "/"); nested {
+				primaryDir = first
 			}
-
-			if info.IsDir() {
-				// Skip node_modules, vendor, and hidden directories
-				dirName := info.Name()
-				if dirName == "node_modules" || dirName == "vendor" || strings.HasPrefix(dirName, ".") {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-
-			ext := filepath.Ext(path)
-			lang, exists := extMap[ext]
-			if !exists {
-				return nil // Not a language we track
-			}
-
-			// Count lines in file
-			lines, err := countLines(path)
-			if err != nil {
-				return nil // Skip files we can't read
-			}
-
-			// Get relative path from scenario root
-			relPath, _ := filepath.Rel(ld.scenarioPath, path)
-
-			// Initialize language info if first occurrence
-			if languages[lang] == nil {
-				languages[lang] = &LanguageInfo{
-					Language:   lang,
-					Files:      []string{},
-					PrimaryDir: scanDir.name,
-				}
-			}
-
-			// Add file to language info
-			languages[lang].Files = append(languages[lang].Files, relPath)
-			languages[lang].FileCount++
-			languages[lang].TotalLines += lines
-
-			return nil
-		})
-		if err != nil {
-			return nil, err
+			info = &LanguageInfo{Language: language, PrimaryDir: primaryDir}
+			languages[language] = info
 		}
+		info.Files = append(info.Files, file.Path)
+		info.FileCount++
+		info.TotalLines += file.Lines
 	}
-
-	return languages, nil
+	return languages
 }
 
 // GetFilesByLanguage returns all files for a specific language

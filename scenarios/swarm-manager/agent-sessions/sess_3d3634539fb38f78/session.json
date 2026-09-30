@@ -1,0 +1,16 @@
+{
+  "id": "sess_3d3634539fb38f78",
+  "title": "Manage Swarm operations",
+  "kind": "swarm_operations",
+  "status": "failed",
+  "skill_id": "swarm-manager-operations-session",
+  "task_id": "fa774078-7218-4730-8903-e256c54804a8",
+  "run_id": "3594e507-c92c-4726-8adb-6d8f5e2a8004",
+  "profile_key": "swarm-manager/default",
+  "failure_reason": "Unable to create isolated workspace. The sandbox service may be unavailable.",
+  "created_at": "2026-05-15T18:13:24Z",
+  "updated_at": "2026-05-15T18:14:10Z",
+  "created_by": {
+    "type": "operator"
+  }
+}

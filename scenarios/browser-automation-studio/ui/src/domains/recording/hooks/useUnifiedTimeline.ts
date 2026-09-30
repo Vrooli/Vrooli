@@ -10,7 +10,7 @@
  */
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useWebSocket, type WebSocketMessage } from '@/contexts/WebSocketContext';
+import { useWebSocket, type WebSocketMessage, useWebSocketMessage } from '@/contexts/WebSocketContext';
 import type { RecordedAction } from '../types/types';
 import type { TimelineItem, TimelineMode, ExecutionTimelineItem, ExecutionStatus, UseTimelineEntry } from '../types/timeline-unified';
 import {
@@ -49,8 +49,6 @@ export interface UseUnifiedTimelineOptions {
   workflowNodes?: WorkflowNode[];
   /** Optional: Workflow edges for pre-populating timeline in execution mode */
   workflowEdges?: WorkflowEdge[];
-  /** Callback when new items arrive */
-  onItemsReceived?: (items: TimelineItem[]) => void;
 }
 
 export interface UseUnifiedTimelineReturn {
@@ -91,7 +89,6 @@ export function useUnifiedTimeline({
   initialTimelineEntries,
   workflowNodes,
   workflowEdges,
-  onItemsReceived,
 }: UseUnifiedTimelineOptions): UseUnifiedTimelineReturn {
   const [items, setItems] = useState<TimelineItem[]>(() =>
     mergeConsecutiveActions(initialActions).map((action) => recordedActionToTimelineItem(action))
@@ -100,7 +97,7 @@ export function useUnifiedTimeline({
   // Error state for future error handling
   const error: string | null = null;
 
-  const { isConnected, lastMessage, send } = useWebSocket();
+  const { isConnected, send } = useWebSocket();
   const subscribedExecutionRef = useRef<string | null>(null);
   // Track if we've pre-populated from workflow to avoid re-populating on each render
   const prePopulatedWorkflowRef = useRef<string | null>(null);
@@ -202,8 +199,7 @@ export function useUnifiedTimeline({
   }, [mode, workflowNodes, workflowEdges]);
 
   // Handle WebSocket messages for both modes
-  useEffect(() => {
-    if (!lastMessage) return;
+  useWebSocketMessage((lastMessage) => {
 
     const msg = lastMessage as WebSocketMessage & { action?: unknown; timeline_entry?: unknown; node_id?: string; status?: string };
 
@@ -316,7 +312,7 @@ export function useUnifiedTimeline({
     if (msg.type === 'execution_completed' || msg.type === 'execution_failed') {
       setIsLive(false);
     }
-  }, [lastMessage, mode, onItemsReceived]);
+  });
 
   // Subscribe to execution updates
   const subscribeToExecution = useCallback(

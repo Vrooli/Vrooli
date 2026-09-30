@@ -6,9 +6,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"deployment-manager/cli/cmdutil"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -112,10 +114,23 @@ func (c *Commands) video(args []string) error {
 	if err != nil {
 		return err
 	}
-
-	fmt.Fprintf(os.Stderr, "Validation details:\n%s\n", string(body))
-	fmt.Fprintf(os.Stderr, "To download video, use: curl -o %s <api-base>/api/v1/validations/%s/video\n", *output, remaining[0])
-	return nil
+	report := cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Validation: %s", remaining[0]),
+		},
+		ResultsHeading: "Retrieval",
+		Results: []string{
+			"Video download is an external fetch from the API video endpoint.",
+		},
+		RetrievalHints: []string{
+			fmt.Sprintf("curl -o %s <api-base>/api/v1/validations/%s/video", *output, remaining[0]),
+			fmt.Sprintf("deployment-manager validations status %s --format json", remaining[0]),
+		},
+	}
+	if strings.TrimSpace(string(body)) != "" {
+		report.RetrievalHints = append(report.RetrievalHints, fmt.Sprintf("Validation details: %s", strings.TrimSpace(string(body))))
+	}
+	return cliapp.RenderListReport(os.Stdout, report)
 }
 
 func (c *Commands) review(args []string) error {
@@ -155,17 +170,37 @@ func (c *Commands) review(args []string) error {
 		return nil
 	}
 
-	// Parse response to show approval info in human-readable output.
 	var resp map[string]interface{}
 	if jsonErr := json.Unmarshal(body, &resp); jsonErr == nil {
-		fmt.Fprintf(os.Stdout, "Review submitted: %s\n", apiDecision)
-		if aid, ok := resp["approval_id"].(string); ok && aid != "" {
-			fmt.Fprintf(os.Stdout, "Deployment approval: %s (status: %v)\n", aid, resp["approval_status"])
+		report := cliapp.MutationReport{
+			Result: []string{
+				fmt.Sprintf("Review submitted: %s", apiDecision),
+			},
+			Changes: []string{
+				fmt.Sprintf("Validation: %s", remaining[0]),
+				fmt.Sprintf("Notes: %s", fallbackValidation(*notes)),
+			},
+			NextCommand: []string{
+				fmt.Sprintf("deployment-manager validations status %s", remaining[0]),
+			},
 		}
+		if aid, ok := resp["approval_id"].(string); ok && aid != "" {
+			report.Changes = append(report.Changes, fmt.Sprintf("Deployment approval: %s", aid))
+			report.Changes = append(report.Changes, fmt.Sprintf("Approval status: %v", resp["approval_status"]))
+			report.NextCommand = append(report.NextCommand, fmt.Sprintf("deployment-manager approvals get %s", aid))
+		}
+		return cliapp.RenderMutationReport(os.Stdout, report)
 	} else {
 		cmdutil.PrintByFormat(*format, body)
 	}
 	return nil
+}
+
+func fallbackValidation(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "(none)"
+	}
+	return value
 }
 
 func (c *Commands) list(args []string) error {

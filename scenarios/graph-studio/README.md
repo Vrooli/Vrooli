@@ -9,10 +9,6 @@ Graph Studio consolidates the functionality of 10+ different diagramming and vis
 ## 🚀 Quick Start
 
 ```bash
-# Install the scenario
-cd scenarios/graph-studio
-./cli/install.sh
-
 # Start the services
 vrooli scenario run graph-studio
 

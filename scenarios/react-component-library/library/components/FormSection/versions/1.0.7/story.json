@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-form-section]"
+        }
+      ],
+      "role": "anatomy"
+    },
+    {"id":"empty","name":"Empty section","args":{"children":""},"expect":[{"kind":"visible","selector":"[data-rcl-form-section]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long section description","args":{"description":"This deliberately long section description wraps while preserving the grouping and its heading hierarchy."},"expect":[{"kind":"visible","selector":"[data-rcl-form-section]"}],"role":"boundary","mode":"pinned"}
+  ]
+}

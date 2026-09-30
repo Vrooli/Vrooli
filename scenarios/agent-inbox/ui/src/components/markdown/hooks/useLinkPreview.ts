@@ -71,6 +71,6 @@ export function useLinkPreview(url: string): UseLinkPreviewReturn {
     preview,
     isLoading,
     error,
-    fetch: fetchPreviewCallback,
+    fetch: () => { void fetchPreviewCallback(); },
   };
 }

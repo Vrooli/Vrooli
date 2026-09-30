@@ -1,0 +1,674 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "last_validated_at": "2026-08-30T16:36:48-04:00",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PS-P0-001",
+      "title": "Style record and resolution",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "The system shall persist styles as versioned records carrying exemplars, directives, anti-patterns, lexicon, targets, and axis defaults; shall support single-parent extends with write-time cycle detection; shall merge by declared order without silently widening a target; and shall report a named resolution conflict identifying both contributing versions when merged targets have an empty intersection",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-002",
+      "title": "Style version immutability",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "description": "The system shall freeze a style version the moment a committed output references it, shall refuse mutation by name, and shall direct the caller to create a new version",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-003",
+      "title": "Text conformance reporting",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "description": "The system shall validate arbitrary text against a style and return targets met or missed plus anti-pattern hits located by span",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-004",
+      "title": "Profile record and inspectable resolution",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "The system shall persist generation profiles as versioned records covering style references, sampler, constraints, selection policy, measurement tiers, budget, and gateway role, and shall return both the fully merged effective configuration and the exact instruction text that will be sent, before sending it",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-005",
+      "title": "Introspectable kind registry",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "description": "The system shall expose sampler strategy kinds, selection policy kinds, transform operations, and metrics through a registry returning each kind parameter schema, so a client renders a form for a kind it has never seen without a redeploy",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-006",
+      "title": "Sampler strategies",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "description": "The system shall ship a direct strategy and a verbalized-distribution strategy, carrying candidate count, probability threshold, and temperature stance as profile data rather than as code",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-007",
+      "title": "Candidate provenance",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "description": "The system shall record per candidate the profile version, style versions, strategy and parameters, provider, resolved model reference, that model declared context window, gateway role, temperature sent, temperature support, effective maximum output tokens and their source, token usage, and cost",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-008",
+      "title": "Whole-set cost attribution",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "description": "The system shall attribute the full cost of a round across the entire candidate set and never solely to the committed candidate",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-009",
+      "title": "Uncalibrated hint containment",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "description": "The system shall store the model verbalized ordering signal with a constant uncalibrated marker scoped as an ordinal within its own round, and shall enforce by static check that no selection policy or query reads, aggregates, averages, or thresholds it",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-010",
+      "title": "Deterministic measurement at birth",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "description": "The system shall compute the deterministic metric tier unconditionally when a candidate is created, per candidate and per set, covering compression ratio, self-repetition, lexical homogenization, distinct-n, burstiness, three readability grades, type-token ratio, and lexicon flags",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-011",
+      "title": "Constraint gating that retains",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-011",
+      "criticality": "P0",
+      "description": "The system shall evaluate hard constraints deterministically, mark violating candidates ineligible with a named reason, and retain them in the set rather than dropping them",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-012",
+      "title": "Selection policies and defaults",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-012",
+      "criticality": "P0",
+      "description": "The system shall ship first-eligible, uniform-random, rarest-above-threshold, least-redundant-continuation, coverage, and human-pick policies; shall default agent mode to rarest-above-threshold and human mode to coverage; and shall use first-eligible only as a measurement control",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-013",
+      "title": "No taste-based ranking",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-013",
+      "criticality": "P0",
+      "description": "The system shall ship no judge-based ranker at any priority, and an inferential judge may act only as a pass or fail gate",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-014",
+      "title": "Session as append-only history",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-014",
+      "criticality": "P0",
+      "description": "The system shall model a session as an append-only graph of rounds and candidates linked by derivation, mutating no record in place, and shall support generate, reroll, pin, unpin, reject, refine, commit, and abandon",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-015",
+      "title": "Reroll with negative conditioning",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-015",
+      "criticality": "P0",
+      "description": "The system shall regenerate only unpinned slots on reroll and shall condition explicitly on the pinned and rejected sets",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-016",
+      "title": "Single-call agent path",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-016",
+      "criticality": "P0",
+      "description": "The system shall expose a single-call generate verb returning one policy-decided result with candidates included only on request, implemented as a wrapper over the session path rather than as a second code path",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-017",
+      "title": "Machine-generation disclosure",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-017",
+      "criticality": "P0",
+      "description": "The system shall carry machine-generation provenance on every candidate at birth as a constant, and shall frame no target, verb, or interface copy in terms of a detector score",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-018",
+      "title": "Selection recording without learning",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-018",
+      "criticality": "P0",
+      "description": "The system shall record a selection event for every commit with measurements snapshotted at choice time and the considered candidates retained, and nothing in this version shall read it",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-019",
+      "title": "Long-form composition level",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-019",
+      "criticality": "P0",
+      "description": "The system shall take candidate sets at the outline level and the section level, shall not offer whole-document candidate sets, shall represent an outline as an ordinary candidate so outline variation reuses the sampling and selection stack, and shall give each section a full passage-level session",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-020",
+      "title": "Section context and budget",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-020",
+      "criticality": "P0",
+      "description": "The system shall resolve a section profile by inheritance from its document, shall assemble section context from the outline, the committed text of prior sections, the declared intents of following sections, and the resolved profile, shall cap accumulation through a declared context policy, and shall record a context snapshot per section naming what it carried and what was summarized",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-021",
+      "title": "Feasibility before work",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-021",
+      "criticality": "P0",
+      "description": "The system shall perform a static context-feasibility check at profile-validation time against the profile worst-case section, refusing a profile whose ceiling exceeds the resolved model declared context window, and shall perform a dynamic pre-call check per section",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-022",
+      "title": "Document coherence and assembly",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-022",
+      "criticality": "P0",
+      "description": "The system shall measure cross-section repetition and per-section style conformance, shall report style drift across a document, shall assemble a document as ordered text plus structure, and shall render to no presentation format",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-023",
+      "title": "Gateway-only inference",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-023",
+      "criticality": "P0",
+      "description": "The system shall route all inference through ai-gateway, naming no model, holding no credential, and calling no vendor directly, and shall derive and send maximum output tokens per request from profile data rather than relying on a role default",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-024",
+      "title": "Comparability enforcement",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-024",
+      "criticality": "P0",
+      "description": "The system shall treat two candidate sets as comparable only when their effective sampling keys and their effective maximum-output-token values and sources match, enforced in the measurement layer rather than by convention",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-025",
+      "title": "Consumer-owned declarations",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-025",
+      "criticality": "P0",
+      "description": "A consuming scenario shall declare styles, profiles, and axis spaces as version-controlled files in its own scenario folder with a namespaced key and an ownership marker, and the system shall register them by startup scan plus an explicit reindex verb requiring no integration code from that consumer",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-026",
+      "title": "File-as-authority",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-026",
+      "criticality": "P0",
+      "description": "The system shall treat a declaration file as authority and its database row as a projection, shall refuse API writes to a declared record naming the file, shall version a declared record by its file content hash, shall register a malformed declaration as invalid without preventing startup, shall refuse two declarations claiming one key rather than resolving last-writer-wins, and shall mark a deleted declaration unregistered while keeping historical provenance resolvable",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-027",
+      "title": "Standalone declaration validator",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-027",
+      "criticality": "P0",
+      "description": "The system shall expose the declaration validator over RPC and as a CLI verb so a consumer can check its declarations without invoking the test harness",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-028",
+      "title": "Programmatic surface",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-028",
+      "criticality": "P0",
+      "description": "The system shall expose Connect-RPC with full CLI verb parity and JSON output on every verb, and shall declare its tools and widgets with governance metadata so they are discoverable rather than merely present in code",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-029",
+      "title": "Operator surfaces",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-029",
+      "criticality": "P0",
+      "description": "The system shall ship a variation board, style library, document workspace, and declaration registry as production-quality UI with real loading, error, and empty states, shall show no per-card quality score, shall apply no default ordering by a quality proxy, shall state set diversity as one number with its basis named, shall make none-of-these a first-class action triggering a reroll with negative conditioning, and shall state the specific reason inline on every disabled control",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-030",
+      "title": "Shared metrics package",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-030",
+      "criticality": "P0",
+      "description": "The system shall publish its deterministic text metrics as a shared package created from the first commit, consumable without a runtime dependency on this scenario API",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-031",
+      "title": "Document shape is declared, not constant",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-031",
+      "criticality": "P0",
+      "description": "The system shall derive a document's section count from a declared composition policy or an explicit per-document override, and shall fix no section count in the outline prompt, the outline decoder, or the evaluation harness",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Focused unit tests in the long-form composition group cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-032",
+      "title": "Section length band and declared format",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-032",
+      "criticality": "P0",
+      "description": "The system shall gate every section against both a floor and a ceiling derived from its outline target so a section that materially undershoots its target is ineligible, and shall apply the profile's declared section format rather than forcing a format that forbids headings, lists, or code",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Focused unit tests in the long-form composition group cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-033",
+      "title": "Sections see their committed predecessors",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-033",
+      "criticality": "P0",
+      "description": "The system shall carry the committed text of prior sections into each section's prompt and its recorded context snapshot, shall state the continuity requirement alongside that text, and shall derive the prior-context token budget independently of the output cap",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Focused unit tests in the long-form composition group cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-034",
+      "title": "Continuation selection",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-034",
+      "criticality": "P0",
+      "description": "The system shall select a section candidate by least redundancy against already-committed text and closeness to its outline target, shall not select a section by distance from its own siblings, and shall keep that selection a deterministic measurement rather than a judged ranking",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Focused unit tests in the long-form composition group cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-035",
+      "title": "Coherence failure causes work",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-035",
+      "criticality": "P0",
+      "description": "The system shall regenerate the most redundant section under negative conditioning while a declared repair budget remains, shall rewrite that section in place rather than appending one, and shall report the honest failed verdict when the budget is exhausted",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Focused unit tests in the long-form composition group cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-036",
+      "title": "Semantic document coherence",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-036",
+      "criticality": "P0",
+      "description": "The system shall measure semantic cross-section repetition over section embeddings alongside the lexical measure, and shall report the measurement as unavailable rather than as a pass when the embedding tier cannot be reached",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Focused unit tests in the long-form composition group cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-037",
+      "title": "Whole-document provenance",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-037",
+      "criticality": "P0",
+      "description": "The system shall report the cost, tokens, providers, and models that an assembled document actually consumed across its outline, section, and repair requests",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Focused unit tests in the long-form composition group cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-038",
+      "title": "Long-form survives a single bad provider response",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-038",
+      "criticality": "P0",
+      "description": "The system shall re-ask the provider for a failed long-form step within a declared attempt budget, shall not re-ask when the failure is a caller-side defect that would yield the same answer, shall drop a repeatedly undecodable candidate envelope to a direct draw on its final attempt, and shall degrade a failed summarising call to a recorded deterministic excerpt rather than discarding an otherwise complete document",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Fault-injecting gateway tests drive the composition through a malformed candidate set, an unreachable summariser, a caller-side defect, and an exhausted attempt budget."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-039",
+      "title": "Document discovery and reading",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-039",
+      "criticality": "P0",
+      "description": "The system shall enumerate generated documents newest-first with a bounded, status-filterable listing, shall return one document with its prose, outline, coherence, and provenance by identifier, shall expose both over Connect-RPC and as CLI verbs with typed flags rather than a raw request payload, and shall render them for a reader rather than as a serialized message",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Listing order, limit, status filter, and typed not-found behaviour are covered by focused tests; the CLI verbs were exercised against the running scenario."
+        }
+      ]
+    }
+  ]
+}

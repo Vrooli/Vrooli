@@ -1,17 +1,18 @@
 import {
   ArtifactType,
+  ArtifactTypeSchema,
   ExecutionStatus as ProtoExecutionStatus,
+  ExecutionStatusSchema,
   LogLevel as ProtoLogLevel,
+  LogLevelSchema,
   StepStatus,
+  StepStatusSchema,
 } from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
-import { ActionType } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
 import {
-  ExecutionStatusName,
-  ActionTypeName,
-  StepStatusName,
-  ArtifactTypeName,
-  LogLevelName,
-} from '@vrooli/proto-types/enum-names';
+  ActionType,
+  ActionTypeSchema,
+} from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
+import { enumShortName } from './protoEnumName';
 
 export type MappedLogLevel = 'info' | 'warning' | 'error' | 'success';
 
@@ -30,7 +31,7 @@ export const mapExecutionStatus = (
   status?: ProtoExecutionStatus | string | null,
 ): ExecutionStatus => {
   if (typeof status === 'number') {
-    const name = ExecutionStatusName[status as ProtoExecutionStatus];
+    const name = enumShortName(ExecutionStatusSchema, status);
     // Map to valid ExecutionStatus (exclude 'unspecified')
     if (name === 'pending' || name === 'running' || name === 'completed' || name === 'failed' || name === 'cancelled') {
       return name;
@@ -65,7 +66,7 @@ export const mapExecutionStatus = (
  */
 export const mapStepType = (actionType?: ActionType | string): string | undefined => {
   if (typeof actionType === 'number') {
-    const name = ActionTypeName[actionType as ActionType];
+    const name = enumShortName(ActionTypeSchema, actionType);
     return name === 'unspecified' ? undefined : name;
   }
   return actionType;
@@ -77,7 +78,7 @@ export const mapStepType = (actionType?: ActionType | string): string | undefine
  */
 export const mapStepStatus = (status?: StepStatus | string): string | undefined => {
   if (typeof status === 'number') {
-    const name = StepStatusName[status as StepStatus];
+    const name = enumShortName(StepStatusSchema, status);
     return name === 'unspecified' ? undefined : name;
   }
   return status;
@@ -89,7 +90,7 @@ export const mapStepStatus = (status?: StepStatus | string): string | undefined 
  */
 export const mapArtifactType = (type?: ArtifactType | string): string | undefined => {
   if (typeof type === 'number') {
-    const name = ArtifactTypeName[type as ArtifactType];
+    const name = enumShortName(ArtifactTypeSchema, type);
     return name === 'unspecified' ? undefined : name;
   }
   return type;
@@ -102,7 +103,7 @@ export const mapArtifactType = (type?: ArtifactType | string): string | undefine
  */
 export const mapProtoLogLevel = (level?: ProtoLogLevel | string): MappedLogLevel => {
   if (typeof level === 'number') {
-    const name = LogLevelName[level as ProtoLogLevel];
+    const name = enumShortName(LogLevelSchema, level);
     switch (name) {
       case 'debug':
       case 'info':

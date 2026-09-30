@@ -8,21 +8,25 @@ import (
 
 // Note: PhaseResultsDir and other path constants are defined in paths.go
 
-// BaseWriter provides common artifact writing functionality.
+// BaseWriter provides common artifact writing functionality. All artifact
+// paths it produces are keyed by RunID under coverage/runs/<runID>/.
 type BaseWriter struct {
 	ScenarioDir  string
 	ScenarioName string
+	RunID        string
 	FS           FileSystem
 }
 
 // BaseWriterOption configures a BaseWriter.
 type BaseWriterOption func(*BaseWriter)
 
-// NewBaseWriter creates a new BaseWriter with the given options.
-func NewBaseWriter(scenarioDir, scenarioName string, opts ...BaseWriterOption) *BaseWriter {
+// NewBaseWriter creates a new BaseWriter with the given options. runID keys all
+// artifact paths under coverage/runs/<runID>/.
+func NewBaseWriter(scenarioDir, scenarioName, runID string, opts ...BaseWriterOption) *BaseWriter {
 	w := &BaseWriter{
 		ScenarioDir:  scenarioDir,
 		ScenarioName: scenarioName,
+		RunID:        runID,
 		FS:           OSFileSystem{},
 	}
 	for _, opt := range opts {
@@ -57,12 +61,12 @@ func (w *BaseWriter) WriteFile(path string, data []byte) error {
 	return w.FS.WriteFile(path, data, 0o644)
 }
 
-// PhaseResultsPath returns the path to a phase results file.
+// PhaseResultsPath returns the path to a phase results file for this run.
 func (w *BaseWriter) PhaseResultsPath(filename string) string {
-	return filepath.Join(w.ScenarioDir, PhaseResultsDir, filename)
+	return PhaseResultsPath(w.ScenarioDir, w.RunID, filename)
 }
 
-// WritePhaseResults writes phase results to the standard location.
+// WritePhaseResults writes phase results to the run-keyed location.
 // The buildOutput function constructs the phase-specific output structure.
 func WritePhaseResults[T any](
 	w *BaseWriter,
@@ -70,7 +74,7 @@ func WritePhaseResults[T any](
 	results T,
 	buildOutput func(scenarioName string, results T) map[string]any,
 ) error {
-	phaseDir := filepath.Join(w.ScenarioDir, PhaseResultsDir)
+	phaseDir := RunPhaseResultsDir(w.ScenarioDir, w.RunID)
 	if err := w.EnsureDir(phaseDir); err != nil {
 		return fmt.Errorf("failed to create phase results dir: %w", err)
 	}

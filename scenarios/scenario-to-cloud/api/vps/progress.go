@@ -50,31 +50,31 @@ func (NoopProgressRepo) UpdateDeploymentProgress(context.Context, string, string
 // StepWeights defines the percentage weight for each deployment step.
 // These sum to 100%.
 var StepWeights = map[string]float64{
-	"manifest_refresh":  2, // Fast operation - re-fetch dependencies and ports
-	"preflight":         2,
-	"bundle_build":      5,
-	"mkdir":             0, // Trivial, no weight
-	"bootstrap":         5, // apt update + install prereqs
-	"upload":            16,
-	"cleanup_scenarios": 3, // Remove stale scenario code while preserving declared mutable paths
-	"extract":           5,
-	"setup":             10, // Reduced from 15 (bootstrap handles some work now)
-	"autoheal":          2,
-	"verify_setup":      1, // Reduced from 3
-	"scenario_stop":     3, // Stop existing scenario before deployment
-	"caddy_install":     5,
-	"caddy_config":      5,
-	"firewall_inbound":  1,
-	"secrets_provision": 5, // Generate and write secrets before resource start
-	"resource_start":    8,
-	"scenario_deps":     10,
-	"scenario_target":   9,
-	"wait_for_ui":       1,
-	"verify_local":      1,
-	"verify_https":      1,
-	"verify_origin":     1,
-	"verify_public":     2,
+	"manifest_refresh": 2, // Fast operation - re-fetch dependencies and ports
+	"preflight":        2,
+	"bundle_build":     5,
+	// Install scope (plan action ids).
+	"host.prepare":        5,  // directories + apt prerequisites
+	"edge.firewall.allow": 1,  // ufw 80/443
+	"data.inventory":      1,  // read-only mutable-directory inventory
+	"release.deliver":     16, // scp the release archive
+	"release.verify":      1,  // sha256 of the delivered archive
+	"release.stage":       5,  // extract into an owned inactive tree
+	"data.backup":         1,  // placeholder until data-backup-manager owns it
+	"release.activate":    8,  // overlay the staged tree + native CLI install
+	"config.apply":        12, // vrooli setup + autoheal scope + CLI check
+	// Runtime scope (plan action ids).
+	"workload.stop":              3,
+	"edge.route.apply":           8, // caddy install + config
+	"credentials.provision":      5,
+	"runtime.start_dependencies": 12,
+	"workload.start":             10, // restart + wait for the UI port
+	"verify.readiness":           5,  // local, https, origin, public
+	"release.retain_predecessor": 1,
 }
+
+// StartScope is the plan scope RunStartPipeline executes.
+const StartScope = "start"
 
 // CalculateWeightsForSteps returns normalized weights for a subset of steps.
 // The weights are scaled so they sum to 100%.
@@ -105,16 +105,11 @@ func CalculateWeightsForSteps(steps []string) map[string]float64 {
 // StartSteps defines the steps to run when starting/resuming a stopped deployment.
 // These skip setup steps (Caddy, firewall) and focus on starting services.
 var StartSteps = []string{
-	"scenario_stop",
-	"secrets_provision",
-	"resource_start",
-	"scenario_deps",
-	"scenario_target",
-	"wait_for_ui",
-	"verify_local",
-	"verify_https",
-	"verify_origin",
-	"verify_public",
+	"workload.stop",
+	"credentials.provision",
+	"runtime.start_dependencies",
+	"workload.start",
+	"verify.readiness",
 }
 
 // NewProgressEvent creates a new ProgressEvent with the current timestamp.

@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.access-gate",
+    "name": "AccessGate",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "patterns",
+    "description": "The combined permission and feature gate handling loading, unavailable, upgrade-required, request-access, read-only, and hidden states without duplicating policy logic per surface.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "feedback.permission-state",
+        "reason": "Denied presentation is shared."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "permissions-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "permission-explained",
+    "recovery-path",
+    "status-announced",
+    "accessible-naming",
+    "error-honesty"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "permission-denied",
+    "request-error"
+  ],
+  "rationale": "Modelled as a component rather than a pattern so ordinary components can gate themselves. Read-only is the state usually forgotten: hiding a control the user can see the effects of is more confusing than showing it disabled with a reason."
+}

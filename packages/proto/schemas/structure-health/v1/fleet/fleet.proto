@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package vrooli.structure_health.v1.fleet;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/structure-health/v1/fleet;fleet_v1";
+
+// =============================================================================
+// STRUCTURE FLEET SERVICE
+// =============================================================================
+//
+// @layer 0
+// @domain structure-health
+// @stability beta
+//
+// FleetService answers deterministic, structured offender queries about scenario
+// skeleton + lifecycle-wiring conformance across the whole fleet. It statically
+// validates every discovered scenario (or a requested subset) through the same
+// engine that backs the per-scenario ValidationService and rolls the findings up
+// into offender lists, profile/surface distributions, per-rule conformance, and
+// auto-fixable coverage.
+//
+// These queries are exact/structured (not semantic), so structure-health is NOT
+// a search-hub data provider; the CLI verbs are discoverable through cli-health's
+// command index instead.
+// =============================================================================
+
+service FleetService {
+  // ScanFleet statically grades every discovered scenario (or the requested
+  // subset) and returns one structure rollup per scenario plus fleet-wide
+  // distributions and per-rule conformance.
+  rpc ScanFleet(ScanFleetRequest) returns (ScanFleetResponse);
+}
+
+message ScanFleetRequest {
+  // Restrict the scan to these scenario slugs; empty means every discovered
+  // scenario (a directory under scenarios/ carrying .vrooli/service.json).
+  repeated string scenarios = 1;
+  // Optional typed target selection. When present, this supersedes scenarios.
+  repeated FleetTarget targets = 2;
+}
+
+message FleetTarget {
+  string kind = 1;
+  string id = 2;
+  string path = 3;
+}
+
+message ScanFleetResponse {
+  // One rollup per scanned scenario, sorted alphabetically by scenario.
+  repeated FleetScenarioEntry entries = 1;
+  // Per-finding-code conformance across the fleet, sorted by offending scenario
+  // count descending.
+  repeated RuleConformance rule_conformance = 2;
+  // Count of scenarios per detected profile id, sorted by count descending.
+  repeated ProfileDistribution profile_distribution = 3;
+  // Total scenarios scanned.
+  int32 scenario_count = 4;
+  // Scenarios with no error-severity structure findings.
+  int32 passing_count = 5;
+  // Total auto-fixable findings across the fleet.
+  int32 autofixable_total = 7;
+  // Scenarios that could not be graded (enumerated but failed to validate),
+  // with a short reason each.
+  repeated FleetScanError errors = 8;
+  // Total typed targets scanned, including non-scenario kinds.
+  int32 target_count = 9;
+  int32 passing_target_count = 10;
+}
+
+// FleetScenarioEntry is one scenario's structure rollup.
+message FleetScenarioEntry {
+  string scenario = 1;
+  // True when the scenario has no error-severity structure findings.
+  bool passed = 2;
+  // Detected profile id, e.g. "react-vite-go".
+  string profile_id = 3;
+  // Whether structure-health recognized the profile (false => advisory rules).
+  bool profile_recognized = 4;
+  int32 error_count = 5;
+  int32 warning_count = 6;
+  int32 total_findings = 7;
+  // Auto-fixable findings in this scenario.
+  int32 autofixable_count = 8;
+  // Declared surfaces for this scenario, e.g. ["api", "cli", "ui"].
+  repeated string surfaces = 10;
+  // Non-empty when the scenario was graded in a degraded mode.
+  string degraded_reason = 11;
+  string target_kind = 12;
+  string target_id = 13;
+  string target_path = 14;
+}
+
+// RuleConformance rolls one finding code up across the fleet.
+message RuleConformance {
+  // Finding code, e.g. "SCENARIO_COMPONENT_INVALID" or "PROFILE_ENV_VALIDATION".
+  string code = 1;
+  // Number of scenarios with at least one finding of this code.
+  int32 offending_scenarios = 2;
+  // Total findings of this code across the fleet.
+  int32 total_findings = 3;
+  // How many of those findings are auto-fixable.
+  int32 autofixable = 4;
+  // Highest severity seen for this code ("error"/"warning"/"info").
+  string worst_severity = 5;
+}
+
+// ProfileDistribution counts scenarios per detected profile.
+message ProfileDistribution {
+  string profile_id = 1;
+  int32 scenario_count = 2;
+  // Whether this profile is recognized by structure-health.
+  bool recognized = 3;
+}
+
+// FleetScanError records a scenario that was enumerated but could not be graded.
+message FleetScanError {
+  string scenario = 1;
+  string reason = 2;
+}

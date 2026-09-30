@@ -4,7 +4,7 @@
   "teamId": "meta-optimization",
   "agentId": "skill-optimizer",
   "roles": [
-    "skill-specialist"
+    "skill-optimizer"
   ],
   "status": "active"
 }

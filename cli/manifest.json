@@ -1,0 +1,5245 @@
+{
+  "$schema": ".vrooli/schemas/cli-manifest.schema.json",
+  "name": "vrooli",
+  "description": "Governed project CLI for the Vrooli control plane and scenario fleet.",
+  "groups": [
+    {
+      "name": "agent",
+      "description": "Run an interactive coding-agent CLI through the governed project surface.",
+      "commands": [
+        {
+          "name": "launch",
+          "description": "Launch an allowlisted coding-agent CLI with inherited terminal input and output.",
+          "flags": [
+            {
+              "name": "claim",
+              "repeatable": true,
+              "description": "Path this session will edit; a live holder of an overlapping claim is named and the launch continues (advisory)."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:external"
+            ]
+          },
+          "architecture": {
+            "exception": {
+              "class": "external_delegation",
+              "reason": "The governed command delegates to one explicitly allowlisted coding-agent executable while preserving argv boundaries and the caller's terminal streams."
+            }
+          }
+        },
+        {
+          "name": "list",
+          "description": "List live coding-agent sessions from the runtime registry: session, agent, tree, scope, pid, age, claims, frozen.",
+          "flags": [
+            {
+              "name": "json",
+              "description": "Emit JSON output."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "scenario",
+      "description": "Inspect and manage the Vrooli scenario fleet.",
+      "commands": [
+        {
+          "name": "validate",
+          "description": "Validate every scenario manifest and derived supervision intent.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List scenarios known to the Vrooli control plane.",
+          "flags": [
+            {
+              "name": "include-ports",
+              "bool": true,
+              "description": "Include currently allocated runtime ports."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioControlPlaneService",
+            "method": "ListScenarios"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "semantics": {
+            "kind": "query",
+            "verdict": {
+              "path": "success",
+              "pass": "true",
+              "fail": "false"
+            }
+          }
+        },
+        {
+          "name": "status",
+          "description": "Read one scenario's runtime and manifest status.",
+          "positionals": [
+            {
+              "name": "name",
+              "description": "Scenario name."
+            }
+          ],
+          "flags": [
+            {
+              "name": "instance",
+              "local_only": true,
+              "description": "Select the client connection target before RPC dispatch"
+            },
+            {
+              "name": "node",
+              "local_only": true,
+              "description": "Select the client connection target before RPC dispatch"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioControlPlaneService",
+            "method": "GetScenarioStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "semantics": {
+            "kind": "verify",
+            "verdict": {
+              "path": "success",
+              "pass": "true",
+              "fail": "false"
+            }
+          }
+        },
+        {
+          "name": "logs",
+          "description": "Read a bounded tail of one scenario's lifecycle log.",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario name."
+            }
+          ],
+          "flags": [
+            {
+              "name": "follow",
+              "aliases": [
+                "f"
+              ],
+              "bool": true,
+              "description": "Follow log output in real time",
+              "local_only": true
+            },
+            {
+              "name": "force-follow",
+              "bool": true,
+              "description": "Stream even in non-interactive environments",
+              "local_only": true
+            },
+            {
+              "name": "step",
+              "description": "View a specific background step log"
+            },
+            {
+              "name": "runtime",
+              "bool": true,
+              "description": "View all background process logs"
+            },
+            {
+              "name": "lifecycle",
+              "bool": true,
+              "description": "View lifecycle log (default)"
+            },
+            {
+              "name": "previous",
+              "bool": true,
+              "description": "View the previous step log backup (.log.bak)"
+            },
+            {
+              "name": "tail",
+              "description": "Show the last N lines",
+              "bind": {
+                "field": "tail_lines"
+              }
+            },
+            {
+              "name": "clean",
+              "bool": true,
+              "description": "Remove orphaned background logs",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioControlPlaneService",
+            "method": "GetScenarioLogs"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "start",
+          "description": "Start one scenario through the managed lifecycle.",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "repeated": true,
+              "description": "Scenario name."
+            }
+          ],
+          "flags": [
+            {
+              "name": "path"
+            },
+            {
+              "name": "best-effort",
+              "bool": true
+            },
+            {
+              "name": "clean-stale",
+              "bool": true
+            },
+            {
+              "name": "force",
+              "bool": true,
+              "description": "Rebuild artifacts even when their inputs are fresh"
+            },
+            {
+              "name": "accept-credential-loss",
+              "bool": true,
+              "description": "Explicitly permit witnessed generated-credential replacement"
+            },
+            {
+              "name": "open",
+              "bool": true,
+              "local_only": true,
+              "description": "Open the caller's browser after lifecycle completion"
+            },
+            {
+              "name": "timeout",
+              "description": "Ceiling for the whole start in seconds",
+              "bind": {
+                "field": "timeout_seconds"
+              }
+            },
+            {
+              "name": "instance",
+              "local_only": true,
+              "description": "Select the client connection target before RPC dispatch"
+            },
+            {
+              "name": "node",
+              "local_only": true,
+              "description": "Select the client connection target before RPC dispatch"
+            },
+            {
+              "name": "demand-managed",
+              "bool": true,
+              "description": "Tie this instance to caller-owned renewable demand leases"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioControlPlaneService",
+            "method": "StartScenario"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "stop",
+          "description": "Stop one scenario through the managed lifecycle.",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario name."
+            }
+          ],
+          "flags": [
+            {
+              "name": "instance",
+              "local_only": true,
+              "description": "Select the client connection target before RPC dispatch"
+            },
+            {
+              "name": "node",
+              "local_only": true,
+              "description": "Select the client connection target before RPC dispatch"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioControlPlaneService",
+            "method": "StopScenario"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "restart",
+          "description": "Restart one scenario through the managed lifecycle.",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario name."
+            }
+          ],
+          "flags": [
+            {
+              "name": "path"
+            },
+            {
+              "name": "best-effort",
+              "bool": true
+            },
+            {
+              "name": "clean-stale",
+              "bool": true
+            },
+            {
+              "name": "force",
+              "bool": true,
+              "description": "Rebuild artifacts even when their inputs are fresh"
+            },
+            {
+              "name": "accept-credential-loss",
+              "bool": true,
+              "description": "Explicitly permit witnessed generated-credential replacement"
+            },
+            {
+              "name": "force-lifecycle",
+              "bool": true,
+              "description": "Emergency restart: override drain-only lifecycle blockers"
+            },
+            {
+              "name": "lifecycle-override-reason",
+              "description": "Audit reason required with --force-lifecycle"
+            },
+            {
+              "name": "open",
+              "bool": true,
+              "local_only": true,
+              "description": "Open the caller's browser after lifecycle completion"
+            },
+            {
+              "name": "timeout",
+              "description": "Ceiling for the whole restart in seconds",
+              "bind": {
+                "field": "timeout_seconds"
+              }
+            },
+            {
+              "name": "instance",
+              "local_only": true,
+              "description": "Select the client connection target before RPC dispatch"
+            },
+            {
+              "name": "node",
+              "local_only": true,
+              "description": "Select the client connection target before RPC dispatch"
+            },
+            {
+              "name": "demand-managed",
+              "bool": true,
+              "description": "Tie this instance to caller-owned renewable demand leases"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioControlPlaneService",
+            "method": "RestartScenario"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "setup",
+          "description": "Run one scenario's governed setup phase.",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario name."
+            }
+          ],
+          "flags": [
+            {
+              "name": "path"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioControlPlaneService",
+            "method": "SetupScenario"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ],
+      "groups": [
+        {
+          "name": "management",
+          "description": "Scenario management commands retained under the scenario invocation path.",
+          "flat": true,
+          "commands": [
+            {
+              "name": "demand",
+              "description": "Acquire, renew, release, or inspect history of bounded scenario demand leases.",
+              "positionals": [
+                {
+                  "name": "operation",
+                  "required": true,
+                  "description": "acquire, renew, release, or history"
+                }
+              ],
+              "flags": [
+                {
+                  "name": "scenario"
+                },
+                {
+                  "name": "variant"
+                },
+                {
+                  "name": "consumer"
+                },
+                {
+                  "name": "kind"
+                },
+                {
+                  "name": "request-id"
+                },
+                {
+                  "name": "lease-id"
+                },
+                {
+                  "name": "ttl"
+                },
+                {
+                  "name": "reason"
+                },
+                {
+                  "name": "metadata"
+                },
+                {
+                  "name": "limit"
+                },
+                {
+                  "name": "json",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "info",
+              "description": "Scenario management command: info.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "validate-env",
+              "description": "Scenario management command: validate-env.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "freshness",
+              "description": "Scenario management command: freshness.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "run",
+              "description": "Scenario management command: run.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "start-all",
+              "description": "Scenario management command: start-all.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "wait",
+              "description": "Scenario management command: wait.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "stop-all",
+              "description": "Scenario management command: stop-all.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ],
+                "requires_confirmation": true
+              }
+            },
+            {
+              "name": "test",
+              "description": "Scenario management command: test.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "screenshot",
+              "description": "Scenario management command: screenshot.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "open",
+              "description": "Scenario management command: open.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "port",
+              "description": "Scenario management command: port.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "requirements",
+              "description": "Scenario management command: requirements.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "completeness",
+              "description": "Scenario management command: completeness.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "heal-from-sandbox",
+              "description": "Scenario management command: heal-from-sandbox.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ],
+                "requires_confirmation": true
+              }
+            },
+            {
+              "name": "delete",
+              "description": "Delete a scenario through the governed local scenario handler.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ],
+                "requires_confirmation": true
+              }
+            },
+            {
+              "name": "timings",
+              "description": "Read recorded scenario lifecycle timing observations.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "top-level",
+      "description": "Root command entry",
+      "commands": [
+        {
+          "name": "scenario",
+          "description": "Root command entry: scenario.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "package",
+          "description": "Root command entry: package.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "resource",
+          "description": "Root command entry: resource.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "runtime",
+          "description": "Root command entry: runtime.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "cleanup",
+          "description": "Root command entry: cleanup.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "doctor",
+          "description": "Root command entry: doctor.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "orphans",
+          "description": "Root command entry: orphans.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "locks",
+          "description": "Root command entry: locks.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "diagnose-port",
+          "description": "Root command entry: diagnose-port.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "contract",
+          "description": "Root command entry: contract.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "hygiene",
+          "description": "Root command entry: hygiene.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "lifecycle",
+          "description": "Root command entry: lifecycle.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "auth",
+          "description": "Root command entry: auth.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "recovery",
+          "description": "Root command entry: recovery.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "host",
+          "description": "Root command entry: host.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "capacity",
+          "description": "Root command entry: capacity.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "capability",
+          "description": "Root command entry: capability.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "credentials",
+          "description": "Root command entry: credentials.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "tuning",
+          "description": "Root command entry: tuning.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "release-authority",
+          "description": "Root command entry: release-authority.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "break-glass",
+          "description": "Provision and issue target-bound break-glass credentials.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "uninstall",
+          "description": "Plan and apply removal of recorded Vrooli installation artifacts.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ],
+            "requires_confirmation": true
+          }
+        },
+        {
+          "name": "cloud-target",
+          "description": "Target-local cloud deployment owner: receipts, releases, data inventory, host repair, credential versions.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        }
+      ],
+      "flat": true
+    },
+    {
+      "name": "break-glass",
+      "description": "Local break-glass credential lifecycle.",
+      "commands": [
+        {
+          "name": "provision",
+          "description": "Provision encrypted target-bound break-glass material.",
+          "flags": [
+            {
+              "name": "account-id",
+              "description": "Stable local account/principal identifier",
+              "required": true
+            },
+            {
+              "name": "audience",
+              "description": "Credential purpose/audience"
+            },
+            {
+              "name": "purpose",
+              "description": "Alias for credential purpose"
+            },
+            {
+              "name": "target",
+              "description": "Exact local machine target claim",
+              "required": true
+            },
+            {
+              "name": "scopes",
+              "description": "Comma-separated scope ceiling",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "provision"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "issue",
+          "description": "Issue a short-lived target-bound break-glass credential.",
+          "flags": [
+            {
+              "name": "audience",
+              "description": "Credential purpose/audience"
+            },
+            {
+              "name": "purpose",
+              "description": "Alias for credential purpose"
+            },
+            {
+              "name": "target",
+              "description": "Exact local machine target claim",
+              "required": true
+            },
+            {
+              "name": "scopes",
+              "description": "Comma-separated requested scopes",
+              "required": true
+            },
+            {
+              "name": "ttl",
+              "description": "Credential lifetime",
+              "default": "15m"
+            },
+            {
+              "name": "scope",
+              "description": "Cleanup scope binding"
+            },
+            {
+              "name": "operator-id",
+              "description": "Cleanup operator identity binding"
+            },
+            {
+              "name": "machine-id",
+              "description": "Cleanup machine identity binding"
+            },
+            {
+              "name": "node-id",
+              "description": "Cleanup node identity binding"
+            },
+            {
+              "name": "plan-hash",
+              "description": "Frozen cleanup plan hash binding"
+            },
+            {
+              "name": "operation-id",
+              "description": "Cleanup operation identity binding"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "issue"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ],
+            "requires_confirmation": true
+          }
+        },
+        {
+          "name": "status",
+          "description": "Report break-glass material metadata without reading the private key.",
+          "binding": {
+            "kind": "local",
+            "handler": "status"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "rotate",
+          "description": "Rotate break-glass credential material.",
+          "binding": {
+            "kind": "local",
+            "handler": "rotate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ],
+            "requires_confirmation": true
+          }
+        },
+        {
+          "name": "reset",
+          "description": "Reset break-glass credential material.",
+          "binding": {
+            "kind": "local",
+            "handler": "reset"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ],
+            "requires_confirmation": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "lifecycle-commands",
+      "description": "Project lifecycle command",
+      "commands": [
+        {
+          "name": "setup",
+          "description": "Project lifecycle command: setup.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "develop",
+          "description": "Project lifecycle command: develop.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "build",
+          "description": "Project lifecycle command: build.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "clean",
+          "description": "Project lifecycle command: clean.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ],
+            "requires_confirmation": true
+          }
+        },
+        {
+          "name": "status",
+          "description": "Project lifecycle command: status.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "stop",
+          "description": "Project lifecycle command: stop.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "backup",
+          "description": "Project lifecycle command: backup.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "restore",
+          "description": "Project lifecycle command: restore.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ],
+            "requires_confirmation": true
+          }
+        }
+      ],
+      "flat": true
+    },
+    {
+      "name": "package",
+      "description": "Package governance command",
+      "commands": [
+        {
+          "name": "list",
+          "description": "Package governance command: list.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "info",
+          "description": "Package governance command: info.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "dependents",
+          "description": "Package governance command: dependents.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "build",
+          "description": "Package governance command: build.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "generate",
+          "description": "Package governance command: generate.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "test",
+          "description": "Package governance command: test.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "refresh",
+          "description": "Package governance command: refresh.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "resource",
+      "description": "Resource management command",
+      "commands": [
+        {
+          "name": "list",
+          "description": "Resource management command: list.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "census",
+          "description": "Report resource declarations and installed CLI state.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "scaffold",
+          "description": "Generate a resource scaffold.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "cli-sync",
+          "description": "Reconcile declared resource CLIs.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Resource management command: status.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Resource management command: validate.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "install",
+          "description": "Resource management command: install.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "uninstall",
+          "description": "Resource management command: uninstall.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ],
+            "requires_confirmation": true
+          }
+        },
+        {
+          "name": "start",
+          "description": "Resource management command: start.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "restart",
+          "description": "Resource management command: restart.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "start-all",
+          "description": "Resource management command: start-all.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "stop",
+          "description": "Resource management command: stop.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "stop-all",
+          "description": "Resource management command: stop-all.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "logs",
+          "description": "Resource management command: logs.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "enable",
+          "description": "Resource management command: enable.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "disable",
+          "description": "Resource management command: disable.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "info",
+          "description": "Resource management command: info.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "upstream-check",
+          "description": "Resource management command: upstream-check.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "deprecate",
+          "description": "Resource management command: deprecate.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "list-deprecated",
+          "description": "Resource management command: list-deprecated.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "archive-to-blueprint",
+          "description": "Resource management command: archive-to-blueprint.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "list-blueprint-archived",
+          "description": "Resource management command: list-blueprint-archived.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "restore",
+          "description": "Resource management command: restore.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "restore-blueprint",
+          "description": "Resource management command: restore-blueprint.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "archive",
+          "description": "Resource management command: archive.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "blueprint",
+          "description": "Resource management command: blueprint.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "schema",
+          "description": "Resource management command: schema.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "acquisition",
+          "description": "Inspect declared resource acquisition.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "acceleration",
+          "description": "Inspect accelerator declaration, readiness and placement.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        }
+      ],
+      "groups": [
+        {
+          "name": "archive",
+          "description": "Resource archive command (formerly resource-archive).",
+          "commands": [
+            {
+              "name": "gc",
+              "description": "Resource archive command: gc.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "gc-blueprints",
+              "description": "Resource archive command: gc-blueprints.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "blueprint",
+          "description": "Resource blueprint command (formerly resource-blueprint).",
+          "commands": [
+            {
+              "name": "list",
+              "description": "Resource blueprint command: list.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "info",
+              "description": "Resource blueprint command: info.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "search",
+              "description": "Resource blueprint command: search.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "validate",
+              "description": "Resource blueprint command: validate.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "schema",
+          "description": "Resource schema command (formerly resource-schema).",
+          "commands": [
+            {
+              "name": "validate",
+              "description": "Resource schema command: validate.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "sync",
+              "description": "Resource schema command: sync.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "acquisition",
+          "description": "Resource acquisition inspection.",
+          "commands": [
+            {
+              "name": "explain",
+              "description": "Explain host-fact acquisition target selection.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "prune",
+              "description": "Remove superseded managed-resource artifact versions.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ],
+                "requires_confirmation": true
+              }
+            }
+          ]
+        },
+        {
+          "name": "acceleration",
+          "description": "Resource accelerator inspection.",
+          "commands": [
+            {
+              "name": "explain",
+              "description": "Explain declared accelerator backends and observed placement.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "runtime",
+      "description": "Runtime management command",
+      "commands": [
+        {
+          "name": "executor-scope",
+          "description": "Read bounded physical executor exclusion evidence from JSON stdin; never signal processes.",
+          "flags": [{"name": "json", "description": "Emit executor-scope-v1 JSON.", "bool": true}],
+          "binding": {"kind": "local", "handler": "executor-scope"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read"]}
+        }
+      ],
+      "groups": [
+        {
+          "name": "supervisor",
+          "description": "Runtime supervisor command (formerly runtime-supervisor).",
+          "commands": [
+            {
+              "name": "run",
+              "description": "Runtime supervisor command: run.",
+              "flags": [
+                {
+                  "name": "takeover",
+                  "description": "Take over an existing supervisor lease.",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "run"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "status",
+              "description": "Runtime supervisor command: status.",
+              "flags": [
+                {
+                  "name": "json",
+                  "description": "Emit JSON output.",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "status"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "install",
+              "description": "Runtime supervisor command: install.",
+              "flags": [
+                {
+                  "name": "user",
+                  "description": "Install for the current user.",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "install"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "uninstall",
+              "description": "Runtime supervisor command: uninstall.",
+              "flags": [
+                {
+                  "name": "user",
+                  "description": "Uninstall the current user's service.",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "uninstall"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ],
+                "requires_confirmation": true
+              }
+            }
+          ]
+        },
+        {
+          "name": "recovery",
+          "description": "Runtime recovery command",
+          "groups": [
+            {
+              "name": "policy",
+              "description": "Runtime recovery policy command (formerly runtime-recovery-policy).",
+              "commands": [
+                {
+                  "name": "set",
+                  "description": "Runtime recovery policy command: set.",
+                  "positionals": [
+                    {
+                      "name": "scenario",
+                      "description": "Scenario name",
+                      "required": true
+                    }
+                  ],
+                  "flags": [
+                    {
+                      "name": "critical",
+                      "description": "Mark the scenario critical.",
+                      "bool": true
+                    },
+                    {
+                      "name": "not-critical",
+                      "description": "Clear the critical marker.",
+                      "bool": true
+                    },
+                    {
+                      "name": "enabled",
+                      "description": "Enable recovery.",
+                      "bool": true
+                    },
+                    {
+                      "name": "disabled",
+                      "description": "Disable recovery.",
+                      "bool": true
+                    },
+                    {
+                      "name": "opt-out",
+                      "description": "Opt out of recovery.",
+                      "bool": true
+                    },
+                    {
+                      "name": "clear-opt-out",
+                      "description": "Clear recovery opt-out.",
+                      "bool": true
+                    },
+                    {
+                      "name": "variant",
+                      "description": "Scenario variant."
+                    },
+                    {
+                      "name": "tier",
+                      "description": "Dependency tier."
+                    },
+                    {
+                      "name": "retry-budget",
+                      "description": "Retry budget."
+                    }
+                  ],
+                  "binding": {
+                    "kind": "local",
+                    "handler": "set"
+                  },
+                  "governance": {
+                    "effect": "read",
+                    "run_eligible": true,
+                    "permissions": [
+                      "filesystem:read"
+                    ]
+                  }
+                },
+                {
+                  "name": "list",
+                  "description": "Runtime recovery policy command: list.",
+                  "binding": {
+                    "kind": "local",
+                    "handler": "list"
+                  },
+                  "governance": {
+                    "effect": "read",
+                    "run_eligible": true,
+                    "permissions": [
+                      "filesystem:read"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cleanup",
+      "description": "Maintenance cleanup command",
+      "commands": [
+        {
+          "name": "orphans",
+          "description": "Maintenance cleanup command: orphans.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ],
+            "requires_confirmation": true
+          }
+        },
+        {
+          "name": "locks",
+          "description": "Maintenance cleanup command: locks.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ],
+            "requires_confirmation": true
+          }
+        },
+        {
+          "name": "template-validation",
+          "description": "Maintenance cleanup command: template-validation.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ],
+            "requires_confirmation": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "orphans",
+      "description": "Orphan process command",
+      "commands": [
+        {
+          "name": "list",
+          "description": "Orphan process command: list.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "kill",
+          "description": "Orphan process command: kill.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ],
+            "requires_confirmation": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "locks",
+      "description": "Runtime lock command",
+      "commands": [
+        {
+          "name": "list",
+          "description": "Runtime lock command: list.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "clean",
+          "description": "Runtime lock command: clean.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ],
+            "requires_confirmation": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "contract",
+      "description": "Repository contract command",
+      "commands": [
+        {
+          "name": "validate",
+          "description": "Repository contract command: validate.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "show",
+          "description": "Repository contract command: show.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "resolve",
+          "description": "Repository contract command: resolve.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "match-glob",
+          "description": "Repository contract command: match-glob.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        }
+      ],
+      "groups": [
+        {
+          "name": "resolve",
+          "description": "Contract resolution command (formerly contract-resolve).",
+          "commands": [
+            {
+              "name": "scenario",
+              "description": "Contract resolution command: scenario.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "hygiene",
+      "description": "Repository hygiene command",
+      "commands": [
+        {
+          "name": "hygiene",
+          "description": "Repository hygiene command: hygiene.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        }
+      ],
+      "flat": true
+    },
+    {
+      "name": "host-watchdog",
+      "description": "Run the disk-floor watchdog and report pressure to storage-manager.",
+      "commands": [
+        {
+          "name": "host-watchdog",
+          "description": "Run the disk-floor watchdog and report pressure to storage-manager.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        }
+      ],
+      "flat": true
+    },
+    {
+      "name": "lifecycle",
+      "description": "Lifecycle plumbing command",
+      "commands": [
+        {
+          "name": "protect",
+          "description": "Lifecycle plumbing command: protect.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "auth",
+      "description": "Host authentication command",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Host authentication command: status.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "recovery",
+      "description": "Recovery floor command",
+      "commands": [
+        {
+          "name": "capture",
+          "description": "Recovery floor command: capture.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "restore",
+          "description": "Recovery floor command: restore.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ],
+            "requires_confirmation": true
+          }
+        },
+        {
+          "name": "write",
+          "description": "Recovery floor command: write.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "show",
+          "description": "Recovery floor command: show.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "Recovery floor command: list.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "touch",
+          "description": "Recovery floor command: touch.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "set-ttl",
+          "description": "Recovery floor command: set-ttl.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "set-mode",
+          "description": "Recovery floor command: set-mode.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "clean",
+          "description": "Recovery floor command: clean.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ],
+            "requires_confirmation": true
+          }
+        },
+        {
+          "name": "migrate",
+          "description": "Recovery floor command: migrate.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "namespace",
+          "description": "Recovery floor command: namespace.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "host",
+      "description": "Host inventory command",
+      "commands": [
+        {
+          "name": "cron",
+          "description": "Audit repository-owned user-cron declarations and installed entries.",
+          "positionals": [
+            {
+              "name": "action",
+              "description": "Cron action (audit).",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "cron"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "inventory",
+          "description": "Host inventory command: inventory.",
+          "flags": [
+            {
+              "name": "field",
+              "description": "Print one shell-friendly field."
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "inventory"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "desktop-session",
+          "description": "Inspect live Linux desktop session and X-server peer association.",
+          "flags": [
+            {
+              "name": "session-id",
+              "description": "Exact logind session ID."
+            },
+            {
+              "name": "peer-pid",
+              "description": "Kernel-authenticated X-server peer PID."
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "desktop-session"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "install",
+          "description": "Host inventory command: install.",
+          "positionals": [
+            {
+              "name": "tool",
+              "description": "Host tool name.",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "dry-run",
+              "description": "Report what would be fetched without downloading.",
+              "bool": true
+            },
+            {
+              "name": "sudo-mode",
+              "description": "Privilege policy."
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "install"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "safeguard",
+          "description": "Host inventory command: safeguard.",
+          "positionals": [
+            {
+              "name": "name",
+              "description": "Safeguard name or list.",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "dry-run",
+              "description": "Report the managed change without applying it.",
+              "bool": true
+            },
+            {
+              "name": "maintenance-window",
+              "description": "Acknowledge interruption risk.",
+              "bool": true
+            },
+            {
+              "name": "sudo-mode",
+              "description": "Privilege policy."
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "safeguard"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "volume",
+          "description": "Inspect and manage host volume state.",
+          "positionals": [
+            {
+              "name": "action",
+              "required": true,
+              "description": "capabilities, inspect, check, repair, unmount, or mount-rw"
+            }
+          ],
+          "flags": [
+            {
+              "name": "device",
+              "description": "Device path.",
+              "local_only": true
+            },
+            {
+              "name": "filesystem",
+              "description": "Expected filesystem.",
+              "local_only": true
+            },
+            {
+              "name": "uuid",
+              "description": "Expected filesystem UUID.",
+              "local_only": true
+            },
+            {
+              "name": "serial",
+              "description": "Expected device serial.",
+              "local_only": true
+            },
+            {
+              "name": "mountpoint",
+              "description": "Mountpoint for mount-rw.",
+              "local_only": true
+            },
+            {
+              "name": "acknowledge-data-loss",
+              "description": "Acknowledge repair risk.",
+              "bool": true,
+              "local_only": true
+            },
+            {
+              "name": "dry-run",
+              "description": "Validate without changing host state.",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "volume"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "storage",
+          "description": "Inspect host storage state.",
+          "binding": {
+            "kind": "local",
+            "handler": "storage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "workload",
+      "description": "Observe host workloads and classify their Vrooli ownership posture.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List observed host workloads with their Vrooli ownership posture.",
+          "flags": [
+            {
+              "name": "posture",
+              "description": "Select whole-host or Vrooli-only workload classification.",
+              "values": [
+                "whole_host",
+                "vrooli_only"
+              ]
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output.",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "capacity",
+      "description": "Host capacity command",
+      "commands": [
+        {
+          "name": "claim",
+          "description": "Host capacity command: claim.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "heartbeat",
+          "description": "Host capacity command: heartbeat.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "activity",
+          "description": "Host capacity command: activity.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "degrade",
+          "description": "Host capacity command: degrade.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "resize",
+          "description": "Resize an active capacity claim.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "release",
+          "description": "Host capacity command: release.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "Host capacity command: list.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "reconcile",
+          "description": "Host capacity command: reconcile.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "sweep",
+          "description": "Host capacity command: sweep.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "gc",
+          "description": "Host capacity command: gc.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "fit",
+          "description": "Evaluate enabled accelerator resources against measured or simulated host capacity.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "footprint",
+          "description": "List or reset durable capacity footprint high-water marks.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "recommend",
+          "description": "Host capacity command: recommend.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "policy",
+          "description": "Host capacity command: policy.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "capability",
+      "description": "Capability ledger command",
+      "commands": [
+        {
+          "name": "ledger",
+          "description": "Capability ledger command: ledger.",
+          "flags": [],
+          "binding": {
+            "kind": "local",
+            "handler": "ledger"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "fleet",
+          "description": "Capability ledger command: fleet.",
+          "positionals": [
+            {
+              "name": "query",
+              "description": "Optional fleet query."
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "fleet"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "credentials",
+      "description": "Credential command",
+      "commands": [
+        {
+          "name": "doctor",
+          "description": "Credential command: doctor.",
+          "flags": [
+            {
+              "name": "check-writes",
+              "description": "Prove a credential can be stored and removed.",
+              "bool": true
+            },
+            {
+              "name": "format",
+              "description": "Output format.",
+              "default": "text",
+              "values": [
+                "text",
+                "json"
+              ]
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "doctor"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "Credential command: list.",
+          "flags": [
+            {
+              "name": "format",
+              "description": "Output format.",
+              "default": "text",
+              "values": [
+                "text",
+                "json"
+              ]
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Credential command: delete.",
+          "flags": [
+            {
+              "name": "identity",
+              "description": "Logical credential identity.",
+              "required": true
+            },
+            {
+              "name": "field",
+              "description": "Credential field.",
+              "default": "value"
+            },
+            {
+              "name": "yes",
+              "description": "Confirm deletion.",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "delete"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ],
+            "requires_confirmation": true
+          }
+        },
+        {
+          "name": "provision",
+          "description": "Credential command: provision.",
+          "flags": [
+            {
+              "name": "identity",
+              "description": "Logical credential identity.",
+              "required": true
+            },
+            {
+              "name": "field",
+              "description": "Credential field.",
+              "default": "value"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "provision"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Credential command: status.",
+          "flags": [
+            {
+              "name": "identity",
+              "description": "Logical credential identity.",
+              "required": true
+            },
+            {
+              "name": "field",
+              "description": "Credential field.",
+              "default": "value"
+            },
+            {
+              "name": "format",
+              "description": "Output format.",
+              "default": "text",
+              "values": [
+                "text",
+                "json"
+              ]
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "status"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        }
+      ],
+      "groups": [
+        {
+          "name": "store",
+          "description": "Credential store command (formerly credentials-store).",
+          "commands": [
+            {
+              "name": "status",
+              "description": "Credential store command: status.",
+              "flags": [
+                {
+                  "name": "format",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "status"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "init",
+              "description": "Credential store command: init.",
+              "flags": [
+                {
+                  "name": "format",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "init"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "unlock",
+              "description": "Credential store command: unlock.",
+              "binding": {
+                "kind": "local",
+                "handler": "unlock"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "lock",
+              "description": "Credential store command: lock.",
+              "binding": {
+                "kind": "local",
+                "handler": "lock"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "rewrap",
+              "description": "Credential store command: rewrap.",
+              "flags": [
+                {
+                  "name": "format",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "rewrap"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "change-passphrase",
+              "description": "Credential store command: change-passphrase.",
+              "binding": {
+                "kind": "local",
+                "handler": "change-passphrase"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "add-passphrase",
+              "description": "Add a passphrase wrap (read from stdin) to a store that opens only through unattended wraps; existing wraps are unchanged.",
+              "flags": [
+                {
+                  "name": "format",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "add-passphrase"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "verify-passphrase",
+              "description": "Check a passphrase (read from stdin) against the store's passphrase wrap only; changes nothing.",
+              "flags": [
+                {
+                  "name": "format",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "verify-passphrase"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "copy",
+              "description": "Write one encrypted copy of this host's credential store to the configured sink (or --sink); the copy stays sealed and no passphrase is written.",
+              "flags": [
+                {
+                  "name": "sink",
+                  "description": "Destination directory or s3:// URL; defaults to the configured sink"
+                },
+                {
+                  "name": "configured",
+                  "bool": true,
+                  "description": "Use the persisted copy configuration"
+                },
+                {
+                  "name": "object-store-credential",
+                  "description": "Credential logical id that opens the object-store sink"
+                },
+                {
+                  "name": "object-store-region",
+                  "description": "Object-store region"
+                },
+                {
+                  "name": "object-store-endpoint",
+                  "description": "Object-store endpoint override"
+                },
+                {
+                  "name": "object-store-access-key-field",
+                  "description": "Credential field holding the access key id"
+                },
+                {
+                  "name": "object-store-secret-key-field",
+                  "description": "Credential field holding the secret access key"
+                },
+                {
+                  "name": "object-store-session-field",
+                  "description": "Credential field holding the session token"
+                },
+                {
+                  "name": "format",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "copy"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "copy-configure",
+              "description": "Persist where and how often the encrypted credential-store copy is written; --enabled turns the schedule on.",
+              "flags": [
+                {
+                  "name": "sink",
+                  "description": "Destination directory or s3:// URL for the encrypted copy"
+                },
+                {
+                  "name": "enabled",
+                  "bool": true,
+                  "description": "Enable the configured copy schedule"
+                },
+                {
+                  "name": "interval",
+                  "description": "Go duration between scheduled copies (e.g. 24h)"
+                },
+                {
+                  "name": "object-store-credential",
+                  "description": "Credential logical id that opens the object-store sink"
+                },
+                {
+                  "name": "object-store-region",
+                  "description": "Object-store region"
+                },
+                {
+                  "name": "object-store-endpoint",
+                  "description": "Object-store endpoint override"
+                },
+                {
+                  "name": "object-store-access-key-field",
+                  "description": "Credential field holding the access key id"
+                },
+                {
+                  "name": "object-store-secret-key-field",
+                  "description": "Credential field holding the secret access key"
+                },
+                {
+                  "name": "object-store-session-field",
+                  "description": "Credential field holding the session token"
+                },
+                {
+                  "name": "format",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "copy-configure"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "copy-scheduled",
+              "description": "Timer entrypoint: perform one configured copy and exit, so a scheduler never places a passphrase in a process argument.",
+              "flags": [
+                {
+                  "name": "format",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "copy-scheduled"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "keyring",
+          "description": "Credential keyring command (formerly credentials-keyring).",
+          "commands": [
+            {
+              "name": "status",
+              "description": "Credential keyring command: status.",
+              "flags": [
+                {
+                  "name": "format",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "status"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "inspect",
+              "description": "Credential keyring command: inspect.",
+              "flags": [
+                {
+                  "name": "path"
+                },
+                {
+                  "name": "format",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "inspect"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "repair",
+              "description": "Credential keyring command: repair.",
+              "flags": [
+                {
+                  "name": "path"
+                },
+                {
+                  "name": "retire-backup"
+                },
+                {
+                  "name": "offer-retire-older-than"
+                },
+                {
+                  "name": "format",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "repair"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "unlock",
+              "description": "Credential keyring command: unlock.",
+              "binding": {
+                "kind": "local",
+                "handler": "unlock"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "recovery",
+          "description": "Credential recovery command (formerly credentials-recovery).",
+          "commands": [
+            {
+              "name": "export",
+              "description": "Credential recovery command: export.",
+              "flags": [
+                {
+                  "name": "entry"
+                },
+                {
+                  "name": "output",
+                  "required": true
+                },
+                {
+                  "name": "all",
+                  "bool": true
+                },
+                {
+                  "name": "format",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "export"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "verify",
+              "description": "Credential recovery command: verify.",
+              "flags": [
+                {
+                  "name": "input",
+                  "required": true
+                },
+                {
+                  "name": "format",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "verify"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "restore",
+              "description": "Credential recovery command: restore.",
+              "flags": [
+                {
+                  "name": "input",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "restore"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ],
+                "requires_confirmation": true
+              }
+            }
+          ]
+        },
+        {
+          "name": "extensions",
+          "description": "Secrets Manager browser extension registration command.",
+          "commands": [
+            {
+              "name": "install",
+              "description": "Install the Secrets Manager native-messaging registration.",
+              "flags": [
+                {
+                  "name": "host-path",
+                  "description": "Absolute path to the native host executable.",
+                  "required": true
+                },
+                {
+                  "name": "extension-id",
+                  "description": "Exact released browser extension identity.",
+                  "required": true
+                },
+                {
+                  "name": "browser",
+                  "description": "Browser profile to register.",
+                  "default": "chrome",
+                  "values": [
+                    "chrome",
+                    "chromium",
+                    "firefox",
+                    "all"
+                  ]
+                },
+                {
+                  "name": "format",
+                  "description": "Output format.",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "install"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "uninstall",
+              "description": "Remove the Secrets Manager native-messaging registration.",
+              "flags": [
+                {
+                  "name": "host-path",
+                  "description": "Absolute path to the native host executable.",
+                  "required": true
+                },
+                {
+                  "name": "extension-id",
+                  "description": "Exact released browser extension identity.",
+                  "required": true
+                },
+                {
+                  "name": "browser",
+                  "description": "Browser profile to unregister.",
+                  "default": "chrome",
+                  "values": [
+                    "chrome",
+                    "chromium",
+                    "firefox",
+                    "all"
+                  ]
+                },
+                {
+                  "name": "yes",
+                  "description": "Confirm removal of the browser registration.",
+                  "bool": true
+                },
+                {
+                  "name": "format",
+                  "description": "Output format.",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "uninstall"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ],
+                "requires_confirmation": true
+              }
+            },
+            {
+              "name": "status",
+              "description": "Inspect the Secrets Manager native-messaging registration.",
+              "flags": [
+                {
+                  "name": "host-path",
+                  "description": "Absolute path to the native host executable.",
+                  "required": true
+                },
+                {
+                  "name": "extension-id",
+                  "description": "Exact released browser extension identity.",
+                  "required": true
+                },
+                {
+                  "name": "browser",
+                  "description": "Browser profile to inspect.",
+                  "default": "chrome",
+                  "values": [
+                    "chrome",
+                    "chromium",
+                    "firefox",
+                    "all"
+                  ]
+                },
+                {
+                  "name": "format",
+                  "description": "Output format.",
+                  "default": "text",
+                  "values": [
+                    "text",
+                    "json"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "status"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "tuning",
+      "description": "Inspect operator-visible control-plane timing levers.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List timing levers, compiled defaults, resolved values, and resolution sources.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "release-authority",
+      "description": "Release authority command",
+      "commands": [
+        {
+          "name": "init",
+          "description": "Release authority command: init.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Release authority command: status.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "add-evidence",
+          "description": "Release authority command: add-evidence.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "sign",
+          "description": "Release authority command: sign.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "regenerate",
+          "description": "Release authority command: regenerate.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ],
+            "requires_confirmation": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "cloud-target",
+      "description": "Target-local owner of cloud deployment releases, receipts, host repairs and credential versions",
+      "groups": [
+        {
+          "name": "receipt",
+          "description": "Durable target receipts",
+          "commands": [
+            {
+              "name": "get",
+              "description": "Read one (operation, step) receipt.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id.",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "get"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "release",
+          "description": "Immutable release verification, staging and activation",
+          "commands": [
+            {
+              "name": "verify",
+              "description": "Verify a release manifest and bundle against this binary without writing.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                },
+                {
+                  "name": "release-manifest",
+                  "description": "Path to the release manifest JSON.",
+                  "required": true
+                },
+                {
+                  "name": "archive",
+                  "description": "Path to the release bundle (tar.gz).",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "verify"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "stage",
+              "description": "Verify then extract a release into an owned inactive staging directory.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id that owns the receipt.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id the step belongs to.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id within the operation; one receipt per (operation, step).",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence; refused when below the highest accepted fence.",
+                  "required": true
+                },
+                {
+                  "name": "release-manifest",
+                  "description": "Path to the release manifest JSON.",
+                  "required": true
+                },
+                {
+                  "name": "archive",
+                  "description": "Path to the release bundle (tar.gz).",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "stage"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "activate",
+              "description": "Switch the deployment to a complete staged release through the lifecycle owner.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id that owns the receipt.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id the step belongs to.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id within the operation; one receipt per (operation, step).",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence; refused when below the highest accepted fence.",
+                  "required": true
+                },
+                {
+                  "name": "release",
+                  "description": "Release digest to activate.",
+                  "required": true
+                },
+                {
+                  "name": "strategy",
+                  "description": "Activation strategy.",
+                  "values": [
+                    "side_by_side",
+                    "maintenance"
+                  ]
+                },
+                {
+                  "name": "scenario",
+                  "description": "Scenario to restart; repeat for several. Defaults to every scenario in the release.",
+                  "repeatable": true
+                },
+                {
+                  "name": "port",
+                  "description": "Listener port to pin as <name>=<number>; repeat per port. Reaches the lifecycle owner as <NAME>_PORT.",
+                  "repeatable": true
+                },
+                {
+                  "name": "data-binding",
+                  "description": "Declared persistent-data binding as <id>=<scenario>/<path>; the release path is bound to persistent-data/<id>.",
+                  "repeatable": true
+                },
+                {
+                  "name": "legacy-carry",
+                  "description": "Heuristic-preserved directory <scenario>/<path> to carry forward under persistent-data/legacy without a declared binding.",
+                  "repeatable": true
+                },
+                {
+                  "name": "legacy-root",
+                  "description": "In-place workdir a converted deployment adopts legacy data from on its first release activation."
+                },
+                {
+                  "name": "restart",
+                  "description": "Run the activator even when the release is already active (start/resume of the recorded release).",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "activate"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "rollback",
+              "description": "Switch back to the retained predecessor release.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id that owns the receipt.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id the step belongs to.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id within the operation; one receipt per (operation, step).",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence; refused when below the highest accepted fence.",
+                  "required": true
+                },
+                {
+                  "name": "to",
+                  "description": "Predecessor release digest.",
+                  "required": true
+                },
+                {
+                  "name": "strategy",
+                  "description": "Activation strategy.",
+                  "values": [
+                    "side_by_side",
+                    "maintenance"
+                  ]
+                },
+                {
+                  "name": "scenario",
+                  "description": "Scenario to restart; repeat for several.",
+                  "repeatable": true
+                },
+                {
+                  "name": "port",
+                  "description": "Listener port to pin as <name>=<number>; repeat per port. Reaches the lifecycle owner as <NAME>_PORT.",
+                  "repeatable": true
+                },
+                {
+                  "name": "data-binding",
+                  "description": "Declared persistent-data binding as <id>=<scenario>/<path>; the release path is bound to persistent-data/<id>.",
+                  "repeatable": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "rollback"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "list",
+              "description": "List staged, active and previous releases and any interrupted activation.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "list"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "prune",
+              "description": "Remove named complete releases that are neither active, previous nor part of an interrupted activation; the owner refuses those whatever the request says.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                },
+                {
+                  "name": "release",
+                  "description": "Release digest to remove; repeat for several.",
+                  "required": true,
+                  "repeatable": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "prune"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "data",
+          "description": "Persistent data inventory, recovery points, restore and verification",
+          "commands": [
+            {
+              "name": "inventory",
+              "description": "List heuristic mutable directories under a scenario and their binding coverage.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                },
+                {
+                  "name": "workdir",
+                  "description": "Deployment workdir on this target.",
+                  "required": true
+                },
+                {
+                  "name": "scenario",
+                  "description": "Scenario id.",
+                  "required": true
+                },
+                {
+                  "name": "bindings",
+                  "description": "JSON array of declared data bindings [{\"id\",\"path\"}]. Accepts raw JSON or b64:<base64url JSON> for argv-only transports."
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "inventory"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "backup",
+              "description": "Capture a consistent, encrypted, checksummed recovery point of the declared data bindings through their providers (pg_dump custom format for PostgreSQL, inventory archive for object stores). Fenced and receipted per (operation, step).",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id.",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence.",
+                  "required": true
+                },
+                {
+                  "name": "binding",
+                  "description": "JSON binding {id, kind, provider, locator, migration_owner?, quiesce?, release?} or a JSON array; repeat for several. Accepts raw JSON or b64:<base64url JSON> for argv-only transports.",
+                  "required": true,
+                  "repeatable": true
+                },
+                {
+                  "name": "key-ref",
+                  "description": "Recovery key reference (logical_id:field) resolved through the credential authority; key material never appears in argv or receipts.",
+                  "required": true
+                },
+                {
+                  "name": "recovery-point",
+                  "description": "Recovery point id. Defaults to <operation>-<step>."
+                },
+                {
+                  "name": "recovery-point-dir",
+                  "description": "Absolute directory for the recovery point. Defaults to the deployment's recovery-points directory."
+                },
+                {
+                  "name": "schema-version",
+                  "description": "Persistent-data schema version the recovery point binds to."
+                },
+                {
+                  "name": "configuration-digest",
+                  "description": "Configuration digest the recovery point binds to."
+                },
+                {
+                  "name": "credential-version-ref",
+                  "description": "Credential version reference (never a value); repeat for several.",
+                  "repeatable": true
+                },
+                {
+                  "name": "provider",
+                  "description": "Backup provider owner recorded on the manifest (e.g. data-backup-manager)."
+                },
+                {
+                  "name": "provider-ref",
+                  "description": "Provider-side reference of the registered target."
+                },
+                {
+                  "name": "retention-policy",
+                  "description": "Retention policy name recorded on the manifest."
+                },
+                {
+                  "name": "migration-posture",
+                  "description": "Storage migration posture selected for this capture.",
+                  "values": [
+                    "greenfield",
+                    "greenfield_with_data",
+                    "production_evolution"
+                  ]
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "backup"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write",
+                  "process:spawn"
+                ]
+              }
+            },
+            {
+              "name": "restore",
+              "description": "Restore a recovery point into clean bindings on this target. Refuses recovery_point_corrupt, recovery_key_unavailable and restore_target_not_clean before any write; never overwrites operator-owned data. Fenced and receipted.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id.",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence.",
+                  "required": true
+                },
+                {
+                  "name": "recovery-point",
+                  "description": "Recovery point id.",
+                  "required": true
+                },
+                {
+                  "name": "recovery-point-dir",
+                  "description": "Absolute directory of the recovery point (defaults to the deployment's recovery-points directory)."
+                },
+                {
+                  "name": "into",
+                  "description": "Restore target as <binding>=<locator> or a JSON object; repeat for several.",
+                  "required": true,
+                  "repeatable": true
+                },
+                {
+                  "name": "binding",
+                  "description": "Restrict the restore to this binding id; repeat for several.",
+                  "repeatable": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "restore"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write",
+                  "process:spawn"
+                ],
+                "requires_confirmation": true
+              }
+            },
+            {
+              "name": "verify",
+              "description": "Verify a recovery point without restoring it: manifest digest, sealed artifact checksums, optional key resolution and decryption, and expected inventory invariants.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                },
+                {
+                  "name": "recovery-point",
+                  "description": "Recovery point id.",
+                  "required": true
+                },
+                {
+                  "name": "recovery-point-dir",
+                  "description": "Absolute directory of the recovery point (defaults to the deployment's recovery-points directory)."
+                },
+                {
+                  "name": "open",
+                  "description": "Also resolve the recovery key and decrypt every artifact.",
+                  "bool": true
+                },
+                {
+                  "name": "expect",
+                  "description": "JSON {binding: {count, checksum}} of the expected inventory (e.g. fixture-oracle/v1)."
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "verify"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "host",
+          "description": "Target-owned bounded host observations and repairs",
+          "commands": [
+            {
+              "name": "observe",
+              "description": "Run one bounded typed target observation; executable selection and paths remain owner-controlled.",
+              "flags": [
+                {
+                  "name": "kind",
+                  "description": "Typed observation kind.",
+                  "required": true
+                },
+                {
+                  "name": "arg",
+                  "description": "Semantic observation argument; repeat for the operation's bounded arguments.",
+                  "repeatable": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "observe"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "bootstrap",
+              "description": "Install or restart the setup-managed privilege broker from this target CLI.",
+              "flags": [
+                {"name": "deployment"},
+                {"name": "operation"},
+                {"name": "step"},
+                {"name": "fence"}
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "bootstrap"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write",
+                  "admin"
+                ],
+                "requires_confirmation": true
+              }
+            },
+            {
+              "name": "repair",
+              "description": "Run one privilege-broker action with a typed subject; no generic shell.",
+              "flags": [
+                {
+                  "name": "action",
+                  "description": "Privilege broker action name.",
+                  "required": true
+                },
+                {
+                  "name": "subject",
+                  "description": "JSON subject fields for the action. Accepts raw JSON or b64:<base64url JSON> for argv-only transports."
+                },
+                {
+                  "name": "deployment",
+                  "description": "Deployment id (receipted when --operation is set)."
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id."
+                },
+                {
+                  "name": "step",
+                  "description": "Step id."
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence."
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "repair"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write",
+                  "admin"
+                ],
+                "requires_confirmation": true
+              }
+            }
+          ]
+        },
+        {
+          "name": "credential",
+          "description": "Versioned credential ingestion, acknowledgement and revocation through the node credential authority",
+          "commands": [
+            {
+              "name": "ingest",
+              "description": "Store one credential version from the sealed payload on standard input (or the Bridge-injected environment variable); values never appear in arguments.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id that owns the receipt.",
+                  "required": true
+                },
+                {
+                  "name": "binding",
+                  "description": "Credential binding id (deployment/logical_id:field).",
+                  "required": true
+                },
+                {
+                  "name": "version",
+                  "description": "Credential version number.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id the step belongs to.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id within the operation; one receipt per (operation, step).",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence; refused when below the highest accepted fence.",
+                  "required": true
+                },
+                {
+                  "name": "grant",
+                  "description": "Bridge grant id the value was delivered under."
+                },
+                {
+                  "name": "from-env",
+                  "description": "Environment variable holding the Bridge-injected value; the payload is not read from stdin."
+                },
+                {
+                  "name": "logical-id",
+                  "description": "Credential logical id (required with --from-env)."
+                },
+                {
+                  "name": "field",
+                  "description": "Credential field (required with --from-env)."
+                },
+                {
+                  "name": "content-ref",
+                  "description": "Opaque content reference of the version."
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "ingest"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "acknowledge",
+              "description": "Record that a consumer verified use of a held credential version.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id that owns the receipt.",
+                  "required": true
+                },
+                {
+                  "name": "binding",
+                  "description": "Credential binding id (deployment/logical_id:field).",
+                  "required": true
+                },
+                {
+                  "name": "version",
+                  "description": "Credential version number.",
+                  "required": true
+                },
+                {
+                  "name": "consumer",
+                  "description": "Consumer ref (scenario:<id> or resource:<id>) acknowledging the version.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id the step belongs to.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id within the operation; one receipt per (operation, step).",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence; refused when below the highest accepted fence.",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "acknowledge"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "revoke",
+              "description": "Purge a credential version from the node authority; the receipt states what revocation cannot prove.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id that owns the receipt.",
+                  "required": true
+                },
+                {
+                  "name": "binding",
+                  "description": "Credential binding id (deployment/logical_id:field).",
+                  "required": true
+                },
+                {
+                  "name": "version",
+                  "description": "Credential version number.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id the step belongs to.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id within the operation; one receipt per (operation, step).",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence; refused when below the highest accepted fence.",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "revoke"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ],
+                "requires_confirmation": false
+              }
+            }
+          ]
+        },
+        {
+          "name": "edge",
+          "description": "Owner-scoped edge routing (per-deployment Caddy snippet, transactional apply and rollback)",
+          "commands": [
+            {
+              "name": "route-apply",
+              "description": "Write this deployment's Caddy snippet from a route spec, validate the whole proxy configuration and reload; a failure restores the previous snippet. Also reachable as `edge route apply`.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id that owns the receipt and the snippet.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id the step belongs to.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id within the operation; one receipt per (operation, step).",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence; refused when below the highest accepted fence.",
+                  "required": true
+                },
+                {
+                  "name": "spec",
+                  "description": "Edge route spec JSON (schema_version, deployment_id, domain, routes[], snippet, acme_environment). Accepts raw JSON or b64:<base64url JSON> for argv-only transports."
+                },
+                {
+                  "name": "spec-file",
+                  "description": "Path to the edge route spec JSON; alternative to --spec."
+                },
+                {
+                  "name": "caddy-main",
+                  "description": "Main Caddyfile path (default /etc/caddy/Caddyfile); only the import line is ever appended to it."
+                },
+                {
+                  "name": "caddy-conf-dir",
+                  "description": "Snippet directory (default /etc/caddy/conf.d)."
+                },
+                {
+                  "name": "caddy-data-dir",
+                  "description": "Caddy storage root used to read certificate metadata (default /var/lib/caddy/.local/share/caddy)."
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "route-apply"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write",
+                  "admin"
+                ]
+              }
+            },
+            {
+              "name": "route-rollback",
+              "description": "Restore the snippet displaced by the last successful apply, validate and reload. Also reachable as `edge route rollback`.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id that owns the receipt and the snippet.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id the step belongs to.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id within the operation; one receipt per (operation, step).",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence; refused when below the highest accepted fence.",
+                  "required": true
+                },
+                {
+                  "name": "caddy-main",
+                  "description": "Main Caddyfile path (default /etc/caddy/Caddyfile); only the import line is ever appended to it."
+                },
+                {
+                  "name": "caddy-conf-dir",
+                  "description": "Snippet directory (default /etc/caddy/conf.d)."
+                },
+                {
+                  "name": "caddy-data-dir",
+                  "description": "Caddy storage root used to read certificate metadata (default /var/lib/caddy/.local/share/caddy)."
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "route-rollback"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write",
+                  "admin"
+                ]
+              }
+            },
+            {
+              "name": "route-status",
+              "description": "Report active routes, certificate expiry per host and the unrelated-configuration hash without mutating anything. Also reachable as `edge route status`.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                },
+                {
+                  "name": "caddy-main",
+                  "description": "Main Caddyfile path (default /etc/caddy/Caddyfile); only the import line is ever appended to it."
+                },
+                {
+                  "name": "caddy-conf-dir",
+                  "description": "Snippet directory (default /etc/caddy/conf.d)."
+                },
+                {
+                  "name": "caddy-data-dir",
+                  "description": "Caddy storage root used to read certificate metadata (default /var/lib/caddy/.local/share/caddy)."
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "route-status"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "omitted": []
+}

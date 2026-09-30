@@ -1,0 +1,68 @@
+{
+  "metadata": {
+    "name": "async-boundary-accessible-description",
+    "description": "Verify the default AsyncBoundary description remains linked and nonempty for assistive technology without occupying visible layout.",
+    "requirement": "PR-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "async-boundary",
+      "spec_entry_id": "component-harness",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "requirements_json": "[\"PR-001\"]"
+    },
+    "execution_mode": "EXECUTION_MODE_MUTATING"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "open",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 15000,
+          "scenario": "react-component-library",
+          "scenario_path": "/preview/react-component-library%3AAsyncBoundary/harness.html?story=default"
+        }
+      }
+    },
+    {
+      "id": "ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-rcl-async-description]",
+          "state": "WAIT_STATE_ATTACHED",
+          "timeout_ms": 15000
+        }
+      }
+    },
+    {
+      "id": "description",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const b=document.querySelector('[data-rcl-async-boundary]'); const d=document.getElementById(b.getAttribute('aria-describedby')); const r=d.getBoundingClientRect(); const s=getComputedStyle(d); if (!d.textContent.trim() || d.getAttribute('aria-hidden')==='true' || s.display==='none' || s.visibility==='hidden') throw new Error('Accessible description was removed'); if (r.width>1 || r.height>1 || s.position!=='absolute') throw new Error('Accessible description occupies visible layout: '+JSON.stringify({width:r.width,height:r.height,position:s.position})); return {description:d.textContent,width:r.width,height:r.height}; })()"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "a",
+      "source": "open",
+      "target": "ready"
+    },
+    {
+      "id": "b",
+      "source": "ready",
+      "target": "description"
+    }
+  ]
+}

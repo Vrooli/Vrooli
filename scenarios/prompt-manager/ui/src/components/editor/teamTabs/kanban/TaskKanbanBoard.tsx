@@ -225,7 +225,7 @@ export function TaskKanbanBoard({ teamId, members, allAgents }: TaskKanbanBoardP
     setTimeout(() => setMutationError(null), 5000)
   }
 
-  const handleUpdateTask = async (taskId: string, update: Parameters<typeof heartbeatService.updateTask>[2]) => {
+  async function handleUpdateTask(taskId: string, update: Parameters<typeof heartbeatService.updateTask>[2]) {
     try {
       setMutationError(null)
       await heartbeatService.updateTask(teamId, taskId, update)

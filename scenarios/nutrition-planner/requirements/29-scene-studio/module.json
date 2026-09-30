@@ -1,0 +1,56 @@
+{
+  "_metadata": {
+    "description": "Deferred user scene studio for private custom scene templates under an explicit budget.",
+    "module": "scene-studio",
+    "prd_ref": "PRD.md",
+    "priority": "P2",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "STUDIO-001",
+      "title": "Users may create private scene templates under a budget",
+      "status": "planned",
+      "prd_ref": "OT-P2-006",
+      "category": "domain",
+      "criticality": "P2",
+      "description": "A later scene studio may let a user choose a starter or reference, describe an environment, generate empty wide, compact, light, and evening variants under an explicit budget, mark food and safe text regions, preview bowl, plate, and tall-vessel cases, and approve a private template, without a room editor or a general 3D engine.",
+      "tags": [
+        "scenes",
+        "studio",
+        "deferred"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned: deferred; review the studio design against R18.5 and the generation budget policy before any implementation begins."
+        }
+      ]
+    },
+    {
+      "id": "STUDIO-002",
+      "title": "Uploaded backgrounds are not automatically templates",
+      "status": "planned",
+      "prd_ref": "OT-P2-006",
+      "category": "policy",
+      "criticality": "P2",
+      "description": "The scenario may accept an uploaded background only as a candidate that must pass the same metadata, safe-region, and preview validation as curated templates before it can be used for composition.",
+      "tags": [
+        "scenes",
+        "uploads",
+        "validation"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned: deferred; an arbitrary uploaded background is never treated as a reliable composition template without validation (R18.5)."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,419 @@
+package plans
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
+
+	"plan-manager/internal/audit"
+	"plan-manager/internal/planproto"
+	internalplans "plan-manager/internal/plans"
+
+	"connectrpc.com/connect"
+
+	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans"
+)
+
+// Deps wires the seams the Connect plans handler needs.
+type Deps struct {
+	Service internalplans.Service
+	Logger  *log.Logger
+	Audit   *audit.Store
+}
+
+func (h *connectHandler) recordFact(ctx context.Context, action string, plan internalplans.Plan) {
+	if h.deps.Audit == nil {
+		return
+	}
+	eventID := plan.ID + ":" + action + ":" + plan.UpdatedAt
+	if err := h.deps.Audit.RecordVerifiedFact(ctx, action, plan.ID, plan.ContentHash, eventID, parseAuditTime(plan.UpdatedAt)); err != nil {
+		h.deps.Logger.Printf("plan audit fact not recorded after committed mutation: %v", err)
+	}
+}
+
+type connectHandler struct {
+	deps Deps
+}
+
+// NewConnectHandler constructs the PlansService Connect handler.
+func NewConnectHandler(d Deps) *connectHandler {
+	if d.Logger == nil {
+		d.Logger = log.Default()
+	}
+	return &connectHandler{deps: d}
+}
+
+func (h *connectHandler) ListPlans(ctx context.Context, req *connect.Request[plansv1.ListPlansRequest]) (*connect.Response[plansv1.ListPlansResponse], error) {
+	plans, err := h.deps.Service.List(ctx, internalplans.ListFilter{
+		Status:          planStatusFromProto(req.Msg.GetStatus()),
+		IncludeArchived: req.Msg.GetIncludeArchived(),
+		WorkspaceID:     workspaceScopeFromProto(req.Msg.GetWorkspace()).ID,
+		WorkspaceRoot:   workspaceScopeFromProto(req.Msg.GetWorkspace()).Root,
+	})
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	resp := &plansv1.ListPlansResponse{Plans: make([]*sharedPlan, 0, len(plans))}
+	for _, p := range plans {
+		resp.Plans = append(resp.Plans, planToProto(p))
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) GetPlan(ctx context.Context, req *connect.Request[plansv1.GetPlanRequest]) (*connect.Response[plansv1.GetPlanResponse], error) {
+	p, err := h.deps.Service.Get(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()))
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.GetPlanResponse{Plan: planToProto(p)}), nil
+}
+
+func (h *connectHandler) CreatePlan(ctx context.Context, req *connect.Request[plansv1.CreatePlanRequest]) (*connect.Response[plansv1.CreatePlanResponse], error) {
+	in, err := planFromProtoChecked(req.Msg.GetPlan())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	p, err := h.deps.Service.Create(ctx, in)
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.created", p)
+	return connect.NewResponse(&plansv1.CreatePlanResponse{Plan: planToProto(p)}), nil
+}
+
+func (h *connectHandler) UpdatePlan(ctx context.Context, req *connect.Request[plansv1.UpdatePlanRequest]) (*connect.Response[plansv1.UpdatePlanResponse], error) {
+	in, err := planFromProtoChecked(req.Msg.GetPlan())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	p, err := h.deps.Service.Update(ctx, in)
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.updated", p)
+	return connect.NewResponse(&plansv1.UpdatePlanResponse{Plan: planToProto(p)}), nil
+}
+
+func (h *connectHandler) CreateCandidateRevision(ctx context.Context, req *connect.Request[plansv1.CreateCandidateRevisionRequest]) (*connect.Response[plansv1.CreateCandidateRevisionResponse], error) {
+	plan, err := planFromProtoChecked(req.Msg.GetCandidatePlan())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	candidate, err := h.deps.Service.CreateCandidate(ctx, internalplans.CandidateRevision{
+		PlanID:                  req.Msg.GetPlanId(),
+		ExpectedBaseContentHash: req.Msg.GetExpectedBaseContentHash(),
+		ProposalProvenance:      req.Msg.GetProposalProvenance(),
+		CandidatePlan:           plan,
+		Workspace:               workspaceScopeFromProto(req.Msg.GetWorkspace()),
+		ExpiresAt:               req.Msg.GetExpiresAt(),
+	})
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.CreateCandidateRevisionResponse{Candidate: candidateRevisionToProto(candidate)}), nil
+}
+
+func (h *connectHandler) GetCandidateRevision(ctx context.Context, req *connect.Request[plansv1.GetCandidateRevisionRequest]) (*connect.Response[plansv1.GetCandidateRevisionResponse], error) {
+	candidate, err := h.deps.Service.GetCandidate(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.GetCandidateRevisionResponse{Candidate: candidateRevisionToProto(candidate)}), nil
+}
+
+func (h *connectHandler) PreviewCandidateRevision(ctx context.Context, req *connect.Request[plansv1.PreviewCandidateRevisionRequest]) (*connect.Response[plansv1.PreviewCandidateRevisionResponse], error) {
+	preview, err := h.deps.Service.PreviewCandidate(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.PreviewCandidateRevisionResponse{Preview: candidatePreviewToProto(preview)}), nil
+}
+
+func (h *connectHandler) ValidateCandidateRevision(ctx context.Context, req *connect.Request[plansv1.ValidateCandidateRevisionRequest]) (*connect.Response[plansv1.ValidateCandidateRevisionResponse], error) {
+	preview, err := h.deps.Service.ValidateCandidate(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.ValidateCandidateRevisionResponse{Preview: candidatePreviewToProto(preview)}), nil
+}
+
+func (h *connectHandler) ApplyCandidateRevision(ctx context.Context, req *connect.Request[plansv1.ApplyCandidateRevisionRequest]) (*connect.Response[plansv1.ApplyCandidateRevisionResponse], error) {
+	candidate, plan, preview, err := h.deps.Service.ApplyCandidate(ctx, req.Msg.GetId(), req.Msg.GetExpectedBaseContentHash(), req.Msg.GetAcknowledgeQualityImpact())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.candidate_applied", plan)
+	return connect.NewResponse(&plansv1.ApplyCandidateRevisionResponse{Candidate: candidateRevisionToProto(candidate), Plan: planToProto(plan), Preview: candidatePreviewToProto(preview)}), nil
+}
+
+func (h *connectHandler) DiscardCandidateRevision(ctx context.Context, req *connect.Request[plansv1.DiscardCandidateRevisionRequest]) (*connect.Response[plansv1.DiscardCandidateRevisionResponse], error) {
+	candidate, err := h.deps.Service.DiscardCandidate(ctx, req.Msg.GetId(), req.Msg.GetReason())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.DiscardCandidateRevisionResponse{Candidate: candidateRevisionToProto(candidate)}), nil
+}
+
+func (h *connectHandler) ArchivePlan(ctx context.Context, req *connect.Request[plansv1.ArchivePlanRequest]) (*connect.Response[plansv1.ArchivePlanResponse], error) {
+	p, err := h.deps.Service.Archive(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()))
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.archived", p)
+	return connect.NewResponse(&plansv1.ArchivePlanResponse{Plan: planToProto(p)}), nil
+}
+
+func (h *connectHandler) RenderMarkdown(ctx context.Context, req *connect.Request[plansv1.RenderMarkdownRequest]) (*connect.Response[plansv1.RenderMarkdownResponse], error) {
+	rendered, err := h.deps.Service.Render(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), internalplans.RenderOptions{Compact: req.Msg.GetCompact()})
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.RenderMarkdownResponse{
+		Markdown:        rendered.Markdown,
+		Mirror:          planproto.MirrorToProto(rendered.Mirror),
+		Repaired:        rendered.Repaired,
+		Plan:            planToProto(rendered.Plan),
+		QualityStatus:   rendered.QualityStatus,
+		QualityFindings: rendered.QualityFindings,
+	}), nil
+}
+
+func (h *connectHandler) AddPhase(ctx context.Context, req *connect.Request[plansv1.AddPhaseRequest]) (*connect.Response[plansv1.AddPhaseResponse], error) {
+	phase, err := phaseFromProtoChecked(req.Msg.GetPhase())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	p, impact, err := h.deps.Service.AddPhaseWithImpact(ctx, req.Msg.GetPlanId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), phase, req.Msg.GetAllowQualityRegression())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.phase_added", p)
+	return connect.NewResponse(&plansv1.AddPhaseResponse{Plan: planToProto(p), Impact: mutationImpactToProto(impact)}), nil
+}
+
+func (h *connectHandler) UpdatePhase(ctx context.Context, req *connect.Request[plansv1.UpdatePhaseRequest]) (*connect.Response[plansv1.UpdatePhaseResponse], error) {
+	phase, err := phaseFromProtoChecked(req.Msg.GetPhase())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	var (
+		p      internalplans.Plan
+		impact internalplans.MutationImpact
+	)
+	if mask := req.Msg.GetUpdateMask(); mask != nil && len(mask.GetPaths()) > 0 {
+		p, impact, err = h.deps.Service.PatchPhase(ctx, req.Msg.GetPlanId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), phase, mask.GetPaths(), req.Msg.GetAllowQualityRegression())
+	} else {
+		// A mask-absent request intentionally retains the legacy full-replacement
+		// contract. New callers should always send an explicit update mask.
+		p, impact, err = h.deps.Service.ReplacePhaseWithImpact(ctx, req.Msg.GetPlanId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), phase, req.Msg.GetAllowQualityRegression())
+	}
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.phase_updated", p)
+	return connect.NewResponse(&plansv1.UpdatePhaseResponse{Plan: planToProto(p), Impact: mutationImpactToProto(impact)}), nil
+}
+
+func (h *connectHandler) AddRelevantContext(ctx context.Context, req *connect.Request[plansv1.AddRelevantContextRequest]) (*connect.Response[plansv1.AddRelevantContextResponse], error) {
+	items := planproto.RelevantContextItemsFromProto([]*sharedRelevantContextItem{req.Msg.GetItem()})
+	var item internalplans.RelevantContextItem
+	if len(items) > 0 {
+		item = items[0]
+	}
+	p, impact, err := h.deps.Service.AddRelevantContext(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), item, req.Msg.GetAllowQualityRegression())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.relevant_context_added", p)
+	return connect.NewResponse(&plansv1.AddRelevantContextResponse{Plan: planToProto(p), Impact: mutationImpactToProto(impact)}), nil
+}
+
+func (h *connectHandler) ListRelevantContext(ctx context.Context, req *connect.Request[plansv1.ListRelevantContextRequest]) (*connect.Response[plansv1.ListRelevantContextResponse], error) {
+	items, err := h.deps.Service.ListRelevantContext(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.ListRelevantContextResponse{Items: planproto.RelevantContextItemsToProto(items)}), nil
+}
+
+func (h *connectHandler) UpdateRelevantContext(ctx context.Context, req *connect.Request[plansv1.UpdateRelevantContextRequest]) (*connect.Response[plansv1.UpdateRelevantContextResponse], error) {
+	items := planproto.RelevantContextItemsFromProto([]*sharedRelevantContextItem{req.Msg.GetItem()})
+	var item internalplans.RelevantContextItem
+	if len(items) > 0 {
+		item = items[0]
+	}
+	p, impact, err := h.deps.Service.UpdateRelevantContextWithImpact(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), req.Msg.GetItemId(), item, req.Msg.GetAllowQualityRegression())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.relevant_context_updated", p)
+	return connect.NewResponse(&plansv1.UpdateRelevantContextResponse{Plan: planToProto(p), Impact: mutationImpactToProto(impact)}), nil
+}
+
+func (h *connectHandler) RemoveRelevantContext(ctx context.Context, req *connect.Request[plansv1.RemoveRelevantContextRequest]) (*connect.Response[plansv1.RemoveRelevantContextResponse], error) {
+	p, impact, err := h.deps.Service.RemoveRelevantContextWithImpact(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), req.Msg.GetItemId(), req.Msg.GetAllowQualityRegression())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.relevant_context_removed", p)
+	return connect.NewResponse(&plansv1.RemoveRelevantContextResponse{Plan: planToProto(p), Impact: mutationImpactToProto(impact)}), nil
+}
+
+func (h *connectHandler) ListReferences(ctx context.Context, req *connect.Request[plansv1.ListReferencesRequest]) (*connect.Response[plansv1.ListReferencesResponse], error) {
+	refs, err := h.deps.Service.ListReferences(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.ListReferencesResponse{References: planproto.ReferencesToProto(refs)}), nil
+}
+
+func (h *connectHandler) AddReference(ctx context.Context, req *connect.Request[plansv1.AddReferenceRequest]) (*connect.Response[plansv1.AddReferenceResponse], error) {
+	refs := planproto.ReferencesFromProto([]*sharedReference{req.Msg.GetReference()})
+	var ref internalplans.Reference
+	if len(refs) > 0 {
+		ref = refs[0]
+	}
+	p, impact, err := h.deps.Service.AddReference(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), ref, req.Msg.GetAllowQualityRegression())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.reference_added", p)
+	return connect.NewResponse(&plansv1.AddReferenceResponse{Plan: planToProto(p), Impact: mutationImpactToProto(impact)}), nil
+}
+
+func (h *connectHandler) UpdateReference(ctx context.Context, req *connect.Request[plansv1.UpdateReferenceRequest]) (*connect.Response[plansv1.UpdateReferenceResponse], error) {
+	refs := planproto.ReferencesFromProto([]*sharedReference{req.Msg.GetReference()})
+	var ref internalplans.Reference
+	if len(refs) > 0 {
+		ref = refs[0]
+	}
+	p, impact, err := h.deps.Service.UpdateReferenceWithImpact(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), req.Msg.GetReferenceId(), ref, req.Msg.GetAllowQualityRegression())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.reference_updated", p)
+	return connect.NewResponse(&plansv1.UpdateReferenceResponse{Plan: planToProto(p), Impact: mutationImpactToProto(impact)}), nil
+}
+
+func (h *connectHandler) RemoveReference(ctx context.Context, req *connect.Request[plansv1.RemoveReferenceRequest]) (*connect.Response[plansv1.RemoveReferenceResponse], error) {
+	p, impact, err := h.deps.Service.RemoveReferenceWithImpact(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), req.Msg.GetReferenceId(), req.Msg.GetAllowQualityRegression())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.reference_removed", p)
+	return connect.NewResponse(&plansv1.RemoveReferenceResponse{Plan: planToProto(p), Impact: mutationImpactToProto(impact)}), nil
+}
+
+func (h *connectHandler) GetGraph(ctx context.Context, req *connect.Request[plansv1.GetGraphRequest]) (*connect.Response[plansv1.GetGraphResponse], error) {
+	edges, err := h.deps.Service.GetGraph(ctx, req.Msg.GetPlanId())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	resp := &plansv1.GetGraphResponse{Edges: make([]*sharedPlanEdge, 0, len(edges))}
+	for _, e := range edges {
+		resp.Edges = append(resp.Edges, edgeToProto(e))
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) LinkSupersession(ctx context.Context, req *connect.Request[plansv1.LinkSupersessionRequest]) (*connect.Response[plansv1.LinkSupersessionResponse], error) {
+	p, err := h.deps.Service.LinkSupersession(ctx, req.Msg.GetSupersedingPlanId(), req.Msg.GetSupersededPlanId())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.supersession_linked", p)
+	return connect.NewResponse(&plansv1.LinkSupersessionResponse{Plan: planToProto(p)}), nil
+}
+
+func (h *connectHandler) LinkDependency(ctx context.Context, req *connect.Request[plansv1.LinkDependencyRequest]) (*connect.Response[plansv1.LinkDependencyResponse], error) {
+	p, err := h.deps.Service.LinkDependency(ctx, req.Msg.GetDependingPlanId(), req.Msg.GetDependencyPlanId())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.dependency_linked", p)
+	return connect.NewResponse(&plansv1.LinkDependencyResponse{Plan: planToProto(p)}), nil
+}
+
+func (h *connectHandler) ImportPlan(ctx context.Context, req *connect.Request[plansv1.ImportPlanRequest]) (*connect.Response[plansv1.ImportPlanResponse], error) {
+	if req.Msg.GetSupersede() != "" {
+		p, replaced, err := h.deps.Service.ImportSuperseding(ctx, req.Msg.GetSourcePath(), req.Msg.GetMarkdown(), req.Msg.GetTitle(), req.Msg.GetSlug(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetSupersede())
+		if err != nil {
+			return nil, internalplans.ToConnectError(err)
+		}
+		h.recordFact(ctx, "plan.imported_superseding", p)
+		return connect.NewResponse(&plansv1.ImportPlanResponse{Plan: planToProto(p), SupersededPlan: planToProto(replaced)}), nil
+	}
+	p, err := h.deps.Service.Import(ctx, req.Msg.GetSourcePath(), req.Msg.GetMarkdown(), req.Msg.GetTitle(), req.Msg.GetSlug(), workspaceScopeFromProto(req.Msg.GetWorkspace()))
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.imported", p)
+	return connect.NewResponse(&plansv1.ImportPlanResponse{Plan: planToProto(p)}), nil
+}
+
+func (h *connectHandler) MigratePlan(ctx context.Context, req *connect.Request[plansv1.MigratePlanRequest]) (*connect.Response[plansv1.MigratePlanResponse], error) {
+	p, err := h.deps.Service.Migrate(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.migrated", p)
+	return connect.NewResponse(&plansv1.MigratePlanResponse{Plan: planToProto(p)}), nil
+}
+
+func (h *connectHandler) ReconcilePlans(ctx context.Context, req *connect.Request[plansv1.ReconcilePlansRequest]) (*connect.Response[plansv1.ReconcilePlansResponse], error) {
+	result, err := h.deps.Service.Reconcile(ctx, reconcileRequestFromProto(req.Msg))
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(reconcileResultToProto(result)), nil
+}
+
+func (h *connectHandler) ListTemplates(ctx context.Context, req *connect.Request[plansv1.ListTemplatesRequest]) (*connect.Response[plansv1.ListTemplatesResponse], error) {
+	templates, err := h.deps.Service.ListTemplates(ctx)
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	resp := &plansv1.ListTemplatesResponse{Templates: make([]*plansv1.PlanTemplate, 0, len(templates))}
+	for _, t := range templates {
+		resp.Templates = append(resp.Templates, &plansv1.PlanTemplate{
+			Id:          t.ID,
+			Name:        t.Name,
+			Description: t.Description,
+			Surface:     t.Surface,
+		})
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) CreateFromTemplate(ctx context.Context, req *connect.Request[plansv1.CreateFromTemplateRequest]) (*connect.Response[plansv1.CreateFromTemplateResponse], error) {
+	p, err := h.deps.Service.CreateFromTemplate(ctx, req.Msg.GetTemplateId(), req.Msg.GetTitle(), req.Msg.GetSlug())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.created_from_template", p)
+	return connect.NewResponse(&plansv1.CreateFromTemplateResponse{Plan: planToProto(p)}), nil
+}
+
+func (h *connectHandler) ListAuditFacts(ctx context.Context, req *connect.Request[plansv1.ListAuditFactsRequest]) (*connect.Response[plansv1.ListAuditFactsResponse], error) {
+	if h.deps.Audit == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("plan audit store is unavailable"))
+	}
+	facts, err := h.deps.Audit.ListByRun(ctx, req.Msg.GetRunId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	response := &plansv1.ListAuditFactsResponse{Facts: make([]*plansv1.PlanAuditFact, 0, len(facts))}
+	for _, fact := range facts {
+		response.Facts = append(response.Facts, &plansv1.PlanAuditFact{
+			EventId:       fact.EventID,
+			RunId:         fact.RunID,
+			TaskId:        fact.TaskID,
+			Action:        fact.Action,
+			PlanId:        fact.PlanID,
+			ContentDigest: fact.ContentDigest,
+			OccurredAt:    fact.OccurredAt.UTC().Format(time.RFC3339Nano),
+		})
+	}
+	return connect.NewResponse(response), nil
+}

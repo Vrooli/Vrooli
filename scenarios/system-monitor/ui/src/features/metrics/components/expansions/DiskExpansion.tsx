@@ -12,73 +12,73 @@ export const DiskExpansion = ({ details }: DiskExpansionProps) => {
   const freeBytes = Number.isFinite(total - used) ? total - used : undefined;
 
   return (
-    <div className="metric-details" style={{ marginTop: 'var(--spacing-md)' }}>
-      <div className="metric-grid-auto" style={{ marginBottom: 'var(--spacing-md)' }}>
+    <div className="metric-details" data-sm-style="sm-style-323fdcc1e0">
+      <div className="metric-grid-auto" data-sm-style="sm-style-91394348ef">
         <div className="detail-item">
-          <span className="detail-label" style={{ color: 'var(--color-text-secondary)' }}>
+          <span className="detail-label" data-sm-style="sm-style-a6b497e153">
             Total Capacity:
           </span>
-          <span className="detail-value" style={{ color: 'var(--color-text-heading)' }}>
+          <span className="detail-value" data-sm-style="sm-style-dbed1e5364">
             {formatBytes(total)}
           </span>
         </div>
         <div className="detail-item">
-          <span className="detail-label" style={{ color: 'var(--color-text-secondary)' }}>
+          <span className="detail-label" data-sm-style="sm-style-a6b497e153">
             Used:
           </span>
-          <span className="detail-value" style={{ color: 'var(--color-text-heading)' }}>
+          <span className="detail-value" data-sm-style="sm-style-dbed1e5364">
             {formatBytes(used)}
           </span>
         </div>
         <div className="detail-item">
-          <span className="detail-label" style={{ color: 'var(--color-text-secondary)' }}>
+          <span className="detail-label" data-sm-style="sm-style-a6b497e153">
             Free:
           </span>
-          <span className="detail-value" style={{ color: 'var(--color-text-heading)' }}>
+          <span className="detail-value" data-sm-style="sm-style-dbed1e5364">
             {formatBytes(freeBytes)}
           </span>
         </div>
         <div className="detail-item">
-          <span className="detail-label" style={{ color: 'var(--color-text-secondary)' }}>
+          <span className="detail-label" data-sm-style="sm-style-a6b497e153">
             Utilization:
           </span>
-          <span className="detail-value" style={{ color: 'var(--color-warning)' }}>
+          <span className="detail-value" data-sm-style="sm-style-38c5f4e767">
             {diskUsage?.percent?.toFixed(1) ?? '—'}%
           </span>
         </div>
       </div>
 
       {details.storageIO && (
-        <div className="metric-grid-auto" style={{ marginBottom: 'var(--spacing-sm)' }}>
+        <div className="metric-grid-auto" data-sm-style="sm-style-c08663b577">
           <div className="detail-item">
-            <span className="detail-label" style={{ color: 'var(--color-text-secondary)' }}>
+            <span className="detail-label" data-sm-style="sm-style-a6b497e153">
               Disk Queue Depth:
             </span>
-            <span className="detail-value" style={{ color: 'var(--color-text-heading)' }}>
+            <span className="detail-value" data-sm-style="sm-style-dbed1e5364">
               {details.storageIO.diskQueueDepth?.toFixed(2) ?? '—'}
             </span>
           </div>
           <div className="detail-item">
-            <span className="detail-label" style={{ color: 'var(--color-text-secondary)' }}>
+            <span className="detail-label" data-sm-style="sm-style-a6b497e153">
               I/O Wait:
             </span>
-            <span className="detail-value" style={{ color: 'var(--color-text-heading)' }}>
+            <span className="detail-value" data-sm-style="sm-style-dbed1e5364">
               {details.storageIO.ioWaitPercent?.toFixed(1) ?? '—'}%
             </span>
           </div>
           <div className="detail-item">
-            <span className="detail-label" style={{ color: 'var(--color-text-secondary)' }}>
+            <span className="detail-label" data-sm-style="sm-style-a6b497e153">
               Read Throughput:
             </span>
-            <span className="detail-value" style={{ color: 'var(--color-text-heading)' }}>
+            <span className="detail-value" data-sm-style="sm-style-dbed1e5364">
               {details.storageIO.readMbPerSec?.toFixed(2) ?? '—'} MB/s
             </span>
           </div>
           <div className="detail-item">
-            <span className="detail-label" style={{ color: 'var(--color-text-secondary)' }}>
+            <span className="detail-label" data-sm-style="sm-style-a6b497e153">
               Write Throughput:
             </span>
-            <span className="detail-value" style={{ color: 'var(--color-text-heading)' }}>
+            <span className="detail-value" data-sm-style="sm-style-dbed1e5364">
               {details.storageIO.writeMbPerSec?.toFixed(2) ?? '—'} MB/s
             </span>
           </div>
@@ -86,11 +86,7 @@ export const DiskExpansion = ({ details }: DiskExpansionProps) => {
       )}
 
       {details.lastUpdated && (
-        <div style={{
-          marginTop: 'var(--spacing-sm)',
-          color: 'var(--color-text-secondary)',
-          fontSize: 'var(--text-xs)'
-        }}>
+        <div data-sm-style="sm-style-988eeae870">
           Updated {formatTime(details.lastUpdated)}
         </div>
       )}

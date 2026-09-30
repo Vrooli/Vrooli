@@ -1,0 +1,255 @@
+{
+  "schemaVersion": 5,
+  "kind": "page",
+  "title": "Design workspaces",
+  "route": "/design",
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "scenarios",
+      "name": "Declared work first",
+      "role": "anatomy",
+      "apiState": [
+        {
+          "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListDesignPages",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "scenarios": [
+              {
+                "scenario": "aaa-empty",
+                "pageCount": 0
+              },
+              {
+                "scenario": "react-component-library",
+                "pageCount": 9
+              }
+            ],
+            "pages": [
+              {
+                "page": "catalog-workspace",
+                "title": "Catalog workspace",
+                "route": "/",
+                "status": "composed",
+                "regionCount": 1,
+                "registered": true,
+                "contentHash": "fixture-revision"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "a[href=\"/design/react-component-library\"]"
+        },
+        {
+          "kind": "notVisible",
+          "selector": "a[href=\"/design/aaa-empty\"]"
+        },
+        {
+          "kind": "count",
+          "selector": "h1",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "id": "pages",
+      "name": "Scenario page inventory",
+      "role": "anatomy",
+      "apiState": [
+        {
+          "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListDesignPages",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "scenarios": [
+              {
+                "scenario": "aaa-empty",
+                "pageCount": 0
+              },
+              {
+                "scenario": "react-component-library",
+                "pageCount": 9
+              }
+            ],
+            "pages": [
+              {
+                "page": "catalog-workspace",
+                "title": "Catalog workspace",
+                "route": "/",
+                "status": "composed",
+                "regionCount": 1,
+                "registered": true,
+                "contentHash": "fixture-revision"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Catalog workspace"
+        },
+        {
+          "kind": "visible",
+          "selector": "a[href=\"/design/react-component-library/catalog-workspace\"]"
+        }
+      ],
+      "route": "/design/react-component-library"
+    },
+    {
+      "id": "workspace",
+      "name": "Declared page regions",
+      "role": "anatomy",
+      "apiState": [
+        {
+          "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetSketch",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "sketch": {
+              "regions": [
+                {
+                  "id": "catalog-results",
+                  "note": "Find and open a library asset"
+                }
+              ]
+            },
+            "declaredRegions": [
+              {
+                "id": "catalog-results",
+                "note": "Find and open a library asset"
+              }
+            ],
+            "contentHash": "fixture-revision"
+          }
+        },
+        {
+          "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetHistory",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "revisions": []
+          }
+        },
+        {
+          "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListCandidates",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "candidates": []
+          }
+        },
+        {
+          "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListCritiques",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "reviews": []
+          }
+        },
+        {
+          "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetCritiqueRubric",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "calibrated": false
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-experience-surface=\"design-workspace\"]"
+        },
+        {
+          "kind": "text",
+          "value": "catalog-results"
+        },
+        {
+          "kind": "text",
+          "value": "Find and open a library asset"
+        }
+      ],
+      "route": "/design/react-component-library/catalog-workspace"
+    },
+    {
+      "id": "legacy-sketch",
+      "name": "Legacy sketch route opens workspace",
+      "role": "anatomy",
+      "apiState": [
+        {
+          "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetSketch",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "sketch": {
+              "regions": [
+                {
+                  "id": "catalog-results",
+                  "note": "Find and open a library asset"
+                }
+              ]
+            },
+            "declaredRegions": [
+              {
+                "id": "catalog-results",
+                "note": "Find and open a library asset"
+              }
+            ],
+            "contentHash": "fixture-revision"
+          }
+        },
+        {
+          "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetHistory",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "revisions": []
+          }
+        },
+        {
+          "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListCandidates",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "candidates": []
+          }
+        },
+        {
+          "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListCritiques",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "reviews": []
+          }
+        },
+        {
+          "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetCritiqueRubric",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "calibrated": false
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-experience-surface=\"design-workspace\"]"
+        },
+        {
+          "kind": "text",
+          "value": "catalog-results"
+        }
+      ],
+      "route": "/sketch/react-component-library/catalog-workspace"
+    }
+  ]
+}

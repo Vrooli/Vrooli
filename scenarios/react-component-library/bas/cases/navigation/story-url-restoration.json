@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "name": "story-url-restoration",
+    "description": "Opens the seeded StatusBadge Preview with an explicit story query, then reloads the same deep link and proves the requested story remains the rendered active card.",
+    "requirement": "OT-P0-008",
+    "version": "1",
+    "labels": { "reset": "none", "surface": "asset-navigation", "spec_entry_id": "component-preview-workspace", "requires_confirmation": "true", "routed_isolation": "true", "requirements_json": "[\"OT-P0-008\"]" },
+    "execution_mode": "mutating"
+  },
+  "settings": { "viewport_width": 1280, "viewport_height": 900 },
+  "nodes": [
+    { "id": "open-story", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "react-component-library", "scenario_path": "/assets/react-component-library%3AStatusBadge?tab=preview&story=warning", "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED", "timeout_ms": 30000 }, "metadata": { "label": "Open story deep link" } } },
+    { "id": "assert-preview-region", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "[data-experience-surface=\"component-preview\"]", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 20000, "failure_message": "The component preview experience region was not rendered." }, "metadata": { "label": "Component preview region visible" } } },
+    { "id": "assert-story", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/components.editor.storyCard(story=warning)", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 20000, "failure_message": "The story URL did not select the Warning story." }, "metadata": { "label": "Warning story selected" } } },
+    { "id": "reload-story", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "react-component-library", "scenario_path": "/assets/react-component-library%3AStatusBadge?tab=preview&story=warning", "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED", "timeout_ms": 30000 }, "metadata": { "label": "Reload story deep link" } } },
+    { "id": "wait-restored-preview-region", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-experience-surface=\"component-preview\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Wait for the restored preview region" } } },
+    { "id": "assert-restored-preview-region", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "[data-experience-surface=\"component-preview\"]", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 5000, "failure_message": "The component preview experience region was not restored after refresh." }, "metadata": { "label": "Component preview region restored" } } },
+    { "id": "assert-restored-story", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/components.editor.storyCard(story=warning)", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 20000, "failure_message": "The Warning story did not remain selected after refresh." }, "metadata": { "label": "Warning story restored" } } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "open-story", "target": "assert-preview-region", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "assert-preview-region", "target": "assert-story", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "assert-story", "target": "reload-story", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "reload-story", "target": "wait-restored-preview-region", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "wait-restored-preview-region", "target": "assert-restored-preview-region", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "assert-restored-preview-region", "target": "assert-restored-story", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

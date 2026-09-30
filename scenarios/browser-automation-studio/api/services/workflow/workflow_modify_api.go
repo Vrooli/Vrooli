@@ -40,14 +40,14 @@ func (s *WorkflowService) ModifyWorkflowAPI(ctx context.Context, workflowID uuid
 	expected := base.Version
 	return s.UpdateWorkflow(ctx, &basapi.UpdateWorkflowRequest{
 		WorkflowId:        proto.String(workflowID.String()),
-		Name:             base.Name,
-		Description:      base.Description,
-		FolderPath:       base.FolderPath,
-		Tags:             append([]string(nil), base.Tags...),
-		FlowDefinition:   updatedDef,
+		Name:              base.Name,
+		Description:       base.Description,
+		FolderPath:        base.FolderPath,
+		Tags:              append([]string(nil), base.Tags...),
+		FlowDefinition:    updatedDef,
 		ChangeDescription: fmt.Sprintf("AI modification: %s", truncatePrompt(prompt)),
-		Source:           basbase.ChangeSource_CHANGE_SOURCE_AI_GENERATED,
-		ExpectedVersion:  expected,
+		Source:            basbase.ChangeSource_CHANGE_SOURCE_AI_GENERATED,
+		ExpectedVersion:   expected,
 	})
 }
 
@@ -58,4 +58,3 @@ func truncatePrompt(prompt string) string {
 	}
 	return prompt[:96] + "…"
 }
-

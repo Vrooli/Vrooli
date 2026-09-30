@@ -53,4 +53,18 @@ describe("StatusChipPopover", () => {
     await user.click(screen.getByTestId("status-chip-trigger"));
     expect(screen.queryByTestId("status-chip-popover")).not.toBeInTheDocument();
   });
+
+  it("renders a pulsing dot when status is in_review", () => {
+    const { container } = render(
+      <StatusChipPopover currentStatus="in_review" onStatusChange={vi.fn()} />,
+    );
+    expect(container.querySelector(".animate-ping")).toBeTruthy();
+  });
+
+  it("does not pulse for review_pending (user decision needed, not busy)", () => {
+    const { container } = render(
+      <StatusChipPopover currentStatus="review_pending" onStatusChange={vi.fn()} />,
+    );
+    expect(container.querySelector(".animate-ping")).toBeNull();
+  });
 });

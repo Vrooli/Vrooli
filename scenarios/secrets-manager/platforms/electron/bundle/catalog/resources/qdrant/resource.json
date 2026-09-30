@@ -1,0 +1,224 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "qdrant",
+  "storage": {"entries": {
+    "storage": {"rung": "pinned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/qdrant", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/qdrant", "windows": "$USER_HOME/AppData/Local/vrooli/resources/qdrant"}, "kind": "dir", "class": "data", "regenerable": false, "rationale": "Qdrant collections and WAL data are bind-mounted to /qdrant/storage."},
+    "snapshots": {"rung": "pinned", "path": {"linux": "$USER_STATE_DIR/vrooli/resources/qdrant/snapshots", "macos": "$USER_STATE_DIR/vrooli/resources/qdrant/snapshots", "windows": "$USER_STATE_DIR/vrooli/resources/qdrant/snapshots"}, "kind": "dir", "class": "state", "regenerable": false, "rationale": "Qdrant snapshots are persisted separately from live collection storage."}
+  }},
+  "display_name": "Qdrant Vector Database",
+  "description": "Vector database for embeddings and semantic search workloads.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-qdrant",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-qdrant_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-qdrant"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "template": "docker-service",
+  "driver": "docker-service",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker images, storage, and networking remain host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        }
+      }
+    }
+  },
+  "portability_tier": "full",
+  "category": "storage",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "http",
+      "container": 6333,
+      "host": 6333
+    },
+    {
+      "name": "grpc",
+      "container": 6334,
+      "host": 6334
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:6333/",
+      "interval_seconds": 10,
+      "timeout_seconds": 5
+    }
+  ],
+  "runtime": {
+    "image": "qdrant/qdrant:v1.15.3",
+    "container_name": "qdrant",
+    "volumes": [
+      {
+        "source": "${RESOURCE_DATA_DIR}",
+        "target": "/qdrant/storage"
+      },
+      {
+        "source": "${RESOURCE_STATE_DIR}/snapshots",
+        "target": "/qdrant/snapshots"
+      }
+    ]
+  },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific Qdrant dependency settings.",
+    "properties": {
+      "collection": {
+        "type": "string"
+      },
+      "dimensions": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "distance": {
+        "type": "string",
+        "enum": [
+          "Cosine",
+          "Dot",
+          "Euclid",
+          "Manhattan"
+        ]
+      },
+      "estimated_vectors": {
+        "type": "string"
+      },
+      "fallback": {
+        "type": "string"
+      },
+      "notes": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "environment_exports": {
+    "static": {
+      "QDRANT_HOST": "localhost"
+    },
+    "from_ports": {
+      "QDRANT_PORT": "http",
+      "QDRANT_GRPC_PORT": "grpc"
+    },
+    "from_runtime_env": [
+      "QDRANT_API_KEY"
+    ],
+    "derived": {
+      "QDRANT_URL": {
+        "template": "http://${QDRANT_HOST}:${QDRANT_PORT}"
+      },
+      "QDRANT_BASE_URL": {
+        "template": "${QDRANT_URL}"
+      },
+      "QDRANT_GRPC_URL": {
+        "template": "grpc://${QDRANT_HOST}:${QDRANT_GRPC_PORT}"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 850,
+    "startup_timeout_seconds": 25,
+    "startup_time_estimate": "5-15s",
+    "dependencies": [],
+    "recovery_attempts": 3,
+    "priority": "high"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 25,
+    "stop_timeout_seconds": 30,
+    "retries": 3
+  },
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
+}

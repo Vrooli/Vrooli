@@ -139,8 +139,10 @@ function createMockStorage(): IAppStorage & { _files: Map<string, string | Buffe
 function createMockAuthManager(): IAuthManager {
     return {
         signIn: vi.fn(async (opts?: { state?: string }) => ({ state: opts?.state ?? "test-state" })),
+        connectDesktop: vi.fn(async () => {}),
         signOut: vi.fn(async () => {}),
         getAccessToken: vi.fn(async () => "mock-access-token"),
+        getEntitlementLease: vi.fn(async () => null),
         getUser: vi.fn(async () => ({ id: "user1", email: "test@example.com", emailVerified: true })),
         isAuthenticated: vi.fn(async () => true),
         refresh: vi.fn(async () => true),
@@ -366,6 +368,7 @@ describe("registerAuthHandlers", () => {
         registerAuthHandlers(ipcMain, deps);
 
         expect(ipcMain._handlers.has(AUTH_CHANNELS.SIGN_IN)).toBe(true);
+        expect(ipcMain._handlers.has(AUTH_CHANNELS.CONNECT_DESKTOP)).toBe(true);
         expect(ipcMain._handlers.has(AUTH_CHANNELS.SIGN_OUT)).toBe(true);
         expect(ipcMain._handlers.has(AUTH_CHANNELS.GET_ACCESS_TOKEN)).toBe(true);
         expect(ipcMain._handlers.has(AUTH_CHANNELS.GET_USER)).toBe(true);
@@ -382,12 +385,41 @@ describe("registerAuthHandlers", () => {
         expect(result).toEqual({ state: "my-state" });
     });
 
+    it("auth:connect-desktop calls authManager.connectDesktop", async () => {
+        registerAuthHandlers(ipcMain, deps);
+        const options = { installationId: "install-1", resource: "demo", audience: "scenario:demo", scopes: ["demo:read"], state: "state-1" };
+
+        await ipcMain._invoke(AUTH_CHANNELS.CONNECT_DESKTOP, options);
+
+        expect(deps.authManager.connectDesktop).toHaveBeenCalledWith(options);
+    });
+
     it("auth:get-access-token returns token", async () => {
         registerAuthHandlers(ipcMain, deps);
 
         const result = await ipcMain._invoke(AUTH_CHANNELS.GET_ACCESS_TOKEN);
 
         expect(result).toBe("mock-access-token");
+    });
+
+    it("serves the local session only to a trusted loopback renderer", async () => {
+        const getLocalSessionToken = vi.fn(async () => "runtime-session-token");
+        registerAuthHandlers(ipcMain, { ...deps, getLocalSessionToken });
+        const handler = ipcMain._handlers.get(AUTH_CHANNELS.GET_LOCAL_SESSION_TOKEN);
+        if (!handler) throw new Error("local-session handler was not registered");
+
+        const trustedEvent = {
+            senderFrame: { url: "http://127.0.0.1:22000/" },
+            sender: { getURL: () => "http://127.0.0.1:22000/" },
+        };
+        await expect(handler(trustedEvent)).resolves.toBe("runtime-session-token");
+
+        const remoteEvent = {
+            senderFrame: { url: "https://attacker.example/" },
+            sender: { getURL: () => "https://attacker.example/" },
+        };
+        await expect(handler(remoteEvent)).resolves.toBeNull();
+        expect(getLocalSessionToken).toHaveBeenCalledTimes(1);
     });
 
     it("auth:is-authenticated returns boolean", async () => {

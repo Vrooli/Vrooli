@@ -81,10 +81,10 @@ type TimelineResponse struct {
 
 // SummaryResponse contains aggregated statistics across all domains.
 type SummaryResponse struct {
-	TotalEvents     int             `json:"total_events"`
-	ActiveDomains   int             `json:"active_domains"`
-	EventsByDomain  []DomainCount   `json:"events_by_domain"`
-	LastEventAt     string          `json:"last_event_at"`
+	TotalEvents    int           `json:"total_events"`
+	ActiveDomains  int           `json:"active_domains"`
+	EventsByDomain []DomainCount `json:"events_by_domain"`
+	LastEventAt    string        `json:"last_event_at"`
 }
 
 // DomainCount represents event count for a specific domain.
@@ -111,13 +111,13 @@ type ErrorResponse struct {
 // The score is a 0-100 value combining activity across all active domains.
 // [REQ:LD-UI-SCORE] Score structure for dashboard display.
 type LifestyleScore struct {
-	Score           int                `json:"score"`           // 0-100 composite score
-	Date            string             `json:"date"`            // ISO date (YYYY-MM-DD)
-	DomainScores    []DomainScore      `json:"domain_scores"`   // Per-domain breakdown
-	Trend           string             `json:"trend"`           // "up", "down", "stable"
-	ChangeFromYesterday int            `json:"change_from_yesterday"` // Delta from previous day
-	DataQuality     string             `json:"data_quality"`    // "good", "limited", "insufficient"
-	Message         string             `json:"message"`         // Human-readable summary
+	Score               int           `json:"score"`                 // 0-100 composite score
+	Date                string        `json:"date"`                  // ISO date (YYYY-MM-DD)
+	DomainScores        []DomainScore `json:"domain_scores"`         // Per-domain breakdown
+	Trend               string        `json:"trend"`                 // "up", "down", "stable"
+	ChangeFromYesterday int           `json:"change_from_yesterday"` // Delta from previous day
+	DataQuality         string        `json:"data_quality"`          // "good", "limited", "insufficient"
+	Message             string        `json:"message"`               // Human-readable summary
 }
 
 // DomainScore represents a single domain's contribution to the lifestyle score.
@@ -184,13 +184,13 @@ type CleanupResponse struct {
 // Brief represents a morning or evening brief.
 // [REQ:LD-BRIEF-MORNING] [REQ:LD-BRIEF-EVENING] Brief structure.
 type Brief struct {
-	Type         string          `json:"type"`          // "morning" or "evening"
-	GeneratedAt  string          `json:"generated_at"`  // ISO timestamp
-	Date         string          `json:"date"`          // Target date (YYYY-MM-DD)
-	Summary      string          `json:"summary"`       // Human-readable summary
-	Sections     []BriefSection  `json:"sections"`      // Consolidated domain content
-	Score        *int            `json:"score,omitempty"`        // Current lifestyle score (if available)
-	ScoreTrend   string          `json:"score_trend,omitempty"`  // "up", "down", "stable"
+	Type        string         `json:"type"`                  // "morning" or "evening"
+	GeneratedAt string         `json:"generated_at"`          // ISO timestamp
+	Date        string         `json:"date"`                  // Target date (YYYY-MM-DD)
+	Summary     string         `json:"summary"`               // Human-readable summary
+	Sections    []BriefSection `json:"sections"`              // Consolidated domain content
+	Score       *int           `json:"score,omitempty"`       // Current lifestyle score (if available)
+	ScoreTrend  string         `json:"score_trend,omitempty"` // "up", "down", "stable"
 }
 
 // BriefSection represents a domain's contribution to the brief.
@@ -211,7 +211,7 @@ type BriefConfig struct {
 
 // BriefResponse wraps a brief for API responses.
 type BriefResponse struct {
-	Brief  Brief  `json:"brief"`
+	Brief  Brief       `json:"brief"`
 	Config BriefConfig `json:"config"`
 }
 
@@ -265,25 +265,25 @@ var WeightMultipliers = map[string]float64{
 // Generated every Sunday 6pm, comparing current week to rolling 4-week baseline.
 // [REQ:LD-DIGEST-WEEKLY] Weekly digest structure.
 type WeeklyDigest struct {
-	GeneratedAt    string               `json:"generated_at"`    // ISO timestamp
-	WeekStartDate  string               `json:"week_start_date"` // Monday of the summarized week
-	WeekEndDate    string               `json:"week_end_date"`   // Sunday of the summarized week
-	Summary        string               `json:"summary"`         // Human-readable overview
-	ScoreTrend     DigestScoreTrend     `json:"score_trend"`     // Lifestyle score comparison
-	DomainChanges  []DigestDomainChange `json:"domain_changes"`  // Per-domain deltas
-	Correlations   []DigestCorrelation  `json:"correlations"`    // New correlations discovered
-	Highlights     []string             `json:"highlights"`      // Notable achievements or concerns
-	NextWeekFocus  []string             `json:"next_week_focus"` // Recommendations for next week
+	GeneratedAt   string               `json:"generated_at"`    // ISO timestamp
+	WeekStartDate string               `json:"week_start_date"` // Monday of the summarized week
+	WeekEndDate   string               `json:"week_end_date"`   // Sunday of the summarized week
+	Summary       string               `json:"summary"`         // Human-readable overview
+	ScoreTrend    DigestScoreTrend     `json:"score_trend"`     // Lifestyle score comparison
+	DomainChanges []DigestDomainChange `json:"domain_changes"`  // Per-domain deltas
+	Correlations  []DigestCorrelation  `json:"correlations"`    // New correlations discovered
+	Highlights    []string             `json:"highlights"`      // Notable achievements or concerns
+	NextWeekFocus []string             `json:"next_week_focus"` // Recommendations for next week
 }
 
 // DigestScoreTrend compares lifestyle score between current week and baseline.
 type DigestScoreTrend struct {
-	CurrentWeekAvg   float64 `json:"current_week_avg"`   // Average score this week
-	BaselineAvg      float64 `json:"baseline_avg"`       // 4-week rolling baseline average
-	PercentChange    float64 `json:"percent_change"`     // Percentage change from baseline
-	Direction        string  `json:"direction"`          // "up", "down", "stable"
-	ConsecutiveWeeks int     `json:"consecutive_weeks"`  // Weeks in current direction
-	Message          string  `json:"message"`            // Human-readable trend description
+	CurrentWeekAvg   float64 `json:"current_week_avg"`  // Average score this week
+	BaselineAvg      float64 `json:"baseline_avg"`      // 4-week rolling baseline average
+	PercentChange    float64 `json:"percent_change"`    // Percentage change from baseline
+	Direction        string  `json:"direction"`         // "up", "down", "stable"
+	ConsecutiveWeeks int     `json:"consecutive_weeks"` // Weeks in current direction
+	Message          string  `json:"message"`           // Human-readable trend description
 }
 
 // DigestDomainChange summarizes a domain's activity change from baseline.

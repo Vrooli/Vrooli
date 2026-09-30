@@ -37,8 +37,6 @@ interface UseRecordingSessionReturn {
   sessionError: string | null;
   /** Actual viewport from Playwright with source attribution (may differ from requested due to profile settings) */
   actualViewport: ActualViewport | null;
-  /** Initial URL from tab restoration (if tabs were restored during session creation) */
-  initialRestoredUrl: string | null;
   ensureSession: (
     viewport?: ViewportDimensions | null,
     profileId?: string | null,
@@ -64,7 +62,6 @@ export function useRecordingSession({
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [actualViewport, setActualViewport] = useState<ActualViewport | null>(null);
-  const [initialRestoredUrl, setInitialRestoredUrl] = useState<string | null>(null);
 
   // Retry state for exponential backoff
   const [retryState, setRetryState] = useState<RetryState>(createInitialRetryState);
@@ -133,7 +130,6 @@ export function useRecordingSession({
     setSessionProfileId(initialSessionProfileId ?? null);
     setSessionError(null);
     setActualViewport(null);
-    setInitialRestoredUrl(null);
     pendingSessionPromiseRef.current = null;
     // Reset retry state when session ID changes externally
     retryAttemptsRef.current = 0;
@@ -223,7 +219,7 @@ export function useRecordingSession({
           throw new Error(result.error);
         }
 
-        const { session_id: newSessionId, session_profile_id, actual_viewport, initial_url } = result.data;
+        const { session_id: newSessionId, session_profile_id, actual_viewport } = result.data;
 
         // Success - reset retry state
         retryAttemptsRef.current = 0;
@@ -237,16 +233,12 @@ export function useRecordingSession({
         if (actual_viewport) {
           setActualViewport(actual_viewport);
         }
-        if (initial_url) {
-          setInitialRestoredUrl(initial_url);
-        }
 
         // Sync session to store
         storeSetSession({
           sessionId: newSessionId,
           profileId: session_profile_id ?? null,
           actualViewport: actual_viewport ?? null,
-          initialRestoredUrl: initial_url ?? null,
         });
 
         if (onSessionReady) {
@@ -332,7 +324,6 @@ export function useRecordingSession({
     isCreatingSession,
     sessionError,
     actualViewport,
-    initialRestoredUrl,
     ensureSession,
     setSessionProfileId,
     resetSessionError,

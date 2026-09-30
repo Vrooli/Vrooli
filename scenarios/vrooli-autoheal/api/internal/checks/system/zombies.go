@@ -5,14 +5,12 @@ package system
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // ZombieCheck detects zombie (defunct) processes that indicate resource leaks.
@@ -84,10 +82,10 @@ func (c *ZombieCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	if runtime.GOOS == "windows" {
-		result.Status = checks.StatusOK
-		result.Message = "Zombie check not applicable on Windows"
-		result.Details["platform"] = "windows"
+	if checkOS != "linux" {
+		result.Status = checks.StatusNotApplicable
+		result.Message = "Zombie check not applicable on this platform"
+		result.Details["platform"] = checkOS
 		return result
 	}
 
@@ -264,7 +262,7 @@ func (c *ZombieCheck) executeReap(ctx context.Context, start time.Time) checks.A
 		if ppid <= 1 {
 			continue // Never signal init
 		}
-		if err := syscall.Kill(ppid, syscall.SIGCHLD); err != nil {
+		if err := signalChild(ppid); err != nil {
 			failed = append(failed, ppid)
 		} else {
 			signaled = append(signaled, ppid)

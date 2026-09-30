@@ -6,25 +6,41 @@ import { Card } from "../ui/card";
 import { Input } from "../ui/input";
 import { selectors } from "../../consts/selectors";
 import { DEFAULT_SETTINGS } from "../../services/settings-service";
-import type { Settings } from "../../types";
+import type { Settings, SettingsPolicyProjection } from "../../types";
+import { PolicyControlsBadge, PolicyControlsNote } from "./PolicyControlsNote";
 import { ToggleButtons } from "./ToggleButtons";
 
 export interface ReviewTabProps {
   form: Settings;
   patch: (updates: Partial<Settings>) => void;
+  policyProjection?: SettingsPolicyProjection | null;
 }
 
-export function ReviewTab({ form, patch }: ReviewTabProps) {
+const REVIEW_AGENT_POLICY_FIELDS = ["review_agent_enabled"];
+const REVIEW_THRESHOLD_POLICY_FIELDS = [
+  "review_code_quality_min_score",
+  "review_test_min_pass_rate",
+  "review_max_blocking_violations",
+  "review_max_warnings",
+  "review_require_screenshots",
+  "review_require_tests",
+];
+
+export function ReviewTab({ form, patch, policyProjection }: ReviewTabProps) {
   return (
     <div className="space-y-6">
       {/* Review Agent */}
       <Card>
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-medium text-slate-200">Review Agent</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-medium text-slate-200">Review Agent</h3>
+              <PolicyControlsBadge />
+            </div>
             <p className="mt-1 text-sm text-slate-400">
               Automatically gather evidence after execution completes. You can always trigger reviews manually.
             </p>
+            <PolicyControlsNote fields={REVIEW_AGENT_POLICY_FIELDS} projection={policyProjection} />
           </div>
           <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => patch({
             reviewAgentEnabled: DEFAULT_SETTINGS.reviewAgentEnabled,
@@ -45,8 +61,12 @@ export function ReviewTab({ form, patch }: ReviewTabProps) {
       <Card data-testid={selectors.settings.reviewSettings}>
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-medium text-slate-200">Review Thresholds</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-medium text-slate-200">Review Thresholds</h3>
+              <PolicyControlsBadge />
+            </div>
             <p className="mt-1 text-sm text-slate-400">Configure what Git Control Tower considers passing, warning, or failing.</p>
+            <PolicyControlsNote fields={REVIEW_THRESHOLD_POLICY_FIELDS} projection={policyProjection} />
           </div>
           <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => patch({
             reviewCodeQualityMinScore: DEFAULT_SETTINGS.reviewCodeQualityMinScore,

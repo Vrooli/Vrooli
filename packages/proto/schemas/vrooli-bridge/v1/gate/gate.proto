@@ -1,0 +1,235 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.gate;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/gate;gate_v1";
+
+// =============================================================================
+// GATE DOMAIN — cross-OS deployment gate (OT-P1-002)
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for the GateService: the missing primitive behind cross-platform
+// deployment validation. deployment-manager asks bridge "is this scenario
+// actually production-ready on Ubuntu + macOS + Windows?" — bridge fans the same
+// project revision out to one eligible node per target OS, runs the native
+// validation suite on each as a durable remote run (delegating to the dispatch +
+// runs domains — gate NEVER reimplements dispatch or run management), and
+// aggregates the per-OS verdicts into one cross-OS result. Bridge SUPPLIES the
+// capability; deployment-manager OWNS the promotion verdict.
+//
+// Aggregation rule (OT-P1-002 "one verdict"): a gate PASSES only when every
+// target OS validated green. ANY failing OS — a non-zero validation run, an
+// aborted run, OR a target OS with no eligible node to validate on — fails the
+// gate, with the offending OS's run id / logs surfaced. While targets are still
+// running and none has failed yet, the gate is PENDING.
+//
+// Durable, re-attachable (mirrors the runs domain): RunGate dispatches the
+// per-OS runs and returns a gate id immediately; GetGate recomputes the live
+// verdict from the current per-OS run states; WaitGate blocks once until every
+// target is terminal (or the deadline elapses) and returns the final verdict.
+//
+// Dry-run: RunGate honours X-Dry-Run. It selects + classifies a node per target
+// OS and returns the per-OS results it WOULD dispatch, but creates no gate, no
+// run, and pushes nothing.
+//
+// Consumed by:
+//   - API: handlers/gate/connect_handler.go implements the generated handler.
+//   - CLI: cli/domains/gate/handlers.go via the generated Connect-Go client.
+//   - deployment-manager: its cross-OS readiness gate calls RunGate + WaitGate
+//     over this contract and owns the resulting promotion decision.
+// =============================================================================
+
+// GateVerdict is a gate's aggregate cross-OS disposition, derived from its
+// per-OS results.
+enum GateVerdict {
+  GATE_VERDICT_UNSPECIFIED = 0;
+
+  // At least one target OS is still running (dispatched, run not yet terminal)
+  // and none has failed yet. The operator waits on the gate.
+  GATE_VERDICT_PENDING = 1;
+
+  // Every target OS validated green. Production-ready across the fleet's OSes.
+  GATE_VERDICT_PASSED = 2;
+
+  // At least one target OS failed — a non-zero/aborted validation run OR a
+  // target OS with no eligible node. The gate can never pass; the offending OS
+  // is surfaced in the per-OS results.
+  GATE_VERDICT_FAILED = 3;
+}
+
+// OSDisposition is one target OS's current outcome in a gate.
+enum OSDisposition {
+  OS_DISPOSITION_UNSPECIFIED = 0;
+
+  // A validation run was dispatched to the OS's node and has not yet reached a
+  // terminal state. run_id is set.
+  OS_DISPOSITION_PENDING = 1;
+
+  // The OS's validation run exited 0 — green on this OS.
+  OS_DISPOSITION_PASSED = 2;
+
+  // The OS's validation run exited non-zero — red on this OS. exit_code + detail
+  // carry the failure.
+  OS_DISPOSITION_FAILED = 3;
+
+  // The OS's validation run was aborted before completing.
+  OS_DISPOSITION_ABORTED = 4;
+
+  // No eligible (registered + online + compatible + non-revoked) node runs this
+  // OS, so the scenario can NOT be validated on it — a gate failure.
+  OS_DISPOSITION_NO_NODE = 5;
+
+  // The validation job was rejected at dispatch (allowlist / offline / protocol
+  // incompatible); detail carries the rejection reason.
+  OS_DISPOSITION_DISPATCH_FAILED = 6;
+}
+
+// OSResult is one target OS's line in a gate's ledger.
+message OSResult {
+  // The normalised target OS token (linux / darwin / windows).
+  string os = 1;
+
+  // The node selected to validate this OS (empty when disposition == NO_NODE).
+  string node_id = 2;
+
+  // The durable run id validating this OS (set when dispatched). The operator
+  // can `runs follow <run_id>` for live logs / `runs get <run_id>` for the full
+  // record.
+  string run_id = 3;
+
+  OSDisposition disposition = 4;
+
+  // The validation run's exit code (meaningful once terminal).
+  int32 exit_code = 5;
+
+  // Human-readable detail (the no-node / dispatch reason or the run outcome).
+  string detail = 6;
+}
+
+// Gate is the durable, server-owned record of one cross-OS deployment gate.
+message Gate {
+  // Server-owned gate id.
+  string id = 1;
+
+  // The scenario being validated across OSes.
+  string scenario = 2;
+
+  // The git revision every target node is validating at.
+  string target_revision = 3;
+
+  // The vrooli command namespace each node runs to validate (e.g.
+  // "scenario test"); the scenario is the trailing positional.
+  string verb = 4;
+
+  // Additional typed argument tokens passed to the validation verb.
+  repeated string args = 5;
+
+  // Aggregate cross-OS verdict (live-recomputed on read from the per-OS runs).
+  GateVerdict verdict = 6;
+
+  // Counts for an at-a-glance summary without walking the results.
+  int32 total_targets = 7;
+  int32 passed = 8;
+  int32 failed = 9;
+  int32 pending = 10;
+
+  google.protobuf.Timestamp created_at = 11;
+}
+
+service GateService {
+  // RunGate fans a scenario's validation out across the target OSes: for each
+  // OS it selects one eligible node (registered + online + protocol-compatible +
+  // not-revoked + matching OS), dispatches the validation run to it (delegating
+  // to the dispatch + runs domains), and records a durable Gate with the per-OS
+  // ledger. Owner-gated. Honours X-Dry-Run. The response carries the gate id and
+  // the per-OS results; the operator then blocks on the gate with WaitGate.
+  rpc RunGate(RunGateRequest) returns (RunGateResponse);
+
+  // GetGate returns one gate by id with its per-OS ledger, recomputing the live
+  // verdict from the current state of each OS's validation run. Owner-gated.
+  rpc GetGate(GetGateRequest) returns (GetGateResponse);
+
+  // WaitGate blocks once until every target OS's validation run is terminal (or
+  // the timeout elapses), then returns the final aggregate verdict + per-OS
+  // ledger. timed_out is true when the deadline elapsed with targets still
+  // running. Owner-gated. No polling — one call, one return (mirrors
+  // RunsService.WaitRun).
+  rpc WaitGate(WaitGateRequest) returns (WaitGateResponse);
+
+  // ListGates returns gates newest-first. Owner-gated.
+  rpc ListGates(ListGatesRequest) returns (ListGatesResponse);
+}
+
+message RunGateRequest {
+  // The scenario to validate across OSes (required).
+  string scenario = 1;
+
+  // The git revision every target node validates at (required).
+  string target_revision = 2;
+
+  // The target OSes to validate on (required, non-empty). Normalised + deduped;
+  // each maps to one selected node.
+  repeated string target_oses = 3;
+
+  // The validation verb namespace. Empty defaults to the cross-OS validation
+  // verb ("scenario test").
+  string verb = 4;
+
+  // Additional typed argument tokens for the validation verb.
+  repeated string args = 5;
+
+  // Per-OS validation wall-clock budget passed through to each run. 0 uses the
+  // dispatch domain's default.
+  int64 timeout_seconds = 6;
+}
+
+message RunGateResponse {
+  // The server-owned gate id. Empty on a dry-run.
+  string gate_id = 1;
+
+  // True when X-Dry-Run short-circuited: every OS was selected + classified but
+  // no gate/run was created and nothing was pushed.
+  bool dry_run = 2;
+
+  GateVerdict verdict = 3;
+
+  // The per-OS ledger (also persisted on the gate unless dry-run).
+  repeated OSResult results = 4;
+}
+
+message GetGateRequest {
+  string id = 1;
+}
+
+message GetGateResponse {
+  Gate gate = 1;
+  repeated OSResult results = 2;
+}
+
+message WaitGateRequest {
+  string id = 1;
+
+  // Wall-clock budget for the block. 0 uses the gate domain's default.
+  int64 timeout_seconds = 2;
+}
+
+message WaitGateResponse {
+  Gate gate = 1;
+  repeated OSResult results = 2;
+
+  // True when the deadline elapsed with at least one target OS still running.
+  bool timed_out = 3;
+}
+
+message ListGatesRequest {
+  // Optional cap (0 = server default).
+  int32 limit = 1;
+}
+
+message ListGatesResponse {
+  repeated Gate gates = 1;
+}

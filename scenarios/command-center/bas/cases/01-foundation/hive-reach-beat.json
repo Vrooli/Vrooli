@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "hive-reach-beat",
+    "description": "Pins the Hive to its wide release-ladder beat and verifies the hero spans the room as the Reach Map, with a lane per ramp, stream and audience.",
+    "labels": {"reset": "none", "requirements_json": "[\"CC-P1-016\"]"},
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {"viewport_width": 1440, "viewport_height": 900},
+  "nodes": [
+    {"id": "navigate", "action": {"type": "ACTION_TYPE_NAVIGATE", "navigate": {"destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "command-center", "scenario_path": "/hive?beat=4", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000}}},
+    {"id": "wait-beat", "action": {"type": "ACTION_TYPE_WAIT", "wait": {"selector": "[data-testid='room-composition'][data-beat='4'][data-layout='wide']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000}}},
+    {"id": "wait-reach", "action": {"type": "ACTION_TYPE_WAIT", "wait": {"selector": "[data-testid='room-hero'] [data-testid='ladder-reach']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000}}},
+    {"id": "assert-lane", "action": {"type": "ACTION_TYPE_ASSERT", "assert": {"selector": "[data-testid='ladder-reach'] .cc-reach__lane[data-kind='stream']", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": 5000, "failure_message": "Expected the Reach Map to draw a lane per revenue stream"}}},
+    {"id": "capture", "action": {"type": "ACTION_TYPE_SCREENSHOT", "screenshot": {"full_page": false}}}
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate", "target": "wait-beat", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id": "e2", "source": "wait-beat", "target": "wait-reach", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id": "e3", "source": "wait-reach", "target": "assert-lane", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id": "e4", "source": "assert-lane", "target": "capture", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}
+  ]
+}

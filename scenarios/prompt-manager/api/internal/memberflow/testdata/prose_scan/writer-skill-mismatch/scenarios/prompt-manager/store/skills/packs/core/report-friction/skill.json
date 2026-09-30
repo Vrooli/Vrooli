@@ -1,0 +1,5 @@
+{
+  "id": "report-friction",
+  "tags": ["skill", "writer-skill"],
+  "writes_to": ["friction-inbox/*"]
+}

@@ -1,0 +1,155 @@
+{
+  "description": "`ui-health reindex status \u003cjob_id\u003e` and `ui-health reindex cancel \u003cjob_id\u003e` expose structured progress and termination for long-running reindex jobs.",
+  "module_id": "MOD-P1-007",
+  "prd_ref": "OT-P1-002",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "cli",
+      "dependencies": [
+        "REQ-P0-004",
+        "REQ-P0-005"
+      ],
+      "description": "The CLI command `ui-health reindex status \u003cjob_id\u003e` must return structured progress information for a reindex job identified by job_id. The output must include: current state (PENDING/RUNNING/COMPLETED/FAILED/CANCELLED), scenarios_total, scenarios_completed, current_scenario (if running), start_time, and estimated completion time or end_time.",
+      "id": "REQ-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "draft",
+      "title": "Reindex Job Status Query Command",
+      "validation": [
+        {
+          "notes": "Status command outputs valid JSON with all required fields",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "State field reflects correct lifecycle state of the job",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "scenarios_completed increments as scenarios are processed",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unknown job_id returns a structured error response with exit code non-zero",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Start a reindex job, poll status mid-run, and confirm scenarios_completed \u003c scenarios_total and state is RUNNING",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "After reindex completion, query status and confirm state is COMPLETED and scenarios_completed equals scenarios_total",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "After cancel, query status and confirm state is CANCELLED",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Operations teams can monitor and audit reindex job progress in CI pipelines or dashboards",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "cli",
+      "dependencies": [
+        "REQ-P1-002"
+      ],
+      "description": "The CLI command `ui-health reindex cancel \u003cjob_id\u003e` must terminate a running or pending reindex job gracefully. In-flight Qdrant upserts for the current scenario must complete before the job halts. The job state must transition to CANCELLED and be queryable via the status command.",
+      "id": "REQ-P1-003",
+      "prd_ref": "OT-P1-002",
+      "status": "draft",
+      "title": "Reindex Job Cancellation Command",
+      "validation": [
+        {
+          "notes": "Cancel command sends a cancellation signal to the job identified by job_id",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Job state transitions to CANCELLED after cancellation is acknowledged",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Cancelling an already-completed job returns a structured error (cannot cancel completed job)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Cancelling an unknown job_id returns a structured error with exit code non-zero",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Start a reindex job, issue cancel, and confirm job state becomes CANCELLED within 5 seconds",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm that scenarios processed before cancellation remain in Qdrant (partial progress is preserved)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm that cancellation does not leave the Qdrant collection in a corrupt or partially-written state",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Cancellation acknowledgment is received within 2 seconds of issuing the cancel command",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Operators can abort expensive reindex operations without having to kill processes manually",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Reindex job lifecycle verbs"
+}

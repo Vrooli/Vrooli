@@ -29,14 +29,22 @@
       "icon": "book",
       "documents": [
         {
-          "path": "tool-discovery-protocol.md",
-          "title": "Tool Discovery Protocol",
-          "description": "Standardized protocol for scenario tool exposure and discovery"
-        },
-        {
           "path": "../api/domain/FAILURE_MODES.md",
           "title": "Failure Modes",
           "description": "Error categories, recovery paths, and graceful degradation strategies"
+        }
+      ]
+    },
+    {
+      "id": "perf",
+      "title": "Performance",
+      "icon": "activity",
+      "documents": [
+        {
+          "path": "perf/2026-05-04-list-resize-markdown-typing-audit.md",
+          "title": "List, Resize, Markdown, and Typing Audit",
+          "description": "Profile-mode browser trace and recommendations for Agent Inbox UI hotspots",
+          "audience": ["developers"]
         }
       ]
     },
@@ -74,7 +82,7 @@
     }
   ],
   "navigation": {
-    "primary": ["overview", "reference"],
+    "primary": ["overview", "reference", "perf"],
     "secondary": ["internal"]
   }
 }

@@ -1,0 +1,17 @@
+{
+  "assetKind": "component",
+  "catalogId": "react-component-library:Portal",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.1.0",
+    "1.1.1"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.1.0",
+    "1.0.0",
+    "1.1.1"
+  ],
+  "latest": "1.1.2",
+  "libraryId": "react-component-library:Portal"
+}

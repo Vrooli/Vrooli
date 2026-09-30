@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "pacman",
+  "description": "Arch Linux package-state command used by host evidence.",
+  "commands": [
+    "pacman"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "manual": true,
+  "installHint": "Provided by Arch Linux.",
+  "bundling": "host-required",
+  "capability": "package-management",
+  "capability_role": "peer",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unsupported",
+      "mechanism": "manual",
+      "evidence": "The host OS does not expose the provider native command surface in this tool package."
+    },
+    "windows": {
+      "status": "unsupported",
+      "mechanism": "manual",
+      "evidence": "The host OS does not expose the provider native command surface in this tool package."
+    }
+  }
+}

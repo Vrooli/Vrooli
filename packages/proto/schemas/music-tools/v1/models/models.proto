@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package vrooli.music_tools.v1.models;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/models;models_v1";
+
+service ModelsService {
+  rpc List(ListModelsRequest) returns (ListModelsResponse);
+  rpc Get(GetModelRequest) returns (Model);
+}
+
+message Model {
+  string id = 1;
+  string display_name = 2;
+  string variant = 3;
+  string license_lane = 4;
+  string status = 5;
+  string revision = 6;
+  uint64 bytes = 7;
+}
+
+message ListModelsRequest { string variant = 1; }
+message ListModelsResponse { repeated Model models = 1; }
+message GetModelRequest { string id = 1; }

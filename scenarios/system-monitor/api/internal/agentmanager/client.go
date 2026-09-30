@@ -80,61 +80,15 @@ func (c *Client) EnsureProfile(ctx context.Context, req *apipb.EnsureProfileRequ
 	return &result, nil
 }
 
-// CreateProfile creates a new agent profile.
-func (c *Client) CreateProfile(ctx context.Context, profile *domainpb.AgentProfile) (*domainpb.AgentProfile, error) {
-	req := &apipb.CreateProfileRequest{Profile: profile}
+// ReconcileScenarioProfiles reconciles profile files declared by the calling scenario.
+func (c *Client) ReconcileScenarioProfiles(ctx context.Context, scenario string) (*apipb.ReconcileScenarioProfilesResponse, error) {
+	req := &apipb.ReconcileScenarioProfilesRequest{Scenario: scenario}
 	body, err := c.jsonOpts.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	resp, err := c.doRequest(ctx, "POST", "/api/v1/profiles", body)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, c.parseError(resp)
-	}
-
-	var result apipb.CreateProfileResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Profile, nil
-}
-
-// GetProfile retrieves a profile by ID.
-func (c *Client) GetProfile(ctx context.Context, profileID string) (*domainpb.AgentProfile, error) {
-	resp, err := c.doRequest(ctx, "GET", fmt.Sprintf("/api/v1/profiles/%s", profileID), nil)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, nil // Profile not found
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
-	}
-
-	var result apipb.GetProfileResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Profile, nil
-}
-
-// ListProfiles returns all profiles, optionally filtered by runner type.
-func (c *Client) ListProfiles(ctx context.Context, runnerType *domainpb.RunnerType) ([]*domainpb.AgentProfile, error) {
-	path := "/api/v1/profiles"
-	if runnerType != nil {
-		path = fmt.Sprintf("%s?runner_type=%d", path, *runnerType)
-	}
-
-	resp, err := c.doRequest(ctx, "GET", path, nil)
+	resp, err := c.doRequest(ctx, "POST", "/api/v1/profiles/reconcile-scenario", body)
 	if err != nil {
 		return nil, err
 	}
@@ -144,65 +98,11 @@ func (c *Client) ListProfiles(ctx context.Context, runnerType *domainpb.RunnerTy
 		return nil, c.parseError(resp)
 	}
 
-	var result apipb.ListProfilesResponse
+	var result apipb.ReconcileScenarioProfilesResponse
 	if err := c.parseResponse(resp, &result); err != nil {
 		return nil, err
 	}
-	return result.Profiles, nil
-}
-
-// UpdateProfile updates an existing profile.
-func (c *Client) UpdateProfile(ctx context.Context, profileID string, profile *domainpb.AgentProfile) (*domainpb.AgentProfile, error) {
-	req := &apipb.UpdateProfileRequest{ProfileId: profileID, Profile: profile}
-	body, err := c.jsonOpts.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	resp, err := c.doRequest(ctx, "PUT", fmt.Sprintf("/api/v1/profiles/%s", profileID), body)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
-	}
-
-	var result apipb.UpdateProfileResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Profile, nil
-}
-
-// UpsertProfile creates or updates a profile by name.
-// Returns the profile (created or existing) and whether it was created.
-func (c *Client) UpsertProfile(ctx context.Context, profile *domainpb.AgentProfile) (*domainpb.AgentProfile, bool, error) {
-	// List all profiles and find by name
-	profiles, err := c.ListProfiles(ctx, nil)
-	if err != nil {
-		return nil, false, fmt.Errorf("list profiles: %w", err)
-	}
-
-	for _, p := range profiles {
-		if p.Name == profile.Name {
-			// Update existing profile
-			profile.Id = p.Id
-			updated, err := c.UpdateProfile(ctx, p.Id, profile)
-			if err != nil {
-				return nil, false, fmt.Errorf("update profile: %w", err)
-			}
-			return updated, false, nil
-		}
-	}
-
-	// Create new profile
-	created, err := c.CreateProfile(ctx, profile)
-	if err != nil {
-		return nil, false, fmt.Errorf("create profile: %w", err)
-	}
-	return created, true, nil
+	return &result, nil
 }
 
 // =============================================================================
@@ -211,24 +111,8 @@ func (c *Client) UpsertProfile(ctx context.Context, profile *domainpb.AgentProfi
 
 // CreateTask creates a new task.
 func (c *Client) CreateTask(ctx context.Context, task *domainpb.Task) (*domainpb.Task, error) {
-	req := &apipb.CreateTaskRequest{Task: task}
-	body, err := c.jsonOpts.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	resp, err := c.doRequest(ctx, "POST", "/api/v1/tasks", body)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, c.parseError(resp)
-	}
-
 	var result apipb.CreateTaskResponse
-	if err := c.parseResponse(resp, &result); err != nil {
+	if err := c.createResource(ctx, "/api/v1/tasks", &apipb.CreateTaskRequest{Task: task}, &result); err != nil {
 		return nil, err
 	}
 	return result.Task, nil
@@ -236,21 +120,9 @@ func (c *Client) CreateTask(ctx context.Context, task *domainpb.Task) (*domainpb
 
 // GetTask retrieves a task by ID.
 func (c *Client) GetTask(ctx context.Context, taskID string) (*domainpb.Task, error) {
-	resp, err := c.doRequest(ctx, "GET", fmt.Sprintf("/api/v1/tasks/%s", taskID), nil)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, nil
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
-	}
-
 	var result apipb.GetTaskResponse
-	if err := c.parseResponse(resp, &result); err != nil {
+	found, err := c.getResource(ctx, fmt.Sprintf("/api/v1/tasks/%s", taskID), &result)
+	if err != nil || !found {
 		return nil, err
 	}
 	return result.Task, nil
@@ -262,23 +134,8 @@ func (c *Client) GetTask(ctx context.Context, taskID string) (*domainpb.Task, er
 
 // CreateRun starts a new run for a task.
 func (c *Client) CreateRun(ctx context.Context, req *apipb.CreateRunRequest) (*domainpb.Run, error) {
-	body, err := c.jsonOpts.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	resp, err := c.doRequest(ctx, "POST", "/api/v1/runs", body)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, c.parseError(resp)
-	}
-
 	var result apipb.CreateRunResponse
-	if err := c.parseResponse(resp, &result); err != nil {
+	if err := c.createResource(ctx, "/api/v1/runs", req, &result); err != nil {
 		return nil, err
 	}
 	return result.Run, nil
@@ -286,21 +143,9 @@ func (c *Client) CreateRun(ctx context.Context, req *apipb.CreateRunRequest) (*d
 
 // GetRun retrieves a run by ID.
 func (c *Client) GetRun(ctx context.Context, runID string) (*domainpb.Run, error) {
-	resp, err := c.doRequest(ctx, "GET", fmt.Sprintf("/api/v1/runs/%s", runID), nil)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, nil
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
-	}
-
 	var result apipb.GetRunResponse
-	if err := c.parseResponse(resp, &result); err != nil {
+	found, err := c.getResource(ctx, fmt.Sprintf("/api/v1/runs/%s", runID), &result)
+	if err != nil || !found {
 		return nil, err
 	}
 	return result.Run, nil
@@ -308,21 +153,9 @@ func (c *Client) GetRun(ctx context.Context, runID string) (*domainpb.Run, error
 
 // GetRunByTag retrieves a run by its custom tag.
 func (c *Client) GetRunByTag(ctx context.Context, tag string) (*domainpb.Run, error) {
-	resp, err := c.doRequest(ctx, "GET", fmt.Sprintf("/api/v1/runs/tag/%s", tag), nil)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, nil
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
-	}
-
 	var result apipb.GetRunByTagResponse
-	if err := c.parseResponse(resp, &result); err != nil {
+	found, err := c.getResource(ctx, fmt.Sprintf("/api/v1/runs/tag/%s", tag), &result)
+	if err != nil || !found {
 		return nil, err
 	}
 	return result.Run, nil
@@ -450,45 +283,6 @@ func (c *Client) GetRunEvents(ctx context.Context, runID string, afterSequence i
 }
 
 // =============================================================================
-// RUNNERS
-// =============================================================================
-
-// GetRunnerStatus returns status of all runners.
-func (c *Client) GetRunnerStatus(ctx context.Context) ([]*domainpb.RunnerStatus, error) {
-	resp, err := c.doRequest(ctx, "GET", "/api/v1/runners", nil)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
-	}
-
-	var result apipb.GetRunnerStatusResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Runners, nil
-}
-
-// GetAvailableRunners returns only available runners with their supported models.
-func (c *Client) GetAvailableRunners(ctx context.Context) ([]*domainpb.RunnerStatus, error) {
-	runners, err := c.GetRunnerStatus(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	available := make([]*domainpb.RunnerStatus, 0)
-	for _, r := range runners {
-		if r.Available {
-			available = append(available, r)
-		}
-	}
-	return available, nil
-}
-
-// =============================================================================
 // HELPERS
 // =============================================================================
 
@@ -529,6 +323,52 @@ func NewUUID() string {
 // =============================================================================
 // INTERNAL
 // =============================================================================
+
+// createResource marshals req, POSTs it to path, accepts 200/201, and parses the
+// response into out. It centralises the create-by-POST flow shared by the
+// profile/task/run creation methods.
+func (c *Client) createResource(ctx context.Context, path string, req, out proto.Message) error {
+	body, err := c.jsonOpts.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("marshal request: %w", err)
+	}
+
+	resp, err := c.doRequest(ctx, "POST", path, body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return c.parseError(resp)
+	}
+
+	return c.parseResponse(resp, out)
+}
+
+// getResource issues a GET against path. It reports found=false (with a nil
+// error) when the resource is absent (404), and parses the body into out on
+// success. It centralises the get-by-id flow shared by the profile/task/run
+// retrieval methods.
+func (c *Client) getResource(ctx context.Context, path string, out proto.Message) (bool, error) {
+	resp, err := c.doRequest(ctx, "GET", path, nil)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return false, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return false, c.parseError(resp)
+	}
+
+	if err := c.parseResponse(resp, out); err != nil {
+		return false, err
+	}
+	return true, nil
+}
 
 func (c *Client) doRequest(ctx context.Context, method, path string, body []byte) (*http.Response, error) {
 	var bodyReader io.Reader

@@ -1,0 +1,577 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.workbench": {
+      "testId": "page-workbench",
+      "selector": "[data-testid=\"page-workbench\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "shared.emptyState.root": {
+      "testId": "empty-state-root",
+      "selector": "[data-testid=\"empty-state-root\"]"
+    },
+    "shared.emptyState.title": {
+      "testId": "empty-state-title",
+      "selector": "[data-testid=\"empty-state-title\"]"
+    },
+    "shared.emptyState.description": {
+      "testId": "empty-state-description",
+      "selector": "[data-testid=\"empty-state-description\"]"
+    },
+    "shared.emptyState.action": {
+      "testId": "empty-state-action",
+      "selector": "[data-testid=\"empty-state-action\"]"
+    },
+    "shared.errorState.root": {
+      "testId": "error-state-root",
+      "selector": "[data-testid=\"error-state-root\"]"
+    },
+    "shared.errorState.title": {
+      "testId": "error-state-title",
+      "selector": "[data-testid=\"error-state-title\"]"
+    },
+    "shared.errorState.message": {
+      "testId": "error-state-message",
+      "selector": "[data-testid=\"error-state-message\"]"
+    },
+    "shared.errorState.retryButton": {
+      "testId": "error-state-retry",
+      "selector": "[data-testid=\"error-state-retry\"]"
+    },
+    "shared.loadingState.root": {
+      "testId": "loading-state-root",
+      "selector": "[data-testid=\"loading-state-root\"]"
+    },
+    "ui.tabs.root": {
+      "testId": "tabs-root",
+      "selector": "[data-testid=\"tabs-root\"]"
+    },
+    "ui.tabs.list": {
+      "testId": "tabs-list",
+      "selector": "[data-testid=\"tabs-list\"]"
+    },
+    "workbench.extractBar.root": {
+      "testId": "workbench-extract-bar",
+      "selector": "[data-testid=\"workbench-extract-bar\"]"
+    },
+    "workbench.extractBar.target": {
+      "testId": "workbench-extract-target",
+      "selector": "[data-testid=\"workbench-extract-target\"]"
+    },
+    "workbench.extractBar.projectDir": {
+      "testId": "workbench-extract-project-dir",
+      "selector": "[data-testid=\"workbench-extract-project-dir\"]"
+    },
+    "workbench.extractBar.submit": {
+      "testId": "workbench-extract-submit",
+      "selector": "[data-testid=\"workbench-extract-submit\"]"
+    },
+    "workbench.stats.root": {
+      "testId": "workbench-stats",
+      "selector": "[data-testid=\"workbench-stats\"]"
+    },
+    "workbench.stats.files": {
+      "testId": "workbench-stat-files",
+      "selector": "[data-testid=\"workbench-stat-files\"]"
+    },
+    "workbench.stats.modules": {
+      "testId": "workbench-stat-modules",
+      "selector": "[data-testid=\"workbench-stat-modules\"]"
+    },
+    "workbench.stats.symbols": {
+      "testId": "workbench-stat-symbols",
+      "selector": "[data-testid=\"workbench-stat-symbols\"]"
+    },
+    "workbench.stats.imports": {
+      "testId": "workbench-stat-imports",
+      "selector": "[data-testid=\"workbench-stat-imports\"]"
+    },
+    "workbench.stats.warnings": {
+      "testId": "workbench-stat-warnings",
+      "selector": "[data-testid=\"workbench-stat-warnings\"]"
+    },
+    "workbench.stats.hash": {
+      "testId": "workbench-stat-hash",
+      "selector": "[data-testid=\"workbench-stat-hash\"]"
+    },
+    "workbench.status.loading": {
+      "testId": "workbench-status-loading",
+      "selector": "[data-testid=\"workbench-status-loading\"]"
+    },
+    "workbench.status.error": {
+      "testId": "workbench-status-error",
+      "selector": "[data-testid=\"workbench-status-error\"]"
+    },
+    "workbench.status.empty": {
+      "testId": "workbench-status-empty",
+      "selector": "[data-testid=\"workbench-status-empty\"]"
+    },
+    "workbench.status.workspaceUnsupported": {
+      "testId": "workbench-status-workspace-unsupported",
+      "selector": "[data-testid=\"workbench-status-workspace-unsupported\"]"
+    },
+    "features.explorer.root": {
+      "testId": "explorer-root",
+      "selector": "[data-testid=\"explorer-root\"]"
+    },
+    "features.explorer.canvas.root": {
+      "testId": "explorer-canvas-root",
+      "selector": "[data-testid=\"explorer-canvas-root\"]"
+    },
+    "features.explorer.canvas.summary": {
+      "testId": "explorer-canvas-summary",
+      "selector": "[data-testid=\"explorer-canvas-summary\"]"
+    },
+    "features.explorer.accessibleList.root": {
+      "testId": "explorer-accessible-list-root",
+      "selector": "[data-testid=\"explorer-accessible-list-root\"]"
+    },
+    "features.explorer.accessibleList.empty": {
+      "testId": "explorer-accessible-list-empty",
+      "selector": "[data-testid=\"explorer-accessible-list-empty\"]"
+    },
+    "features.explorer.legend.root": {
+      "testId": "explorer-legend-root",
+      "selector": "[data-testid=\"explorer-legend-root\"]"
+    },
+    "features.explorer.filterBar.root": {
+      "testId": "explorer-filter-bar-root",
+      "selector": "[data-testid=\"explorer-filter-bar-root\"]"
+    },
+    "features.explorer.filterBar.allChip": {
+      "testId": "explorer-filter-bar-all",
+      "selector": "[data-testid=\"explorer-filter-bar-all\"]"
+    },
+    "features.explorer.filterBar.empty": {
+      "testId": "explorer-filter-bar-empty",
+      "selector": "[data-testid=\"explorer-filter-bar-empty\"]"
+    },
+    "features.explorer.cycleBanner": {
+      "testId": "explorer-cycle-banner",
+      "selector": "[data-testid=\"explorer-cycle-banner\"]"
+    },
+    "features.explorer.drilldown.root": {
+      "testId": "explorer-drilldown-root",
+      "selector": "[data-testid=\"explorer-drilldown-root\"]"
+    },
+    "features.explorer.drilldown.title": {
+      "testId": "explorer-drilldown-title",
+      "selector": "[data-testid=\"explorer-drilldown-title\"]"
+    },
+    "features.explorer.drilldown.empty": {
+      "testId": "explorer-drilldown-empty",
+      "selector": "[data-testid=\"explorer-drilldown-empty\"]"
+    },
+    "features.sidecar.root": {
+      "testId": "sidecar-status-root",
+      "selector": "[data-testid=\"sidecar-status-root\"]"
+    },
+    "features.sidecar.loading": {
+      "testId": "sidecar-status-loading",
+      "selector": "[data-testid=\"sidecar-status-loading\"]"
+    },
+    "features.sidecar.error": {
+      "testId": "sidecar-status-error",
+      "selector": "[data-testid=\"sidecar-status-error\"]"
+    },
+    "features.sidecar.message": {
+      "testId": "sidecar-status-message",
+      "selector": "[data-testid=\"sidecar-status-message\"]"
+    },
+    "features.warnings.root": {
+      "testId": "warnings-root",
+      "selector": "[data-testid=\"warnings-root\"]"
+    },
+    "features.warnings.empty": {
+      "testId": "warnings-empty",
+      "selector": "[data-testid=\"warnings-empty\"]"
+    },
+    "features.warnings.list": {
+      "testId": "warnings-list",
+      "selector": "[data-testid=\"warnings-list\"]"
+    },
+    "features.warnings.summary": {
+      "testId": "warnings-summary",
+      "selector": "[data-testid=\"warnings-summary\"]"
+    },
+    "features.rewrite.root": {
+      "testId": "rewrite-root",
+      "selector": "[data-testid=\"rewrite-root\"]"
+    },
+    "features.rewrite.opsEditor.root": {
+      "testId": "rewrite-ops-editor",
+      "selector": "[data-testid=\"rewrite-ops-editor\"]"
+    },
+    "features.rewrite.opsEditor.empty": {
+      "testId": "rewrite-ops-empty",
+      "selector": "[data-testid=\"rewrite-ops-empty\"]"
+    },
+    "features.rewrite.opsEditor.addFileMove": {
+      "testId": "rewrite-add-file-move",
+      "selector": "[data-testid=\"rewrite-add-file-move\"]"
+    },
+    "features.rewrite.opsEditor.addImportRewrite": {
+      "testId": "rewrite-add-import-rewrite",
+      "selector": "[data-testid=\"rewrite-add-import-rewrite\"]"
+    },
+    "features.rewrite.plan.button": {
+      "testId": "rewrite-plan-button",
+      "selector": "[data-testid=\"rewrite-plan-button\"]"
+    },
+    "features.rewrite.plan.result": {
+      "testId": "rewrite-plan-result",
+      "selector": "[data-testid=\"rewrite-plan-result\"]"
+    },
+    "features.rewrite.plan.empty": {
+      "testId": "rewrite-plan-empty",
+      "selector": "[data-testid=\"rewrite-plan-empty\"]"
+    },
+    "features.rewrite.apply.button": {
+      "testId": "rewrite-apply-button",
+      "selector": "[data-testid=\"rewrite-apply-button\"]"
+    },
+    "features.rewrite.apply.result": {
+      "testId": "rewrite-apply-result",
+      "selector": "[data-testid=\"rewrite-apply-result\"]"
+    },
+    "features.rewrite.apply.confirmDialog.root": {
+      "testId": "rewrite-apply-confirm",
+      "selector": "[data-testid=\"rewrite-apply-confirm\"]"
+    },
+    "features.rewrite.apply.confirmDialog.confirm": {
+      "testId": "rewrite-apply-confirm-yes",
+      "selector": "[data-testid=\"rewrite-apply-confirm-yes\"]"
+    },
+    "features.rewrite.apply.confirmDialog.cancel": {
+      "testId": "rewrite-apply-confirm-cancel",
+      "selector": "[data-testid=\"rewrite-apply-confirm-cancel\"]"
+    },
+    "features.fixtures.root": {
+      "testId": "fixtures-root",
+      "selector": "[data-testid=\"fixtures-root\"]"
+    },
+    "features.fixtures.list": {
+      "testId": "fixtures-list",
+      "selector": "[data-testid=\"fixtures-list\"]"
+    },
+    "features.fixtures.empty": {
+      "testId": "fixtures-empty",
+      "selector": "[data-testid=\"fixtures-empty\"]"
+    },
+    "features.fixtures.loading": {
+      "testId": "fixtures-loading",
+      "selector": "[data-testid=\"fixtures-loading\"]"
+    },
+    "features.fixtures.error": {
+      "testId": "fixtures-error",
+      "selector": "[data-testid=\"fixtures-error\"]"
+    },
+    "features.fixtures.result": {
+      "testId": "fixtures-result",
+      "selector": "[data-testid=\"fixtures-result\"]"
+    },
+    "features.fixtures.diff": {
+      "testId": "fixtures-diff",
+      "selector": "[data-testid=\"fixtures-diff\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "shared.severityBadge.root": {
+      "description": "Severity badge by level",
+      "selectorPattern": "[data-testid=\"severity-badge-${level}\"]",
+      "testIdPattern": "severity-badge-${level}",
+      "params": [
+        {
+          "name": "level",
+          "type": "string"
+        }
+      ]
+    },
+    "ui.tabs.trigger": {
+      "description": "Tab trigger by tab value",
+      "selectorPattern": "[data-testid=\"tabs-trigger-${value}\"]",
+      "testIdPattern": "tabs-trigger-${value}",
+      "params": [
+        {
+          "name": "value",
+          "type": "string"
+        }
+      ]
+    },
+    "ui.tabs.panel": {
+      "description": "Tab panel by tab value",
+      "selectorPattern": "[data-testid=\"tabs-panel-${value}\"]",
+      "testIdPattern": "tabs-panel-${value}",
+      "params": [
+        {
+          "name": "value",
+          "type": "string"
+        }
+      ]
+    },
+    "features.explorer.canvas.node": {
+      "description": "Explorer canvas node by node id",
+      "selectorPattern": "[data-testid=\"explorer-canvas-node-${id}\"]",
+      "testIdPattern": "explorer-canvas-node-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "features.explorer.accessibleList.item": {
+      "description": "Accessible graph item by node id",
+      "selectorPattern": "[data-testid=\"explorer-accessible-item-${id}\"]",
+      "testIdPattern": "explorer-accessible-item-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "features.explorer.filterBar.chip": {
+      "description": "Explorer filter chip by key",
+      "selectorPattern": "[data-testid=\"explorer-filter-chip-${key}\"]",
+      "testIdPattern": "explorer-filter-chip-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "string"
+        }
+      ]
+    },
+    "features.explorer.drilldown.symbol": {
+      "description": "Explorer symbol by symbol id",
+      "selectorPattern": "[data-testid=\"explorer-symbol-${id}\"]",
+      "testIdPattern": "explorer-symbol-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "features.explorer.drilldown.symbolComments": {
+      "description": "Explorer symbol comments by symbol id",
+      "selectorPattern": "[data-testid=\"explorer-symbol-comments-${id}\"]",
+      "testIdPattern": "explorer-symbol-comments-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "features.explorer.legend.severity": {
+      "description": "Explorer legend severity by level",
+      "selectorPattern": "[data-testid=\"explorer-legend-severity-${level}\"]",
+      "testIdPattern": "explorer-legend-severity-${level}",
+      "params": [
+        {
+          "name": "level",
+          "type": "string"
+        }
+      ]
+    },
+    "features.sidecar.indicator": {
+      "description": "Sidecar status indicator by status",
+      "selectorPattern": "[data-testid=\"sidecar-status-indicator-${status}\"]",
+      "testIdPattern": "sidecar-status-indicator-${status}",
+      "params": [
+        {
+          "name": "status",
+          "type": "string"
+        }
+      ]
+    },
+    "features.warnings.item": {
+      "description": "Warning item by index",
+      "selectorPattern": "[data-testid=\"warnings-item-${index}\"]",
+      "testIdPattern": "warnings-item-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "features.rewrite.opRow": {
+      "description": "Rewrite operation row by index",
+      "selectorPattern": "[data-testid=\"rewrite-op-row-${index}\"]",
+      "testIdPattern": "rewrite-op-row-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "features.rewrite.opResult": {
+      "description": "Rewrite operation result by index",
+      "selectorPattern": "[data-testid=\"rewrite-op-result-${index}\"]",
+      "testIdPattern": "rewrite-op-result-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "features.fixtures.item": {
+      "description": "Fixture item by name",
+      "selectorPattern": "[data-testid=\"fixtures-item-${name}\"]",
+      "testIdPattern": "fixtures-item-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.navLink": {
+      "description": "App shell navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]",
+      "testIdPattern": "layout-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "workbench",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "f32319b4f20977779fe5bca6416d524a062d3247d963df70661fc945c716c2ad",
+    "ui/src/consts/selectors.ts": "6e1a4f880a24ed2d64a0d2ed6e2ce34945fd3e02c7ad4374c6ccf7993e290b37",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

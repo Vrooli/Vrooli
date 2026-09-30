@@ -7,7 +7,8 @@ import {
   Menu,
   RefreshCw,
   Settings,
-  Search
+  Search,
+  Share2
 } from "lucide-react";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import type { RepoStatus, HealthResponse, SyncStatusResponse } from "../lib/api";
@@ -19,6 +20,7 @@ import { SyncButton } from "./SyncButton";
 import { HistoryModeHeader } from "./HistoryModeHeader";
 import { BlameModeHeader } from "./BlameModeHeader";
 import { useHeaderState } from "../hooks/useHeaderState";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 
 interface MobileHeaderProps {
   status?: RepoStatus;
@@ -33,6 +35,7 @@ interface MobileHeaderProps {
   onOpenUpstreamInfo?: () => void;
   onOpenFileSearch?: () => void;
   onOpenReview?: () => void;
+  onOpenSourceDistributions?: () => void;
   viewingCommit?: ViewingCommit | null;
   onExitHistoryMode?: () => void;
   viewingFileBlame?: ViewingFileBlame | null;
@@ -41,6 +44,8 @@ interface MobileHeaderProps {
   onPull?: () => void;
   isPushing?: boolean;
   isPulling?: boolean;
+  /** Phase and elapsed time while a remote operation is running. */
+  syncProgressLabel?: string;
 }
 
 export function MobileHeader({
@@ -56,6 +61,7 @@ export function MobileHeader({
   onOpenUpstreamInfo,
   onOpenFileSearch,
   onOpenReview,
+  onOpenSourceDistributions,
   viewingCommit,
   onExitHistoryMode,
   viewingFileBlame,
@@ -63,7 +69,8 @@ export function MobileHeader({
   onPush,
   onPull,
   isPushing,
-  isPulling
+  isPulling,
+  syncProgressLabel
 }: MobileHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { isHealthy } = useHeaderState(status, health, syncStatus);
@@ -86,7 +93,7 @@ export function MobileHeader({
   return (
     <>
       <header
-        className="flex items-center justify-between px-3 py-2 border-b border-slate-800 bg-slate-900/95 backdrop-blur-sm pt-safe"
+        className="flex items-center justify-between px-3 py-2 border-b border-slate-800 bg-slate-900"
         data-testid="mobile-header"
       >
         {/* Left: Branch info */}
@@ -115,40 +122,46 @@ export function MobileHeader({
               onPull={onPull}
               isPushing={isPushing ?? false}
               isPulling={isPulling ?? false}
+              progressLabel={syncProgressLabel}
               warning={syncStatus?.safety_warnings?.join("; ")}
             />
           )}
 
           {onOpenReview && (
-            <button
+            <IconButton
               onClick={onOpenReview}
-              className="p-3 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition-colors touch-target"
               aria-label="Scenario review"
+              size="xs"
+              surface="ghost"
               data-testid="mobile-review-button"
             >
               <ClipboardCheck className="h-5 w-5 text-slate-400" />
-            </button>
+            </IconButton>
           )}
 
+          {onOpenSourceDistributions && <IconButton onClick={onOpenSourceDistributions} aria-label="Source distributions" size="xs" surface="ghost" data-testid="mobile-source-distributions-button"><Share2 className="h-5 w-5 text-cyan-400" /></IconButton>}
+
           {onOpenFileSearch && (
-            <button
+            <IconButton
               onClick={onOpenFileSearch}
-              className="p-3 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition-colors touch-target"
               aria-label="Search files"
+              size="xs"
+              surface="ghost"
               data-testid="mobile-search-button"
             >
               <Search className="h-5 w-5 text-slate-400" />
-            </button>
+            </IconButton>
           )}
 
-          <button
+          <IconButton
             onClick={() => setMenuOpen(true)}
-            className="p-3 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition-colors touch-target"
             aria-label="Open menu"
+            size="xs"
+            surface="ghost"
             data-testid="mobile-menu-button"
           >
             <Menu className="h-5 w-5 text-slate-400" />
-          </button>
+          </IconButton>
         </div>
       </header>
 

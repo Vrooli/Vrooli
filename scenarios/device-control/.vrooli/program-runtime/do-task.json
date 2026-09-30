@@ -1,0 +1,176 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "device-control.do-task",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Replay a selected, assertion-bearing device flow revision after exact identity and context checks. Semantic volume requests use device-control.volume.",
+  "inputs": {
+    "device": {
+      "type": "string",
+      "required": true
+    },
+    "context_key": {
+      "type": "string",
+      "required": true
+    },
+    "actor": {
+      "type": "string",
+      "required": true
+    },
+    "flow_id": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer"
+    },
+    "flow": {
+      "type": "object"
+    },
+    "advice_attempt_id": {
+      "type": "string",
+      "default": ""
+    }
+  },
+  "assumptions": [
+    "Device Control owns identity, leases and verified execution"
+  ],
+  "invariants": [
+    "Print one bounded envelope on every path",
+    "Never select a flow from relevance alone",
+    "Child acknowledgements do not establish task success"
+  ],
+  "bindings": [
+    {
+      "id": "device-control/device/list",
+      "effect": "read",
+      "via": "lib"
+    },
+    {
+      "id": "device-control/flow/list",
+      "effect": "read",
+      "via": "lib"
+    },
+    {
+      "id": "device-control/flow/get",
+      "effect": "read",
+      "via": "lib"
+    },
+    {
+      "id": "device-control/flow/replay",
+      "effect": "write",
+      "via": "lib"
+    },
+    {
+      "id": "device-control/flow/validate",
+      "effect": "read",
+      "via": "lib"
+    },
+    {
+      "id": "device-control/flow/run",
+      "effect": "write",
+      "via": "lib"
+    },
+    {
+      "id": "device-control/flow/save",
+      "effect": "write",
+      "via": "lib"
+    }
+  ],
+  "verbs": [
+    "learn.choose",
+    "learn.feedback",
+    "learn.note",
+    "learn.outcome",
+    "learn.result",
+    "learn.task",
+    "lib"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "unavailable",
+        "refused"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "outcome": "Domain-verified task outcome, unknown when no action is selected",
+      "device_id": "Resolved durable device identity",
+      "learning": "Durable feedback_ref identifies this task or exact artifact; preserve it and send a later correction with program-runtime.learning-feedback or learn.feedback."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "operation_unavailable",
+        "selection_required",
+        "device_selection_required",
+        "identity_mismatch",
+        "flow_failed",
+        "capability_gap",
+        "invalid_response",
+        "scenario_unreachable",
+        "binding_error",
+        "no_grant",
+        "not_run_eligible",
+        "deadline_exceeded",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Owner execution references"
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 5
+  },
+  "fixtures": [
+    {
+      "id": "missing-input",
+      "inputs": {},
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "device-control"
+      ]
+    },
+    {
+      "id": "live-valid",
+      "inputs": {
+        "device": "fixture",
+        "context_key": "fixture",
+        "actor": "fixture"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable",
+          "refused",
+          "failed"
+        ]
+      },
+      "requires": [
+        "device-control"
+      ],
+      "note": "Valid bounded exercise fixture added after admission-only fixtures left the contract unexercised."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "device-control"
+}

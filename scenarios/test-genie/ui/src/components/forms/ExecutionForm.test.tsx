@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders as render } from "../../test-utils";
 import { ExecutionForm } from "./ExecutionForm";
 import { initialExecutionForm, useUIStore } from "../../stores/uiStore";
 

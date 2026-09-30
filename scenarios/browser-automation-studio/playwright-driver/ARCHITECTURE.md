@@ -356,7 +356,7 @@ Benefits of this pattern:
 7. ~~**Extract frame streaming**~~ - ✅ Implemented in `frame-streaming/`
 8. ~~**Extract browser manager**~~ - ✅ Implemented in `session/browser-manager.ts`
 9. ~~**Unify result types**~~ - ✅ All result types now extend BaseExecutionResult (outcome/types.ts)
-10. ~~**Extract idempotency cache**~~ - ✅ Implemented in `infra/idempotency-cache.ts`
+10. **Instruction receipts** — `routes/session-run.ts` owns lease-scoped operation admission and bounded immutable responses. The former global TTL cache and node/index replay key were removed.
 11. ~~**Extract anti-detection patches**~~ - ✅ Implemented in `browser-profile/patches.ts`
 12. ~~**Extract artifact path decisions**~~ - ✅ Implemented in `session/artifact-paths.ts`
 13. ~~**Extract session decisions**~~ - ✅ Implemented in `session/session-decisions.ts`

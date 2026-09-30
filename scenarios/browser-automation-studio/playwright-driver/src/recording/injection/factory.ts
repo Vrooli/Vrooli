@@ -99,12 +99,11 @@ export function isDiagnosticsEnabled(): boolean {
  * Order is based on reliability and performance:
  * 1. init-script - Most reliable for rebrowser-playwright
  * 2. cdp-injection - Fallback with full control
- * 3. route-injection - Legacy, may not work with rebrowser
+ * Legacy route-injection remains available only when explicitly requested.
  */
 export const DEFAULT_STRATEGY_ORDER: InjectionStrategyName[] = [
   'init-script',
   'cdp-injection',
-  'route-injection',
 ];
 
 /**

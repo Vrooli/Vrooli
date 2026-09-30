@@ -299,27 +299,11 @@ type PageTracker struct {
 }
 ```
 
-## Deduplication Logic
+## Journal Identity
 
-**Problem**: When user navigates via API handler AND browser JavaScript, two navigate events fire.
-
-**Solution**: Deduplicate within 500ms window (in [CODE: api/services/recording/service.go])
-
-```go
-const duplicateNavigateThreshold = 500 * time.Millisecond
-
-// Skip duplicate navigate actions to the same URL
-if action.ActionType == "navigate" && action.URL != "" {
-    for i := len(entries) - 1; i >= len(entries)-5; i-- {  // Check last 5
-        existing := entries[i]
-        if existing.Action.ActionType == "navigate" &&
-           existing.Action.URL == action.URL &&
-           ts.Sub(existing.Timestamp) < duplicateNavigateThreshold {
-            return  // Duplicate! Skip it
-        }
-    }
-}
-```
+Retries use the observed action ID. The repository assigns one durable sequence
+inside the insert and rejects conflicting reuse of an ID. Separate observations
+to the same URL remain separate; timestamp proximity is not a deduplication key.
 
 ## Session Profile Persistence
 
@@ -391,12 +375,16 @@ type SessionProfile struct {
 ```
 1. User calls POST /api/v1/recordings/live/{sessionId}/generate-workflow
 2. Fetch recorded actions from timeline
-3. Apply action merging:
-   - Consecutive type actions → merge text
-   - Consecutive scrolls → use final position
-   - Remove focus events before type on same element
-4. Insert smart wait nodes between actions
-5. Build flow definition (nodes + edges for visual workflow)
+3. Validate replay context and join complete drag phases. Unknown action types,
+   incomplete drags, multiple/ambiguous pages and frame observations fail explicitly.
+4. Coalesce full snapshots only within the same page/frame/URL/selector:
+   - Input snapshots → final complete value (including empty), preserving submit boundaries
+   - Absolute scroll snapshots with matching axes → final coordinates
+   - Focus immediately before input on the same target → input supplies focus
+   Raw recording payloads remain unchanged.
+5. Use compiler parameter builders to create typed WorkflowDefinitionV2 nodes and
+   insert typed smart waits. Modifiers, click counts, focus/blur and drag/drop
+   retain their action semantics through compilation.
 6. Create workflow via catalog service
 7. Return workflow ID to user
 ```
@@ -472,7 +460,7 @@ the same recording pipeline, ensuring consistency.
 │   │   • RecordAction(sessionID, action, pageID, source)             │       │
 │   │   • RecordPageEvent(sessionID, event)                           │       │
 │   │   • Single deduplication (500ms navigate threshold)             │       │
-│   │   • Hot cache + DB persistence (timeline_entries)               │       │
+│   │   • Durable journal append (timeline_entries)               │       │
 │   │   • WebSocket broadcast                                         │       │
 │   └─────────────────────────────────────────────────────────────────┘       │
 │                              │                                               │
@@ -496,12 +484,12 @@ the same recording pipeline, ensuring consistency.
 1. **Driver/Navigator Callback**: Actions arrive via HTTP POST (manual) or step callback (AI)
 2. **Live-Capture Service**: [CODE: api/services/live-capture/service.go] routes to unified recording
 3. **Deduplication**: [CODE: api/services/recording/service.go] filters duplicate navigate actions (500ms)
-4. **Persistence**: Writes to DB via persistence layer + maintains hot cache
+4. **Persistence**: Commits through the repository before notification
 5. **Broadcast**: WebSocket listeners notified of new actions
 
 ### Database Schema
 
-**File**: [CODE: initialization/postgres/schema_sqlite.sql]
+**File**: [CODE: api/internal/<domain>/storage/sqlite/schemas/]
 
 ```sql
 -- Recording sessions (aggregate root)
@@ -582,31 +570,10 @@ type RecordingSession struct {
 
 ### Repository Interface
 
-**File**: [CODE: api/recording/persistence/repository.go]
-
-```go
-type ActionRepository interface {
-    // Session lifecycle
-    CreateSession(ctx context.Context, session *domain.RecordingSession) error
-    GetSession(ctx context.Context, sessionID string) (*domain.RecordingSession, error)
-    CloseSession(ctx context.Context, sessionID string, closedAt time.Time) error
-    ListSessions(ctx context.Context, profileID *string, limit, offset int) ([]*domain.RecordingSession, error)
-    DeleteSession(ctx context.Context, sessionID string) error
-
-    // Action persistence
-    SaveAction(ctx context.Context, action *domain.RecordingAction) error
-    SaveActions(ctx context.Context, actions []*domain.RecordingAction) error
-    GetAction(ctx context.Context, actionID uuid.UUID) (*domain.RecordingAction, error)
-
-    // Queries
-    ListActions(ctx context.Context, query ActionQuery) ([]*domain.RecordingAction, error)
-    CountActions(ctx context.Context, sessionID string) (int, error)
-
-    // Cleanup
-    DeleteSessionActions(ctx context.Context, sessionID string) error
-    PruneOldSessions(ctx context.Context, olderThan time.Time) (int, error)
-}
-```
+[CODE: api/services/recording/persistence/repository.go] owns session lifecycle,
+atomic `AppendTimelineEntry`, single-entry reads, complete filtered/offset history
+queries, counts and cleanup. Its SQLite adapter hides the engine from the service.
+Both production and leased test pools install internal/recording/schema.sql.
 
 ### Query Patterns
 
@@ -626,22 +593,12 @@ type ActionQuery struct {
 }
 ```
 
-### Dual-Write Strategy
+### Commit and Query Authority
 
-The service maintains both:
-1. **Hot Cache** (memory): Last N actions per session for WebSocket speed
-2. **Database** (SQLite): Full persistence for durability
-
-```go
-// On each action:
-1. Persist to database via ActionRepository
-2. Update hot cache (bounded to 1000 actions)
-3. Broadcast to WebSocket listeners
-
-// On timeline query:
-1. If hot cache has data AND no filters → return from cache (fast path)
-2. Otherwise → query database (accurate path)
-```
+The service appends through the repository before returning success or notifying
+subscribers. Storage failure propagates through HTTP ingestion and suppresses its
+broadcast. Query totals and offsets always come from durable history; there is no
+process-local history or sequence cache. A missing repository is an error.
 
 ### Relationship to Existing Components
 
@@ -690,235 +647,26 @@ The service maintains both:
 |-------|------|---------|
 | **Domain** | [CODE: api/domain/action.go] | RecordingAction, ActionSource, SelectorSet |
 | **Domain** | [CODE: api/domain/session.go] | RecordingSession, SessionStatus |
-| **Service** | [CODE: api/services/recording/service.go] | Unified recording: dedup, hot cache, persistence, broadcast |
-| **Service** | [CODE: api/services/recording/recorder.go] | ActionRecorder interface and types |
+| **Service** | [CODE: api/services/recording/service.go] | Unified recording: identity, durable append and queries |
 | **Persist** | [CODE: api/services/recording/persistence/repository.go] | Repository interface |
 | **Persist** | [CODE: api/services/recording/persistence/sqlite.go] | SQLite implementation |
 | **Live-Capture** | [CODE: api/services/live-capture/service.go] | Session management, routes to unified recording |
 | **Wire** | [CODE: api/internal/wire/wire.go] | Dependency injection |
 
-## ActionRecorder Interface & Observability
+## Commit Acknowledgment and Observability
 
-_Added: 2026-01-31_
+`RecordAction` and `RecordPageEvent` are the single recording entrypoints. The
+unused alternate ActionRecorder/Unified APIs and cache-first receipts were
+removed. HTTP ingestion rejects unknown sessions and returns a storage error
+before any timeline broadcast. Delivery counts describe WebSocket delivery;
+they do not change the durable commit. Failed browser-operation recording is
+reported explicitly after the browser effect, which cannot be rolled back.
 
-The recording pipeline now provides **full observability** through the `ActionRecorder` interface, which unifies persistence and WebSocket broadcast into a single operation with detailed metrics.
-
-### Problem Solved
-
-Previously, recording had a **dual-write anti-pattern**:
-
-```go
-// OLD: Two separate writes with silent failure modes
-h.recordModeService.AddTimelineAction(sessionID, &action, pageID)  // Write 1: Persistence
-h.wsHub.BroadcastRecordingEntry(sessionID, entry)                  // Write 2: WebSocket
-// Either could fail silently with no visibility into which failed
-```
-
-### ActionRecorder Interface
-
-**File**: [CODE: api/services/recording/recorder.go]
-
-```go
-type ActionRecorder interface {
-    RecordActionUnified(ctx context.Context, req RecordActionRequest) (*ActionRecordResult, error)
-    RecordPageEventUnified(ctx context.Context, req RecordPageEventRequest) (*ActionRecordResult, error)
-}
-
-type RecordActionRequest struct {
-    SessionID     string
-    Action        *driver.RecordedAction
-    PageID        uuid.UUID
-    Source        ActionSource      // ActionSourceManual, ActionSourceAuto, ActionSourceAI
-    CorrelationID string            // For tracing through pipeline
-}
-
-type ActionRecordResult struct {
-    ActionID        uuid.UUID
-    CorrelationID   string
-    SequenceNum     int
-    Persisted       bool              // Did persistence succeed?
-    BroadcastSent   bool              // Did broadcast reach any clients?
-    SubscriberCount int               // How many clients were subscribed?
-    SentCount       int               // How many clients received the message?
-    DroppedCount    int               // How many clients had full buffers?
-    Errors          []ActionRecordError
-}
-
-func (r *ActionRecordResult) HasErrors() bool
-```
-
-### Observability Pipeline
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                      RECORDING OBSERVABILITY PIPELINE                        │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   HTTP ENTRY POINT                                                           │
-│   ────────────────                                                           │
-│   POST /recordings/live/{sessionId}/action                                   │
-│        │                                                                     │
-│        ├─► generateCorrelationID(sessionID)                                  │
-│        │   Format: rec-{session[:8]}-{unix_nano_timestamp}                   │
-│        │   Example: rec-abc12345-1706745600123456789                         │
-│        │                                                                     │
-│        └─► log.WithField("correlation_id", corrID).Debug("Action received")  │
-│                                                                              │
-│   UNIFIED RECORDING                                                          │
-│   ─────────────────                                                          │
-│        │                                                                     │
-│        ├─► 1. Validate request                                               │
-│        │      - Check session exists                                         │
-│        │      - Validate action data                                         │
-│        │      - Return validation error in result if invalid                 │
-│        │                                                                     │
-│        ├─► 2. Check deduplication (500ms navigate threshold)                 │
-│        │      - If duplicate: result.Persisted = false, return early         │
-│        │                                                                     │
-│        ├─► 3. Persist to hot cache + DB                                      │
-│        │      - result.Persisted = true on success                           │
-│        │      - Append error to result.Errors on failure                     │
-│        │                                                                     │
-│        └─► 4. Broadcast to WebSocket                                         │
-│               - result.SubscriberCount = N                                   │
-│               - result.SentCount = M (successful)                            │
-│               - result.DroppedCount = N-M (buffer full)                      │
-│               - result.BroadcastSent = (M > 0)                               │
-│                                                                              │
-│   RESULT RETURNED                                                            │
-│   ───────────────                                                            │
-│        │                                                                     │
-│        └─► ActionRecordResult with full metrics                              │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### BroadcastResult Metrics
-
-**File**: [CODE: api/websocket/hub.go]
-
-```go
-type BroadcastResult struct {
-    SubscriberCount int   // Number of clients subscribed to this session
-    SentCount       int   // Successfully sent messages
-    DroppedCount    int   // Dropped due to full client buffers
-}
-```
-
-The WebSocket hub now returns `BroadcastResult` with detailed delivery metrics:
-
-```go
-func (h *Hub) BroadcastRecordingEntry(sessionID string, entry *UnifiedTimelineEntry) BroadcastResult {
-    result := BroadcastResult{}
-
-    // Log nil entry (observability)
-    if entry == nil {
-        h.log.WithField("session_id", sessionID).Warn("BroadcastRecordingEntry: nil entry")
-        return result
-    }
-
-    for client := range h.clients {
-        if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
-            result.SubscriberCount++
-            select {
-            case client.Send <- message:
-                result.SentCount++
-            default:
-                result.DroppedCount++
-                h.log.WithField("client_id", client.ID).Warn("client buffer full")
-            }
-        }
-    }
-
-    if result.SubscriberCount == 0 {
-        h.log.WithField("session_id", sessionID).Debug("no recording subscribers")
-    }
-
-    return result
-}
-```
-
-### Observability Benefits
-
-| Pipeline Step | Old Visibility | New Visibility |
-|---------------|----------------|----------------|
-| HTTP entry | Debug log | Debug log + **correlation ID** |
-| Validation | None | **Error in result.Errors** |
-| Deduplication | None | **result.Persisted = false** |
-| DB persistence | Warn on error | **result.Persisted + error details** |
-| WebSocket broadcast | **None** | **result.BroadcastSent, SubscriberCount** |
-| Client delivery | **None** | **result.SentCount, DroppedCount** |
-
-### Correlation ID Tracing
-
-Correlation IDs enable tracing actions through the entire pipeline:
-
-```
-# Searching logs for a "lost" action:
-
-$ grep "rec-abc12345-1706745600" api.log
-
-# What to look for:
-# 1. "Action received" with correlation_id → HTTP entry OK
-# 2. "Persisting action" → Validation passed
-# 3. "Action persisted" → DB write OK
-# 4. "Broadcast complete" with subscriber_count → WebSocket OK
-
-# Diagnosing issues:
-# - No "Persisting action" → validation/normalization failed
-# - No "Broadcast complete" → persistence failed
-# - subscriber_count=0 → no UI connected
-# - sent_count < subscriber_count → client buffers full
-```
-
-### Testing the ActionRecorder
-
-**File**: [CODE: api/handlers/record_mode_integration_test.go]
-
-```go
-func TestRecordingPipeline_EndToEnd(t *testing.T) {
-    repo := persistence.NewMockRepository()
-    hub := NewTestRecordingHub(logger)
-    recordingSvc := recording.NewService(repo, hub, logger, recording.ServiceConfig{})
-
-    // Subscribe test client
-    clientCh := hub.Subscribe(sessionID)
-    defer hub.Unsubscribe(sessionID)
-
-    // Record action via unified interface
-    result, err := recordingSvc.RecordActionUnified(ctx, recording.RecordActionRequest{
-        SessionID:     sessionID,
-        Action:        action,
-        PageID:        pageID,
-        Source:        recording.ActionSourceManual,
-        CorrelationID: "test-corr-123",
-    })
-
-    // Verify full observability
-    require.NoError(t, err)
-    assert.True(t, result.Persisted)
-    assert.True(t, result.BroadcastSent)
-    assert.Equal(t, 1, result.SubscriberCount)
-    assert.Equal(t, 1, result.SentCount)
-    assert.Equal(t, 0, result.DroppedCount)
-    assert.False(t, result.HasErrors())
-
-    // Verify WebSocket delivery
-    select {
-    case entry := <-clientCh:
-        assert.Equal(t, "click", entry.Action.ActionType)
-    case <-time.After(time.Second):
-        t.Fatal("Action did not appear in WebSocket")
-    }
-}
-```
-
-### Related Seams
-
-For testing and architecture details, see:
-- [DOC: docs/SEAMS.md#actionrecorder-seam] - ActionRecorder seam (#28)
-- [DOC: docs/SEAMS.md#recording-bounded-context] - Recording bounded context (#27)
-- [DOC: docs/SEAMS.md#websocket-hub-seam] - WebSocket hub seam (#8)
+Tests in services/recording/service_test.go use production SQLite schema, injected
+write failure, more than 1,000 events, reopen, concurrent connections and retries.
+handlers/record_mode_integration_test.go exercises the actual HTTP ingestion
+boundary. Full driver retry/reconnect and callback gap reporting remain separate
+qualification work.
 
 ## Manual Recording WebSocket Flow
 
@@ -948,10 +696,10 @@ BROWSER CLIENT                    API                      PLAYWRIGHT-DRIVER
      |  <------------------------- |                              |
      |  { type: "click", ... }     |                              |
      |                             |                              |
-     |                             |    POST /frame (callback)    |
+     |                             |    WS /frames (callback)    |
      |                             |  <------------------------   |
      |                             |                              |
-     |  binary frame (JPEG)        |                              |
+     |  source envelope + JPEG        |                              |
      |  <------------------------- |                              |
      |                             |                              |
      |  recording_input            |                              |
@@ -979,7 +727,7 @@ BROWSER CLIENT                    API                      PLAYWRIGHT-DRIVER
 
 | Message Type | Purpose |
 |--------------|---------|
-| `subscribe_recording` | Join a recording session |
+| `subscribe_recording` | Join a recording session; `frames: false` selects events only (timeline), omission or `true` also receives binary frames (viewer) |
 | `unsubscribe_recording` | Leave a recording session |
 | `recording_input` | Forward mouse/keyboard input to driver |
 | `subscribe_driver_status` | Subscribe to driver health status |
@@ -989,7 +737,7 @@ BROWSER CLIENT                    API                      PLAYWRIGHT-DRIVER
 | Message Type | Purpose |
 |--------------|---------|
 | `recording_action` | Action captured (click, type, etc.) |
-| `binary frame` | Raw JPEG frame data |
+| `binary frame` | Four-byte big-endian header length, version 1 JSON source header, JPEG bytes |
 | `page_event` | Page lifecycle (created, navigated, closed) |
 | `page_switch` | Active page changed |
 | `perf_stats` | Performance data (debug mode) |
@@ -1017,7 +765,7 @@ BROWSER CLIENT                    API                      PLAYWRIGHT-DRIVER
 ┌─────────────────────────────────────────────────────────────────────┐
 │ API HANDLER LAYER                                                   │
 │ - ReceiveRecordingAction: Parse and store action                   │
-│ - ReceiveRecordingFrame: Store/broadcast frame                     │
+│ - GetRecordingFrame: Source-validated preview                     │
 │ - HandleDriverFrameStream: WebSocket binary streaming              │
 │ - ForwardRecordingInput: Forward input to driver                   │
 └──────────────────────┬──────────────────────────────────────────────┘
@@ -1027,7 +775,7 @@ BROWSER CLIENT                    API                      PLAYWRIGHT-DRIVER
 │ SERVICE LAYER                                                       │
 │ - Route to unified recording service                               │
 │ - Deduplicate navigate actions (500ms window)                      │
-│ - Store in hot cache + persist to database                         │
+│ - Commit to recording journal                         │
 │ - Track pages with PageTracker                                     │
 └──────────────────────┬──────────────────────────────────────────────┘
                        | (Broadcasts via WebSocket Hub)
@@ -1035,7 +783,7 @@ BROWSER CLIENT                    API                      PLAYWRIGHT-DRIVER
 ┌─────────────────────────────────────────────────────────────────────┐
 │ WEBSOCKET HUB                                                       │
 │ - Broadcast action to subscribed clients                           │
-│ - Broadcast frames (binary or base64)                              │
+│ - Broadcast source-bearing binary frames                              │
 │ - Broadcast page events                                            │
 │ - Forward input from clients to driver                             │
 └──────────────────────┬──────────────────────────────────────────────┘
@@ -1071,6 +819,33 @@ Workflow available for execution
 - [DOC: docs/architecture/execution.md] - Workflow execution architecture
 - [DOC: docs/architecture/ai-navigation.md] - AI navigation architecture
 - [DOC: docs/SYSTEM_ARCHITECTURE.md] - Complete system overview
-- [DOC: docs/plans/RECORD_MODE_IMPLEMENTATION_PLAN.md] - Original implementation plan
-- [DOC: docs/plans/multi-tab-recording-implementation.md] - Multi-tab support
+- [DOC: docs/plans/README.md#historical-source-files] - Original implementation plan
+- [DOC: docs/plans/README.md#historical-source-files] - Multi-tab support
 - [DOC: docs/internal/SEAMS.md#recording-bounded-context] - Recording integration seams
+
+
+### Frame source boundary (2026-09-23)
+
+Both driver streaming strategies send `[uint32 BE header length][JSON][JPEG]`.
+The mandatory version 1 header carries `source` (`session_id`, `execution_id`,
+`lease_id`, driver `page_id`) and `captured_at`. The optional `timing` object
+carries performance telemetry independently. The API accepts a header of at
+most 16 KiB, validates the current session lease and active driver page, and
+publishes a new header with `version`, `session_id`, canonical `page_id`, and
+`captured_at`. Driver credentials never reach viewers. The viewer validates
+identity before image decoding. Anonymous and timestamp-only frames are rejected.
+
+HTTP previews translate the requested canonical page to its driver identity.
+The driver snapshots source before capture and keys its cache by that source;
+the API revalidates the returned source before returning image data or an ETag
+hit. The HTTP response includes canonical `page_id` without the producer source.
+An omitted page ID follows the active page for miniature previews. The unused
+JSON frame-push endpoint and `recording_frame` broadcast facade have been removed.
+Same-page navigation epochs and cross-transport ordering remain separate work.
+
+
+Recording subscriber intent is explicit: the timeline requests `frames: false`
+on its event socket. The canvas retains its separate frame subscription and
+fallback lifetime. Hub gates binary delivery and frame-subscriber presence on
+that choice under the subscription lock. Page/timeline/performance events are
+preserved. Resubscription replaces the choice; unsubscribe clears it.

@@ -10,10 +10,10 @@ import (
 	"net/url"
 	"os"
 
+	"prompt-manager/cli/internal/appctx"
+
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"prompt-manager/cli/internal/appctx"
 )
 
 // OGMetadata represents Open Graph metadata

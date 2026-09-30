@@ -1,0 +1,16 @@
+{
+  "composition": "flow-current",
+  "slots": {
+    "throughput": {
+      "shape": "scalar",
+      "role": "primary",
+      "whenUnbound": "decorative"
+    },
+    "blocking": {
+      "shape": "scalar",
+      "role": "secondary",
+      "whenUnbound": "decorative"
+    }
+  },
+  "generatedFrom": "ui/src/scenes"
+}

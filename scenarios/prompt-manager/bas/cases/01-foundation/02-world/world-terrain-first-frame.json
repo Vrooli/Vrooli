@@ -1,0 +1,24 @@
+{
+  "metadata": {
+    "name": "world-terrain-first-frame",
+    "description": "Given seed 1, when the 3D world opens, then generated terrain is ready within its render budget",
+    "labels": { "reset": "none", "safety": "read-only" },
+    "execution_mode": "observer"
+  },
+  "settings": { "viewport_width": 1600, "viewport_height": 1000 },
+  "nodes": [
+    { "id": "navigate", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/world?view=3d&profile=low&actors=25&seed=1&diag=1&intro=0&weather=clear&pressure=0", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Open generated terrain" } } },
+    { "id": "assert-ready", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.diagnostics", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "timeout_ms": 90000, "failure_message": "Generated terrain did not reach its first frame", "attribute_name": "data-ready", "expected": { "string_value": "true" } }, "metadata": { "label": "Terrain is ready" } } },
+    { "id": "assert-budget", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.diagnostics", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "timeout_ms": 30000, "failure_message": "Generated terrain exceeds its render budget", "attribute_name": "data-budget-ok", "expected": { "string_value": "true" } }, "metadata": { "label": "Terrain is within budget" } } },
+    { "id": "assert-seed", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.diagnostics", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "timeout_ms": 15000, "failure_message": "Diagnostics did not retain seed 1", "attribute_name": "data-seed", "expected": { "string_value": "1" } }, "metadata": { "label": "Diagnostics expose the seed" } } },
+    { "id": "assert-weather", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.diagnostics", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "timeout_ms": 15000, "failure_message": "First-frame weather was not pinned", "attribute_name": "data-weather", "expected": { "string_value": "clear" } }, "metadata": { "label": "Weather is pinned" } } },
+    { "id": "shot", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false }, "metadata": { "label": "Generated terrain first frame" } } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate", "target": "assert-ready", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "assert-ready", "target": "assert-budget", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "assert-budget", "target": "assert-seed", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "assert-seed", "target": "assert-weather", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "assert-weather", "target": "shot", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

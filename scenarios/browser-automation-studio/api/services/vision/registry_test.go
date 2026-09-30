@@ -318,7 +318,7 @@ func TestNavigatorRegistry_ListNavigators(t *testing.T) {
 		creditPolicy: CreditPolicy{
 			RequiresCredits:  true,
 			CreditsPerStep:   2,
-			BypassConditions: []BypassCondition{BypassBYOK},
+			BypassConditions: []BypassCondition{BypassCredentialProvenance},
 		},
 		clientSourcePolicy: AllSourcesPolicy(),
 	}

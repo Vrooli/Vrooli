@@ -7,8 +7,8 @@ describe("hasDetailPage", () => {
     ["backlog", true],
     ["scenario", true],
     ["execution", true],
-    ["initiative", true],
-    ["capture", false],
+    ["goal", true],
+    ["capture", true],
     ["agent-activity", false],
     ["agent-run", false],
   ])("returns %s for entity type '%s'", (entityType, expected) => {

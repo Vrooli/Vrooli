@@ -1,0 +1,124 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.learning-maintain",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Read the durable owner learning queue or advance one claimed finding with repair, validation, and later-use evidence.",
+  "owner_skill": "program-runtime-improve",
+  "rung": "S3",
+  "assumptions": [
+    "The owner worker acts within its existing repair authority; a queue entry is evidence, not permission to execute domain effects."
+  ],
+  "invariants": [
+    "List excludes feedback and claim authority.",
+    "An advance preserves the ordered owner lifecycle and requires evidence.",
+    "The original task is never replayed by learning delivery or queue maintenance."
+  ],
+  "inputs": {
+    "action": {
+      "type": "string",
+      "default": "list"
+    },
+    "owner": {
+      "type": "string",
+      "default": ""
+    },
+    "finding_id": {
+      "type": "string",
+      "default": ""
+    },
+    "expected_state": {
+      "type": "string",
+      "default": ""
+    },
+    "next_state": {
+      "type": "string",
+      "default": ""
+    },
+    "claim_ref": {
+      "type": "string",
+      "default": "",
+      "free_text": true
+    },
+    "evidence": {
+      "type": "array",
+      "default": []
+    }
+  },
+  "budget": {
+    "wall_ms": 10000,
+    "output_bytes": 65536,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 100
+  },
+  "verbs": [
+    "tasks.learning_findings",
+    "tasks.learning_finding_transition"
+  ],
+  "bindings": [],
+  "fixtures": [
+    {
+      "id": "invalid-action",
+      "inputs": {
+        "action": "invalid"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "live-owner-queue",
+      "requires": [
+        "program-runtime"
+      ],
+      "inputs": {
+        "action": "list",
+        "owner": "program-runtime"
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "unavailable",
+        "refused"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "report"
+      ]
+    },
+    "signals": {
+      "findings": "At most 100 owner findings; list excludes feedback and claim refs",
+      "truncated": "True means more findings exist; narrow by owner",
+      "finding": "Advance response; preserve returned claim_ref privately across worker runs"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "kernel_runtime",
+        "binding_error",
+        "remote_error",
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible"
+      ]
+    },
+    "evidence": "Repair, independent validation, and subsequent usage references supplied for transition"
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "agent-manager.investigate",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Start one durable, caller-keyed Agent Manager investigation for a generic subject and collect its bounded structured result once.",
+  "inputs": {
+    "caller_key": {
+      "type": "string",
+      "required": true,
+      "description": "Stable caller-owned idempotency key."
+    },
+    "subject_kind": {
+      "type": "string",
+      "required": true,
+      "description": "Generic subject kind, such as plan, run, scenario, or cohort."
+    },
+    "subject_ref": {
+      "type": "string",
+      "required": true,
+      "description": "Stable subject reference."
+    },
+    "question": {
+      "type": "string",
+      "required": true,
+      "description": "Bounded diagnostic question; it cannot authorize mutation."
+    },
+    "run_ids": {
+      "type": "array",
+      "required": true,
+      "description": "Explicit subject run IDs used as evidence, at most eight."
+    },
+    "evidence_refs": {
+      "type": "array",
+      "description": "Optional bounded typed evidence references supplied by the caller; exact citations only."
+    },
+    "depth": {
+      "type": "string",
+      "default": "standard",
+      "enum": [
+        "quick",
+        "standard",
+        "deep"
+      ]
+    },
+    "wait_seconds": {
+      "type": "integer",
+      "default": 30,
+      "description": "One bounded collect wait, capped at 300 seconds."
+    }
+  },
+  "assumptions": [
+    "agent-manager declares agent-manager/investigate-typed and owns the diagnosis-only execution",
+    "the delegated workflow performs diagnosis only; recommendation application requires a separate reviewed operation",
+    "agent.collect waits for the durable terminal transition once and is never polled"
+  ],
+  "invariants": [
+    "exactly one agent.start and at most one agent.collect",
+    "stable caller_key is used as the downstream idempotency key; generic subject identity and evidence run IDs are included in the delegated input",
+    "this program cannot apply recommendations or mutate the subject",
+    "the envelope is printed exactly once on every path"
+  ],
+  "bindings": [],
+  "verbs": [
+    "agent.start",
+    "agent.collect"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "delegate",
+        "report"
+      ]
+    },
+    "signals": {
+      "summary": "Durable execution identity, terminal status, bounded result metadata, and diagnosis-only disposition"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "workflow_rejected",
+        "nested_failed",
+        "no_output",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Durable execution identity and subject/caller keys; never unbounded transcript content"
+  },
+  "budget": {
+    "wall_ms": 600000,
+    "inference_calls": 0,
+    "delegated_runs": 1,
+    "materialize_limit": 1,
+    "async": true,
+    "async_reason": "agent diagnosis may exceed the synchronous submission bound; submit asynchronously and wait once"
+  },
+  "fixtures": [
+    {
+      "id": "missing-key",
+      "inputs": {},
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "agent-manager"
+      ]
+    },
+    {
+      "id": "empty-question",
+      "inputs": {
+        "caller_key": "fixture-1",
+        "subject_kind": "plan",
+        "subject_ref": "plan-1",
+        "question": "",
+        "run_ids": [
+          "run-1"
+        ]
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "agent-manager"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "agent-manager"
+}

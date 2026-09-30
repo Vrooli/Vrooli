@@ -2,7 +2,7 @@
   "_metadata": {
     "entity": "agent-manager",
     "generated_at": "2025-12-18T19:07:07-05:00",
-    "generator": "prd-control-tower",
+    "generator": "business-health",
     "schema_version": "1.0"
   },
   "imports": [
@@ -27,7 +27,9 @@
     "19-run-artifacts/module.json",
     "20-cli-interface/module.json",
     "21-multi-phase-runs/module.json",
-    "22-cost-tracking/module.json"
+    "22-cost-tracking/module.json",
+    "23-durable-run-analytics/module.json",
+    "24-attributable-conversation-recall/module.json"
   ],
   "modules": [
     {
@@ -161,6 +163,18 @@
       "path": "22-cost-tracking",
       "priority": "P2",
       "title": "Cost Tracking"
+    },
+    {
+      "id": "MOD-P0-012",
+      "path": "23-durable-run-analytics",
+      "priority": "P0",
+      "title": "Durable Run Analytics"
+    },
+    {
+      "id": "MOD-P0-013",
+      "path": "24-attributable-conversation-recall",
+      "priority": "P0",
+      "title": "Attributable Conversation Recall"
     }
   ]
 }

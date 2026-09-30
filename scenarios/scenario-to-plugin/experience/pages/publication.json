@@ -1,0 +1,289 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "publication",
+    "title": "Publication",
+    "routes": [
+      "/packages/:packageId/publication"
+    ],
+    "purpose": "Show per-channel publication state and provide the publish and revoke actions, making clear that a channel counts as published only after the artifact was retrieved at its digest.",
+    "prd_refs": [
+      "OT-P0-007",
+      "OT-P0-008",
+      "OT-P1-001"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The operator can tell, per channel, whether the artifact is actually retrievable \u2014 not merely that a push succeeded.",
+      "notes": "Reporting an unconfirmed push as published is how an artifact silently fails to exist."
+    },
+    {
+      "statement": "Publish is clearly gated and revoke is clearly not.",
+      "notes": "Making something reachable needs two parties; making it unreachable needs one. The UI should make that asymmetry obvious."
+    },
+    {
+      "statement": "A partial revocation is presented as a real outcome that needs escalation, not as a transient error to retry.",
+      "notes": "Some registries cannot hard-delete; pretending otherwise leaves a live artifact the operator believes is gone."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Published to one channel, pending on another."
+    },
+    {
+      "id": "loading",
+      "description": "Publication state is loading."
+    },
+    {
+      "id": "submitting",
+      "description": "A publish is in flight."
+    },
+    {
+      "id": "empty",
+      "description": "The package has not been published anywhere."
+    },
+    {
+      "id": "partial",
+      "description": "Some channels confirmed and others did not."
+    },
+    {
+      "id": "success",
+      "description": "Every selected channel confirmed."
+    },
+    {
+      "id": "request-error",
+      "description": "Publication state could not be loaded."
+    },
+    {
+      "id": "permission-denied",
+      "description": "No release decision exists for this commit, so publish is unavailable."
+    },
+    {
+      "id": "revoked-partial",
+      "description": "Revocation completed on some channels; others still carry the artifact."
+    },
+    {
+      "id": "stale",
+      "description": "Channel state was read before the latest publish attempt settled."
+    }
+  ],
+  "elements": [
+    {
+      "id": "channel-table",
+      "role": "table",
+      "name": "Channels"
+    },
+    {
+      "id": "channel-state",
+      "role": "status",
+      "name": "Channel publication state"
+    },
+    {
+      "id": "confirmation-indicator",
+      "role": "status",
+      "name": "Retrieval confirmed"
+    },
+    {
+      "id": "publish-action",
+      "role": "button",
+      "name": "Publish"
+    },
+    {
+      "id": "revoke-action",
+      "role": "button",
+      "name": "Revoke"
+    },
+    {
+      "id": "publish-confirm-dialog",
+      "role": "dialog",
+      "name": "Confirm publication"
+    },
+    {
+      "id": "revoke-confirm-dialog",
+      "role": "dialog",
+      "name": "Confirm revocation"
+    },
+    {
+      "id": "gate-decision-status",
+      "role": "note",
+      "name": "Release decision for this commit"
+    },
+    {
+      "id": "publish-blocked-reason",
+      "role": "alert",
+      "name": "Why publish is unavailable"
+    },
+    {
+      "id": "partial-revocation-alert",
+      "role": "alert",
+      "name": "Channels still carrying this artifact"
+    },
+    {
+      "id": "escalation-guidance",
+      "role": "note",
+      "name": "How to escalate a partial revocation"
+    },
+    {
+      "id": "adapter-capability",
+      "role": "note",
+      "name": "Whether this channel supports withdrawal"
+    }
+  ],
+  "claims": [
+    {
+      "id": "channel-table-present",
+      "type": "element-present",
+      "statement": "The channel table is present.",
+      "tier": "aspirational",
+      "elements": [
+        "channel-table"
+      ]
+    },
+    {
+      "id": "confirmation-distinct-from-push",
+      "type": "state-distinct",
+      "statement": "A confirmed channel is distinguishable from one that was pushed but not confirmed.",
+      "tier": "aspirational",
+      "elements": [
+        "confirmation-indicator",
+        "channel-state"
+      ],
+      "states": [
+        "partial",
+        "success"
+      ],
+      "rationale": "A successful upload is not a successful publication."
+    },
+    {
+      "id": "publish-blocked-explains",
+      "type": "element-present",
+      "statement": "When no release decision exists, the page says so and names the remedy.",
+      "tier": "aspirational",
+      "elements": [
+        "publish-blocked-reason",
+        "gate-decision-status"
+      ],
+      "states": [
+        "permission-denied"
+      ]
+    },
+    {
+      "id": "destructive-actions-confirm",
+      "type": "affordance-present",
+      "statement": "Publish and revoke each require confirmation and offer cancellation.",
+      "tier": "aspirational",
+      "elements": [
+        "publish-action",
+        "revoke-action"
+      ],
+      "params": {
+        "affordances": [
+          "confirmation",
+          "cancellation",
+          "post-action-feedback"
+        ]
+      }
+    },
+    {
+      "id": "confirm-dialogs-keyboard",
+      "type": "keyboard-reachable",
+      "statement": "Both confirmation dialogs are keyboard operable and escapable.",
+      "tier": "aspirational",
+      "elements": [
+        "publish-confirm-dialog",
+        "revoke-confirm-dialog"
+      ]
+    },
+    {
+      "id": "partial-revocation-is-prominent",
+      "type": "element-present",
+      "statement": "A partial revocation names every channel still carrying the artifact.",
+      "tier": "aspirational",
+      "elements": [
+        "partial-revocation-alert"
+      ],
+      "states": [
+        "revoked-partial"
+      ],
+      "rationale": "This is the highest-severity state the product can be in: an artifact that should be withdrawn is still reachable."
+    },
+    {
+      "id": "partial-revocation-names-escalation",
+      "type": "element-present",
+      "statement": "The partial-revocation state names the escalation path rather than offering only a retry.",
+      "tier": "aspirational",
+      "elements": [
+        "escalation-guidance"
+      ],
+      "states": [
+        "revoked-partial"
+      ]
+    },
+    {
+      "id": "withdrawal-capability-visible",
+      "type": "element-present",
+      "statement": "Each channel shows whether it supports withdrawal, before a publish is made.",
+      "tier": "aspirational",
+      "elements": [
+        "adapter-capability"
+      ],
+      "rationale": "Publishing to a channel that cannot withdraw is a decision the operator should make knowingly."
+    },
+    {
+      "id": "submitting-covered",
+      "type": "state-covered",
+      "statement": "An in-flight publish shows progress rather than an unchanged view.",
+      "tier": "aspirational",
+      "elements": [
+        "publish-action"
+      ],
+      "states": [
+        "submitting"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "channel-table": {
+        "testid": "channel-table"
+      },
+      "channel-state": {
+        "testid": "channel-state"
+      },
+      "confirmation-indicator": {
+        "testid": "confirmation-indicator"
+      },
+      "publish-action": {
+        "testid": "publish-action"
+      },
+      "revoke-action": {
+        "testid": "revoke-action"
+      },
+      "publish-confirm-dialog": {
+        "testid": "publish-confirm-dialog"
+      },
+      "revoke-confirm-dialog": {
+        "testid": "revoke-confirm-dialog"
+      },
+      "gate-decision-status": {
+        "testid": "gate-decision-status"
+      },
+      "publish-blocked-reason": {
+        "testid": "publish-blocked-reason"
+      },
+      "partial-revocation-alert": {
+        "testid": "partial-revocation-alert"
+      },
+      "escalation-guidance": {
+        "testid": "escalation-guidance"
+      },
+      "adapter-capability": {
+        "testid": "adapter-capability"
+      }
+    }
+  }
+}

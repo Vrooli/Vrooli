@@ -11,6 +11,7 @@ import type {
   ChartDataPoint
 } from '../../../types';
 import { MetricCard } from './MetricCard';
+import { metricConnectionAlertCount } from '../connectionAlerts';
 
 interface MetricsGridProps {
   metrics: MetricsResponse | null;
@@ -84,16 +85,16 @@ export const MetricsGrid = ({
         type="cpu"
         label="CPU USAGE"
         unit="%"
-        value={metrics?.cpuUsage ?? 0}
+        metric={metrics?.cpu}
         isExpanded={expandedCards.has('cpu')}
-        onToggle={() => onToggleCard('cpu')}
+        onToggle={() => { onToggleCard('cpu'); }}
         details={detailedMetrics?.cpuDetails}
         alertCount={0} // TODO: Calculate based on thresholds
         history={metricHistory?.cpu}
         historyWindowSeconds={metricHistory?.windowSeconds}
         valueDomain={[0, 100]}
-        onOpenDetails={() => onOpenDetail('cpu')}
-        detailButtonLabel="OPEN DETAIL"
+        onOpenDetails={() => { onOpenDetail('cpu'); }}
+        detailButtonLabel="Open CPU detail"
       />
 
       {/* Memory Card */}
@@ -101,16 +102,16 @@ export const MetricsGrid = ({
         type="memory"
         label="MEMORY"
         unit="%"
-        value={metrics?.memoryUsage ?? 0}
+        metric={metrics?.memory}
         isExpanded={expandedCards.has('memory')}
-        onToggle={() => onToggleCard('memory')}
+        onToggle={() => { onToggleCard('memory'); }}
         details={detailedMetrics?.memoryDetails}
         alertCount={0} // TODO: Calculate based on thresholds
         history={metricHistory?.memory}
         historyWindowSeconds={metricHistory?.windowSeconds}
         valueDomain={[0, 100]}
-        onOpenDetails={() => onOpenDetail('memory')}
-        detailButtonLabel="OPEN DETAIL"
+        onOpenDetails={() => { onOpenDetail('memory'); }}
+        detailButtonLabel="Open memory detail"
       />
 
       {/* GPU Card */}
@@ -118,17 +119,17 @@ export const MetricsGrid = ({
         type="gpu"
         label="GPU"
         unit="%"
-        value={metrics?.gpuUsage ?? null}
+        metric={metrics?.gpu}
         isExpanded={expandedCards.has('gpu')}
-        onToggle={() => onToggleCard('gpu')}
+        onToggle={() => { onToggleCard('gpu'); }}
         details={gpuDetails}
         alertCount={0}
         history={metricHistory?.gpu}
         historyWindowSeconds={metricHistory?.windowSeconds}
         valueDomain={[0, 100]}
         historyUnit=" %"
-        onOpenDetails={() => onOpenDetail('gpu')}
-        detailButtonLabel="OPEN DETAIL"
+        onOpenDetails={() => { onOpenDetail('gpu'); }}
+        detailButtonLabel="Open GPU detail"
       />
 
       {/* Disk Card */}
@@ -136,16 +137,16 @@ export const MetricsGrid = ({
         type="disk"
         label="DISK"
         unit="%"
-        value={diskDetails?.diskUsage.percent ?? 0}
+        metric={metrics?.disk}
         isExpanded={expandedCards.has('disk')}
-        onToggle={() => onToggleCard('disk')}
+        onToggle={() => { onToggleCard('disk'); }}
         details={diskDetails}
         alertCount={0}
         history={diskIOHistory}
         historyWindowSeconds={metricHistory?.windowSeconds}
         historyUnit=" MB/s"
-        onOpenDetails={() => onOpenDetail('disk')}
-        detailButtonLabel="OPEN DETAIL"
+        onOpenDetails={() => { onOpenDetail('disk'); }}
+        detailButtonLabel="Open disk detail"
       />
 
       {/* Network & Connections Card */}
@@ -153,15 +154,15 @@ export const MetricsGrid = ({
         type="network"
         label="NETWORK & CONNECTIONS"
         unit="#"
-        value={metrics?.tcpConnections ?? 0}
+        metric={metrics?.connections}
         isExpanded={expandedCards.has('network')}
-        onToggle={() => onToggleCard('network')}
+        onToggle={() => { onToggleCard('network'); }}
         details={detailedMetrics?.networkDetails}
-        alertCount={0} // TODO: Calculate based on thresholds
+        alertCount={metricConnectionAlertCount(metrics?.connections, metricHistory?.network)}
         history={metricHistory?.network}
         historyWindowSeconds={metricHistory?.windowSeconds}
-        onOpenDetails={() => onOpenDetail('network')}
-        detailButtonLabel="OPEN DETAIL"
+        onOpenDetails={() => { onOpenDetail('network'); }}
+        detailButtonLabel="Open network detail"
       />
 
     </div>

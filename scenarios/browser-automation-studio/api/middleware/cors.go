@@ -14,13 +14,11 @@ import (
 
 type CorsConfig struct {
 	AllowedOrigins []string
-	AllowAll       bool
 }
 
 var (
 	corsConfigCache     CorsConfig
 	corsConfigCacheOnce sync.Once
-	wildcardWarningOnce sync.Once
 )
 
 func GetCachedCorsConfig() CorsConfig {
@@ -34,7 +32,6 @@ func GetCachedCorsConfig() CorsConfig {
 // This function should ONLY be called from tests
 func ResetCorsConfigForTesting() {
 	corsConfigCacheOnce = sync.Once{}
-	wildcardWarningOnce = sync.Once{}
 	corsConfigCache = CorsConfig{}
 }
 
@@ -53,26 +50,22 @@ func resolveAllowedOrigins() CorsConfig {
 		}
 	}
 
-	if strings.TrimSpace(raw) == "*" {
-		return CorsConfig{AllowAll: true}
-	}
-
 	if raw != "" {
 		parts := strings.Split(raw, ",")
 		origins := make([]string, 0, len(parts))
-		allowAll := false
 		for _, part := range parts {
 			trimmed := strings.TrimSpace(part)
 			if trimmed == "" {
 				continue
 			}
 			if trimmed == "*" {
-				allowAll = true
+				// Credentials and wildcard origins are incompatible and unsafe.
+				// Ignore the wildcard rather than widening an authenticated API.
 				continue
 			}
 			origins = append(origins, trimmed)
 		}
-		return CorsConfig{AllowedOrigins: origins, AllowAll: allowAll}
+		return CorsConfig{AllowedOrigins: origins}
 	}
 
 	// Default safe origins include lifecycle-managed UI and App Monitor proxy
@@ -96,28 +89,20 @@ func CorsMiddleware(log *logrus.Logger) func(http.Handler) http.Handler {
 			cfg := GetCachedCorsConfig()
 			origin := strings.TrimSpace(r.Header.Get("Origin"))
 
-			// Always vary on origin unless wildcard is enabled for transparency
-			if !cfg.AllowAll {
-				w.Header().Add("Vary", "Origin")
-			}
+			w.Header().Add("Vary", "Origin")
 
-			if cfg.AllowAll {
-				wildcardWarningOnce.Do(func() {
-					log.Warn("Using wildcard CORS (CORS_ALLOWED_ORIGINS=*) - not recommended for production")
-				})
-				w.Header().Set("Access-Control-Allow-Origin", "*")
-			} else if origin == "" {
-				// Requests without Origin header (non-browser clients) are allowed without CORS headers
-			} else if isOriginAllowed(origin, cfg.AllowedOrigins) {
-				w.Header().Set("Access-Control-Allow-Origin", origin)
-				w.Header().Set("Access-Control-Allow-Credentials", "true")
-			} else {
-				log.WithFields(logrus.Fields{
-					"origin":          origin,
-					"allowed_origins": strings.Join(cfg.AllowedOrigins, ","),
-				}).Warn("Rejected CORS request from unauthorized origin")
-				http.Error(w, "Origin not allowed", http.StatusForbidden)
-				return
+			if origin != "" {
+				if isOriginAllowed(origin, cfg.AllowedOrigins) {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					w.Header().Set("Access-Control-Allow-Credentials", "true")
+				} else {
+					log.WithFields(logrus.Fields{
+						"origin":          origin,
+						"allowed_origins": strings.Join(cfg.AllowedOrigins, ","),
+					}).Warn("Rejected CORS request from unauthorized origin")
+					http.Error(w, "Origin not allowed", http.StatusForbidden)
+					return
+				}
 			}
 
 			// Set common headers when CORS is active

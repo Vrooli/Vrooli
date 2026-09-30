@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+import "google/protobuf/struct.proto";
+import "landing-page-business-suite/v1/shared/presentation.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// =============================================================================
+// SEO DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Per-variant SEO: the stored VariantSEOConfig (variant.proto) plus the
+// resolved head payload the frontend renders, which merges variant overrides
+// with branding defaults. sitemap.xml and robots.txt are served as raw
+// text/xml endpoints (not modeled here).
+//
+// =============================================================================
+
+// SEOResponse is the resolved per-variant SEO head payload for rendering,
+// merging variant overrides with site branding defaults.
+message SEOResponse {
+  string site_name = 1;
+  string title = 2;
+  string description = 3;
+  string og_title = 4;
+  string og_description = 5;
+  string og_image_url = 6;
+  string twitter_card = 7;
+  string canonical_url = 8;
+  string favicon_url = 9;
+  string apple_touch_icon_url = 10;
+  string theme_primary_color = 11;
+  bool noindex = 12;
+  google.protobuf.Struct structured_data = 13;
+}
+
+// GetVariantSEORequest resolves the SEO head payload for a variant slug (public).
+message GetVariantSEORequest {
+  string slug = 1;
+}
+
+// UpdateVariantSEORequest stores SEO overrides for a variant (admin).
+message UpdateVariantSEORequest {
+  string slug = 1;
+  vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig config = 2;
+}
+
+// UpdateVariantSEOResponse acknowledges an SEO update.
+message UpdateVariantSEOResponse {
+  bool success = 1;
+  // RFC3339 update timestamp.
+  string updated_at = 2;
+}
+
+// SeoService serves resolved SEO head payloads and stores per-variant overrides.
+service SeoService {
+  // Returns the resolved SEO head payload for a variant (public).
+  rpc GetVariantSEO(GetVariantSEORequest) returns (SEOResponse);
+  // Stores SEO overrides for a variant (admin).
+  rpc UpdateVariantSEO(UpdateVariantSEORequest) returns (UpdateVariantSEOResponse);
+}

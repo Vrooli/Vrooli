@@ -1,10 +1,16 @@
 package edge
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
+
+	"scenario-to-cloud/cli/internal/apierr"
+	"scenario-to-cloud/cli/internal/protoout"
+	"scenario-to-cloud/cli/internal/selector"
 )
 
 // Run executes edge subcommands.
@@ -14,6 +20,8 @@ func Run(client *Client, args []string) error {
 	}
 
 	switch args[0] {
+	case "status":
+		return runStatus(client, args[1:])
 	case "dns-check":
 		return runDNSCheck(client, args[1:])
 	case "dns-records":
@@ -35,6 +43,8 @@ func printUsage() error {
 	fmt.Println(`Usage: scenario-to-cloud edge <command> [arguments]
 
 Commands:
+  status <selector>                 Typed edge observation: routes, private listeners, DNS, TLS, readiness
+                                    ` + selector.Usage + `
   dns-check <deployment-id>         Check DNS configuration
   dns-records <deployment-id>       List DNS records
   caddy <deployment-id> <action>    Caddy control (reload, restart, status, validate)
@@ -387,4 +397,62 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// runStatus prints the typed edge observation. Readiness is the producer's
+// verdict: anything but an externally passed readiness exits 1.
+func runStatus(client *Client, args []string) error {
+	fs := flag.NewFlagSet("edge status", flag.ContinueOnError)
+	sel := selector.Register(fs)
+	jsonOutput := fs.Bool("json", false, "Output proto JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	chosen, err := sel.Selector(fs.Args())
+	if err != nil {
+		return err
+	}
+	ref, err := selector.Resolve(context.Background(), client.Deployments, chosen)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Observation(context.Background(), ref.GetId())
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		return protoout.Print(resp)
+	}
+	obs := resp.GetObservation()
+	fmt.Println(selector.Identity(ref))
+	fmt.Printf("domain: %s  acme: %s  spec digest: %s  observed: %s\n", obs.GetDomain(), obs.GetAcmeEnvironment(), obs.GetSpecDigest(), obs.GetObservedAt().AsTime().UTC().Format("2006-01-02T15:04:05Z"))
+	for _, r := range obs.GetRoutes() {
+		fmt.Printf("  route %s -> %d (%s)\n", r.GetHost(), r.GetUpstreamPort(), r.GetListenerId())
+	}
+	for _, l := range obs.GetPrivateListeners() {
+		fmt.Printf("  private %s %s/%s:%d (%s)\n", l.GetId(), l.GetOwner(), l.GetPortName(), l.GetPort(), l.GetReason())
+	}
+	for _, d := range obs.GetDns() {
+		fmt.Printf("  dns %s ipv4=%s ipv6=%s match=%t %s\n", d.GetHost(), d.GetIpv4().GetState(), d.GetIpv6().GetState(), d.GetMatch(), d.GetReasonCode())
+	}
+	for _, t := range obs.GetTls() {
+		fmt.Printf("  tls %s issuer=%s not_after=%s days_left=%d renewal=%s %s\n", t.GetHost(), t.GetIssuer(), t.GetNotAfter(), t.GetDaysLeft(), t.GetRenewalState(), t.GetDetail())
+	}
+	ready := obs.GetReadiness()
+	fmt.Printf("readiness: local=%s external=%s", ready.GetLocal().GetStatus(), ready.GetExternal().GetStatus())
+	if ready.GetExternal().GetReasonCode() != "" {
+		fmt.Printf(" (%s)", ready.GetExternal().GetReasonCode())
+	}
+	fmt.Println()
+	for _, na := range obs.GetNextActions() {
+		fmt.Printf("  next: %s", na.GetLabel())
+		if na.GetReference() != "" {
+			fmt.Printf(" (%s)", na.GetReference())
+		}
+		fmt.Println()
+	}
+	if ready.GetExternal().GetStatus() != "passed" {
+		return apierr.Failed("edge for deployment %s is not externally ready (%s)", ref.GetId(), strings.TrimSpace(ready.GetExternal().GetStatus()+" "+ready.GetExternal().GetReasonCode()))
+	}
+	return nil
 }

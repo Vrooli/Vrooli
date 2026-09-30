@@ -1,8 +1,9 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
@@ -11,43 +12,15 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
 )
-
-// WebSocketMessage represents a message from the WebSocket server.
-type WebSocketMessage struct {
-	Type    string          `json:"type"`
-	Payload json.RawMessage `json:"payload"`
-	RunID   string          `json:"runId,omitempty"`
-}
-
-// RunEventPayload represents a run event from the WebSocket.
-type RunEventPayload struct {
-	ID        string `json:"id"`
-	RunID     string `json:"runId"`
-	Sequence  int64  `json:"sequence"`
-	EventType string `json:"eventType"`
-	Timestamp string `json:"timestamp"`
-	Data      any    `json:"data,omitempty"`
-}
-
-// RunProgressPayload represents a progress update from the WebSocket.
-type RunProgressPayload struct {
-	RunID           string `json:"runId"`
-	Phase           string `json:"phase"`
-	PercentComplete int    `json:"percentComplete"`
-	CurrentAction   string `json:"currentAction"`
-}
-
-// RunStatusPayload represents a status change from the WebSocket.
-type RunStatusPayload struct {
-	ID     string `json:"id"`
-	Status string `json:"status"`
-}
 
 // streamEvents connects to WebSocket and streams events for a specific run.
 func (a *App) streamEvents(runID string) error {
-	// Get API base and convert to WebSocket URL
-	baseURL := a.core.HTTPClient.BaseURL()
+	// Resolve through APIClient even when no HTTP request has initialized the
+	// underlying client yet (for example, a first-command --follow).
+	baseURL := strings.TrimRight(a.core.APIClient.BaseURL(), "/")
 	wsURL, err := httpToWSURL(baseURL + "/api/v1/ws")
 	if err != nil {
 		return fmt.Errorf("failed to build WebSocket URL: %w", err)
@@ -55,21 +28,33 @@ func (a *App) streamEvents(runID string) error {
 
 	fmt.Printf("Connecting to %s...\n", wsURL)
 
-	// Connect to WebSocket
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	// Reuse the shared authentication and request-provenance hooks for the
+	// upgrade. Gorilla dials directly, outside the normal HTTP transport.
+	handshake, err := http.NewRequest(http.MethodGet, wsURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to build WebSocket request: %w", err)
+	}
+	a.core.HTTPClient.ApplyRequestHeaders(handshake)
+	for name, value := range a.core.APIClient.AuthHeaders() {
+		handshake.Header.Set(name, value)
+	}
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, handshake.Header)
 	if err != nil {
 		return fmt.Errorf("failed to connect to WebSocket: %w", err)
 	}
 	defer conn.Close()
 
 	// Subscribe to the specific run
-	subscribeMsg := map[string]any{
-		"type": "subscribe",
-		"payload": map[string]string{
-			"runId": runID,
+	subscribeMsg, err := protojson.Marshal(&domainpb.AgentManagerWsClientMessage{
+		Type: domainpb.AgentManagerWsClientMessageType_AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_SUBSCRIBE,
+		Payload: &domainpb.AgentManagerWsClientMessage_RunSubscription{
+			RunSubscription: &domainpb.RunSubscription{RunId: runID},
 		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to encode subscription: %w", err)
 	}
-	if err := conn.WriteJSON(subscribeMsg); err != nil {
+	if err := conn.WriteMessage(websocket.TextMessage, subscribeMsg); err != nil {
 		return fmt.Errorf("failed to subscribe: %w", err)
 	}
 
@@ -81,35 +66,20 @@ func (a *App) streamEvents(runID string) error {
 	defer signal.Stop(interrupt)
 
 	// Channel to receive messages
-	messages := make(chan WebSocketMessage)
+	messages := make(chan *domainpb.AgentManagerWsMessage)
 	errChan := make(chan error, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	readerDone := make(chan struct{})
 
 	// Read messages in a goroutine
 	go func() {
-		for {
-			_, data, err := conn.ReadMessage()
-			if err != nil {
-				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
-					errChan <- fmt.Errorf("connection closed: %w", err)
-				}
-				close(messages)
-				return
-			}
-
-			// Handle batched messages (separated by newlines)
-			for _, line := range strings.Split(string(data), "\n") {
-				line = strings.TrimSpace(line)
-				if line == "" {
-					continue
-				}
-
-				var msg WebSocketMessage
-				if err := json.Unmarshal([]byte(line), &msg); err != nil {
-					continue // Skip malformed messages
-				}
-				messages <- msg
-			}
-		}
+		defer close(readerDone)
+		errChan <- readWSMessages(ctx, conn.ReadMessage, messages)
+	}()
+	defer func() {
+		cancel()
+		_ = conn.Close() // Unblock a socket read as well as message delivery.
+		<-readerDone
 	}()
 
 	// Process messages until interrupt or error
@@ -118,19 +88,13 @@ func (a *App) streamEvents(runID string) error {
 		case <-interrupt:
 			fmt.Println("\nDisconnecting...")
 			// Send close message
-			err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-			if err != nil {
-				return nil // Ignore close errors
-			}
+			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
 			return nil
 
 		case err := <-errChan:
 			return err
 
-		case msg, ok := <-messages:
-			if !ok {
-				return nil // Channel closed
-			}
+		case msg := <-messages:
 			if err := a.handleWSMessage(msg, runID); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
 			}
@@ -138,65 +102,90 @@ func (a *App) streamEvents(runID string) error {
 	}
 }
 
+// readWSMessages preserves protobuf enum, oneof and int64 semantics. Delivery
+// must be cancellable because the terminal may stop consuming mid-batch.
+func readWSMessages(ctx context.Context, read func() (int, []byte, error), messages chan<- *domainpb.AgentManagerWsMessage) error {
+	for {
+		_, data, err := read()
+		if err != nil {
+			if ctx.Err() != nil || websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
+				return nil
+			}
+			return fmt.Errorf("connection closed: %w", err)
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			var msg domainpb.AgentManagerWsMessage
+			if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal([]byte(line), &msg); err != nil {
+				return fmt.Errorf("failed to decode WebSocket message: %w", err)
+			}
+			select {
+			case messages <- &msg:
+			case <-ctx.Done():
+				return nil
+			}
+		}
+	}
+}
+
 // handleWSMessage processes a WebSocket message and prints it.
-func (a *App) handleWSMessage(msg WebSocketMessage, targetRunID string) error {
+func (a *App) handleWSMessage(msg *domainpb.AgentManagerWsMessage, targetRunID string) error {
 	// Filter to only show messages for our run (or general messages)
-	if msg.RunID != "" && msg.RunID != targetRunID {
+	if msg.GetRunId() != "" && msg.GetRunId() != targetRunID {
 		return nil
 	}
 
 	timestamp := time.Now().Format("15:04:05")
 
-	switch msg.Type {
-	case "connected":
+	switch msg.GetType() {
+	case domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_CONNECTED:
 		// Already printed connection message
 		return nil
 
-	case "pong":
+	case domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_PONG:
 		// Ignore pong messages
 		return nil
 
-	case "run_event":
-		var payload RunEventPayload
-		if err := json.Unmarshal(msg.Payload, &payload); err != nil {
-			return fmt.Errorf("failed to parse run_event: %w", err)
+	case domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT:
+		payload := msg.GetRunEvent()
+		if payload == nil {
+			return fmt.Errorf("run_event message is missing runEvent")
 		}
-		dataStr := ""
-		if payload.Data != nil {
-			dataBytes, _ := json.Marshal(payload.Data)
-			dataStr = string(dataBytes)
-			if len(dataStr) > 80 {
-				dataStr = dataStr[:77] + "..."
-			}
-		}
-		fmt.Printf("[%s] EVENT #%d %-12s %s\n", timestamp, payload.Sequence, payload.EventType, dataStr)
-
-	case "run_progress":
-		var payload RunProgressPayload
-		if err := json.Unmarshal(msg.Payload, &payload); err != nil {
-			return fmt.Errorf("failed to parse run_progress: %w", err)
-		}
-		fmt.Printf("[%s] PROGRESS %d%% | Phase: %s | %s\n", timestamp, payload.PercentComplete, payload.Phase, payload.CurrentAction)
-
-	case "run_status":
-		var payload RunStatusPayload
-		if err := json.Unmarshal(msg.Payload, &payload); err != nil {
-			return fmt.Errorf("failed to parse run_status: %w", err)
-		}
-		fmt.Printf("[%s] STATUS: %s\n", timestamp, payload.Status)
-		// If run completed, we can exit
-		if payload.Status == "completed" || payload.Status == "failed" || payload.Status == "cancelled" {
-			fmt.Printf("\nRun %s\n", payload.Status)
+		if payload.RunId != "" && payload.RunId != targetRunID {
 			return nil
 		}
+		dataStr := runEventDataString(payload)
+		if len(dataStr) > 80 {
+			dataStr = dataStr[:77] + "..."
+		}
+		fmt.Printf("[%s] EVENT #%d %-12s %s\n", timestamp, payload.Sequence, formatEnumValue(payload.EventType, "RUN_EVENT_TYPE_", "_"), dataStr)
+
+	case domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_PROGRESS:
+		payload := msg.GetRunProgress()
+		if payload == nil {
+			return fmt.Errorf("run_progress message is missing runProgress")
+		}
+		fmt.Printf("[%s] PROGRESS %d%% | Phase: %s | %s\n", timestamp, payload.PercentComplete, formatEnumValue(payload.Phase, "RUN_PHASE_", "_"), payload.CurrentAction)
+
+	case domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS:
+		payload := msg.GetRunStatus()
+		if payload == nil {
+			return fmt.Errorf("run_status message is missing runStatus")
+		}
+		if payload.RunId != "" && payload.RunId != targetRunID {
+			return nil
+		}
+		fmt.Printf("[%s] STATUS: %s\n", timestamp, formatEnumValue(payload.Status, "RUN_STATUS_", "_"))
 
 	default:
 		// Print unknown message types as JSON for debugging
-		payloadStr := string(msg.Payload)
+		payloadStr := marshalProtoJSON(msg)
 		if len(payloadStr) > 100 {
 			payloadStr = payloadStr[:97] + "..."
 		}
-		fmt.Printf("[%s] %s: %s\n", timestamp, msg.Type, payloadStr)
+		fmt.Printf("[%s] %s: %s\n", timestamp, msg.GetType(), payloadStr)
 	}
 
 	return nil

@@ -9,7 +9,7 @@
       "description": "Implement analysis system to identify patterns and commonalities in skill structure",
       "id": "REQ-P1-002",
       "prd_ref": "prompt-manager-should-have-skill-analysis-and-pattern-extraction",
-      "status": "draft",
+      "status": "planned",
       "title": "Skill Pattern Analysis",
       "validation": [
         {

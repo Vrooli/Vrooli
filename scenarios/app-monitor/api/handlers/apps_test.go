@@ -1,10 +1,14 @@
 package handlers
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"app-monitor-api/repository"
 	"app-monitor-api/services"
 
 	"github.com/gin-gonic/gin"
@@ -34,6 +38,9 @@ func TestGetAppsSummary(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	appService := services.NewAppService(nil)
 	handler := NewAppHandler(appService)
+	handler.getAppsSummary = func(context.Context) ([]repository.App, error) {
+		return []repository.App{{ID: "demo", Name: "Demo", Status: "running"}}, nil
+	}
 
 	t.Run("Success", func(t *testing.T) {
 		router := setupTestRouter()
@@ -43,9 +50,21 @@ func TestGetAppsSummary(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// Should return 200 or 500 depending on environment
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Errorf("Expected 200 or 500, got %d. Body: %s", w.Code, w.Body.String())
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected successful summary, got %d: %s", w.Code, w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), "demo") {
+			t.Fatalf("success response omitted app payload: %s", w.Body.String())
+		}
+	})
+	t.Run("DependencyFailure", func(t *testing.T) {
+		handler.getAppsSummary = func(context.Context) ([]repository.App, error) { return nil, errors.New("dependency unavailable") }
+		w := httptest.NewRecorder()
+		router := setupTestRouter()
+		router.GET("/apps/summary", handler.GetAppsSummary)
+		router.ServeHTTP(w, httptest.NewRequest("GET", "/apps/summary", nil))
+		if w.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500 for dependency failure, got %d", w.Code)
 		}
 	})
 }
@@ -54,6 +73,9 @@ func TestGetApps(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	appService := services.NewAppService(nil)
 	handler := NewAppHandler(appService)
+	handler.getApps = func(context.Context) ([]repository.App, error) {
+		return []repository.App{{ID: "demo", Name: "Demo", Status: "running"}}, nil
+	}
 
 	t.Run("Success", func(t *testing.T) {
 		router := setupTestRouter()
@@ -63,9 +85,21 @@ func TestGetApps(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// Should return 200 or 500 depending on environment
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Errorf("Expected 200 or 500, got %d. Body: %s", w.Code, w.Body.String())
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected successful app list, got %d: %s", w.Code, w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), "demo") {
+			t.Fatalf("success response omitted app payload: %s", w.Body.String())
+		}
+	})
+	t.Run("DependencyFailure", func(t *testing.T) {
+		handler.getApps = func(context.Context) ([]repository.App, error) { return nil, errors.New("dependency unavailable") }
+		w := httptest.NewRecorder()
+		router := setupTestRouter()
+		router.GET("/apps", handler.GetApps)
+		router.ServeHTTP(w, httptest.NewRequest("GET", "/apps", nil))
+		if w.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500 for dependency failure, got %d", w.Code)
 		}
 	})
 }
@@ -76,6 +110,7 @@ func TestGetApp(t *testing.T) {
 	handler := NewAppHandler(appService)
 
 	t.Run("NonExistentApp", func(t *testing.T) {
+		handler.getApp = func(context.Context, string) (*repository.App, error) { return nil, services.ErrAppNotFound }
 		router := setupTestRouter()
 		router.GET("/apps/:id", handler.GetApp)
 
@@ -145,6 +180,7 @@ func TestStopApp(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	appService := services.NewAppService(nil)
 	handler := NewAppHandler(appService)
+	handler.stopApp = func(context.Context, string) error { return services.ErrAppNotFound }
 
 	t.Run("NonExistentApp", func(t *testing.T) {
 		router := setupTestRouter()
@@ -154,10 +190,8 @@ func TestStopApp(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// Should succeed or fail depending on whether the app exists
-		// The service may return success even for nonexistent apps
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Errorf("Expected 200 or 500, got %d", w.Code)
+		if w.Code == http.StatusOK {
+			t.Errorf("nonexistent app must not report a successful stop: %s", w.Body.String())
 		}
 	})
 }
@@ -216,22 +250,21 @@ func TestRecordAppView(t *testing.T) {
 	})
 }
 
-func TestReportAppIssue(t *testing.T) {
+func TestReportAppFix(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	appService := services.NewAppService(nil)
 	handler := NewAppHandler(appService)
 
 	t.Run("MissingBody", func(t *testing.T) {
 		router := setupTestRouter()
-		router.POST("/apps/:id/report", handler.ReportAppIssue)
+		router.POST("/apps/:id/fixes/report", handler.ReportAppFix)
 
-		req := httptest.NewRequest("POST", "/apps/test-app/report", nil)
+		req := httptest.NewRequest("POST", "/apps/test-app/fixes/report", nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// Should handle missing body gracefully
-		if w.Code != http.StatusBadRequest && w.Code != http.StatusInternalServerError {
-			t.Errorf("Expected 400 or 500 for missing body, got %d", w.Code)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("missing JSON body must be rejected with 400, got %d", w.Code)
 		}
 	})
 }

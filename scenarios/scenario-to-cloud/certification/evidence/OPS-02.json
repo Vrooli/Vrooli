@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "case_id": "OPS-02",
+  "verdict": "unavailable",
+  "lane": "soak",
+  "requirement_refs": [
+    "STC-P0-043"
+  ],
+  "candidate": {
+    "release_digest": "",
+    "configuration_digest": "",
+    "closure_digest": ""
+  },
+  "target": {
+    "machine_id": "",
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "operation_refs": [],
+  "validation_receipt_ref": "go test ./perfbudget/ ./certification/ (2026-09-09, PASS, -race)",
+  "artifact_refs": [
+    "api/perfbudget/bounded_test.go#TestAlertConditionsAndRecoveryTransitions",
+    "docs/reference/service-objectives.md#alert-conditions",
+    "docs/guides/incident-runbook.md"
+  ],
+  "assertions": [
+    "alert contract defined: docs/reference/service-objectives.md, event scenario-to-cloud.deployment.alert.v1 with facts shape api/perfbudget.Alert.Facts",
+    "detection budget frozen at 60 s (phase_23.detection.alert_detection_seconds_max)",
+    "package lane: controlled outage, certificate <= 14 d, backup beyond RPO, rotation pending each raise one typed alert; recovery emits resolved on the same incident_id"
+  ],
+  "observed_at": "2026-09-09T18:30:00Z",
+  "limitations": [
+    "soak lane pending EXT-09 (authorised 24-hour staging soak on a disposable target); no soak has run",
+    "real_vps lane pending EXT-01 (authorised disposable VPS); no real target exists",
+    "qemu lane pending EXT-06 (qemu + cloud-localds not installed on the host)",
+    "no emitter is wired: the health producer (P16 owner) must publish the event; delivery through notification-hub not exercised",
+    "no scheduled failure was injected on a target"
+  ]
+}

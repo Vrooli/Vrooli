@@ -13,6 +13,17 @@ const pluginRoot = dirname(require.resolve("@typescript-eslint/eslint-plugin/pac
 const { plugin: tsPlugin } = require(join(pluginRoot, "dist/raw-plugin.js"));
 const importGraphCache = new Map();
 const sourceExtensions = [".ts", ".tsx", ".js", ".jsx", ".mts", ".cts"];
+const restrictedImportsRule = "no-restricted-imports";
+const productionImportBanPatterns = [
+  "**/test-utils",
+  "**/test-utils/*",
+  "@/test-utils",
+  "@/test-utils/*",
+  "**/features/*/mocks",
+  "**/features/*/mocks/*",
+  "@/features/*/mocks",
+  "@/features/*/mocks/*"
+];
 
 function isFile(path) {
   try {
@@ -161,6 +172,15 @@ const browserGlobals = {
   window: "readonly"
 };
 
+// Pull the strictTypeChecked rule set from the already-installed
+// @typescript-eslint plugin (no extra dependency). These typed-lint rules are
+// applied below and then the high-churn ones are pragmatically relaxed,
+// mirroring the house pattern in other scenarios.
+const strictTypeCheckedRules = tsPlugin.configs["flat/strict-type-checked"].reduce(
+  (acc, cfg) => ({ ...acc, ...(cfg.rules ?? {}) }),
+  {}
+);
+
 /** @type {import("eslint").Linter.FlatConfig[]} */
 export default [
   {
@@ -191,7 +211,19 @@ export default [
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh
     },
+    // The TypeScript import resolver documents how relative/aliased imports are
+    // resolved for import-graph rules (the project is TypeScript-first).
+    settings: {
+      "import/resolver": {
+        typescript: {
+          alwaysTryTypes: true,
+          project: "./tsconfig.json"
+        }
+      }
+    },
     rules: {
+      ...strictTypeCheckedRules,
+
       "no-unused-vars": "off",
       "no-undef": "off",
       "no-redeclare": "off",
@@ -228,7 +260,50 @@ export default [
       "@typescript-eslint/no-redeclare": "error",
       "@typescript-eslint/consistent-type-imports": "warn",
       "react-hooks/exhaustive-deps": "warn",
-      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }]
+      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+
+      // Test helpers and feature mocks are never production dependencies.
+      [restrictedImportsRule]: [
+        "error",
+        {
+          patterns: [
+            {
+              group: productionImportBanPatterns,
+              message: "Production code must not import test-only helpers or feature mocks."
+            }
+          ]
+        }
+      ],
+
+      // ────────────────────────────────────────────────────────────────────────
+      // strictTypeChecked rules relaxed to match the existing codebase
+      // conventions (stylistic / low-runtime-risk). The safety-critical typed
+      // rules above stay on.
+      // ────────────────────────────────────────────────────────────────────────
+      "@typescript-eslint/no-deprecated": "off",
+      "@typescript-eslint/no-dynamic-delete": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-invalid-void-type": "off",
+      "@typescript-eslint/no-meaningless-void-operator": "off",
+      "@typescript-eslint/no-base-to-string": "off",
+      "@typescript-eslint/no-misused-spread": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/no-redundant-type-constituents": "off",
+      "@typescript-eslint/no-unnecessary-boolean-literal-compare": "off",
+      "@typescript-eslint/no-unnecessary-type-arguments": "off",
+      "@typescript-eslint/no-unnecessary-type-assertion": "off",
+      "@typescript-eslint/no-unnecessary-type-conversion": "off",
+      "@typescript-eslint/no-unnecessary-type-parameters": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/no-unnecessary-template-expression": "off",
+      "@typescript-eslint/restrict-plus-operands": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/unbound-method": "off",
+      "@typescript-eslint/use-unknown-in-catch-callback-variable": "off",
+      "@typescript-eslint/prefer-promise-reject-errors": "off",
+      "@typescript-eslint/only-throw-error": "off",
+      "@typescript-eslint/require-await": "off"
     }
   },
   {
@@ -236,7 +311,14 @@ export default [
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": "off",
-      "@typescript-eslint/no-non-null-assertion": "off"
+      "@typescript-eslint/no-non-null-assertion": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/await-thenable": "off",
+      [restrictedImportsRule]: "off"
     }
   }
 ];

@@ -114,6 +114,9 @@ func TestListCampaignsFiltersAndReadiness(t *testing.T) {
 func TestUpsertCampaignPersistsToFile(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("VROOLI_ROOT", tmp)
+	// Storage data now resolves under the operator runtime home (~/.vrooli);
+	// pin HOME so the campaign file lands under the test temp dir.
+	t.Setenv("HOME", tmp)
 
 	handlers := NewCampaignHandlersWithCLI(&mockScenarioCLI{}, &mockManifestBuilder{}, nil)
 
@@ -126,7 +129,7 @@ func TestUpsertCampaignPersistsToFile(t *testing.T) {
 		t.Fatalf("expected 200, got %d", rr.Code)
 	}
 
-	path := filepath.Join(tmp, "scenarios", "secrets-manager", "data", "campaigns.json")
+	path := filepath.Join(tmp, ".vrooli", "data", "vrooli", "secrets-manager", "campaigns.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("campaign file not written: %v", err)

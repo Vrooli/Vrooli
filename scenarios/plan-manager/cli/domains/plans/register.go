@@ -1,0 +1,82 @@
+// Package plans is the CLI's plans-domain command surface. It owns three
+// manifest groups — `plans` (the structured-plan SSOT CRUD + render + graph +
+// import/migrate), `phase` (first-class phase add/update) and `template`
+// (per-surface plan templates) — all backed by the API's PlansService. The
+// manifest (cli/manifest.json) carries the declarative command shape;
+// handlers.go builds each typed request and renders the response.
+package plans
+
+import (
+	"fmt"
+
+	"github.com/vrooli/cli-core/cliapp"
+)
+
+// Manifest group names this package owns.
+const (
+	PlansGroup    = "plans"
+	PhaseGroup    = "phase"
+	TemplateGroup = "template"
+)
+
+// Register builds the plans + phase + template subcommand groups from the
+// embedded manifest and wires Connect-RPC bindings to handlers.
+func Register(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
+	h := newHandlers(core)
+
+	plansGroup, err := cliapp.LoadFromManifest(manifest, PlansGroup, map[string]func(cliapp.RunContext) error{
+		"PlansService.ListPlans":                 h.list,
+		"PlansService.GetPlan":                   h.get,
+		"PlansService.CreatePlan":                h.create,
+		"PlansService.UpdatePlan":                h.update,
+		"PlansService.CreateCandidateRevision":   h.candidateCreate,
+		"PlansService.GetCandidateRevision":      h.candidateGet,
+		"PlansService.PreviewCandidateRevision":  h.candidatePreview,
+		"PlansService.ValidateCandidateRevision": h.candidateValidate,
+		"PlansService.ApplyCandidateRevision":    h.candidateApply,
+		"PlansService.DiscardCandidateRevision":  h.candidateDiscard,
+		"PlansService.ArchivePlan":               h.archive,
+		"PlansService.RenderMarkdown":            h.render,
+		"PlansService.AddRelevantContext":        h.contextAdd,
+		"PlansService.ListRelevantContext":       h.contextList,
+		"PlansService.UpdateRelevantContext":     h.contextUpdate,
+		"PlansService.RemoveRelevantContext":     h.contextRemove,
+		"PlansService.AddReference":              h.referenceAdd,
+		"PlansService.ListReferences":            h.referenceList,
+		"PlansService.UpdateReference":           h.referenceUpdate,
+		"PlansService.RemoveReference":           h.referenceRemove,
+		"PlansService.GetGraph":                  h.graph,
+		"PlansService.LinkSupersession":          h.link,
+		"PlansService.LinkDependency":            h.depend,
+		"PlansService.ImportPlan":                h.importPlan,
+		"PlansService.MigratePlan":               h.migrate,
+		"PlansService.ReconcilePlans":            h.reconcile,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("plans: load plans group: %w", err)
+	}
+	for i := range plansGroup.Subcommands {
+		if plansGroup.Subcommands[i].Name == "reconcile" {
+			plansGroup.Subcommands[i].DryRun = cliapp.DryRunCommandLocal
+			plansGroup.Subcommands[i].DryRunAlternative = "plan-manager plans reconcile --dry-run"
+		}
+	}
+
+	phaseGroup, err := cliapp.LoadFromManifest(manifest, PhaseGroup, map[string]func(cliapp.RunContext) error{
+		"PlansService.AddPhase":    h.phaseAdd,
+		"PlansService.UpdatePhase": h.phaseUpdate,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("plans: load phase group: %w", err)
+	}
+
+	templateGroup, err := cliapp.LoadFromManifest(manifest, TemplateGroup, map[string]func(cliapp.RunContext) error{
+		"PlansService.ListTemplates":      h.templateList,
+		"PlansService.CreateFromTemplate": h.templateNew,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("plans: load template group: %w", err)
+	}
+
+	return []cliapp.SubcommandGroup{plansGroup, phaseGroup, templateGroup}, nil
+}

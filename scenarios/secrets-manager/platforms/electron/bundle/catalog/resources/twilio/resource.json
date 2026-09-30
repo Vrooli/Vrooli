@@ -1,0 +1,142 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "twilio",
+  "storage": {"entries": {
+    "config": {"rung": "owned", "path": "$USER_CONFIG_DIR/vrooli/resources/twilio", "kind": "dir", "class": "config", "regenerable": false, "sensitive": true, "rationale": "The resource documentation stores Twilio phone-number and credential configuration under the user config root."}
+  }},
+  "display_name": "Twilio",
+  "description": "Hosted Twilio API resource with typed Go credential and provider diagnostics.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-twilio",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-twilio_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-twilio"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "template": "cloud-api",
+  "driver": "cloud-api",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "bundled-client",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "Requires a Twilio account and network access."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "bundled-client",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "Requires a Twilio account and network access."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "bundled-client",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "Requires a Twilio account and network access."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests"
+          ]
+        }
+      }
+    }
+  },
+  "endpoint": "https://api.twilio.com/2010-04-01/Accounts.json",
+  "credentials": {
+    "descriptors": [
+      { "logical_id": "vrooli/twilio", "field": "account-sid", "env": "TWILIO_ACCOUNT_SID", "label": "Twilio account SID", "required": true },
+      { "logical_id": "vrooli/twilio", "field": "auth-token", "env": "TWILIO_AUTH_TOKEN", "label": "Twilio auth token", "required": true }
+    ]
+  },
+  "orchestration": {
+    "startup_order": 320,
+    "startup_timeout_seconds": 10,
+    "startup_time_estimate": "2-5s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "low"
+  },
+  "portability_tier": "full",
+  "category": "communications",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "https://api.twilio.com/2010-04-01/Accounts.json",
+      "expected_status": [
+        200,
+        401,
+        403
+      ],
+      "timeout_seconds": 15
+    }
+  ],
+  "capabilities": {
+    "supports_logs": false,
+    "supports_content_ops": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
+}

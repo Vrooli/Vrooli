@@ -8,7 +8,9 @@
 
 import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { X, Play, Search } from 'lucide-react';
-import { useProjectStore, useProjectDetailStore, WorkflowCard, type WorkflowWithStats, type Project } from '@/domains/projects';
+import { useProjectStore, type Project } from '@/domains/projects/store';
+import { useProjectDetailStore, type WorkflowWithStats } from '@/domains/projects/hooks/useProjectDetailStore';
+import { WorkflowCard } from '@/domains/projects/WorkflowCard';
 import { ResponsiveDialog } from '@shared/layout';
 import { ProjectSelector } from './ProjectSelector';
 

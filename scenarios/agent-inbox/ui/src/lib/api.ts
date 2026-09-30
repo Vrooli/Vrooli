@@ -9,8 +9,7 @@
  * - api-messages.ts   - Message add, edit, regenerate, branch selection
  * - api-completion.ts - Streaming completion, SSE, StreamingEvent
  * - api-models.ts     - Models and usage tracking
- * - api-tools.ts      - Tool discovery, config, execution
- * - api-approvals.ts  - Tool approvals and pending approvals
+ * - api-approvals.ts  - Runtime tool-call approvals and pending approvals
  * - api-templates.ts  - Templates CRUD, import/export
  * - api-skills.ts     - Skills CRUD, suggestions, sync
  * - api-settings.ts   - YOLO mode, web search, suggestions settings, link preview
@@ -30,7 +29,6 @@ export type {
   Attachment,
   Message,
   ToolCallRecord,
-  ApprovalOverride,
   Label,
   ChatWithMessages,
   ValidatePathResult,
@@ -118,43 +116,13 @@ export type {
   UsageStats,
 } from "./api-models";
 
-// Tool discovery protocol types (re-exported from proto-contracts via api-tools)
-export type {
-  ScenarioInfo,
-  ToolParameters,
-  ParameterSchema,
-  ToolMetadata,
-  ToolCategory,
-  DiscoveredTool,
-} from "./proto-contracts";
-
-// Tools
+// Runtime tool-call records
 export {
-  fetchTools,
   fetchChatToolCalls,
-  fetchToolSet,
-  fetchScenarioStatuses,
-  setToolEnabled,
-  resetToolConfig,
-  fetchScenarioInfo,
-  syncTools,
-  executeToolManually,
-} from "./api-tools";
-export type {
-  ToolConfigurationScope,
-  EffectiveTool,
-  ToolSet,
-  ScenarioStatus,
-  ToolConfigUpdate,
-  DiscoveryResult,
-  ToolDefinition,
-  ManualToolExecuteRequest,
-  ManualToolExecuteResponse,
-} from "./api-tools";
+} from "./api-approvals";
 
 // Tool approvals
 export {
-  setToolApproval,
   getPendingApprovals,
   approveToolCall,
   rejectToolCall,
@@ -249,7 +217,6 @@ export {
   attachAgentRun,
 } from "./api-agent";
 export type {
-  RunnerType,
   AgentRunStatus,
   AgentChatConfig,
   AgentModeResponse,

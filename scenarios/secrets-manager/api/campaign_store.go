@@ -7,14 +7,16 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // DBCampaignStore persists campaigns to Postgres so the UI can resume work reliably.
 type DBCampaignStore struct {
-	db *sql.DB
+	db *database.RoutedDB
 }
 
-func NewDBCampaignStore(db *sql.DB) *DBCampaignStore {
+func NewDBCampaignStore(db *database.RoutedDB) *DBCampaignStore {
 	return &DBCampaignStore{db: db}
 }
 

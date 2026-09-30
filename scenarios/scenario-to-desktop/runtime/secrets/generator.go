@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"scenario-to-desktop-runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // DefaultCharset is the default character set for random secret generation.

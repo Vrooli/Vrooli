@@ -1,0 +1,23 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "freshness-go",
+    "display_name": "github.com/vrooli/freshness-go",
+    "description": "Run-freshness SSOT: the frozen scenario tree-digest spec, read-only access to test-genie's run index, and the per-phase fresh/stale/unknown verdict core shared by test-genie and cached status readers.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": ["github.com/vrooli/freshness-go"],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": ["scenario_api", "scenario_cli", "scenario_test", "template_api", "template_cli"],
+      "adoption_modes": ["go_module_replace"]
+    },
+    "lifecycle": {},
+    "refresh": {
+      "strategy": "none",
+      "restart_running_consumers": false
+    },
+    "docs": ["packages/freshness-go/README.md", "docs/package-governance.md"]
+  }
+}

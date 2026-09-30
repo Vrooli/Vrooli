@@ -294,52 +294,6 @@ func TestDefaultMultiPageConfig(t *testing.T) {
 	assert.True(t, config.EnableFallback)
 }
 
-func TestEnsureMultiPagePlan_V1ToV2(t *testing.T) {
-	plan := &contracts.ExecutionPlan{
-		SchemaVersion: contracts.ExecutionPlanSchemaVersion, // v1
-		WorkflowID:    uuid.New(),
-		Instructions: []contracts.CompiledInstruction{
-			{Index: 0, NodeID: "node-1"},
-			{Index: 1, NodeID: "node-2"},
-		},
-	}
-
-	result := EnsureMultiPagePlan(plan)
-
-	assert.Equal(t, contracts.ExecutionPlanSchemaVersionV2, result.SchemaVersion)
-	assert.Len(t, result.Pages, 1)
-	assert.True(t, result.Pages[0].IsInitial)
-
-	// All instructions should have the same page ID
-	assert.NotNil(t, result.Instructions[0].PageID)
-	assert.NotNil(t, result.Instructions[1].PageID)
-	assert.Equal(t, *result.Instructions[0].PageID, *result.Instructions[1].PageID)
-}
-
-func TestEnsureMultiPagePlan_AlreadyV2(t *testing.T) {
-	pageID := uuid.New()
-	plan := &contracts.ExecutionPlan{
-		SchemaVersion: contracts.ExecutionPlanSchemaVersionV2, // Already v2
-		WorkflowID:    uuid.New(),
-		Pages: []contracts.PageDefinition{
-			{ID: pageID, IsInitial: true},
-		},
-		Instructions: []contracts.CompiledInstruction{
-			{Index: 0, NodeID: "node-1", PageID: &pageID},
-		},
-	}
-
-	result := EnsureMultiPagePlan(plan)
-
-	// Should be unchanged
-	assert.Equal(t, plan, result)
-}
-
-func TestEnsureMultiPagePlan_Nil(t *testing.T) {
-	result := EnsureMultiPagePlan(nil)
-	assert.Nil(t, result)
-}
-
 func TestPageEventHandler_HandlePageCreated(t *testing.T) {
 	page1ID := uuid.New()
 	page2ID := uuid.New()

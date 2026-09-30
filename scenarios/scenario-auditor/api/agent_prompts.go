@@ -29,163 +29,6 @@ type RuleCreationSpec struct {
 	Motivation  string
 }
 
-// DEPRECATED: Rule test agent prompts moved to app-issue-tracker integration
-// This function is no longer used since "Add Tests (AI)" and "Fix Tests (AI)"
-// buttons were replaced with the unified "Report" button that creates issues
-// in app-issue-tracker for AI agents to pick up.
-/*
-func buildRuleAgentPrompt(rule RuleInfo, action string) (string, string, map[string]string, error) {
-	ruleSource, err := os.ReadFile(rule.FilePath)
-	if err != nil {
-		return "", "", nil, fmt.Errorf("failed to read rule file: %w", err)
-	}
-
-	testCases, err := extractRuleTestCases(rule)
-	if err != nil {
-		return "", "", nil, fmt.Errorf("failed to parse test cases: %w", err)
-	}
-
-	existingSummary := describeExistingTests(rule.ID, testCases)
-	existingDetail := describeTestDetails(testCases)
-
-	var failingDetail string
-	var testRunErr error
-	var label string
-
-	switch action {
-	case agentActionAddRuleTests:
-		label = "Add Rule Test Cases"
-	case agentActionFixRuleTests:
-		label = "Fix Rule Test Cases"
-	default:
-		return "", "", nil, fmt.Errorf("unsupported agent action: %s", action)
-	}
-
-	var templateName string
-	switch action {
-	case agentActionAddRuleTests:
-		templateName = "rule-add-test-cases.tmpl"
-	case agentActionFixRuleTests:
-		templateName = "rule-fix-test-cases.tmpl"
-	}
-
-	templatePath := filepath.Join(getScenarioRoot(), "prompts", templateName)
-	tplBytes, err := os.ReadFile(templatePath)
-	if err != nil {
-		return "", "", nil, fmt.Errorf("failed to load prompt template: %w", err)
-	}
-
-	// Always attempt to run tests so we can provide failing context (even if there are currently zero cases)
-	results, runErr := runRuleTests(rule.ID, rule)
-	if runErr != nil {
-		testRunErr = runErr
-	}
-	if len(results) > 0 {
-		failingDetail = describeFailingTests(results)
-	}
-	if testRunErr != nil {
-		failingDetail += fmt.Sprintf("\nNOTE: Test execution error encountered: %v", testRunErr)
-	}
-
-	data := ruleAgentPromptData{
-		RuleID:               rule.ID,
-		RuleName:             safeFallback(rule.Name, rule.ID),
-		Category:             safeFallback(rule.Category, "uncategorized"),
-		Severity:             safeFallback(rule.Severity, "unknown"),
-		Standard:             safeFallback(rule.Standard, "unspecified"),
-		RuleFile:             relativeRulePath(rule.FilePath),
-		RuleImplementation:   string(ruleSource),
-		ExistingTestsSummary: existingSummary,
-		ExistingTestsDetail:  existingDetail,
-		FailingTestsDetail:   failingDetail,
-	}
-
-	tpl, err := template.New(templateName).Parse(string(tplBytes))
-	if err != nil {
-		return "", "", nil, fmt.Errorf("failed to parse prompt template: %w", err)
-	}
-
-	var buffer bytes.Buffer
-	if err := tpl.Execute(&buffer, data); err != nil {
-		return "", "", nil, fmt.Errorf("failed to render prompt template: %w", err)
-	}
-
-	metadata := map[string]string{
-		"rule_id":   rule.ID,
-		"rule_file": data.RuleFile,
-		"action":    action,
-	}
-
-	if testRunErr != nil {
-		metadata["test_run_error"] = testRunErr.Error()
-	}
-
-	return buffer.String(), label, metadata, nil
-}
-
-func describeExistingTests(ruleID string, tests []re.TestCase) string {
-	if len(tests) == 0 {
-		return fmt.Sprintf("Rule %s currently has no embedded test cases.", ruleID)
-	}
-	summary := fmt.Sprintf("Rule %s currently has %d test case(s).", ruleID, len(tests))
-	return summary
-}
-
-func describeTestDetails(tests []re.TestCase) string {
-	if len(tests) == 0 {
-		return ""
-	}
-
-	var builder strings.Builder
-	for _, tc := range tests {
-		builder.WriteString("- ")
-		builder.WriteString(tc.ID)
-		if tc.Description != "" {
-			builder.WriteString(": ")
-			builder.WriteString(tc.Description)
-		}
-		builder.WriteString(fmt.Sprintf(" (language=%s, should_fail=%t, expected_violations=%d)", safeFallback(tc.Language, "text"), tc.ShouldFail, tc.ExpectedViolations))
-		if tc.ExpectedMessage != "" {
-			builder.WriteString(" — expects message containing \"")
-			builder.WriteString(tc.ExpectedMessage)
-			builder.WriteString("\"")
-		}
-		builder.WriteString("\n")
-	}
-
-	return builder.String()
-}
-
-func describeFailingTests(results []re.TestResult) string {
-	var builder strings.Builder
-	for _, result := range results {
-		if result.Passed {
-			continue
-		}
-		builder.WriteString(fmt.Sprintf("- %s failed. ShouldFail=%t, expected violations=%d, actual=%d\n",
-			result.TestCase.ID,
-			result.TestCase.ShouldFail,
-			result.TestCase.ExpectedViolations,
-			len(result.ActualViolations),
-		))
-		if result.TestCase.ExpectedMessage != "" {
-			builder.WriteString(fmt.Sprintf("  Expected message containing: %s\n", result.TestCase.ExpectedMessage))
-		}
-		if len(result.ActualViolations) > 0 {
-			builder.WriteString("  Actual violations:\n")
-			for _, violation := range result.ActualViolations {
-				builder.WriteString(fmt.Sprintf("    - [%s] %s\n", safeFallback(violation.Severity, "unknown"), violation.Message))
-			}
-		}
-		if result.Error != "" {
-			builder.WriteString(fmt.Sprintf("  Error: %s\n", result.Error))
-		}
-	}
-
-	return builder.String()
-}
-*/
-
 func trimForPrompt(text string) string {
 	trimmed := strings.TrimSpace(text)
 	if trimmed == "" {
@@ -215,7 +58,11 @@ func safeFallback(value, fallback string) string {
 }
 
 func relativeRulePath(absPath string) string {
-	root := getScenarioRoot()
+	ctx, err := repoContext()
+	if err != nil {
+		return absPath
+	}
+	root := ctx.ScenarioAuditorRoot()
 	rel, err := filepath.Rel(root, absPath)
 	if err != nil {
 		return absPath
@@ -243,7 +90,12 @@ func buildRuleCreationPrompt(spec RuleCreationSpec) (string, string, map[string]
 		spec.Severity = "medium"
 	}
 
-	instructionsPath := filepath.Join(getScenarioRoot(), "prompts", "rule-creation.txt")
+	ctx, err := repoContext()
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to resolve repo context: %w", err)
+	}
+
+	instructionsPath := filepath.Join(ctx.ScenarioAuditorRoot(), "prompts", "rule-creation.txt")
 	instructionsBytes, err := os.ReadFile(instructionsPath)
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to load rule creation instructions: %w", err)
@@ -259,7 +111,7 @@ func buildRuleCreationPrompt(spec RuleCreationSpec) (string, string, map[string]
 
 	fileName := fmt.Sprintf("%s.go", ruleID)
 	relativePath := filepath.Join("rules", spec.Category, fileName)
-	absolutePath := filepath.Join(getScenarioRoot(), relativePath)
+	absolutePath := filepath.Join(ctx.ScenarioAuditorRoot(), relativePath)
 
 	if _, err := os.Stat(absolutePath); err == nil {
 		return "", "", nil, fmt.Errorf("a rule already exists at %s", relativePath)
@@ -359,7 +211,12 @@ func buildRuleEditingPrompt(spec RuleEditingSpec) (string, string, map[string]st
 		return "", "", nil, fmt.Errorf("rule content is required")
 	}
 
-	instructionsPath := filepath.Join(getScenarioRoot(), "prompts", "rule-editing.txt")
+	ctx, err := repoContext()
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to resolve repo context: %w", err)
+	}
+
+	instructionsPath := filepath.Join(ctx.ScenarioAuditorRoot(), "prompts", "rule-editing.txt")
 	instructionsBytes, err := os.ReadFile(instructionsPath)
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to load rule editing instructions: %w", err)

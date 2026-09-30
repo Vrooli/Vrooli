@@ -5,12 +5,15 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"sync"
 	"testing"
+
+	"swarm-manager/internal/testutil"
 
 	"github.com/gorilla/mux"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
-	"swarm-manager/internal/testutil"
 )
 
 type scenarioPayload struct {
@@ -43,6 +46,19 @@ type stubSource struct {
 	err       error
 }
 
+type countingSource struct {
+	mu        sync.Mutex
+	scenarios []ScenarioSource
+	calls     int
+}
+
+func (s *countingSource) List(_ context.Context) ([]ScenarioSource, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.calls++
+	return append([]ScenarioSource(nil), s.scenarios...), nil
+}
+
 func (s stubSource) List(_ context.Context) ([]ScenarioSource, error) {
 	if s.err != nil {
 		return nil, s.err
@@ -63,6 +79,35 @@ func (s stubCompleteness) Scores(_ context.Context) (map[string]int, error) {
 		return map[string]int{}, nil
 	}
 	return s.scores, nil
+}
+
+func TestDirectoryProviderListUsesLocalScenarioContracts(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	for _, name := range []string{"alpha", "beta"} {
+		serviceDir := filepath.Join(root, name, ".vrooli")
+		if err := os.MkdirAll(serviceDir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", serviceDir, err)
+		}
+		if err := os.WriteFile(filepath.Join(serviceDir, "service.json"), []byte("{}"), 0o644); err != nil {
+			t.Fatalf("write service.json: %v", err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(root, "scratch"), 0o755); err != nil {
+		t.Fatalf("mkdir scratch: %v", err)
+	}
+
+	got, err := NewDirectoryProvider(root).List(context.Background())
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("scenario count = %d, want 2: %+v", len(got), got)
+	}
+	if got[0].Name != "alpha" || got[0].Status != "available" || got[1].Name != "beta" || got[1].Status != "available" {
+		t.Fatalf("unexpected scenarios: %+v", got)
+	}
 }
 
 type stubLifecycle struct {
@@ -186,6 +231,29 @@ func TestList_Empty(t *testing.T) {
 	resp := testutil.DecodeJSON[listScenariosResponse](t, rec)
 	if len(resp.Scenarios) != 0 {
 		t.Errorf("expected 0 scenarios, got %d", len(resp.Scenarios))
+	}
+}
+
+func TestLoadAllCachesCatalogWithinTTL(t *testing.T) {
+	root, sources := setupTestScenarios(t)
+	source := &countingSource{scenarios: sources}
+	handler := NewHandlerWithDeps(filepath.Join(root, "scenarios"), source, &stubLifecycle{}, stubCompleteness{scores: map[string]int{}})
+
+	if _, err := handler.loadAllScenarios(context.Background()); err != nil {
+		t.Fatalf("first load: %v", err)
+	}
+	if _, err := handler.loadAllScenarios(context.Background()); err != nil {
+		t.Fatalf("cached load: %v", err)
+	}
+	if source.calls != 1 {
+		t.Fatalf("source calls = %d, want 1", source.calls)
+	}
+	handler.invalidateCatalog()
+	if _, err := handler.loadAllScenarios(context.Background()); err != nil {
+		t.Fatalf("load after invalidation: %v", err)
+	}
+	if source.calls != 2 {
+		t.Fatalf("source calls after invalidation = %d, want 2", source.calls)
 	}
 }
 

@@ -6,13 +6,21 @@ import (
 	"context"
 	"fmt"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
-	"vrooli-autoheal/internal/watchdog"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/watchdog"
 )
 
-// WatchdogCheck monitors the OS-level watchdog service status.
-// This check ensures boot recovery protection is properly configured.
+// setupRemediation is the one repair for every boot-protection finding. The
+// control plane's autoheal_watchdog safeguard installs, enables, lingers and
+// restarts the unit; the scenario only observes it. Before 2026-09-02 this
+// check offered install/enable/enable-linger/uninstall actions whose
+// executors had been replaced with "run vrooli setup" stubs, so the UI showed
+// repairs that could never happen.
+const setupRemediation = "vrooli setup"
+
+// WatchdogCheck observes the OS-level watchdog unit that restarts the autoheal
+// loop after a crash or reboot. It is observation-only.
 type WatchdogCheck struct {
 	detector *watchdog.Detector
 }
@@ -41,11 +49,11 @@ func NewWatchdogCheck(caps *platform.Capabilities, opts ...WatchdogCheckOption) 
 func (c *WatchdogCheck) ID() string    { return "os-watchdog" }
 func (c *WatchdogCheck) Title() string { return "OS Watchdog" }
 func (c *WatchdogCheck) Description() string {
-	return "Monitors OS-level watchdog service for boot recovery protection"
+	return "Observes the OS-level watchdog unit that gives the autoheal loop boot and crash recovery"
 }
 
 func (c *WatchdogCheck) Importance() string {
-	return "Ensures vrooli-autoheal automatically restarts after system reboots or crashes"
+	return "Without the unit, nothing restarts vrooli-autoheal after a reboot or crash; the repair is `vrooli setup`, never this API"
 }
 func (c *WatchdogCheck) Category() checks.Category  { return checks.CategoryInfrastructure }
 func (c *WatchdogCheck) IntervalSeconds() int       { return 300 } // Check every 5 minutes
@@ -54,13 +62,14 @@ func (c *WatchdogCheck) Platforms() []platform.Type { return nil } // All platfo
 func (c *WatchdogCheck) Run(ctx context.Context) checks.Result {
 	result := checks.Result{
 		CheckID: c.ID(),
-		Details: map[string]interface{}{},
+		Details: map[string]interface{}{"remediation": setupRemediation},
 	}
 
-	// Get current watchdog status
+	// Every run re-probes: a cached status from five minutes ago is exactly
+	// the stale answer a boot-protection check must not give.
+	c.detector.Invalidate()
 	status := c.detector.Detect()
 
-	// Populate details
 	result.Details["watchdogType"] = string(status.WatchdogType)
 	result.Details["installed"] = status.WatchdogInstalled
 	result.Details["enabled"] = status.WatchdogEnabled
@@ -81,7 +90,6 @@ func (c *WatchdogCheck) Run(ctx context.Context) checks.Result {
 		result.Details["lastError"] = status.LastError
 	}
 
-	// Build health metrics
 	subChecks := []checks.SubCheck{
 		{
 			Name:   "watchdog-installed",
@@ -95,12 +103,15 @@ func (c *WatchdogCheck) Run(ctx context.Context) checks.Result {
 		},
 		{
 			Name:   "watchdog-running",
-			Passed: status.WatchdogRunning || status.LoopRunning,
-			Detail: fmt.Sprintf("Service running: %v, Loop running: %v", status.WatchdogRunning, status.LoopRunning),
+			Passed: status.WatchdogRunning,
+			Detail: fmt.Sprintf("Service running: %v", status.WatchdogRunning),
+		},
+		{
+			Name:   "loop-running",
+			Passed: status.LoopRunning,
+			Detail: fmt.Sprintf("Loop main process present: %v", status.LoopRunning),
 		},
 	}
-
-	// Add lingering check for Linux user services
 	if status.IsUserService {
 		subChecks = append(subChecks, checks.SubCheck{
 			Name:   "lingering-enabled",
@@ -109,7 +120,6 @@ func (c *WatchdogCheck) Run(ctx context.Context) checks.Result {
 		})
 	}
 
-	// Calculate score based on protection level
 	score := 0
 	switch status.ProtectionLevel {
 	case watchdog.ProtectionFull:
@@ -119,42 +129,40 @@ func (c *WatchdogCheck) Run(ctx context.Context) checks.Result {
 	case watchdog.ProtectionNone:
 		score = 0
 	}
+	result.Metrics = &checks.HealthMetrics{Score: &score, SubChecks: subChecks}
 
-	result.Metrics = &checks.HealthMetrics{
-		Score:     &score,
-		SubChecks: subChecks,
-	}
-
-	// Determine status and message based on protection level
 	switch status.ProtectionLevel {
 	case watchdog.ProtectionFull:
 		result.Status = checks.StatusOK
 		result.Message = fmt.Sprintf("Full boot protection active (%s)", status.WatchdogType)
-
-		// Check lingering for user services - if missing, downgrade to warning
 		if status.IsUserService && !status.LingeringEnabled {
 			result.Status = checks.StatusWarning
-			result.Message = "Watchdog running but lingering not enabled - won't start on headless boot"
+			result.Message = "Watchdog running but lingering not enabled - won't start on headless boot; run `vrooli setup`"
 		}
 
 	case watchdog.ProtectionPartial:
 		result.Status = checks.StatusWarning
-		if status.LoopRunning && !status.WatchdogInstalled {
-			result.Message = "Loop is running but OS watchdog not installed - no crash/reboot recovery"
-		} else if status.WatchdogInstalled && !status.WatchdogEnabled {
-			result.Message = "Watchdog installed but not enabled - run 'vrooli-autoheal install'"
-		} else {
-			result.Message = "Partial protection - loop running but watchdog not configured properly"
+		switch {
+		case status.LoopRunning && !status.WatchdogInstalled:
+			result.Message = "Loop is running but the OS watchdog unit is not installed - no crash/reboot recovery; run `vrooli setup`"
+		case status.WatchdogInstalled && !status.WatchdogEnabled:
+			result.Message = "Watchdog unit installed but not enabled; run `vrooli setup`"
+		case status.WatchdogInstalled && status.WatchdogEnabled && !status.LoopRunning:
+			result.Status = checks.StatusCritical
+			result.Message = "Watchdog unit is enabled but the loop has no main process; run `vrooli setup`"
+		default:
+			result.Message = "Partial protection - loop running but the watchdog unit is not configured properly; run `vrooli setup`"
 		}
 
 	case watchdog.ProtectionNone:
-		if status.CanInstall {
+		switch {
+		case status.CanInstall:
 			result.Status = checks.StatusCritical
-			result.Message = "No boot protection - run 'vrooli-autoheal install' to enable"
-		} else if status.LastError != "" {
+			result.Message = "No boot protection - run `vrooli setup` to install the autoheal watchdog unit"
+		case status.LastError != "":
 			result.Status = checks.StatusWarning
 			result.Message = fmt.Sprintf("Watchdog not available: %s", status.LastError)
-		} else {
+		default:
 			result.Status = checks.StatusWarning
 			result.Message = "Watchdog not available on this platform"
 		}
@@ -163,146 +171,6 @@ func (c *WatchdogCheck) Run(ctx context.Context) checks.Result {
 	return result
 }
 
-// RecoveryActions returns available recovery actions for the watchdog check
-// [REQ:HEAL-ACTION-001]
-func (c *WatchdogCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
-	status := c.detector.GetCached()
-
-	actions := []checks.RecoveryAction{
-		{
-			ID:          "install",
-			Name:        "Install Watchdog",
-			Description: "Install OS-level watchdog service for boot recovery",
-			Dangerous:   false,
-			Available:   status.CanInstall && !status.WatchdogInstalled,
-		},
-		{
-			ID:          "enable",
-			Name:        "Enable Watchdog",
-			Description: "Enable the installed watchdog service",
-			Dangerous:   false,
-			Available:   status.WatchdogInstalled && !status.WatchdogEnabled,
-		},
-		{
-			ID:          "enable-linger",
-			Name:        "Enable Lingering",
-			Description: "Enable systemd lingering for headless boot support (Linux only)",
-			Dangerous:   false,
-			Available:   status.IsUserService && !status.LingeringEnabled,
-		},
-		{
-			ID:          "uninstall",
-			Name:        "Uninstall Watchdog",
-			Description: "Remove the OS-level watchdog service",
-			Dangerous:   true,
-			Available:   status.WatchdogInstalled,
-		},
-		{
-			ID:          "diagnose",
-			Name:        "Diagnose",
-			Description: "Get diagnostic information about watchdog status",
-			Dangerous:   false,
-			Available:   true,
-		},
-	}
-
-	return actions
-}
-
-// ExecuteAction runs the specified recovery action for the watchdog
-// [REQ:HEAL-ACTION-001]
-func (c *WatchdogCheck) ExecuteAction(ctx context.Context, actionID string) checks.ActionResult {
-	result := checks.ActionResult{
-		ActionID: actionID,
-		CheckID:  c.ID(),
-	}
-
-	switch actionID {
-	case "install":
-		installResult := c.detector.Install(ctx, watchdog.InstallOptions{
-			UseSystemService: false, // Default to user service (safer)
-			EnableLingering:  true,  // Try to enable lingering automatically
-		})
-		result.Success = installResult.Success
-		result.Message = installResult.Message
-		if installResult.Error != "" {
-			result.Error = installResult.Error
-		}
-		if installResult.ServicePath != "" {
-			result.Output = fmt.Sprintf("Service path: %s", installResult.ServicePath)
-		}
-
-	case "enable":
-		// For enable, we reinstall which will enable it
-		installResult := c.detector.Install(ctx, watchdog.InstallOptions{
-			UseSystemService: false,
-			EnableLingering:  true,
-		})
-		result.Success = installResult.Success
-		result.Message = installResult.Message
-		if installResult.Error != "" {
-			result.Error = installResult.Error
-		}
-
-	case "enable-linger":
-		lingerResult := c.detector.EnableLingering(ctx)
-		result.Success = lingerResult.Success
-		result.Message = lingerResult.Message
-		if lingerResult.Error != "" {
-			result.Error = lingerResult.Error
-		}
-		if lingerResult.LingerCommand != "" {
-			result.Output = fmt.Sprintf("Manual command: %s", lingerResult.LingerCommand)
-		}
-
-	case "uninstall":
-		uninstallResult := c.detector.Uninstall(ctx)
-		result.Success = uninstallResult.Success
-		result.Message = uninstallResult.Message
-		if uninstallResult.Error != "" {
-			result.Error = uninstallResult.Error
-		}
-
-	case "diagnose":
-		status := c.detector.Detect()
-		result.Success = true
-		result.Message = "Diagnostic information gathered"
-		result.Output = fmt.Sprintf(
-			"Platform: %s\n"+
-				"Watchdog Type: %s\n"+
-				"Installed: %v\n"+
-				"Enabled: %v\n"+
-				"Running: %v\n"+
-				"Loop Running: %v\n"+
-				"Boot Protection: %v\n"+
-				"Protection Level: %s\n"+
-				"Service Path: %s\n"+
-				"Is User Service: %v\n"+
-				"Lingering Enabled: %v\n"+
-				"Can Install: %v\n"+
-				"Last Error: %s",
-			status.WatchdogType,
-			status.WatchdogType,
-			status.WatchdogInstalled,
-			status.WatchdogEnabled,
-			status.WatchdogRunning,
-			status.LoopRunning,
-			status.BootProtectionActive,
-			status.ProtectionLevel,
-			status.ServicePath,
-			status.IsUserService,
-			status.LingeringEnabled,
-			status.CanInstall,
-			status.LastError,
-		)
-
-	default:
-		result.Success = false
-		result.Error = "unknown action: " + actionID
-	}
-
-	return result
-}
-
-// Ensure WatchdogCheck implements HealableCheck
-var _ checks.HealableCheck = (*WatchdogCheck)(nil)
+// The check is deliberately not a HealableCheck: it offers no recovery
+// actions because it can perform none.
+var _ checks.Check = (*WatchdogCheck)(nil)

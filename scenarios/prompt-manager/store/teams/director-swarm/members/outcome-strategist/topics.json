@@ -1,0 +1,17 @@
+{
+  "required_read": [
+    {
+      "prefix": "outcome-target-record/YYYY-MM-DD"
+    }
+  ],
+  "output": [
+    {
+      "prefix": "outcome-target-record/*",
+      "destination_kind": "knowledge"
+    }
+  ],
+  "external_producers": [
+    "operator",
+    "vision-walk"
+  ]
+}

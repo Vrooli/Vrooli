@@ -32,7 +32,7 @@ func TestSmokeTestStage_DefaultRecordingConfig(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName: "test-app",
 		},
 		BuildResult: &build.Status{
@@ -82,7 +82,7 @@ func TestSmokeTestStage_RecordingConfigNotSetWhenSkipped(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:  "test-app",
 			SkipSmokeTest: true,
 		},

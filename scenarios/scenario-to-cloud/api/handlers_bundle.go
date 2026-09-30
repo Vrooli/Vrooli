@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"time"
 
@@ -81,6 +82,7 @@ func (s *Server) handleBundleBuild(w http.ResponseWriter, r *http.Request) {
 
 	artifact, err := bundle.BuildMiniVrooliBundle(repoRoot, outDir, normalized)
 	if err != nil {
+		log.Printf("bundle build failed: %v", err)
 		bundle.WriteBundlesDirError(w, "build mini-Vrooli bundle", err)
 		return
 	}

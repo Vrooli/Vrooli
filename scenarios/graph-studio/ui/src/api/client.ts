@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios'
-import { resolveApiBase } from '@vrooli/api-base'
+import { getInjectedConfig, resolveApiBase } from '@vrooli/api-base'
 
 declare global {
   interface Window {
@@ -7,10 +7,11 @@ declare global {
   }
 }
 
-const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '16000'
+const runtimeConfig = getInjectedConfig()
+const DEFAULT_API_PORT = runtimeConfig?.apiPort?.trim() || '16000'
 
 const API_BASE_URL = resolveApiBase({
-  explicitUrl: import.meta.env.VITE_API_URL as string | undefined,
+  explicitUrl: runtimeConfig?.apiUrl,
   defaultPort: DEFAULT_API_PORT,
   appendSuffix: true,
 })
@@ -69,7 +70,7 @@ class ApiClient {
       },
     })
 
-    const previewTokenFromEnv = (import.meta.env.VITE_PREVIEW_ACCESS_TOKEN || '').trim()
+    const previewTokenFromEnv = String(runtimeConfig?.PREVIEW_ACCESS_TOKEN || '').trim()
     const previewToken = previewTokenFromEnv || (import.meta.env.PROD ? 'graph-studio-preview-token' : '')
 
     if (previewToken) {

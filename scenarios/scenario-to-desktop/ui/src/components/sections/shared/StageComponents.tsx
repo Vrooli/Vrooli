@@ -87,7 +87,13 @@ interface StageErrorProps {
  * Error state shown when stage has failed.
  * Supports both simple error messages and structured error recovery.
  */
-export function StageError({ stageName, children, errorInfo, onRetry, onDismiss }: StageErrorProps) {
+export function StageError({
+  stageName,
+  children,
+  errorInfo,
+  onRetry,
+  onDismiss,
+}: StageErrorProps) {
   // Use enhanced error recovery component when error info is available
   if (errorInfo) {
     return (
@@ -103,7 +109,8 @@ export function StageError({ stageName, children, errorInfo, onRetry, onDismiss 
   return (
     <div className="rounded-lg border border-red-900/50 bg-red-950/20 p-4">
       <p className="text-sm text-red-300">
-        {children ?? `${stageName} stage failed. Check the pipeline logs for details.`}
+        {children ??
+          `${stageName} stage failed. Check the pipeline logs for details.`}
       </p>
     </div>
   );
@@ -135,7 +142,11 @@ interface StageDetailCardProps {
 /**
  * Detail card for displaying a piece of stage information (e.g., file path).
  */
-export function StageDetailCard({ icon: Icon, label, children }: StageDetailCardProps) {
+export function StageDetailCard({
+  icon: Icon,
+  label,
+  children,
+}: StageDetailCardProps) {
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
       <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">

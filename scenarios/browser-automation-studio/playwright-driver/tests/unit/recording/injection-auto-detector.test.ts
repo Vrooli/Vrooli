@@ -8,7 +8,7 @@ const createByName = jest.fn();
 const factoryConstructor = jest.fn();
 
 jest.mock('../../../src/recording/injection/factory', () => ({
-  DEFAULT_STRATEGY_ORDER: ['init-script', 'route-injection'],
+  DEFAULT_STRATEGY_ORDER: ['init-script', 'cdp-injection'],
   InjectionStrategyFactory: jest.fn().mockImplementation(() => {
     factoryConstructor();
     return { createByName };

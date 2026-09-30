@@ -100,7 +100,7 @@ func TestFileStorePersistence(t *testing.T) {
 			},
 		},
 		StageOrder: []string{"bundle", "preflight", "generate"},
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName: "persistence-test",
 		},
 	}
@@ -136,7 +136,7 @@ func TestFileStorePersistence(t *testing.T) {
 		t.Errorf("expected 1 stage result, got %d", len(retrieved.Stages))
 	}
 	if retrieved.Config == nil {
-		t.Errorf("expected Config to be preserved")
+		t.Errorf("expected PipelineConfig to be preserved")
 	}
 }
 

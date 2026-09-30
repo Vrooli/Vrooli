@@ -1,27 +1,13 @@
-/**
- * Vrooli Ascension selector registry
- *
- * This file is the single source of truth for every selector used by the UI and
- * by Vrooli Ascension workflows. Types, helpers, and the registry builder are
- * imported from ./selectorTypes.ts. This file defines the literal and dynamic
- * selector maps and exports the final `selectors` and `selectorsManifest`.
- *
- * ## Auto-Generated Manifest
- *
- * The `selectors.manifest.json` file is automatically generated from this file
- * during the testing process. If you need to add or modify selectors:
- *
- * 1. Update the `literalSelectors` object below for static selectors
- * 2. Update the `dynamicSelectorDefinitions` object for parameterized selectors
- * 3. The manifest will be regenerated automatically when tests run
- *
- * DO NOT manually edit `selectors.manifest.json` - your changes will be overwritten!
+import { librarySelectors } from "./selectors.library";
+export { librarySelectors };
+/** Application selector definitions. Shared behavior lives in @vrooli/ui-selectors.
+ * Run selector:manifest after editing these maps; UI builds regenerate the manifest.
  */
 
-import type { LiteralSelectorTree, DynamicSelectorTree } from "./selectorTypes";
-import { defineDynamicSelector, createSelectorRegistry } from "./selectorTypes";
+import type { LiteralSelectorTree, DynamicSelectorTree } from "@vrooli/ui-selectors";
+import { defineDynamicSelector, createSelectorRegistry } from "@vrooli/ui-selectors";
 
-const literalSelectors: LiteralSelectorTree = {
+const literalSelectors = {
   // Main layout
   app: {
     container: 'inbox-container',
@@ -116,9 +102,9 @@ const literalSelectors: LiteralSelectorTree = {
   indicators: {
     unread: 'unread-indicator',
   },
-};
+} satisfies LiteralSelectorTree;
 
-const dynamicSelectorDefinitions: DynamicSelectorTree = {
+const dynamicSelectorDefinitions = {
   chat: {
     item: defineDynamicSelector({
       description: 'Chat list item by chat ID',
@@ -167,9 +153,9 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
       params: { color: { type: 'string' } },
     }),
   },
-};
+} satisfies DynamicSelectorTree;
 
-const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
+const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions, librarySelectors);
 
 export const selectors = registry.selectors;
 export type Selectors = typeof selectors;

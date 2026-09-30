@@ -1,0 +1,176 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "substrate",
+    "title": "Substrate",
+    "routes": ["/substrate"],
+    "purpose": "Show the machine as the instrument actually sees it: every device class attached to this host, which rungs of the observability ladder are covered for each, which are dark and for how long, and — on a second axis — how much of the platform's capability surface is proven per operating system rather than merely compiled.",
+    "prd_refs": ["OT-P0-001", "OT-P0-002", "OT-P0-005"]
+  },
+  "regions": [
+    {
+      "id": "source-trust",
+      "purpose": "Instrument chrome: which sensor sources answered this read, with the reason verbatim where one did not. Rendered separately from every plant figure so an owner outage cannot read as a coverage collapse.",
+      "required": true,
+      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "partial", "error"]}
+    },
+    {
+      "id": "headline",
+      "purpose": "The board's computed figures — ladder coverage, covered-of-gradeable, classes with no covered rung, classes enumerated, cells with no bar, denominator confidence. Every one traces to a CLI verb returning the same value.",
+      "required": true,
+      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "partial", "error"]}
+    },
+    {
+      "id": "constellation",
+      "purpose": "The primary object: device classes arranged around the host on real parent edges, each carrying a five-segment ring, one arc per ladder rung. A class with no lit arc is drawn as a dashed outline so the shape of what is unwatched reads before any label.",
+      "required": true,
+      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}
+    },
+    {
+      "id": "rung-matrix",
+      "purpose": "The annunciator grid: classes down, the five rungs across, each cell a lamp carrying its state, its reason and its blindness age.",
+      "required": true,
+      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}
+    },
+    {
+      "id": "check-platforms",
+      "purpose": "Substrate sensing declared per host OS: how many registered autoheal checks apply on each platform, out of how many exist, and how many of those are universal.",
+      "required": true,
+      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}
+    },
+    {
+      "id": "portability",
+      "purpose": "The capability grid: capabilities down, operating systems across, each cell carrying the qualification rung so build-verified is visibly distinct from qualified and from nothing wired.",
+      "required": true,
+      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}
+    }
+  ],
+  "states": [
+    {"id": "ready", "description": "Ladder, portability grid and coverage denominator all read. Constellation, matrix, sensing and portability all render against live host data.", "setup": {"route": "/substrate"}},
+    {"id": "device-source-unavailable", "description": "The device-graph source did not answer. Its rungs report SOURCE UNREACHABLE, the class-derived figures render an em dash rather than zero, and no class is fabricated as blind.", "setup": {"route": "/substrate", "query": {"state": "device-source-unavailable"}}},
+    {"id": "space-unauthored", "description": "The substrate space authors no cell for some (class, rung) pairs. Those render as NO CELL AUTHORED — excluded from coverage arithmetic entirely, and visibly distinct from both blindness and a source outage.", "setup": {"route": "/substrate", "query": {"state": "unauthored"}}},
+    {"id": "loading", "description": "The ladder and the capability grid are loading.", "setup": {"route": "/substrate"}},
+    {"id": "partial", "description": "Some sensor sources answered and others did not; figures are computed only over those that did, and the unread ones are named.", "setup": {"route": "/substrate"}},
+    {"id": "error", "description": "No source answered. The board states the failure and prints no coverage figure at all.", "setup": {"route": "/substrate"}},
+    {"id": "empty", "description": "The ladder answered and returned no graded class. Distinct from an unread ladder, and the text alternative says so explicitly.", "setup": {"route": "/substrate"}},
+    {"id": "request-error", "description": "The board request failed and the failure is named rather than rendered as an empty machine.", "setup": {"route": "/substrate"}},
+    {"id": "stale", "description": "The last board read remains visible while a refresh is pending.", "setup": {"route": "/substrate"}}
+  ],
+  "elements": [
+    {"id": "source-trust", "role": "region", "name": "Source trust", "description": "Which sensor sources answered."},
+    {"id": "headline", "role": "region", "name": "Headline figures", "description": "Computed ladder and denominator figures."},
+    {"id": "constellation", "role": "region", "name": "Device constellation", "description": "Device classes and their rung rings."},
+    {"id": "rung-matrix", "role": "region", "name": "Device by rung", "description": "Class-by-rung annunciator grid."},
+    {"id": "check-platforms", "role": "region", "name": "Substrate sensing", "description": "Applicable checks per host OS."},
+    {"id": "portability", "role": "region", "name": "Portability", "description": "Capability qualification per operating system."}
+  ],
+  "priorities": [
+    {
+      "statement": "The board is read-only, and it must look it.",
+      "notes": "Operating-model rule 3 gives this scenario no controller letter. There is no restart, reconcile, shelve, dismiss or edit affordance anywhere on this page, and no API path behind one if it were added. This page shows devices and gaps, which makes it the single most tempting place in the scenario to add an action."
+    },
+    {
+      "statement": "Blindness is the figure, not the ground.",
+      "notes": "A dark region on this board is a dated, owned measurement meaning nobody is watching. It is never styled as absence of data, and it is never quietly omitted to make the shape look complete."
+    },
+    {
+      "statement": "No figure is ever fabricated from a source that did not answer.",
+      "notes": "A count is rendered only when the source that would produce it actually read. Everything else is an em dash. Zero and unread are opposite facts and the board never conflates them."
+    },
+    {
+      "statement": "Build-verified is never presented as qualified.",
+      "notes": "The portability matrix exists because the resolver previously collapsed 'compiles and passes fixtures' into 'nothing is wired'. Collapsing it the other way — presenting build-verified as proven — would be the same defect with a friendlier face."
+    }
+  ],
+  "claims": [
+    {
+      "id": "no-actuation-affordance",
+      "type": "manual-review",
+      "tier": "manual",
+      "statement": "The page exposes no control that restarts, reconciles, shelves, dismisses or otherwise mutates any device, check, cell or bar. Every interactive element only changes what is displayed.",
+      "rationale": "Operating-model rule 3 is absolute for this scenario. The only interactions on this board are selecting a class to filter and selecting a row to drill in.",
+      "states": ["ready"],
+      "elements": ["constellation", "rung-matrix"]
+    },
+    {
+      "id": "unread-is-not-zero",
+      "type": "manual-review",
+      "tier": "manual",
+      "statement": "When the device-graph source does not answer, every class-derived figure renders an em dash rather than 0, and no class is shown as blind on account of the outage.",
+      "rationale": "A board that prints '0 classes enumerated' when it could not look is indistinguishable from one that looked and found an empty machine. Those are opposite facts with opposite next actions.",
+      "states": ["device-source-unavailable"],
+      "elements": ["headline", "constellation"]
+    },
+    {
+      "id": "four-absences-are-distinct",
+      "type": "manual-review",
+      "tier": "manual",
+      "statement": "BLIND, UNMEASURABLE, MECHANISM ABSENT, NO CELL AUTHORED and SOURCE UNREACHABLE render as five visually distinct treatments, each carrying a distinct mark and text label so they remain distinguishable without colour.",
+      "rationale": "Nobody is watching, the host refused the read, the mechanism does not exist here, nobody declared the question, and the source did not answer are five different problems with five different owners. Collapsing any pair is the failure this instrument exists to remove.",
+      "states": ["ready", "space-unauthored"],
+      "elements": ["rung-matrix", "constellation"]
+    },
+    {
+      "id": "blindness-is-dated",
+      "type": "manual-review",
+      "tier": "manual",
+      "statement": "Every blind rung that carries a gap age displays it, and a class's longest-standing blindness is stated in its drill-down.",
+      "rationale": "Without the age, declared blindness degrades into declared-once-and-forgotten, which is the state this whole plan of record was written to end.",
+      "states": ["ready"],
+      "elements": ["rung-matrix"]
+    },
+    {
+      "id": "unauthored-is-excluded-not-counted",
+      "type": "manual-review",
+      "tier": "manual",
+      "statement": "A (class, rung) pair with no authored cell is excluded from both the numerator and the denominator of every coverage figure, and is not counted as a gap or as an ungraded cell.",
+      "rationale": "Counting an undeclared cell as a gap blames the machine for the space document being under-declared. The under-declaration is reported instead by the denominator confidence, which is PARTIAL for exactly this reason.",
+      "states": ["space-unauthored"],
+      "elements": ["headline", "rung-matrix"]
+    },
+    {
+      "id": "constellation-has-a-text-alternative",
+      "type": "manual-review",
+      "tier": "manual",
+      "statement": "The constellation carries a title, a description and an adjacent text alternative that states which classes have no covered rung, so a screen-reader user receives the finding rather than the picture.",
+      "rationale": "The shape is the argument. A reader who cannot see the shape must still get the argument.",
+      "states": ["ready", "empty"],
+      "elements": ["constellation"]
+    },
+    {
+      "id": "qualification-is-shown-not-just-status",
+      "type": "manual-review",
+      "tier": "manual",
+      "statement": "Every portability cell renders its qualification rung, and build-verified is visually distinct from qualified.",
+      "rationale": "The distinction between 'runs on real hardware of this platform' and 'compiles and passes fixtures there' is the entire reason the platform-status vocabulary was closed.",
+      "states": ["ready"],
+      "elements": ["portability"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "source-trust": {"testid": "substrate-source-trust"},
+      "headline": {"testid": "substrate-headline"},
+      "constellation": {"testid": "substrate-constellation"},
+      "rung-matrix": {"testid": "substrate-rung-matrix"},
+      "check-platforms": {"testid": "substrate-check-platforms"},
+      "portability": {"testid": "substrate-portability"}
+    },
+    "regions": {
+      "source-trust": {"testid": "substrate-source-trust"},
+      "headline": {"testid": "substrate-headline"},
+      "constellation": {"testid": "substrate-constellation"},
+      "rung-matrix": {"testid": "substrate-rung-matrix"},
+      "check-platforms": {"testid": "substrate-check-platforms"},
+      "portability": {"testid": "substrate-portability"}
+    }
+  }
+}

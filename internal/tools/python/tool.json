@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "python",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
+  "description": "Python programming language runtime",
+  "commands": [
+    "python3",
+    "python"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "defaultPackage": "python3",
+  "packages": {
+    "brew": "python",
+    "winget": "Python.Python.3.12",
+    "pacman": "python"
+  },
+  "installHint": "Install Python 3.10+",
+  "bundling": "host-required",
+  "capability": "runtime-language",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  }
+}

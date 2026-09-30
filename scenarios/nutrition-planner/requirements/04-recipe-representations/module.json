@@ -1,0 +1,187 @@
+{
+  "_metadata": {
+    "description": "One versioned revision driving the ingredient map, reading view, cooking mode, and validated method graph.",
+    "module": "recipe-representations",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "REC-001",
+      "title": "One method graph drives reading, map, print, and cooking",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The recipe detail shall offer Recipe, Nutrition, and Notes tabs, with Reading and Recipe map views inside Recipe and an At a glance summary that opens the map, and the reading view, map, printed recipe, and focused cooking mode shall all derive from the same selected revision and step identities; advancing any view shall not mark a step, meal, or intake complete.",
+      "tags": [
+        "recipe",
+        "tabs",
+        "map",
+        "consistency"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: all three tabs resolve the same revision and a step preview plus Next navigation leaves completion state unchanged (ACT-015)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: reading, map, and cooking views at 1 and 2 servings show the same step ids and scaled quantities for the four-step R27.2 fixture (AT-024)."
+        }
+      ]
+    },
+    {
+      "id": "REC-002",
+      "title": "The method is a validated dependency graph",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "Every step shall carry stable ID, title, instruction, dependencies, ingredient allocations, named outputs, optional duration, and equipment capabilities; dependencies shall form a DAG, and self-cycles, dangling references, duplicate outputs, and over-allocations shall be rejected with editable field paths.",
+      "tags": [
+        "method-graph",
+        "dag",
+        "validation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: FIX-05 renders the warm/prep branches and their combine join, and the negative variants (self-dependency, missing output, 60 g sauce against 40 g, duplicate output) fail with specific errors (ACT-013, ACT-014)."
+        }
+      ]
+    },
+    {
+      "id": "REC-003",
+      "title": "Allocations are counted once and dispositions are explicit",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "The scenario shall store multiple step allocations against a single ingredient use, count that ingredient exactly once in recipe totals, and require an explicit disposition for discarded, reserved, or processing-aid quantities rather than subtracting arbitrary retention percentages.",
+      "tags": [
+        "allocation",
+        "nutrition",
+        "disposition"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: splitting 40 g of sauce into 30 g mixed plus 10 g reserved yields one 40 g ingredient row; referencing a named output does not re-add its nutrients (ACT-013)."
+        }
+      ]
+    },
+    {
+      "id": "REC-004",
+      "title": "The map communicates branches without erasing data",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The recipe map shall render ingredient allocations as rows and actions or stages as columns in real HTML or SVG with semantic table relationships and a readable alternative, show dependency cues, group wide graphs into stages with horizontal scrolling confined to the map region, keep the ingredient column readable, link each cell to its step, and surface unlinked ingredients in a clearly labeled state without erasing them from nutrition or groceries.",
+      "tags": [
+        "recipe-map",
+        "responsive",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: an unmapped ingredient appears under Not linked to a step and still contributes to totals; inactive cells do not render as required form inputs (ACT-013)."
+        },
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned UI journey: inspect a wide multi-stage map on a narrow viewport and confirm no page-level horizontal scroll."
+        }
+      ]
+    },
+    {
+      "id": "REC-005",
+      "title": "Scaling and alternate methods preserve canonical content",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "When a serving scale is selected, the scenario shall change displayed quantities and calculated totals without mutating the recipe's stored canonical yield or planned occurrence, and it shall not scale time, temperature, or batch feasibility linearly or round discrete items silently.",
+      "tags": [
+        "scaling",
+        "servings",
+        "methods"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: scaling to 1.5 servings leaves the stored recipe unchanged and does not multiply cooking time; a microwave and a stovetop variant are distinct reviewed methods and eligibility requires only one complete viable method (ACT-016, ACT-017)."
+        }
+      ]
+    },
+    {
+      "id": "REC-006",
+      "title": "Nutrition and Notes tabs are scoped and sourced",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The recipe Nutrition tab shall show per-serving and selected-yield values with provenance, unknown contributions, scoped target comparisons, and ingredient contributors from the recipe's single authoritative nutrition path, and the Notes tab shall show personal notes, source and attribution, revision details, and optional recorded feedback.",
+      "tags": [
+        "recipe",
+        "nutrition",
+        "notes",
+        "provenance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: an asserted recipe total is never added to ingredient-derived totals and a missing contribution renders as unknown rather than zero (R12.4, FIX-04)."
+        }
+      ]
+    },
+    {
+      "id": "REC-007",
+      "title": "Recipe detail header, route, and method switching",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The scenario shall serve recipe detail at a direct route for a pinned or current revision with breadcrumb or back, title, description, modest image, active and elapsed time, a serving control with Reset and Apply to planned meal when opened from an occurrence, Start cooking, Add to week, favorite, and Edit, Duplicate, Archive, Print, and Source actions, and switching a preparation method shall switch the actual instructions, timing, and equipment requirements.",
+      "tags": [
+        "recipe",
+        "route",
+        "methods",
+        "scaling"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: changing the viewed scale does not change the planned occurrence until Apply to planned meal; switching stove to microwave swaps the step list and required capabilities (R12.1, R12.3)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: an archived recipe that is still scheduled stays readable and cookable at its pinned revision through the direct route (AT-017)."
+        }
+      ]
+    }
+  ]
+}

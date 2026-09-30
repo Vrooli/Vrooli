@@ -10,7 +10,7 @@
 export * from '../ui';
 
 // Shared components
-export { default as SubscriptionBadge } from './SubscriptionBadge';
+export { SubscriptionBadge } from '@components/MonetizationAccount';
 export { default as FeatureGateModal } from './FeatureGateModal';
 export type { GatedFeature } from './FeatureGateModal';
 export {

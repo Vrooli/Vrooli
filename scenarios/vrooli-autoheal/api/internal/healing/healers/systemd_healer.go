@@ -5,8 +5,8 @@ package healers
 import (
 	"context"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/healing/strategies"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/healing/strategies"
 )
 
 // SystemdHealer provides healing actions for systemd services.

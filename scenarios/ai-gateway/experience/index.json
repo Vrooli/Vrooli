@@ -1,0 +1,44 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "ai-gateway",
+  "description": "Experience contract for AI Gateway as an operator surface for provider inventory, route preview, route evidence, conformance findings, and policy management.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Dashboard",
+      "status": "active"
+    },
+    {
+      "id": "route-preview",
+      "path": "pages/route-preview.json",
+      "title": "Route Preview",
+      "status": "active"
+    },
+    {
+      "id": "providers",
+      "path": "pages/providers.json",
+      "title": "Providers And Roles",
+      "status": "draft"
+    },
+    {
+      "id": "conformance",
+      "path": "pages/conformance.json",
+      "title": "AI Conformance",
+      "status": "draft"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Policies And Settings",
+      "status": "draft"
+    }
+  ],
+  "journeys": []
+}

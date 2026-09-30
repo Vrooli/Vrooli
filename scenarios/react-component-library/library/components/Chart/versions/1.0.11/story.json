@@ -1,0 +1,87 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-chart]"
+        }
+      ],
+      "role": "anatomy"
+    },
+    {
+      "id": "empty",
+      "name": "Empty chart",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-chart]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "loading",
+      "name": "Loading chart",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-chart]"}],
+      "role": "boundary",
+      "states": ["loading"],
+      "mode": "pinned"
+    },
+    {
+      "id": "error",
+      "name": "Error chart",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-chart]"}],
+      "role": "boundary",
+      "states": ["error"],
+      "mode": "pinned"
+    },
+    {
+      "id": "one",
+      "name": "One data point",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-chart]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "many",
+      "name": "Many data points",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-chart]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "overflow",
+      "name": "Overflow chart labels",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-chart]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    }
+  ]
+}

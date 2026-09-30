@@ -1,0 +1,63 @@
+{
+  "_metadata": {
+    "module": "ground-truth-and-intent",
+    "description": "Code Facts ground-truth client (with filesystem fallback), service.json intent reader, and the declared-vs-actual reconcile model.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SH-GT-001",
+      "title": "Derive actual surfaces from Code Facts with filesystem fallback",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "api",
+      "criticality": "P0",
+      "description": "The profile client calls CodeFactsService.DescribeCodeFacts to derive actual surfaces, languages, frameworks, and artifacts; when Code Facts is unavailable it falls back to deterministic filesystem detection and sets an explicit degraded reason rather than failing silently.",
+      "tags": ["code-facts", "surfaces", "degraded"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "profile/client_test.go proves the filesystem fallback runs and records a degraded reason when Code Facts is down."}
+      ]
+    },
+    {
+      "id": "SH-GT-002",
+      "title": "Detect the scenario profile from code facts",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Profile detection classifies the scenario (default react-vite/Go, api-only, unrecognized/non-Go) purely from code-facts evidence — no service.json profile field — so conformance rule selection keys off actual code shape.",
+      "tags": ["profile", "code-facts", "api"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "profile/profile_test.go covers default, api-only, and unrecognized non-Go backend detection."}
+      ]
+    },
+    {
+      "id": "SH-GT-003",
+      "title": "Read declared service.json intent",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "api",
+      "criticality": "P0",
+      "description": "A typed intent reader parses the target service.json (ports + env vars, lifecycle steps, health checks, dependencies, freshness checks) since Code Facts does not read declared config — the declared intent is one half of the reconcile.",
+      "tags": ["service-json", "intent", "api"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "intent/intent_test.go parses ports, lifecycle steps, health checks, and dependency declarations from a fixture service.json."}
+      ]
+    },
+    {
+      "id": "SH-GT-004",
+      "title": "Build the declared-vs-actual reconcile model",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "api",
+      "criticality": "P0",
+      "description": "The reconcile builder pairs each surface's declared intent against its code-facts actual into a {surface → {declared, actual}} model that downstream rules consume; mismatches (declared-not-actual and actual-not-declared) are first-class.",
+      "tags": ["reconcile", "declared-vs-actual", "api"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "reconcile/reconcile_test.go builds the per-surface reconcile model and surfaces both mismatch directions."}
+      ]
+    }
+  ]
+}

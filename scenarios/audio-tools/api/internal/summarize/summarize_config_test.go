@@ -1,0 +1,225 @@
+package summarize
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"audio-tools/internal/testutil/mocks"
+)
+
+func TestSummarizeConfig_LoadSaveRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tts-summarize-config.json")
+
+	cfg := SummarizeConfig{
+		Enabled:        true,
+		CharThreshold:  300,
+		Level:          "heavy",
+		Model:          "test-model",
+		TimeoutSeconds: 45,
+	}
+
+	if err := SaveSummarizeConfig(path, cfg); err != nil {
+		t.Fatalf("save failed: %v", err)
+	}
+
+	loaded, err := LoadSummarizeConfig(path)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	if loaded.Enabled != cfg.Enabled {
+		t.Errorf("enabled: got %v, want %v", loaded.Enabled, cfg.Enabled)
+	}
+	if loaded.CharThreshold != cfg.CharThreshold {
+		t.Errorf("charThreshold: got %d, want %d", loaded.CharThreshold, cfg.CharThreshold)
+	}
+	if loaded.Level != cfg.Level {
+		t.Errorf("level: got %q, want %q", loaded.Level, cfg.Level)
+	}
+	if loaded.Model != cfg.Model {
+		t.Errorf("model: got %q, want %q", loaded.Model, cfg.Model)
+	}
+	if loaded.TimeoutSeconds != cfg.TimeoutSeconds {
+		t.Errorf("timeoutSeconds: got %d, want %d", loaded.TimeoutSeconds, cfg.TimeoutSeconds)
+	}
+}
+
+func TestSummarizeConfig_ClampsUndersizedTimeout(t *testing.T) {
+	// REGRESSION: a stale config with timeoutSeconds=5 caused every real-sized
+	// summary request to time out before Ollama returned. The loader now
+	// clamps anything below the minimum up to the default.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tts-summarize-config.json")
+	if err := os.WriteFile(path, []byte(`{"enabled":true,"charThreshold":500,"level":"moderate","model":"fixture-safe-model","timeoutSeconds":5}`), 0o644); err != nil {
+		t.Fatalf("seed config: %v", err)
+	}
+
+	cfg, err := LoadSummarizeConfig(path)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if cfg.TimeoutSeconds < MinSummarizeTimeoutSeconds {
+		t.Errorf("timeoutSeconds=%d, want clamped to >= %d", cfg.TimeoutSeconds, MinSummarizeTimeoutSeconds)
+	}
+}
+
+func TestSummarizeConfig_ReplacesReasoningModelOnLoad(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tts-summarize-config.json")
+	if err := os.WriteFile(path, []byte(`{"enabled":true,"charThreshold":500,"level":"moderate","model":"fixture-reasoning-model","timeoutSeconds":120}`), 0o644); err != nil {
+		t.Fatalf("seed config: %v", err)
+	}
+
+	cfg, err := LoadSummarizeConfig(path)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if cfg.Model != DefaultSummarizeModel {
+		t.Errorf("Model = %q, want %q", cfg.Model, DefaultSummarizeModel)
+	}
+}
+
+func TestSummarizeConfig_DefaultsWhenMissing(t *testing.T) {
+	cfg, err := LoadSummarizeConfig("/nonexistent/path/config.json")
+	if err != nil {
+		t.Fatalf("expected no error for missing file, got: %v", err)
+	}
+	if !cfg.Enabled {
+		t.Error("expected enabled by default (summarization is the happy path)")
+	}
+	if cfg.CharThreshold != 500 {
+		t.Errorf("expected default charThreshold 500, got %d", cfg.CharThreshold)
+	}
+	if cfg.Level != "moderate" {
+		t.Errorf("expected default level moderate, got %q", cfg.Level)
+	}
+}
+
+func TestSummarizeConfig_PatchSemantics(t *testing.T) {
+	base := DefaultSummarizeConfig()
+
+	enabled := true
+	patch := SummarizeConfigPatch{Enabled: &enabled}
+	result := patch.Apply(base)
+
+	if !result.Enabled {
+		t.Error("expected enabled after patch")
+	}
+	if result.CharThreshold != base.CharThreshold {
+		t.Error("charThreshold should be preserved when not patched")
+	}
+	if result.Level != base.Level {
+		t.Error("level should be preserved when not patched")
+	}
+}
+
+func TestSummarizeConfig_PatchAllowsExplicitReasoningModel(t *testing.T) {
+	base := DefaultSummarizeConfig()
+	model := "fixture-reasoning-model"
+	result := (SummarizeConfigPatch{Model: &model}).Apply(base)
+
+	if result.Model != model {
+		t.Errorf("Model = %q, want explicit override %q", result.Model, model)
+	}
+}
+
+func TestSummarizeConfig_LoadInvalidJSON(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bad.json")
+	_ = os.WriteFile(path, []byte("{invalid json"), 0o644)
+
+	cfg, err := LoadSummarizeConfig(path)
+	if err == nil {
+		t.Error("expected error for invalid JSON")
+	}
+	if cfg.Level != "moderate" {
+		t.Errorf("expected default level on error, got %q", cfg.Level)
+	}
+}
+
+func TestSummarizeConfig_LoadFillsDefaults(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	data, _ := json.Marshal(map[string]any{"enabled": true})
+	_ = os.WriteFile(path, data, 0o644)
+
+	cfg, err := LoadSummarizeConfig(path)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if cfg.CharThreshold != 500 {
+		t.Errorf("expected default charThreshold, got %d", cfg.CharThreshold)
+	}
+	if cfg.Level != "moderate" {
+		t.Errorf("expected default level, got %q", cfg.Level)
+	}
+	if cfg.TimeoutSeconds != 120 {
+		t.Errorf("expected default timeoutSeconds 120, got %d", cfg.TimeoutSeconds)
+	}
+}
+
+func TestDefaultSummarizeConfig_TimeoutSufficientForColdStart(t *testing.T) {
+	cfg := DefaultSummarizeConfig()
+	if cfg.TimeoutSeconds < 60 {
+		t.Errorf("default timeout %ds is too short for Ollama cold model loads; need >= 60s",
+			cfg.TimeoutSeconds)
+	}
+}
+
+// TestDefaultSummarizeConfigWith_ReadsModelFromInjectedEnv proves the
+// envx.Reader seam: a fake env serves WC_TTS_SUMMARIZE_MODEL without
+// mutating process state, and the read is observable via FakeEnv.Reads().
+func TestDefaultSummarizeConfigWith_ReadsModelFromInjectedEnv(t *testing.T) {
+	env := mocks.NewFakeEnv(map[string]string{"WC_TTS_SUMMARIZE_MODEL": "fixture-safe-model"})
+	cfg := DefaultSummarizeConfigWith(env)
+	if cfg.Model != "fixture-safe-model" {
+		t.Errorf("Model = %q, want %q", cfg.Model, "fixture-safe-model")
+	}
+	reads := env.Reads()
+	if len(reads) != 1 || reads[0] != "WC_TTS_SUMMARIZE_MODEL" {
+		t.Errorf("Reads() = %v, want exactly [WC_TTS_SUMMARIZE_MODEL]", reads)
+	}
+}
+
+func TestDefaultSummarizeConfigWith_DefaultsWhenUnset(t *testing.T) {
+	env := mocks.NewFakeEnv(nil)
+	cfg := DefaultSummarizeConfigWith(env)
+	if cfg.Model != DefaultSummarizeModel {
+		t.Errorf("unset env should default to %q, got %q", DefaultSummarizeModel, cfg.Model)
+	}
+}
+
+func TestDefaultSummarizeConfigWith_ReplacesReasoningEnvModel(t *testing.T) {
+	env := mocks.NewFakeEnv(map[string]string{"WC_TTS_SUMMARIZE_MODEL": "fixture-reasoning-model"})
+	cfg := DefaultSummarizeConfigWith(env)
+	if cfg.Model != DefaultSummarizeModel {
+		t.Errorf("reasoning env model should default to %q, got %q", DefaultSummarizeModel, cfg.Model)
+	}
+}
+
+func TestSummarizeConfigPatch_AppliesAllFieldsAndNormalizesBlankModel(t *testing.T) {
+	base := SummarizeConfig{Enabled: true, CharThreshold: 500, Level: "moderate", Model: "old", TimeoutSeconds: 120}
+	disabled := false
+	threshold, timeout := 42, 75
+	level, blank := "heavy", "  "
+	got := (SummarizeConfigPatch{
+		Enabled: &disabled, CharThreshold: &threshold, Level: &level, Model: &blank, TimeoutSeconds: &timeout,
+	}).Apply(base)
+	if got.Enabled || got.CharThreshold != threshold || got.Level != level || got.Model != DefaultSummarizeModel || got.TimeoutSeconds != timeout {
+		t.Fatalf("unexpected patched config: %+v", got)
+	}
+}
+
+func TestLoadSummarizeConfig_ReadFailureIsReported(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "directory")
+	if err := os.Mkdir(path, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, err := LoadSummarizeConfig(path)
+	if err == nil {
+		t.Fatal("expected directory read error")
+	}
+}

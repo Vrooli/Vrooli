@@ -1,0 +1,720 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"os/exec"
+	"slices"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"connectrpc.com/connect"
+
+	"github.com/vrooli/api-core/discovery"
+
+	"git-control-tower/internal/baseline"
+
+	"github.com/vrooli/cli-core/cliutil"
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
+)
+
+// terminalRunStatuses are the test-genie run statuses that mean "no longer
+// executing" — the diff verdict can be computed once a run reaches one.
+func isTerminalRunStatus(status string) bool {
+	switch status {
+	case "passed", "failed", "aborted":
+		return true
+	default:
+		return false
+	}
+}
+
+// asRunBusy extracts a typed RunBusyError from a test-genie StartRun rejection:
+// the one-run-per-scenario guard returns FailedPrecondition with a RunBusyInfo
+// detail when a divergent run is already in flight. Returns nil for any other
+// error so the caller propagates it unchanged.
+func asRunBusy(err error) *baseline.RunBusyError {
+	var ce *connect.Error
+	if !errors.As(err, &ce) || ce.Code() != connect.CodeFailedPrecondition {
+		return nil
+	}
+	for _, d := range ce.Details() {
+		msg, derr := d.Value()
+		if derr != nil {
+			continue
+		}
+		if bi, ok := msg.(*runspb.RunBusyInfo); ok {
+			return &baseline.RunBusyError{Scenario: bi.GetTarget(), RunID: bi.GetRunId(), Preset: bi.GetPreset()}
+		}
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Concrete baseline seam implementations. These adapt GCT's existing clients
+// (test-genie, scenario-auditor, visual capture, git) to the interfaces the
+// baseline package declares. The baseline package never imports main, so all
+// the live-dependency wiring lives here.
+// ---------------------------------------------------------------------------
+
+// baselineExecutor drives ONE comprehensive, durable test-genie run with the
+// baseline capture profile (full diagnostics + all-pages visuals + video) via
+// the durable RunsService: StartRun returns the run handle immediately (so a
+// snapshot can return fast and pin server-side on completion), and AwaitResult
+// blocks on WaitRun and consumes the canonical terminal RunInfo carried by that
+// response. The
+// comprehensive preset is catalog-derived (drift-proof) in test-genie, so a
+// baseline always covers every phase.
+type baselineExecutor struct {
+	runs baselineRunsClient
+}
+
+const baselineAdmissionCaller = "git-control-tower:baseline"
+
+var baselineRunRetryDelays = []time.Duration{250 * time.Millisecond, 500 * time.Millisecond, time.Second, 2 * time.Second}
+
+// Test Genie publishes the terminal run record before the canonical
+// terminal snapshot is observable through every read path. Keep the
+// baseline handoff attached briefly so that publication ordering cannot
+// turn valid terminal phase evidence into a false baseline failure.
+
+const baselineWaitSliceSeconds = 60
+
+func (e baselineExecutor) StartRun(ctx context.Context, scenario string) (baseline.RunHandle, error) {
+	return e.startRun(ctx, scenario, "", 0)
+}
+
+func (e baselineExecutor) StartRunWithReservation(ctx context.Context, scenario, reservationID string, memberCount int) (baseline.RunHandle, error) {
+	return e.startRun(ctx, scenario, reservationID, memberCount)
+}
+
+func (e baselineExecutor) startRun(ctx context.Context, scenario, reservationID string, memberCount int) (baseline.RunHandle, error) {
+	cl, err := e.runs.client(ctx)
+	if err != nil {
+		return baseline.RunHandle{}, err
+	}
+	request := baselineStartRequest(scenario, reservationID, memberCount)
+	resp, err := startBaselineRunWithRetry(ctx, func() (*connect.Response[runspb.StartRunResponse], error) {
+		return cl.StartRun(ctx, request)
+	})
+	if err != nil {
+		if busy := asRunBusy(err); busy != nil {
+			return baseline.RunHandle{}, busy
+		}
+		return baseline.RunHandle{}, err
+	}
+	return baseline.RunHandle{
+		RunID:                 resp.Msg.GetRunId(),
+		EstimatedTotalSeconds: int(resp.Msg.GetEstimatedTotalSeconds()),
+		EtaKnown:              resp.Msg.GetEtaKnown(),
+		Coalesced:             resp.Msg.GetCoalesced(),
+	}, nil
+}
+
+// startBaselineRunWithRetry keeps short-lived preview contention from becoming
+// a terminal baseline failure. The parent capture context remains authoritative
+// so a degraded Test Genie cannot make Git Control Tower wait indefinitely.
+func startBaselineRunWithRetry(ctx context.Context, start func() (*connect.Response[runspb.StartRunResponse], error)) (*connect.Response[runspb.StartRunResponse], error) {
+	for attempt := 0; ; attempt++ {
+		response, err := start()
+		if err == nil || !isPreviewSaturated(err) || attempt == len(baselineRunRetryDelays) {
+			return response, err
+		}
+		timer := time.NewTimer(baselineRunRetryDelays[attempt])
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, fmt.Errorf("wait for test-genie admission: %w", ctx.Err())
+		case <-timer.C:
+		}
+	}
+}
+
+func isPreviewSaturated(err error) bool {
+	var connectErr *connect.Error
+	return errors.As(err, &connectErr) && connectErr.Code() == connect.CodeResourceExhausted
+}
+
+func baselineStartRequest(scenario, reservationID string, memberCount int) *connect.Request[runspb.StartRunRequest] {
+	request := connect.NewRequest(&runspb.StartRunRequest{
+		Target:                           scenario,
+		Preset:                           "comprehensive",
+		CaptureProfile:                   "baseline",
+		CollectionReservationId:          strings.TrimSpace(reservationID),
+		CollectionReservationMemberCount: int32(memberCount),
+		// Ordinary baseline capture deliberately uses shared-scoped provenance.
+		// Strict linked-worktree evidence remains available to callers that ask
+		// for it, but is never a prerequisite for retaining before behavior.
+	})
+	// Baselines are a trusted gateway workload. Without attribution they share
+	// Test Genie's anonymous preview bucket with unrelated clients and can be
+	// rejected despite available global capacity.
+	request.Header().Set(cliutil.HeaderCaller, baselineAdmissionCaller)
+	return request
+}
+
+// RunStatus returns a non-blocking lifecycle snapshot via GetRunStatus.
+func (e baselineExecutor) RunStatus(ctx context.Context, scenario, runID string) (baseline.RunStatusInfo, error) {
+	cl, err := e.runs.client(ctx)
+	if err != nil {
+		return baseline.RunStatusInfo{}, err
+	}
+	resp, err := cl.GetRunStatus(ctx, connect.NewRequest(&runspb.GetRunStatusRequest{
+		Target: scenario, RunId: runID,
+	}))
+	if err != nil {
+		var connectErr *connect.Error
+		if errors.As(err, &connectErr) && connectErr.Code() == connect.CodeNotFound {
+			return baseline.RunStatusInfo{Missing: true}, nil
+		}
+		return baseline.RunStatusInfo{}, err
+	}
+	st := resp.Msg
+	return baseline.RunStatusInfo{
+		Status:                      st.GetStatus(),
+		Terminal:                    isTerminalRunStatus(st.GetStatus()),
+		Success:                     st.GetSuccess(),
+		RecommendedNextCheckSeconds: int(st.GetRecommendedNextCheckSeconds()),
+		Standing:                    st.GetStanding(),
+	}, nil
+}
+
+// FindReusableRun lets Test Genie compute the current declared scope and
+// validation-contract fingerprints beside the run index. This avoids using the
+// whole Git worktree (or a commit SHA) as a cache key in shared workspaces.
+func (e baselineExecutor) FindReusableRun(ctx context.Context, scenario string) (baseline.ReusableRun, bool, error) {
+	cl, err := e.runs.client(ctx)
+	if err != nil {
+		return baseline.ReusableRun{}, false, err
+	}
+	resp, err := cl.FindRun(ctx, connect.NewRequest(&runspb.FindRunRequest{
+		Target:             scenario,
+		Preset:             "comprehensive",
+		Status:             "passed",
+		MatchCurrentSource: true,
+	}))
+	if err != nil {
+		return baseline.ReusableRun{}, false, err
+	}
+	if !resp.Msg.GetFound() {
+		return baseline.ReusableRun{}, false, nil
+	}
+	info := resp.Msg.GetRun()
+	completedAt, _ := time.Parse(time.RFC3339, info.GetCompletedAt())
+	return baseline.ReusableRun{RunID: info.GetRunId(), CompletedAt: completedAt, CaptureProfile: info.GetCaptureProfile()}, true, nil
+}
+
+func (e baselineExecutor) AwaitResult(ctx context.Context, scenario, runID string) (baseline.ExecResult, error) {
+	cl, err := e.runs.client(ctx)
+	if err != nil {
+		return baseline.ExecResult{}, err
+	}
+	waited, err := waitForCanonicalBaselineTerminal(ctx, func() (*connect.Response[runspb.WaitRunResponse], error) {
+		return cl.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{
+			Target: scenario, RunId: runID, TimeoutSeconds: baselineWaitSliceSeconds,
+		}))
+	})
+	if err != nil {
+		return baseline.ExecResult{}, err
+	}
+	info := waited.Msg.GetTerminalRun()
+	if info == nil || waited.Msg.GetTerminalSnapshotSchemaVersion() == 0 {
+		return baseline.ExecResult{}, fmt.Errorf("run %s has no canonical terminal snapshot", runID)
+	}
+	switch info.GetStatus() {
+	case "aborted", "timeout", "errored", "queued", "in_progress":
+		return baseline.ExecResult{}, fmt.Errorf("run %s ended without comparable baseline artifacts (status=%s)", runID, info.GetStatus())
+	}
+	completedAt, _ := time.Parse(time.RFC3339, info.GetCompletedAt())
+	out := baseline.ExecResult{
+		RunID:                             info.GetRunId(),
+		Success:                           info.GetStatus() == "passed",
+		CompletedAt:                       completedAt,
+		TreeDigest:                        info.GetTreeDigest(),
+		PhaseSetDigest:                    info.GetPhaseSetDigest(),
+		CaptureProfile:                    info.GetCaptureProfile(),
+		DescriptorSnapshotDigest:          info.GetDescriptorSnapshotDigest(),
+		DescriptorSnapshotSchemaVersion:   int(info.GetDescriptorSnapshotSchemaVersion()),
+		GitSha:                            info.GetGitSha(),
+		GitDirty:                          info.GetGitDirty(),
+		ExecutionConfigurationFingerprint: info.GetExecutionConfigurationFingerprint(),
+		GateQuality:                       info.GetGateQuality(),
+		EvidenceTier:                      info.GetEvidenceTier(),
+		SourceScope:                       info.GetSourceScope(),
+		SourceStable:                      info.GetSourceStable(),
+	}
+	for _, p := range info.GetPhases() {
+		out.Phases = append(out.Phases, baseline.PhaseStatus{Name: p.GetName(), Status: p.GetStatus()})
+	}
+	return out, nil
+}
+
+// waitForBaselineTerminal reattaches when a durable WaitRun attachment returns
+// a live snapshot. WaitRun normally blocks until terminal, but its contract
+// also permits a non-terminal snapshot when the attachment is interrupted.
+// Treating that response as missing terminal evidence permanently fails a
+// baseline even though the server-owned run is still progressing.
+func waitForBaselineTerminal(ctx context.Context, wait func() (*connect.Response[runspb.WaitRunResponse], error)) (*connect.Response[runspb.WaitRunResponse], error) {
+	for attempt := 0; ; attempt++ {
+		response, err := wait()
+		if err != nil {
+			if isTransientBaselineWaitError(err) && attempt < len(baselineRunRetryDelays) {
+				timer := time.NewTimer(baselineRunRetryDelays[attempt])
+				select {
+				case <-ctx.Done():
+					timer.Stop()
+					return nil, ctx.Err()
+				case <-timer.C:
+					continue
+				}
+			}
+			return nil, err
+		}
+		status := ""
+		if response != nil && response.Msg != nil && response.Msg.GetStatus() != nil {
+			status = response.Msg.GetStatus().GetStatus()
+		}
+		if isTerminalRunStatus(status) || (response != nil && response.Msg != nil && response.Msg.GetTerminalRun() != nil) {
+			return response, nil
+		}
+		if status != "" && status != "queued" && status != "in_progress" {
+			return response, nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+	}
+}
+
+// waitForCanonicalBaselineTerminal closes the small publication-ordering gap
+// between Test Genie's terminal status and its canonical terminal snapshot.
+// WaitRun may legitimately return a terminal status while the snapshot write
+// is still becoming visible to a subsequent read. This retry is bounded and
+// does not weaken the evidence gate: a response is accepted only when it has
+// a canonical snapshot and no degraded reasons.
+func waitForCanonicalBaselineTerminal(ctx context.Context, wait func() (*connect.Response[runspb.WaitRunResponse], error)) (*connect.Response[runspb.WaitRunResponse], error) {
+	for attempt := 0; ; attempt++ {
+		response, err := waitForBaselineTerminal(ctx, wait)
+		if err != nil {
+			return nil, err
+		}
+		if response != nil && response.Msg != nil && response.Msg.GetTerminalSnapshotSchemaVersion() > 0 && len(response.Msg.GetDegradedReasons()) == 0 && response.Msg.GetTerminalRun() != nil {
+			return response, nil
+		}
+
+		if attempt == len(baselineRunRetryDelays) {
+			if response != nil && response.Msg != nil {
+				if reasons := response.Msg.GetDegradedReasons(); len(reasons) > 0 {
+					return nil, fmt.Errorf("terminal evidence is degraded: %s", strings.Join(reasons, "; "))
+				}
+			}
+			return nil, errors.New("terminal run has no canonical terminal snapshot")
+		}
+
+		timer := time.NewTimer(baselineRunRetryDelays[attempt])
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
+
+func isTransientBaselineWaitError(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || strings.Contains(message, "unexpected eof")
+}
+
+// baselineRunsClient wraps test-genie's RunsService Connect-RPC for pin/unpin/
+// compare. The URL is resolved through service discovery on every call so the
+// client survives test-genie restarts.
+type baselineRunsClient struct {
+	httpClient *http.Client
+	resolveURL func(ctx context.Context) (string, error)
+}
+
+// cachedScenarioURLResolver collapses the discovery fan-out created by a
+// collection diff. A single child comparison can resolve Test Genie several
+// times (wait, compare, and artifact catalogs); a four-member collection used
+// to launch all of those `vrooli scenario port` subprocesses concurrently.
+// That made the aggregate wait spend minutes in discovery after the actual
+// runs had already finished. The URL is stable for the lifetime of a local
+// service, while the short TTL still notices a service relocation/restart.
+type cachedScenarioURLResolver struct {
+	mu        sync.Mutex
+	url       string
+	expiresAt time.Time
+	resolving chan struct{}
+	resolve   func(context.Context) (string, error)
+	ttl       time.Duration
+}
+
+func (r *cachedScenarioURLResolver) Resolve(ctx context.Context) (string, error) {
+	for {
+		r.mu.Lock()
+		if r.url != "" && time.Now().Before(r.expiresAt) {
+			url := r.url
+			r.mu.Unlock()
+			return url, nil
+		}
+		if r.resolving != nil {
+			done := r.resolving
+			r.mu.Unlock()
+			select {
+			case <-done:
+				continue
+			case <-ctx.Done():
+				return "", ctx.Err()
+			}
+		}
+		resolving := make(chan struct{})
+		r.resolving = resolving
+		r.mu.Unlock()
+
+		url, err := r.resolve(ctx)
+		r.mu.Lock()
+		if err == nil && strings.TrimSpace(url) != "" {
+			r.url = strings.TrimRight(url, "/")
+			r.expiresAt = time.Now().Add(r.ttl)
+			url = r.url
+		}
+		r.resolving = nil
+		close(resolving)
+		r.mu.Unlock()
+		return url, err
+	}
+}
+
+var baselineTestGenieURL = &cachedScenarioURLResolver{
+	resolve: func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "test-genie")
+	},
+	ttl: 30 * time.Second,
+}
+
+func newBaselineRunsClient(timeout time.Duration) baselineRunsClient {
+	return baselineRunsClient{
+		httpClient: &http.Client{Timeout: timeout},
+		resolveURL: baselineTestGenieURL.Resolve,
+	}
+}
+
+func (c baselineRunsClient) client(ctx context.Context) (runs_v1connect.RunsServiceClient, error) {
+	baseURL, err := c.resolveURL(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resolve test-genie url: %w", err)
+	}
+	return runs_v1connect.NewRunsServiceClient(c.httpClient, baseURL), nil
+}
+
+func (c baselineRunsClient) PinRun(ctx context.Context, scenario, runID, pinnedBy, reason string) error {
+	cl, err := c.client(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = cl.PinRun(ctx, connect.NewRequest(&runspb.PinRunRequest{
+		Target: scenario, RunId: runID, PinnedBy: pinnedBy, Reason: reason,
+	}))
+	return err
+}
+
+func (c baselineRunsClient) UnpinRun(ctx context.Context, scenario, runID, pinnedBy string) error {
+	cl, err := c.client(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = cl.UnpinRun(ctx, connect.NewRequest(&runspb.UnpinRunRequest{
+		Target: scenario, RunId: runID, PinnedBy: pinnedBy,
+	}))
+	return err
+}
+
+func (c baselineRunsClient) CompareRuns(ctx context.Context, scenario, runIDA, runIDB, phase string) (baseline.CompareResult, error) {
+	cl, err := c.client(ctx)
+	if err != nil {
+		return baseline.CompareResult{}, err
+	}
+	resp, err := cl.CompareRuns(ctx, connect.NewRequest(&runspb.CompareRunsRequest{
+		Target: scenario, RunIdA: runIDA, RunIdB: runIDB, Phase: phase,
+	}))
+	if err != nil {
+		return baseline.CompareResult{}, err
+	}
+	out := baseline.CompareResult{Comparison: resp.Msg, Verdict: resp.Msg.GetVerdict(), Phases: append([]*runspb.PhaseDiff(nil), resp.Msg.GetPhases()...)}
+	return out, nil
+}
+
+// ListRunArtifacts consumes Test Genie's typed, path-free evidence catalog.
+func (c baselineRunsClient) ListRunArtifacts(ctx context.Context, scenario, runID string) (baseline.ArtifactCatalog, error) {
+	cl, err := c.client(ctx)
+	if err != nil {
+		return baseline.ArtifactCatalog{}, err
+	}
+	resp, err := cl.ListRunArtifacts(ctx, connect.NewRequest(&runspb.ListRunArtifactsRequest{
+		Target: scenario, RunId: runID,
+	}))
+	if err != nil {
+		return baseline.ArtifactCatalog{}, err
+	}
+	return baseline.ArtifactCatalog{
+		RunID:            runID,
+		SchemaVersion:    int(resp.Msg.GetSchemaVersion()),
+		Digest:           resp.Msg.GetDigest(),
+		Artifacts:        resp.Msg.GetArtifacts(),
+		LegacyDiscovered: resp.Msg.GetLegacyDiscovered(),
+		DegradedReasons:  resp.Msg.GetDegradedReasons(),
+	}, nil
+}
+
+// CompareRunVisuals asks test-genie (the owner of the visual analyzer) to
+// compare two runs' captures and returns the neutral per-page deltas GCT renders
+// as the advisory "changed" tier.
+func (c baselineRunsClient) CompareRunVisuals(ctx context.Context, scenario, baseRunID, curRunID string) ([]baseline.VisualDelta, error) {
+	cl, err := c.client(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := cl.CompareRunVisuals(ctx, connect.NewRequest(&runspb.CompareRunVisualsRequest{
+		Target: scenario, BaseRunId: baseRunID, CurrentRunId: curRunID,
+	}))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]baseline.VisualDelta, 0, len(resp.Msg.GetDeltas()))
+	for _, d := range resp.Msg.GetDeltas() {
+		out = append(out, baseline.VisualDelta{
+			Page:            d.GetPage(),
+			Label:           d.GetLabel(),
+			Status:          d.GetStatus(),
+			ChangedFraction: d.GetChangedFraction(),
+		})
+	}
+	return out, nil
+}
+
+// CaptureMissingEvidence runs only the visual-producing phase with baseline
+// capture depth. It is deliberately separate from baselineExecutor.StartRun:
+// a missing-evidence repair must never re-run the comprehensive suite.
+func (c baselineRunsClient) CaptureMissingEvidence(ctx context.Context, scenario, _ string, kinds []string) (string, error) {
+	if !slices.Contains(kinds, "visual") {
+		return "", fmt.Errorf("unsupported missing evidence kinds: %s", strings.Join(kinds, ", "))
+	}
+	cl, err := c.client(ctx)
+	if err != nil {
+		return "", err
+	}
+	request := connect.NewRequest(&runspb.StartRunRequest{
+		Target:         scenario,
+		Phases:         []string{"ui-health"},
+		CaptureProfile: "baseline",
+	})
+	request.Header().Set(cliutil.HeaderCaller, baselineAdmissionCaller+":missing-evidence")
+	started, err := startBaselineRunWithRetry(ctx, func() (*connect.Response[runspb.StartRunResponse], error) {
+		return cl.StartRun(ctx, request)
+	})
+	if err != nil {
+		return "", err
+	}
+	runID := started.Msg.GetRunId()
+	if strings.TrimSpace(runID) == "" {
+		return "", fmt.Errorf("test-genie returned no missing-evidence run id")
+	}
+	waited, err := waitForBaselineTerminal(ctx, func() (*connect.Response[runspb.WaitRunResponse], error) {
+		return cl.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{Target: scenario, RunId: runID, TimeoutSeconds: baselineWaitSliceSeconds}))
+	})
+	if err != nil {
+		return "", err
+	}
+	terminal := waited.Msg.GetTerminalRun()
+	if terminal == nil || waited.Msg.GetTerminalSnapshotSchemaVersion() == 0 {
+		return "", fmt.Errorf("missing-evidence run %s has no canonical terminal snapshot", runID)
+	}
+	if terminal.GetStatus() != "passed" {
+		return "", fmt.Errorf("missing-evidence run %s ended with status %s", runID, terminal.GetStatus())
+	}
+	return runID, nil
+}
+
+// baselineReachability is a fast, bounded liveness check of the test-genie
+// backend: a short-timeout GET /health against the discovery-resolved URL. It is
+// probed BEFORE a baseline commits to a multi-minute comprehensive run so an
+// unreachable test-genie skips fast (clear reason) instead of blocking to the
+// long execute/compare deadlines — the reported silent-hang class.
+type baselineReachability struct {
+	httpClient *http.Client
+	resolveURL func(ctx context.Context) (string, error)
+}
+
+func newBaselineReachability(timeout time.Duration) baselineReachability {
+	return baselineReachability{
+		httpClient: &http.Client{Timeout: timeout},
+		resolveURL: func(ctx context.Context) (string, error) {
+			return discovery.ResolveScenarioURLDefault(ctx, "test-genie")
+		},
+	}
+}
+
+// Probe returns nil when test-genie answers GET /health within the probe's own
+// short timeout. It bounds itself independently of ctx so the probe can never be
+// the thing that hangs (the whole point of fail-fast).
+func (r baselineReachability) Probe(ctx context.Context) error {
+	probeCtx, cancel := context.WithTimeout(ctx, r.httpClient.Timeout)
+	defer cancel()
+
+	baseURL, err := r.resolveURL(probeCtx)
+	if err != nil {
+		return fmt.Errorf("resolve test-genie url: %w", err)
+	}
+	req, err := http.NewRequestWithContext(probeCtx, http.MethodGet, strings.TrimRight(baseURL, "/")+"/health", nil)
+	if err != nil {
+		return fmt.Errorf("build health request: %w", err)
+	}
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("health request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("health returned status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+// baselineStalenessProbe counts commits and changed files between a baseline
+// sha and current HEAD. Read-only (feedback_no_git_mutations).
+type baselineStalenessProbe struct{}
+
+func (baselineStalenessProbe) Since(ctx context.Context, repoDir, sha string) (int, int, error) {
+	if sha == "" {
+		return 0, 0, nil
+	}
+	commitsOut, err := gitReadOnly(ctx, repoDir, "rev-list", "--count", sha+"..HEAD")
+	if err != nil {
+		return 0, 0, err
+	}
+	commits, _ := strconv.Atoi(strings.TrimSpace(commitsOut))
+
+	// Distinct files changed since the baseline sha, INCLUDING uncommitted
+	// edits. `git diff --name-only <sha>` (no second ref) compares the baseline
+	// sha against the working tree, so it captures both committed-since changes
+	// and uncommitted modifications — the common mid-implementation agent case
+	// that the old `sha..HEAD` form reported as zero drift.
+	changed := map[string]struct{}{}
+	diffOut, err := gitReadOnly(ctx, repoDir, "diff", "--name-only", sha)
+	if err != nil {
+		return commits, 0, err
+	}
+	for _, line := range strings.Split(strings.TrimSpace(diffOut), "\n") {
+		if s := strings.TrimSpace(line); s != "" {
+			changed[s] = struct{}{}
+		}
+	}
+	// Untracked files aren't in `git diff`; pull them from porcelain status.
+	if statusOut, serr := gitReadOnly(ctx, repoDir, "status", "--porcelain", "--untracked-files=all"); serr == nil {
+		for _, line := range strings.Split(statusOut, "\n") {
+			if len(line) > 3 {
+				if path := strings.TrimSpace(line[3:]); path != "" {
+					changed[path] = struct{}{}
+				}
+			}
+		}
+	}
+	return commits, len(changed), nil
+}
+
+func gitReadOnly(ctx context.Context, repoDir string, args ...string) (string, error) {
+	full := append([]string{"--no-optional-locks", "-C", repoDir}, args...)
+	out, err := exec.CommandContext(ctx, "git", full...).Output()
+	if err != nil {
+		return "", fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
+	}
+	return string(out), nil
+}
+
+// baselineRepoResolver maps an optional explicit repoID (0 = active) to a
+// concrete (repoID, repoDir) pair for the baseline handler. It reuses
+// RepoService's resolution logic (same package, so unexported helpers are
+// reachable).
+type baselineRepoResolver struct{ repos *RepoService }
+
+func (r baselineRepoResolver) Resolve(ctx context.Context, repoID int64) (int64, string, error) {
+	if r.repos == nil {
+		return 0, "", fmt.Errorf("repo service unavailable")
+	}
+	if repoID > 0 {
+		rec, err := r.repos.resolveByID(ctx, repoID)
+		if err != nil {
+			return 0, "", err
+		}
+		return rec.ID, rec.Path, nil
+	}
+	if resolved, tried, err := r.repos.resolveFromActive(ctx); tried {
+		if err != nil {
+			return 0, "", err
+		}
+		return resolved.ID, resolved.Path, nil
+	}
+	resolved, err := r.repos.resolveFromRoot(ctx)
+	if err != nil {
+		return 0, "", err
+	}
+	return resolved.ID, resolved.Path, nil
+}
+
+// newBaselineService assembles the baseline orchestration service. A baseline
+// is ONE comprehensive, durable test-genie run pinned once; every surface
+// (structure, rules, tests, workflows, visuals) is a phase-set / artifact view
+// over that single run. GCT owns no run history — test-genie does (Decision 3).
+func (s *Server) newBaselineService() *baseline.Service {
+	// 30-minute timeout: AwaitResult's WaitRun blocks server-side until the
+	// comprehensive run is terminal, so the executor's client must outlast a long
+	// run (bounded the same as the detached snapshot tail).
+	execRuns := newBaselineRunsClient(30 * time.Minute)
+	exec := baselineExecutor{runs: execRuns}
+	// 15-minute timeout: a diff triggers a fresh comprehensive run before
+	// comparing.
+	runs := newBaselineRunsClient(15 * time.Minute)
+
+	return baseline.NewService(baseline.Deps{
+		Storage: baseline.NewStorage(s.storageResolver),
+		Exec:    exec,
+		Runs:    runs,
+		Probe:   baselineStalenessProbe{},
+		// Keep the reachability probe bounded, but allow the control-plane
+		// discovery path to absorb the fan-out caused by a collection diff
+		// launching many member runs at once. A healthy Test Genie must not be
+		// classified unreachable merely because discovery is briefly contended.
+		Reachable: newBaselineReachability(30 * time.Second),
+		ReuseTTL:  diffRunReuseTTL(),
+	})
+}
+
+// defaultDiffRunReuseTTL bounds clean-tree run reuse: a completed run at the
+// current sha is reused only when it finished within this window, so a diff
+// never serves a verdict from a run old enough that the environment (deps,
+// external state) may have drifted even though the tree sha matches.
+const defaultDiffRunReuseTTL = 15 * time.Minute
+
+// diffRunReuseTTL resolves the reuse window. Lever GCT_DIFF_RUN_REUSE_TTL
+// accepts a Go duration ("15m", "1h"); "0" disables reuse entirely.
+func diffRunReuseTTL() time.Duration {
+	if raw := strings.TrimSpace(os.Getenv("GCT_DIFF_RUN_REUSE_TTL")); raw != "" {
+		if d, err := time.ParseDuration(raw); err == nil && d >= 0 {
+			return d
+		}
+	}
+	return defaultDiffRunReuseTTL
+}

@@ -11,6 +11,8 @@ import type { TimelineEntry } from '../../proto/recording';
  * POST /session/:id/record/start
  */
 export interface StartRecordingRequest {
+  execution_id: string;
+  lease_id: string;
   /**
    * Optional recording ID to use for this recording.
    * If provided and recording is already active with this ID, the request is
@@ -24,6 +26,8 @@ export interface StartRecordingRequest {
   frame_callback_url?: string;
   /** Optional callback URL to stream page lifecycle events to (for multi-tab support) */
   page_callback_url?: string;
+  /** Carries the API request's test-storage routing context to callback requests. */
+  routed_test_mode?: boolean;
   /** Frame quality (1-100), default 55 (from API config) */
   frame_quality?: number;
   /** Target FPS for frame streaming (1-60), default 30 (from API config) */
@@ -124,71 +128,32 @@ export interface ReplayPreviewResponse {
   stopped_early: boolean;
 }
 
-/**
- * POST /session/:id/record/navigate
- */
-export interface NavigateRequest {
-  url: string;
+/** Owned options shared by reload, back, forward and URL navigation. */
+export interface HistoryNavigationRequest {
+
+  /** If present, the command must still address this registered active page. */
+  expected_page_id?: string;
+  execution_id: string;
+  lease_id: string;
   wait_until?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
   timeout_ms?: number;
+}
+
+export interface NavigateRequest extends HistoryNavigationRequest {
+  url: string;
   capture?: boolean;
 }
 
-export interface NavigateResponse {
+export interface NavigationResponse {
+  /** The exact registered browser page on which this command completed. */
+  driver_page_id: string;
   session_id: string;
   url: string;
   title: string;
   can_go_back: boolean;
   can_go_forward: boolean;
   screenshot?: string;
-}
-
-/**
- * POST /session/:id/record/reload
- */
-export interface ReloadRequest {
-  wait_until?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
-  timeout_ms?: number;
-}
-
-export interface ReloadResponse {
-  session_id: string;
-  url: string;
-  title: string;
-  can_go_back: boolean;
-  can_go_forward: boolean;
-}
-
-/**
- * POST /session/:id/record/go-back
- */
-export interface GoBackRequest {
-  wait_until?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
-  timeout_ms?: number;
-}
-
-export interface GoBackResponse {
-  session_id: string;
-  url: string;
-  title: string;
-  can_go_back: boolean;
-  can_go_forward: boolean;
-}
-
-/**
- * POST /session/:id/record/go-forward
- */
-export interface GoForwardRequest {
-  wait_until?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
-  timeout_ms?: number;
-}
-
-export interface GoForwardResponse {
-  session_id: string;
-  url: string;
-  title: string;
-  can_go_back: boolean;
-  can_go_forward: boolean;
+  favicon_url?: string;
 }
 
 /**
@@ -222,6 +187,10 @@ export type PointerAction = 'move' | 'down' | 'up' | 'click';
 export type InputType = 'pointer' | 'keyboard' | 'wheel';
 
 export interface InputRequest {
+  execution_id: string;
+  lease_id: string;
+  /** Stable client-generated ID used to make transport retries idempotent. */
+  input_id?: string;
   type: InputType;
   session_id?: string;
   // Pointer
@@ -246,10 +215,12 @@ export interface InputRequest {
  * Do not attempt to use type: 'webp' - it fails at runtime.
  */
 export interface FrameResponse {
+  source: import('../../frame-streaming/frame').FrameSource;
   session_id: string;
   /** JPEG format - Playwright only supports png/jpeg, NOT webp */
   mime: 'image/jpeg';
   image: string;
+  /** CSS viewport geometry; device-scale or full-page bitmap dimensions may differ. */
   width: number;
   height: number;
   captured_at: string;
@@ -265,11 +236,13 @@ export interface FrameResponse {
  * POST /session/:id/record/viewport
  */
 export interface ViewportRequest {
+  expected_page_id: string;
   width: number;
   height: number;
 }
 
 export interface ViewportResponse {
+  driver_page_id: string;
   session_id: string;
   width: number;
   height: number;
@@ -298,7 +271,7 @@ export interface StreamSettingsResponse {
   quality: number;
   /** Target FPS */
   fps: number;
-  /** Current adaptive FPS (may be lower than target) */
+  /** Measured delivery FPS over the current observation window */
   current_fps: number;
   /** Scale setting (cannot be changed mid-session) */
   scale: 'css' | 'device';
@@ -350,6 +323,8 @@ export interface DriverPageEvent {
   url: string;
   /** Title of the page */
   title: string;
+  /** Icon observed in the loaded browser document; empty means none. */
+  faviconUrl?: string;
   /** Driver page ID of the opener page (if any) */
   openerDriverPageId?: string;
   /** ISO 8601 timestamp */

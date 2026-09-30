@@ -1,0 +1,133 @@
+{
+  "description": "`cli-health reindex` rebuilds the search index on demand; a 5-minute background sync loop keeps the index current without manual intervention.",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "OT-P0-004",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-006"
+      ],
+      "description": "The `cli-health reindex` command must rebuild the Qdrant search index from all discoverable scenario manifests and `--help` fallback parsers. It must support: (a) `--wait` flag to block until indexing completes and report the final count of indexed commands; (b) `--dry-run` flag to preview which commands would be indexed without writing to Qdrant; (c) `--scenario \u003cname\u003e` flag to scope reindex to a single scenario. The command must not re-embed documents whose content has not changed since the last index run (no spurious re-embedding on no-op rebuild).",
+      "id": "REQ-P0-007",
+      "prd_ref": "OT-P0-004",
+      "status": "draft",
+      "title": "On-Demand Reindex with --wait and --dry-run Support",
+      "validation": [
+        {
+          "notes": "Given --dry-run, no Qdrant write operations are invoked and discovered commands are printed to stdout",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given --scenario cli-health, only commands from the cli-health manifest are processed",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given a document whose embedding hash matches the stored hash, the embedder is not invoked for that document",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given --wait flag, the command blocks until all embedding operations complete before exiting",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Reconcile test: run reindex twice with no manifest changes between runs; assert the second run produces zero Ollama embed calls (no spurious re-embedding)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run reindex --scenario cli-health --wait; assert only cli-health commands appear in the Qdrant collection delta and final count is reported",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run reindex --dry-run; assert Qdrant collection point count is unchanged after the command exits",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "On-demand reindex ensures the search index reflects the current state of manifests after deployment or development changes",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-007"
+      ],
+      "description": "The `cli-health` service must run a background goroutine (or equivalent async loop) that automatically triggers a reindex scan every 5 minutes without manual intervention. The sync loop must apply the same no-spurious-re-embedding optimization as on-demand reindex. The loop must be active whenever the `cli-health` server process is running and must log each sync cycle start, completion, and count of newly indexed or updated commands.",
+      "id": "REQ-P0-008",
+      "prd_ref": "OT-P0-004",
+      "status": "draft",
+      "title": "Automated 5-Minute Background Sync Loop",
+      "validation": [
+        {
+          "notes": "Given a mock timer firing at the configured interval, the sync loop invokes the reindex service method exactly once per tick",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given no manifest changes between ticks, the sync loop produces zero embed calls",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given a new command added to a manifest between ticks, the next sync loop tick indexes that command",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Start the cli-health server, modify a manifest, wait up to 5 minutes plus buffer; assert the new command appears in search results without manual reindex",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm sync loop log entries are emitted at each cycle with correct counts",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Teams do not need to remember to run reindex after manifest changes; the index stays current automatically",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "On-demand and scheduled reindexing"
+}

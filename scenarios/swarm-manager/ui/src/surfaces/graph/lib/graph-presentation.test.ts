@@ -70,18 +70,18 @@ describe("filterGraphNodes — entity-scoped status filters", () => {
     const settings: GraphLensSettings = {
       ...createDefaultLensSettings("topology"),
       statusFilters: {
-        initiative: { active: false },
+        goal: { active: false },
       },
     };
 
     const nodes = [
-      makeNode("initiative/init-1", "initiative", { status: "active" }),
-      makeNode("initiative/init-2", "initiative", { status: "completed" }),
+      makeNode("goal/init-1", "goal", { status: "active" }),
+      makeNode("goal/init-2", "goal", { status: "completed" }),
     ];
 
     const result = filterGraphNodes(nodes, settings);
     // init-1 is hidden (status=active is filtered), init-2 has status=completed which is not filtered
-    expect(result.map((n) => n.id)).toEqual(["initiative/init-2"]);
+    expect(result.map((n) => n.id)).toEqual(["goal/init-2"]);
   });
 });
 
@@ -141,16 +141,32 @@ describe("filterGraphEdges", () => {
     const result = filterGraphEdges([], [makeNode("a", "backlog")], settings);
     expect(result).toHaveLength(0);
   });
-});
 
+  it("keeps secondary edges in focus lens even when showSecondaryEdges is false", () => {
+    // Regression: focus lens already aggressively filters to attention-worthy
+    // items + structural context (goals via member_of, scenarios via
+    // targets). Applying the secondary-edge filter on top hides the context
+    // edges that were the reason we pulled those nodes in, leaving scenarios
+    // floating without visible connections to the backlog items.
+    const settings: GraphLensSettings = {
+      ...createDefaultLensSettings("focus"),
+      showSecondaryEdges: false,
+    };
+    const nodes = [makeNode("a", "backlog"), makeNode("b", "scenario")];
+    const edges = [makeEdge("e1", "a", "b", "targets")];
+
+    const result = filterGraphEdges(edges, nodes, settings, "focus");
+    expect(result).toHaveLength(1);
+    expect(result[0]?.id).toBe("e1");
+  });
+});
 describe("buildGraphPresentation", () => {
   it("returns empty result for empty input", () => {
     const result = buildGraphPresentation({
-      lens: "topology",
+      lens: "focus",
       nodes: [],
       edges: [],
-      settings: createDefaultLensSettings("topology"),
-      expandedTopologyClusters: new Set<string>(),
+      settings: createDefaultLensSettings("focus"),
     });
     expect(result.processedNodes).toHaveLength(0);
     expect(result.processedEdges).toHaveLength(0);
@@ -158,101 +174,30 @@ describe("buildGraphPresentation", () => {
     expect(result.visibleEdgeTypes).toHaveLength(0);
   });
 
-  it("uses flat presentation on non-topology lens regardless of groupingMode", () => {
-    const settings = createDefaultLensSettings("operations");
-    settings.groupingMode = "initiative";
+  it("passes nodes through flat without any clustering", () => {
+    const settings = createDefaultLensSettings("focus");
 
     const result = buildGraphPresentation({
-      lens: "operations",
+      lens: "focus",
       nodes: [
         makeNode("backlog-item/execute/task-a", "backlog", { status: "in_progress" }),
         makeNode("execution/exec-1", "execution", { status: "running" }),
       ],
       edges: [makeEdge("e1", "execution/exec-1", "backlog-item/execute/task-a", "executes")],
       settings,
-      expandedTopologyClusters: new Set<string>(),
     });
 
-    // Flat presentation: nodes pass through without clustering
     expect(result.processedNodes).toHaveLength(2);
     expect(result.processedNodes.every((n) => n.type !== "cluster")).toBe(true);
-  });
-
-  it("uses flat presentation on topology when groupingMode is none", () => {
-    const settings = createDefaultLensSettings("topology");
-    settings.groupingMode = "none";
-
-    const result = buildGraphPresentation({
-      lens: "topology",
-      nodes: [
-        makeNode("initiative/init-1", "initiative", { status: "active" }),
-        makeNode("backlog-item/execute/task-a", "backlog", { status: "backlog" }),
-      ],
-      edges: [makeEdge("mo1", "backlog-item/execute/task-a", "initiative/init-1", "member_of")],
-      settings,
-      expandedTopologyClusters: new Set<string>(),
-    });
-
-    // Flat: initiative is a regular node, no clusters created
-    expect(result.processedNodes).toHaveLength(2);
-    expect(result.processedNodes.some((n) => n.type === "cluster")).toBe(false);
-  });
-
-  it("expands cluster when in expandedTopologyClusters set", () => {
-    const settings = createDefaultLensSettings("topology");
-    settings.groupingMode = "initiative";
-
-    const result = buildGraphPresentation({
-      lens: "topology",
-      nodes: [
-        makeNode("initiative/init-1", "initiative", { status: "active", rollup: { total: 1, completed: 0, in_progress: 0, failed: 0, pending: 1 } }),
-        makeNode("backlog-item/execute/task-a", "backlog", { status: "backlog", kind: "execute" }),
-      ],
-      edges: [makeEdge("mo1", "backlog-item/execute/task-a", "initiative/init-1", "member_of")],
-      settings,
-      expandedTopologyClusters: new Set(["initiative/init-1"]),
-    });
-
-    // Expanded: cluster node + child node both present
-    const clusterNode = result.processedNodes.find((n) => n.id === "initiative/init-1");
-    expect(clusterNode).toBeDefined();
-    const childNode = result.processedNodes.find((n) => n.id === "backlog-item/execute/task-a");
-    expect(childNode).toBeDefined();
-    expect(childNode?.parentId).toBe("initiative/init-1");
-  });
-
-  it("hides child nodes when cluster is collapsed", () => {
-    const settings = createDefaultLensSettings("topology");
-    settings.groupingMode = "initiative";
-
-    const result = buildGraphPresentation({
-      lens: "topology",
-      nodes: [
-        makeNode("initiative/init-1", "initiative", { status: "active", rollup: { total: 2, completed: 0, in_progress: 0, failed: 0, pending: 2 } }),
-        makeNode("backlog-item/execute/task-a", "backlog", { status: "backlog", kind: "execute" }),
-        makeNode("backlog-item/execute/task-b", "backlog", { status: "backlog", kind: "execute" }),
-      ],
-      edges: [
-        makeEdge("mo1", "backlog-item/execute/task-a", "initiative/init-1", "member_of"),
-        makeEdge("mo2", "backlog-item/execute/task-b", "initiative/init-1", "member_of"),
-      ],
-      settings,
-      expandedTopologyClusters: new Set<string>(), // all collapsed
-    });
-
-    // Collapsed: only cluster node, no child nodes
-    const nodeIds = result.processedNodes.map((n) => n.id);
-    expect(nodeIds).toContain("initiative/init-1");
-    expect(nodeIds).not.toContain("backlog-item/execute/task-a");
-    expect(nodeIds).not.toContain("backlog-item/execute/task-b");
+    expect(result.visibleNodeCount).toBe(2);
   });
 
   it("collects visible edge types from processed edges", () => {
-    const settings = createDefaultLensSettings("topology");
-    settings.groupingMode = "none"; // flat mode to preserve edges
+    const settings = createDefaultLensSettings("focus");
+    settings.showSecondaryEdges = true;
 
     const result = buildGraphPresentation({
-      lens: "topology",
+      lens: "focus",
       nodes: [
         makeNode("a", "backlog"),
         makeNode("b", "backlog"),
@@ -263,109 +208,31 @@ describe("buildGraphPresentation", () => {
         makeEdge("e2", "a", "c", "targets"),
       ],
       settings,
-      expandedTopologyClusters: new Set<string>(),
     });
 
     expect(result.visibleEdgeTypes).toContain("depends_on");
     expect(result.visibleEdgeTypes).toContain("targets");
   });
 
-  it("applies entity filters before grouping", () => {
-    const settings = createDefaultLensSettings("topology");
-    settings.groupingMode = "initiative";
+  it("applies entity filters", () => {
+    const settings = createDefaultLensSettings("focus");
     settings.entityFilters.backlog = false;
 
     const result = buildGraphPresentation({
-      lens: "topology",
+      lens: "focus",
       nodes: [
-        makeNode("initiative/init-1", "initiative", { status: "active" }),
+        makeNode("goal/init-1", "goal", { status: "active" }),
         makeNode("backlog-item/execute/task-a", "backlog", { status: "backlog" }),
         makeNode("scenario/app", "scenario", { status: "running" }),
       ],
       edges: [
-        makeEdge("mo1", "backlog-item/execute/task-a", "initiative/init-1", "member_of"),
+        makeEdge("mo1", "backlog-item/execute/task-a", "goal/init-1", "member_of"),
       ],
       settings,
-      expandedTopologyClusters: new Set<string>(),
     });
 
-    // Backlog filtered out → no cluster members → cluster is empty
-    // Only scenario should remain as unclustered
     const nodeIds = result.processedNodes.map((n) => n.id);
     expect(nodeIds).not.toContain("backlog-item/execute/task-a");
     expect(nodeIds).toContain("scenario/app");
-  });
-
-  it("keeps backlog items visible in flat topology presentation", () => {
-    const settings = createDefaultLensSettings("topology");
-    settings.groupingMode = "none"; // explicit flat mode
-
-    const result = buildGraphPresentation({
-      lens: "topology",
-      nodes: [
-        makeNode("initiative/graph-adoption", "initiative", { status: "active" }),
-        makeNode("backlog-item/execute/task-a", "backlog", { status: "backlog", kind: "execute" }),
-        makeNode("scenario/swarm-manager", "scenario", { status: "running" }),
-      ],
-      edges: [
-        makeEdge(
-          "member_of:a",
-          "backlog-item/execute/task-a",
-          "initiative/graph-adoption",
-          "member_of",
-        ),
-      ],
-      settings,
-      expandedTopologyClusters: new Set<string>(),
-    });
-
-    expect(result.processedNodes.map((node) => node.id)).toEqual([
-      "initiative/graph-adoption",
-      "backlog-item/execute/task-a",
-      "scenario/swarm-manager",
-    ]);
-  });
-
-  it("collapses backlog items into initiative clusters when compression is enabled", () => {
-    const settings = createDefaultLensSettings("topology");
-    settings.groupingMode = "initiative";
-
-    const result = buildGraphPresentation({
-      lens: "topology",
-      nodes: [
-        makeNode("initiative/graph-adoption", "initiative", { status: "active" }),
-        makeNode("backlog-item/execute/task-a", "backlog", { status: "backlog", kind: "execute" }),
-        makeNode("scenario/swarm-manager", "scenario", { status: "running" }),
-      ],
-      edges: [
-        makeEdge(
-          "member_of:a",
-          "backlog-item/execute/task-a",
-          "initiative/graph-adoption",
-          "member_of",
-        ),
-        makeEdge(
-          "targets:a",
-          "backlog-item/execute/task-a",
-          "scenario/swarm-manager",
-          "targets",
-        ),
-      ],
-      settings,
-      expandedTopologyClusters: new Set<string>(),
-    });
-
-    expect(result.processedNodes.map((node) => node.id)).toEqual([
-      "initiative/graph-adoption",
-      "scenario/swarm-manager",
-    ]);
-    expect(result.processedEdges).toMatchObject([
-      {
-        id: "agg:initiative/graph-adoption|scenario/swarm-manager|targets",
-        source: "initiative/graph-adoption",
-        target: "scenario/swarm-manager",
-        type: "targets",
-      },
-    ]);
   });
 });

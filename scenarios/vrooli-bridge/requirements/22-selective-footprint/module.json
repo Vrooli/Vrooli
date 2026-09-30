@@ -1,0 +1,36 @@
+{
+  "_metadata": {
+    "description": "Resolve complete and selective onboarding footprints through one canonical closure and activate only verified, digest-bound content.",
+    "last_validated_at": "2026-09-09T19:42:00Z",
+    "module": "selective-footprint",
+    "prd_ref": "OT-P0-010",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BRG-P0-010",
+      "title": "Verified selective footprint activation",
+      "status": "planned",
+      "prd_ref": "OT-P0-010",
+      "category": "integration",
+      "description": "When an operator selects a complete or selective host footprint, Bridge and onboarding shall use one canonical dependency closure, bind the shipment to an integrity digest, and preserve the previous active generation when verification or activation fails.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "agent/internal/artifactdelivery/delivery_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "The focused node placement tests will cover digest verification, path containment, symlink escape refusal, atomic replacement, size bounds, and preservation of the destination on failure."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/onboard/worktree_internal_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "The onboarding closure tests will prove deterministic complete/selective union digests and inclusion explanations before shipment."
+        }
+      ]
+    }
+  ]
+}

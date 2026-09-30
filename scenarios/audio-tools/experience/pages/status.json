@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "status",
+    "title": "Status",
+    "routes": ["/status"],
+    "purpose": "Show the current managed audio runtime status and distinguish healthy, degraded, unavailable, and unknown dependencies.",
+    "prd_refs": ["OT-P0-002"]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {"id": "enable-public-assets", "title": "Enable anonymous public assets", "purpose": "Change the narrow /public/* policy only when the operator understands the capability and protected application boundary."},
+  "steps": [
+    {"page": "settings", "state": "credentials-missing", "intent": "Inspect credential readiness and the current public-assets policy.", "elements": ["settings-config-panel", "settings-credential-policy"]},
+    {"page": "settings", "state": "ready", "intent": "Review the explicit statement that the primary application remains protected.", "elements": ["settings-credential-policy"]},
+    {"page": "settings", "state": "sync-preview", "intent": "Preview the proposed policy change before applying it.", "elements": ["settings-public-exposure-toggle", "settings-sync-dry-run-button", "settings-sync-result"]},
+    {"page": "settings", "state": "success", "intent": "Apply only after the capability-scoped readiness and policy preview are acceptable.", "elements": ["settings-public-exposure-toggle", "settings-action-error"]}
+  ],
+  "claims": [{"id": "no-whole-host-bypass", "type": "custom", "statement": "The journey makes it impossible to mistake /public/* asset bypass for anonymous access to the primary application.", "tier": "manual"}]
+}

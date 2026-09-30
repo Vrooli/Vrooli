@@ -116,6 +116,13 @@ export function getInjectedConfig(options: {
   return null
 }
 
+/** Read an application-owned value from the server-injected runtime config. */
+export function getRuntimeConfigValue<T = string>(key: string, fallback?: T): T | undefined {
+  const config = getInjectedConfig()
+  const value = config?.[key] ?? config?.[`VITE_${key}`]
+  return (value === undefined || value === null ? fallback : value) as T | undefined
+}
+
 /**
  * Resolve API base with runtime configuration
  *

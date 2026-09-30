@@ -1,0 +1,78 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "ASSET-P2-001",
+      "title": "Persona voice",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "assets",
+      "criticality": "P2",
+      "description": "Persona voiceover produced through audio-tools, bound to the same identity record as the visual depiction, so a persona's voice is as versioned and as consistent as its face. Deferred because the host has no hardware audio sink today and because no persona account exists to publish voiced content to.",
+      "tags": ["assets", "audio-tools", "identity"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Revisit once a persona account is activated and audio-tools has a validated voice path on this host."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P2-002",
+      "title": "Variant generation for testing",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "specs",
+      "criticality": "P2",
+      "description": "Labelled variants derived from one spec for outcome comparison. Deferred until publish telemetry exists to compare them against — generating variants with no measurement source produces choices made on taste while appearing to be an experiment.",
+      "tags": ["specs", "variants", "measurement"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Revisit once content-desk ingests publish performance telemetry."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P2-003",
+      "title": "Drift monitoring across generations",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "conformance",
+      "criticality": "P2",
+      "description": "Detect an identity drifting across successive renders even when each individual frame passes conformance — the slow-walk failure where every step is within tolerance of the last but the tenth is nothing like the first. Deferred because it needs a corpus of accepted renders per identity to calibrate against, which does not exist until the P0 loop has run repeatedly.",
+      "tags": ["conformance", "drift", "monitoring"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Revisit once several generations of accepted renders exist for one identity."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P2-004",
+      "title": "Desktop packaging",
+      "status": "planned",
+      "prd_ref": "OT-P2-004",
+      "category": "delivery",
+      "criticality": "P2",
+      "description": "Ship as a Tier 2 desktop application through scenario-to-desktop, matching the delivery direction taken by content-desk. Local-first delivery keeps generated assets and their provenance on the operator's own machine, which is the correct default for unreleased marketing material.",
+      "tags": ["delivery", "scenario-to-desktop"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Revisit alongside the content-desk desktop packaging decision; the two should ship the same way or deliberately not."
+        }
+      ]
+    }
+  ]
+}

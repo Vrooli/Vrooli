@@ -1,0 +1,72 @@
+{
+  "description": "`cli-health generate-manifest \u003cscenario\u003e` bootstraps a valid `cli/manifest.json` for any scenario that currently lacks one, lowering the barrier to adoption.",
+  "module_id": "MOD-P1-006",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "cli",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-002"
+      ],
+      "description": "The `cli-health generate-manifest \u003cscenario\u003e` command must generate a valid `cli/manifest.json` file for any scenario that does not already have one, by introspecting that scenario's existing compiled proto descriptor set. The generated manifest must: list all discovered RPC methods as command bindings with auto-inferred names, pass schema validation (`cli-health validate`) with zero error findings immediately after generation, and not overwrite an existing `cli/manifest.json` without an explicit `--force` flag.",
+      "id": "REQ-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "draft",
+      "title": "Manifest Scaffolding from Existing Proto Descriptors",
+      "validation": [
+        {
+          "notes": "Given a descriptor set with 3 RPC methods and no existing manifest, generate-manifest produces a manifest with 3 binding entries",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given an existing cli/manifest.json without --force, generate-manifest exits nonzero and does not overwrite",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given --force flag with an existing manifest, generate-manifest overwrites the file",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given an auto-generated manifest, immediately running cli-health validate returns zero error-level findings",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run generate-manifest against a test scenario that has a descriptor set but no manifest; assert the generated file passes `cli-health validate` with exit code 0",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run generate-manifest against one of the 6 adopting scenarios without --force; assert no file modification occurs",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "New scenarios can adopt cli-health in a single command rather than hand-authoring manifest JSON, accelerating onboarding",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Manifest scaffolding command"
+}

@@ -166,7 +166,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
   }, [getIconComponent, showApiError]);
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, [loadData]);
 
   const refreshTriggerData = useCallback(() => {
@@ -282,7 +282,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
 
   return (
     <div className="trigger-section">
-      <h3 className="section-heading" style={{ margin: '0 0 var(--spacing-md) 0' }}>Automatic Triggers</h3>
+      <h3 className="section-heading" data-sm-style="sm-style-288cd9d43e">Automatic Triggers</h3>
 
       {/* Cooldown Controls */}
       <div className="cooldown-inline">
@@ -301,7 +301,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
               clearTimeout(cooldownUpdateTimeoutRef.current);
             }
             cooldownUpdateTimeoutRef.current = setTimeout(() => {
-              handleUpdateCooldownPeriod(newValue);
+              void handleUpdateCooldownPeriod(newValue);
             }, 500);
           }}
         />
@@ -313,8 +313,8 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
               <span className="text-sm text-warning">{formatTime(cooldownStatus.remainingSeconds)}</span>
               <button
                 className="btn btn-secondary text-xs"
-                onClick={handleResetCooldown}
-                style={{ padding: 'var(--spacing-xs) var(--spacing-sm)' }}
+                onClick={() => { void handleResetCooldown(); }}
+                data-sm-style="sm-style-3aa42739ac"
               >
                 <RefreshCw size={12} />
                 Reset
@@ -335,13 +335,13 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
             <div
               key={trigger.id}
               className={`trigger-card${trigger.enabled ? ' trigger-card-enabled' : ''}`}
-              style={{ flexDirection: 'column', alignItems: 'stretch', padding: 0 }}
+              data-sm-style="sm-style-37511ce3f0"
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', padding: 'var(--spacing-sm) var(--spacing-md)' }}>
-                <Icon size={16} className={trigger.enabled ? 'text-success' : 'text-muted'} style={{ flexShrink: 0 }} />
+              <div data-sm-style="sm-style-6ad42ad3e5">
+                <Icon size={16} className={trigger.enabled ? 'text-success' : 'text-muted'} data-sm-style="sm-style-6d24741bda" />
 
                 <div className="trigger-card-content">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                  <div data-sm-style="sm-style-67bc078b69">
                     <span className="text-sm font-bold">{trigger.name}</span>
                     {editingTrigger === trigger.id ? (
                       <div className="trigger-threshold-edit">
@@ -349,11 +349,11 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                         <input
                           type="number"
                           value={editValues[trigger.id] ?? trigger.threshold}
-                          onChange={(e) => setEditValues({ ...editValues, [trigger.id]: parseFloat(e.target.value) })}
+                          onChange={(e) => { setEditValues({ ...editValues, [trigger.id]: parseFloat(e.target.value) }); }}
                           className="trigger-threshold-input"
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              handleUpdateTriggerThreshold(trigger.id, editValues[trigger.id] ?? trigger.threshold);
+                              void handleUpdateTriggerThreshold(trigger.id, editValues[trigger.id] ?? trigger.threshold);
                             } else if (e.key === 'Escape') {
                               setEditingTrigger(null);
                               setEditValues({});
@@ -363,7 +363,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                         <span className="text-xs">{trigger.unit}</span>
                         <button
                           className="btn-icon text-success"
-                          onClick={() => handleUpdateTriggerThreshold(trigger.id, editValues[trigger.id] ?? trigger.threshold)}
+                          onClick={() => { void handleUpdateTriggerThreshold(trigger.id, editValues[trigger.id] ?? trigger.threshold); }}
                           title="Save"
                         >
                           <Save size={14} />
@@ -395,14 +395,14 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                     )}
                   </div>
                   {trigger.description && (
-                    <span className="text-xs text-muted" style={{ lineHeight: 1.3 }}>{trigger.description}</span>
+                    <span className="text-xs text-muted" data-sm-style="sm-style-381a33cb83">{trigger.description}</span>
                   )}
                 </div>
 
                 <div className="trigger-card-actions">
                   <button
                     className={`btn-icon${trigger.autoFix && trigger.enabled ? ' text-success' : ''}`}
-                    onClick={() => trigger.enabled && handleToggleAutoFix(trigger.id)}
+                    onClick={() => { if (trigger.enabled) void handleToggleAutoFix(trigger.id); }}
                     disabled={!trigger.enabled}
                     title={trigger.autoFix ? 'Disable auto-fix' : 'Enable auto-fix'}
                     style={{ opacity: trigger.enabled ? 1 : 0.4 }}
@@ -412,15 +412,15 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
 
                   <ToggleSwitch
                     checked={trigger.enabled}
-                    onChange={() => handleToggleTrigger(trigger.id)}
+                    onChange={() => { void handleToggleTrigger(trigger.id); }}
                     title={trigger.enabled ? 'Disable trigger' : 'Enable trigger'}
                   />
                 </div>
               </div>
 
               {/* Progress bar with current/threshold readout */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', padding: '0 var(--spacing-md) var(--spacing-xs)' }}>
-                <div className="progress-bar" style={{ flex: 1, borderRadius: 'var(--radius-full)', height: 4 }}>
+              <div data-sm-style="sm-style-2270ec45ad">
+                <div className="progress-bar" data-sm-style="sm-style-9afa084b3f">
                   <div
                     className="progress-fill"
                     style={{
@@ -439,7 +439,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
       </div>
 
       {/* Warning Note */}
-      <div className="warning-box text-xs" style={{ marginTop: 'var(--spacing-md)' }}>
+      <div className="warning-box text-xs" data-sm-style="sm-style-323fdcc1e0">
         Triggers respect the cooldown period. Auto-fix favors safe operations first.
       </div>
     </div>

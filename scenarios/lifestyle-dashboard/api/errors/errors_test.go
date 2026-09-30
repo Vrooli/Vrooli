@@ -158,11 +158,11 @@ func TestAPIErrorToJSON(t *testing.T) {
 // TestPrebuiltErrors verifies common pre-built errors are configured correctly.
 func TestPrebuiltErrors(t *testing.T) {
 	tests := []struct {
-		name   string
-		err    *APIError
-		code   ErrorCode
+		name     string
+		err      *APIError
+		code     ErrorCode
 		hasField bool
-		field  string
+		field    string
 	}{
 		{"ErrInvalidJSON", ErrInvalidJSON, CodeInvalidJSON, false, ""},
 		{"ErrMissingDomain", ErrMissingDomain, CodeMissingField, true, "domain"},

@@ -1,0 +1,15 @@
+{
+  "catalogId": "templates.collection-page",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "entry": "CollectionPage.tsx",
+  "evictedVersions": [],
+  "latest": "1.7.1",
+  "libraryId": "react-component-library:CollectionPage"
+}

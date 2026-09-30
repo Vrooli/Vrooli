@@ -115,52 +115,16 @@ func (r *DefaultResourceResolver) resolveScenarioResources(scenario string) []st
 
 // findServiceJSON searches for the scenario's service.json in candidate locations.
 func (r *DefaultResourceResolver) findServiceJSON(scenario string) []byte {
-	readServiceJSON := func(root string) []byte {
-		paths := []string{
-			filepath.Join(root, "scenarios", scenario, ".vrooli", "service.json"),
-			filepath.Join(root, scenario, ".vrooli", "service.json"),
-		}
-		for _, servicePath := range paths {
-			if payload, err := os.ReadFile(servicePath); err == nil {
-				return payload
-			}
-		}
+	scenarioRoot := resolveScenarioRoot(scenario)
+	if scenarioRoot == "" {
 		return nil
 	}
 
-	// Build candidate root directories
-	var candidates []string
-	if envRoot := os.Getenv("VROOLI_ROOT"); envRoot != "" {
-		candidates = append(candidates, envRoot)
+	payload, err := os.ReadFile(filepath.Join(scenarioRoot, ".vrooli", "service.json"))
+	if err != nil {
+		return nil
 	}
-	if cwd, err := os.Getwd(); err == nil {
-		absCwd, _ := filepath.Abs(cwd)
-		candidates = append(candidates, absCwd)
-	}
-	if home, err := os.UserHomeDir(); err == nil {
-		candidates = append(candidates, filepath.Join(home, "Vrooli"))
-	}
-
-	// Search each candidate, climbing up the directory tree
-	for _, root := range candidates {
-		if root == "" {
-			continue
-		}
-
-		cur := root
-		for {
-			if payload := readServiceJSON(cur); payload != nil {
-				return payload
-			}
-			parent := filepath.Dir(cur)
-			if parent == cur {
-				break
-			}
-			cur = parent
-		}
-	}
-
-	return nil
+	return payload
 }
 
 // parseResourcesFromServiceJSON extracts resource names from service.json content.

@@ -1,5 +1,5 @@
 // [REQ:REQ-P0-003] Keyboard navigation shortcuts
-import { renderHook } from "@testing-library/react";
+import { renderHook } from "../test-utils";
 import { vi } from "vitest";
 import { useGlobalKeyboardShortcuts } from "./useGlobalKeyboardShortcuts";
 

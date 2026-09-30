@@ -1,0 +1,791 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "git-control-tower",
+  "description": "Single source of truth for the complete observable git-control-tower CLI surface. Typed Connect-RPC bindings are the target for scenario operations; local command registrations remain declared during the domain migration. Schema-validated against cli-manifest/v1 and cross-validated against owned proto descriptors.",
+  "groups": [
+    {
+      "name": "worktree",
+      "description": "Manage git worktrees via the WorktreeService Connect-RPC surface",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List worktrees in a repo",
+          "flags": [
+            {
+              "name": "repo",
+              "required": true,
+              "description": "Repository path",
+              "bind": {
+                "field": "repo_path"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorktreeService",
+            "method": "ListWorktrees"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Show one worktree",
+          "flags": [
+            {
+              "name": "repo",
+              "required": true,
+              "description": "Repository path",
+              "bind": {
+                "field": "repo_path"
+              }
+            },
+            {
+              "name": "path",
+              "required": true,
+              "description": "Worktree path",
+              "bind": {
+                "field": "worktree_path"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorktreeService",
+            "method": "GetWorktree"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a worktree from an existing branch, new branch (with optional start point + tracking), or detached commit",
+          "flags": [
+            {
+              "name": "repo",
+              "required": true,
+              "description": "Repository path",
+              "bind": {
+                "field": "repo_path"
+              }
+            },
+            {
+              "name": "path",
+              "required": true,
+              "description": "New worktree path",
+              "bind": {
+                "field": "new_worktree_path"
+              }
+            },
+            {
+              "name": "existing_branch",
+              "aliases": ["branch"],
+              "description": "Existing branch to check out (mutually exclusive with --new-branch / --commit)"
+            },
+            {
+              "name": "new-branch",
+              "description": "New branch name to create (mutually exclusive with --branch / --commit)",
+              "bind_waiver": "The worktree CLI adapter combines this name with --start-point and --track into NewBranchSpec."
+            },
+            {
+              "name": "start-point",
+              "aliases": ["start"],
+              "description": "Start point for --new-branch"
+            },
+            {
+              "name": "track",
+              "bool": true,
+              "description": "Set --track for the new branch's upstream"
+            },
+            {
+              "name": "commit",
+              "description": "Detached HEAD commit SHA (mutually exclusive with --branch / --new-branch)"
+            },
+            {
+              "name": "force",
+              "bool": true,
+              "description": "Force-create even if the target path is dirty"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorktreeService",
+            "method": "CreateWorktree"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "remove",
+          "description": "Remove a worktree",
+          "flags": [
+            {
+              "name": "repo",
+              "required": true,
+              "description": "Repository path",
+              "bind": {
+                "field": "repo_path"
+              }
+            },
+            {
+              "name": "path",
+              "required": true,
+              "description": "Worktree path",
+              "bind": {
+                "field": "worktree_path"
+              }
+            },
+            {
+              "name": "force",
+              "bool": true,
+              "description": "Force removal even if the worktree is dirty"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorktreeService",
+            "method": "RemoveWorktree"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "lock",
+          "description": "Lock a worktree",
+          "flags": [
+            {
+              "name": "repo",
+              "required": true,
+              "description": "Repository path",
+              "bind": {
+                "field": "repo_path"
+              }
+            },
+            {
+              "name": "path",
+              "required": true,
+              "description": "Worktree path",
+              "bind": {
+                "field": "worktree_path"
+              }
+            },
+            {
+              "name": "reason",
+              "description": "Optional lock reason recorded by git"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorktreeService",
+            "method": "LockWorktree"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "unlock",
+          "description": "Unlock a worktree",
+          "flags": [
+            {
+              "name": "repo",
+              "required": true,
+              "description": "Repository path",
+              "bind": {
+                "field": "repo_path"
+              }
+            },
+            {
+              "name": "path",
+              "required": true,
+              "description": "Worktree path",
+              "bind": {
+                "field": "worktree_path"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorktreeService",
+            "method": "UnlockWorktree"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "move",
+          "description": "Move a worktree to a new path",
+          "flags": [
+            {
+              "name": "repo",
+              "required": true,
+              "description": "Repository path",
+              "bind": {
+                "field": "repo_path"
+              }
+            },
+            {
+              "name": "path",
+              "required": true,
+              "description": "Existing worktree path",
+              "bind": {
+                "field": "worktree_path"
+              }
+            },
+            {
+              "name": "new-path",
+              "required": true,
+              "description": "Destination worktree path",
+              "bind": {
+                "field": "new_worktree_path"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorktreeService",
+            "method": "MoveWorktree"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "prune",
+          "description": "Prune worktree records that no longer have a valid working tree on disk",
+          "flags": [
+            {
+              "name": "repo",
+              "required": true,
+              "description": "Repository path",
+              "bind": {
+                "field": "repo_path"
+              }
+            },
+            {
+              "name": "reason",
+              "description": "Optional reason recorded in the audit log"
+            },
+            {
+              "name": "report-only",
+              "bool": true,
+              "description": "Report what would be pruned without modifying state"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorktreeService",
+            "method": "PruneWorktrees"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "repo",
+      "description": "Inspect and change repository state through typed repository operations",
+      "commands": [
+        {"name":"status","description":"Show repository status","binding":{"kind":"connect-rpc","service":"RepoService","method":"GetRepoStatus"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
+        {
+          "name": "groups",
+          "description": "Resolve changed files into manual, contract-derived, and builtin groups",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RepoService",
+            "method": "GetRepoGroups"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {"name":"diff","description":"Show a working-tree or staged file diff","binding":{"kind":"connect-rpc","service":"RepoService","method":"GetRepoDiff"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
+        {"name":"blame","description":"Show bounded native Git line attribution with optional provenance enrichment","binding":{"kind":"connect-rpc","service":"RepoService","method":"GetBlame"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read","network:internal"]}},
+        {"name":"stage","description":"Review an exact file selection and stage it","binding":{"kind":"connect-rpc","service":"RepoService","method":"StageFiles"},"governance":{"effect":"write","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:write"]}},
+        {"name":"unstage","description":"Review an exact file selection and unstage it","binding":{"kind":"connect-rpc","service":"RepoService","method":"UnstageFiles"},"governance":{"effect":"write","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:write"]}},
+        {"name":"commit","description":"Review an exact server preview and create a single-use-authorized validated commit (--yes skips the prompt)","binding":{"kind":"connect-rpc","service":"RepoService","method":"CreateCommit"},"governance":{"effect":"write","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:write"]}},
+        {"name":"prepare-push-recovery","description":"Review and prepare isolated history artifacts; never applies or pushes","binding":{"kind":"connect-rpc","service":"RepoService","method":"PreparePushRecovery"},"governance":{"effect":"write","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:read","filesystem:write","network:external"]}},
+        {"name":"push-safety","description":"Inspect the live push destination and outgoing historical file sizes","binding":{"kind":"connect-rpc","service":"RepoService","method":"InspectPushSafety"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read","network:external"]}},
+        {"name":"push-recovery-status","description":"Read retained isolated recovery preparation evidence","binding":{"kind":"connect-rpc","service":"RepoService","method":"GetPushRecovery"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
+        {"name":"sync-status","description":"Check push and pull status","binding":{"kind":"connect-rpc","service":"RepoService","method":"GetSyncStatus"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read","network:external"]}}
+      ]
+    },
+    {
+      "name":"branch","description":"Manage repository branches through the BranchService Connect-RPC surface","commands":[
+        {"name":"list","description":"List branches","binding":{"kind":"connect-rpc","service":"BranchService","method":"ListBranches"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
+        {"name":"create","description":"Create a branch","binding":{"kind":"connect-rpc","service":"BranchService","method":"CreateBranch"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write"]}},
+        {"name":"switch","description":"Switch the working branch","binding":{"kind":"connect-rpc","service":"BranchService","method":"SwitchBranch"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write"]}},
+        {"name":"publish","description":"Publish the current branch","binding":{"kind":"connect-rpc","service":"BranchService","method":"PublishBranch"},"governance":{"effect":"destructive","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:read","network:external"]}}
+      ]
+    },
+    {
+      "name":"review","description":"Run and inspect scenario readiness reviews","commands":[
+        {"name":"summary","description":"Show scenario readiness","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"run","description":"Start readiness checks","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"status","description":"Inspect a review run","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+      ]
+    },
+    {
+      "name":"audit","description":"Query the Git Control Tower audit log","commands":[
+        {"name":"list","description":"List bounded audit records","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+      ]
+    },
+    {
+      "name":"baseline","description":"Capture, compare, and govern durable behavioral and source evidence","commands":[
+        {"name":"snapshot","description":"Start or inspect a durable single-scenario baseline snapshot","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:read"]}},
+        {"name":"diff","description":"Start or inspect a durable baseline comparison","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:read"]}},
+        {"name":"list","description":"List baselines","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"show","description":"Show one baseline","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"delete","description":"Delete a baseline and release its pin","binding":{"kind":"local"},"governance":{"effect":"destructive","run_eligible":false,"requires_confirmation":true,"permissions":["network:internal"]}},
+        {"name":"repair","description":"Preview or apply deterministic baseline lifecycle repair","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:write"]}},
+        {"name":"collection","description":"Operate durable multi-scenario validation evidence collections","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:read"]}},
+        {"name":"path","description":"Capture and compare bounded informational source evidence","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:read"]}},
+        {"name":"start","description":"Start a shadow or live engagement","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:write"]}},
+        {"name":"check","description":"Validate and renew an engagement","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:read"]}},
+        {"name":"promote","description":"Promote and terminalize an engagement","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:write"]}},
+        {"name":"status","description":"List active engagements","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
+        {"name":"abandon","description":"Abandon an engagement and restore owned state","binding":{"kind":"local"},"governance":{"effect":"destructive","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:write"]}},
+        {"name":"gc","description":"Reap expired or orphaned engagements","binding":{"kind":"local"},"governance":{"effect":"destructive","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:write"]}}
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "service": "AuthService",
+      "method": "Login",
+      "reason": "Browser-only same-origin scenario-authenticator facade; the CLI never accepts or relays browser passwords."
+    },
+    {
+      "service": "RepoService",
+      "method": "ListRepositories",
+      "reason": "UI repository-selector read surface; the CLI uses the active repository context rather than managing the browser registry."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetActiveRepository",
+      "reason": "UI repository-selector read surface; no standalone CLI registry command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "SetActiveRepository",
+      "reason": "UI repository-selector mutation; registry selection remains an explicitly confirmed browser operation."
+    },
+    {
+      "service": "RepoService",
+      "method": "OpenRepository",
+      "reason": "UI repository-selector mutation; opening a local repository remains a browser-only registry operation."
+    },
+    {
+      "service": "RepoService",
+      "method": "CloneRepository",
+      "reason": "UI repository-selector mutation; cloning remains a browser-only external filesystem/network operation."
+    },
+    {
+      "service": "RepoService",
+      "method": "RemoveRepository",
+      "reason": "UI repository-selector mutation; unregistering a repository remains a browser-only confirmed operation."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetFiles",
+      "reason": "UI-only repository file tree; CLI agents use typed status and diff commands for bounded repository inspection."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetDirectoryContents",
+      "reason": "UI-only directory navigation; no standalone CLI command is exposed for browser tree expansion."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetRelatedFiles",
+      "reason": "UI-only related-file suggestions; CLI agents use typed diff and status surfaces."
+    },
+    {
+      "service": "RepoService",
+      "method": "SearchContent",
+      "reason": "UI-only content search; the CLI does not expose a repository search command in this plan."
+    },
+    {
+      "service": "RepoService",
+      "method": "DeletePath",
+      "reason": "No autonomous file-delete CLI command; the typed method is intentionally UI-only and requires human intent."
+    },
+    {
+      "service": "RepoService",
+      "method": "SaveFileContent",
+      "reason": "No autonomous file-write CLI command; the typed method is intentionally UI-only and requires human intent."
+    },
+    {
+      "service": "RepoService",
+      "method": "DiscardFiles",
+      "reason": "No autonomous discard CLI command; destructive working-tree changes remain an explicitly confirmed UI operation."
+    },
+    {
+      "service": "RepoService",
+      "method": "IgnorePath",
+      "reason": "No standalone ignore CLI command is exposed; the typed method is retained for the UI repository workflow."
+    },
+    {
+      "service": "RepoService",
+      "method": "PushToRemote",
+      "reason": "The current CLI surface does not expose remote writes; branch publication remains the intentional typed CLI command."
+    },
+    {
+      "service": "RepoService",
+      "method": "PullFromRemote",
+      "reason": "No autonomous pull CLI command is exposed; remote mutation remains an explicitly confirmed UI operation."
+    },
+    {
+      "service": "RepoService",
+      "method": "RunUpstreamAction",
+      "reason": "No standalone upstream-action CLI command is exposed; the typed method is retained for the UI workflow."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetGroupingRules",
+      "reason": "UI settings read surface; no standalone CLI command is exposed for browser grouping configuration."
+    },
+    {
+      "service": "RepoService",
+      "method": "SaveGroupingRules",
+      "reason": "UI settings write surface; configuration changes require the same human mutation intent as the browser workflow."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetGitignoreHealth",
+      "reason": "UI repository-health read surface; no standalone CLI command is exposed for settings remediation suggestions."
+    },
+    {
+      "service": "RepoService",
+      "method": "MoveGitignoreEntry",
+      "reason": "UI remediation surface; moving ignore entries requires an exact human mutation intent."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetTrackedBinaries",
+      "reason": "UI repository-health read surface; no standalone CLI command is exposed for binary findings."
+    },
+    {
+      "service": "RepoService",
+      "method": "UntrackBinary",
+      "reason": "UI remediation surface; untracking a binary requires an exact human mutation intent."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetPrecommitConfig",
+      "reason": "Precommit configuration is a UI settings surface; no standalone CLI command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "SavePrecommitConfig",
+      "reason": "Precommit configuration writes are intentionally UI-only and require an exact human mutation intent."
+    },
+    {
+      "service": "RepoService",
+      "method": "RunPrecommit",
+      "reason": "Precommit execution is a UI check surface; commit validation remains inside the typed commit workflow."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "StartRun",
+      "reason": "UI convenience over Test Genie's durable StartRun; agents use `vrooli scenario test` / `test-genie runs` directly."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "ListRuns",
+      "reason": "UI-only descriptor-aware run history; agents use Test Genie's canonical runs CLI."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "GetRun",
+      "reason": "UI-only run detail and typed artifact metadata; agents use Test Genie's canonical runs CLI."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "ListEvidence",
+      "reason": "UI-only cross-run evidence search; artifact bytes remain behind opaque same-origin routes."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "SnapshotForBaseline",
+      "reason": "Hand-written in cli/domains/baseline (baseline snapshot) \u2014 custom Connect client with rich human output and dirty-tree/skip warnings; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "GetSnapshotStatus",
+      "reason": "Hand-written in cli/domains/baseline (baseline snapshot status) \u2014 custom Connect client with snapshot lifecycle exit codes and not-found diagnostics; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "GetBaseline",
+      "reason": "Hand-written in cli/domains/baseline (baseline show) \u2014 custom Connect client; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "ListBaselines",
+      "reason": "Hand-written in cli/domains/baseline (baseline list) \u2014 custom Connect client; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "StartDiff",
+      "reason": "Hand-written in cli/domains/baseline (baseline diff) \u2014 custom Connect client; durable return-fast start with re-attach banner; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "GetDiffResult",
+      "reason": "Hand-written in cli/domains/baseline (baseline diff status) \u2014 custom Connect client with diff exit codes 0/1/2/3; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "DeleteBaseline",
+      "reason": "Hand-written in cli/domains/baseline (baseline delete) \u2014 custom Connect client; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "RepairBaseline",
+      "reason": "Hand-written in cli/domains/baseline (baseline repair) \u2014 custom Connect client with explicit dry-run and --apply lifecycle mutation boundary; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "StartCollectionCapture",
+      "reason": "Hand-written in cli/domains/baseline (collection capture) \u2014 producer-owned wait guidance; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "GetCollectionStatus",
+      "reason": "Hand-written in cli/domains/baseline (collection show) \u2014 pure durable standing read rendered through the shared operation-standing renderer; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "WaitCollectionCapture",
+      "reason": "Hand-written in cli/domains/baseline (collection show --wait) \u2014 explicit parent attachment with typed detach exit; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "ExtendCollection",
+      "reason": "Hand-written in cli/domains/baseline (collection extend) \u2014 append-only member workflow; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "StartCollectionDiff",
+      "reason": "Hand-written in cli/domains/baseline (collection diff) \u2014 durable producer operation rendering; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "GetCollectionDiffStatus",
+      "reason": "Hand-written in cli/domains/baseline (collection diff status) \u2014 pure aggregate/child standing read rendered through the shared operation-standing renderer; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "WaitCollectionDiff",
+      "reason": "Hand-written in cli/domains/baseline (collection diff wait) \u2014 explicit aggregate attachment with typed terminal/detached exit; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "DeleteCollection",
+      "reason": "Hand-written in cli/domains/baseline (collection delete); not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "EstimatePathSnapshot",
+      "reason": "Hand-written in cli/domains/baseline (path estimate) \u2014 renders contributor and scope-repair guidance; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "CapturePathSnapshot",
+      "reason": "Hand-written in cli/domains/baseline (path capture) \u2014 explicit content/ignored policy flags; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "GetPathSnapshot",
+      "reason": "Hand-written in cli/domains/baseline (path show); not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "DiffPathSnapshots",
+      "reason": "Hand-written in cli/domains/baseline (path diff) \u2014 informational source evidence rendering; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "DeletePathSnapshot",
+      "reason": "Hand-written in cli/domains/baseline (path delete); not manifest-bound."
+    },
+    {
+      "service": "RepoService",
+      "method": "ListCredentials",
+      "reason": "UI-only repository credential read surface; no standalone CLI credential command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "SaveCredential",
+      "reason": "UI-only repository credential writer; exact human mutation intent is required and no CLI command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "DeleteCredential",
+      "reason": "UI-only repository credential writer; exact human mutation intent is required and no CLI command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "TestCredential",
+      "reason": "UI-only repository credential connectivity test; no standalone CLI command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "UpdateRemoteURL",
+      "reason": "UI-only repository remote configuration writer; exact human mutation intent is required and no CLI command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "ListSSHKeys",
+      "reason": "UI-only host SSH key inventory; no standalone CLI command is exposed by Git Control Tower."
+    },
+    {
+      "service": "RepoService",
+      "method": "GenerateSSHKey",
+      "reason": "UI-only host SSH key writer; exact human mutation intent is required and no CLI command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetSSHPublicKey",
+      "reason": "UI-only SSH public-key display surface; no standalone CLI command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "TestSSHConnection",
+      "reason": "UI-only SSH connectivity test; no standalone CLI command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "DeleteSSHKey",
+      "reason": "UI-only host SSH key writer; exact human mutation intent is required and no CLI command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetRepoHistory",
+      "reason": "UI-only repository history read surface; no standalone CLI history command is exposed in this plan."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetApprovedChanges",
+      "reason": "UI-only approved-change preview surface; commit authority remains in the typed commit workflow."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetProvenance",
+      "reason": "UI-only provenance read surface; no standalone CLI provenance command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "SearchProvenance",
+      "reason": "Inter-scenario provenance provider surface; federation owns the CLI search experience."
+    },
+    {
+      "service": "AdvisoryService",
+      "method": "Draft",
+      "reason": "UI/inter-scenario advisory presentation surface; no standalone CLI draft command is exposed."
+    },
+    {
+      "service": "ReviewService",
+      "method": "Start",
+      "reason": "UI review-panel lifecycle admission; the CLI exposes focused validation commands rather than the composite review runner."
+    },
+    {
+      "service": "AuditorService",
+      "method": "StartCheck",
+      "reason": "UI/inter-scenario auditor scan admission; no standalone CLI command is exposed."
+    },
+    {
+      "service": "AuditorService",
+      "method": "GetJobStatus",
+      "reason": "UI/inter-scenario auditor job status read; no standalone CLI command is exposed."
+    },
+    {
+      "service": "AuditorService",
+      "method": "ListRules",
+      "reason": "UI/inter-scenario auditor rule catalog read; no standalone CLI command is exposed."
+    },
+    {
+      "service": "AuditorService",
+      "method": "ListViolations",
+      "reason": "UI/inter-scenario auditor violation read; no standalone CLI command is exposed."
+    },
+    {
+      "service": "AuditorService",
+      "method": "PreviewFix",
+      "reason": "UI/inter-scenario auditor preview surface; no standalone CLI fix command is exposed."
+    },
+    {
+      "service": "AuditorService",
+      "method": "ApplyFix",
+      "reason": "UI-only repository writer; exact human mutation intent is required and no CLI command is exposed."
+    },
+    {
+      "service": "HumanControlService",
+      "method": "GetAuthorityStatus",
+      "reason": "HumanControlService is an internal authorization preflight used by typed mutation commands, not a standalone CLI command."
+    },
+    {
+      "service": "HumanControlService",
+      "method": "PrepareMutation",
+      "reason": "HumanControlService is an internal exact-preview preflight used by typed mutation commands, not a standalone CLI command."
+    },
+    {
+      "service": "HumanControlService",
+      "method": "ConfirmMutation",
+      "reason": "HumanControlService is an internal single-use authorization preflight used by typed mutation commands, not a standalone CLI command."
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.fragment-promote",
+  "version": "2",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Prepare or publish a reviewed verified fragment as a portable baseline in the owning program declaration while retaining learn.act.",
+  "owner_skill": "program-runtime-improve",
+  "rung": "S3",
+  "assumptions": [
+    "The durable candidate has enough verified runs across at least two input contexts.",
+    "Publication is operator-authorized and compares the current declaration digest."
+  ],
+  "invariants": [
+    "The original program source retains its learn.act boundary.",
+    "Only explicitly curated fixtures and review evidence enter the portable asset.",
+    "The envelope is printed exactly once on every path."
+  ],
+  "inputs": {
+    "step_key": {
+      "type": "string",
+      "required": true
+    },
+    "operation": {
+      "type": "string",
+      "required": true
+    },
+    "min_verified": {
+      "type": "integer",
+      "default": 5
+    },
+    "reviewed_by": {
+      "type": "string",
+      "required": true
+    },
+    "evidence": {
+      "type": "array",
+      "required": true
+    },
+    "fixtures": {
+      "type": "array",
+      "required": true
+    },
+    "publish": {
+      "type": "boolean",
+      "default": false
+    },
+    "expected_digest": {
+      "type": "string",
+      "default": ""
+    }
+  },
+  "budget": {
+    "wall_ms": 10000,
+    "output_bytes": 65536,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 0
+  },
+  "verbs": [
+    "tasks.fragment_get",
+    "tasks.fragment_promote"
+  ],
+  "bindings": [],
+  "fixtures": [
+    {
+      "id": "missing-candidate",
+      "inputs": {
+        "step_key": "missing",
+        "operation": "program-runtime.learn-verbs-example",
+        "reviewed_by": "fixture",
+        "evidence": [
+          "fixture:missing"
+        ],
+        "fixtures": [
+          {
+            "inputs": {},
+            "expected": {}
+          }
+        ]
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "report"
+      ]
+    },
+    "signals": {
+      "promoted": "Whether the candidate passed review and fixtures",
+      "candidate": "Portable baseline and unchanged source",
+      "publication": "Optional publication receipt"
+    },
+    "errors": {
+      "classes": [
+        "publication_failed"
+      ]
+    }
+  }
+}

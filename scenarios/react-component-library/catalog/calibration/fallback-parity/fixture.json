@@ -1,0 +1,1 @@
+{"gate":"fallback-parity","assetId":"calibration-fallback-parity","kind":"component","runner":"static","requiredFailureCode":"catalog.fallback_parity","catalogAsset":"asset.json","source":"broken.tsx","description":"Uses a fallback that disagrees with the canonical base value."}

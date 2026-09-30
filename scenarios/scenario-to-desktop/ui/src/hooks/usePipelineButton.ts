@@ -13,9 +13,12 @@ import {
   type PipelineRunResponse,
   type WineCheckResponse,
   type VerbosePipelineStatus,
-  type PipelineStatus,
 } from "../lib/api";
-import { mapPipelineStatus, type MappedBuildStatus } from "../lib/pipeline-utils";
+import {
+  mapPipelineStatus,
+  type MappedBuildStatus,
+} from "../lib/pipeline-utils";
+import { StageStatus } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 
 // ============================================================================
 // Platform Selection Hook
@@ -47,7 +50,10 @@ export function usePlatformSelection({
       const stored = window.localStorage.getItem(storageKey);
       if (stored) {
         const parsed: unknown = JSON.parse(stored);
-        if (Array.isArray(parsed) && (parsed as unknown[]).every((item) => typeof item === "string")) {
+        if (
+          Array.isArray(parsed) &&
+          (parsed as unknown[]).every((item) => typeof item === "string")
+        ) {
           return parsed as string[];
         }
       }
@@ -64,7 +70,9 @@ export function usePlatformSelection({
 
   const togglePlatform = useCallback((platform: string) => {
     setSelectedPlatforms((prev) =>
-      prev.includes(platform) ? prev.filter((v) => v !== platform) : [...prev, platform]
+      prev.includes(platform)
+        ? prev.filter((v) => v !== platform)
+        : [...prev, platform],
     );
   }, []);
 
@@ -101,14 +109,18 @@ export function useWineCheck(): UseWineCheckReturn {
 
   const needsWineForPlatforms = useCallback(
     (platforms: string[]) => {
-      return platforms.includes("win") && wineCheck?.platform === "linux" && !wineCheck?.installed;
+      return (
+        platforms.includes("win") &&
+        wineCheck?.platform === "linux" &&
+        !wineCheck.installed
+      );
     },
-    [wineCheck]
+    [wineCheck],
   );
 
   const handleWineInstallComplete = useCallback(() => {
     setShowWineDialog(false);
-    queryClient.invalidateQueries({ queryKey: ["wine-check"] });
+    void queryClient.invalidateQueries({ queryKey: ["wine-check"] });
   }, [queryClient]);
 
   return {
@@ -140,7 +152,9 @@ interface PipelineMutationState {
 
 interface UsePipelineMutationReturn {
   state: PipelineMutationState;
-  mutation: ReturnType<typeof useMutation<PipelineRunResponse, Error, PipelineConfig>>;
+  mutation: ReturnType<
+    typeof useMutation<PipelineRunResponse, Error, PipelineConfig>
+  >;
   runPipelineWithConfig: (config: PipelineConfig) => void;
   reset: () => void;
   clearBuildId: () => void;
@@ -150,9 +164,14 @@ interface UsePipelineMutationReturn {
  * Hook for pipeline mutation with state management.
  */
 export function usePipelineMutation(
-  options: UsePipelineMutationOptions = {}
+  options: UsePipelineMutationOptions = {},
 ): UsePipelineMutationReturn {
-  const { onSuccess, onError, invalidateOnSuccess, invalidateDelay = 3000 } = options;
+  const {
+    onSuccess,
+    onError,
+    invalidateOnSuccess,
+    invalidateDelay = 3000,
+  } = options;
   const queryClient = useQueryClient();
   const [buildId, setBuildId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -160,14 +179,14 @@ export function usePipelineMutation(
   const mutation = useMutation<PipelineRunResponse, Error, PipelineConfig>({
     mutationFn: runPipeline,
     onSuccess: (data) => {
-      setBuildId(data.pipeline_id);
+      setBuildId(data.pipelineId);
       setError(null);
       onSuccess?.(data);
 
       if (invalidateOnSuccess?.length) {
         setTimeout(() => {
           for (const key of invalidateOnSuccess) {
-            queryClient.invalidateQueries({ queryKey: [key] });
+            void queryClient.invalidateQueries({ queryKey: [key] });
           }
         }, invalidateDelay);
       }
@@ -182,7 +201,7 @@ export function usePipelineMutation(
     (config: PipelineConfig) => {
       mutation.mutate(config);
     },
-    [mutation]
+    [mutation],
   );
 
   const reset = useCallback(() => {
@@ -216,7 +235,7 @@ interface UsePipelineStatusOptions {
 }
 
 interface UsePipelineStatusReturn {
-  pipelineStatus: VerbosePipelineStatus | PipelineStatus | null | undefined;
+  pipelineStatus: VerbosePipelineStatus | null | undefined;
   mappedStatus: MappedBuildStatus | null;
   isBuilding: boolean;
   isComplete: boolean;
@@ -226,8 +245,15 @@ interface UsePipelineStatusReturn {
 /**
  * Hook for polling pipeline status with automatic stopping on completion.
  */
-export function usePipelineStatus(options: UsePipelineStatusOptions): UsePipelineStatusReturn {
-  const { buildId, verbose = false, pollInterval = 2000, queryKeyPrefix = "pipeline-status" } = options;
+export function usePipelineStatus(
+  options: UsePipelineStatusOptions,
+): UsePipelineStatusReturn {
+  const {
+    buildId,
+    verbose = false,
+    pollInterval = 2000,
+    queryKeyPrefix = "pipeline-status",
+  } = options;
 
   const { data: pipelineStatus } = useQuery({
     queryKey: [queryKeyPrefix, buildId, verbose],
@@ -241,7 +267,11 @@ export function usePipelineStatus(options: UsePipelineStatusOptions): UsePipelin
     enabled: !!buildId,
     refetchInterval: (query) => {
       const data = query.state.data;
-      if (data?.status === "completed" || data?.status === "failed" || data?.status === "cancelled") {
+      if (
+        data?.status === StageStatus.COMPLETED ||
+        data?.status === StageStatus.FAILED ||
+        data?.status === StageStatus.CANCELLED
+      ) {
         return false;
       }
       return pollInterval;
@@ -265,4 +295,3 @@ export function usePipelineStatus(options: UsePipelineStatusOptions): UsePipelin
     isFailed,
   };
 }
-

@@ -1,237 +1,127 @@
 # Ollama Models Guide
 
-Comprehensive guide to available models and selection strategies.
+How models are selected, pulled, and managed for the Ollama resource.
 
-## Default Models (2025 Recommendations)
+Ollama is supervised as a managed service, so there is no host package install
+for the `ollama` CLI. Pull models through the service API or
+`resource-ollama ensure`.
 
-These models are installed by default and cover most use cases:
+## Models are governed by roles, not hard-coded lists
 
-| Model | Size | Best For | Download Size |
-|-------|------|----------|---------------|
-| **llama3.1:8b** | 8B params | General chat, Q&A | 4.7GB |
-| **deepseek-r1:8b** | 8B params | Reasoning, math, analysis | 4.9GB |
-| **qwen2.5-coder:7b** | 7B params | Code generation, debugging | 4.2GB |
+The authoritative model set lives in [`model-policy.json`](../model-policy.json),
+which maps logical **roles** (e.g. `chat.default`, `code.local`,
+`embedding.default`) to concrete model tags plus fallbacks and capacity
+estimates. This indirection keeps scenarios decoupled from specific model
+versions — when a better model ships, the policy is updated in one place and
+every consumer follows.
 
-**Total**: ~14GB storage required
-
-## Model Categories
-
-### General Purpose Models
-
-Best for: Chat, Q&A, general assistance, content creation
+Inspect the current roles and the models they resolve to (do not hard-code tags
+elsewhere — read them from here):
 
 ```bash
-# Recommended general models
-./manage.sh --action pull --models "llama3.1:8b"      # Balanced performance
-./manage.sh --action pull --models "llama3.1:70b"     # Highest quality (40GB)
-./manage.sh --action pull --models "llama3.2:3b"      # Lightweight (2GB)
-
-# Alternative options
-./manage.sh --action pull --models "gemma2:9b"        # Google's model
-./manage.sh --action pull --models "mistral:7b"       # Fast inference
+resource-ollama policy roles                  # role -> resolved model
+resource-ollama policy models                 # catalog entries + capacity estimates
+resource-ollama policy resolve --role code.local
+resource-ollama capacity                      # plan demand against host/runtime budget
+resource-ollama models inventory --json        # named sizes/digests + policy reachability
 ```
 
-### Code Generation Models
+- Scenarios should declare model **roles** in their ollama dependency config
+  rather than naming a model. `resource-ollama ensure` then pulls any missing
+  resolved models automatically.
+- Use the Ollama API for ad-hoc local experimentation; anything a scenario
+  depends on belongs in the policy.
 
-Best for: Programming, code review, debugging, technical documentation
+### Role-owned request levers
+
+Besides the model, a role may declare three request levers. All are optional and
+omission is a documented state, not an oversight.
+
+| Key | Effect when the caller sends nothing |
+|---|---|
+| `sampling_defaults` | clamped temperature/top_p/top_k written into runtime config |
+| `max_tokens` | becomes the request's `num_predict` |
+| `sampling_support` | declares how the role's models treat an explicit control |
+
+`--max-tokens` and `--temperature` override the role. `--temperature` uses `-1`
+as its "unset" sentinel because `0.0` is a legitimate, meaningful temperature,
+so "absent" cannot be encoded as a zero value.
+
+**Without a role `max_tokens`, a caller who sends nothing is uncapped**:
+`num_predict` is omitted from the request and generation is bounded only by the
+model's context window. That is a real state, not a bug — but a role that wants
+a ceiling has to say so. The resolved budget (flag, else role cap, else nothing)
+is what `validateContextWindow` reserves, so the guard refuses by name rather
+than letting the server slide its context window and truncate the prompt
+silently.
+
+`sampling_support` takes `honored`, `ignored`, `rejected`, or `unknown` per
+parameter; an absent key means `unknown`, which consumers treat as `ignored`.
+These are **declarations, never probes**: a provider that accepts a control and
+silently discards it is indistinguishable at the call site from one that honours
+it, so a successful call is not evidence of support.
+
+## Model management
 
 ```bash
-# Code-specialized models
-./manage.sh --action pull --models "qwen2.5-coder:7b"    # Multi-language coding
-./manage.sh --action pull --models "codellama:13b"       # Meta's code model
-./manage.sh --action pull --models "deepseek-coder:6.7b" # Strong code reasoning
-
-# Instruction-tuned for code
-./manage.sh --action pull --models "codegemma:7b"        # Google code model
+curl http://localhost:11434/api/tags
+curl http://localhost:11434/api/show -d '{"name":"<model>"}'
+curl http://localhost:11434/api/delete -d '{"name":"<model>"}'
+curl http://localhost:11434/api/pull -d '{"name":"<model>","stream":false}'
 ```
 
-### Reasoning & Math Models
+Model files live in `${RESOURCE_DATA_DIR}/models` and persist across managed
+service restarts.
 
-Best for: Logic problems, mathematical reasoning, step-by-step analysis
+### Storage identity and attribution
 
-```bash
-# Reasoning specialists
-./manage.sh --action pull --models "deepseek-r1:8b"      # Advanced reasoning
-./manage.sh --action pull --models "qwen2.5:14b"         # Strong math skills
-./manage.sh --action pull --models "llama3.1:70b"        # Best overall reasoning
-```
+Use `resource-ollama models inventory --json` as the authoritative model census.
+It reads `name`, `digest`, and logical `size` from Ollama's `/api/tags` API and
+marks whether each installed tag is reachable from a policy role or fallback.
+Every row is explicitly regenerable because the weights can be re-pulled from
+the Ollama registry, with that reason included in the output. Do not infer
+model identity by walking the `blobs/` directory: Ollama shares blobs between
+models, so filesystem paths cannot safely attribute bytes to a single tag.
 
-### Vision/Multimodal Models
+Storage Manager exposes the same rows at `GET /api/v1/storage/inventory` under
+`ollama_models`. It also measures the configured model root and reports a
+physical remainder and path when bytes cannot be attributed by the service
+inventory.
 
-Best for: Image analysis, visual Q&A, document understanding
+## Performance by model size
 
-```bash
-# Vision-capable models
-./manage.sh --action pull --models "llava:13b"           # Image + text
-./manage.sh --action pull --models "llava-phi3:3.8b"     # Lightweight vision
-./manage.sh --action pull --models "bakllava:7b"         # Alternative vision model
-```
-
-### Lightweight Models
-
-Best for: Resource-constrained environments, quick responses
-
-```bash
-# Small but capable
-./manage.sh --action pull --models "llama3.2:3b"         # 2GB, good performance
-./manage.sh --action pull --models "qwen2.5:3b"          # Multilingual, compact
-./manage.sh --action pull --models "gemma2:2b"           # Ultra-lightweight
-```
-
-## Model Selection Strategy
-
-### By Use Case
-
-#### Development & Programming
-```bash
-# Optimal setup for developers
-./manage.sh --action pull --models "qwen2.5-coder:7b,deepseek-coder:6.7b,llama3.1:8b"
-```
-
-#### Research & Analysis  
-```bash
-# Best for analytical work
-./manage.sh --action pull --models "deepseek-r1:8b,llama3.1:70b,qwen2.5:14b"
-```
-
-#### General Productivity
-```bash
-# Balanced for everyday use
-./manage.sh --action pull --models "llama3.1:8b,qwen2.5-coder:7b,gemma2:9b"
-```
-
-### By Hardware Constraints
-
-#### 8GB RAM
-```bash
-# Conservative selection
-./manage.sh --action pull --models "llama3.2:3b,qwen2.5:3b"
-```
-
-#### 16GB RAM
-```bash
-# Balanced selection
-./manage.sh --action pull --models "llama3.1:8b,qwen2.5-coder:7b"
-```
-
-#### 32GB+ RAM
-```bash
-# Full capability
-./manage.sh --action pull --models "llama3.1:70b,deepseek-r1:8b,qwen2.5-coder:7b"
-```
-
-## Model Management
-
-### Installation Commands
-
-```bash
-# Install single model
-./manage.sh --action pull --models "llama3.1:8b"
-
-# Install multiple models
-./manage.sh --action pull --models "llama3.1:8b,deepseek-r1:8b"
-
-# Force re-download
-./manage.sh --action pull --models "llama3.1:8b" --force
-
-# Install all default models
-./manage.sh --action install-defaults
-```
-
-### Model Information
-
-```bash
-# List installed models
-./manage.sh --action list-installed
-
-# Show model details
-./manage.sh --action model-info --model "llama3.1:8b"
-
-# Check disk usage
-./manage.sh --action disk-usage
-
-# Available models catalog
-./manage.sh --action models
-```
-
-### Cleanup and Optimization
-
-```bash
-# Remove unused models
-./manage.sh --action cleanup-models
-
-# Remove specific model
-./manage.sh --action remove --model "old-model:7b"
-
-# Free up space (remove all but defaults)
-./manage.sh --action reset-models
-```
-
-## Automatic Model Selection
-
-The manage.sh script automatically selects models based on task type:
-
-### Type-Based Selection
-
-```bash
-# Automatically chooses best available model for task
-./manage.sh --action prompt --text "Fix this Python code" --type code
-./manage.sh --action prompt --text "Solve this equation" --type reasoning
-./manage.sh --action prompt --text "Explain quantum physics" --type general
-```
-
-### Selection Priority
-
-1. **Code tasks**: qwen2.5-coder → deepseek-coder → codellama → general models
-2. **Reasoning tasks**: deepseek-r1 → llama3.1:70b → qwen2.5:14b → general models  
-3. **General tasks**: llama3.1:8b → gemma2 → mistral → any available
-4. **Vision tasks**: llava → bakllava → text-only models
-
-## Model Performance Guide
-
-### Inference Speed (tokens/second)
+Inference speed scales with parameter count and hardware, not the specific
+model, so size is the useful axis when choosing a role target:
 
 | Model Size | CPU (16 cores) | RTX 4090 | RTX 3080 |
 |------------|----------------|----------|----------|
-| 3B models  | 15-25 tok/s    | 80-120 tok/s | 60-90 tok/s |
-| 7-8B models| 5-12 tok/s     | 40-70 tok/s  | 25-45 tok/s |
-| 13-14B models| 2-6 tok/s    | 20-35 tok/s  | 12-25 tok/s |
-| 70B models | 0.5-2 tok/s    | 8-15 tok/s   | 4-8 tok/s |
+| 3–4B       | 15–25 tok/s    | 80–120 tok/s | 60–90 tok/s |
+| 7–9B       | 5–12 tok/s     | 40–70 tok/s  | 25–45 tok/s |
+| 12–14B     | 2–6 tok/s      | 20–35 tok/s  | 12–25 tok/s |
+| 27B+       | 0.5–2 tok/s    | 8–15 tok/s   | 4–8 tok/s |
 
-### Quality vs Speed
+Smaller roles (`chat.small`, `classify.routing`) favour latency; larger roles
+(`code.local`, `chat.default`) favour quality. The policy's `disk/ram/vram`
+estimates and `resource-ollama capacity` enforce the declared host/runtime budget.
 
-- **Fastest**: llama3.2:3b, qwen2.5:3b, gemma2:2b
-- **Balanced**: llama3.1:8b, qwen2.5-coder:7b, deepseek-r1:8b
-- **Highest Quality**: llama3.1:70b, qwen2.5:72b
+## Advanced configuration
 
-## Advanced Configuration
+### Memory / concurrency
 
-### Memory Management
+Concurrency and loaded-model limits are declared in
+[`resource.json`](../resource.json) under `managed_service.environment`
+(`OLLAMA_NUM_PARALLEL`, `OLLAMA_MAX_LOADED_MODELS`). Edit those and
+`vrooli resource restart ollama`.
 
-```bash
-# Limit models in memory
-export OLLAMA_MAX_LOADED_MODELS=2
+### Custom models
 
-# Set memory threshold
-export OLLAMA_LOW_MEMORY_THRESHOLD=0.8
+Create custom models through the Ollama API or the managed resource CLI; keep
+the source Modelfile under `${RESOURCE_DATA_DIR}` so it remains in the resource
+data boundary.
 
-# Preload specific models
-./manage.sh --action preload --models "llama3.1:8b,qwen2.5-coder:7b"
-```
+## Next steps
 
-### Custom Models
-
-```bash
-# Create custom model from Modelfile
-./manage.sh --action create-model --name "my-assistant" --modelfile /path/to/Modelfile
-
-# Import GGUF files
-./manage.sh --action import-gguf --file /path/to/model.gguf --name "custom-model"
-```
-
-## Next Steps
-
-- [Configure model parameters](CONFIGURATION.md#model-configuration)
-- [Learn the API](API.md) for programmatic access
-- [Optimize performance](PERFORMANCE.md) for your hardware
-- [Explore examples](../examples/README.md) with different models
+- [Installation Guide](INSTALLATION.md) — setup and configuration
+- [Embedding Models](EMBEDDING_MODELS.md) — embedding model guidance
+- [Operations runbook](OPERATIONS.md)
+- [Resource docs](README.md) — current usage guidance

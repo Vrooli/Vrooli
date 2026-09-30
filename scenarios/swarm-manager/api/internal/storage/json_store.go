@@ -9,6 +9,7 @@ package storage
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 )
@@ -42,7 +43,7 @@ func ReadJSON(path string, dest any) (bool, error) {
 // Ensures the parent directory exists before writing.
 func WriteJSONAtomic(path string, data any) error {
 	parentDir := filepath.Dir(path)
-	if err := os.MkdirAll(parentDir, 0o755); err != nil {
+	if err := os.MkdirAll(parentDir, 0o750); err != nil {
 		return err
 	}
 
@@ -57,22 +58,28 @@ func WriteJSONAtomic(path string, data any) error {
 	}
 	tempName := tempFile.Name()
 	defer func() {
-		_ = os.Remove(tempName)
+		if rmErr := os.Remove(tempName); rmErr != nil && !os.IsNotExist(rmErr) {
+			slog.Debug("storage: remove temp file failed", "err", rmErr, "path", tempName)
+		}
 	}()
 
 	if _, err := tempFile.Write(bytes); err != nil {
-		_ = tempFile.Close()
+		if closeErr := tempFile.Close(); closeErr != nil {
+			slog.Debug("storage: close temp file failed", "err", closeErr)
+		}
 		return err
 	}
 	if err := tempFile.Sync(); err != nil {
-		_ = tempFile.Close()
+		if closeErr := tempFile.Close(); closeErr != nil {
+			slog.Debug("storage: close temp file failed", "err", closeErr)
+		}
 		return err
 	}
 	if err := tempFile.Close(); err != nil {
 		return err
 	}
 
-	if err := os.Chmod(tempName, 0o644); err != nil {
+	if err := os.Chmod(tempName, 0o600); err != nil {
 		return err
 	}
 	return os.Rename(tempName, path)

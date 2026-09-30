@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "navigation.scrollable-tabs",
+    "name": "ScrollableTabs",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "navigation",
+    "description": "The tab presentation for constrained widths with edge fades, scroll buttons, automatic reveal of the active tab, touch momentum, and preserved keyboard behavior.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.tabs",
+        "reason": "Selection, panels, and keyboard model are shared."
+      },
+      {
+        "asset": "primitives.edge-fade",
+        "reason": "Clipped tabs are indicated without intercepting interaction."
+      },
+      {
+        "asset": "hooks.use-scroll-state",
+        "reason": "Edge state derives from the shared scroll subscription."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "focus-order",
+    "no-horizontal-overflow",
+    "pointer-independence",
+    "responsive-transformation"
+  ]
+}
