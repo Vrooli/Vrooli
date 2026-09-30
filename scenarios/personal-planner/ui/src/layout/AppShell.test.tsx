@@ -99,27 +99,34 @@ describe("AppShell structure (cimode)", () => {
 
   it("restores the main scroll position when navigation changes the route", async () => {
     const user = userEvent.setup();
-    const originalScrollTo = HTMLElement.prototype.scrollTo;
+    const originalScrollTo = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollTo");
     const scrollTo = vi.fn();
     Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: scrollTo });
     const view = renderShell();
     const sidebarContent = document.querySelector<HTMLElement>(".rcl-sidebar-shell__content");
+    const routeScroller = document.querySelector<HTMLElement>(".planner-route-scroll");
+    const mainScroller = document.querySelector<HTMLElement>("[data-rcl-app-shell-main]");
     if (sidebarContent) sidebarContent.scrollTop = 42;
+    if (routeScroller) routeScroller.scrollTop = 84;
+    if (mainScroller) mainScroller.scrollTop = 64;
     scrollTo.mockClear();
     try {
       await user.click(screen.getByTestId(selectors.layout.navTab({ key: "settings" })));
       await waitFor(() => expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument());
       expect(scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
       expect(sidebarContent?.scrollTop ?? 0).toBe(0);
+      expect(routeScroller?.scrollTop ?? 0).toBe(0);
+      expect(mainScroller?.scrollTop ?? 0).toBe(0);
     } finally {
       view.unmount();
-      Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: originalScrollTo });
+      if (originalScrollTo) Object.defineProperty(HTMLElement.prototype, "scrollTo", originalScrollTo);
+      else Reflect.deleteProperty(HTMLElement.prototype, "scrollTo");
     }
   });
 
   it("restores nested sidebar scroll containers when navigation changes the route", async () => {
     const user = userEvent.setup();
-    const originalScrollTo = HTMLElement.prototype.scrollTo;
+    const originalScrollTo = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollTo");
     const scrollTo = vi.fn();
     Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: scrollTo });
     const view = renderShell();
@@ -134,7 +141,8 @@ describe("AppShell structure (cimode)", () => {
       expect(scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
     } finally {
       view.unmount();
-      Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: originalScrollTo });
+      if (originalScrollTo) Object.defineProperty(HTMLElement.prototype, "scrollTo", originalScrollTo);
+      else Reflect.deleteProperty(HTMLElement.prototype, "scrollTo");
     }
   });
 
@@ -145,7 +153,7 @@ describe("AppShell structure (cimode)", () => {
       const routeScroller = document.querySelector<HTMLElement>(".planner-route-scroll");
       expect(routeScroller).not.toBeNull();
       routeScroller!.scrollTop = 96;
-      act(() => vi.advanceTimersByTime(1_100));
+      act(() => { vi.advanceTimersByTime(1_100); });
 
       expect(routeScroller!.scrollTop).toBe(96);
     } finally {
@@ -153,13 +161,35 @@ describe("AppShell structure (cimode)", () => {
     }
   });
 
+  it("keeps a new route at the top while lazy content settles", async () => {
+    renderShell("/goals");
+    const routeScroller = document.querySelector<HTMLElement>(".planner-route-scroll");
+    expect(routeScroller).not.toBeNull();
+    routeScroller!.scrollTop = 96;
+    routeScroller!.appendChild(document.createElement("span"));
+
+    await waitFor(() => expect(routeScroller!.scrollTop).toBe(0));
+  });
+
+  it("stops settling the route as soon as the user begins to scroll", async () => {
+    renderShell("/goals");
+    const routeScroller = document.querySelector<HTMLElement>(".planner-route-scroll");
+    expect(routeScroller).not.toBeNull();
+    routeScroller!.dispatchEvent(new WheelEvent("wheel", { bubbles: true }));
+    routeScroller!.scrollTop = 96;
+    routeScroller!.appendChild(document.createElement("span"));
+    await Promise.resolve();
+
+    expect(routeScroller!.scrollTop).toBe(96);
+  });
+
   it("supports an icon-only collapse state and tracks the resizable shell", async () => {
     const user = userEvent.setup();
     let observed = false;
     let disconnected = false;
-    vi.stubGlobal("ResizeObserver", class {
+    vi.stubGlobal("ResizeObserver", class implements ResizeObserver {
       constructor(private readonly callback: ResizeObserverCallback) {}
-      observe() { observed = true; this.callback([], this as unknown as ResizeObserver); }
+      observe() { observed = true; this.callback([], this); }
       disconnect() { disconnected = true; }
       unobserve() {}
     });

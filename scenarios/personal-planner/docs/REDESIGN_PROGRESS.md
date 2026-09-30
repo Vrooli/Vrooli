@@ -658,6 +658,7 @@
 - Removed the duplicate mobile header capture action and moved the global mobile capture affordance onto the library's geometrically centered circular `IconButton`.
 - Replaced the planner's hand-built dialog shell across Today, Plan, Goals, Focus, and global capture with the library `ResponsiveDialog`. Mobile now receives a bottom sheet with a grabber and swipe dismissal; desktop retains a centered dialog with its close affordance.
 - Removed obsolete page-specific dialog sizing and fake-sheet CSS. Refined Plan's supporting-action sheet into compact icon-led action tiles and promoted form completion actions to clear primary controls.
+- Initialized the shared interaction breakpoint from `matchMedia` on the first browser render and reserved the mobile day-plan footprint while its data loads. This removes the desktop-to-mobile branch swap and late empty-state expansion that caused initial-scroll flicker and layout shift across responsive pages.
 
 ### Verified
 
@@ -665,8 +666,33 @@
 - Browser execution `8fadb6dc-6e19-48df-95a6-ed1f0439b8dc` at 390×844 measured a compact 44×44 appearance control, no duplicate header capture, and a 44×44 FAB whose icon center offset is exactly `0,0`.
 - The same execution confirmed both global capture and Plan More render as `sheet`, expose the grabber, omit the mobile close button, and terminate at the 844px viewport edge.
 - Browser execution `3f97f273-e8a9-4fa3-913c-4a412238495c` used a driver-backed downward swipe on the grabber and confirmed the capture sheet dismissed.
-- Full UI coverage passes: 39 files / 253 tests, 97.08% statements, 85.45% branches, and 85.2% functions. UI type-check and production build pass.
+- Full UI coverage passes: 39 files / 253 tests, 97.09% statements, 85.46% branches, and 85.2% functions. UI type-check and production build pass.
+- The failing 40px touch-target observation was corrected to 44px; Test Genie experience rerun `20260922-014454-de0a5521` reaches L3/complete.
+- Lighthouse diagnosis reduced measured CLS from `0.344` to `0`; the direct score rose from `0.69` to `0.84`, and Test Genie performance rerun `20260922-015417-dcbfa809` passes at L3/complete.
 
 ### Tooling finding
 
 - Responsive Dialog static preflight still marks BaseStyles-owned safe-area and viewport tokens missing even though BaseStyles 1.3.0 is linked, all adoption obligations pass, and live browser evidence proves the contract. Filed Scenario QA bug `knw-1790040920524379360`; no duplicate app token shim was added.
+
+## 2026-09-21 — natural procedural sky and route-settling pass
+
+### Changed
+
+- Replaced the repeated radial “swirl” treatment and sparse equal-weight stars with one shared deterministic sky renderer used by Today and every observatory scene.
+- The Night renderer now produces 340 stars with a steep brightness/size distribution, warm/neutral/cool temperatures, gentle galactic-band clustering, a broad low-contrast Milky Way haze, and a dark dust rift.
+- Goals alone receives a restrained conventional Western zodiac line figure selected from the current date; the figure is explicitly decorative rather than represented as an official IAU boundary. Day receives one visible code-native hot-air balloon, and Night retains one rare comet.
+- Moved the sky renderer into the component boundary and kept its deterministic generation model in `visual`, with regression coverage for determinism, brightness diversity, color diversity, zodiac boundaries, and opt-in constellation rendering.
+- Replaced blind delayed route-scroll resets with a bounded content-settling observer that preserves the top during lazy/data expansion and disengages immediately on pointer, touch, wheel, or keyboard intent.
+- Added a short-landscape interaction breakpoint. At 844×390, Plan now exposes Day, Week, More, and the placement action in one contained rail; supporting views remain reachable in the governed Responsive Dialog without off-viewport nodes.
+
+### Verified
+
+- Night Today (`5533cf37-5883-4480-896f-db461c43a815`), Night Goals (`bfdfbdae-d432-4419-a702-de78cd01742c`), Day Today desktop (`7733bf3a-fe30-4f3c-a58b-b03c93ce1b84`), Day Today mobile (`45b720be-ec5d-4024-808c-9ebafa7f4729`), and the reduced-opacity mobile Goals constellation (`691e68f1-7f98-4921-b332-06c34c3454b8`) were inspected from live browser captures.
+- Review capture `3335f70c-7038-4b2e-87a2-33700ad3e0db` starts at its page header after asynchronous content settles. The 844×390 Plan capture `3ab9ae92-2837-4ed2-ac39-b8d764d95d98` keeps the 54px Planning view rail at y=223.8–277.8, contains every rendered tab, and has no console output.
+- Full UI coverage passes: 40 files / 259 tests, 97.2% statements, 85.64% branches, and 85.62% functions. The procedural renderer/model and responsive breakpoint are at 100% statement coverage. UI type-check, focused lint, and production build pass.
+- Test Genie run `20260922-024852-e6e837d7` passes unit and experience; experience reaches L3/complete with no structural findings. Run `20260922-025005-9c6f4e82` passes UI health at its L5 ceiling across all seven desktop and mobile routes.
+
+### Remaining / unverified
+
+- A final six-page Day/Night desktop/mobile visual certification is still open, including active/overtime Focus states and adversarial long-content scrolling.
+- UI-health still reports informational raw-color debt for the scenic palette and scoped-scroll advisories; neither is a failing finding, but the palette should migrate to named scenic tokens during the next design-system cleanup.

@@ -44,6 +44,21 @@ describe("PlanPage", () => {
     expect(screen.queryByRole("dialog", { name: "More planning views" })).not.toBeInTheDocument();
   });
 
+  it("uses compact view controls in short landscape without hiding supporting views", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: query.includes("max-height"), addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 0, availableMinutes: 480, breathingRoomMinutes: 60, allocations: [] } as never);
+    vi.mocked(fetchWorkItems).mockResolvedValue([]);
+
+    renderWithProviders(<PlanPage />);
+
+    expect(await screen.findByRole("tab", { name: "More" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Outlook" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "More" }));
+    await user.click(screen.getByRole("button", { name: "Outlook" }));
+    expect(screen.getByRole("heading", { name: "See what the shared resource can carry." })).toBeInTheDocument();
+  });
+
   it("uses the mobile capacity ring instead of the desktop stat strip", async () => {
     vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
     vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 90, availableMinutes: 270, breathingRoomMinutes: 60, allocations: [] } as never);

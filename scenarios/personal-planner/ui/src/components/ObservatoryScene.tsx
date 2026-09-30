@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { useTheme } from "../theme/ThemeProvider";
 import { useSampledSceneColors } from "../theme/observatoryAppearance";
+import { ProceduralSky } from "./ProceduralSky";
 
 type SceneKind = "plan" | "focus" | "settings" | "goals" | "review";
 
@@ -20,11 +21,7 @@ export function ObservatoryScene({ kind, children, className = "" }: { kind: Sce
     <div className="observatory-sky scene-sky" aria-hidden="true">
       <span className="observatory-sky-layer observatory-sky-day" />
       <span className="observatory-sky-layer observatory-sky-night" />
-      <span className="observatory-sky-stars" />
-      <span className="scene-constellations" />
-      <span className="scene-star-trails" />
-      <span className="scene-comets" />
-      <span className="scene-balloons" />
+      <ProceduralSky showConstellation={kind === "goals"} />
       {kind === "plan" && <><span className="scene-lake scene-lake-day" /><span className="scene-lake scene-lake-night" /></>}
     </div>
     {(kind === "plan" || kind === "focus" || kind === "settings") && <div className="scene-plate" aria-hidden="true" />}

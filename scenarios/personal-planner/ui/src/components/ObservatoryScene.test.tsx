@@ -13,7 +13,10 @@ describe("ObservatoryScene", () => {
     expect(screen.getByText("Focus content")).toBeInTheDocument();
     expect(document.querySelector(".observatory-sky-day")).toBeTruthy();
     expect(document.querySelector(".observatory-sky-night")).toBeTruthy();
-    expect(document.querySelector(".scene-comets")).toBeTruthy();
+    expect(document.querySelectorAll(".sky-star")).toHaveLength(340);
+    expect(document.querySelector(".sky-milky-way")).toBeTruthy();
+    expect(document.querySelector(".scene-comet")).toBeTruthy();
+    expect(document.querySelector(".scene-balloon")).toBeTruthy();
     expect(document.querySelector(".scene-plate")).toBeTruthy();
   });
 
@@ -23,6 +26,8 @@ describe("ObservatoryScene", () => {
     expect(document.querySelectorAll(".scene-mobile")).toHaveLength(4);
     expect(screen.getByText("Plan")).toBeInTheDocument();
     expect(screen.getByText("Goals")).toBeInTheDocument();
+    expect(document.querySelectorAll(".sky-constellation")).toHaveLength(1);
+    expect(document.querySelector(".scene-star-trails")).toBeNull();
   });
 
   it("keeps the scene appearance aligned with the resolved Night theme", () => {

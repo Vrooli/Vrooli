@@ -273,6 +273,18 @@ a migration handoff with a planned retirement path back into
 
 **Refs:** `ui/index.html`, `ui/public/public/site.webmanifest`, Test Genie runs above, and `coverage/requirements-sync/latest.json`.
 
+### 2026-09-21 — final scenic certification remains open
+
+**Status:** reduced; procedural sky and responsive structure are verified
+
+**Observed:** The shared sky, route-start behavior, and short-landscape Plan chrome now have live evidence and regression coverage. A single final matrix covering every route in Day/Night desktop/mobile, active and overtime Focus, and long-content user scrolling has not yet been completed.
+
+**Addressed in this loop:** removed decorative star swirls; introduced one deterministic natural star/Milky Way renderer; limited the date-selected zodiac figure to Goals; made the Day balloon visible; stabilized route-entry scroll during asynchronous layout; and replaced short-landscape overflow with compact governed view selection.
+
+**Evidence:** 40 files / 259 UI tests; Test Genie `20260922-024852-e6e837d7` (unit + L3 experience pass) and `20260922-025005-9c6f4e82` (L5 UI-health pass); Browser Automation Studio `3ab9ae92-2837-4ed2-ac39-b8d764d95d98` at the former 844×390 failure viewport.
+
+**Next evidence:** execute the final visual matrix and preserve only concrete route/state defects as targeted follow-ups.
+
 ## Cross-references
 
 - [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)

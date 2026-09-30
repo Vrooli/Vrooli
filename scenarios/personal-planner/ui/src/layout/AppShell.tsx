@@ -64,21 +64,66 @@ export function AppShell() {
     // Route entry gets one synchronous reset. Delayed retries used to win a
     // race against the person's first swipe and visibly snap the page upward.
     const routeScroller = routeScrollerRef.current;
-    if (routeScroller) {
-      routeScroller.scrollTop = 0;
-      routeScroller.scrollLeft = 0;
-      routeScroller.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
-    }
+    const mainScroller = routeScroller?.closest<HTMLElement>("[data-rcl-app-shell-main]");
+    const pageScrollers = [routeScroller, mainScroller, document.scrollingElement, document.documentElement, document.body]
+      .filter((target, index, targets): target is HTMLElement => Boolean(target) && targets.indexOf(target) === index);
+    const resetElementScroll = (scrollContainer: HTMLElement) => {
+      scrollContainer.scrollTop = 0;
+      scrollContainer.scrollLeft = 0;
+      const scrollTo = Reflect.get(scrollContainer, "scrollTo", scrollContainer);
+      if (typeof scrollTo === "function") Reflect.apply(scrollTo, scrollContainer, [{ top: 0, left: 0, behavior: "auto" }]);
+    };
+    const resetPageScroll = () => {
+      for (const scrollContainer of pageScrollers) {
+        resetElementScroll(scrollContainer);
+      }
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    };
+    resetPageScroll();
     if (sidebar) {
       // A library upgrade may add a nested sidebar scroller. Reset these once
       // at route commit; unlike page content, the user is not interacting with
       // the desktop navigation during this layout effect.
       for (const scrollContainer of [sidebar, ...Array.from(sidebar.querySelectorAll<HTMLElement>("*"))]) {
-        scrollContainer.scrollTop = 0;
-        scrollContainer.scrollLeft = 0;
-        scrollContainer.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
+        resetElementScroll(scrollContainer);
       }
     }
+
+    // Lazy route chunks and query results can replace a short fallback with a
+    // tall surface after the route commit. Some browsers preserve the nested
+    // pane's former offset during that expansion. Observe only the bounded
+    // settling window and stop immediately on real user intent, so this can
+    // never pull against a first swipe or wheel gesture.
+    if (!routeScroller) return;
+    let userHasInteracted = false;
+    const stopForUser = () => { userHasInteracted = true; };
+    const settleAtTop = () => { if (!userHasInteracted) resetPageScroll(); };
+    const sizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(settleAtTop);
+    const observeCurrentSurface = () => {
+      const surface = routeScroller.firstElementChild;
+      if (surface) sizeObserver?.observe(surface);
+    };
+    const mutationObserver = typeof MutationObserver === "undefined" ? null : new MutationObserver(() => {
+      settleAtTop();
+      observeCurrentSurface();
+    });
+    observeCurrentSurface();
+    mutationObserver?.observe(routeScroller, { childList: true, subtree: true });
+    for (const eventName of ["pointerdown", "touchstart", "wheel", "keydown"] as const) {
+      routeScroller.addEventListener(eventName, stopForUser, { passive: true, once: true });
+    }
+    const settleTimer = window.setTimeout(() => {
+      sizeObserver?.disconnect();
+      mutationObserver?.disconnect();
+    }, 3_000);
+    return () => {
+      window.clearTimeout(settleTimer);
+      sizeObserver?.disconnect();
+      mutationObserver?.disconnect();
+      for (const eventName of ["pointerdown", "touchstart", "wheel", "keydown"] as const) {
+        routeScroller.removeEventListener(eventName, stopForUser);
+      }
+    };
   }, [pathname, search]);
 
   useEffect(() => {
@@ -127,7 +172,7 @@ export function AppShell() {
         // subsequent user resizing remains persisted normally.
         sidebarStorageKey="personal-planner.sidebar-width-observatory-v2"
         // Keep the approved 144px Observatory baseline, but give the shared
-        // resize handle a meaningful working range instead of the old 56px
+      // resize handle a meaningful working range instead of the old 56px
         // window that made dragging appear stuck.
         sidebarResize={{ adjacentMin: 320, min: 128, max: 280, defaultSize: 144, step: 8, coarseStep: 40 }}
         testId={selectors.layout.shell}
