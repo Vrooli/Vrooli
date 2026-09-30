@@ -670,6 +670,10 @@ type Orchestrator struct {
 	// intentionally a simple whole-row update, so two waiter notifications that
 	// arrive concurrently must not both observe parked and start continuations.
 	wakeMu sync.Mutex
+	// parkTurnEnds holds, per recently parked run, a channel closed once the
+	// parked turn's agent process has been stopped. WakeRun waits on it so a
+	// continuation never starts beside the still-running parked turn.
+	parkTurnEnds sync.Map // uuid.UUID -> chan struct{}
 
 	// terminalAccounting remembers which ended standalone runs have settled
 	// terminal usage, so the reconcile sweep revisits only runs that still owe it.

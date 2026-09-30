@@ -16,6 +16,7 @@
 package codecs
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -596,7 +597,33 @@ type codexRolloutPayload struct {
 	Info   *codexTokenCountInfo `json:"info"`
 	// Native quota metadata is a sibling of info in token_count frames. It is
 	// present even when info is null (for example at session start).
-	RateLimits map[string]CodexRateLimitWindow `json:"rate_limits"`
+	RateLimits codexRateLimits `json:"rate_limits"`
+}
+
+// codexRateLimits keeps the window-shaped entries of a token_count frame's
+// rate_limits and skips the rest. Newer Codex CLIs add scalar siblings such as
+// limit_id, plan_type and credits; a strict map type would fail the whole frame
+// and silently drop its usage.
+type codexRateLimits map[string]CodexRateLimitWindow
+
+func (m *codexRateLimits) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil
+	}
+	out := codexRateLimits{}
+	for key, value := range raw {
+		trimmed := bytes.TrimSpace(value)
+		if len(trimmed) == 0 || trimmed[0] != '{' {
+			continue
+		}
+		var window CodexRateLimitWindow
+		if json.Unmarshal(trimmed, &window) == nil && (window.UsedPercent != nil || window.WindowMinutes != 0) {
+			out[key] = window
+		}
+	}
+	*m = out
+	return nil
 }
 
 type codexTokenCountInfo struct {

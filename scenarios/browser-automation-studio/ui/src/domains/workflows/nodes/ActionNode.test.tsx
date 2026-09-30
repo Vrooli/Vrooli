@@ -10,6 +10,7 @@ const harness = vi.hoisted(() => ({
   data: {} as Record<string, unknown>,
   updateParams: vi.fn(),
   updateData: vi.fn(),
+  screenshot: { dataUrl: 'data:image/png;base64,preview', nodeType: 'navigate', capturedAt: '2026-09-30T12:00:00Z' } as { dataUrl: string; nodeType: string; capturedAt: string } | null,
 }));
 
 vi.mock('reactflow', async (importOriginal) => {
@@ -31,6 +32,8 @@ vi.mock('@hooks/useNodeData', () => ({
 }));
 vi.mock('@hooks/useElementPicker', () => ({ useElementPicker: () => ({ onSelect: vi.fn() }) }));
 vi.mock('@hooks/useUrlInheritance', () => ({ useUrlInheritance: () => ({ effectiveUrl: 'https://example.test' }) }));
+vi.mock('@hooks/useUpstreamScreenshot', () => ({ default: () => harness.screenshot }));
+vi.mock('@stores/scenarioStore', () => ({ useScenarioStore: (selector: (state: unknown) => unknown) => selector({ scenarios: [{ name: 'demo-app', description: '', status: 'running' }], fetchScenarios: vi.fn() }) }));
 
 describe('ActionNode', () => {
   beforeEach(() => {
@@ -38,6 +41,7 @@ describe('ActionNode', () => {
     harness.actionType = 'ACTION_TYPE_CLICK';
     harness.params = { selector: '#submit' };
     harness.data = {};
+    harness.screenshot = { dataUrl: 'data:image/png;base64,preview', nodeType: 'navigate', capturedAt: '2026-09-30T12:00:00Z' };
     harness.updateParams.mockClear();
     harness.updateData.mockClear();
   });
@@ -49,6 +53,31 @@ describe('ActionNode', () => {
     expect(screen.getByPlaceholderText('CSS selector...')).toHaveValue('#submit');
     fireEvent.change(screen.getByPlaceholderText('CSS selector...'), { target: { value: '#save' } });
     expect(harness.updateParams).toHaveBeenCalledWith({ selector: '#save' });
+  });
+
+  it('restores the upstream screenshot preview and opens AI suggestions from the preview footer', () => {
+    render(<ActionNode id="node-1" selected={false} data={{}} type="click" />);
+
+    expect(screen.getByAltText('Upstream preview')).toHaveAttribute('src', 'data:image/png;base64,preview');
+    expect(screen.getByText('Preview from Navigate node')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Pick from preview' }));
+    expect(screen.getByText('Click anywhere on the screenshot to select an element')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancel picking' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'AI suggestions' }));
+    expect(screen.getByPlaceholderText('What element should be clicked?')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Suggest selectors/ })).toBeInTheDocument();
+  });
+
+  it('restores the scenario picker in Navigate and commits the chosen destination through V2 params', () => {
+    harness.type = 'navigate';
+    harness.actionType = 'ACTION_TYPE_NAVIGATE';
+    harness.params = { destinationType: 'NAVIGATE_DESTINATION_TYPE_SCENARIO', scenario: '' };
+    render(<ActionNode id="node-1" selected={false} data={{}} type="navigate" />);
+
+    const app = screen.getByRole('combobox', { name: 'Scenario app' });
+    expect(screen.getByRole('region', { name: 'Navigation preview' })).toBeInTheDocument();
+    fireEvent.change(app, { target: { value: 'demo-app' } });
+    expect(harness.updateParams).toHaveBeenCalledWith({ scenario: 'demo-app', destinationType: 'NAVIGATE_DESTINATION_TYPE_SCENARIO', url: undefined });
   });
 
   it('routes every supported canvas node type through the shared renderer', () => {

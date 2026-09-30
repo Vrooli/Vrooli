@@ -18,9 +18,10 @@ exact wording.
 
 > Before S1 (the session broker), add an epoch that widens the journey suite against the local fixture site: J03 (same selector across tabs/frames), J04 (redirect, SPA, popup, shadow DOM, service worker), J13 (shortcuts, drag, scroll), J15 (session capacity and reuse), J17 (loops and retries) and J18 (cancel failure evidence). S1 and S5 rewrite the session and recording core, so they need this net first.
 
-Status: open. Queue it as a feature slice immediately after S4 (E8) and before
-S1, with each journey as a deletion-list-style item (journey file present and
-passing against the shadow).
+Status: resolved 2026-09-30. E9 added the six requested journeys and the complete
+shadow suite passes 11/11; the queue now places S1 after E9. E8 and E9 acceptance
+records include each epoch's currently reported weighted non-cache tokens and
+explicitly preserve Agent Manager's `usage not final` receipt status.
 
 ### BAS-FB-058 — S3 targets every existing V1 workflow (2026-09-30, operator)
 

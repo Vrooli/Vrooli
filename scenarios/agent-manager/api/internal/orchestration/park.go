@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
 )
@@ -202,6 +203,7 @@ func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (_ *domain.
 	// Claim the parked state under one process-wide lifecycle lock before
 	// clearing the handle or launching continuation. A second notification then
 	// re-reads the now-running row and becomes the documented idempotent no-op.
+	o.awaitParkedTurnEnd(ctx, in.RunID)
 	o.wakeMu.Lock()
 	defer o.wakeMu.Unlock()
 
@@ -433,8 +435,14 @@ func (o *Orchestrator) endParkedTurn(run *domain.Run) {
 	}
 	runID := run.ID
 	grace := o.parkTurnEndGrace()
+	ended := make(chan struct{})
+	o.parkTurnEnds.Store(runID, ended)
 	go func() {
 		defer obs.RecoverToFailure("park turn-end stop", nil)
+		defer func() {
+			close(ended)
+			o.parkTurnEnds.CompareAndDelete(runID, ended)
+		}()
 		if grace > 0 {
 			time.Sleep(grace)
 		}
@@ -449,7 +457,39 @@ func (o *Orchestrator) endParkedTurn(run *domain.Run) {
 			obs.Component("park").Debug("park turn-end stop returned",
 				obs.KeyRunID, runID.String(), obs.KeyError, err.Error())
 		}
+		waitForProcessExit(stopCtx, r, runID)
 	}()
+}
+
+// awaitParkedTurnEnd blocks until a recently parked run's turn-end stop has
+// finished. A wake can arrive inside the turn-end grace (the awaited result was
+// already available); resuming then would run two agent processes on one
+// conversation, and the delayed stop would hit the new continuation.
+func (o *Orchestrator) awaitParkedTurnEnd(ctx context.Context, runID uuid.UUID) {
+	ended, ok := o.parkTurnEnds.Load(runID)
+	if !ok {
+		return
+	}
+	select {
+	case <-ended.(chan struct{}):
+	case <-ctx.Done():
+	}
+}
+
+// waitForProcessExit waits until a runner that reports process IDs no longer
+// has a live process for runID, or ctx ends.
+func waitForProcessExit(ctx context.Context, r runner.Runner, runID uuid.UUID) {
+	reporter, ok := r.(interface{ PID(uuid.UUID) int })
+	if !ok {
+		return
+	}
+	for reporter.PID(runID) != 0 {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
 }
 
 // AwaitResult is the most recently resolved await for a run — the durable result

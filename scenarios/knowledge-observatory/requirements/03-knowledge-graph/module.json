@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Generate and visualize knowledge relationship graphs showing concept connections",
-    "last_validated_at": "2026-09-04T22:42:33-04:00"
+    "last_validated_at": "2026-09-30T09:57:57-04:00"
   },
   "requirements": [
     {
@@ -22,7 +22,7 @@
     {
       "id": "KO-KG-002",
       "title": "Graph API endpoint",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "description": "GET /api/v1/knowledge/graph returns nodes and edges in standardized format for visualization",
       "validation": [
@@ -30,14 +30,14 @@
           "type": "test",
           "ref": "api/graph_api_test.go",
           "phase": "business",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "KO-KG-003",
-      "title": "Graph rendering performance < 2s",
-      "status": "in_progress",
+      "title": "Graph rendering performance \u003c 2s",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "description": "Graph generation and rendering for up to 1000 nodes must complete in under 2 seconds",
       "validation": [
@@ -45,7 +45,7 @@
           "type": "test",
           "ref": "api/graph_performance_test.go",
           "phase": "performance",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },

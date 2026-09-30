@@ -3,6 +3,7 @@ package orchestration_test
 import (
 	"context"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -217,5 +218,57 @@ func TestParkRunFromAgent_NonRunningRejected(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected rejection when parking an already-parked run")
+	}
+}
+
+// A wake that lands inside the park turn-end grace (the awaited result was
+// already available) must not start the continuation until the parked turn's
+// process has been stopped: two live processes on one conversation corrupt it,
+// and Codex refuses the second writer outright.
+func TestWakeRun_WaitsForParkedTurnToEnd(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	var stopped atomic.Bool
+	continued := make(chan bool, 1)
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	mockRunner.SetCapabilities(runner.Capabilities{SupportsMessages: true, SupportsContinuation: true, MaxTurns: 100, SupportedModels: []string{"mock-model"}})
+	mockRunner.StopFunc = func(context.Context, uuid.UUID) error { stopped.Store(true); return nil }
+	mockRunner.ContinueFunc = func(_ context.Context, req runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		continued <- stopped.Load()
+		return &runner.ExecuteResult{Success: true, SessionID: req.SessionID}, nil
+	}
+	registry := runner.NewRegistry()
+	if err := registry.Register(mockRunner); err != nil {
+		t.Fatalf("register runner: %v", err)
+	}
+	svc := orchestration.New(
+		repos.Profiles, repos.Tasks, repos.Runs,
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(registry),
+		orchestration.WithRunStateRoot(t.TempDir()),
+		orchestration.WithIdentitySecret(parkFromAgentSecret),
+		newTestRolePolicyOption(t),
+	)
+	run := newParkableRun(t, ctx, svc, repos)
+	token := activateToken(t, ctx, repos, run)
+
+	if _, err := svc.ParkRunFromAgent(ctx, orchestration.ParkRunFromAgentRequest{
+		RunID: run.ID, Producer: "test-genie", Key: "already-finished", IdentityToken: token,
+	}); err != nil {
+		t.Fatalf("ParkRunFromAgent: %v", err)
+	}
+	if _, err := svc.WakeRun(ctx, orchestration.WakeRunInput{RunID: run.ID, Result: "passed"}); err != nil {
+		t.Fatalf("WakeRun: %v", err)
+	}
+	select {
+	case wasStopped := <-continued:
+		if !wasStopped {
+			t.Fatal("continuation started while the parked turn was still running")
+		}
+	case <-time.After(15 * time.Second):
+		t.Fatal("timed out waiting for the continuation")
 	}
 }

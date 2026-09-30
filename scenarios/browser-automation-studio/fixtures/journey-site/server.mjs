@@ -17,6 +17,13 @@ const FORMS = html(`<h1>Journey form</h1><form>
   <label>Notes <textarea name="notes"></textarea></label>
 </form>`);
 
+const SAME = html('<button id="same" onclick="document.body.dataset.clicked=location.pathname">same selector</button>');
+const FRAME_HOST = html('<h1>Frames</h1><iframe id="fixture-frame" src="/frame-child"></iframe>');
+const GESTURES = html(`<h1>Gestures</h1><input id="shortcut" value="start"><div id="drag-source" draggable="true" style="position:absolute;left:20px;top:80px;width:100px;height:40px;background:#ddd">source</div><div id="drag-target" style="position:absolute;left:180px;top:80px;width:120px;height:40px;background:#eee" ondragover="event.preventDefault()" ondrop="this.dataset.dropped='yes';fetch('/effect',{method:'POST'})">target</div><div style="height:1600px"></div><div id="scroll-end">end</div><script>document.querySelector('#shortcut').addEventListener('input',event=>fetch('/input-observation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'field',value:event.target.value})}));window.addEventListener('scroll',()=>fetch('/scroll-observation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({y:window.scrollY})}));</script>`);
+const COMPLEX = html(`<h1>Browser behaviors</h1><button id="spa" onclick="history.pushState({},'', '/spa/next');document.querySelector('h1').textContent='SPA navigated'">SPA</button><button id="popup" onclick="window.open('/same-popup','fixture-popup')">Popup</button><div id="shadow-host"></div><script>const root=document.querySelector('#shadow-host').attachShadow({mode:'open'});const button=document.createElement('button');button.id='shadow-button';button.textContent='Shadow';button.addEventListener('click',()=>button.dataset.clicked='yes');root.append(button);</script>`);
+const SERVICE_WORKER = `self.addEventListener('install', event => event.waitUntil(self.skipWaiting())); self.addEventListener('activate', event => event.waitUntil(self.clients.claim())); self.addEventListener('fetch', event => { if (new URL(event.request.url).pathname === '/worker-probe') event.respondWith(new Response('worker-ok')); });`;
+const SW_PAGE = html(`<h1>Service worker fixture</h1><output id="worker-result">pending</output><script>navigator.serviceWorker.register('/service-worker.js').then(async () => { await navigator.serviceWorker.ready; if (!navigator.serviceWorker.controller) await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, {once:true})); const response = await fetch('/worker-probe'); const output=document.querySelector('#worker-result'); output.textContent=await response.text(); output.classList.add(output.textContent); }).catch(error => document.querySelector('#worker-result').textContent = String(error));</script>`);
+
 const HOME = html(`<h1>BAS journey fixture</h1>
   <input id="fixture-input" value="initial" aria-label="Recordable text" style="position:absolute;${box('input')}">
   <button id="paste" type="button" style="position:absolute;${box('paste')}">Paste fixture text</button>
@@ -46,9 +53,11 @@ export async function startJourneySite() {
   const effects = [];
   const released = [];
   const inputs = [];
-  const counts = { effect: () => effects.length, release: () => released.length, input: () => inputs.length };
+  const scrolls = [];
+  let retryAttempts = 0;
+  const counts = { effect: () => effects.length, release: () => released.length, input: () => inputs.length, scroll: () => scrolls.length };
   const waiters = new Set();
-  const snapshot = () => ({ effects, released, inputs });
+  const snapshot = () => ({ effects, released, inputs, scrolls, retryAttempts });
   const notify = () => { for (const wake of waiters) wake(); };
   const record = (entry) => { effects.push({ sequence: effects.length + 1, ...entry }); notify(); return effects.length; };
   const json = (response, status, body) => response.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(body));
@@ -68,6 +77,11 @@ export async function startJourneySite() {
         return;
       case 'POST /input-observation':
         inputs.push({ ...JSON.parse(await readBody(request)), context });
+        notify();
+        response.writeHead(204).end();
+        return;
+      case 'POST /scroll-observation':
+        scrolls.push(JSON.parse(await readBody(request)));
         notify();
         response.writeHead(204).end();
         return;
@@ -92,6 +106,38 @@ export async function startJourneySite() {
         return;
       }
       case 'GET /forms':
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(FORMS);
+        return;
+      case 'GET /same': case 'GET /same-popup': case 'GET /redirect-target':
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(SAME);
+        return;
+      case 'GET /frames':
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(FRAME_HOST);
+        return;
+      case 'GET /frame-child':
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(SAME);
+        return;
+      case 'GET /gestures':
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(GESTURES);
+        return;
+      case 'GET /complex':
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(COMPLEX);
+        return;
+      case 'GET /service-worker':
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(SW_PAGE);
+        return;
+      case 'GET /redirect':
+        response.writeHead(302, { Location: '/redirect-target' }).end();
+        return;
+      case 'GET /service-worker.js':
+        response.writeHead(200, { 'Content-Type': 'text/javascript', 'Service-Worker-Allowed': '/' }).end(SERVICE_WORKER);
+        return;
+      case 'GET /retry-page':
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(html(`<h1>Retry fixture</h1><script>setTimeout(() => { const button=document.createElement('button'); button.id='retry-target'; button.textContent='Ready'; button.onclick=()=>fetch('/effect',{method:'POST'}); document.body.append(button); }, 3000);</script>`));
+        return;
+      case 'GET /retry-once':
+        retryAttempts += 1;
+        if (retryAttempts === 1) { response.socket.destroy(); return; }
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(FORMS);
         return;
       default: {

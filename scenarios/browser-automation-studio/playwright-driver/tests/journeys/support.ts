@@ -11,7 +11,8 @@ import {
   type DescMessage, type DescMethodUnary, type JsonValue, type MessageInitShape, type MessageShape,
 } from '@bufbuild/protobuf';
 import { ActionDefinitionSchema, type ActionDefinition } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
-import { StepOutcomeSchema, type StepOutcome } from '@vrooli/proto-types/browser-automation-studio/v1/execution/driver_pb';
+import { KeyboardParamsSchema, ShortcutParamsSchema, DragDropParamsSchema } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
+import type { StepOutcome } from '@vrooli/proto-types/browser-automation-studio/v1/execution/driver_pb';
 import { ExecutionMode } from '@vrooli/proto-types/browser-automation-studio/v1/workflows/definition_pb';
 import { WorkflowsService } from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
 import { createTypedInstruction } from '../helpers/instruction-factory';
@@ -71,15 +72,21 @@ export const driver = <T>(path: string, body?: unknown, expectedStatus?: number)
 
 /** A typed action, built by the shared instruction factory. */
 export const action = (type: string, params: Record<string, unknown>): ActionDefinition =>
-  createTypedInstruction(type, params).action ?? create(ActionDefinitionSchema);
+  type === 'shortcut'
+    ? create(ActionDefinitionSchema, { type: 21, params: { case: 'shortcut', value: create(ShortcutParamsSchema, { shortcut: String(params.shortcut), selector: params.selector as string | undefined }) } })
+    : type === 'keyboard'
+      ? create(ActionDefinitionSchema, { type: 9, params: { case: 'keyboard', value: create(KeyboardParamsSchema, { key: params.key as string | undefined, keys: (params.keys as string[] | undefined) ?? [] }) } })
+      : type === 'drag-drop'
+        ? create(ActionDefinitionSchema, { type: 22, params: { case: 'dragDrop', value: create(DragDropParamsSchema, { sourceSelector: String(params.source), targetSelector: String(params.target), steps: 3 }) } })
+        : createTypedInstruction(type, params).action ?? create(ActionDefinitionSchema);
 
 export type Lease = { sessionId: string; leaseId: string; executionId: string; sequence: number };
 export const ownership = (lease: Lease): CloseSessionRequest => ({ execution_id: lease.executionId, lease_id: lease.leaseId });
 
-export async function openLease(options: { storageState?: SessionSpec['storage_state'] } = {}): Promise<Lease> {
+export async function openLease(options: { storageState?: SessionSpec['storage_state']; reuseMode?: SessionSpec['reuse_mode']; labels?: SessionSpec['labels'] } = {}): Promise<Lease> {
   const request: StartSessionRequest = {
-    execution_id: randomUUID(), workflow_id: randomUUID(), viewport: VIEWPORT, reuse_mode: 'fresh',
-    base_url: env.fixture, storage_state: options.storageState,
+    execution_id: randomUUID(), workflow_id: randomUUID(), viewport: VIEWPORT, reuse_mode: options.reuseMode ?? 'fresh',
+    base_url: env.fixture, storage_state: options.storageState, labels: options.labels,
   };
   const started = await driver<StartSessionResponse>('/session/start', request);
   if (!started.session_id || !started.lease_id) throw new Error(`Driver returned no lease: ${JSON.stringify(started)}`);
@@ -92,12 +99,15 @@ export async function runAction(lease: Lease, definition: ActionDefinition): Pro
     ...ownership(lease), operation_sequence: sequence, invocation_id: `${lease.executionId}:${sequence}`, attempt: 1,
     instruction: { index: sequence - 1, node_id: `journey-${sequence}`, action: toJson(ActionDefinitionSchema, definition) },
   });
-  const outcome = fromJson(StepOutcomeSchema, body, { ignoreUnknownFields: true });
+  // Driver responses include common JsonValue fields as ordinary JSON values;
+  // its REST envelope isn't protobuf JSON's tagged JsonValue representation.
+  const outcome = body as StepOutcome;
   if (!outcome.success) throw new Error(`Driver rejected ${definition.params.case}: ${JSON.stringify(body)}`);
   return outcome;
 }
 
 export const closeLease = (lease: Lease): Promise<unknown> => driver(`/session/${lease.sessionId}/close`, ownership(lease));
+export const releaseLease = (lease: Lease): Promise<unknown> => driver(`/session/${lease.sessionId}/release`, ownership(lease));
 
 /** Run `body` with open leases and close every one afterwards, newest first. */
 export async function withLeases<T>(body: (open: typeof openLease) => Promise<T>): Promise<T> {
@@ -110,14 +120,14 @@ export async function withLeases<T>(body: (open: typeof openLease) => Promise<T>
 }
 
 /** A one-node observer workflow for ExecuteAdhocWorkflow. */
-export function adhoc(name: string, nodeAction: ActionDefinition, waitForCompletion: boolean):
+export function adhoc(name: string, nodeAction: ActionDefinition, waitForCompletion: boolean, resilience?: { maxAttempts: number; delayMs: number }):
   MessageInitShape<typeof WorkflowsService.method.executeAdhocWorkflow.input> {
   return {
     metadata: { name: `${name} ${randomUUID()}` },
     flowDefinition: {
       metadata: { name, executionMode: ExecutionMode.OBSERVER },
       settings: { headless: true, timeoutMs: 20000 },
-      nodes: [{ id: randomUUID(), action: nodeAction, executionSettings: { timeoutMs: 20000 } }],
+      nodes: [{ id: randomUUID(), action: nodeAction, executionSettings: { timeoutMs: 20000, resilience } }],
     },
     waitForCompletion,
     parameters: { headless: true, viewportWidth: VIEWPORT.width, viewportHeight: VIEWPORT.height },
@@ -125,14 +135,14 @@ export function adhoc(name: string, nodeAction: ActionDefinition, waitForComplet
 }
 
 export type FixtureEffect = { sequence: number; context: string; held?: boolean };
-export type FixtureState = { effects: FixtureEffect[]; released: Array<{ sequence: number }>; inputs: Array<{ type: string; value: string; context: string }> };
+export type FixtureState = { effects: FixtureEffect[]; released: Array<{ sequence: number }>; inputs: Array<{ type: string; value: string; context: string }>; scrolls: Array<{ y: number }>; retryAttempts: number };
 
 export async function fixtureState(): Promise<FixtureState> {
   return (await fetch(new URL('/journey-state', env.fixture))).json() as Promise<FixtureState>;
 }
 
 /** Long-poll the fixture until more than `after` records of `kind` exist. */
-export async function fixtureAfter(kind: 'effect' | 'release' | 'input', after: number): Promise<FixtureState> {
+export async function fixtureAfter(kind: 'effect' | 'release' | 'input' | 'scroll', after: number): Promise<FixtureState> {
   const url = new URL('/journey-wait', env.fixture);
   url.search = new URLSearchParams({ kind, after: String(after), timeout_ms: String(TIMEOUT_MS.wait) }).toString();
   const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS.wait + 1000) });

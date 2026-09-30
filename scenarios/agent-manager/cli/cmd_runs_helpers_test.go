@@ -91,9 +91,10 @@ func TestRunContinueAppRoutingPreservesRefusalAndValidation(t *testing.T) {
 	if err := app.Run(args); err == nil || !strings.Contains(err.Error(), "owner refused continuation") || calls != 1 {
 		t.Fatalf("owner refusal hidden or automatically retried: calls=%d err=%v", calls, err)
 	}
+	// A run identity reaches the owner, which admits only its own lineage.
 	t.Setenv(cliutil.EnvIdentityToken, "run-token")
-	if err := app.Run(args); err == nil || calls != 1 {
-		t.Fatalf("run identity bypassed lifecycle preflight: calls=%d err=%v", calls, err)
+	if err := app.Run(args); err == nil || !strings.Contains(err.Error(), "owner refused continuation") || calls != 2 {
+		t.Fatalf("run identity continuation did not reach the owner: calls=%d err=%v", calls, err)
 	}
 }
 
@@ -260,16 +261,17 @@ func TestRejectRunIdentityLifecycleCommand(t *testing.T) {
 	t.Setenv("VROOLI_AGENT_IDENTITY_TOKEN", "run-token")
 
 	for _, subcommand := range []string{
-		"apply-investigation", "approve", "continue", "delete",
+		"apply-investigation", "approve", "delete",
 		"investigate", "quiesce", "recover", "reject", "sandbox-sync",
-		"stop", "stop-all", "stop-by-tag", "wake",
+		"stop-all", "stop-by-tag",
 	} {
 		if err := rejectRunIdentityLifecycleCommand(subcommand); err == nil {
 			t.Errorf("%s was not rejected for a run identity", subcommand)
 		}
 	}
 
-	for _, subcommand := range []string{"get", "report", "stats", "events", "diff", "park", "create", "identity"} {
+	// Lineage operations reach the API, which admits only the caller's own lineage.
+	for _, subcommand := range []string{"get", "report", "stats", "events", "diff", "park", "create", "identity", "stop", "continue", "wake"} {
 		if err := rejectRunIdentityLifecycleCommand(subcommand); err != nil {
 			t.Errorf("%s was unexpectedly rejected: %v", subcommand, err)
 		}

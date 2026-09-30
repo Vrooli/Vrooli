@@ -13,11 +13,7 @@ Each epoch file lives in `epochs/`; the orchestrator moves a slice to Done with 
   all V1 workflows found by scan were migrated, and the six GCT HTTP cases were
   preserved as non-workflows. E2 and E4 record Gremlins as unverified under
   BAS-FB-056.
-1. **S4 — Schema-driven node editor (E8 active).** One `ActionNode` plus the
-   shared `fields/*` replaces all 35 node component files listed in
-   `epochs/E8.md`. Worker `f9f146e4-d94a-4a1c-9125-164204327de7`, task
-   `8ac68a6b-f28a-41d8-80b6-462d97bf95c4`. About −5k / +0.8k.
-2. **S1 — One session broker** (enabling). `api/automation/session` is the only
+1. **S1 — One session broker** (E10; enabling). `api/automation/session` is the only
    caller of driver session routes; delete direct `driver.Client` session calls
    in record-mode handlers, engine, drills, workflow service and the recovery
    reconciler, driver lease fencing (`session-decisions`, `in-flight-guard`,
@@ -69,7 +65,9 @@ Export 29k→22k, Diagnostics 7k→1k, Config 3.1k→1.8k, other 53k→48k.
 
 ## Done
 
-- **E6 — S3: remove the V1 workflow compatibility path.** ACCEPTED 2026-09-30T16:10:00Z (epochs/E6.md); six discovered V1 workflows migrated, BAS scan found zero V1 arrays, and six GCT HTTP cases preserved; compatibility modules absent and targeted symbol search clear. Runtime −329 vs −2,000 directional estimate; final-tree Go, CLI, UI, driver and 5/5 Linux journey gates passed. BAS Test Genie workflow-health remains unverified after a queued-provider timeout.
+- **E9 — JX: journey expansion before session/recording rewrites.** ACCEPTED 2026-09-30T17:48:18Z (epochs/E9.md); added J03/J04/J13/J15/J17/J18 and reran the full shadow suite 11/11. Runtime stayed at 265,723; test/fixture/support +196. Weighted non-cache tokens currently 299,294 (receipt marked not final).
+- **E8 — S4: schema-driven node editor.** ACCEPTED 2026-09-30T17:09:26Z (epochs/E8.md); all 35 per-node components removed, behavior preserved through one ActionNode including screenshot/AI/Navigate previews; final UI and 5/5 Linux journey gates passed. Runtime −5,438 vs 271,161 baseline; weighted non-cache tokens currently 238,576 across E8 workers, with Agent Manager marking receipts not final.
+- **E6 — S3: remove the V1 workflow compatibility path.** ACCEPTED 2026-09-30T16:07:29Z (epochs/E6.md); six discovered V1 workflows migrated, BAS scan found zero V1 arrays, and six GCT HTTP cases preserved; compatibility modules absent and targeted symbol search clear. Runtime −329 vs −2,000 directional estimate; final-tree Go, CLI, UI, driver and 5/5 Linux journey gates passed. BAS Test Genie workflow-health remains unverified after a queued-provider timeout.
 - **E7 — S2 remainder: remove handwritten action vocabulary owners.** ACCEPTED 2026-09-30T15:59:13Z (epochs/E7.md); all eight paths deleted, runtime −2,101 vs the 273,262 baseline (−399 vs directional −2,500), test/support net −607 (including +55 lines of generated-proto regression coverage); API, CLI, UI, driver and five Linux journeys rerun and passed.
 - **E5 — Driver, UI and CLI test consolidation.** ACCEPTED 2026-09-30T13:37:42Z (epochs/E5.md); runtime +0, test −711; driver 130 focused tests, UI 59 focused tests including BAS-RH-J24/BAS-AUTH, and CLI `go test ./...` passed. Stryker is unverified.
 - **E4 — Further Go test maturation.** ACCEPTED 2026-09-30T13:09:43Z (epochs/E4.md); one state-based test sleep retired (23→22), remaining sites audited as intentional; full Go and coverage gates passed, runtime net 0.

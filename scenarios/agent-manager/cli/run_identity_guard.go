@@ -9,7 +9,9 @@ import (
 // rejectRunIdentityLifecycleCommand avoids sending an operator-only request
 // from an agent-manager run. The API validates the token and remains the
 // authority; this client-side check makes the safe boundary clear before a
-// workflow wastes a turn on a request that will be denied.
+// workflow wastes a turn on a request that will be denied. stop, continue and
+// wake are not listed: the API admits them for a run's own lineage (an
+// orchestrator's direct children, a worker's parked parent) and denies the rest.
 func rejectRunIdentityLifecycleCommand(subcommand string) error {
 	token, _ := os.LookupEnv("VROOLI_AGENT_IDENTITY_TOKEN")
 	if strings.TrimSpace(token) == "" {
@@ -19,17 +21,14 @@ func rejectRunIdentityLifecycleCommand(subcommand string) error {
 	operatorOnly := map[string]struct{}{
 		"apply-investigation": {},
 		"approve":             {},
-		"continue":            {},
 		"delete":              {},
 		"investigate":         {},
 		"quiesce":             {},
 		"recover":             {},
 		"reject":              {},
 		"sandbox-sync":        {},
-		"stop":                {},
 		"stop-all":            {},
 		"stop-by-tag":         {},
-		"wake":                {},
 	}
 	if _, restricted := operatorOnly[subcommand]; !restricted {
 		return nil

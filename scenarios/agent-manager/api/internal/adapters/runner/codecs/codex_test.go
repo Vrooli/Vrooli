@@ -501,6 +501,30 @@ func TestCodexTokenCountPreservesNativeRateLimitMetadata(t *testing.T) {
 	}
 }
 
+// Codex 0.15x rollouts add scalar and non-window siblings to rate_limits
+// (limit_id, plan_type, credits, null windows). The frame's usage must still be
+// recorded and only real windows observed.
+func TestCodexTokenCountToleratesCurrentRateLimitShape(t *testing.T) {
+	parser := NewCodexForTest().NewTranscriptParser()
+	result := parser.ParseTranscriptLine(uuid.New(), `{"timestamp":"2026-09-30T15:52:35.016Z","ordinal":2212,"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":213127,"cached_input_tokens":211712,"output_tokens":2186,"reasoning_output_tokens":1364,"total_tokens":215313},"model_context_window":258400},"rate_limits":{"limit_id":"codex","limit_name":null,"primary":{"used_percent":48.0,"window_minutes":10080,"resets_at":1791046702},"secondary":null,"credits":{"has_credits":true,"unlimited":false,"balance":"62500"},"individual_limit":null,"spend_control_reached":null,"plan_type":"pro","rate_limit_reached_type":null}}}`)
+	var usage *domain.UsageEventData
+	var windows []*domain.RateLimitEventData
+	for _, event := range result.Events {
+		switch data := event.Data.(type) {
+		case *domain.UsageEventData:
+			usage = data
+		case *domain.RateLimitEventData:
+			windows = append(windows, data)
+		}
+	}
+	if usage == nil || usage.InputTokens != 213127-211712 || usage.CacheReadTokens != 211712 || usage.OutputTokens != 2186 {
+		t.Fatalf("usage=%+v, want the frame's cumulative usage", usage)
+	}
+	if len(windows) != 1 || windows[0].Pool != "primary" || windows[0].UsedPercent == nil || *windows[0].UsedPercent != 48 {
+		t.Fatalf("rate limit observations=%+v, want only the primary window", windows)
+	}
+}
+
 func TestCodexLiveCodecPipeObservesNativeRateLimitMetadata(t *testing.T) {
 	c := NewCodexForTest()
 	state := c.NewState()

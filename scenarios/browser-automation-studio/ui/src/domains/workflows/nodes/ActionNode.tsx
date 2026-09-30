@@ -1,9 +1,9 @@
-import { memo, type FC, type ReactNode } from 'react';
+import { memo, type FC, type ReactNode, useEffect, useState } from 'react';
 import type { NodeProps } from 'reactflow';
 import { Handle, Position, useReactFlow } from 'reactflow';
 import { ScalarType, type DescField } from '@bufbuild/protobuf';
 import {
-  Activity, AppWindow, ArrowLeftRight, Camera, CheckCircle2, Circle, Clock, Cookie,
+  Activity, AppWindow, ArrowLeftRight, Camera, CheckCircle2, Circle, Clock, Cookie, Target,
   Database, Eye, Globe, Hand, HardDriveDownload, HardDriveUpload, Keyboard,
   MousePointer, MousePointer2, Network, Play, Recycle, RefreshCcw, ScrollText,
   ShieldCheck, Smartphone, TerminalSquare, Type, UploadCloud, Variable,
@@ -20,6 +20,15 @@ import { useElementPicker } from '@hooks/useElementPicker';
 import { useUrlInheritance } from '@hooks/useUrlInheritance';
 import { useResiliencePanelProps } from '@hooks/useResiliencePanel';
 import ResiliencePanel from './ResiliencePanel';
+import useUpstreamScreenshot from '@hooks/useUpstreamScreenshot';
+import { useWorkflowStore, type ExecutionViewportSettings } from '@stores/workflowStore';
+import { ScreenshotPreview, AISuggestionsPanel, DOMHierarchyNav } from './components';
+import { normalizeHierarchy, deriveSelector } from './utils/elementHierarchy';
+import type { BoundingBox, ElementHierarchyEntry, ElementInfo, ElementCoordinateResponse } from '@/types/elements';
+import { getConfig } from '@/config';
+import { logger } from '@utils/logger';
+import toast from 'react-hot-toast';
+import NavigatePreviewPanel from './components/NavigatePreviewPanel';
 
 type Params = Record<string, unknown>;
 type FieldKind = 'text' | 'textarea' | 'number' | 'checkbox' | 'select' | 'selector' | 'url' | 'json';
@@ -163,6 +172,63 @@ const ActionNode: FC<NodeProps> = ({ selected, id }) => {
   const picker = useElementPicker(id);
   const { effectiveUrl } = useUrlInheritance(id);
   const resilience = useResiliencePanelProps(id);
+  const upstreamScreenshot = useUpstreamScreenshot(id);
+  const screenshot = type === 'click' ? upstreamScreenshot?.dataUrl ?? null : null;
+  const executionViewport = useWorkflowStore((state) => state.currentWorkflow?.executionViewport as ExecutionViewportSettings | undefined);
+  const rawHierarchy = getValue<ElementHierarchyEntry[]>('elementHierarchy');
+  const [previewOpen, setPreviewOpen] = useState(Boolean(screenshot));
+  const [pickerActive, setPickerActive] = useState(false);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [showAiPanel, setShowAiPanel] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<ElementInfo[]>([]);
+  const [hoveredSuggestion, setHoveredSuggestion] = useState<ElementInfo | null>(null);
+  const [hierarchy, setHierarchy] = useState(() => normalizeHierarchy(rawHierarchy));
+  const [hierarchyIndex, setHierarchyIndex] = useState(() => normalizeHierarchy(rawHierarchy).length ? 0 : -1);
+  const { upstreamUrl } = useUrlInheritance(id);
+  const [storedIndex] = [getValue<number>('elementHierarchyIndex')];
+  const selectedElement = getValue<{ boundingBox?: BoundingBox; bounding_box?: BoundingBox }>('elementInfo');
+  const selectedBoundingBox = selectedElement?.boundingBox ?? selectedElement?.bounding_box ?? null;
+  const hoveredBoundingBox = hoveredSuggestion?.boundingBox ?? hoveredSuggestion?.bounding_box ?? null;
+  useEffect(() => {
+    const entries = normalizeHierarchy(rawHierarchy);
+    setHierarchy(entries);
+    setHierarchyIndex(entries.length ? (typeof storedIndex === 'number' && entries[storedIndex] ? storedIndex : 0) : -1);
+  }, [rawHierarchy, storedIndex]);
+  useEffect(() => {
+    if (screenshot) setPreviewOpen(true);
+    else { setPickerActive(false); setAiSuggestions([]); setShowAiPanel(false); }
+  }, [screenshot]);
+  useEffect(() => { if (!showAiPanel) setHoveredSuggestion(null); }, [showAiPanel]);
+  const setSelectedElement = (selectorValue: string, info: ElementInfo, entries?: ElementHierarchyEntry[], index = 0) => {
+    updateParams({ selector: selectorValue });
+    const payload: Record<string, unknown> = { elementInfo: info };
+    if (entries) {
+      setHierarchy(entries); setHierarchyIndex(index);
+      payload.elementHierarchy = entries; payload.elementHierarchyIndex = index;
+    }
+    updateData(payload);
+  };
+  const handleScreenshotPick = async (x: number, y: number) => {
+    if (!effectiveUrl) return;
+    setIsSelecting(true);
+    try {
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/element-at-coordinate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: effectiveUrl, x, y }) });
+      if (!response.ok) throw new Error((await response.text()) || 'Failed to locate element');
+      const result = await response.json() as ElementCoordinateResponse;
+      const entries = normalizeHierarchy(result?.candidates ?? []);
+      if (!entries.length) { toast.error('No selector found at that position'); return; }
+      const index = Number.isInteger(result.selectedIndex) && result.selectedIndex >= 0 && result.selectedIndex < entries.length ? result.selectedIndex : 0;
+      const chosen = entries[index] ?? entries[0];
+      if (!chosen) { toast.error('No selector found at that position'); return; }
+      const selectorValue = deriveSelector(chosen);
+      if (!selectorValue) { toast.error('No selector found at that position'); return; }
+      setSelectedElement(selectorValue, chosen.element, entries, index); toast.success('Element selector updated'); setPickerActive(false);
+    } catch (error) {
+      logger.error('Failed to pick element from screenshot', { component: 'ActionNode', action: 'handleScreenshotPick', nodeId: id, url: effectiveUrl ?? upstreamUrl ?? null }, error);
+      toast.error('Failed to pick element from screenshot');
+    } finally { setIsSelecting(false); }
+  };
   const field = <T extends string | number | boolean>(key: string, fallback?: T): UseSyncedFieldResult<T> => {
     const isNodeDataField = (type === 'select' && ['selectBy', 'multiple', 'waitForMs', 'values'].includes(key)) || (type === 'wait' && key === 'waitType') || !schemaField(key);
     const [parentKey = key, nestedKey] = key.split('.');
@@ -215,7 +281,7 @@ const ActionNode: FC<NodeProps> = ({ selected, id }) => {
   };
   const configuredKeys = new Set([...spec.fields, ...(dataFields[type] ?? [])].map((item) => item.key.split('.')[0]));
   const generatedFields = paramsSchemaFields.filter((item) => !configuredKeys.has(item.localName)).map(schemaFieldSpec);
-  const visibleFields = [...spec.fields, ...generatedFields, ...(dataFields[type] ?? [])].filter((item) => !item.when || item.when(paramsForVisibility));
+  const visibleFields = [...spec.fields, ...generatedFields, ...(dataFields[type] ?? [])].filter((item) => (!item.when || item.when(paramsForVisibility)) && !(type === 'navigate' && ['scenario', 'scenarioPath'].includes(item.key)));
   const Icon = spec.icon;
   const renderField = (item: FieldSpec): ReactNode => {
     const kind = item.kind ?? 'text';
@@ -259,9 +325,17 @@ const ActionNode: FC<NodeProps> = ({ selected, id }) => {
         <Handle type="source" position={Position.Bottom} id="ifFalse" className="node-handle" style={{ left: '65%', background: '#ef4444' }} />
       </>}
       <div className="flex items-center gap-2 mb-2"><Icon size={16} className={spec.color} /><span className="font-semibold text-sm">{spec.title}</span></div>
+      {type === 'click' && <NodeUrlField nodeId={id} errorMessage="Provide a URL to target this click." />}
       <div className="space-y-2 text-xs">
         {visibleFields.map(renderField)}
       </div>
+      {type === 'navigate' && <NavigatePreviewPanel destinationType={String(params?.destinationType ?? 'NAVIGATE_DESTINATION_TYPE_URL')} url={String(params?.url ?? '')} scenario={String(params?.scenario ?? '')} scenarioPath={String(params?.scenarioPath ?? '')} viewport={executionViewport} onChange={updateParams} onScreenshot={updateData} />}
+      {type === 'click' && <>
+        <button type="button" disabled={!screenshot || !effectiveUrl} title={screenshot && effectiveUrl ? (pickerActive ? 'Cancel picking mode' : 'Pick element from screenshot preview') : 'Connect a screenshot-producing node and set a page URL'} onClick={() => { if (!screenshot || !effectiveUrl) { toast.error(!screenshot ? 'Connect a screenshot-producing node before picking elements' : 'Set a page URL before picking elements'); return; } setPickerActive((active) => !active); setPreviewOpen(true); }} className="inline-flex items-center gap-1 rounded border border-gray-700 px-2 py-1 text-xs disabled:opacity-50"><Target size={13} />{pickerActive ? 'Cancel picking' : 'Pick from preview'}</button>
+        <DOMHierarchyNav candidates={hierarchy} selectedIndex={hierarchyIndex} onShift={(delta) => { const next = Math.max(0, Math.min(hierarchyIndex + delta, hierarchy.length - 1)); const entry = hierarchy[next]; const selectorValue = entry && deriveSelector(entry); if (entry && selectorValue) { setSelectedElement(selectorValue, entry.element, hierarchy, next); } else if (entry) toast.error('No selector available for that element'); }} />
+        <ScreenshotPreview screenshot={screenshot} isOpen={previewOpen} onToggle={() => setPreviewOpen((open) => !open)} sourceLabel={upstreamScreenshot ? `Preview from ${upstreamScreenshot.nodeType === 'navigate' ? 'Navigate' : upstreamScreenshot.nodeType} node` : null} capturedAt={upstreamScreenshot?.capturedAt} pickerActive={pickerActive} isSelecting={isSelecting} selectedBoundingBox={selectedBoundingBox} hoveredBoundingBox={hoveredBoundingBox} viewport={executionViewport} onPickerClick={handleScreenshotPick} canShowAiSuggestions={Boolean(effectiveUrl)} onToggleAiPanel={() => { if (!effectiveUrl) { toast.error('Set a page URL to use AI suggestions'); return; } setShowAiPanel((open) => !open); }} />
+        {showAiPanel && <AISuggestionsPanel nodeId={id} effectiveUrl={effectiveUrl} upstreamUrl={upstreamUrl} suggestions={aiSuggestions} onSuggestionsChange={setAiSuggestions} onSelectSuggestion={(selectorValue, info) => { setSelectedElement(selectorValue, info); setHoveredSuggestion(null); }} onHoverSuggestion={setHoveredSuggestion} onClose={() => setShowAiPanel(false)} />}
+      </>}
       {['click', 'dragDrop', 'type'].includes(type) && <ResiliencePanel {...resilience} />}
     </div>
   );
