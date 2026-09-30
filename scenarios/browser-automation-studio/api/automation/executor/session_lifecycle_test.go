@@ -21,7 +21,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/events"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/config"
-	"github.com/vrooli/browser-automation-studio/internal/cancellationqualification"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -651,6 +650,7 @@ func TestExecuteTimeoutDuringLiveInstructionClosesSessionWithoutReplay(t *testin
 	require.Equal(t, 1, gotPackets, "a timed-out uncertain instruction must not be replayed")
 	require.Equal(t, 1, gotEffects, "the fixture accepted exactly one effect before the response timed out")
 	require.Equal(t, 1, gotCloseCalls, "executor finalization must close the owned session")
+	require.Equal(t, 1, gotResourcesBeforeClose, "the session was live when the timeout fired")
 	require.Zero(t, gotLiveSessions, "the session must be detached before Execute returns")
 	require.Less(t, time.Since(startedAt), time.Second, "timeout must stop the owned request and finish cleanup within the J07 band")
 
@@ -675,13 +675,6 @@ func TestExecuteTimeoutDuringLiveInstructionClosesSessionWithoutReplay(t *testin
 	require.GreaterOrEqual(t, inputStoppedMS, float64(0))
 	require.LessOrEqual(t, inputStoppedMS, float64(1000))
 	require.LessOrEqual(t, cleanupMS, float64(5000))
-	require.NoError(t, cancellationqualification.RecordObservation(t.Name(), "timeout", cancellationqualification.CaseObservation{
-		Observed: true, Passed: true, ExternalEffects: gotEffects, TerminalStatus: "failed",
-		LiveResourcesBeforeClose: gotResourcesBeforeClose, LiveResourcesAfterClose: gotLiveSessions,
-		InputStoppedMS: inputStoppedMS, CleanupMS: cleanupMS, RecoveryMS: 0,
-		UncertainEffect: failed.Failure.Code == contracts.FailureCodeInstructionOutcomeUncertain,
-		RetryAdmitted:   failed.Failure.Retryable,
-	}))
 }
 
 // [REQ:BAS-RH-J07] Driver process loss releases its resources while the API
@@ -754,7 +747,7 @@ func TestExecuteDriverDeathRetainsUncertainEffectWithoutReplay(t *testing.T) {
 	require.Equal(t, 1, effects, "independent fixture observed exactly one browser effect")
 	require.Equal(t, 0, liveSessions, "driver death must release process-owned browser resources")
 	require.Zero(t, closeCalls, "the dead driver cannot acknowledge an API close request")
-	gotEffects, gotResourcesBeforeDeath, gotResourcesAfterDeath := effects, resourcesBeforeDeath, liveSessions
+	require.Equal(t, 1, resourcesBeforeDeath, "the session was live when the driver died")
 	gotProcessDeathAt := processDeathAt
 	mu.Unlock()
 
@@ -778,13 +771,6 @@ func TestExecuteDriverDeathRetainsUncertainEffectWithoutReplay(t *testing.T) {
 	cleanupMS := float64(time.Since(gotProcessDeathAt).Microseconds()) / 1000
 	require.LessOrEqual(t, inputStoppedMS, float64(1000))
 	require.LessOrEqual(t, cleanupMS, float64(5000))
-	require.NoError(t, cancellationqualification.RecordObservation(t.Name(), "driverDeath", cancellationqualification.CaseObservation{
-		Observed: true, Passed: true, ExternalEffects: gotEffects, TerminalStatus: "failed",
-		LiveResourcesBeforeClose: gotResourcesBeforeDeath, LiveResourcesAfterClose: gotResourcesAfterDeath,
-		InputStoppedMS: inputStoppedMS, CleanupMS: cleanupMS, RecoveryMS: 0,
-		UncertainEffect: failed.Failure.Code == contracts.FailureCodeInstructionOutcomeUncertain,
-		RetryAdmitted:   failed.Failure.Retryable,
-	}))
 }
 
 type checkpointFixtureSession struct {

@@ -1053,7 +1053,6 @@ var runColumnMigrations = []columnMigration{
 	{column: "subject", ddl: "ALTER TABLE runs ADD COLUMN subject TEXT NOT NULL DEFAULT '[]'"},
 	{column: "owner_subject", ddl: "ALTER TABLE runs ADD COLUMN owner_subject TEXT NOT NULL DEFAULT ''"},
 	{column: "owner_expires_at", ddl: "ALTER TABLE runs ADD COLUMN owner_expires_at TEXT"},
-	{column: "dispatch_binding", ddl: "ALTER TABLE runs ADD COLUMN dispatch_binding TEXT"},
 	{column: "owner_scopes", ddl: "ALTER TABLE runs ADD COLUMN owner_scopes TEXT NOT NULL DEFAULT '[]'"},
 	{column: "requested_scopes", ddl: "ALTER TABLE runs ADD COLUMN requested_scopes TEXT NOT NULL DEFAULT '[]'"},
 	{column: "work_references", ddl: "ALTER TABLE runs ADD COLUMN work_references TEXT NOT NULL DEFAULT '[]'"},

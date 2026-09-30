@@ -81,7 +81,7 @@ func builderFreshnessInputs(ctx context.Context, root, buildDir string, spec Bui
 		if inputs, ok := goListFreshnessInputsContext(ctx, buildDir, root, deps); ok {
 			return inputs, nil
 		}
-		return binariesFreshnessInputsContext(ctx, buildDir, root, deps)
+		return binariesFreshnessFallbackInputsContext(ctx, buildDir, root)
 	}
 	inputs := make([]string, 0, len(spec.Inputs))
 	for _, pattern := range spec.Inputs {

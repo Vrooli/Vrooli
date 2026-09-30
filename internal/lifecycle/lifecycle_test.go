@@ -25,6 +25,7 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	credentialauthority "github.com/vrooli/vrooli/internal/credentialauthority"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/network"
 	testpackage "github.com/vrooli/vrooli/internal/packagegov/packagegovtest"
@@ -2625,6 +2626,22 @@ func TestRunnerStartEnforcesScenarioHostRequirements(t *testing.T) {
 	}
 	if captured.Label != "scenario-tree:alpha" {
 		t.Fatalf("Label = %q, want scenario-tree:alpha", captured.Label)
+	}
+}
+
+func TestScenarioTreeHasRequiredHostRequirementsIsConservative(t *testing.T) {
+	item := scenario.Scenario{
+		Path: "/tmp/alpha",
+		Manifest: scenario.ServiceManifest{
+			HostTools: []hostreqspec.Declaration{{Name: "ffmpeg", Required: false}},
+		},
+	}
+	if scenarioTreeHasRequiredHostRequirements(item, []string{item.Path}) {
+		t.Fatal("optional-only host tree requires no restart preflight")
+	}
+	item.Manifest.HostTools[0].Required = true
+	if !scenarioTreeHasRequiredHostRequirements(item, []string{item.Path}) {
+		t.Fatal("required host declaration must retain restart preflight")
 	}
 }
 

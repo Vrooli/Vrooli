@@ -826,6 +826,37 @@ func (s *RunService) List(limit, offset int, taskID, profileID, status, tagPrefi
 }
 
 // Get retrieves a single run by ID.
+// ListChildren lists the direct child runs of one parent run.
+func (s *RunService) ListChildren(parentID string, limit int) ([]byte, []*domainpb.Run, error) {
+	query := url.Values{}
+	query.Set("parentRunId", parentID)
+	if limit > 0 {
+		query.Set("limit", fmt.Sprintf("%d", limit))
+	}
+	body, err := s.api.Get("/api/v1/runs", query)
+	if err != nil {
+		return body, nil, err
+	}
+	var resp apipb.ListRunsResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, err
+	}
+	return body, resp.Runs, nil
+}
+
+// Accounting reads one run's metered usage, including non-cache tokens.
+func (s *RunService) Accounting(id string) (*apipb.RunAccounting, error) {
+	body, err := s.api.Get("/api/v1/runs/"+id+"/accounting", nil)
+	if err != nil {
+		return nil, err
+	}
+	var accounting apipb.RunAccounting
+	if err := unmarshalProtoResponse(body, &accounting); err != nil {
+		return nil, err
+	}
+	return &accounting, nil
+}
+
 func (s *RunService) Get(id string) ([]byte, *domainpb.Run, error) {
 	body, err := s.api.Get("/api/v1/runs/"+id, nil)
 	if err != nil {
@@ -1123,6 +1154,24 @@ func (s *RunService) Wake(id string, req *domainpb.WakeRunRequest) ([]byte, *dom
 		return body, nil, nil
 	}
 	return body, &resp, nil
+}
+
+// WakeByKey wakes every run parked on one producer/key await handle and
+// returns the IDs the server moved from parked to running.
+func (s *RunService) WakeByKey(req *domainpb.WakeParkedRunsRequest) ([]string, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/wake-by-key", nil, payload)
+	if err != nil {
+		return nil, err
+	}
+	var resp domainpb.WakeParkedRunsResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return nil, err
+	}
+	return resp.GetWokenRunIds(), nil
 }
 
 // AwaitResult fetches a run's most recently resolved await result (the

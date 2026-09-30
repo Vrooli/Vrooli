@@ -123,6 +123,24 @@ func TestBrokerStorageActionUsesFixedExecutorArguments(t *testing.T) {
 	}
 }
 
+func TestBrokerAutomaticUnusedVolumePruneUsesDockerSelection(t *testing.T) {
+	fake := &fakeExecutor{}
+	b, err := New(Config{SocketPath: "/tmp/test.sock", AllowedUID: 1000, Executor: fake})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := b.Execute(context.Background(), Request{
+		Version: ProtocolVersion, RequestID: "volume-prune-1", Action: ActionDockerPruneUnusedVolumes,
+		Docker: &DockerSubject{},
+	}, 1000)
+	if result.Status != "completed" || len(fake.calls) != 1 {
+		t.Fatalf("result=%+v calls=%v", result, fake.calls)
+	}
+	if got := strings.Join(fake.calls[0], " "); got != "docker volume prune -f" {
+		t.Fatalf("call=%q want=docker volume prune -f", got)
+	}
+}
+
 type errExecutor struct{ err error }
 
 func (e errExecutor) Run(context.Context, string, ...string) ([]byte, error) { return nil, e.err }

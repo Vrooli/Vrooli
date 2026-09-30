@@ -27,8 +27,6 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"workspace-sandbox/internal/types"
-
 	"github.com/vrooli/api-core/storage"
 	platform "github.com/vrooli/platform-go"
 )
@@ -85,9 +83,6 @@ type PutResult struct {
 // in-memory or fault-injecting implementation without touching the
 // real storage tree.
 type BlobStore interface {
-	// MaterializeReview derives a bounded review tree solely from retained blobs.
-	// The caller holds LockReview. Consumers must mount the result read-only.
-	MaterializeReview(context.Context, *types.ReviewSnapshot) (string, error)
 	// LockReview serializes source publication, recovery and teardown. The native
 	// lock releases on process death; the single lock file is outside blob trees.
 	LockReview(ctx context.Context) (func(), error)

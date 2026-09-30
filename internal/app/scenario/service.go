@@ -48,6 +48,11 @@ type PhaseRunner interface {
 	WaitScenario(name string, opts lifecycle.WaitOptions) (lifecycle.WaitOutcome, error)
 }
 
+type contextFreshnessRunner interface {
+	FreshnessReportByNameContext(context.Context, string, string) (lifecycle.FreshnessReport, error)
+	FreshnessInputsByNameContext(context.Context, string, string) (lifecycle.FreshnessReport, error)
+}
+
 type Service struct {
 	Scenarios ScenarioOperations
 	Runner    PhaseRunner
@@ -226,6 +231,22 @@ func (s Service) Info(req InfoRequest) (InfoOutput, error) {
 // Freshness returns the scenario's freshness report (per-check verdicts +
 // resolved dependency policies), the data behind `vrooli scenario freshness`.
 func (s Service) Freshness(req FreshnessRequest) (lifecycle.FreshnessReport, error) {
+	return s.FreshnessContext(context.Background(), req)
+}
+
+// FreshnessContext carries request cancellation through lifecycle enumeration
+// when the configured runner supports it. Legacy phase runners remain usable
+// for CLI and focused test adapters.
+func (s Service) FreshnessContext(ctx context.Context, req FreshnessRequest) (lifecycle.FreshnessReport, error) {
+	if err := ctx.Err(); err != nil {
+		return lifecycle.FreshnessReport{}, err
+	}
+	if runner, ok := s.Runner.(contextFreshnessRunner); ok {
+		if req.Inputs {
+			return runner.FreshnessInputsByNameContext(ctx, req.Name, req.Path)
+		}
+		return runner.FreshnessReportByNameContext(ctx, req.Name, req.Path)
+	}
 	if req.Inputs {
 		return s.Runner.FreshnessInputsByName(req.Name, req.Path)
 	}

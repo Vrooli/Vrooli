@@ -213,8 +213,8 @@ operator answers, separates observation roles from business runtime and permits
 explicitly granted failed-run CONTINUE with a session and recovery hypothesis.
 It does not synthesize a new session, start a shell driver, or derive grants from
 files. Missing-session pre-admission qualification and recurring legacy-driver
-control/grant integration remain owner work. See the cross-owner contract and
-`docs/agent-system/effort-supervision-validation.md` for exact limits.
+control/grant integration remain owner work. See the cross-owner contract in
+`docs/agent-system/EFFORT_SUPERVISION.md`.
 
 Restart also reconfirmed slow synchronous historical recovery before HTTP
 readiness (`main.go::startRecovery`); terminal-accounting warnings were retained,
@@ -243,8 +243,7 @@ Status: repaired and live-qualified for the bounded continuation case. After
 normal lifecycle adoption, run `3795a4d0-0ef7-45d4-a093-58c1361d7e5d` accepted
 the original directive `25755827-b98e-4a95-9e76-e5deda8aa23d` using its own
 signed identity (revision 4, `ACCEPTED`). No operator token or second directive
-was substituted. Failure, repair and qualification limits remain in
-`docs/agent-system/effort-supervision-validation.md`; this is not general crash
+was substituted. This is not general crash
 recovery or autonomous business-steering certification.
 
 ### Swarm engagement budget qualification — 2026-09-08

@@ -1,9 +1,7 @@
 import { create } from '@bufbuild/protobuf'
-import { timestampFromDate } from '@bufbuild/protobuf/wkt'
 import { EffortBoardSchema } from '@vrooli/proto-types/agent-manager/v1/domain/effort_pb'
-import { WatchActionKind } from '@vrooli/proto-types/agent-manager/v1/domain/watch_pb'
-import { act, fireEvent, render, screen, within } from '@/test-utils/renderWithProviders'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { fireEvent, render, screen, within } from '@/test-utils/renderWithProviders'
+import { beforeEach, expect, test, vi } from 'vitest'
 import { TeamEffortsPanel } from './TeamEffortsPanel'
 import type { EffortObservations } from '@/services/effortService'
 
@@ -20,7 +18,6 @@ const board = () => create(EffortBoardSchema, { partial: true, rows: [{
   assignments: [{ subject: { role: 'orchestrator', runId: 'run-one' }, requestedModel: 'requested-model', effectiveModel: 'actual-model' }],
 }] })
 beforeEach(() => { owner.data = undefined; owner.isPending = false; owner.isFetching = false; owner.error = null; owner.refetch.mockReset(); owner.calls = [] })
-afterEach(() => { vi.useRealTimers() })
 
 test('a complete authored team list does not establish whether a runtime leader binding exists', () => {
   owner.data = { boards: [board()], unavailable: [] }
@@ -35,33 +32,28 @@ test('a complete authored team list does not establish whether a runtime leader 
   expect(new URL(link.getAttribute('href')!).searchParams.get('effortRef')).toBe('effort:delivery/one')
 })
 
-test('a known finite leader binding is shown independently from authored links and supervisor observation', () => {
+test('a known finite leader binding is shown independently from authored links', () => {
   owner.data = { boards: [board()], unavailable: [] }
   const view = render(<TeamEffortsPanel team={{ id: 'delivery', displayName: 'Delivery' }} leaderEffortRefs={['effort:delivery/one']} />)
   expect(owner.calls[owner.calls.length - 1]?.effortRefs).toEqual(['effort:delivery/one'])
   expect(screen.getByText(/Finite leader binding for this team/)).toBeInTheDocument()
-  expect(screen.queryByText(/Observed by this team/)).toBeNull()
   expect(screen.queryByText(/Runtime leader binding coverage unknown/)).toBeNull()
-  view.rerender(<TeamEffortsPanel team={{ id: 'delivery', displayName: 'Delivery', effortRefs: ['effort:delivery/one'] }} leaderEffortRefs={['effort:delivery/one']} observedEffortRefs={['effort:delivery/one']} />)
+  view.rerender(<TeamEffortsPanel team={{ id: 'delivery', displayName: 'Delivery', effortRefs: ['effort:delivery/one'] }} leaderEffortRefs={['effort:delivery/one']} />)
   expect(screen.getByText(/Authored team relationship:/)).toHaveTextContent('Delivery')
   expect(screen.getByText(/Finite leader binding for this team/)).toBeInTheDocument()
-  expect(screen.getByText(/Observed by this team/)).toBeInTheDocument()
   expect(owner.calls[owner.calls.length - 1]?.effortRefs).toEqual(['effort:delivery/one'])
 })
 
-test('linked delivery and observation relationships keep schedule, execution, acceptance and models separate', () => {
+test('linked delivery relationships keep schedule, execution, acceptance and models separate', () => {
   const data = board()
-  data.rows[0]!.lastAssessment = create(EffortBoardSchema, { rows: [{ lastAssessment: { assessmentId: 'receipt-one', disposition: 'quiet', rationale: 'Waiting is justified', supervisorRunId: 'supervisor-one' } }] }).rows[0]!.lastAssessment
   owner.data = { boards: [data], unavailable: [] }
   const open = vi.fn()
-  render(<TeamEffortsPanel team={{ id: 'supervision', displayName: 'Supervision', purpose: 'supervision' }} teams={[{ id: 'delivery', displayName: 'Delivery team', effortRefs: ['effort:delivery/one'] }]} observedEffortRefs={['effort:delivery/one']} observationAvailable scheduled={{ enabled: true, summary: 'hourly' }} onOpenTeam={open} />)
+  render(<TeamEffortsPanel team={{ id: 'delivery', displayName: 'Delivery team', effortRefs: ['effort:delivery/one'] }} scheduled={{ enabled: true, summary: 'hourly' }} onOpenTeam={open} />)
   expect(owner.calls[owner.calls.length - 1]?.effortRefs).toEqual(['effort:delivery/one'])
   expect(screen.getByText(/Enabled · hourly/)).toBeInTheDocument()
   expect(screen.getByText('completed')).toBeInTheDocument()
   expect(screen.getByText('unverified · workspace self-report')).toBeInTheDocument()
   expect(screen.getByText(/Requested model: requested-model · effective model: actual-model/)).toBeInTheDocument()
-  expect(screen.getByText('Receipt receipt-one')).toBeInTheDocument()
-  expect(screen.getByText(/Observed by this team/)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Delivery team' }))
   expect(open).toHaveBeenCalledWith('delivery')
   expect(screen.getByRole('link', { name: 'Open orchestrator run' })).toHaveAttribute('href', 'https://example.test/apps/agent-manager/proxy/runs/run-one')
@@ -70,13 +62,7 @@ test('linked delivery and observation relationships keep schedule, execution, ac
 test('a supervisor purpose alone never infers supervision of every discovered effort', () => {
   render(<TeamEffortsPanel team={{ id: 'supervision', displayName: 'Supervision', purpose: 'supervision' }} />)
   expect(owner.calls[owner.calls.length - 1]?.effortRefs).toEqual([])
-  expect(screen.getByText(/Supervisor observation mapping unavailable/)).toBeInTheDocument()
   expect(screen.getByText(/This does not establish that the team has no work/)).toBeInTheDocument()
-})
-
-test('an owner supervision read failure remains visible for an unclassified legacy team', () => {
-  render(<TeamEffortsPanel team={{ id: 'legacy', displayName: 'Legacy' }} observationAvailable={false} observationError="lead: cannot read supervision reservation" />)
-  expect(screen.getByText(/Supervisor observation mapping unavailable/)).toHaveTextContent('lead: cannot read supervision reservation')
 })
 
 test('linked observations are paged before issuing requests and global pages retain owner cursors', () => {
@@ -104,15 +90,14 @@ test('owner outage and partial failures remain unknown, while successful empty p
   expect(screen.getByText(/No efforts returned on this page. Check discovery coverage/)).toBeInTheDocument()
 })
 
-test('a cached grant changes to expired at its expiry without another owner request', () => {
-  vi.useFakeTimers(); vi.setSystemTime(new Date('2026-09-12T15:00:00Z'))
+test.each([
+  ['discovered', {}, /Observation only; not enrolled by an owner/],
+  ['enrolled', { authorizedBy: 'operator' }, /Enrolled by operator/],
+  ['withdrawn', { authorizedBy: 'operator', withdrawn: true, withdrawalReason: 'closed' }, /Withdrawn: closed/],
+])('a %s effort names its enrollment owner', (_state, fields, text) => {
   const data = board()
-  Object.assign(data.rows[0]!.enrollment!, { authorizedBy: 'operator', permittedActions: [WatchActionKind.CONTINUE], authorityExpiresAt: timestampFromDate(new Date('2026-09-12T15:00:01Z')) })
+  Object.assign(data.rows[0]!.enrollment!, fields)
   owner.data = { boards: [data], unavailable: [] }
   render(<TeamEffortsPanel />)
-  const article = within(screen.getByRole('article'))
-  expect(article.getByText(/Recorded grant: continue/)).toBeInTheDocument()
-  act(() => { vi.advanceTimersByTime(1002) })
-  expect(article.queryByText(/Recorded grant:/)).toBeNull()
-  expect(article.getByText(/Expired.*steering unavailable/)).toBeInTheDocument()
+  expect(within(screen.getByRole('article')).getByText(text)).toBeInTheDocument()
 })

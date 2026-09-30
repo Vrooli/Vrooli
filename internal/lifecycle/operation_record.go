@@ -235,6 +235,23 @@ func (rec *startOperationRecorder) beginStep(name string, at time.Time) {
 	})
 }
 
+// markCompletedStep records work that finished before the recorder was
+// created. Explicit restarts intentionally stop before opening the durable
+// start-operation record, so the stop remains visible without delaying the
+// interruption boundary on registry I/O.
+func (rec *startOperationRecorder) markCompletedStep(name string, started, ended time.Time) {
+	if rec == nil {
+		return
+	}
+	started = started.UTC()
+	ended = ended.UTC()
+	rec.steps = append(rec.steps, scenarioruntime.StartOperationStep{
+		Name: name, Status: scenarioruntime.StartStepDone,
+		StartedAt: started, EndedAt: &ended,
+	})
+	rec.op.WithSteps(rec.steps)
+}
+
 // completeStep transitions a running step to the given terminal status and
 // returns its duration. No-op (false) when the step is not running.
 func (rec *startOperationRecorder) completeStep(name string, at time.Time, status string) (time.Duration, bool) {

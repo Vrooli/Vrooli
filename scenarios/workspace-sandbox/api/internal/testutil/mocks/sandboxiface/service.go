@@ -20,37 +20,33 @@ import (
 // FakeRepository / FakeDriver) suits the handler-test surface where
 // each test cares about exactly one or two service calls.
 type FakeService struct {
-	BeginProcessFn              func(context.Context, uuid.UUID) (*types.Sandbox, func(), error)
-	CaptureReviewSnapshotFn     func(context.Context, *types.ReviewSnapshotRequest) (*types.ReviewSnapshot, error)
-	GetReviewSnapshotFn         func(context.Context, uuid.UUID, uuid.UUID) (*types.ReviewSnapshot, error)
-	MaterializeReviewSnapshotFn func(context.Context, uuid.UUID, uuid.UUID, string) (*types.ReviewWorkspace, error)
-	FetchReviewFileFn           func(context.Context, uuid.UUID, uuid.UUID, string, string) ([]byte, error)
-	CreateFn                    func(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, error)
-	GetFn                       func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
-	ListFn                      func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error)
-	StopFn                      func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
-	StartFn                     func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
-	ResumeFn                    func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
-	DeleteFn                    func(ctx context.Context, id uuid.UUID) error
-	GetDiffFn                   func(ctx context.Context, id uuid.UUID) (*types.DiffResult, error)
-	ApproveFn                   func(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error)
-	ApplyAtRunEndFn             func(ctx context.Context, req *types.ApplyAtRunEndRequest) (*types.ApprovalResult, error)
-	TurnCheckpointFn            func(ctx context.Context, req *types.TurnCheckpointRequest) (*types.TurnCheckpointResult, error)
-	RejectFn                    func(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error)
-	DiscardFn                   func(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error)
-	GetWorkspacePathFn          func(ctx context.Context, id uuid.UUID) (string, error)
-	CheckConflictsFn            func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error)
-	RebaseFn                    func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error)
-	ValidatePathFn              func(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error)
-	GetPendingChangesFn         func(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error)
-	GetFileProvenanceFn         func(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error)
-	GetCommitPreviewFn          func(ctx context.Context, req *types.CommitPreviewRequest) (*types.CommitPreviewResult, error)
-	CommitPendingFn             func(ctx context.Context, req *types.CommitPendingRequest) (*types.CommitPendingResult, error)
-	MarkCommittedFn             func(ctx context.Context, req *types.MarkCommittedRequest) (*types.MarkCommittedResult, error)
-	GetProvenanceByRunFn        func(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error)
-	GetArchiveFn                func(ctx context.Context, sandboxID uuid.UUID) (*types.DiffResult, error)
-	FetchArchiveFileFn          func(ctx context.Context, sandboxID uuid.UUID, path string) ([]byte, error)
-	ListHistoryFn               func(ctx context.Context, filter types.ArchiveListFilter) ([]*types.DiffArchive, int, error)
+	BeginProcessFn       func(context.Context, uuid.UUID) (*types.Sandbox, func(), error)
+	CreateFn             func(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, error)
+	GetFn                func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
+	ListFn               func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error)
+	StopFn               func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
+	StartFn              func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
+	ResumeFn             func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
+	DeleteFn             func(ctx context.Context, id uuid.UUID) error
+	GetDiffFn            func(ctx context.Context, id uuid.UUID) (*types.DiffResult, error)
+	ApproveFn            func(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error)
+	ApplyAtRunEndFn      func(ctx context.Context, req *types.ApplyAtRunEndRequest) (*types.ApprovalResult, error)
+	TurnCheckpointFn     func(ctx context.Context, req *types.TurnCheckpointRequest) (*types.TurnCheckpointResult, error)
+	RejectFn             func(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error)
+	DiscardFn            func(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error)
+	GetWorkspacePathFn   func(ctx context.Context, id uuid.UUID) (string, error)
+	CheckConflictsFn     func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error)
+	RebaseFn             func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error)
+	ValidatePathFn       func(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error)
+	GetPendingChangesFn  func(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error)
+	GetFileProvenanceFn  func(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error)
+	GetCommitPreviewFn   func(ctx context.Context, req *types.CommitPreviewRequest) (*types.CommitPreviewResult, error)
+	CommitPendingFn      func(ctx context.Context, req *types.CommitPendingRequest) (*types.CommitPendingResult, error)
+	MarkCommittedFn      func(ctx context.Context, req *types.MarkCommittedRequest) (*types.MarkCommittedResult, error)
+	GetProvenanceByRunFn func(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error)
+	GetArchiveFn         func(ctx context.Context, sandboxID uuid.UUID) (*types.DiffResult, error)
+	FetchArchiveFileFn   func(ctx context.Context, sandboxID uuid.UUID, path string) ([]byte, error)
+	ListHistoryFn        func(ctx context.Context, filter types.ArchiveListFilter) ([]*types.DiffArchive, int, error)
 }
 
 func (s *FakeService) BeginProcess(ctx context.Context, id uuid.UUID) (*types.Sandbox, func(), error) {
@@ -61,34 +57,6 @@ func (s *FakeService) BeginProcess(ctx context.Context, id uuid.UUID) (*types.Sa
 	// explicitly or exercise the real service.
 	sb, err := s.Get(ctx, id)
 	return sb, func() {}, err
-}
-
-func (m *FakeService) CaptureReviewSnapshot(ctx context.Context, req *types.ReviewSnapshotRequest) (*types.ReviewSnapshot, error) {
-	if m.CaptureReviewSnapshotFn != nil {
-		return m.CaptureReviewSnapshotFn(ctx, req)
-	}
-	return nil, notImpl("CaptureReviewSnapshot")
-}
-
-func (m *FakeService) GetReviewSnapshot(ctx context.Context, sandboxID, requestID uuid.UUID) (*types.ReviewSnapshot, error) {
-	if m.GetReviewSnapshotFn != nil {
-		return m.GetReviewSnapshotFn(ctx, sandboxID, requestID)
-	}
-	return nil, notImpl("GetReviewSnapshot")
-}
-
-func (m *FakeService) MaterializeReviewSnapshot(ctx context.Context, sandboxID, requestID uuid.UUID, expectedSHA256 string) (*types.ReviewWorkspace, error) {
-	if m.MaterializeReviewSnapshotFn != nil {
-		return m.MaterializeReviewSnapshotFn(ctx, sandboxID, requestID, expectedSHA256)
-	}
-	return nil, notImpl("MaterializeReviewSnapshot")
-}
-
-func (m *FakeService) FetchReviewFile(ctx context.Context, sandboxID, requestID uuid.UUID, side, path string) ([]byte, error) {
-	if m.FetchReviewFileFn != nil {
-		return m.FetchReviewFileFn(ctx, sandboxID, requestID, side, path)
-	}
-	return nil, notImpl("FetchReviewFile")
 }
 
 // NewFakeService returns a fresh FakeService with all function pointers

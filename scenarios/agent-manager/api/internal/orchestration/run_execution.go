@@ -24,7 +24,6 @@ import (
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/runstate"
-	"agent-manager/internal/structuredresult"
 
 	agentconfig "agent-manager/internal/config"
 
@@ -81,9 +80,13 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
 		return nil, importedRunLifecycleError("continue")
 	}
-	resultSpec, err := continuationResultSpec(run, req.ResultSpec)
+	typed, err := o.typeIntoRunningSession(ctx, run, req)
 	if err != nil {
 		return nil, err
+	}
+	if typed {
+		effectsPossible = true
+		return o.attachRunActions(ctx, run), nil
 	}
 
 	if allowed, reason := domain.CanContinueRun(run); !allowed {
@@ -124,7 +127,7 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		return continued, nil
 	}
 	effectsPossible = true
-	continued, err := o.resumeConversation(ctx, run, req.Message, req.AttachmentIDs, "Continuation requested", continuationOverrides{MaxTurns: req.MaxTurns, MaxToolCalls: req.MaxToolCalls, Timeout: req.Timeout, ResultSpec: resultSpec})
+	continued, err := o.resumeConversation(ctx, run, req.Message, req.AttachmentIDs, "Continuation requested", continuationOverrides{MaxTurns: req.MaxTurns, MaxToolCalls: req.MaxToolCalls, Timeout: req.Timeout, ResultSpec: req.ResultSpec})
 	if err != nil {
 		if domain.IsPreEffectRefusal(err) {
 			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
@@ -137,28 +140,27 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 	return continued, nil
 }
 
-func continuationResultSpec(run *domain.Run, requested *domain.ResultSpec) (*domain.ResultSpec, error) {
-	digest := run.CustomEnv["VROOLI_REVIEW_SHA256"]
-	if digest == "" {
-		return requested, nil
+// typeIntoRunningSession delivers a continuation to a running interactive
+// session as its next user message; the harness queues it behind the current
+// turn. It reports false for every other run, which continues between turns.
+func (o *Orchestrator) typeIntoRunningSession(ctx context.Context, run *domain.Run, req ContinueRunRequest) (bool, error) {
+	if run.Status != domain.RunStatusRunning || run.ExecutionMode.Normalized() != domain.ExecutionModeInteractive || run.WebConsoleSessionID == "" || o.interactiveSessions == nil {
+		return false, nil
 	}
-	if run.ResolvedConfig == nil || run.ResolvedConfig.ResultSpec == nil {
-		return nil, domain.NewValidationError("resultSpec", "retained review has no persisted result contract")
+	if len(req.AttachmentIDs) > 0 || req.MaxTurns != nil || req.MaxToolCalls != nil || req.Timeout != nil || req.ResultSpec != nil || req.ReinstallGoal {
+		return false, domain.NewValidationError("continuationOverrides", "a running session accepts message text only")
 	}
-	retained, err := structuredresult.BindReviewCandidate(run.ResolvedConfig.ResultSpec, digest)
-	if err != nil {
-		return nil, err
-	}
-	if requested != nil {
-		bound, err := structuredresult.BindReviewCandidate(requested, digest)
-		if err != nil {
-			return nil, err
-		}
-		if bound.SchemaDigest != retained.SchemaDigest {
-			return nil, domain.NewValidationError("resultSpec", "continuation cannot replace the retained review contract")
+	if req.IdempotencyKey != "" && o.idempotency != nil {
+		if _, err := o.idempotency.Reserve(ctx, req.IdempotencyKey, time.Hour); err != nil {
+			return false, domain.NewStateError("Run", "continuing", "continue", "a continuation with this idempotency key is already in progress")
 		}
 	}
-	return retained, nil
+	text := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(req.Message, "\r\n", " "), "\n", " "))
+	if err := o.interactiveSessions.SendText(ctx, run.WebConsoleSessionID, text+"\n", interactiveRunSource(run.ID)); err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return false, err
+	}
+	return true, o.completeContinuationReceipt(ctx, req)
 }
 
 func (o *Orchestrator) completeContinuationReceipt(ctx context.Context, req ContinueRunRequest) error {
@@ -1767,9 +1769,6 @@ func (o *Orchestrator) VerifyIdentityToken(ctx context.Context, token string) (*
 	}
 	if run.IdentityTokenRevokedAt != nil {
 		return &IdentityVerifyResult{Valid: false, Error: "identity token has been revoked"}, nil
-	}
-	if err := o.checkSupervisorBinding(ctx, run, claims); err != nil {
-		return &IdentityVerifyResult{Valid: false, Error: "supervisor authorization is no longer active"}, nil
 	}
 
 	return &IdentityVerifyResult{

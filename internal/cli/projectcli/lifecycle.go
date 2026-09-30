@@ -374,12 +374,17 @@ func ParseLifecycleProtectArgs(args []string) ([]string, error) {
 }
 
 func parseLifecycleOptions(command string, args []string, helpText string) (projectsetup.Options, error) {
-	parsed, err := commandtree.ParseArgs(command, helpText, lifecycleOptionsSchema(), args)
+	schema := lifecycleOptionsSchema()
+	if command == "develop" {
+		schema = developOptionsSchema()
+	}
+	parsed, err := commandtree.ParseArgs(command, helpText, schema, args)
 	if err != nil {
 		return projectsetup.Options{}, err
 	}
 	opts := projectsetup.Options{DryRun: parsed.HasFlag("--dry-run")}
 	opts.BootstrapOnly = parsed.HasFlag("--bootstrap-only")
+	opts.RestartAPI = command == "develop" && parsed.HasFlag("--restart-api")
 	opts.CredentialPassphraseStdin = parsed.HasFlag("--credential-passphrase-stdin")
 	if value := strings.ToLower(strings.TrimSpace(parsed.FlagValue("--sudo-mode"))); value != "" {
 		switch value {
@@ -479,6 +484,12 @@ func lifecycleOptionsSchema() commandtree.ArgSchema {
 	}
 }
 
+func developOptionsSchema() commandtree.ArgSchema {
+	schema := lifecycleOptionsSchema()
+	schema.Options = append(schema.Options, commandtree.OptionArg{Name: "--restart-api", Description: "Restart only the managed project API after rebuilding it; scenarios and resources remain running"})
+	return schema
+}
+
 func StatusHelpText() string {
 	return commandtree.HelpText("", "vrooli status", "Show system health and status overview.", commandtree.Help{}, statusArgSchema())
 }
@@ -549,7 +560,7 @@ func SetupHelpText() string {
 }
 
 func DevelopHelpText() string {
-	return commandtree.HelpText("", "vrooli develop", "Start development servers with optional auto-setup.", commandtree.Help{}, lifecycleOptionsSchema())
+	return commandtree.HelpText("", "vrooli develop", "Start development servers with optional auto-setup.", commandtree.Help{}, developOptionsSchema())
 }
 
 func ProjectPhaseHelpText(phase string) string {

@@ -485,7 +485,6 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		OwnerScopes:              slices.Clone(req.OwnerScopes),
 		RequestedScopes:          slices.Clone(req.RequestedScopes),
 		OwnerExpiresAt:           req.OwnerExpiresAt,
-		DispatchBinding:          req.DispatchBinding,
 		Workload:                 workload,
 		Billing:                  billing,
 		SourceRunIDs:             req.SourceRunIDs,
@@ -849,18 +848,6 @@ func (o *Orchestrator) currentCandidateAllowed(ctx context.Context, cfg *domain.
 // resolveCreateRunIdentity authenticates before any reservation or dispatch.
 // Narrowing is never accepted as a substitute for verified authority.
 func (o *Orchestrator) resolveCreateRunIdentity(ctx context.Context, req *CreateRunRequest) error {
-	if req.DispatchBinding != nil {
-		if req.OwnerExpiresAt == nil || req.AgentProfileID == nil || o.supervisorDispatch == nil {
-			return domain.NewValidationError("authorization", "supervisor binding unavailable")
-		}
-		profile, err := o.profiles.Get(ctx, *req.AgentProfileID)
-		if err != nil || profile == nil {
-			return domain.NewValidationError("authorization", "supervisor profile unavailable")
-		}
-		if err := o.supervisorDispatch.CheckDispatchIdentity(ctx, &identity.Claims{DispatchEffortRef: req.DispatchBinding.EffortRef, DispatchAuthorizationID: req.DispatchBinding.AuthorizationID, Subject: req.OwnerSubject, Scopes: req.RequestedScopes, ProfileKey: profile.ProfileKey, ExpiresAt: req.OwnerExpiresAt.Unix()}); err != nil {
-			return err
-		}
-	}
 	if strings.TrimSpace(req.OwnerToken) != "" {
 		if o.ownerIdentity == nil {
 			return domain.NewConfigMissingError("owner_identity", "verifier not configured", nil)
@@ -909,9 +896,6 @@ func (o *Orchestrator) getIdentityBoundRunReplay(ctx context.Context, id uuid.UU
 func validateRunIdentityReplay(run *domain.Run, req CreateRunRequest) error {
 	if run == nil {
 		return domain.NewValidationError("idempotency_key", "original run unavailable")
-	}
-	if (run.DispatchBinding == nil) != (req.DispatchBinding == nil) || (run.DispatchBinding != nil && *run.DispatchBinding != *req.DispatchBinding) {
-		return domain.NewValidationError("idempotency_key", "supervisor dispatch binding differs from original admission")
 	}
 	// Historical unauthenticated requests persisted absent narrowing as [].
 	// They carry no owner grant; keep their ordinary recovery compatible.
@@ -1969,6 +1953,7 @@ func (o *Orchestrator) ListRuns(ctx context.Context, opts RunListOptions) ([]*do
 		ScopePrefix:               opts.ScopePrefix,
 		InvestigatesRunID:         opts.InvestigatesRunID,
 		AppliesInvestigationRunID: opts.AppliesInvestigationRunID,
+		ParentRunID:               opts.ParentRunID,
 	})
 	if err != nil {
 		return nil, err
@@ -1998,6 +1983,22 @@ func (o *Orchestrator) ListParkedRuns(ctx context.Context) ([]*domain.Run, error
 		full = append(full, loaded)
 	}
 	return full, nil
+}
+
+// ParkedRunsOnHandle returns the parked runs awaiting exactly producer and key,
+// so a caller that knows only the await key needs no run ID.
+func (o *Orchestrator) ParkedRunsOnHandle(ctx context.Context, producer, key string) ([]*domain.Run, error) {
+	parked, err := o.ListParkedRuns(ctx)
+	if err != nil {
+		return nil, err
+	}
+	matched := make([]*domain.Run, 0, 1)
+	for _, run := range parked {
+		if run.AwaitHandle != nil && run.AwaitHandle.Producer == producer && run.AwaitHandle.Key == key {
+			matched = append(matched, run)
+		}
+	}
+	return matched, nil
 }
 
 func (o *Orchestrator) DeleteRun(ctx context.Context, id uuid.UUID) error {

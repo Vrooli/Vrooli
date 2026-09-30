@@ -22,7 +22,7 @@ import (
 )
 
 // RunService owns run creation, lifecycle, recovery, and user-visible run
-// state. Its 22 methods stay below the per-domain contract limit.
+// state. Its 27 methods stay below the per-domain contract limit.
 type RunService interface {
 	CreateRun(context.Context, CreateRunRequest) (*domain.Run, error)
 	AttachRun(context.Context, AttachRunRequest) (*AttachRunResult, error)
@@ -43,6 +43,7 @@ type RunService interface {
 	ParkRunFromAgent(context.Context, ParkRunFromAgentRequest) (*ParkRunResult, error)
 	GetAwaitResult(context.Context, uuid.UUID) (*AwaitResult, error)
 	WakeRun(context.Context, WakeRunInput) (*domain.Run, error)
+	ParkedRunsOnHandle(context.Context, string, string) ([]*domain.Run, error)
 	RecoverRun(context.Context, uuid.UUID) (*RecoverResult, error)
 	DeleteRunMessage(context.Context, uuid.UUID, uuid.UUID) (*domain.RunEvent, error)
 	ResumeRun(context.Context, uuid.UUID) (*domain.Run, error)

@@ -25,7 +25,7 @@ selected bounded source identities are unchanged, and admit again when any
 selected identity changes. Admission evidence is runtime-only, stored beside
 the member heartbeat state rather than in `heartbeat.json`, so polling does not
 create configuration revisions. Manual triggers bypass this gate. Finite-leader
-and standing-supervision heartbeats retain their own admission protocols.
+heartbeats retain their own admission protocol.
 
 The gate is deliberately fail-open: if source evidence or its runtime baseline
 cannot be read, the scheduled run is admitted. A failed queue or execution does
@@ -39,184 +39,18 @@ they are not a billing or token budget. A fail-open caused by an unreadable
 state store cannot be persisted, so a missing or stale state file is unknown,
 not evidence of zero failures.
 
-## Standing effort supervision
+## Effort supervisor
 
-For the organizational model, read
-[departments, committees, and supervision](SWARM-MODEL.md#teams-departments-committees-and-supervision).
-This is a standing service supervising potentially finite efforts; it is not
-one long-lived agent or a replacement leader for each effort.
-
-`heartbeat.json.supervision` selects the standing admission policy described in
-[EFFORT_SUPERVISION.md](../../../../docs/agent-system/EFFORT_SUPERVISION.md),
-ES-09, ES-10 and ES-13. The existing scheduler supplies recovery ticks. Each
-tick first reconciles Agent Manager's bounded discovery projection and the exact
-pending supervisor run. Empty or unchanged evidence requires no prompt building
-or inference. Discovery continues after the last effort retires and after restart.
-
-Configuration specifies `discoveryLimit`, `maxEffortsPerWake` and
-`minWakeIntervalSeconds`; the heartbeat schedule sets discovery cadence. It does
-not name efforts, paths, providers or models. Agent Manager resolves its own
-protected discovery roots. The existing heartbeat profile resolves resource
-policy. Global/team engagement gates and member enabled state still apply.
-
-The consumer-owned `EffortSupervisionOwner` port returns a bounded joined
-discovery cut:
-stable effort ID, target revision, meaningful evidence revision, eligibility,
-owner wait reference, retirement standing, board reference, coverage and errors.
-Each selected row also carries its prior assessment, changed evidence references,
-usage, named waits and detail references. The heartbeat prompt uses this one
-owner read and follows detail references only when they can change the decision;
-it does not repeat full board or transcript reads. A server-owned dispatch
-authorization anchor is excluded by its typed authorization metadata and empty
-subject set, including when a supervisor run is attributed.
-Timestamps alone must not change evidence identity. Unknown, missing, conflicting
-and removed sources remain unavailable, never accepted completion. AM owns
-enrollment and directive fencing. PM stores only wake admission state.
-
-PM persists a wake identity before queue admission and the task identity before
-run dispatch. Queued, running, parked, missing and uncertain owner runs retain
-the reservation. Lost dispatch responses reconcile the original identity; they
-cannot authorize a replacement. Only exact terminal owner evidence releases it.
-Disable pauses new work while retaining the reservation. Deleting a standing
-heartbeat with unresolved wake state is refused; recreating it in ordinary mode
-must not bypass the original run's overlap fence. An owner may explicitly
-reconcile an unresolved wake through the typed recovery operation only after an
-exact task/run lookup; queued orphan tasks are cancelled, matching runs keep the
-fence, and the bounded receipt is retained in `reconciledWakes`.
-Terminal status (including success) is not an assessment receipt. PM reads AM's
-`last_assessment` for each selected effort and requires the exact wake idempotency
-key, supervisor run and target revision before marking evidence assessed. Only a
-matching `sample` receipt completes a healthy sample. Failed, cancelled and
-receipt-less attempts remain unassessed; their reservation is released with an
-explicit reopen disposition, cooldown and the same charged diagnostic allowance.
-Attempt ordering provides fairness without pretending that failed work was served.
-Recheck eligibility before dispatch so effort retirement fences queued work.
-Retirement of one effort leaves all other efforts eligible. Bounded selection
-serves the least recently attempted effort first, with stable-ID tie breaking.
-
-The standing policy extends the heartbeat admission seam. It does not change
-finite leader execution semantics. The owner scheduler and durable state are
-implementation; a disabled configuration or a prompt preview alone is not
-operational qualification. The main implementation owner performs scoped pilot
-activation after focused fake-owner/time tests; this work does not enable global
-heartbeat policy or mutate existing teams.
-
-When an enabled finite delivery team with at least one `effortRef` is admitted,
-Prompt Manager automatically arms the canonical `effort-supervision` team
-through the same scheduler. This transition is idempotent and schedules only
-the configured standing supervisor member; it never creates one supervisor per
-effort. An empty effort board leaves the standing team in cheap discovery-only
-idle. Disabling the last effort team does not silently disable the standing
-service; explicit lifecycle withdrawal remains the stop operation.
-
-The AM adapter consumes generated `AgentManagerService.GetEffortBoard` pages
-(at most 100 rows). AM's existing supervision scheduler owns discovery scans.
-PM admits non-withdrawn rows with valid effort and evidence identities
-for bounded observation, including stale/unavailable source cuts. Those cuts
-retain explicit freshness and observation-only standing: uncertainty can be
-assessed, but stale evidence cannot justify steering. An unknown accepted target
-is retained as an exact empty target revision in the assessment map and forces
-observation-only standing; it is not fabricated or excluded. A receipt must
-explicitly contain that map key even when its value is empty. Missing effort
-or evidence identity excludes the row with a diagnostic; it does not block a
-valid sibling. Unchanged stale evidence coalesces like any other assessed cut;
-healthy sampling does not turn an unavailable cut into a healthy sample. Subject
-runtime activity and subject waits do not suppress a supervisor wake. Target
-revision plus row `change_identity` identify a changed cut; enrollment CAS revision
-is bookkeeping, not a trigger. A separately persisted
-UUID identifies each wake. A new UUID is never minted to recover a lost dispatch.
-The row identity excludes the supervisor's own assessment/accounting changes;
-the full display cut may change independently. A receipt only covers the selected
-prior cut, never unrelated subject changes that arrive while a wake is running.
-
-Observation identity is provisioned by ordinary AM CreateRun, not by prompt text
-or a manually supplied owner credential. PM attaches one typed public, active,
-verified `WorkReference` per owner-selected effort, with relationship `supervisor`
-and the exact target revision. On a recurring wake, PM uses the supplied compact
-owner cut and exact target revision; AM atomically validates membership and
-revision, and PM rereads only a bounded compact detail when a material decision
-needs freshness. This grants no steering authority. AM persists these references and its
-discovery scheduler joins them as observed-supervisor membership. The run uses
-the ordinary AM-issued signed identity token to submit an assessment. Before the
-periodic join, AM can verify the exact persisted run references directly; pending
-board membership is not a reason to skip the receipt. A refused identity or target
-revision remains an explicit refusal, never a request for operator credentials. PM does
-not mint tokens, read signing keys, exchange a local human principal, maintain a
-private token store or forward broad owner credentials. Missing optional steering
-delegation never blocks observation.
-
-Stable `supervisorOwnerSubject`/`supervisorScope` delegation and actual permitted
-actions remain separate AM owner grants. PM does not provision these grants.
-Autonomous steering remains unavailable until its credential-authority route is
-qualified. The CreateRun work-reference transport and persistence must be present
-in the adopted AM build; Run/RunReport read fields alone do not qualify this path.
-
-The wake prompt supplies a typed assessment request skeleton and calls
-`agent-manager effort assess --request-file <request.json> --json` under the
-run's signed identity (`WATCH_AUTHORITY_FAMILY_PARENT`, the existing run-token
-enum, not a fabricated family). AM's receipt is authoritative; the team knowledge
-entry links it and cannot replace it. Evidence/rationale and unknown usage must
-be recorded honestly before submission.
-For this typed link, use the existing `prompt-manager team knowledge-add` facade
-with the runtime-selected team and `supervision-assessment/<wake-id>` topic. The
-facade encodes topic and runtime attribution into the team's existing Source
-Ledger corpus. A plain journal note has no such typed-topic envelope. Submit one
-concise link after AM acceptance, then finish. If linking fails, retain the AM
-receipt and the link failure; do not repeat assessment, scan repository-wide topic
-definitions or improvise another ledger. Linking failure does not erase AM's receipt.
-If AM refuses the exact run membership or target revision, retain that refusal and
-finish the wake without claiming a receipt. Discovery reconciliation is an
-operator-only owner operation; the supervisor must not invoke it or escalate
-credentials. Exact-run membership verification is an AM concern, not a private
-PM repair or a polling loop in the prompt.
-
-Optional `healthySampleIntervalSeconds` and `maxHealthySamplesPerWake` enable
-bounded independent sampling of unchanged eligible efforts. Zero disables
-sampling. Samples share normal cooldown and capacity gates, are identified in the
-wake prompt, and do not grant steering authority. With no eligible efforts,
-sampling cannot buy inference. The state response reports coverage, waits,
-sampling selections and any unresolved dispatch identity without reading AM.
-An admitted policy-selected sample remains required for a stopped or
-observation-only effort; perform it as diagnostic evidence and keep it separate
-from steering authority.
-
-`diagnosticAllowance` persists `maxWakesPerWindow`, `windowSeconds` and
-`accountingRef`. Its unit is attempted supervisor inference wakes, including
-healthy samples and uncertain dispatches; it does not claim a token/dollar cap.
-AM's qualified resource profile still limits each run. PM records discovery and
-owner-run read counts under the shared accounting reference even when idle.
-Each wake retains that reference, selected efforts, sampling reason and AM run ID.
-An exhausted window remains in `allowance-wait` with `allowanceResumesAt`; it
-reopens on the scheduler's configured window. Clock rollback cannot reset it.
-Pending uncertain runs retain the overlap fence across allowance windows.
-
-### Read status without confusing activity with success
-
-Use the owner views together:
-
-```bash
-prompt-manager team heartbeat effort-supervision effort-supervisor --json
-agent-manager effort board
-```
-
-The team/member selectors above identify the installed standing service, not
-an allowlist of supervised efforts. New subjects come from Agent Manager discovery.
-
-When the standing team is intentionally disabled, refresh its cached owner cut
-with `POST /teams/{teamId}/heartbeats/{agentId}/observe`. This operation may
-reconcile a terminal retained wake, then performs one bounded owner observation
-without queueing a prompt or invoking a model. A running or otherwise unresolved
-wake remains fenced and returns a conflict; use `TriggerHeartbeat` only when a
-dispatch is explicitly authorized.
-
-| Observation | Meaning and next read |
-|---|---|
-| `enabled: true` and a future `nextExecution` | Scheduling is configured. Also inspect engagement gates, lifecycle errors and the pending owner run; this alone proves neither execution nor success. |
-| `supervisionState.pending` | One wake is reserved. Its run/task IDs are the recovery identity, not an invitation to launch another supervisor. |
-| Reconciled assessment / increasing `sequence` | A selected evidence cut obtained an owner receipt. This measures supervision activity, not business outcomes or causal benefit. |
-| Idle/no-change or allowance wait | Intentional bounded scheduling. Discovery can continue without another inference run; retain the stated reopening condition. |
-| Active enrollment | The watch has not been withdrawn. It does not mean the orchestrator is running. |
-| Board `finished`, `unknown`, or legacy `loop_state=stopped` | Inspect orchestrator/worker coverage, outcome standing and stop reasons separately. Observer runs no longer imply business runtime; terminal executors still do not prove acceptance. |
+The `effort-supervision` team's `effort-supervisor` member is an ordinary
+member heartbeat: a daily schedule plus inbox wakes. An orchestrator that
+records a step-back, a repeated workaround or a spend spike sends the member one
+inbox message and triggers its heartbeat. `wakeAdmission: on-change` with the
+`inbox` source skips a scheduled wake whose inbox and team state are unchanged.
+The supervisor reads goal home files, steers through `FEEDBACK.md`, and records
+one knowledge entry per wake. The method is `large-effort-supervision`; the
+contract is [EFFORT_SUPERVISION.md](../../../../docs/agent-system/EFFORT_SUPERVISION.md).
+Prompt Manager has no supervisor-specific admission, dispatch or recovery path,
+and enabling a delivery team does not enable the supervision team.
 
 ### Effective execution state
 
@@ -242,49 +76,7 @@ All scheduled, manual, retry, and finite-leader dispatch paths re-check the
 team archive/enable state and heartbeat-control gates before starting work.
 
 The team dashboard labels local-log coverage separately and leaves total run
-counts and success rate unavailable. Standing supervisor runs can have owner
-receipts but no such files. Exact team-wide AM accounting still needs public,
-owner-verified team attribution; a generic `supervision-` tag is insufficient.
-Use retained run IDs and assessment receipts; empty logs are not no execution.
-
-Read one consequential stopped effort's current owner operation and acceptance
-checkpoint. A live producer wait, an exhausted allowance, missing authority, a
-failed runtime prerequisite, and an interrupted driver require different actions.
-An empty tmux listing does not prove absence of the driver or its children.
-Do not treat a repeatedly read old stop reason as freshly verified blocker evidence.
-
-### Recovery capability and current limits
-
-The supervisor's target includes detecting premature stops, questioning stale
-blockers, and selecting an authorized recovery. Current discovery and signed
-assessments qualify observation, not universal autonomous recovery.
-
-Agent Manager's effort-directive delivery continues an exact target at
-`needs_review`, or a failed run with an explicit CONTINUE grant, retained session
-and recovery hypothesis/comparison. Current source evidence, expiry and cumulative
-limits remain required. Active/parked targets retain their existing operation;
-cancelled/completed targets are not restarted. A CONTINUE grant does not make
-a missing session or failed legacy driver resumable. The route does not execute tmux
-commands or edit another effort's control files. See
-[Agent Manager's owner reference](../../../agent-manager/docs/reference/effort-supervision.md).
-
-Closing this gap requires an owner-backed leader/run binding, an attenuated
-grant, and a qualified recovery operation that reconciles unresolved effects
-before resuming. The assessment must name the recovery/repair owner and a
-testable reopening condition. Lack of steering authority restricts action; it
-does not make an observed failure healthy or prevent reporting that a claimed
-blocker may be stale. Source code containing a repair is not proof that the
-served runtime adopted it or that the original session can resume.
-
-Declared resolution sources and the generic legacy operator-answer source now
-contribute to AM's changed-evidence cut. The skill requires checking these before
-repeating a stopped checkpoint's wait. A fresh source without a current steering
-grant remains observation-only. Text claims are not credentials, permission or
-proof of a successful repair.
-
-Keep this distinction visible during adoption: "supervisor running" means the
-bounded observation loop is operating. It does not yet mean every stopped
-orchestrator will be diagnosed, repaired and restarted without intervention.
+counts and success rate unavailable; empty logs are not no execution.
 
 ## Finite effort leader binding
 
@@ -301,96 +93,56 @@ operations. An unused disabled heartbeat can acquire a binding; an ordinary
 heartbeat with execution history cannot silently change into a finite leader.
 
 The scheduler reserves before queueing and dispatch rechecks current controls.
-Unknown dispatch remains reserved. An owner run ending does not accept the effort
-or authorize a replacement. Recovery uses AM controls on the exact retained run.
+Unknown dispatch remains reserved. An owner run ending does not accept the
+effort; only an orchestrator leader is relaunched (see Orchestrator liveness).
 Setting `finiteLeader.retired=true` permanently fences future dispatch; disable
 and global/team pause retain the reservation. Retirement does not cancel a run.
-Identity and profile changes and binding deletion are refused. This minimum
-interface does not implement Aquila's unbuilt finite-team runtime or autonomous
-fresh-run recovery, and does not supply missing human deployment inputs.
+Identity and profile changes and binding deletion are refused.
 
-### Child cohorts, parking, and watchdogs
+### Orchestrator liveness
 
-Finite coordinators that delegate child runs use Agent Manager's durable cohort
-watch rather than a five-minute polling loop:
+A finite leader whose binding declares `"keepAlive": true` is a delivery
+orchestrator (`large-effort-orchestration`). Its heartbeat (about every 30
+minutes) only keeps it alive:
 
-1. Resolve the verified parent identity with `agent-manager run identity --json`.
-2. Create children with `agent-manager run create --parent-run-id <parent-run-id>`.
-3. Create one cohort watch with the parent run and the exact child run subjects.
-4. Park the parent with `agent-manager run park <parent-run-id> --producer supervision --key <watch-id>`.
-5. Let the watch wake the same parent when all children are terminal. The parent
-   reconciles the child results and cancels the settled watch.
+- While the orchestrator run is queued, running or parked, the tick observes it
+  and does nothing else.
+- When the run is terminal and the effort has no completion receipt, the tick
+  records the run in `restartHistory` (evidence `liveness-heartbeat:<status>`,
+  newest 20 kept), clears the reservation and queues one fresh leader. The new
+  run resumes from the goal home. One tick relaunches at most once.
+- A run that failed or ended within 30 minutes is short. Consecutive short
+  relaunches back off (30 minutes, then 1 hour after the previous relaunch);
+  after 3 the heartbeat stops relaunching and reports status
+  `relaunch-capped` with the reason in `error`. A healthy long run resets the
+  count; so does the explicit `Restart` operation, which is the way out of the
+  cap once the cause is repaired.
+- A completed, retired or disabled effort is never relaunched.
 
-The park deadline is a watchdog, not a replacement-run timer. A timeout wakes the
-same parent so it can classify active, terminal, missing, or uncertain children.
-The parent must not retry an uncertain child or create a fresh coordinator run.
-The supervision waiter and watch action path are server-owned and survive an
-Agent Manager restart. A finite coordinator that has no child cohort should end
-normally with a durable handoff; it should not claim to be parked.
+`keepAlive` is policy, not binding identity: it can be set on an existing
+binding with `heartbeat-bind-effort --update`.
 
-Implementation checkpoint (2026-09-12, scoped W3 repair): twelve finite-leader
-test functions pass with the race detector across heartbeat, store and teamconfig,
-alongside the existing atomic config-publication and standing-supervisor wiring
-regressions. They exercise concurrent admission, duplicate effort binding,
-restart, parked/queued/uncertain and terminal owners, lost task/run responses,
-retirement, member/team disable, global/team pause, exact work references,
-ordinary heartbeat history, AM-owned continuation observation and queue wiring.
-The initial expanded test runs exposed two fixture defects (missing `EnabledSet`
-and relation-store wiring); the corrected focused run passed. Command:
+Every other finite leader keeps one dispatch per effort: a terminal owner run
+neither accepts the effort nor authorizes a replacement, and recovery uses the
+explicit `Restart` operation on the exact retained run.
 
-```bash
-go test -race ./internal/heartbeat ./internal/store ./internal/teamconfig -run '^TestFiniteLeader|^TestHeartbeatConfigPublicationPreservesInFlightReaderSnapshot$|^TestStandingSupervisorWiringUsesExistingHeartbeatHistory$' -count=1 -timeout=90s
-```
+Leaders park instead of waiting in-turn. `agent-manager run park <run-id>
+--producer children --key <run-id> --timeout 15m` suspends the run with no token
+use. Agent Manager wakes the same run when any child run ends after the park, when
+the timer expires, or on `agent-manager run wake --key <run-id>`. The waiter is
+server-owned and survives an Agent Manager restart. A leader with no pending
+child ends its turn with a durable handoff; it does not claim to be parked.
 
-This is shared-worktree fixture evidence, not live migration qualification.
-The existing Connect `HeartbeatService.CreateHeartbeat` and `UpdateHeartbeat`
-accept the binding in their JSON `body`. The canonical `team heartbeat-bind-effort`
-command now provisions it disabled from a bounded request file; see the
-[CLI reference](../reference/heartbeat-cli.md#finite-effort-leader-provisioning).
-Remaining adoption work includes attenuated recurring authority and fresh
-grant/source validation, disposable live qualification, exact predecessor
-settlement, and useful-progress verification. The minimum runtime observes AM
-continuation; it does not schedule it. No driver, business run, heartbeat
-activation or scenario restart was performed for this checkpoint.
-
-Recurrence proposal pending owner integration: use the AM workflow's pinned
-definition digest, exact execution and node-attempt identities, and validated
-structured-result/wait/signal journal records. An explicitly selected continuation
-edge with a satisfied owner wait can dispatch under the exact effort grant;
-run termination alone cannot select an edge. An accepted retirement branch must
-retain its owner evidence. PM retains the workflow/admission reference in its
-existing heartbeat runtime state and provides a recovery tick; AM retains the
-workflow transitions, attempt idempotency and cumulative allowance.
-
-The currently implemented `agent-manager:supervisor-dispatch:v1` purpose grants
-`SupervisorScope` through `CreateSupervisorRun`. It does not establish finite
-coordinator authority or a purpose-bound workflow continuation operation. The
-finite integration must use an explicit owner grant for that role and propagate
-it through each workflow attempt. This proposal is not a claim that those owner
-extensions have shipped. Direct coordination with the dispatch owner remains
-unconfirmed: no native collaborator-message tool or verified Dirac inbox mapping
-was available to the finite-leader implementation session.
+Focused tests: `go test ./internal/heartbeat ./internal/store ./internal/teamconfig
+-run '^TestFiniteLeader|^TestOrchestratorHeartbeat'`.
 
 ### Team-native qualification boundary
 
 The finite-leader binding is part of one governed team-native effort start. A
-real effort must first have a finite delivery team, a validated operating
-contract, a registered Source Ledger scope, an exact accepted effort/revision,
-and a disposable qualification of the selected owner route. Qualification must
-show one controlled owner admission and reconcile PM's admission identity with
-the Agent Manager task, run, work reference and handoff/receipt. It must also
-exercise disable, pause, restart, uncertain dispatch, retirement and explicit
-completion/reopen boundaries without changing global heartbeat policy or
-another effort.
-
-The disposable qualification does not establish recurring continuation. A
-heartbeat tick may retain and observe an owner wait or uncertain identity, but
-it cannot choose a fresh run, invent authority, or replace a lost dispatch.
-Fresh-run recovery, accepted continuation authority, useful-progress evidence,
-and autonomous recurrence remain separate gates until their owner contracts are
-qualified. Keep the real finite effort disabled and unapproved when any gate is
-unqualified. The standing effort supervisor remains read-only observation of
-owner state; it is not the finite coordinator.
+real effort needs a finite delivery team, a validated operating contract, a
+registered Source Ledger scope and an exact accepted effort revision. Keep the
+team disabled until the operator starts the goal. The effort supervisor is not
+the finite leader.
 
 ## Engagement Auto-Pause
 

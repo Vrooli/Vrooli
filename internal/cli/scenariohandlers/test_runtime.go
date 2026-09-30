@@ -3,6 +3,7 @@ package scenariohandlers
 import (
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // thin glue layer; dot-import keeps wiring readable.
+	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -14,6 +15,12 @@ const (
 	testRuntimeHelp = "--help"
 	testRuntimeLogs = "logs"
 )
+
+// provisionGeneratedPackagesForTest is a seam for the thin CLI adapter. The
+// production implementation is the lifecycle owner; keeping it here prevents
+// scenario test from growing a second generated-artifact implementation while
+// allowing handler tests to prove the preflight is mandatory.
+var provisionGeneratedPackagesForTest = lifecycle.ProvisionGeneratedPackages
 
 // TestHandler routes `vrooli scenario test …`.
 //
@@ -43,6 +50,21 @@ func testRunHandler[C any](deps rootcli.HandlerDeps[C], ctx C, args []string) er
 	req, err := ParseTestRequest(deps.Globals(ctx).JSON, deps.Globals(ctx).Verbose, args)
 	if err != nil {
 		return err
+	}
+	if deps.HomeDir != nil {
+		home, err := deps.HomeDir(ctx)
+		if err != nil {
+			return err
+		}
+		// Keep machine-readable test output clean: generated-owner lifecycle
+		// diagnostics belong on stderr, while the verifier itself remains
+		// freshness-gated and therefore cheap when outputs are current.
+		if err := provisionGeneratedPackagesForTest(deps.Root(ctx), home, deps.Stderr(ctx), deps.Stderr(ctx)); err != nil {
+			return rootcli.RuntimeErrorf(
+				"run the owning generated-artifact lifecycle before scenario tests",
+				"generated-artifact preflight failed: %v", err,
+			)
+		}
 	}
 	if deps.LocateTestGenieCLI == nil || deps.RunSubprocess == nil {
 		return rootcli.RuntimeErrorf("Run `test-genie execute …` directly", "the test-genie CLI alias is not available in this context")

@@ -3,6 +3,7 @@ package heartbeat
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -22,10 +23,49 @@ type finiteFixture struct {
 	teams     *store.FileTeamStore
 	relations store.RelationStore
 	agent     *mockAgentClient
-	queue     *effortQueueFake
+	queue     *finiteQueueFake
+}
+
+// finiteQueueFake is the heartbeat queue seam: an enqueued member holds its
+// slot until OnComplete, which is what memberOccupied observes.
+type finiteQueueFake struct {
+	mu       sync.Mutex
+	enqueues int
+	queued   []string
+}
+
+func (q *finiteQueueFake) Enqueue(_ context.Context, teamID, agentID, _ string) (*EnqueueResult, error) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.enqueues++
+	q.queued = append(q.queued, agentID)
+	return &EnqueueResult{TeamID: teamID, AgentID: agentID, Status: "queued", Position: len(q.queued)}, nil
+}
+
+func (q *finiteQueueFake) Status(teamID string) TeamExecutionStatus {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return TeamExecutionStatus{TeamID: teamID, Queue: append([]string(nil), q.queued...)}
+}
+
+func (q *finiteQueueFake) OnComplete(_, agentID string) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	kept := q.queued[:0]
+	for _, id := range q.queued {
+		if id != agentID {
+			kept = append(kept, id)
+		}
+	}
+	q.queued = kept
 }
 
 func newFiniteFixture(t *testing.T) *finiteFixture {
+	t.Helper()
+	return newFiniteFixtureWithKeepAlive(t, false)
+}
+
+func newFiniteFixtureWithKeepAlive(t *testing.T, keepAlive bool) *finiteFixture {
 	t.Helper()
 	ctx := context.Background()
 	files := newFileStore(t, paths.RootsForTest(t))
@@ -45,7 +85,7 @@ func newFiniteFixture(t *testing.T) *finiteFixture {
 	}
 	cfg := &store.HeartbeatConfig{Enabled: true, Schedule: "@hourly", ProfileKey: "qualified-profile", FiniteLeader: &teamconfig.FiniteLeader{
 		EffortRef: "arbitrary:new-effort/42", AcceptedRevision: "accepted:revision/7", CoordinatorPromptRef: "prompt-manager://teams/committee/members/lead/heartbeat",
-		SourceRefs: []string{"owner:accepted-assignment/7"},
+		SourceRefs: []string{"owner:accepted-assignment/7"}, KeepAlive: keepAlive,
 	}}
 	if err := teams.SetHeartbeatConfig(ctx, "committee", "lead", cfg); err != nil {
 		t.Fatal(err)
@@ -56,7 +96,7 @@ func newFiniteFixture(t *testing.T) *finiteFixture {
 	agent := newMockAgentClient().WithCreateTaskResponse(&Task{ID: "task-1"}).WithCreateRunResponse(&Run{ID: "leader-1", TaskID: "task-1", Status: "running"})
 	agent.getRuns["leader-1"] = &Run{ID: "leader-1", TaskID: "task-1", Status: "running"}
 	executor := newTestExecutor(t, teams, agents, agent, t.TempDir(), nil, nil)
-	queue := &effortQueueFake{}
+	queue := &finiteQueueFake{}
 	f := &FiniteLeaderRuntime{Executor: executor, Queue: queue}
 	executor.FiniteLeader = f
 	return &finiteFixture{runtime: f, teams: teams, relations: files.Relations(), agent: agent, queue: queue}
@@ -107,7 +147,7 @@ func TestFiniteLeaderExactBindingAndConcurrentAdmission(t *testing.T) {
 		t.Fatal("normal coordinator prompt or accepted source references lost")
 	}
 	for _, guidance := range []string{
-		"durable owner reads", "independent, verifiable work", "Park or checkpoint", "final handoff", "explicit completion receipt",
+		"durable owner reads", "independent, verifiable work", "Park instead of waiting", "--producer children", "final handoff", "explicit completion receipt",
 		"planners or workers", "parent handoff identity", "Independent review is bounded work", "successful finite child stays terminal",
 	} {
 		if !strings.Contains(description, guidance) {
@@ -123,7 +163,7 @@ func TestFiniteLeaderRestartRetainsEveryOwnerDisposition(t *testing.T) {
 			original := f.dispatch(t)
 			f.agent.getRuns["leader-1"].Status = status
 			// Lose all ephemeral queue/runtime state. Persistent binding must win.
-			f.runtime = &FiniteLeaderRuntime{Executor: f.runtime.Executor, Queue: &effortQueueFake{}}
+			f.runtime = &FiniteLeaderRuntime{Executor: f.runtime.Executor, Queue: &finiteQueueFake{}}
 			for i := 0; i < 3; i++ {
 				state, err := f.runtime.Tick(context.Background(), "committee", "lead")
 				if err != nil || state.ID != original.ID || state.RunID != "leader-1" || state.Status != status {
@@ -148,7 +188,7 @@ func TestFiniteLeaderLostDispatchResponseReconcilesOnlyExactRun(t *testing.T) {
 		t.Fatalf("dispatch intent not durable: %+v", state)
 	}
 	f.agent.createRunErr = nil
-	f.runtime = &FiniteLeaderRuntime{Executor: f.runtime.Executor, Queue: &effortQueueFake{}}
+	f.runtime = &FiniteLeaderRuntime{Executor: f.runtime.Executor, Queue: &finiteQueueFake{}}
 	for _, rows := range []*ListRunsResponse{
 		{},
 		{HasMore: true},
@@ -364,7 +404,7 @@ func TestFiniteLeaderCompletionClosesQueuedDispatchAndSurvivesRestart(t *testing
 		t.Fatalf("manual trigger reopened completed work: %v", err)
 	}
 	// Lose ephemeral runtime state; the durable receipt must still refuse a tick.
-	restarted := &FiniteLeaderRuntime{Executor: f.runtime.Executor, Queue: &effortQueueFake{}}
+	restarted := &FiniteLeaderRuntime{Executor: f.runtime.Executor, Queue: &finiteQueueFake{}}
 	if _, err := restarted.Tick(ctx, "committee", "lead"); !errors.Is(err, store.ErrFiniteLeaderCompleted) {
 		t.Fatalf("hourly tick reopened completed work: %v", err)
 	}
@@ -475,5 +515,182 @@ func TestFiniteLeaderRestartRequiresTerminalOwnerAndPreservesHistory(t *testing.
 	}
 	if len(f.agent.createRunCalls) != 2 {
 		t.Fatalf("restart did not permit exactly one replacement run: %d", len(f.agent.createRunCalls))
+	}
+}
+
+func TestOrchestratorHeartbeatSkipsWhileTheLeaderIsLiveOrParked(t *testing.T) {
+	for _, status := range []string{"running", "parked", "queued"} {
+		t.Run(status, func(t *testing.T) {
+			f := newFiniteFixtureWithKeepAlive(t, true)
+			original := f.dispatch(t)
+			f.agent.getRuns["leader-1"].Status = status
+			enqueues := f.queue.enqueues
+			for i := 0; i < 3; i++ {
+				state, err := f.runtime.Tick(context.Background(), "committee", "lead")
+				if err != nil || state.ID != original.ID || state.RunID != "leader-1" {
+					t.Fatalf("a live orchestrator was replaced: %+v %v", state, err)
+				}
+			}
+			if f.queue.enqueues != enqueues || len(f.agent.createRunCalls) != 1 {
+				t.Fatalf("heartbeat did not skip a %s orchestrator: enqueues=%d runs=%d", status, f.queue.enqueues, len(f.agent.createRunCalls))
+			}
+		})
+	}
+}
+
+func TestOrchestratorHeartbeatRelaunchesATerminalLeaderFromTheGoalHome(t *testing.T) {
+	for _, status := range []string{"failed", "complete", "cancelled"} {
+		t.Run(status, func(t *testing.T) {
+			f := newFiniteFixtureWithKeepAlive(t, true)
+			original := f.dispatch(t)
+			run := f.agent.getRuns["leader-1"]
+			run.Status, run.StartedAt, run.EndedAt = status, "2026-09-29T10:00:00Z", "2026-09-29T11:00:00Z"
+			enqueues := f.queue.enqueues
+
+			state, err := f.runtime.Tick(context.Background(), "committee", "lead")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if state.ID == original.ID || state.DispatchStarted || state.RunID != "" || f.queue.enqueues != enqueues+1 {
+				t.Fatalf("terminal orchestrator was not relaunched once: state=%+v enqueues=%d", state, f.queue.enqueues)
+			}
+			if len(state.RestartHistory) != 1 || state.RestartHistory[0].RunID != "leader-1" || state.RestartHistory[0].Revision != "accepted:revision/7" {
+				t.Fatalf("relaunch did not retain the terminal run in restart history: %+v", state.RestartHistory)
+			}
+			// The queued relaunch dispatches a fresh leader run on the same binding.
+			f.agent.WithCreateRunResponse(&Run{ID: "leader-2", TaskID: "task-1", Status: "running"})
+			f.agent.getRuns["leader-2"] = &Run{ID: "leader-2", TaskID: "task-1", Status: "running"}
+			if _, err := f.runtime.Executor.Execute(context.Background(), "committee", "lead", ""); err != nil {
+				t.Fatal(err)
+			}
+			relaunched, _ := f.teams.ReadFiniteLeader(context.Background(), "committee", "lead")
+			if relaunched.RunID != "leader-2" || len(f.agent.createRunCalls) != 2 {
+				t.Fatalf("relaunch did not dispatch a new orchestrator: %+v", relaunched)
+			}
+			// A second tick sees the live replacement and skips.
+			if _, err := f.runtime.Tick(context.Background(), "committee", "lead"); err != nil || f.queue.enqueues != enqueues+1 {
+				t.Fatalf("heartbeat relaunched a live replacement: enqueues=%d err=%v", f.queue.enqueues, err)
+			}
+		})
+	}
+}
+
+func TestOrchestratorHeartbeatNeverRelaunchesACompletedEffort(t *testing.T) {
+	f := newFiniteFixtureWithKeepAlive(t, true)
+	state := f.dispatch(t)
+	run := f.agent.getRuns[state.RunID]
+	run.Status, run.EndedAt = "complete", "2026-09-29T11:00:00Z"
+	if _, _, err := f.runtime.Complete(context.Background(), "committee", "lead", "accepted:revision/7", "owner:completion/1"); err != nil {
+		t.Fatal(err)
+	}
+	enqueues := f.queue.enqueues
+	if _, err := f.runtime.Tick(context.Background(), "committee", "lead"); err != nil && !errors.Is(err, store.ErrFiniteLeaderCompleted) {
+		t.Fatal(err)
+	}
+	if f.queue.enqueues != enqueues || len(f.agent.createRunCalls) != 1 {
+		t.Fatal("a completed effort's orchestrator was relaunched")
+	}
+}
+
+// finishLeader ends the current leader run after the given duration.
+func (f *finiteFixture) finishLeader(t *testing.T, status string, duration time.Duration) string {
+	t.Helper()
+	state, err := f.teams.ReadFiniteLeader(context.Background(), "committee", "lead")
+	if err != nil || state.RunID == "" {
+		t.Fatalf("no dispatched leader to finish: %+v %v", state, err)
+	}
+	started := time.Date(2026, 9, 29, 10, 0, 0, 0, time.UTC)
+	run := f.agent.getRuns[state.RunID]
+	run.Status, run.StartedAt, run.EndedAt = status, started.Format(time.RFC3339), started.Add(duration).Format(time.RFC3339)
+	return state.RunID
+}
+
+// relaunchNext dispatches the queued relaunch as the next leader run.
+func (f *finiteFixture) relaunchNext(t *testing.T, runID string) {
+	t.Helper()
+	f.agent.WithCreateRunResponse(&Run{ID: runID, TaskID: "task-1", Status: "running"})
+	f.agent.getRuns[runID] = &Run{ID: runID, TaskID: "task-1", Status: "running"}
+	if _, err := f.runtime.Executor.Execute(context.Background(), "committee", "lead", ""); err != nil {
+		t.Fatal(err)
+	}
+	f.queue.OnComplete("committee", "lead")
+}
+
+// backdateLastRestart moves the newest restart record past any backoff window.
+func (f *finiteFixture) backdateLastRestart(t *testing.T) {
+	t.Helper()
+	err := f.teams.WithFiniteLeader(context.Background(), "committee", "lead", func(_ *store.HeartbeatConfig, state *store.FiniteLeaderState, save func() error) error {
+		state.RestartHistory[len(state.RestartHistory)-1].RestartedAt = time.Now().UTC().Add(-24 * time.Hour).Format(time.RFC3339Nano)
+		return save()
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFiniteLeaderWithoutKeepAliveIsNeverRelaunched(t *testing.T) {
+	f := newFiniteFixture(t)
+	f.dispatch(t)
+	f.finishLeader(t, "failed", time.Minute)
+	enqueues := f.queue.enqueues
+	state, err := f.runtime.Tick(context.Background(), "committee", "lead")
+	if err != nil || state.RunID != "leader-1" || len(state.RestartHistory) != 0 || f.queue.enqueues != enqueues {
+		t.Fatalf("one-dispatch leader was relaunched: %+v %v", state, err)
+	}
+}
+
+func TestOrchestratorHeartbeatBacksOffAndCapsShortRelaunches(t *testing.T) {
+	ctx := context.Background()
+	f := newFiniteFixtureWithKeepAlive(t, true)
+	f.dispatch(t)
+	f.queue.OnComplete("committee", "lead")
+	for i := 1; i <= livenessMaxRelaunches; i++ {
+		f.finishLeader(t, "failed", time.Minute)
+		if i > 1 {
+			enqueues := f.queue.enqueues
+			state, err := f.runtime.Tick(ctx, "committee", "lead")
+			if err != nil || f.queue.enqueues != enqueues || !strings.Contains(state.Error, "backing off") {
+				t.Fatalf("relaunch %d ignored backoff: %+v %v", i, state, err)
+			}
+			f.backdateLastRestart(t)
+		}
+		state, err := f.runtime.Tick(ctx, "committee", "lead")
+		if err != nil || state.ConsecutiveRelaunches != i || state.DispatchStarted {
+			t.Fatalf("short run %d was not relaunched: %+v %v", i, state, err)
+		}
+		f.relaunchNext(t, fmt.Sprintf("leader-%d", i+1))
+	}
+	f.finishLeader(t, "failed", time.Minute)
+	f.backdateLastRestart(t)
+	enqueues := f.queue.enqueues
+	capped, err := f.runtime.Tick(ctx, "committee", "lead")
+	if err != nil || capped.Status != livenessCappedStatus || capped.RunID == "" || f.queue.enqueues != enqueues {
+		t.Fatalf("relaunch cap not enforced and surfaced: %+v %v", capped, err)
+	}
+	// The explicit restart operation is the way out of the cap.
+	if err := f.runtime.Restart(ctx, "committee", "lead", "accepted:revision/7", "evidence:supervisor/repair"); err != nil {
+		t.Fatal(err)
+	}
+	restarted, _ := f.teams.ReadFiniteLeader(ctx, "committee", "lead")
+	if restarted.ConsecutiveRelaunches != 0 {
+		t.Fatalf("explicit restart did not reset the relaunch count: %+v", restarted)
+	}
+}
+
+func TestOrchestratorHeartbeatHealthyLongRunResetsTheCap(t *testing.T) {
+	ctx := context.Background()
+	f := newFiniteFixtureWithKeepAlive(t, true)
+	f.dispatch(t)
+	err := f.teams.WithFiniteLeader(ctx, "committee", "lead", func(_ *store.HeartbeatConfig, state *store.FiniteLeaderState, save func() error) error {
+		state.ConsecutiveRelaunches = livenessMaxRelaunches
+		return save()
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.finishLeader(t, "complete", 2*livenessHealthyRunDuration)
+	state, err := f.runtime.Tick(ctx, "committee", "lead")
+	if err != nil || state.ConsecutiveRelaunches != 1 || state.DispatchStarted {
+		t.Fatalf("healthy long run did not reset the relaunch cap: %+v %v", state, err)
 	}
 }

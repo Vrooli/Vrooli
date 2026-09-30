@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "workspace-sandbox",
-  "input_digest": "sha256:616dee28c310b0766fc2b64c1f9dcab2b26e686d1b9bab63bd011dad618d01fb",
+  "input_digest": "sha256:974e4564615bd80d0d494e9379fa3ca70d3331529d5e4039fe5080112b4620c6",
   "input_files": [
     "schemas/workspace-sandbox/v1/domain/applied_change.proto",
     "schemas/workspace-sandbox/v1/workspace/workspace.proto"
@@ -18,17 +18,17 @@
   },
   "outputs": {
     "gen/go/workspace-sandbox/v1/domain/applied_change.pb.go": "sha256:f5bb929192bb766d0536304d3aeaf6b1f1f750e9587015eb8f6af2738475c145",
-    "gen/go/workspace-sandbox/v1/workspace/workspace.pb.go": "sha256:37ea9c7a307ed8a6aa95930c5703923ee9d4f7646768c4f3c34e62dc9d457024",
-    "gen/go/workspace-sandbox/v1/workspace/workspaceconnect/workspace.connect.go": "sha256:f3eb87b54a3190d01f73ad9abba132fdee578f5617a55bd89fbe1a6a679138fa",
+    "gen/go/workspace-sandbox/v1/workspace/workspace.pb.go": "sha256:d84a61693b3960225a008e0549d146c4f57b5a2a9e3328eb8fec47eb66d99092",
+    "gen/go/workspace-sandbox/v1/workspace/workspaceconnect/workspace.connect.go": "sha256:bce83d48894f01f95c874c6cf869c9c72a83543cb366995db0f0f0f3824840ac",
     "gen/python/workspace_sandbox/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/workspace_sandbox/v1/domain/applied_change_pb2.py": "sha256:f8a0ce8f0ca990acc11723d9c8257f1f7b359bf3fd1d0399b87e9a7a32ca70ab",
     "gen/python/workspace_sandbox/v1/domain/applied_change_pb2.pyi": "sha256:6eac7c97bf1888aa72a5e8fef01b9dae33522cc42081fb6ed65d36831702f528",
     "gen/python/workspace_sandbox/v1/domain/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/workspace_sandbox/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/workspace_sandbox/v1/workspace/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/workspace_sandbox/v1/workspace/workspace_pb2.py": "sha256:3a9a62b97a691484a32554e1dc8c1f8d2b0e835aae033590f60effe335d34b72",
-    "gen/python/workspace_sandbox/v1/workspace/workspace_pb2.pyi": "sha256:21d7a88fbdcf08787a9cb422e4063d140250f39327faab66ee1c024eb10a8ea8",
+    "gen/python/workspace_sandbox/v1/workspace/workspace_pb2.py": "sha256:b7fba52d310fed23372709ce28b6f84874ea5e954a5cae5eabb94147883344df",
+    "gen/python/workspace_sandbox/v1/workspace/workspace_pb2.pyi": "sha256:2b836cc49cc66a66e312f34bc81a7734911d2e0491e5976161e967315d6ff020",
     "gen/typescript/workspace-sandbox/v1/domain/applied_change_pb.ts": "sha256:3cdf2fd65d4709b76e108dbf894e99b97674ac7dd08415c1faa258ae67c37ddd",
-    "gen/typescript/workspace-sandbox/v1/workspace/workspace_pb.ts": "sha256:f3127d16bf8d61dc2a95d108ead499bb750e84b09d86460a364af08d331f0a4a"
+    "gen/typescript/workspace-sandbox/v1/workspace/workspace_pb.ts": "sha256:bb0c15c045019fc8332691e59e25cbc060566a745e23abf0a012b187440940d6"
   }
 }

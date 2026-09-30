@@ -4,6 +4,8 @@ module.exports = {
   maxWorkers: 1,
   roots: ['<rootDir>/tests'],
   testMatch: ['**/*.test.ts'],
+  // Journeys need a running shadow BAS; they run only through jest.journeys.config.js.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/tests/journeys/'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup/silent-logger.ts'],
   collectCoverage: true,
   // Browser-bound evaluate callbacks must remain free of Node-only counters.

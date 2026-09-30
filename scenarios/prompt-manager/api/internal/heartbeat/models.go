@@ -14,10 +14,7 @@ type HeartbeatConfigResponse struct {
 	FiniteLeader            *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
 	FiniteLeaderState       *store.FiniteLeaderState  `json:"finiteLeaderState,omitempty"`
 	FiniteLeaderError       string                    `json:"finiteLeaderError,omitempty"`
-	Supervision             *teamconfig.Supervision   `json:"supervision,omitempty"`
 	WakeAdmission           *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
-	SupervisionState        *SupervisionState         `json:"supervisionState,omitempty"`
-	SupervisionError        string                    `json:"supervisionError,omitempty"`
 	TeamID                  string                    `json:"teamId"`
 	AgentID                 string                    `json:"agentId"`
 	Enabled                 bool                      `json:"enabled"`
@@ -52,7 +49,6 @@ type HeartbeatExecResultDTO struct {
 // CreateHeartbeatRequest is the request body for creating a heartbeat config
 type CreateHeartbeatRequest struct {
 	FiniteLeader   *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
-	Supervision    *teamconfig.Supervision   `json:"supervision,omitempty"`
 	WakeAdmission  *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
 	Schedule       string                    `json:"schedule"`                 // Cron expression (required)
 	ProfileKey     string                    `json:"profileKey,omitempty"`     // Optional profile key override
@@ -63,7 +59,6 @@ type CreateHeartbeatRequest struct {
 // UpdateHeartbeatRequest is the request body for updating a heartbeat config
 type UpdateHeartbeatRequest struct {
 	FiniteLeader   *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
-	Supervision    *teamconfig.Supervision   `json:"supervision,omitempty"`
 	WakeAdmission  *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
 	Schedule       *string                   `json:"schedule,omitempty"`
 	ProfileKey     *string                   `json:"profileKey,omitempty"`
@@ -88,16 +83,6 @@ type FiniteEffortTransition struct {
 // TriggerHeartbeatRequest is the request body for manually triggering a heartbeat
 type TriggerHeartbeatRequest struct {
 	// No fields needed for now - could add prompt override later
-}
-
-// ReconcileSupervisionRequest is an explicit owner receipt for an uncertain
-// standing-supervision dispatch. It never authorizes a replay; it only closes
-// a durable fence after the owner has checked the exact wake identity and
-// retained bounded evidence for the disposition.
-type ReconcileSupervisionRequest struct {
-	WakeID       string   `json:"wakeId"`
-	EvidenceRefs []string `json:"evidenceRefs"`
-	Reason       string   `json:"reason"`
 }
 
 // TriggerHeartbeatResponse is the response for manual trigger

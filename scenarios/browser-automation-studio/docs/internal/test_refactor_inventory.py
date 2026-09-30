@@ -57,6 +57,39 @@ class InventoryTest(unittest.TestCase):
         self.assertEqual((1, 5), (all_selected["untracked_runtime_files"], all_selected["untracked_runtime_lines"]))
         self.assertNotEqual(tracked_only["source_digest_sha256"], inclusive["source_digest_sha256"])
 
+    def test_no_git_walks_filesystem_without_git(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            scenario = root / "scenarios/browser-automation-studio"
+            files = {
+                "api/automation/runtime.go": "package automation\n\n// runtime\n",
+                "api/automation/runtime_test.go": "package automation\n// test\n",
+                "ui/src/view.tsx": "export const view = 1;\n",
+                "ui/node_modules/dep/index.js": "module.exports = 1;\n",
+                "ui/.cache/cached.ts": "export {};\n",
+                "data/snapshot.py": "print('runtime output')\n",
+            }
+            for relative, contents in files.items():
+                target = scenario / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(contents)
+
+            with (
+                patch.object(refactor_inventory, "ROOT", root),
+                patch.object(refactor_inventory, "SCENARIO", scenario),
+                patch.object(refactor_inventory, "git", side_effect=AssertionError("git must not run")),
+            ):
+                report = refactor_inventory.inventory(no_git=True)
+
+        self.assertEqual({"api", "ui"}, set(report["surfaces"]))
+        self.assertEqual((2, 5, 1, 3), tuple(report["surfaces"]["api"][key] for key in (
+            "selected_source_files", "selected_source_lines", "runtime_files", "runtime_lines")))
+        self.assertEqual(1, report["surfaces"]["ui"]["runtime_lines"])
+        self.assertNotIn("tracked_source_files", report["surfaces"]["api"])
+        self.assertNotIn("head", report)
+        self.assertNotIn("scenario_worktree_status", report)
+        self.assertTrue(report["method"]["no_git"])
+
 
 if __name__ == "__main__":
     unittest.main()

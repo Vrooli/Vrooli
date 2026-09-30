@@ -150,10 +150,17 @@ func newService[C any](deps rootcli.HandlerDeps[C], ctx C, format cliout.Format)
 	if format != cliout.FormatHuman {
 		stdout = stderr
 	}
+	var homeDir func() (string, error)
+	if deps.HomeDir != nil {
+		homeDir = func() (string, error) {
+			return deps.HomeDir(ctx)
+		}
+	}
 	return packageapp.Service{
-		Root:   deps.Root(ctx),
-		Stdout: stdout,
-		Stderr: stderr,
+		Root:    deps.Root(ctx),
+		Stdout:  stdout,
+		Stderr:  stderr,
+		HomeDir: homeDir,
 		ScenarioService: func() (packageapp.ScenarioRuntime, error) {
 			if deps.PackageScenarioOperations == nil {
 				return nil, nil

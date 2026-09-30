@@ -232,6 +232,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/resume-from-failed", h.ResumeFromFailedRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs", h.ListRuns).Methods("GET")
 	r.HandleFunc("/api/v1/runs/stop-all", h.StopAllRuns).Methods("POST")    // Must be before /{id}
+	r.HandleFunc("/api/v1/runs/wake-by-key", h.WakeParkedRuns).Methods("POST")
 	r.HandleFunc("/api/v1/runs/quiesce", h.QuiesceScenario).Methods("POST") // Must be before /{id}
 	r.HandleFunc("/api/v1/runs/tag/{tag}", h.GetRunByTag).Methods("GET")
 	r.HandleFunc("/api/v1/runs/tag/{tag}/stop", h.StopRunByTag).Methods("POST")

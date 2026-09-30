@@ -72,11 +72,6 @@ type ServiceAPI interface {
 	// GetDiff generates a diff for the sandbox changes.
 	GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult, error)
 
-	CaptureReviewSnapshot(ctx context.Context, req *types.ReviewSnapshotRequest) (*types.ReviewSnapshot, error)
-	GetReviewSnapshot(ctx context.Context, sandboxID, requestID uuid.UUID) (*types.ReviewSnapshot, error)
-	MaterializeReviewSnapshot(ctx context.Context, sandboxID, requestID uuid.UUID, expectedSHA256 string) (*types.ReviewWorkspace, error)
-	FetchReviewFile(ctx context.Context, sandboxID, requestID uuid.UUID, side, path string) ([]byte, error)
-
 	// Approve applies sandbox changes to the canonical repo.
 	// Returns StateError if sandbox cannot be approved.
 	Approve(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error)

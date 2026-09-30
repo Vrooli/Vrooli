@@ -157,6 +157,9 @@ func (r *Runner) runPhaseDetailed(name, phaseName string, opts PhaseOptions, sto
 		r.logError("Failed to load scenario for phase", err, logx.AttrScenario, name, logx.AttrPhase, phaseName)
 		return PhaseResult{}, err
 	}
+	if item, err = r.withSourceLayout(item); err != nil {
+		return PhaseResult{}, err
+	}
 	release, err := r.acquireScenarioLock(item.Slug)
 	if err != nil {
 		wrapped := fmt.Errorf("scenario %q phase %q blocked by concurrent lifecycle operation: %w", item.Slug, phaseName, err)
@@ -234,8 +237,8 @@ func (r *Runner) runPhaseDetailed(name, phaseName string, opts PhaseOptions, sto
 	}
 
 	var result PhaseResult
-	logPath, _ := process.ScenarioLifecycleLogPath(r.Home, item.Slug)
-	meta, runErr := r.runWithLifecycleLog(lifecycleLogContext{Scenario: item.Slug, Operation: "phase", Phase: phaseName, RunID: strings.TrimSpace(opts.RunID)}, func(logWriter, childWriter io.Writer) error {
+	logPath, _ := process.ScenarioLifecycleLogPath(r.Home, instanceLogName(item))
+	meta, runErr := r.runWithLifecycleLog(lifecycleLogContext{Scenario: instanceLogName(item), Operation: "phase", Phase: phaseName, RunID: strings.TrimSpace(opts.RunID)}, func(logWriter, childWriter io.Writer) error {
 		var executeErr error
 		result, executeErr = r.executePhaseDetailed(ctx, item, phaseName, env, logWriter, childWriter, false)
 		return executeErr
@@ -314,6 +317,16 @@ func (r *Runner) executePhaseDetailed(ctx context.Context, item scenario.Scenari
 	}
 	setupLockRelease := func() {}
 	if phaseName == phasesSetup {
+		// Reconcile repository-level generated owners before taking the
+		// scenario-sized Proto lock. This is the lifecycle boundary shared by
+		// starts, explicit setup, and test preparation; keeping it here avoids
+		// teaching individual consumers (or Test Genie) how to regenerate a
+		// schema, selector, registry, descriptor, or runtime bundle. The
+		// preflight acquires its own owner lock, so it must run before the
+		// phase-sized lock to avoid lock inversion.
+		if err := ProvisionGeneratedPackages(r.Root, r.Home, childWriter, logWriter); err != nil {
+			return result, fmt.Errorf("provision repository-generated packages: %w", err)
+		}
 		var lockErr error
 		setupLockRelease, lockErr = r.acquireProtoSetupLock(ctx, item, env, logWriter)
 		if lockErr != nil {
@@ -343,7 +356,7 @@ func (r *Runner) executePhaseDetailed(ctx context.Context, item scenario.Scenari
 		}
 	}
 	steps := declaredPhaseSteps(item.Manifest, phaseName, phase.Steps)
-	lifecycleLogPath, err := process.ScenarioLifecycleLogPath(r.Home, item.Slug)
+	lifecycleLogPath, err := process.ScenarioLifecycleLogPath(r.Home, instanceLogName(item))
 	if err != nil {
 		return result, err
 	}
@@ -760,7 +773,7 @@ func (r *Runner) buildDeclaredComponentsSerial(ctx context.Context, item scenari
 		if !exists || spec.Reserved {
 			return executed, fmt.Errorf("component %s has no executable builder %q", name, component.Build.Kind)
 		}
-		targets, targetErr := componentBuildTargets(name, item.Path, item.Slug, component, spec, runtimeGOOS())
+		targets, targetErr := componentBuildTargets(name, item.SourcePath(), item.Slug, component, spec, runtimeGOOS())
 		if targetErr != nil {
 			return executed, targetErr
 		}
@@ -781,14 +794,14 @@ func (r *Runner) buildDeclaredComponentsSerial(ctx context.Context, item scenari
 				}
 			}
 		}
-		install, _, installErr := installNeeded(r.Root, item.Path, component, spec, &deps)
+		install, _, installErr := installNeeded(r.Root, item.SourcePath(), component, spec, &deps)
 		if installErr != nil {
 			return executed, fmt.Errorf("component %s install inputs: %w", name, installErr)
 		}
 		if forceSetup && len(spec.Install) > 0 {
 			install = true
 		}
-		buildDir, dirErr := componentWorkingDir(item.Path, component.Build.Dir)
+		buildDir, dirErr := componentWorkingDir(item.SourcePath(), component.Build.Dir)
 		if dirErr != nil {
 			return executed, fmt.Errorf("component %s build directory: %w", name, dirErr)
 		}
@@ -816,7 +829,7 @@ func (r *Runner) buildDeclaredComponentsSerial(ctx context.Context, item scenari
 			if err := r.runForegroundStep(ctx, item, phasesSetup, step, env, writer); err != nil {
 				return executed, fmt.Errorf("build component %s: %w", name, err)
 			}
-			if err := recordInstallDigest(r.Root, item.Path, component, spec, &deps); err != nil {
+			if err := recordInstallDigest(r.Root, item.SourcePath(), component, spec, &deps); err != nil {
 				return executed, fmt.Errorf("component %s install digest: %w", name, err)
 			}
 			executed++
@@ -905,7 +918,7 @@ func (r *Runner) buildDeclaredComponentsSerial(ctx context.Context, item scenari
 }
 
 func (r *Runner) componentIsFresh(ctx context.Context, item scenario.Scenario, name string, component scenario.Component) (bool, error) {
-	artifacts, err := componentFreshnessArtifactsContextWithName(ctx, item.Path, r.Root, item.Slug, name, component, r.hostProbeDeps())
+	artifacts, err := componentFreshnessArtifactsContextWithName(ctx, item.SourcePath(), r.Root, item.Slug, name, component, r.hostProbeDeps())
 	if err != nil {
 		return false, err
 	}
@@ -978,7 +991,7 @@ func (r *Runner) startTrackedProcessContext(ctx context.Context, item scenario.S
 		if err := r.waitForComponentDependencies(item, component, env); err != nil {
 			return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
 		}
-		if err := createComponentRuntimeDirectories(item.Path, component); err != nil {
+		if err := createComponentRuntimeDirectories(item.SourcePath(), component); err != nil {
 			return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
 		}
 	}
@@ -1291,7 +1304,7 @@ func componentForStep(manifest scenario.ServiceManifest, stepName string) (strin
 func declaredCommandForStep(item scenario.Scenario, step scenario.PhaseStep, baseEnv []string) (declaredStepCommand, bool, error) {
 	_, component, isComponent := componentForStep(item.Manifest, step.Name)
 	if isComponent {
-		argv, err := ResolveComponentArgv(component.Run.Argv, item.Path, item.Slug, item.Manifest.Components)
+		argv, err := ResolveComponentArgv(component.Run.Argv, item.SourcePath(), item.Slug, item.Manifest.Components)
 		if err != nil {
 			return declaredStepCommand{}, false, err
 		}
@@ -1300,7 +1313,7 @@ func declaredCommandForStep(item scenario.Scenario, step scenario.PhaseStep, bas
 		if err != nil {
 			return declaredStepCommand{}, false, fmt.Errorf("component %s run.argv: %w", step.Name, err)
 		}
-		dir, err := componentWorkingDir(item.Path, component.Run.CWD)
+		dir, err := componentWorkingDir(item.SourcePath(), component.Run.CWD)
 		if err != nil {
 			return declaredStepCommand{}, false, err
 		}
@@ -1337,7 +1350,7 @@ func declaredCommandForStep(item scenario.Scenario, step scenario.PhaseStep, bas
 	if err != nil {
 		return declaredStepCommand{}, false, fmt.Errorf("step %s exec: %w", step.Name, err)
 	}
-	dir, err := componentWorkingDir(item.Path, step.CWD)
+	dir, err := componentWorkingDir(item.SourcePath(), step.CWD)
 	if err != nil {
 		return declaredStepCommand{}, false, err
 	}

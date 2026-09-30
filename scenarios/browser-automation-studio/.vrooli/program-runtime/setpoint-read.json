@@ -16,23 +16,6 @@
       "type": "integer",
       "default": 5,
       "description": "Failed executions whose screenshots are counted (0..10)."
-    },
-    "profile": {
-      "type": "string",
-      "default": "operations",
-      "enum": [
-        "operations",
-        "rehabilitation"
-      ],
-      "description": "Operations reads historical usage diagnostics; rehabilitation preserves every required browser-product outcome and explicit measurement gap."
-    },
-    "validation_receipt_id": {
-      "type": "string",
-      "description": "Optional exact Test Genie validation receipt; must be paired with expected_source_identity."
-    },
-    "expected_source_identity": {
-      "type": "string",
-      "description": "Expected Test Genie SourceIdentity.identity admitted and observed by the receipt; distinct from WSS review digests. Must be paired with validation_receipt_id."
     }
   },
   "assumptions": [
@@ -44,16 +27,8 @@
     "no binding with effect write or destructive is called",
     "no row set is materialized beyond evidence_sample rows; readings are count and filter",
     "a row whose sensor has no governed binding is reported unavailable with the reason, not computed by hand",
-    "passive-fidelity, profile-durability, cancellation-recovery, and resource-budget use their own provider maturity capability from the exact current rehabilitation phase",
-    "capture and rehabilitation owner readings must match the live managed BAS build identity",
-    "rehabilitation rows are unavailable unless lifecycle freshness proves every managed BAS artifact is current",
     "the envelope is printed exactly once, on every path",
-    "no setpoint row is computed by hand from files; a row without a governed sensor reads unavailable with the reason",
-    "rehabilitation rows cover every required REFRACTOR_CONTRACT.json outcome",
-    "product_qualified is false while any required outcome lacks applicable owner evidence",
-    "bound qualification requires an exact terminal Test Genie validation receipt, matching admitted and observed source identities, one TG-owned terminal suite child, and the exact rehabilitation run and findings identities",
-    "bound qualification never falls back to list/latest run discovery",
-    "unbound rehabilitation reads remain diagnostics and emit qualification_bound=false"
+    "no setpoint row is computed by hand from files; a row without a governed sensor reads unavailable with the reason"
   ],
   "bindings": [
     {
@@ -84,39 +59,6 @@
     {
       "id": "vrooli-memory/learning/measure",
       "effect": "read"
-    },
-    {
-      "id": "performance-health/sweep/workload-get",
-      "effect": "read",
-      "optional": true
-    },
-    {
-      "id": "test-genie/runs/list",
-      "effect": "read",
-      "optional": true
-    },
-    {
-      "id": "test-genie/validation/get",
-      "effect": "read",
-      "optional": true
-    },
-    {
-      "id": "test-genie/runs/show",
-      "effect": "read",
-      "optional": true
-    },
-    {
-      "id": "test-genie/runs/findings",
-      "effect": "read",
-      "optional": true
-    },
-    {
-      "id": "vrooli/scenario/status",
-      "effect": "read"
-    },
-    {
-      "id": "vrooli/scenario/freshness",
-      "effect": "read"
     }
   ],
   "outputs": {
@@ -138,14 +80,9 @@
       ]
     },
     "signals": {
-      "rows": "Fleet setpoint rows. For rehabilitation, target is an immutable contract-id/row reference into docs/internal/REFRACTOR_CONTRACT.json; unavailable rows never count as satisfied.",
+      "rows": "Fleet setpoint rows; unavailable rows never count as satisfied.",
       "readable": "count of rows read from a governed binding",
-      "unavailable": "count of rows not readable in-program",
-      "qualification_bound": "true only when the paired exact receipt and expected Test Genie source identity inputs were supplied",
-      "qualification_candidate": "exact selected validation receipt id, its state, and Test Genie source identity, when bound; this identity is not a WSS review digest",
-      "required": "Required rehabilitation outcome count, only for rehabilitation profile",
-      "unmet": "Required outcomes without passing applicable evidence",
-      "product_qualified": "False until all required outcomes have qualified owner evidence"
+      "unavailable": "count of rows not readable in-program"
     },
     "errors": {
       "classes": [
@@ -168,7 +105,7 @@
   "budget": {
     "wall_ms": 110000,
     "async": true,
-    "async_reason": "The desktop/browser setpoint read waits on external owner conditions and may reach the synchronous invoke ceiling; callers wait once for its terminal result.",
+    "async_reason": "The setpoint read joins several owner reads and a friction digest and may reach the synchronous invoke ceiling; callers wait once for its terminal result.",
     "inference_calls": 0,
     "delegated_runs": 0,
     "materialize_limit": 10
@@ -200,22 +137,6 @@
       "requires": [
         "browser-automation-studio"
       ]
-    },
-    {
-      "id": "rehabilitation-evidence",
-      "inputs": {
-        "profile": "rehabilitation"
-      },
-      "expect": {
-        "status": [
-          "ok",
-          "partial"
-        ],
-        "signals": {
-          "required": 17,
-          "product_qualified": false
-        }
-      }
     }
   ],
   "rung": "S3",

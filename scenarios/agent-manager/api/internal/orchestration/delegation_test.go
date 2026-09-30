@@ -56,7 +56,7 @@ func TestDependentSandboxPermissionsSurviveWireRoundTrip(t *testing.T) {
 }
 
 func TestMintDelegatedIdentityRespectsChildAuthority(t *testing.T) {
-	for _, variant := range []string{"narrowed", "omitted-profile-scopes", "empty-request", "empty-owner", "no-profile", "revoked", "terminal", "wrong-owner", "expired-owner", "excess-expiry", "supervisor-binding"} {
+	for _, variant := range []string{"narrowed", "omitted-profile-scopes", "empty-request", "empty-owner", "no-profile", "revoked", "terminal", "wrong-owner", "expired-owner", "excess-expiry"} {
 		t.Run(variant, func(t *testing.T) {
 			ctx := context.Background()
 			repos, _, cleanup := testutil.SetupTestRepos(t)
@@ -112,9 +112,6 @@ func TestMintDelegatedIdentityRespectsChildAuthority(t *testing.T) {
 				child.OwnerExpiresAt, wantErr = &now, true
 			case "excess-expiry":
 				req.ExpiresAt, wantErr = now.Add(40*time.Minute), true
-			case "supervisor-binding":
-				child.DispatchBinding = &domain.DispatchBinding{EffortRef: "effort:other", AuthorizationID: "other-grant"}
-				wantErr = true
 			}
 			if err := repos.Profiles.Create(ctx, profile); err != nil {
 				t.Fatal(err)

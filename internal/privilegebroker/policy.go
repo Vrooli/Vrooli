@@ -65,9 +65,13 @@ func validateStorageAction(req Request) error {
 			return fmt.Errorf("image_prune_subject_required")
 		}
 	case ActionDockerPruneUnusedVolumes:
-		if req.Docker == nil || req.Log != nil || req.Journal != nil || len(req.Docker.VolumeNames) == 0 {
-			return fmt.Errorf("named_volume_list_required")
+		if req.Docker == nil || req.Log != nil || req.Journal != nil {
+			return fmt.Errorf("volume_prune_subject_required")
 		}
+		// An empty list means Docker itself selects volumes that are not
+		// referenced by any container. This is the safe automatic cleanup
+		// mode; named volume removal remains available only when an explicit
+		// list is supplied.
 		for _, name := range req.Docker.VolumeNames {
 			name = strings.TrimSpace(name)
 			if name == "" || name == "*" || strings.ContainsAny(name, "/\\ \t\r\n") || len(name) > 128 {

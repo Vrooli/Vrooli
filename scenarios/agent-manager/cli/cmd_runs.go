@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"agent-manager/cli/internal/support"
+
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 	"google.golang.org/protobuf/proto"
@@ -116,6 +117,8 @@ func (a *App) cmdRun(args []string) error {
 		return a.runContinue(args[1:])
 	case "park":
 		return a.runPark(args[1:])
+	case "tokens":
+		return a.runTokens(args[1:])
 	case "wake":
 		return a.runWake(args[1:])
 	case "await-result":
@@ -1233,7 +1236,7 @@ func (a *App) runDelete(args []string) error {
 func (a *App) runContinue(args []string) error {
 	fs := flag.NewFlagSet("run continue", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	message := fs.String("message", "", "Follow-up message (required)")
+	message := fs.String("message", "", "Follow-up message (required); a running interactive session receives it as its next user message")
 	idempotencyKey := fs.String("idempotency-key", "", "Replay-safe continuation key; retain for retries of the same request")
 	reinstallGoal := fs.Bool("reinstall-goal", false, "Reinstall the harness-native goal before the follow-up message")
 
@@ -1273,6 +1276,10 @@ func (a *App) runContinue(args []string) error {
 		return nil
 	}
 
+	if run.Status == domainpb.RunStatus_RUN_STATUS_RUNNING {
+		fmt.Printf("Typed into running session: %s\n", run.Id)
+		return nil
+	}
 	fmt.Printf("Continued run: %s (status: %s)\n", run.Id, formatEnumValue(run.Status, "RUN_STATUS_", "_"))
 	return nil
 }
@@ -1287,6 +1294,7 @@ func (a *App) runPark(args []string) error {
 	producer := fs.String("producer", "", "Producer that resolves the await (e.g. test-genie, git-control-tower) (required)")
 	key := fs.String("key", "", "Producer-scoped identifier of the awaited work (required)")
 	deadlineUnix := fs.Int64("deadline-unix", 0, "Optional wait deadline as a Unix timestamp (seconds); 0 = default TTL")
+	timeout := fs.Duration("timeout", 0, "Wake after this long even if the work is unresolved (timer wake), e.g. 15m; overrides --deadline-unix")
 	identityToken := fs.String("identity-token", "", "Owning run's identity token (defaults to $"+cliutil.EnvIdentityToken+")")
 
 	var id string
@@ -1302,6 +1310,12 @@ func (a *App) runPark(args []string) error {
 	}
 	if *producer == "" || *key == "" {
 		return fmt.Errorf("--producer and --key are required")
+	}
+	if *timeout < 0 {
+		return fmt.Errorf("--timeout must be positive")
+	}
+	if *timeout > 0 {
+		*deadlineUnix = time.Now().Add(*timeout).Unix()
 	}
 
 	token := *identityToken
@@ -1341,6 +1355,8 @@ func (a *App) runWake(args []string) error {
 	jsonOutput := cliutil.JSONFlag(fs)
 	result := fs.String("result", "", "Awaited result injected as the next turn")
 	timedOut := fs.Bool("timed-out", false, "Frame the result as a park-deadline timeout")
+	key := fs.String("key", "", "Wake every run parked on this await key instead of one run ID")
+	producer := fs.String("producer", "children", "Await producer the key belongs to (with --key)")
 
 	var id string
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
@@ -1350,8 +1366,11 @@ func (a *App) runWake(args []string) error {
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if id == "" {
-		return fmt.Errorf("usage: agent-manager run wake <id> [--result <r>] [--timed-out]")
+	if (id == "") == (*key == "") {
+		return fmt.Errorf("usage: agent-manager run wake (<id> | --key <key> [--producer children]) [--result <r>] [--timed-out]")
+	}
+	if *key != "" {
+		return a.runWakeByKey(strings.TrimSpace(*producer), strings.TrimSpace(*key), *result, *timedOut, *jsonOutput)
 	}
 
 	req := &domainpb.WakeRunRequest{
@@ -1378,6 +1397,30 @@ func (a *App) runWake(args []string) error {
 	} else {
 		fmt.Println("Wake requested")
 	}
+	return nil
+}
+
+// runWakeByKey wakes every run parked on producer/key. It is the friction
+// wake: an epoch check or operator names the orchestrator's key without
+// knowing which run currently holds it. The server matches the handle.
+func (a *App) runWakeByKey(producer, key, result string, timedOut, jsonOutput bool) error {
+	woken, err := a.services.Runs.WakeByKey(&domainpb.WakeParkedRunsRequest{Producer: producer, Key: key, Result: result, TimedOut: timedOut})
+	if err != nil {
+		return err
+	}
+	if jsonOutput {
+		data, err := json.Marshal(map[string]any{"key": key, "woken": woken})
+		if err != nil {
+			return err
+		}
+		cliutil.PrintJSON(data)
+		return nil
+	}
+	if len(woken) == 0 {
+		fmt.Printf("No run is parked on key %s (no-op)\n", key)
+		return nil
+	}
+	fmt.Printf("Woke %d run(s) parked on key %s: %s\n", len(woken), key, strings.Join(woken, ", "))
 	return nil
 }
 

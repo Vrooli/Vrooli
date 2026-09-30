@@ -29,41 +29,6 @@
       "description": "Review and promote sandbox changes",
       "commands": [
         {
-          "name": "review-capture",
-          "description": "Retain immutable selected source and patch from a stopped sandbox",
-          "positionals": [{"name": "sandbox_id", "required": true}, {"name": "request_id", "required": true}],
-          "flags": [{"name": "path", "description": "Explicit scope-relative file/directory; repeatable, must include every changed file", "repeatable": true, "bind": {"field": "paths"}, "bind_waiver": "The repeatable path flag supplies the complete paths request sequence."}],
-          "binding": {"kind": "connect-rpc", "service": "WorkspaceSandboxService", "method": "CaptureReviewSnapshot"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]},
-          "architecture": {"primitive": "proto_mutation"}
-        },
-        {
-          "name": "review-workspace",
-          "description": "Materialize exact retained review input for a read-only reviewer",
-          "positionals": [{"name": "sandbox_id", "required": true}, {"name": "request_id", "required": true}],
-          "flags": [{"name": "expected-sha256", "description": "Required retained review content identity"}],
-          "binding": {"kind": "connect-rpc", "service": "WorkspaceSandboxService", "method": "MaterializeReviewSnapshot"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]},
-          "architecture": {"primitive": "proto_mutation"}
-        },
-        {
-          "name": "review-show",
-          "description": "Read retained review identity and source manifests without recapturing",
-          "positionals": [{"name": "sandbox_id", "required": true}, {"name": "request_id", "required": true}],
-          "binding": {"kind": "connect-rpc", "service": "WorkspaceSandboxService", "method": "GetReviewSnapshot"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_list"}
-        },
-        {
-          "name": "review-file",
-          "description": "Read immutable before/after file or patch bytes (base64 content in JSON)",
-          "positionals": [{"name": "sandbox_id", "required": true}, {"name": "request_id", "required": true}],
-          "flags": [{"name": "side", "description": "before, after, or patch"}, {"name": "path", "description": "Scope-relative file path; omit for patch"}],
-          "binding": {"kind": "connect-rpc", "service": "WorkspaceSandboxService", "method": "GetReviewFile"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_list"}
-        },
-        {
           "name": "diff",
           "description": "Produce a bounded reviewable sandbox diff",
           "positionals": [{"name": "sandbox_id", "required": true}],
@@ -83,8 +48,6 @@
             {"name": "force", "bool": true, "description": "Bypass conflict detection"},
             {"name": "override-acceptance", "bool": true, "description": "Bypass acceptance filtering"},
             {"name": "expected-patch-sha256", "description": "Require the complete reviewed patch SHA-256; force cannot bypass"},
-            {"name": "review-request-id", "description": "Retained review UUID; requires expected-review-sha256"},
-            {"name": "expected-review-sha256", "description": "Require exact retained source context and candidate; non-committing full approval only"},
             {"name": "confirm", "bool": true, "description": "Confirm promotion to the canonical repository"}
           ],
           "binding": {"kind": "connect-rpc", "service": "WorkspaceSandboxService", "method": "PromoteSandbox"},

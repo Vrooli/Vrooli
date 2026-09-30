@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -25,6 +26,12 @@ import (
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=4 | LAST: 2026-04-13
+
+func TestProjectAPIWriteTimeoutExceedsProgramRuntimeBridgeTimeout(t *testing.T) {
+	if ProjectAPIWriteTimeout <= 90*time.Second {
+		t.Fatalf("ProjectAPIWriteTimeout = %s, want greater than the 90s Program Runtime bridge timeout", ProjectAPIWriteTimeout)
+	}
+}
 
 func TestStartAllScenariosEndpointReturnsTypedReport(t *testing.T) {
 	app := New(t.TempDir(), t.TempDir())

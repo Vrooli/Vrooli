@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"agent-manager/internal/domain"
+
 	"github.com/google/uuid"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
@@ -73,7 +74,7 @@ func TestEffortResolutionSourcesReopenStoppedObservationWithoutGrant(t *testing.
 			if after.ChangeIdentity == before.ChangeIdentity {
 				t.Fatal("new resolution did not reopen the stopped evidence cut")
 			}
-			if after.Enrollment.AuthorizedBy != "" || len(after.Enrollment.PermittedActions) != 0 {
+			if after.Enrollment.AuthorizedBy != "" {
 				t.Fatal("resolution file manufactured a grant")
 			}
 			if strings.Contains(after.String(), "Repair qualified") {
@@ -141,59 +142,5 @@ func TestDeclaredCheckpointRejectsUnboundedContinuity(t *testing.T) {
 	defer root.Close()
 	if _, err := readWorkspace(root, "bounded-effort", 128*1024, s.now()); err == nil || !strings.Contains(err.Error(), "bounded continuity") {
 		t.Fatalf("unbounded checkpoint was accepted: %v", err)
-	}
-}
-
-func TestEffortFailedRecoveryNeedsContinueGrantAndSession(t *testing.T) {
-	for _, variant := range []string{"recover", "nudge", "no-session", "no-hypothesis", "no-comparison", "no-expectation", "cancelled", "completed", "parked", "running"} {
-		t.Run(variant, func(t *testing.T) {
-			s, _, c := effortFixture(t)
-			e := grantFixture(t, s, c, domain.RunStatusFailed)
-			e.PermittedActions = append(e.PermittedActions, pb.WatchActionKind_WATCH_ACTION_KIND_CONTINUE)
-			var err error
-			e, err = s.Enroll(context.Background(), &pb.EnrollEffortRequest{Enrollment: e, ExpectedRevision: e.Revision, IdempotencyKey: "recovery-grant"}, EffortActor{ID: "owner", Operator: true})
-			if err != nil {
-				t.Fatal(err)
-			}
-			run := c.runs[uuid.MustParse(e.Subjects[0].RunId)]
-			run.SessionID = "retained-session"
-			req := directiveFixture(s, e)
-			req.Directive.Kind = pb.WatchActionKind_WATCH_ACTION_KIND_CONTINUE
-			req.Directive.RecoveryExpectation = &pb.EffortRecoveryExpectation{ProgressCondition: "assigned owner regression passes with a retained receipt", BaselineEvidenceRefs: []string{"test-genie:before-recovery"}}
-			switch variant {
-			case "nudge":
-				req.Directive.Kind = pb.WatchActionKind_WATCH_ACTION_KIND_NUDGE
-			case "no-session":
-				run.SessionID = ""
-			case "no-hypothesis":
-				req.Directive.Hypothesis = ""
-			case "no-comparison":
-				req.Directive.Comparison = ""
-			case "no-expectation":
-				req.Directive.RecoveryExpectation = nil
-			case "cancelled":
-				run.Status = domain.RunStatusCancelled
-			case "completed":
-				run.Status = domain.RunStatusComplete
-			case "parked":
-				run.Status = domain.RunStatusParked
-			case "running":
-				run.Status = domain.RunStatusRunning
-			}
-			d, err := s.RequestDirective(context.Background(), req, EffortActor{ID: e.SupervisorRunId})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if variant == "recover" {
-				if d.Delivery != pb.EffortDirectiveDelivery_EFFORT_DIRECTIVE_DELIVERY_DELIVERED || c.continued != 1 {
-					t.Fatalf("eligible owner recovery refused: %v", d)
-				}
-				if _, err := s.RequestDirective(context.Background(), req, EffortActor{ID: e.SupervisorRunId}); err != nil || c.continued != 1 {
-					t.Fatal("replay duplicated recovery", err)
-				}
-			} else if c.continued != 0 {
-				t.Fatal("ineligible run restarted")
-			}
-		})
 	}
 }

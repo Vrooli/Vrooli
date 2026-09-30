@@ -68,8 +68,5 @@ func (o *Orchestrator) freshRecoveryAccepted(ctx context.Context, req ResumeFrom
 	if source == nil || source.TaskID != creation.TaskID || source.OwnerSubject != creation.OwnerSubject {
 		return nil, true, domain.NewStateError("Run", "unknown", "read fresh recovery receipt", "replacement creation receipt does not preserve the source task/owner identity")
 	}
-	if (source.DispatchBinding == nil) != (recovered.DispatchBinding == nil) || (source.DispatchBinding != nil && *source.DispatchBinding != *recovered.DispatchBinding) {
-		return nil, true, domain.NewStateError("Run", "unknown", "read fresh recovery receipt", "replacement does not preserve the source dispatch binding; owner reconciliation required")
-	}
 	return recovered, true, nil
 }

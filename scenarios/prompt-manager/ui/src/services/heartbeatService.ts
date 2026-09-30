@@ -31,17 +31,8 @@ export interface HeartbeatConfig {
   schedule: string
   profileKey?: string
   lifecycleState?: string
-  supervision?: Record<string, unknown>
   wakeAdmission?: WakeAdmission
-  supervisionError?: string
-  supervisionState?: {
-    status?: string
-    coverage?: string
-    lastScanAt?: string
-    lastSuccessAt?: string
-    efforts?: Record<string, { retired?: boolean; observationOnly?: boolean; lastAssessedAt?: string }>
-  }
-  finiteLeader?: { effortRef?: string; acceptedRevision?: string; retired?: boolean }
+  finiteLeader?: { effortRef?: string; acceptedRevision?: string; retired?: boolean; keepAlive?: boolean }
   lastExecution?: HeartbeatExecResult
   nextExecution?: string
   nextExecutions?: string[]

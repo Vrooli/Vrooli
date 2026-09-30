@@ -60,6 +60,23 @@ type Scenario struct {
 	// lock, port, and storage-namespace derivations all read it (normalized
 	// through scenarioruntime.InstanceKey). See the Baseline Modes plan, §1a.
 	Variant string
+	// SourceDir is the directory this instance builds and runs from when it
+	// differs from Path. Path stays the manifest origin — the working tree —
+	// because data directories, locks, and records are keyed to it; only build
+	// inputs, build outputs, and process working directories move. Empty means
+	// "the same as Path", so every caller that never sets it is unchanged.
+	// The lifecycle sets it from its engagement layout policy (engagement.go).
+	SourceDir string
+}
+
+// SourcePath returns the directory this instance builds and runs from: its
+// SourceDir when the layout routed it elsewhere, and its manifest Path
+// otherwise.
+func (s Scenario) SourcePath() string {
+	if strings.TrimSpace(s.SourceDir) != "" {
+		return s.SourceDir
+	}
+	return s.Path
 }
 
 type ServiceManifest struct {
@@ -70,6 +87,7 @@ type ServiceManifest struct {
 	CLI             *CLIConfig                             `json:"cli,omitempty"`
 	Ports           map[string]Port                        `json:"ports,omitempty"`
 	Components      map[string]Component                   `json:"components,omitempty"`
+	BuildIdentity   BuildIdentityPolicy                    `json:"build_identity,omitempty,omitzero"`
 	Lifecycle       Lifecycle                              `json:"lifecycle,omitempty,omitzero"`
 	Health          *HealthConfig                          `json:"health,omitempty"`
 	Dependencies    Dependencies                           `json:"dependencies,omitempty"`
@@ -85,6 +103,13 @@ type ServiceManifest struct {
 	// ships. Absent means the scenario declares no branding; brand-manager apply
 	// and the declared-icon-targets rule then skip it.
 	Branding *Branding `json:"branding,omitempty"`
+}
+
+// BuildIdentityPolicy declares runtime documentation that is served as part of
+// a running scenario build, plus authored paths that do not identify it.
+type BuildIdentityPolicy struct {
+	RuntimeDocs  []string `json:"runtime_docs,omitempty"`
+	ExcludePaths []string `json:"exclude_paths,omitempty"`
 }
 
 // Branding is the scenario's brand declaration.

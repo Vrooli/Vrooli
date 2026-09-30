@@ -256,7 +256,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	}
 	reconciler := orchestration.NewReconciler(repos.Runs, registry, reconcilerOpts...)
 	orch.SetReconciler(reconciler)
-	awaitRegistry := orchestration.NewAwaitRegistry(orch, orchestration.NewTestGenieWaiter(nil), orchestration.NewGCTBaselineWaiter(nil), orchestration.NewLifecycleWaiter(nil))
+	awaitRegistry := orchestration.NewAwaitRegistry(orch, orchestration.NewTestGenieWaiter(nil), orchestration.NewGCTBaselineWaiter(nil), orchestration.NewLifecycleWaiter(nil), orchestration.NewChildrenWaiter(orch, 0))
 	orch.SetAwaitRegistry(awaitRegistry)
 	workflowNudger := orchestration.NewWorkflowNudger(orch.NudgeDrive, levers.Workflow.NudgeWorkers, levers.Workflow.NudgeDriveTimeout, func(ctx context.Context, id uuid.UUID, failure obs.PanicFailure) {
 		if _, err := orch.FailWorkflowExecution(ctx, id, "nudger_panic", failure.Error()); err != nil {
@@ -308,25 +308,9 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	})
 	supervisionScheduler.SetPolicyStore(supervisionPolicies)
 	effortConfig := effortDiscoveryConfig()
-	supervisionService.Efforts = supervision.NewEffortService(supervisionRepo, supervisionRunController{orchestrator: orch}, supervisionPolicies, effortConfig)
+	supervisionService.Efforts = supervision.NewEffortService(supervisionRepo, supervisionRunController{orchestrator: orch}, effortConfig)
 	supervisionService.Efforts.SetRunRegistry(repos.Runs)
-	supervisionService.Efforts.SetDispatchAccountingReader(supervisionRunController{orchestrator: orch})
 	supervisionService.Efforts.SetQuotaObservationStore(quotaObservationStore)
-	supervisionService.Efforts.ConfigureDispatch(identitySecret, provisionSupervisorCredential, func(ctx context.Context, key string) error {
-		profile, err := repos.Profiles.GetByKey(ctx, key)
-		if err != nil {
-			return err
-		}
-		if profile == nil {
-			return fmt.Errorf("profile not found")
-		}
-		ceiling := []string{supervision.SupervisorDispatchScope}
-		if len(identity.IntersectScopes(ceiling, profile.IdentityScopeCeiling(), ceiling)) != 1 {
-			return fmt.Errorf("profile does not permit the supervisor scope")
-		}
-		return nil
-	})
-	orch.SetSupervisorDispatch(supervisionService.Efforts)
 	supervisionScheduler.SetEffortService(supervisionService.Efforts)
 	supervisionService.SetSchedulerKick(supervisionScheduler.Kick)
 	awaitRegistry.RegisterWaiter(orchestration.NewSupervisionWaiter(supervisionService))

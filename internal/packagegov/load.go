@@ -370,6 +370,17 @@ func validateManifestSemantics(item Package) []ValidationIssue {
 			}
 		}
 	}
+	if len(item.Manifest.Package.GeneratedOutputs) > 0 &&
+		len(item.Manifest.Package.Lifecycle.Generate) == 0 &&
+		len(item.Manifest.Package.Lifecycle.Build) == 0 {
+		issues = append(issues, ValidationIssue{
+			Severity:    "error",
+			Code:        "generated-output-missing-owner",
+			Message:     "package.generated_outputs requires package.lifecycle.generate or package.lifecycle.build",
+			Path:        item.ManifestPath,
+			PackageName: item.Name,
+		})
+	}
 
 	repoRoot := filepath.Dir(filepath.Dir(item.RootPath))
 	for _, docPath := range item.Manifest.Package.Docs {

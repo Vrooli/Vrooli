@@ -40,6 +40,21 @@ type FiniteLeaderState struct {
 	Completed         *FiniteLeaderCompletion  `json:"completed,omitempty"`
 	CompletionHistory []FiniteLeaderCompletion `json:"completionHistory,omitempty"`
 	RestartHistory    []FiniteLeaderRestart    `json:"restartHistory,omitempty"`
+	// ConsecutiveRelaunches counts liveness relaunches since the last healthy
+	// long leader run or explicit restart; it drives relaunch backoff and cap.
+	ConsecutiveRelaunches int `json:"consecutiveRelaunches,omitempty"`
+}
+
+// MaxFiniteLeaderRestartHistory bounds the retained restart records; older
+// boundaries remain in the heartbeat attempt log.
+const MaxFiniteLeaderRestartHistory = 20
+
+// RecordRestart appends one restart boundary and keeps the newest records.
+func (s *FiniteLeaderState) RecordRestart(r FiniteLeaderRestart) {
+	s.RestartHistory = append(s.RestartHistory, r)
+	if n := len(s.RestartHistory); n > MaxFiniteLeaderRestartHistory {
+		s.RestartHistory = append([]FiniteLeaderRestart(nil), s.RestartHistory[n-MaxFiniteLeaderRestartHistory:]...)
+	}
 }
 
 // FiniteLeaderCompletion is the retained completion receipt for a finite
@@ -80,11 +95,12 @@ func sameFiniteBinding(a, b *teamconfig.FiniteLeader) bool {
 	}
 	x, y := *a, *b
 	x.Retired, y.Retired = false, false
+	x.KeepAlive, y.KeepAlive = false, false
 	return reflect.DeepEqual(x, y)
 }
 
 func validateFiniteLeaderUpdate(old, next *HeartbeatConfig) error {
-	if err := next.FiniteLeader.Validate(next.ProfileKey, next.Supervision); err != nil {
+	if err := next.FiniteLeader.Validate(next.ProfileKey); err != nil {
 		return err
 	}
 	if old == nil || old.FiniteLeader == nil {
@@ -124,7 +140,7 @@ func (s *FileTeamStore) WithFiniteLeader(ctx context.Context, teamID, agentID st
 	if cfg == nil || cfg.FiniteLeader == nil {
 		return fmt.Errorf("finite leader binding unavailable")
 	}
-	if err := cfg.FiniteLeader.Validate(cfg.ProfileKey, cfg.Supervision); err != nil {
+	if err := cfg.FiniteLeader.Validate(cfg.ProfileKey); err != nil {
 		return err
 	}
 	path := s.finiteLeaderPath(cfg.FiniteLeader.EffortRef)
@@ -233,10 +249,11 @@ func (s *FileTeamStore) RestartFiniteLeader(ctx context.Context, teamID, agentID
 			return fmt.Errorf("finite leader restart requires a terminal dispatched owner run")
 		}
 		state.Status = ownerStatus
-		state.RestartHistory = append(state.RestartHistory, FiniteLeaderRestart{
+		state.RecordRestart(FiniteLeaderRestart{
 			RunID: state.RunID, TaskID: state.TaskID, Revision: revision,
 			EvidenceRef: evidenceRef, RestartedAt: time.Now().UTC().Format(time.RFC3339Nano),
 		})
+		state.ConsecutiveRelaunches = 0
 		state.ID = ""
 		state.TaskID = ""
 		state.RunID = ""

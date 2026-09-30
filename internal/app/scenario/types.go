@@ -210,6 +210,11 @@ type InfoScenarioData struct {
 	Ports            []scenariomodel.PortSummary       `json:"ports"`
 	Phases           []scenariomodel.PhaseSummary      `json:"phases"`
 	Generation       *scenariomodel.GenerationMetadata `json:"generation,omitempty"`
+	// Branding is the scenario's own brand declaration. Without it the only way
+	// to resolve a scenario to its brand slug was to read and parse
+	// .vrooli/service.json directly, or to make two brand-manager calls that
+	// report applied-assignment state rather than what the scenario declares.
+	Branding *scenariomodel.Branding `json:"branding,omitempty"`
 }
 
 type InfoRuntimeData struct {
@@ -375,6 +380,7 @@ func BuildInfoData(item scenariomodel.Scenario) InfoScenarioData {
 		Ports:            item.Manifest.SortedPorts(),
 		Phases:           item.Manifest.PhaseSummaries(),
 		Generation:       item.Manifest.Generation,
+		Branding:         item.Manifest.Branding,
 	}
 }
 

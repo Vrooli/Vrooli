@@ -70,6 +70,10 @@ func (a Activation) Env() []string {
 	// process to the target's durable roots so release activation never touches
 	// an operator filesystem path.
 	if len(names) > 0 {
+		// Keep runtime state in the target's durable home. The immutable release
+		// is already selected by the explicit scenario --path below; exporting it
+		// as VROOLI_SOURCE_ROOT would make the lifecycle CLI overwrite VROOLI_ROOT
+		// and cause credential/storage resolution to look inside the release tree.
 		env = append(env, "VROOLI_ROOT=/root/Vrooli", "VROOLI_HOME=/root/.vrooli")
 	}
 	// Activation consumes an immutable, prebuilt release. Tell the lifecycle

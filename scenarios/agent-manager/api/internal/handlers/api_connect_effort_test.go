@@ -26,7 +26,7 @@ func TestEffortConnectBoardAndAuthenticatedEnrollment(t *testing.T) {
 	}
 	repo := supervision.NewRepository(db)
 	service := supervision.NewService(repo, nil)
-	service.Efforts = supervision.NewEffortService(repo, nil, supervision.NewPolicyStore(db, nil), supervision.EffortDiscoveryConfig{Root: t.TempDir()})
+	service.Efforts = supervision.NewEffortService(repo, nil, supervision.EffortDiscoveryConfig{Root: t.TempDir()})
 	handler := NewAgentManagerConnectHandler(nil, service)
 	path, rpc := apiconnect.NewAgentManagerServiceHandler(handler)
 	mux := http.NewServeMux()

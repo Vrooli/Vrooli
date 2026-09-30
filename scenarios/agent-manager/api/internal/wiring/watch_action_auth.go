@@ -35,7 +35,7 @@ func (a watchActionAuthorizer) AuthorizeEffortAction(ctx context.Context, token 
 		if !hasSupervisionScope(principal.Scopes) {
 			return supervision.EffortActor{}, handlers.ErrWatchActionForbidden
 		}
-		return supervision.EffortActor{ID: strings.TrimSpace(principal.Subject), OwnerSubject: strings.TrimSpace(principal.Subject), Scopes: append([]string{}, principal.Scopes...), Operator: true}, nil
+		return supervision.EffortActor{ID: strings.TrimSpace(principal.Subject), Scopes: append([]string{}, principal.Scopes...), Operator: true}, nil
 	}
 	if authority != domainpb.WatchAuthority_WATCH_AUTHORITY_FAMILY_PARENT {
 		r := &domainpb.RequestCohortWatchActionRequest{Authority: authority}
@@ -49,7 +49,7 @@ func (a watchActionAuthorizer) AuthorizeEffortAction(ctx context.Context, token 
 	if err != nil || v == nil || !v.Valid || v.Claims == nil {
 		return supervision.EffortActor{}, handlers.ErrWatchActionUnauthenticated
 	}
-	return supervision.EffortActor{ID: v.Claims.RunID.String(), OwnerSubject: v.Claims.Subject, Scopes: append([]string(nil), v.Claims.Scopes...)}, nil
+	return supervision.EffortActor{ID: v.Claims.RunID.String(), Scopes: append([]string(nil), v.Claims.Scopes...)}, nil
 }
 
 func (a watchActionAuthorizer) AuthorizeWatchAction(ctx context.Context, token string, request *domainpb.RequestCohortWatchActionRequest) error {

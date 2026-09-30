@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "key": "028bbbcb49361d684f410c76164fccb19bb41fe79ee3aa4006a94bcad3c90a7f",
+  "key": "9b26d962db7d07334d00e444659b65d4d60c7c352a0b8c92de316847bb905eac",
   "inputs": [
     "go.mod",
     "go.sum",
@@ -85,9 +85,6 @@
     "packages/platform-go/go.sum",
     "packages/proto/architecture/findingid",
     "packages/proto/descriptorimage",
-    "packages/proto/gen/go/agent-manager/v1/api",
-    "packages/proto/gen/go/agent-manager/v1/api/apiconnect",
-    "packages/proto/gen/go/agent-manager/v1/domain",
     "packages/proto/gen/go/architecture/v1",
     "packages/proto/gen/go/common/v1",
     "packages/proto/gen/go/dev-routing/v1/routing",

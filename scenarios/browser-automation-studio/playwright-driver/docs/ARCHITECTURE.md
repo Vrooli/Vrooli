@@ -630,5 +630,3 @@ To maintain clean boundaries:
 - [API Documentation](API.md)
 - [Extending the Driver](EXTENDING.md)
 - [Driver Assumptions](ASSUMPTIONS.md)
-- [Deployment Notes](../../docs/playwright-driver-v2-implementation.md)
-- [Go AutomationEngine Contract](../../docs/automation-engine-analysis.md)

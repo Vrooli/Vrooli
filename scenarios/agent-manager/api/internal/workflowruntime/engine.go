@@ -35,32 +35,30 @@ type (
 		GetByDigest(context.Context, string) (*domain.WorkflowRevision, error)
 	}
 	ChildRequest struct {
-		ExecutionID       uuid.UUID
-		AttemptID         uuid.UUID
-		NodeID            string
-		IdempotencyKey    string
-		ProfileKey        string
-		RoleRef           string
-		ScopePath         string
-		SandboxConfig     *domain.SandboxConfig
-		Tag               string
-		Force             bool
-		Prompt            string
-		Until             string
-		ResultSpec        *domain.ResultSpec
-		SourceRunID       *uuid.UUID
-		ReviewSourceRunID *uuid.UUID
-		ReviewPaths       []string
-		MaxTurns          int
-		MaxToolCalls      int
-		Timeout           time.Duration
-		ExperimentID      string
-		VariantID         string
-		PromptHash        string
-		AllowedEffects    []string
-		PreferredRunner   string
-		Model             string
-		Effort            string
+		ExecutionID     uuid.UUID
+		AttemptID       uuid.UUID
+		NodeID          string
+		IdempotencyKey  string
+		ProfileKey      string
+		RoleRef         string
+		ScopePath       string
+		SandboxConfig   *domain.SandboxConfig
+		Tag             string
+		Force           bool
+		Prompt          string
+		Until           string
+		ResultSpec      *domain.ResultSpec
+		SourceRunID     *uuid.UUID
+		MaxTurns        int
+		MaxToolCalls    int
+		Timeout         time.Duration
+		ExperimentID    string
+		VariantID       string
+		PromptHash      string
+		AllowedEffects  []string
+		PreferredRunner string
+		Model           string
+		Effort          string
 	}
 	ChildState struct {
 		RunID          uuid.UUID
@@ -187,7 +185,6 @@ type Engine struct {
 	Catalog        Catalog
 	Children       ChildLauncher
 	Subworkflows   SubworkflowLauncher
-	Qualifications QualificationOwner
 	Expressions    *ExpressionEvaluator
 	PromptResolver PromptResolver
 	Now            Clock
@@ -334,8 +331,6 @@ func (e *Engine) Advance(ctx context.Context, id uuid.UUID) (*domain.WorkflowExe
 		return e.advanceAgent(ctx, execution, revision, node)
 	case domain.WorkflowNodeChild:
 		return e.advanceChild(ctx, execution, revision, node)
-	case domain.WorkflowNodeQualification:
-		return e.advanceQualification(ctx, execution, revision, node)
 	case domain.WorkflowNodeBranch:
 		if node.Branch.Parallel {
 			return e.advanceParallelBranch(ctx, execution, revision, node)
@@ -1318,18 +1313,6 @@ func (e *Engine) resolveAgentInput(ctx context.Context, node *domain.WorkflowNod
 		bindings = node.Run.Bindings
 		tmpl = node.Run.PromptTemplate
 		spec = node.Run.ResultSpec
-		if node.Run.ReviewInput != nil {
-			for i := len(attempts) - 1; i >= 0; i-- {
-				if attempts[i].NodeID == node.Run.ReviewInput.FromNode && attempts[i].Status == domain.WorkflowAttemptCompleted && attempts[i].RunID != nil {
-					id := attempts[i].ID
-					source = &id
-					break
-				}
-			}
-			if source == nil {
-				return nil, "", PromptResolution{}, nil, "", nil, nil, fmt.Errorf("review source has no completed run attempt")
-			}
-		}
 	} else {
 		strategy = domain.WorkflowAttemptContinue
 		bindings = node.Continue.Bindings
@@ -1404,7 +1387,7 @@ func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecu
 		spec = node.Continue.ResultSpec
 	}
 	request := ChildRequest{ExecutionID: x.ID, AttemptID: a.ID, NodeID: node.ID, IdempotencyKey: a.IdempotencyKey, Prompt: prompt, ResultSpec: spec, ExperimentID: a.ExperimentID, VariantID: a.VariantID, PromptHash: a.PromptHash}
-	if x.ExecutionPreferences != nil && (node.Run == nil || node.Run.ReviewInput == nil) {
+	if x.ExecutionPreferences != nil {
 		request.PreferredRunner = x.ExecutionPreferences.PreferredRunner
 		request.Model = x.ExecutionPreferences.Model
 		request.Effort = x.ExecutionPreferences.Effort
@@ -1416,20 +1399,6 @@ func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecu
 		request.ProfileKey = node.Run.ProfileKey
 		request.RoleRef = node.Run.RoleRef
 		request.SandboxConfig = node.Run.SandboxConfig
-		if node.Run.ReviewInput != nil && a.Strategy == domain.WorkflowAttemptFreshRun {
-			if a.SourceAttemptID != nil {
-				for _, prior := range attempts {
-					if prior.ID == *a.SourceAttemptID && prior.NodeID == node.Run.ReviewInput.FromNode && prior.Status == domain.WorkflowAttemptCompleted {
-						request.ReviewSourceRunID = prior.RunID
-						break
-					}
-				}
-			}
-			if request.ReviewSourceRunID == nil {
-				return ChildRequest{}, fmt.Errorf("pinned review source run is unavailable")
-			}
-			request.ReviewPaths = append([]string(nil), node.Run.ReviewInput.Paths...)
-		}
 		if node.Run.ScopePathTemplate != "" {
 			values := map[string]any{}
 			if err := json.Unmarshal(a.InputSnapshot, &values); err != nil {

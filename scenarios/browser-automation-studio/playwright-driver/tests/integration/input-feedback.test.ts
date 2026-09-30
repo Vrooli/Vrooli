@@ -1,6 +1,3 @@
-import { createHash } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, resolve, sep } from 'node:path';
 import { chromium, type Browser, type Page } from 'rebrowser-playwright';
 import WebSocket = require('ws');
 import { handleRecordInput } from '../../src/routes/record-mode/recording-input';
@@ -677,57 +674,8 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
       const withinBand = networkProfile === 'remote'
         ? report.p95Ms <= 200
         : report.p50Ms <= 50 && report.p95Ms <= 100 && report.p99Ms <= 200;
-      const receiptPath = process.env.BAS_REHAB_RECEIPT_PATH;
-      if (receiptPath) {
-        const scenarioRoot = resolve(process.cwd(), '..');
-        const evidenceRoot = resolve(scenarioRoot, '.vrooli/runtime/rehabilitation-evidence');
-        const outputPath = resolve(process.cwd(), receiptPath);
-        if (!outputPath.startsWith(`${evidenceRoot}${sep}`)) {
-          throw new Error('BAS_REHAB_RECEIPT_PATH must be inside .vrooli/runtime/rehabilitation-evidence');
-        }
-        const contractPath = resolve(scenarioRoot, 'docs/internal/REFRACTOR_CONTRACT.json');
-        const testPath = resolve(process.cwd(), 'tests/integration/input-feedback.test.ts');
-        const [contractBytes, testBytes] = await Promise.all([readFile(contractPath), readFile(testPath)]);
-        const healthUrl = new URL(apiBase);
-        healthUrl.pathname = healthUrl.pathname.replace(/\/api\/v1\/?$/, '/health');
-        const healthResponse = await fetch(healthUrl);
-        if (!healthResponse.ok) throw new Error(`Managed API health read failed (${healthResponse.status})`);
-        const health = await healthResponse.json() as { build_identity?: string };
-        if (!health.build_identity) throw new Error('Managed API health omitted build_identity');
-        const sha256 = (bytes: Buffer): string => createHash('sha256').update(bytes).digest('hex');
-        const receipt = {
-          schema_version: 1,
-          evidence_kind: 'interactive_feedback_cohort',
-          outcome_id: 'interactive-feedback',
-          contract_row: 'bas-rehabilitation-v1#interactive-feedback',
-          cohort: networkProfile,
-          observed_at: new Date().toISOString(),
-          status: withinBand && count === 1000 ? 'passed' : 'out_of_band_or_incomplete',
-          managed_build_identity: health.build_identity,
-          source_sha256: {
-            'docs/internal/REFRACTOR_CONTRACT.json': sha256(contractBytes),
-            'playwright-driver/tests/integration/input-feedback.test.ts': sha256(testBytes),
-          },
-          producer: {
-            owner: 'playwright-driver live BAS integration test',
-            test: 'correlates live UI inputs with applied receipts and viewer-canvas pixels',
-            result: withinBand && count === 1000 ? 'passed' : 'failed',
-          },
-          measurement: report,
-          limitations: networkProfile === 'remote'
-            ? ['remote latency/bandwidth are emulated in Chromium; this is not a physical remote-network receipt']
-            : [],
-        };
-        await mkdir(dirname(outputPath), { recursive: true });
-        await writeFile(outputPath, `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
-      }
-      if (!receiptPath) {
-        // eslint-disable-next-line no-console
-        console.log(`BAS_INTERACTIVE_FEEDBACK_LIVE_DIAGNOSTIC ${JSON.stringify(report)}`);
-      } else {
-        // eslint-disable-next-line no-console
-        console.log(`BAS_INTERACTIVE_FEEDBACK_RECEIPT ${resolve(process.cwd(), receiptPath)}`);
-      }
+      // eslint-disable-next-line no-console
+      console.log(`BAS_INTERACTIVE_FEEDBACK_LIVE_DIAGNOSTIC ${JSON.stringify(report)}`);
       expect(samplesMs).toHaveLength(count);
       expect(appliedSequences).toHaveLength(count);
       expect(report.receiptSequencesMonotonic).toBe(true);

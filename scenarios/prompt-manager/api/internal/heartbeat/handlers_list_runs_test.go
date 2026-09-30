@@ -118,13 +118,13 @@ func TestTeamRunAccountingUsesRecordAfterActiveRegistryRetires(t *testing.T) {
 	}
 	registry := NewRunRegistry(t.TempDir())
 	e := newTestExecutor(t, teams, agents, nil, t.TempDir(), registry, nil)
-	wake := &SupervisionWake{ID: "wake", CreatedAt: time.Now().UTC().Add(-time.Hour)}
-	old := &Run{ID: "original", Status: "running"}
-	if err := e.recordSupervisionExecution(ctx, "team", "lead", wake, old); err != nil {
-		t.Fatal(err)
+	started := time.Now().UTC().Add(-time.Hour)
+	registry.Register("team", "lead", "original", started, nil)
+	for _, status := range []string{store.HeartbeatStatusRunning, store.HeartbeatStatusFailed} {
+		e.appendAttempt(ctx, &store.HeartbeatAttempt{ID: "wake", TeamID: "team", AgentID: "lead", RunID: "original", Status: status, StartedAt: started.Format(time.RFC3339)})
 	}
-	old.Status = "failed"
-	if err := e.recordSupervisionExecution(ctx, "team", "lead", wake, old); err != nil {
+	registry.Complete("team", "lead", true, "")
+	if err := teams.SetHeartbeatConfig(ctx, "team", "lead", &store.HeartbeatConfig{TeamID: "team", AgentID: "lead", LastExecution: &store.HeartbeatExecResult{RunID: "original", StartedAt: started.Format(time.RFC3339), Status: store.HeartbeatStatusFailed}}); err != nil {
 		t.Fatal(err)
 	}
 	if registry.Count() != 0 {

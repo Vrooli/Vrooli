@@ -68,6 +68,7 @@ func (c Collector) collectPlatformFacts(ctx context.Context, snapshot *Snapshot,
 		snapshot.RemoteDesktop.CredentialStore = probeCredentialStore(ctx, c, snapshot.ActiveSessionUser)
 		snapshot.IsWSL = c.isWSL()
 		snapshot.IsHeadless = snapshot.SessionType == "" && snapshot.DisplayManager == ""
+		snapshot.DesktopSession = DesktopSession{SessionType: snapshot.SessionType, Seat: snapshot.Seat, ActiveSessionUser: snapshot.ActiveSessionUser, DisplayAttached: snapshot.DisplayAttached, DisplayServer: snapshot.DisplayServer, AutoLoginUser: snapshot.AutoLoginUser}
 		snapshot.SupportsRDP = snapshot.RemoteDesktop.Supported
 		snapshot.SupportsCloudflared = c.commandAvailable("cloudflared")
 		setPlatformProvenance("init_system", "linux init signals", SourceKindDerived, "systemctl /run/systemd/system /proc/1/comm", "")
@@ -83,12 +84,48 @@ func (c Collector) collectPlatformFacts(ctx context.Context, snapshot *Snapshot,
 		snapshot.SupportsSysctl = false
 		snapshot.SupportsSystemd = false
 		snapshot.SupportsLaunchd = c.commandAvailable("launchctl")
+		// macOS stores the loginwindow automatic-login choice outside the
+		// per-user environment. Probe the system preference directly so a
+		// headless target can distinguish "configured but not yet logged in"
+		// from "the safeguard never applied".
+		snapshot.AutoLoginUser = c.commandValue(ctx, "defaults", "read", "/Library/Preferences/com.apple.loginwindow", "autoLoginUser")
+		if c.commandAvailable("sysadminctl") {
+			output, err := c.Commands.Run(ctx, "sysadminctl", "-autologin", "status")
+			status := strings.ToLower(strings.TrimSpace(string(output)))
+			switch {
+			case err != nil:
+				snapshot.ProbeStatuses["macos_auto_login"] = "failed"
+			case strings.Contains(status, "disabled") || strings.Contains(status, "not enabled") || strings.Contains(status, "not configured") || strings.Contains(status, " off"):
+				snapshot.ProbeStatuses["macos_auto_login"] = "disabled"
+			case strings.Contains(status, "enabled"):
+				snapshot.ProbeStatuses["macos_auto_login"] = "enabled"
+			default:
+				snapshot.ProbeStatuses["macos_auto_login"] = "unknown"
+			}
+			if detail := firstLine(status); detail != "" && snapshot.ProbeStatuses["macos_auto_login"] == "unknown" {
+				if len(detail) > 160 {
+					detail = detail[:160]
+				}
+				snapshot.ProbeStatuses["macos_auto_login_detail"] = detail
+			}
+		} else {
+			snapshot.ProbeStatuses["macos_auto_login"] = "tool_not_present"
+		}
 		snapshot.IsHeadless = strings.TrimSpace(c.envValue("DISPLAY")) == "" && strings.TrimSpace(c.envValue("WAYLAND_DISPLAY")) == ""
+		if uid := c.commandValue(ctx, "id", "-u"); uid != "" && c.commandValue(ctx, "launchctl", "print", "gui/"+uid) != "" {
+			snapshot.SessionType = "aqua"
+			snapshot.ActiveSessionUser = strings.TrimSpace(c.commandValue(ctx, "id", "-un"))
+		}
+		snapshot.DisplayAttached = strings.TrimSpace(c.commandValue(ctx, "system_profiler", "SPDisplaysDataType")) != ""
+		snapshot.IsHeadless = snapshot.SessionType == "" && !snapshot.DisplayAttached
+		snapshot.DesktopSession = DesktopSession{SessionType: snapshot.SessionType, Seat: snapshot.Seat, ActiveSessionUser: snapshot.ActiveSessionUser, DisplayAttached: snapshot.DisplayAttached, DisplayServer: snapshot.DisplayServer, AutoLoginUser: snapshot.AutoLoginUser}
 		snapshot.SupportsCloudflared = c.commandAvailable("cloudflared")
 		snapshot.RemoteDesktop = ClassifyRemoteDesktop(ctx, snapshot.OS, snapshot.SupportsSystemd, c.Commands)
 		snapshot.SupportsRDP = snapshot.RemoteDesktop.Supported
 		setPlatformProvenance("remote_desktop", "remote-desktop provider classifier", SourceKindDerived, "launchctl", "")
 		setPlatformProvenance("init_system", "launchctl", SourceKindCommand, "launchctl", "")
+		setPlatformProvenance("auto_login_user", "macOS loginwindow preference", SourceKindCommand, "defaults read /Library/Preferences/com.apple.loginwindow autoLoginUser", "")
+		setPlatformProvenance("macos_auto_login", "sysadminctl automatic-login status", SourceKindCommand, "sysadminctl -autologin status", "")
 	case hostreqspec.PlatformWindows:
 		snapshot.InitSystem = "windows-service-manager"
 		snapshot.SupportsSysctl = false
@@ -97,6 +134,11 @@ func (c Collector) collectPlatformFacts(ctx context.Context, snapshot *Snapshot,
 		snapshot.RemoteDesktop = ClassifyRemoteDesktop(ctx, snapshot.OS, snapshot.SupportsSystemd, c.Commands)
 		snapshot.SupportsRDP = snapshot.RemoteDesktop.Supported
 		snapshot.IsHeadless = !c.commandAvailable("explorer.exe")
+		if c.commandValue(ctx, "query", "session") != "" {
+			snapshot.SessionType = "windows-interactive"
+			snapshot.DisplayAttached = c.commandAvailable("explorer.exe")
+		}
+		snapshot.DesktopSession = DesktopSession{SessionType: snapshot.SessionType, Seat: snapshot.Seat, ActiveSessionUser: snapshot.ActiveSessionUser, DisplayAttached: snapshot.DisplayAttached, DisplayServer: snapshot.DisplayServer, AutoLoginUser: snapshot.AutoLoginUser}
 		snapshot.SupportsCloudflared = c.commandAvailable("cloudflared")
 		setPlatformProvenance("remote_desktop", "remote-desktop provider classifier", SourceKindDerived, "sc.exe", "")
 		setPlatformProvenance("init_system", "Windows service manager", SourceKindRuntime, "", "")
@@ -151,6 +193,13 @@ func (c Collector) commandValue(ctx context.Context, name string, args ...string
 func (c Collector) commandAvailable(name string) bool {
 	_, err := c.Commands.LookPath(name)
 	return err == nil
+}
+
+func firstLine(value string) string {
+	if index := strings.IndexByte(value, '\n'); index >= 0 {
+		return strings.TrimSpace(value[:index])
+	}
+	return strings.TrimSpace(value)
 }
 
 func (c Collector) envValue(name string) string {

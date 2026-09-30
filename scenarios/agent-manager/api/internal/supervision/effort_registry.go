@@ -7,6 +7,7 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/repository"
+
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -65,26 +66,6 @@ func (s *EffortService) reconcileRunRegistry(ctx context.Context, d *pb.EffortDi
 			if e.Withdrawn {
 				continue
 			}
-			// A recovery child inherits work references. Its reference is not a
-			// second grant: reconcile the retained owner admission before generic
-			// joining can invalidate the original grant or duplicate its leader.
-			if handled, recoveryErr := s.reconcileRegistryRecovery(ctx, e, run, ref.Relationship); handled || recoveryErr != nil {
-				if recoveryErr != nil {
-					d.Partial = true
-					d.Findings = append(d.Findings, &pb.EffortDiscoveryFinding{Source: "agent-manager:runs", Code: "recovery_reconciliation_pending", Reason: recoveryErr.Error()})
-				}
-				continue
-			}
-			// A dispatcher enrollment is an owner authorization anchor, not an
-			// effort.  Keep its source subject set empty so the same generic
-			// server-owned predicate remains true before issuance and after a
-			// supervisor run is attributed through the run registry.  The
-			// supervisor run is still visible through the dispatch wake's owner
-			// references and authorization metadata; adding it here would turn
-			// the anchor into a judgment/sample subject.
-			if authorizationAnchorEnrollment(e) {
-				continue
-			}
 			exists := false
 			for _, subject := range e.Subjects {
 				if subject.RunId == run.ID.String() {
@@ -106,13 +87,6 @@ func (s *EffortService) reconcileRunRegistry(ctx context.Context, d *pb.EffortDi
 				role = "unknown"
 				o.Limitations = append(o.Limitations, "runtime reference has no recognized assignment role; product runtime attribution remains unknown")
 			}
-			// New runtime subjects do not expand an existing mutation grant. The
-			// grant belongs to the authenticated supervisor owner and its exact
-			// effort/revision scope; coordinator and worker subjects are runtime
-			// observations. Do not revoke the supervisor grant merely because the
-			// finite coordinator advanced to a new run. Doing so creates a dead
-			// loop: every coordinator wake makes the standing supervisor require a
-			// new operator enrollment before it can recover that wake.
 			e.Subjects = append(e.Subjects, &pb.EffortSubject{Owner: "agent-manager", Kind: "run", Reference: run.ID.String(), RunId: run.ID.String(), Role: role})
 			e.Revision = expected + 1
 			e.UpdatedAt = timestamppb.New(s.now().UTC())

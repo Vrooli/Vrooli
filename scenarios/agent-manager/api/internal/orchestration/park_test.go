@@ -426,3 +426,52 @@ func TestParkRun_RejectsDoublePark(t *testing.T) {
 		t.Fatal("expected second ParkRun to be rejected (one open handle per run)")
 	}
 }
+
+// ParkedRunsOnHandle matches producer and key exactly; the friction wake
+// relies on it instead of scanning a client-side page of runs.
+func TestParkedRunsOnHandleMatchesProducerAndKey(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(eventStore))
+	running := newParkableRun(t, ctx, svc, repos)
+	park := func(producer, key string) *domain.Run {
+		t.Helper()
+		run := *running
+		run.ID = uuid.New()
+		run.Tag = run.ID.String()
+		run.Status = domain.RunStatusParked
+		run.AwaitHandle = &domain.AwaitHandle{Producer: producer, Key: key}
+		if err := repos.Runs.Create(ctx, &run); err != nil {
+			t.Fatal(err)
+		}
+		return &run
+	}
+	want := park(orchestration.ProducerChildren, "orchestrator-1")
+	park("supervision", "orchestrator-1")
+	park(orchestration.ProducerChildren, "orchestrator-2")
+
+	tests := []struct {
+		name, producer, key string
+		want                []uuid.UUID
+	}{
+		{"exact handle", orchestration.ProducerChildren, "orchestrator-1", []uuid.UUID{want.ID}},
+		{"key under another producer", "test-genie", "orchestrator-1", nil},
+		{"unknown key", orchestration.ProducerChildren, "missing", nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := svc.ParkedRunsOnHandle(ctx, tt.producer, tt.key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ids := make([]uuid.UUID, 0, len(got))
+			for _, run := range got {
+				ids = append(ids, run.ID)
+			}
+			if len(ids) != len(tt.want) || (len(ids) == 1 && ids[0] != tt.want[0]) {
+				t.Fatalf("matched %v, want %v", ids, tt.want)
+			}
+		})
+	}
+}

@@ -272,6 +272,71 @@ func TestCollectDarwinGPUFromSystemProfiler(t *testing.T) {
 	}
 }
 
+func TestCollectDarwinAutoLoginUserFromLoginWindowPreference(t *testing.T) {
+	c := Collector{
+		Commands: &shelltest.Fake{
+			Paths: map[string]string{
+				"defaults":        "/usr/bin/defaults",
+				"sysadminctl":     "/usr/sbin/sysadminctl",
+				"launchctl":       "/bin/launchctl",
+				"id":              "/usr/bin/id",
+				"system_profiler": "/usr/sbin/system_profiler",
+			},
+			Outputs: map[string][]byte{
+				"defaults read /Library/Preferences/com.apple.loginwindow autoLoginUser": []byte("matthalloran8\n"),
+				"sysadminctl -autologin status":                                          []byte("Auto login is enabled for user matthalloran8\n"),
+				"id -u":                                                                  []byte("501\n"),
+				"id -un":                                                                 []byte("matthalloran8\n"),
+				"launchctl print gui/501":                                                []byte("gui/501 = {\n"),
+				"system_profiler SPDisplaysDataType":                                     []byte("Graphics/Displays:\n"),
+			},
+		},
+		Clock:  testenv.NewClock(time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)),
+		GOOS:   "darwin",
+		GOARCH: "amd64",
+	}
+
+	got, err := c.CollectPlatformFacts(context.Background())
+	if err != nil {
+		t.Fatalf("CollectPlatformFacts() error = %v", err)
+	}
+	if got.AutoLoginUser != "matthalloran8" {
+		t.Fatalf("AutoLoginUser = %q, want matthalloran8", got.AutoLoginUser)
+	}
+	if got.ProbeStatuses["macos_auto_login"] != "enabled" {
+		t.Fatalf("macOS automatic-login status = %q, want enabled", got.ProbeStatuses["macos_auto_login"])
+	}
+	if got.SessionType != "aqua" || got.ActiveSessionUser != "matthalloran8" {
+		t.Fatalf("session = %#v, want Aqua session", got.DesktopSession)
+	}
+	if got.FieldProvenance["auto_login_user"].Command == "" {
+		t.Fatal("auto-login provenance command is empty")
+	}
+}
+
+func TestDarwinAutoLoginStatusUnknownRetainsRedactedDiagnosticLine(t *testing.T) {
+	c := Collector{
+		Commands: &shelltest.Fake{
+			Paths: map[string]string{"defaults": "/usr/bin/defaults", "sysadminctl": "/usr/sbin/sysadminctl", "launchctl": "/bin/launchctl", "id": "/usr/bin/id", "system_profiler": "/usr/sbin/system_profiler"},
+			Outputs: map[string][]byte{
+				"defaults read /Library/Preferences/com.apple.loginwindow autoLoginUser": []byte("alice\n"),
+				"sysadminctl -autologin status":                                          []byte("operation not supported on this host\n"),
+				"system_profiler SPDisplaysDataType":                                     []byte("Graphics/Displays:\n"),
+			},
+		},
+		Clock:  testenv.NewClock(time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)),
+		GOOS:   "darwin",
+		GOARCH: "amd64",
+	}
+	got, err := c.CollectPlatformFacts(context.Background())
+	if err != nil {
+		t.Fatalf("CollectPlatformFacts() error = %v", err)
+	}
+	if got.ProbeStatuses["macos_auto_login"] != "unknown" || got.ProbeStatuses["macos_auto_login_detail"] != "operation not supported on this host" {
+		t.Fatalf("probe status = %#v", got.ProbeStatuses)
+	}
+}
+
 func TestCollectWindowsGPUFromWMIC(t *testing.T) {
 	now := time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)
 	c := Collector{

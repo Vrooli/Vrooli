@@ -9,9 +9,9 @@ metadata:
   tags: ["skill","anti-gaming"]
   icon: "checkcircle"
   status: "active"
-  revision: 1
+  revision: 3
   createdAt: "2026-06-01T00:00:00Z"
-  updatedAt: "2026-06-01T00:00:00Z"
+  updatedAt: "2026-09-30T12:00:00Z"
   requires:
     scenarios: []
     commands: []
@@ -26,9 +26,9 @@ A real improvement closes a gap in the scenario's actual behavior, safety, or co
 
 ---
 
-### **1. The three gaming patterns we actually caught (cite them as D1, D2, D3)**
+### **1. The gaming patterns we actually caught (cite them as D1–D7)**
 
-These are not hypothetical. The closed-loop controller's first live runs produced each of these in miniature; the classifier now watches for them by name.
+These are not hypothetical. D1–D3 make a measurement look better by shrinking the check; D4–D7 make work look productive by growing the code or the process. The classifier watches for D1–D3 by name.
 
 #### **D1 — DON'T loosen or delete a `[REQ:]`-tagged test to make it pass — fix the contract.**
 
@@ -50,6 +50,32 @@ Adding `nolint`, `// +build ignore`, `eslint-disable`, `@ts-ignore`/`@ts-nocheck
 
 - **DO** fix the underlying issue. If a rule genuinely **over-fires** (a real false positive), *scope the rule* — narrow its matcher and add a regression test that proves the false positive is gone and the true positives still fire. Never blanket-disable. (See `scenario-auditor` FP-scoping practice.)
 - A bare suppression directive in a diff is treated as gaming.
+
+#### **D4 — DON'T add a fence, retry or generation counter where an owner could be merged or deleted.**
+
+A fence around a race between two owners of one concept keeps both owners and adds a third thing to maintain.
+
+- **DO** give the concept one owner and delete the other path. Add a guard only when one owner genuinely needs it.
+
+#### **D5 — DON'T count moved or extracted code as removal.**
+
+Splitting a file or extracting a helper moves lines; the runtime is no smaller and often has more seams.
+
+- **DO** measure net runtime lines across the whole scope from inventory snapshots. Count only code that is gone.
+
+#### **D6 — DON'T build a one-off receipt, sensor or instrument that no gate reuses.**
+
+An instrument built for one review is process, not product, and it has to be maintained.
+
+- **DO** build an instrument only when it runs from one command, a gate uses it, and later work reuses it. Otherwise record the evidence as unverified and continue.
+
+#### **D7 — DON'T accept a cleanup or retirement without a retirement manifest.**
+
+A retirement that only adds the new path leaves the old one alive beside it.
+
+- **DO** list every deleted path and every symbol or term that must no longer exist, each with the search that proves it (for example `grep -rn '<symbol>' <dir>` returns nothing). Acceptance reruns those searches.
+
+For tests, D1 still holds: mature a suite by the rules in `path:docs/testing/UNIT-TEST-AUTHORING.md#mature-a-suite-instead-of-growing-it`, not by deletion.
 
 ---
 

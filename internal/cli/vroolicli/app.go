@@ -913,6 +913,7 @@ func topLevelPackageHandler() rootcli.Handler[*AppContext] {
 		Stderr:           func(ctx *AppContext) io.Writer { return ctx.Stderr },
 		Root:             func(ctx *AppContext) string { return ctx.Root },
 		OperationContext: func(ctx *AppContext) context.Context { return ctx.OperationContext() },
+		HomeDir:          func(ctx *AppContext) (string, error) { return ctx.HomeDir() },
 		OutputFormat:     projectOutputFormat,
 		PackageScenarioOperations: func(ctx *AppContext) (packageapp.ScenarioRuntime, error) {
 			return ctx.app.newScenarioService(ctx)

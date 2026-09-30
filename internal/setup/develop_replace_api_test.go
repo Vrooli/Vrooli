@@ -8,7 +8,7 @@ import (
 
 // Only the project API's own process is stopped; a port held by another
 // program is left alone for the launch to report.
-func TestReplaceUnhealthyProjectAPIStopsOnlyTheProjectAPI(t *testing.T) {
+func TestStopManagedProjectAPIStopsOnlyTheProjectAPI(t *testing.T) {
 	running := map[int]bool{11: true, 22: true, 33: true}
 	var killed []int
 	ops := apiProcessOps{
@@ -30,7 +30,7 @@ func TestReplaceUnhealthyProjectAPIStopsOnlyTheProjectAPI(t *testing.T) {
 		alive: func(pid int) bool { return running[pid] },
 		grace: time.Second,
 	}
-	stopped := replaceUnhealthyProjectAPI(8092, ops)
+	stopped := stopManagedProjectAPI(8092, ops)
 	if len(stopped) != 1 || stopped[0] != 11 || len(killed) != 1 {
 		t.Fatalf("stopped=%v killed=%v, want only the vrooli-api pid", stopped, killed)
 	}

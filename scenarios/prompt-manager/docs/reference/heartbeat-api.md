@@ -114,7 +114,7 @@ Manual trigger endpoints return `423 Locked` when blocked by heartbeat control:
 ### Ordinary wake admission
 
 Create and update requests may include `wakeAdmission` for ordinary (non-finite
-leader, non-standing-supervision) heartbeats:
+leader) heartbeats:
 
 ```json
 {
@@ -134,89 +134,12 @@ returned as a configuration revision. Manual triggers bypass scheduled wake
 admission. Evidence and baseline read failures admit work rather than silently
 suppressing it.
 
-### Standing supervision policy
+### Finite leader liveness
 
-The existing generated HeartbeatService create/update operations accept an
-optional `supervision` object through their JSON body. The same heartbeat
-service exposes one explicit observation-only refresh; it is not a scheduler or
-dispatch surface:
-
-```json
-{
-  "supervision": {
-    "discoveryLimit": 100,
-    "maxEffortsPerWake": 3,
-    "minWakeIntervalSeconds": 300,
-    "healthySampleIntervalSeconds": 3600,
-    "maxHealthySamplesPerWake": 1,
-    "diagnosticAllowance": {
-      "maxWakesPerWindow": 4,
-      "windowSeconds": 3600,
-      "accountingRef": "effort-supervision:standing-diagnostics"
-    }
-  }
-}
-```
-
-Discovery pages are limited to 100; wakes to 20 efforts within the page limit.
-Minimum wake interval is 60–86400 seconds. Healthy sampling is optional and its
-interval must be between the wake interval and 30 days. Its positive per-wake
-cap must fit within `maxEffortsPerWake`. Diagnostic allowance requires 1–100 wake
-attempts in a 60-second to 30-day window and a nonempty accounting reference.
-`diagnosticAllowance` is only the wake-attempt bound. It does not authorize
-spend or replace the Agent Manager dispatch grant's required finite
-`maxTokens`/`maxChargeMicroUsd` settlement budget. Invalid configuration returns 400. The configured member must be the active
-leader of an enabled, serialized team with one concurrent run and a member
-operating contract. Global/team controls and heartbeat enabled state still gate
-dispatch. Staging a disabled config does not activate anything.
-
-### Refresh the owner cut without dispatch
-
-```
-POST /teams/{teamId}/heartbeats/{agentId}/observe
-```
-
-Refreshes Agent Manager's bounded owner-derived discovery cut and persists its
-timestamps even when the team or heartbeat is disabled. The request validates
-the selected leader/member contract, refuses an unresolved wake with `409`, and
-performs no queue, prompt, or model operation. Use it before reading cached
-supervision readiness; `POST .../trigger` remains a dispatch operation.
-
-### Reconcile one uncertain wake without replay
-
-```
-POST /teams/{teamId}/heartbeats/{agentId}/reconcile
-{
-  "wakeId": "<exact wake id>",
-  "evidenceRefs": ["<bounded owner reference>"],
-  "reason": "<bounded owner comparison>"
-}
-```
-
-This is an operator-direct recovery operation, not a dispatch operation. It
-checks the exact task and `supervision-<wakeId>` tag through Agent Manager,
-cancels a queued orphan task, refuses when a matching run exists or owner
-evidence is incomplete, and moves the wake into bounded `reconciledWakes`
-history. It never retries the original dispatch or treats absence alone as a
-successful run.
-
-Get/list config responses include `supervision` and read-only `supervisionState`;
-an unreadable reservation is reported as `supervisionError`. Runtime state owns
-only admission evidence. AM's generated `GetEffortBoard` remains the authoritative
-effort projection. A manual trigger returns the admission disposition (`idle`,
-`queued`, `cooldown`, `allowance-wait`, an owner run state, or `uncertain`).
-AM enrollment CAS revision is not part of PM's wake trigger; only the target and
-subject-evidence identities matter. CreateRun carries bounded typed effort work
-references with public/active/verified standing and relationship `supervisor`.
-These establish observed membership, not steering permission. AM issues the run
-token; PM does not supply an owner credential or invented signed scopes.
-Per-effort state separates `lastAttempt` from `servedRevision`, `assessmentId`,
-`lastAssessedAt` and `lastSampleAt`. An exact AM receipt advances coverage; run
-success alone does not. `unassessed-reopen` and `sample-unassessed-reopen` retain
-`retryAfter`, while the last wake retains terminal status/error and receipt-read
-failure. All retries remain charged against the diagnostic allowance. The state
-also counts bounded `assessmentReads`. Deletion returns 409 while a standing
-wake is unresolved; disabling preserves that fence without admitting new work.
+`finiteLeader.keepAlive` selects orchestrator liveness relaunch and is mutable
+on a bound leader (it is not binding identity). `finiteLeaderState` reports
+`consecutiveRelaunches`, a bounded `restartHistory` (newest 20), and status
+`relaunch-capped` when relaunch has stopped; the `restart` transition resets it.
 
 ### List Heartbeats
 

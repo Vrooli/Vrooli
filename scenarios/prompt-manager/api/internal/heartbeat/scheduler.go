@@ -43,29 +43,22 @@ type ScheduledHeartbeat struct {
 	cancelCtx context.CancelFunc
 }
 
-// standingSupervisorProfileKey is deliberately distinct from the global
-// multi-process heartbeat default. Ordinary Prompt Manager heartbeats stay on
-// the economical judgment role; only the standing supervisor is admitted to
-// the existing Sol-backed delivery-review profile.
-const standingSupervisorProfileKey = "prompt-manager/delivery-review"
-
 // Scheduler manages cron-based heartbeat execution
 type Scheduler struct {
-	mu               sync.RWMutex
-	cron             *cron.Cron
-	scheduled        map[string]*ScheduledHeartbeat // key: teamID/agentID
-	executor         HeartbeatExecutor
-	running          bool
-	profileKey       string
-	agentClient      AgentClient
-	configStore      HeartbeatConfigStore
-	teamStore        TeamStateStore
-	teamExecStore    *TeamExecutionStore
-	controlStore     *HeartbeatControlStore
-	effortSupervisor *StandingSupervisor
-	admissionMu      sync.Mutex
-	wakeSignals      WakeSignalProvider
-	admissionState   wakeAdmissionStateStore
+	mu             sync.RWMutex
+	cron           *cron.Cron
+	scheduled      map[string]*ScheduledHeartbeat // key: teamID/agentID
+	executor       HeartbeatExecutor
+	running        bool
+	profileKey     string
+	agentClient    AgentClient
+	configStore    HeartbeatConfigStore
+	teamStore      TeamStateStore
+	teamExecStore  *TeamExecutionStore
+	controlStore   *HeartbeatControlStore
+	admissionMu    sync.Mutex
+	wakeSignals    WakeSignalProvider
+	admissionState wakeAdmissionStateStore
 }
 
 // NewScheduler creates a new heartbeat scheduler
@@ -107,93 +100,6 @@ func (s *Scheduler) SetControlStore(controlStore *HeartbeatControlStore) {
 	if e, ok := s.executor.(*Executor); ok && e.FiniteLeader != nil {
 		e.FiniteLeader.Control = controlStore
 	}
-}
-
-func (s *Scheduler) SetEffortSupervisor(supervisor *StandingSupervisor) {
-	s.effortSupervisor = supervisor
-}
-
-// EnsureStandingSupervisorStarted arms the single standing supervisor team
-// after an eligible finite effort is enabled. It is idempotent and never
-// creates a per-effort supervisor loop. Empty discovery remains an idle
-// standing-service state; stopping requires an explicit lifecycle operation.
-func (s *Scheduler) EnsureStandingSupervisorStarted(ctx context.Context) error {
-	if s.teamStore == nil || s.configStore == nil {
-		return errors.New("standing supervisor auto-start dependencies unavailable")
-	}
-	team, err := s.teamStore.Get(ctx, "effort-supervision")
-	if err != nil {
-		return fmt.Errorf("load standing supervisor team: %w", err)
-	}
-	if team == nil || team.Archived {
-		return errors.New("standing supervisor team is unavailable or archived")
-	}
-	teamUpdater, canUpdate := s.configStore.(interface {
-		Update(context.Context, string, *store.Team) error
-	})
-	configLister, ok := s.configStore.(interface {
-		ListHeartbeatConfigs(context.Context, string) ([]store.HeartbeatConfig, error)
-	})
-	if !ok {
-		return errors.New("standing supervisor heartbeat store is not readable")
-	}
-	configs, err := configLister.ListHeartbeatConfigs(ctx, team.ID)
-	if err != nil {
-		return fmt.Errorf("list standing supervisor heartbeats: %w", err)
-	}
-	// Repair the persisted profile while the team is still disabled. This
-	// closes the race where enabling the team could expose a stale economical
-	// profile to another scheduler before the Sol-backed review profile is
-	// persisted.
-	var configUpdater interface {
-		SetHeartbeatConfig(context.Context, string, string, *store.HeartbeatConfig) error
-	}
-	for i := range configs {
-		config := &configs[i]
-		if config.TeamID != team.ID || config.AgentID != "effort-supervisor" || config.ProfileKey == standingSupervisorProfileKey {
-			continue
-		}
-		if configUpdater == nil {
-			var canUpdateConfig bool
-			configUpdater, canUpdateConfig = s.configStore.(interface {
-				SetHeartbeatConfig(context.Context, string, string, *store.HeartbeatConfig) error
-			})
-			if !canUpdateConfig {
-				return errors.New("standing supervisor heartbeat cannot enforce its Sol-backed profile")
-			}
-		}
-		config.ProfileKey = standingSupervisorProfileKey
-		if err := configUpdater.SetHeartbeatConfig(ctx, config.TeamID, config.AgentID, config); err != nil {
-			return fmt.Errorf("persist standing supervisor profile: %w", err)
-		}
-	}
-	enabledByUs := false
-	if !team.Enabled {
-		if !canUpdate {
-			return errors.New("standing supervisor team store is not writable")
-		}
-		if err := teamUpdater.Update(ctx, team.ID, &store.Team{Enabled: true, EnabledSet: true}); err != nil {
-			return fmt.Errorf("enable standing supervisor team: %w", err)
-		}
-		enabledByUs = true
-	}
-	scheduled := make([]store.HeartbeatConfig, 0, len(configs))
-	for _, config := range configs {
-		if !config.Enabled {
-			continue
-		}
-		if err := s.Schedule(config.TeamID, config.AgentID, config.Schedule); err != nil {
-			for _, previous := range scheduled {
-				s.Unschedule(previous.TeamID, previous.AgentID)
-			}
-			if enabledByUs {
-				_ = teamUpdater.Update(ctx, team.ID, &store.Team{Enabled: false, EnabledSet: true})
-			}
-			return fmt.Errorf("schedule standing supervisor %s/%s: %w", config.TeamID, config.AgentID, err)
-		}
-		scheduled = append(scheduled, config)
-	}
-	return nil
 }
 
 // Start begins the scheduler
@@ -451,16 +357,6 @@ func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string
 				if _, err := executor.FiniteLeader.Tick(ctx, teamID, agentID); err != nil {
 					log.Printf("Finite leader tick for %s/%s: %v", teamID, agentID, err)
 				}
-			}
-			return
-		}
-		if config.Supervision != nil {
-			if s.effortSupervisor == nil {
-				log.Printf("Standing supervision unavailable for %s/%s", teamID, agentID)
-				return
-			}
-			if _, err := s.effortSupervisor.Tick(ctx, teamID, agentID); err != nil {
-				log.Printf("Standing supervision tick for %s/%s: %v", teamID, agentID, err)
 			}
 			return
 		}

@@ -5,9 +5,11 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"time"
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/workflowruntime"
 
 	"github.com/google/uuid"
@@ -27,6 +29,11 @@ type RunAccounting struct {
 	ChargeMeasured bool
 	// WallSeconds is conservative elapsed time from the durable start to end.
 	WallSeconds int64
+	// NonCacheTokens excludes cache reads; CacheReadTokens is the remainder of
+	// Tokens. Model names the producing model so readers can weight by tier.
+	NonCacheTokens  int64
+	CacheReadTokens int64
+	Model           string
 }
 
 // RunAccounting reads a standalone run's terminal usage. A consumer that
@@ -37,7 +44,25 @@ func (o *Orchestrator) RunAccounting(ctx context.Context, runID uuid.UUID) (RunA
 	if err != nil {
 		return RunAccounting{}, err
 	}
-	return runAccountingFromState(run, state)
+	out, err := runAccountingFromState(run, state)
+	if err != nil {
+		return out, err
+	}
+	events, err := o.allRunEvents(ctx, runID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeMetric}})
+	if err != nil {
+		return RunAccounting{}, err
+	}
+	return withTokenComponents(out, run, events, o.now()), nil
+}
+
+// withTokenComponents splits the metered token total into cache reads and
+// everything else, and names the model, from the run's usage events.
+func withTokenComponents(out RunAccounting, run *domain.Run, events []*domain.RunEvent, now time.Time) RunAccounting {
+	fact := invocationreadmodel.ProjectRun(run, events, now)
+	out.CacheReadTokens = fact.CacheReadTokens
+	out.NonCacheTokens = fact.TotalTokens - fact.CacheReadTokens
+	out.Model = fact.Model
+	return out
 }
 
 // meteredRun loads a run and its durable accounting events and applies the

@@ -1,310 +1,221 @@
 ---
 name: large-effort-orchestration
-description: Preserve a large cross-scenario request, then coordinate owner-admitted boundaries with economical workers, durable handoffs, quota recovery and evidence review. Use for finite multi-shape efforts that must survive interruptions; use the ordinary plan skills for one bounded change.
+description: Run a long delivery goal as an orchestrator that admits epochs, spawns one goal worker per epoch, parks between check-ins, steers through the epoch file, applies the step-back rule and accepts epochs through a mechanical gate. Use for orchestrated long-running efforts only; phased plans, bounded tasks and direct requests do not use epochs.
 license: CC-BY-4.0
 metadata:
   kind: skill
   schemaVersion: 1
   modes: [practice]
-  tags: [orchestration, multi-agent, effort, continuity, recovery, planning]
+  tags: [orchestration, multi-agent, effort, epochs, continuity, recovery]
   icon: network
   status: active
-  revision: 15
+  revision: 18
   createdAt: "2026-09-10T00:00:00Z"
-  updatedAt: "2026-09-28T12:00:00Z"
+  updatedAt: "2026-09-30T18:00:00Z"
   requires:
-    scenarios: [prompt-manager, agent-manager, program-runtime]
-    commands: [prompt-manager skill read, agent-manager, program-runtime]
+    scenarios: [prompt-manager, agent-manager]
+    commands: [prompt-manager skill read, agent-manager]
   origin:
     kind: authored
 ---
 
 ## Practice focus: Large effort orchestration
 
-Turn a large request into a finite, recoverable effort without losing its intent or spending the whole investment repairing infrastructure. Large efforts use one governed start model: a finite, effort-based Prompt Manager delivery team coordinates bounded work; Agent Manager owns runs and outcomes; Swarm Manager owns grants and dispositions; Plan Manager is consulted only when the selected work shape requires a plan. Preserve the destination, delegate coherent work, and close only against evidence for that destination.
+Deliver a long goal (days to weeks) through **epochs**: large, verifiable units of
+work, each executed by one long goal run and steered by an orchestrator that keeps
+its context for hours. This skill is the only home of the epoch standard. Phased
+plans, bounded tasks and direct requests do not use epochs.
 
-This skill owns cross-round judgment, source preservation, and recovery policy. Plan Manager owns implementation plans and family admission. Agent Manager owns runs and supervision. Swarm Manager owns its work and grants when selected. The effort workspace joins those owners; it does not replace them.
+Delivery teams never use Swarm Manager; they dispatch through Agent Manager and
+record state in the goal home.
 
-Use three separate responsibilities. The standing Sol supervisor selects the next
-ownership boundary and accepts or reopens its candidate. The economical Luna
-coordinator executes only the boundary already admitted by the owner and manages
-its child runs. Workers implement bounded assignments inside that boundary. A
-coordinator or worker must not choose, close, or replace the campaign boundary.
-The coordinator may report a proposed follow-up, but the owner must admit it
-before any new boundary starts. A finite team roster does not limit the
-coordinator's child-run capacity: an empty org beyond the coordinator still
-requires direct Agent Manager child delegation for bounded delivery. Keep process
-monitoring, dispatch admission, timers and retry accounting in deterministic owner
-code. A planning tree does not replace that runtime supervision tree.
+Supporting files (repository paths; native projection does not install them):
+- Worker card — the only protocol an epoch worker loads:
+  `path:scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/references/worker.md`.
+- Lost runs, runner limits and route changes:
+  `path:scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/references/recovery.md`.
 
-For an operator-selected continuous campaign, keep its persistence policy at the
-campaign owner. Workers receive coherent boundaries with finite handoffs; a
-compaction or one repaired defect does not close or replace the boundary. Select
-economical coordination separately from infrequent stronger review. A worker's
-editable progress file or guard input cannot enforce acceptance, qualification
-admission or scope. Use existing owner state and qualified enforcement. See
-`path:docs/agent-system/EFFORT_SUPERVISION.md#delivery-campaign-amendment--2026-09-26`
-for the BAS integration contract and its explicitly unverified runtime gates.
+### 1. Roles
 
-Choose each assignment's shape with `docs/agent-system/SWARM_MANAGER_WORK.md` §"Work shapes" and write the assignment with `prompt-manager skill read harness-goal-authoring`. Read `prompt-manager skill read implementation-plan-authoring plan-family-orchestration` when creating plans or a family. Read `prompt-manager skill read agent-manager-plan-family-supervision program-runtime` before managed dispatch. For an approved scenario improvement mandate, use `scenario-improvement-campaign` and the scenario's improve skill inside that mandate.
+| Role | Model | Does | Never does |
+|---|---|---|---|
+| Supervisor | Sol, rare | See `large-effort-supervision`. | Select or accept epochs. |
+| Orchestrator | Luna-high | Team leader and one long-lived Agent Manager run. Owns the goal home, admits briefs, sets gates, spawns and steers workers, accepts or reopens epochs, picks the next slice, turns operator feedback into directives, authorizes installs, manages validation targets. | Implement product work. |
+| Epoch worker | Luna-medium | One goal run per epoch under the worker card. | Read `FEEDBACK.md`, install external tools, accept its own epoch. |
 
-Supporting files below use repository paths because native skill projection does not install supporting assets:
-- For workspace creation or resumption, read `path:scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/references/workspace.md`.
-- For failed capabilities, ambiguous launches or repair diversion, read `path:scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/references/recovery.md`.
+Record the model on every run you create. Escalate a worker to a stronger model
+only with a written reason in the epoch file.
 
-### 1. Preserve the request and authority
+### 2. The orchestrator loop
 
-For efforts enrolled with an operational supervisor, read
-`path:docs/agent-system/EFFORT_SUPERVISION.md`. Retain the supervisor's identity
-and owner directive channel. Acknowledge delivered guidance, name justified waits,
-and challenge stale or incorrect instructions with evidence. Keep worker assignment
-with one parent and preserve accepted outcomes. Supervision does not grant another
-writer access to active effort control files. Read `large-effort-supervision` when
-assigned to assess orchestrators rather than deliver this effort.
+The team heartbeat (about every 30 minutes) only keeps the orchestrator alive: it
+skips while the orchestrator run is running or parked, and relaunches one from the
+goal home, with backoff and a cap, when it has ended.
 
-Entry: the user supplies a large outcome or an existing effort reference.
+1. **Resume.** Read `GOAL.md`, `QUEUE.md`, the active epoch file, `WORKAROUNDS.md`
+   and new `FEEDBACK.md` entries. Your run ID is `.claims.run_id` in
+   `agent-manager run identity --json`.
+2. **Admit.** If no epoch is active, take the next `QUEUE.md` slice, write its brief
+   (§4.2) and set its gates.
+3. **Spawn.** If the active epoch has no live worker:
+   `agent-manager task create --title "<goal> E<n>" --scope-path <scenario path>`, then
+   `agent-manager run create --task-id <task> --profile-id <worker profile> --parent-run-id <your run ID> --until "<epoch outcome and exit gate>" --model <luna> --effort medium --workload-key <goal>/E<n>`.
+   The prompt names the epoch file, your run ID and the worker card. The worker
+   profile runs on the interactive substrate, whose native `/goal` loop keeps it
+   going across turns. Record the run ID in the brief's `Workers` field.
+4. **Park.** `agent-manager run park <your run ID> --producer children --key <your run ID> --timeout 15m`.
+   You wake when a child run ends, the timer expires, or something calls
+   `agent-manager run wake --key <your run ID>` (the worker's epoch-check friction
+   wake). Never claim to be parked from prompt text.
+5. **On wake.** Read new slice-log lines and run
+   `agent-manager effort epoch-check <epoch file> --runs <worker run IDs>`. Stop an
+   idle worker that has handed off but still shows as running
+   (`agent-manager run stop <id>`). Then do exactly one of: park again, write a
+   directive, direct a step-back, spawn a successor, or accept (§4.4).
+6. After acceptance, move the slice to done in `QUEUE.md` and go to step 2.
 
-#### Canonical team-native start
+**Waking the supervisor.** After recording a step-back, a workaround logged a
+second time, or a spend spike in the goal home, run
+`prompt-manager team heartbeat-trigger effort-supervision effort-supervisor`. It
+admits at most one event wake per day; the supervisor reads the goal home, so
+record the event there first.
 
-1. Create or resume one finite delivery team and one protected effort workspace. The
-   team metadata MUST use `purpose: delivery`, `lifetime: finite`, and an
-   `effortRefs` entry containing the exact canonical effort reference. Record the
-   mission, leader, operating contract, serialized execution policy and acceptance
-   revision. Team metadata describes coordination; it does not grant authority.
-2. Register or verify the team's Source Ledger scope. Persist the coordinator goal and source references in the effort workspace; keep the workspace a recoverable index, never a second owner ledger.
-3. Qualify the exact team, runner, profile, model, owner route and recovery behavior with a disposable finite fixture. The fixture must exercise registration, contract validation, a disabled finite-leader binding, one controlled owner admission, identity/receipt reconciliation, lifecycle transitions and explicit recurrence/recovery limits.
-4. Provision the finite-leader binding disabled with exact effort, accepted revision, coordinator prompt and source references. Obtain one explicit operator activation for that exact effort revision, then enable the finite team. An enabled binding is an ongoing execution mandate inside the accepted destination; it is not permission to expand scope. Do not insert a second approval gate for ordinary in-boundary implementation, UX, documentation, validation or handoff work.
-5. When approved, enable only the finite team and its qualified member, admit the first run through the governed team execution route, and reconcile the PM admission identity with the Agent Manager task/run and handoff. Keep the UX effort inactive until this sequence and its approval gate are complete.
+When nothing is admissible (every remaining slice waits on an operator decision
+or an outside repair), park with `--timeout 12h` instead of ending; an ended run is
+relaunched and rereads the goal home for nothing. Never poll children in a loop.
 
-The finite team's operating contract is the coordinator's recovery handoff. Team registration, heartbeat provisioning, owner-run admission, continuation authority and accepted completion are separate states. A completed run is not accepted work; an explicit revision-checked completion receipt is required. Recurring continuation and fresh-run recovery are separate gates: a heartbeat tick may observe a retained owner wait or recovery condition, but it cannot invent a continuation edge, replacement run, grant or approval. Uncertain dispatch retains its exact identity until the owner reconciles it; it never authorizes a speculative retry.
+**Steering.** Append a directive to the epoch file's `## Directives`
+(`- D<n> <ISO time> <text>`). The worker acknowledges it in its next slice-log
+line. `agent-manager run continue <worker run ID> --message "..."` also types the
+text into a running session; the Directives section stays the record.
 
-Qualification is a separate owner boundary. Its preparation path MUST classify a
-durable candidate/review rejection or invalid authority as one terminal result;
-it MUST retain the exact identity and retry only transient owner, transport, or
-accounting failures. A supervisor or recovery loop must never spend the same
-candidate's allowance retrying a deterministic refusal. Record the terminal
-reason and reopen the same boundary only through the owner-controlled repair
-path.
+**Operator and supervisor feedback.** Record it verbatim in `FEEDBACK.md` (open
+items at the top), then translate it into directives or brief amendments. Workers
+see only those. This is the only feedback path.
 
-1. Discover related work and reusable programs through Search Hub before inventing another work owner.
-2. Resume the existing effort when its identity and destination match.
-3. Preserve source statements, constraints, uncertainty, decisions and examples with stable requirement IDs.
-4. Separate user requirements, agent recommendations, observed facts and unverified assumptions.
-5. Map every requirement to a deliverable, accountable owner and observable acceptance condition.
-6. Record the execution boundary, exclusions, budget, completion policy and permitted fallback routes.
+### 3. Goal home
 
-An approved destination permits in-scope implementation choices and repair; it does not approve new destinations. Record the actual session authorization or owner grant. Never invent a human approval receipt. For a planning/review request, create the skill, dossier and plans, but leave execution and recurring schedules inactive.
+Scenario goals live in `scenarios/<scenario>/docs/internal/goal/`; other goals in
+one dedicated folder. The goal home is the only ledger for the effort.
 
-For an autonomous delivery effort, fix a delivery-blocking capability before
-filing a passive report when the active authority covers the repair. This includes
-the agent-system core substrate: `agent-manager`, `prompt-manager`,
-`program-runtime`, `test-genie`, `plan-manager`, `swarm-manager`,
-`workspace-sandbox`, and `development-toolchain-validator`, including their
-scenario-owned skills and governed programs. Use the owning scenario's write and
-validation route, preserve its contract, and continue the original effort.
-The Promotion Ladder is not an approval gate for an authorized skill or program
-edit; it governs later stabilization, compression, and retirement.
-
-Route or report only when the repair exceeds the mandate, affects protected
-control files or another effort, or requires a new decision, credential,
-dependency, host mutation, global policy change, or production effect. Retain the
-repair's before/after evidence and account for its cost in the effort.
-
-Exit: another agent can recover the full destination and authority without this conversation. The user has one review entrypoint.
-
-### 2. Qualify the path and select work shapes
-
-Entry: the destination is preserved.
-
-Perform one representative, low-impact check for each capability actually needed by the next work. A health response, help page or wrapper completion proves only that surface. Inspect relevant existing failure evidence. Avoid probing every service in the ecosystem.
-
-Before relying on subagents, qualify the selected dispatch and monitoring route. Verify requested versus effective runner/model, reasoning effort and supported goal/completion behavior, plus durable run identity, result/wait, cancellation and uncertain-start reconciliation. A health check or declared profile is insufficient. Extract missing core delegation into an upfront prerequisite when necessary; do not postpone it with the full recurring-supervision platform. Bootstrap that prerequisite through a directly supervised qualified session without circular dependence on unproven delegation. Independent work may continue only where its actual prerequisites are satisfied.
-
-Classify each dependency as observed usable, insufficient, unavailable, or unverified, with scope and evidence. Check a real output when the distinction matters. Apply the recovery policy before repairing a dependency.
-
-Before dispatching implementation, confirm the target documentation describes the intended design. When it does not, the first assignment is a bounded docs-first authoring task, so later goals point at the docs instead of restating them.
-
-Delegate bounded investigation, docs-first authoring and shape-specific authoring in parallel where their source claims do not conflict. Reuse existing plans after reading their current execution state; a draft label or old blocked phase alone does not establish missing work. A plan is one work shape; author one only where the Work shapes rule selects it. Author plans through Plan Manager, with the full change boundary and source requirement references. Candidate files are permitted only in the authoring skill's explicit candidate mode; label them unfinalized.
-
-Add a subplanner only when it owns a distinct outcome that would otherwise overload its parent. Workers do not coordinate with siblings or edit a shared scheduling file. They return one durable result to their assigning parent; the owner transport deduplicates retries of that handoff. Research, authoring, implementation and independent review are assignments, not permanent departments. Keep the tree shallow, with one effort-wide active-agent ceiling and usage allowance across every level. A child cannot create fresh budget by spawning descendants.
-
-Create a plan family only when `plan-family-orchestration` selects it: two or
-more plan-shaped units have independent identities or lifecycles and explicit
-dependencies or resource overlap. Register those members and their shared
-package, generated-output, database and lifecycle claims. Do not make phases of
-one plan, bounded tasks, investigations or every worker into family members.
-Let the current reviewed frontier determine admission. Family topology review
-can use an authorized reviewer; it need not create another human approval for
-every in-scope plan.
-
-Exit: each requirement is covered, deferred by an explicit user decision, or visibly unresolved. The team, effort workspace and owner views expose exact identities and evidence; none claim runtime qualification that has not occurred.
-
-### 3. Admit and supervise bounded work
-
-Entry: execution is authorized and the selected route is qualified.
-
-For autonomous delivery, use the qualified Agent Manager family/workflow route
-or direct child-run delegation as the default. The coordinator must spawn and
-manage bounded child agents, retain their parent/child identities, and advance
-the accepted effort without a human response. Swarm Manager is not the delivery
-runtime and must not be used to create backlog items, open a Plan Workshop,
-await human plan acceptance, or queue implementation for an already-authorized
-effort. Use Swarm only when the selected effect genuinely requires a
-Swarm-owned grant or disposition—such as new scope, production access, paid
-spend, private data or an unapproved decision. If a plan-shaped assignment
-needs Plan Manager, invoke its autonomous owner route directly; a missing plan
-is an agent responsibility to author through that route, not a reason to stop
-for a human. If the selected owner route is unavailable, use the qualified
-direct Agent Manager fallback and record the reduced guarantee; do not convert
-delivery into a human-in-the-loop backlog workflow.
-
-Persist work identity, admission, dispatch key, selected member context and expected result before spawning. Give each worker one assignment in one work shape: plan-backed, adaptive mandate, owner-backed convergence, bounded task, or investigation. Write it as a harness goal per `harness-goal-authoring`: destination, proof, sources, boundary, dials, blocked, budget, handoff. Use existing plan-execution guidance only for plan-backed work. When dispatching through Agent Manager, pass the destination clause as `until`; the engine delivers it natively where the runner declares support and as prompt text otherwise. A prompt saying "keep going" is not a persisted goal.
-
-Choose the least expensive qualified profile for the assignment. Respect the user's worker-model and effort preferences; do not silently inherit a premium planner model. Reserve stronger profiles for ambiguous decomposition, consequential design decisions or an evidenced failed lower-cost attempt. Record the escalation reason and remaining allowance. Check the installed runner's exact model identifier, supported settings, account availability and current tariff before relying on a route; a public model listing does not prove local access or sufficient credits. Compare cost per accepted outcome, including the root planner, review, retries and rework, rather than token price alone. Unknown root usage is reserved, not omitted from the aggregate allowance.
-
-Persist selected runner/profile/model, credential-pool reference, policy revision, reserved usage and required capabilities with admission. Limit strong-model concurrency separately. Keep context bounded through source pointers and stable shared prompt sections. Use isolated worker checkouts when the owner supports them; still declare schema, generated-output, integration and live-service conflicts. Independent review remains a bounded worker assignment for material outcomes. Do not create a permanent judge or integration agent for every task.
-
-Treat worker efficiency as an admitted safety budget, not a hopeful prompt
-instruction. Give each worker an explicit writable-path allowlist,
-role-appropriate tool-call/retry and wall-time ceilings, and a structured
-handoff. Size those ceilings for a coherent ownership boundary and its focused
-proof, not for arbitrary micro-epochs; a compaction or checkpoint does not
-close the boundary. Workers must not repeat broad discovery, full-document
-reads, or an identical failed write; an unresolved or duplicate-call threshold
-ends the attempt for review instead of granting more context or retries. A
-valid-looking final message is not useful progress when the run exceeded its
-tool, token, or time budget.
-
-Before diagnosing a consumer compile, type-check, or runtime-contract failure,
-run the owning generated-artifact preflight when the error names a generated
-message, field, service, client, descriptor, or manifest. For protobuf consumers
-follow `path:docs/development/proto.md#consumer-compile-preflight`: verify the
-shared projection first, regenerate the affected closure only when drift is
-confirmed, then rerun the focused consumer check. Apply the same ordering to
-other generated projections using their owner health command. Never hand-edit a
-generated tree, add a compatibility shim, or spend worker budget debugging a
-consumer against an unverified projection; if the owner preflight still fails,
-record the exact source/output drift and route repair to that owner.
-
-The standing effort supervisor observes the team-native effort through the owner board and exact work references. It is not the finite coordinator, does not become a private scheduler, and cannot derive authority from its standing membership or a heartbeat. Legacy drivers and bespoke shell/tmux loops are migration evidence only; they are not a supported second start model.
-
-Reuse Program Runtime compositions for repeated joins and bounded fan-out. Read a discovered program and its owner skill together. Runtime code must retain owner IDs, cancellation, budgets, partial results and idempotency. Promote repeated deterministic composition only after its inputs and stop rule are known. Put state-machine, repair and scheduling invariants in their owning scenario, not a private shell loop or a growing program.
-
-The leader advances every useful admitted branch before waiting. When delegated child
-runs are pending, represent them with exact parent/child identities and one durable
-Agent Manager cohort watch. Park the parent on the supervision watch with an explicit
-deadline; a terminal child wakes the same parent run with bounded evidence, while the
-deadline is only a watchdog for missed events or stuck children. A configured recurring
-wake is a recovery opportunity, not a queue: skip while the leader is running, queued,
-parked or uncertain. Qualify restart/outage behavior before enabling unattended
-wakeups. Never interpret an unavailable run lookup as a dead process.
-
-The supported coordinator sequence is:
-
-1. Read the verified parent identity with `agent-manager run identity --json`.
-2. Create each child with `agent-manager run create --parent-run-id <parent-run-id>`
-   and retain every returned task/run identity.
-3. Create one `agent-manager watch` cohort whose `parent_run_id` is the coordinator
-   and whose subjects are exactly those child run IDs.
-4. Park the coordinator with
-   `agent-manager run park <parent-run-id> --producer supervision --key <watch-id>`
-   and a bounded watchdog deadline.
-5. On wake, reconcile the exact children and watch result, cancel the settled watch,
-   and choose the next bounded action in the same parent run.
-
-Do not claim to be parked from prompt text alone. Do not poll children in a loop or
-create a replacement coordinator because a watch is uncertain. A terminal parent
-run is not accepted completion; write the revision-checked completion receipt and
-retire the finite binding when the destination is actually met.
-
-A maintenance admission fence belongs to the operation recorded in its owner,
-reason and revision. Do not reopen a different operation's hold to admit your
-workers or assume it was left over from a restart. Coordinate the owner release
-condition and preserve admitted work. A changed revision invalidates your drain
-proof; do not compete with another maintainer in a close/resume loop.
-
-For runner exhaustion, use the recovery reference to distinguish context capacity, session/weekly subscription limits, transient rate limits, exhausted API credits and denied access. Persist a checkpoint and owner wake condition. A timer or reset event should make work eligible once; repeated leader ticks must not create new attempts against the same exhausted allowance. Runtime restarts and provider fallback consume the original effort budget.
-
-Exit: work is complete, durably pending, or bounded by a recorded recovery decision. No child exists solely in the leader's recollection.
-
-Before enabling recurring finite wakes, prove separately that the owner can select an explicit continuation, the accepted grant and revision propagate to that continuation, a lost response reconciles to the original task/run identity, restart/outage recovery preserves the reservation, and retirement prevents replacement dispatch. If any gate is unqualified, keep the finite heartbeat disabled and use a single explicitly admitted run or a recorded owner wait.
-
-When a dispatched finite leader run is terminal but the effort has not earned a
-completion receipt, use the owner’s explicit terminal-run restart operation.
-The owner must reread and verify that exact task/run identity is terminal,
-retain its evidence reference, record the restart history, and clear only the
-reusable reservation. Never delete the old reservation or reset it solely from
-the prompt text. A restarted run is still subject to the same accepted effort
-revision and must earn its own handoff or completion evidence.
-
-### 4. Review evidence and choose the next round
-
-Entry: a coherent delivery batch has returned.
-
-Read producer evidence and current owner state when useful results arrive; do not wait for unrelated branches to finish a global round. Assign an independent review task for material architecture or user journeys. Apply the original acceptance conditions and relevant scenario quality standards, including reliability, performance and maintainability where the outcome requires them. Review source-to-deliverable coverage again. Preserve release gates even when isolated development branches contain unfinished work.
-
-```mermaid
-flowchart TD
-    A[Preserved destination and authority] --> B[Qualified path and selected shapes]
-    B --> C[Reviewed owner admission]
-    C --> D[Execute and collect owner evidence]
-    D --> E[Independent outcome review]
-    E -->|Required outcome unmet| F[Bounded repair or revised plan]
-    F --> C
-    E -->|All required outcomes evidenced| G[Close and retire recurring work]
-    D -->|Dependency failure| H[Persistent recovery policy]
-    H -->|Allowed alternative| C
-    H -->|No eligible action| I[Checkpoint and wait or escalate]
+```
+goal/
+  GOAL.md          destination, stakes, constraints, links (≤ 2 KB)
+  QUEUE.md         ordered next slices, parked slices with return conditions, done list
+  epochs/E<n>.md   brief + Directives + Slice log (one file per epoch)
+  FEEDBACK.md      operator and supervisor feedback verbatim (orchestrator-owned)
+  WORKAROUNDS.md   broken-infrastructure log for the supervisor
+  INSTALLS.md      external tools installed for the goal, with cleanup rule
+  TARGETS.md       validation targets and tiers
 ```
 
-| Review result | Next action |
-|---|---|
-| Credible required behavior still fails | Repair or author a bounded follow-up plan under the same destination. |
-| New architectural issue jeopardizes the accepted outcome | Retain evidence, allocate repair budget and update the owning plan/family. |
-| Cosmetic improvement or unrelated defect | Retain a finding; do not expand the completion gate. |
-| Same diagnosis returns without changed evidence | Open the circuit; choose an allowed alternative or retain the blocker. |
-| Evidence is missing or stale for a required outcome | Obtain proportionate evidence; keep that outcome unverified. |
-| Required outcomes have applicable evidence | Prepare completion and retire recurring work. |
+Archive history. Never delete a ledger.
 
-A new round needs a concrete unmet outcome and a falsifiable intervention. Repeating audits, renaming findings or increasing plan counts is not progress. Keep effort/component repair totals across rounds and leader restarts.
+### 4. The epoch standard
 
-Exit: a supported completion decision or a specific next round with unchanged acceptance and explicit remaining investment.
+#### 4.1 Scope
 
-### 5. Close or hand off
+An epoch finishes exactly one of:
+- one user-visible outcome, such as a journey that now works end to end; or
+- one whole replace-and-delete slice: a concept goes from N owners to 1 and the
+  old paths are deleted.
 
-Entry: no further immediately eligible work remains.
+It normally runs several hours to about a day and spans many compactions. Reject
+a brief that is one defect, test, fence, sensor or receipt, or that is estimated
+under about 3 hours. Split an oversize brief along module boundaries. Compaction,
+a status request, a green test or elapsed time is never an epoch boundary.
 
-If required outcomes remain, write the next action, pending owner IDs, blockers, exhausted circuits and reopening conditions. Preserve uncertain dispatches and actual owner waits. Follow the owner's wait contract; client cancellation does not end server work.
+#### 4.2 Epoch file
 
-If the effort is complete, retain deliverable and validation references, residual accepted limitations and reproducible use instructions. Disable its recurring heartbeat through Prompt Manager and verify the terminal state prevents another launch. Archive the finite team's context without deleting its evidence. Production teams that continue serving their own objectives remain active.
+`epochs/E<n>.md`. `epoch-check` parses the `- Field: value` lines and the two
+append-only sections.
 
-The coordinator may update bounded handoffs and report findings within the granted
-workspace. It may not edit the accepted boundary, acceptance criteria, campaign
-controls, qualification state, or owner ledger. Preserve approved source and
-acceptance revisions. The owner selects any successor boundary after independent
-review; a coordinator proposal is not an admission. This permission does not
-authorize changes to another team's plan of record or new product goals.
+```
+# E<n> — <outcome in one sentence>
 
-### Anti-patterns and output
+- Outcome: <journey or queue slice ID and sentence>
+- Kind: refactor | feature
+- Started: <ISO time>
+- Estimate: <work units>
+- Expected size: <net runtime lines; feature epochs only>
+- Metric: <exit metric name and the command that reads it>
+- Targets: <platform: required | occasional | unavailable, ...>
+- Workers: <run IDs, comma separated>
+- Status: admitted | in-progress | parked | accepted
 
-| Anti-pattern | Consequence | Correction |
-|---|---|---|
-| Folder copies plan/run status as authority | Resumed agents launch duplicate or obsolete work | Store owner IDs and timestamped projections. |
-| Every dependency gets a full audit | Infrastructure consumes the deliverable budget | Qualify the needed operation, then repair by consequence. |
-| Each new plan resets repair attempts | A broken component absorbs unlimited work | Count by effort, component and stable failure identity. |
-| Transport uncertainty triggers another launcher | Two agents may mutate the same work | Reconcile the first dispatch before changing routes. |
-| Workaround silently lowers acceptance | The user receives an incomplete outcome labelled done | Preserve the unmet gate or request an actual scope decision. |
-| Global auto-approval substitutes for an effort grant | Unrelated work changes authority | Use a scoped route and existing authorization. |
-| Every tree level multiplies workers or retries | A small tree exhausts quota and repair allowance | Reserve capacity and usage against one effort-wide owner. |
-| Quota exhaustion is treated as a coding defect | Workers restart without a chance of succeeding | Persist the reset condition and pause that allowance pool. |
-| Every worker inherits the planner's expensive model | Routine work consumes scarce quota | Bind an explicit economical worker profile and justified escalation. |
-| Infinite scrutiny after the destination is met | Completion becomes unreachable | Close on the recorded acceptance policy. |
-| Every assignment becomes a plan | Plan authoring consumes the deliverable budget | Choose the shape with the Work shapes rule; author a plan only where it is selected. |
-| Every large effort becomes a plan family | Unrelated tasks inherit graph/review overhead and false dependencies | Apply `plan-family-orchestration`; mix plan-backed, bounded and investigative owners when appropriate. |
-| Swarm outage is bypassed by an untracked launcher | Grant, budget, attribution or uncertain-start guarantees disappear | Use the qualified recovery route or pause mutations when the Swarm-owned grant cannot be represented. |
+## Modules and budgets
+## Deletion list        (refactor: old paths, shims and callers gone at close)
+## Exit gate            (exact commands, affected journeys, growth budget)
+## Non-goals
+## Directives
+## Slice log
+```
 
-### Troubleshooting & Edge Cases
+Only the orchestrator writes the brief, Directives and the `ACCEPTED` line; only
+the worker writes other slice-log lines. Work units, the slice-log line, the
+growth budget and the step-back triggers are defined once, in the worker card.
+Terms: a **slice** is a `QUEUE.md` entry that becomes an epoch; a **work unit**
+is one checked change, logged as one slice-log line.
 
-Read the recovery reference for restart decisions, quota waits, uncertain dispatch and route changes. A missing credential, exhausted budget or policy denial is an owner state to report; a different launcher cannot make the denied effect admissible. Keep protected effort sources out of cleanup candidates, including parent-directory cleanup and disk-pressure automation. Use Storage Manager and the control-plane protection contract to verify preservation without deleting real artifacts.
+#### 4.3 Step-back backstop
 
-Produce a validated effort workspace, source coverage, owner plan/run references, capability observations, cumulative recovery decisions, review evidence and a concise next action. Use `docs/TESTING.md` for validation scope and durable waits. Record completed non-trivial work through the shared Memory contract with references, not copied operational ledgers.
+If a worker misses a fired trigger, write the step-back as a directive. Record
+every park, switch or shrink in `QUEUE.md` with its reason and return condition.
+Calibrate K and the spend threshold from the first three epochs' logs. Never stop
+the goal; park instead.
+
+#### 4.4 Acceptance
+
+Accept an epoch only when all of these hold:
+- the exit-gate commands and the affected journeys pass;
+- the growth budget is met and the deletion list has no remaining callers or
+  matches (a cleanup's retirement manifest, `improvement-do-and-dont` D7);
+- test changes follow the test rules the worker card links: no new duplicate fakes,
+  sleeps for state, or tests of private helpers, and any net test growth is
+  explained by behavior newly covered;
+- validation targets marked `required` pass;
+- `epoch-check` reports no unacknowledged directive.
+
+Rerun the gate yourself; a worker's report is not evidence. Record
+`ACCEPTED <time> <summary>` as the final log line, with the changed files and a
+suggested commit message; the operator commits. That line is the denominator for
+cost per accepted epoch.
+
+Gates are set at admission. Amend one only with a recorded reason (too strict,
+incorrect, unverifiable); never lower a gate so a worker can pass, and steer a
+struggling worker toward a verifiable path instead.
+
+### 5. Infrastructure, installs and targets
+
+Shared tools are aids, never gates; the worker card states the fallback, and the
+supervisor owns repair. Workspace Sandbox is per-run change tracking, not
+containment.
+
+**External tools.** Only the orchestrator authorizes an install outside the
+project's scenarios and resources, and records the tool, size, reason and cleanup
+rule in `INSTALLS.md`. Dependency installs still go through Scenario Dependency
+Analyzer. Before the goal completes, stop everything it started outside the
+project and uninstall large goal-only installs.
+
+**Validation targets.** At goal start, find which platforms and builds can
+realistically be validated. Record each in `TARGETS.md` as `required`,
+`occasional` or `unavailable`, and change tiers on new evidence. An unavailable
+target never blocks the goal; log it for the supervisor.
+
+**Daily qualification.** Once a day, run the goal's qualification command from
+`TARGETS.md` against the goal's shadow copy and record the result in the active
+epoch's log. A failure becomes a `QUEUE.md` item, never a reopened epoch.
+
+### 6. Start, recover and close
+
+Start a goal by writing the goal home (preserve the operator's destination,
+constraints and decisions in `GOAL.md` with links to their sources), configuring
+the delivery team with an orchestrator leader member (delivery-orchestrator
+profile), and enabling the team.
+
+For a lost run, runner exhaustion or an uncertain dispatch, read the recovery
+reference. A terminal orchestrator run is not goal completion.
+
+Close when `QUEUE.md` has no remaining slice for the destination: stop external
+processes, clean up installs, list open workarounds and unverified targets, disable
+the team, and record a work record through the Memory contract.

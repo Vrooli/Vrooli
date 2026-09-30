@@ -46,7 +46,7 @@ func TestRunOwnerAttenuationRoundTrip(t *testing.T) {
 	}
 }
 
-func TestSupervisorDispatchRunDeletionRetainsReplayEvidence(t *testing.T) {
+func TestOwnedRunDeletionRetainsReplayEvidence(t *testing.T) {
 	for _, mode := range []string{"run", "task-cascade", "missing-expiry", "expired", "ordinary"} {
 		t.Run(mode, func(t *testing.T) {
 			db, cleanup := setupTestDB(t)
@@ -61,12 +61,11 @@ func TestSupervisorDispatchRunDeletionRetainsReplayEvidence(t *testing.T) {
 			if mode == "expired" {
 				expiry = time.Now().Add(-time.Hour)
 			}
-			run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Tag: "retained-dispatch", RunMode: domain.RunModeInPlace, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, OwnerExpiresAt: &expiry, DispatchBinding: &domain.DispatchBinding{EffortRef: "service:standing", AuthorizationID: uuid.NewString()}, IdempotencyKey: "original-dispatch"}
+			run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Tag: "retained-owner", RunMode: domain.RunModeInPlace, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, OwnerExpiresAt: &expiry, IdempotencyKey: "original-owned"}
 			if mode == "missing-expiry" {
 				run.OwnerExpiresAt = nil
 			}
 			if mode == "ordinary" {
-				run.DispatchBinding = nil
 				run.OwnerExpiresAt = nil
 			}
 			if err := repos.Runs.Create(ctx, run); err != nil {

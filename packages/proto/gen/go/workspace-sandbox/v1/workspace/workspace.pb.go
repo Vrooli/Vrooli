@@ -661,11 +661,9 @@ type PromoteSandboxRequest struct {
 	OverrideAcceptance bool                   `protobuf:"varint,7,opt,name=override_acceptance,json=overrideAcceptance,proto3" json:"override_acceptance,omitempty"`
 	Confirm            bool                   `protobuf:"varint,8,opt,name=confirm,proto3" json:"confirm,omitempty"`
 	// If set, approve only this complete reviewed patch; force cannot bypass it.
-	ExpectedPatchSha256  string `protobuf:"bytes,9,opt,name=expected_patch_sha256,json=expectedPatchSha256,proto3" json:"expected_patch_sha256,omitempty"`
-	ReviewRequestId      string `protobuf:"bytes,10,opt,name=review_request_id,json=reviewRequestId,proto3" json:"review_request_id,omitempty"`
-	ExpectedReviewSha256 string `protobuf:"bytes,11,opt,name=expected_review_sha256,json=expectedReviewSha256,proto3" json:"expected_review_sha256,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	ExpectedPatchSha256 string `protobuf:"bytes,9,opt,name=expected_patch_sha256,json=expectedPatchSha256,proto3" json:"expected_patch_sha256,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *PromoteSandboxRequest) Reset() {
@@ -757,20 +755,6 @@ func (x *PromoteSandboxRequest) GetConfirm() bool {
 func (x *PromoteSandboxRequest) GetExpectedPatchSha256() string {
 	if x != nil {
 		return x.ExpectedPatchSha256
-	}
-	return ""
-}
-
-func (x *PromoteSandboxRequest) GetReviewRequestId() string {
-	if x != nil {
-		return x.ReviewRequestId
-	}
-	return ""
-}
-
-func (x *PromoteSandboxRequest) GetExpectedReviewSha256() string {
-	if x != nil {
-		return x.ExpectedReviewSha256
 	}
 	return ""
 }
@@ -891,613 +875,6 @@ func (x *PromoteSandboxResponse) GetAppliedPatchSha256() string {
 	return ""
 }
 
-type CaptureReviewSnapshotRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SandboxId     string                 `protobuf:"bytes,1,opt,name=sandbox_id,json=sandboxId,proto3" json:"sandbox_id,omitempty"`
-	RequestId     string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	Paths         []string               `protobuf:"bytes,3,rep,name=paths,proto3" json:"paths,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CaptureReviewSnapshotRequest) Reset() {
-	*x = CaptureReviewSnapshotRequest{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[11]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CaptureReviewSnapshotRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CaptureReviewSnapshotRequest) ProtoMessage() {}
-
-func (x *CaptureReviewSnapshotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[11]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CaptureReviewSnapshotRequest.ProtoReflect.Descriptor instead.
-func (*CaptureReviewSnapshotRequest) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *CaptureReviewSnapshotRequest) GetSandboxId() string {
-	if x != nil {
-		return x.SandboxId
-	}
-	return ""
-}
-
-func (x *CaptureReviewSnapshotRequest) GetRequestId() string {
-	if x != nil {
-		return x.RequestId
-	}
-	return ""
-}
-
-func (x *CaptureReviewSnapshotRequest) GetPaths() []string {
-	if x != nil {
-		return x.Paths
-	}
-	return nil
-}
-
-type GetReviewSnapshotRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SandboxId     string                 `protobuf:"bytes,1,opt,name=sandbox_id,json=sandboxId,proto3" json:"sandbox_id,omitempty"`
-	RequestId     string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetReviewSnapshotRequest) Reset() {
-	*x = GetReviewSnapshotRequest{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[12]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetReviewSnapshotRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetReviewSnapshotRequest) ProtoMessage() {}
-
-func (x *GetReviewSnapshotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[12]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetReviewSnapshotRequest.ProtoReflect.Descriptor instead.
-func (*GetReviewSnapshotRequest) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{12}
-}
-
-func (x *GetReviewSnapshotRequest) GetSandboxId() string {
-	if x != nil {
-		return x.SandboxId
-	}
-	return ""
-}
-
-func (x *GetReviewSnapshotRequest) GetRequestId() string {
-	if x != nil {
-		return x.RequestId
-	}
-	return ""
-}
-
-type MaterializeReviewSnapshotRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	SandboxId      string                 `protobuf:"bytes,1,opt,name=sandbox_id,json=sandboxId,proto3" json:"sandbox_id,omitempty"`
-	RequestId      string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	ExpectedSha256 string                 `protobuf:"bytes,3,opt,name=expected_sha256,json=expectedSha256,proto3" json:"expected_sha256,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *MaterializeReviewSnapshotRequest) Reset() {
-	*x = MaterializeReviewSnapshotRequest{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *MaterializeReviewSnapshotRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*MaterializeReviewSnapshotRequest) ProtoMessage() {}
-
-func (x *MaterializeReviewSnapshotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use MaterializeReviewSnapshotRequest.ProtoReflect.Descriptor instead.
-func (*MaterializeReviewSnapshotRequest) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *MaterializeReviewSnapshotRequest) GetSandboxId() string {
-	if x != nil {
-		return x.SandboxId
-	}
-	return ""
-}
-
-func (x *MaterializeReviewSnapshotRequest) GetRequestId() string {
-	if x != nil {
-		return x.RequestId
-	}
-	return ""
-}
-
-func (x *MaterializeReviewSnapshotRequest) GetExpectedSha256() string {
-	if x != nil {
-		return x.ExpectedSha256
-	}
-	return ""
-}
-
-// Owner-derived input. Consumers must bind root read-only, not treat file modes
-// as containment. Contains before/, after/, changes.patch and snapshot.json.
-type ReviewWorkspace struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Root          string                 `protobuf:"bytes,1,opt,name=root,proto3" json:"root,omitempty"`
-	Sha256        string                 `protobuf:"bytes,2,opt,name=sha256,proto3" json:"sha256,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ReviewWorkspace) Reset() {
-	*x = ReviewWorkspace{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[14]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ReviewWorkspace) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ReviewWorkspace) ProtoMessage() {}
-
-func (x *ReviewWorkspace) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[14]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ReviewWorkspace.ProtoReflect.Descriptor instead.
-func (*ReviewWorkspace) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *ReviewWorkspace) GetRoot() string {
-	if x != nil {
-		return x.Root
-	}
-	return ""
-}
-
-func (x *ReviewWorkspace) GetSha256() string {
-	if x != nil {
-		return x.Sha256
-	}
-	return ""
-}
-
-type ReviewFile struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
-	Sha256        string                 `protobuf:"bytes,2,opt,name=sha256,proto3" json:"sha256,omitempty"`
-	Mode          int32                  `protobuf:"varint,3,opt,name=mode,proto3" json:"mode,omitempty"`
-	Size          int64                  `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ReviewFile) Reset() {
-	*x = ReviewFile{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[15]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ReviewFile) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ReviewFile) ProtoMessage() {}
-
-func (x *ReviewFile) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[15]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ReviewFile.ProtoReflect.Descriptor instead.
-func (*ReviewFile) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{15}
-}
-
-func (x *ReviewFile) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
-func (x *ReviewFile) GetSha256() string {
-	if x != nil {
-		return x.Sha256
-	}
-	return ""
-}
-
-func (x *ReviewFile) GetMode() int32 {
-	if x != nil {
-		return x.Mode
-	}
-	return 0
-}
-
-func (x *ReviewFile) GetSize() int64 {
-	if x != nil {
-		return x.Size
-	}
-	return 0
-}
-
-type ReviewSnapshot struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	RequestId     string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	SandboxId     string                 `protobuf:"bytes,3,opt,name=sandbox_id,json=sandboxId,proto3" json:"sandbox_id,omitempty"`
-	Sha256        string                 `protobuf:"bytes,4,opt,name=sha256,proto3" json:"sha256,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	ProjectRoot   string                 `protobuf:"bytes,6,opt,name=project_root,json=projectRoot,proto3" json:"project_root,omitempty"`
-	ScopePath     string                 `protobuf:"bytes,7,opt,name=scope_path,json=scopePath,proto3" json:"scope_path,omitempty"`
-	Owner         string                 `protobuf:"bytes,8,opt,name=owner,proto3" json:"owner,omitempty"`
-	Paths         []string               `protobuf:"bytes,9,rep,name=paths,proto3" json:"paths,omitempty"`
-	Before        []*ReviewFile          `protobuf:"bytes,10,rep,name=before,proto3" json:"before,omitempty"`
-	After         []*ReviewFile          `protobuf:"bytes,11,rep,name=after,proto3" json:"after,omitempty"`
-	PatchSha256   string                 `protobuf:"bytes,12,opt,name=patch_sha256,json=patchSha256,proto3" json:"patch_sha256,omitempty"`
-	Changes       []*DiffFile            `protobuf:"bytes,13,rep,name=changes,proto3" json:"changes,omitempty"`
-	Stats         *DiffStats             `protobuf:"bytes,14,opt,name=stats,proto3" json:"stats,omitempty"`
-	InputBytes    int64                  `protobuf:"varint,15,opt,name=input_bytes,json=inputBytes,proto3" json:"input_bytes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ReviewSnapshot) Reset() {
-	*x = ReviewSnapshot{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[16]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ReviewSnapshot) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ReviewSnapshot) ProtoMessage() {}
-
-func (x *ReviewSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[16]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ReviewSnapshot.ProtoReflect.Descriptor instead.
-func (*ReviewSnapshot) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{16}
-}
-
-func (x *ReviewSnapshot) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *ReviewSnapshot) GetRequestId() string {
-	if x != nil {
-		return x.RequestId
-	}
-	return ""
-}
-
-func (x *ReviewSnapshot) GetSandboxId() string {
-	if x != nil {
-		return x.SandboxId
-	}
-	return ""
-}
-
-func (x *ReviewSnapshot) GetSha256() string {
-	if x != nil {
-		return x.Sha256
-	}
-	return ""
-}
-
-func (x *ReviewSnapshot) GetCreatedAt() string {
-	if x != nil {
-		return x.CreatedAt
-	}
-	return ""
-}
-
-func (x *ReviewSnapshot) GetProjectRoot() string {
-	if x != nil {
-		return x.ProjectRoot
-	}
-	return ""
-}
-
-func (x *ReviewSnapshot) GetScopePath() string {
-	if x != nil {
-		return x.ScopePath
-	}
-	return ""
-}
-
-func (x *ReviewSnapshot) GetOwner() string {
-	if x != nil {
-		return x.Owner
-	}
-	return ""
-}
-
-func (x *ReviewSnapshot) GetPaths() []string {
-	if x != nil {
-		return x.Paths
-	}
-	return nil
-}
-
-func (x *ReviewSnapshot) GetBefore() []*ReviewFile {
-	if x != nil {
-		return x.Before
-	}
-	return nil
-}
-
-func (x *ReviewSnapshot) GetAfter() []*ReviewFile {
-	if x != nil {
-		return x.After
-	}
-	return nil
-}
-
-func (x *ReviewSnapshot) GetPatchSha256() string {
-	if x != nil {
-		return x.PatchSha256
-	}
-	return ""
-}
-
-func (x *ReviewSnapshot) GetChanges() []*DiffFile {
-	if x != nil {
-		return x.Changes
-	}
-	return nil
-}
-
-func (x *ReviewSnapshot) GetStats() *DiffStats {
-	if x != nil {
-		return x.Stats
-	}
-	return nil
-}
-
-func (x *ReviewSnapshot) GetInputBytes() int64 {
-	if x != nil {
-		return x.InputBytes
-	}
-	return 0
-}
-
-type ReviewSnapshotResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Snapshot      *ReviewSnapshot        `protobuf:"bytes,1,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ReviewSnapshotResponse) Reset() {
-	*x = ReviewSnapshotResponse{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[17]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ReviewSnapshotResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ReviewSnapshotResponse) ProtoMessage() {}
-
-func (x *ReviewSnapshotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[17]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ReviewSnapshotResponse.ProtoReflect.Descriptor instead.
-func (*ReviewSnapshotResponse) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{17}
-}
-
-func (x *ReviewSnapshotResponse) GetSnapshot() *ReviewSnapshot {
-	if x != nil {
-		return x.Snapshot
-	}
-	return nil
-}
-
-type GetReviewFileRequest struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	SandboxId string                 `protobuf:"bytes,1,opt,name=sandbox_id,json=sandboxId,proto3" json:"sandbox_id,omitempty"`
-	RequestId string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	// before, after, or patch. Patch reads require an empty path.
-	Side          string `protobuf:"bytes,3,opt,name=side,proto3" json:"side,omitempty"`
-	Path          string `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetReviewFileRequest) Reset() {
-	*x = GetReviewFileRequest{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[18]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetReviewFileRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetReviewFileRequest) ProtoMessage() {}
-
-func (x *GetReviewFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[18]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetReviewFileRequest.ProtoReflect.Descriptor instead.
-func (*GetReviewFileRequest) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{18}
-}
-
-func (x *GetReviewFileRequest) GetSandboxId() string {
-	if x != nil {
-		return x.SandboxId
-	}
-	return ""
-}
-
-func (x *GetReviewFileRequest) GetRequestId() string {
-	if x != nil {
-		return x.RequestId
-	}
-	return ""
-}
-
-func (x *GetReviewFileRequest) GetSide() string {
-	if x != nil {
-		return x.Side
-	}
-	return ""
-}
-
-func (x *GetReviewFileRequest) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
-type GetReviewFileResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Content       []byte                 `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetReviewFileResponse) Reset() {
-	*x = GetReviewFileResponse{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[19]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetReviewFileResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetReviewFileResponse) ProtoMessage() {}
-
-func (x *GetReviewFileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[19]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetReviewFileResponse.ProtoReflect.Descriptor instead.
-func (*GetReviewFileResponse) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{19}
-}
-
-func (x *GetReviewFileResponse) GetContent() []byte {
-	if x != nil {
-		return x.Content
-	}
-	return nil
-}
-
 var File_workspace_sandbox_v1_workspace_workspace_proto protoreflect.FileDescriptor
 
 const file_workspace_sandbox_v1_workspace_workspace_proto_rawDesc = "" +
@@ -1560,7 +937,7 @@ const file_workspace_sandbox_v1_workspace_workspace_proto_rawDesc = "" +
 	"\funified_diff\x18\x04 \x01(\tR\vunifiedDiff\x12?\n" +
 	"\x05stats\x18\x05 \x01(\v2).workspace_sandbox.v1.workspace.DiffStatsR\x05stats\x12#\n" +
 	"\rarchive_state\x18\x06 \x01(\tR\farchiveState\x12!\n" +
-	"\fpatch_sha256\x18\a \x01(\tR\vpatchSha256\"\xa3\x03\n" +
+	"\fpatch_sha256\x18\a \x01(\tR\vpatchSha256\"\xf8\x02\n" +
 	"\x15PromoteSandboxRequest\x12\x1d\n" +
 	"\n" +
 	"sandbox_id\x18\x01 \x01(\tR\tsandboxId\x12\x12\n" +
@@ -1571,10 +948,8 @@ const file_workspace_sandbox_v1_workspace_workspace_proto_rawDesc = "" +
 	"\x05force\x18\x06 \x01(\bR\x05force\x12/\n" +
 	"\x13override_acceptance\x18\a \x01(\bR\x12overrideAcceptance\x12\x18\n" +
 	"\aconfirm\x18\b \x01(\bR\aconfirm\x122\n" +
-	"\x15expected_patch_sha256\x18\t \x01(\tR\x13expectedPatchSha256\x12*\n" +
-	"\x11review_request_id\x18\n" +
-	" \x01(\tR\x0freviewRequestId\x124\n" +
-	"\x16expected_review_sha256\x18\v \x01(\tR\x14expectedReviewSha256\"\xc6\x02\n" +
+	"\x15expected_patch_sha256\x18\t \x01(\tR\x13expectedPatchSha256J\x04\b\n" +
+	"\x10\vJ\x04\b\v\x10\fR\x11review_request_idR\x16expected_review_sha256\"\xc6\x02\n" +
 	"\x16PromoteSandboxResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1d\n" +
 	"\n" +
@@ -1589,74 +964,11 @@ const file_workspace_sandbox_v1_workspace_workspace_proto_rawDesc = "" +
 	"\x05error\x18\b \x01(\tR\x05error\x12\x1b\n" +
 	"\tdiff_path\x18\t \x01(\tR\bdiffPath\x120\n" +
 	"\x14applied_patch_sha256\x18\n" +
-	" \x01(\tR\x12appliedPatchSha256\"r\n" +
-	"\x1cCaptureReviewSnapshotRequest\x12\x1d\n" +
-	"\n" +
-	"sandbox_id\x18\x01 \x01(\tR\tsandboxId\x12\x1d\n" +
-	"\n" +
-	"request_id\x18\x02 \x01(\tR\trequestId\x12\x14\n" +
-	"\x05paths\x18\x03 \x03(\tR\x05paths\"X\n" +
-	"\x18GetReviewSnapshotRequest\x12\x1d\n" +
-	"\n" +
-	"sandbox_id\x18\x01 \x01(\tR\tsandboxId\x12\x1d\n" +
-	"\n" +
-	"request_id\x18\x02 \x01(\tR\trequestId\"\x89\x01\n" +
-	" MaterializeReviewSnapshotRequest\x12\x1d\n" +
-	"\n" +
-	"sandbox_id\x18\x01 \x01(\tR\tsandboxId\x12\x1d\n" +
-	"\n" +
-	"request_id\x18\x02 \x01(\tR\trequestId\x12'\n" +
-	"\x0fexpected_sha256\x18\x03 \x01(\tR\x0eexpectedSha256\"=\n" +
-	"\x0fReviewWorkspace\x12\x12\n" +
-	"\x04root\x18\x01 \x01(\tR\x04root\x12\x16\n" +
-	"\x06sha256\x18\x02 \x01(\tR\x06sha256\"`\n" +
-	"\n" +
-	"ReviewFile\x12\x12\n" +
-	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
-	"\x06sha256\x18\x02 \x01(\tR\x06sha256\x12\x12\n" +
-	"\x04mode\x18\x03 \x01(\x05R\x04mode\x12\x12\n" +
-	"\x04size\x18\x04 \x01(\x03R\x04size\"\xd2\x04\n" +
-	"\x0eReviewSnapshot\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
-	"\n" +
-	"request_id\x18\x02 \x01(\tR\trequestId\x12\x1d\n" +
-	"\n" +
-	"sandbox_id\x18\x03 \x01(\tR\tsandboxId\x12\x16\n" +
-	"\x06sha256\x18\x04 \x01(\tR\x06sha256\x12\x1d\n" +
-	"\n" +
-	"created_at\x18\x05 \x01(\tR\tcreatedAt\x12!\n" +
-	"\fproject_root\x18\x06 \x01(\tR\vprojectRoot\x12\x1d\n" +
-	"\n" +
-	"scope_path\x18\a \x01(\tR\tscopePath\x12\x14\n" +
-	"\x05owner\x18\b \x01(\tR\x05owner\x12\x14\n" +
-	"\x05paths\x18\t \x03(\tR\x05paths\x12B\n" +
-	"\x06before\x18\n" +
-	" \x03(\v2*.workspace_sandbox.v1.workspace.ReviewFileR\x06before\x12@\n" +
-	"\x05after\x18\v \x03(\v2*.workspace_sandbox.v1.workspace.ReviewFileR\x05after\x12!\n" +
-	"\fpatch_sha256\x18\f \x01(\tR\vpatchSha256\x12B\n" +
-	"\achanges\x18\r \x03(\v2(.workspace_sandbox.v1.workspace.DiffFileR\achanges\x12?\n" +
-	"\x05stats\x18\x0e \x01(\v2).workspace_sandbox.v1.workspace.DiffStatsR\x05stats\x12\x1f\n" +
-	"\vinput_bytes\x18\x0f \x01(\x03R\n" +
-	"inputBytes\"d\n" +
-	"\x16ReviewSnapshotResponse\x12J\n" +
-	"\bsnapshot\x18\x01 \x01(\v2..workspace_sandbox.v1.workspace.ReviewSnapshotR\bsnapshot\"|\n" +
-	"\x14GetReviewFileRequest\x12\x1d\n" +
-	"\n" +
-	"sandbox_id\x18\x01 \x01(\tR\tsandboxId\x12\x1d\n" +
-	"\n" +
-	"request_id\x18\x02 \x01(\tR\trequestId\x12\x12\n" +
-	"\x04side\x18\x03 \x01(\tR\x04side\x12\x12\n" +
-	"\x04path\x18\x04 \x01(\tR\x04path\"1\n" +
-	"\x15GetReviewFileResponse\x12\x18\n" +
-	"\acontent\x18\x01 \x01(\fR\acontent2\xc8\b\n" +
+	" \x01(\tR\x12appliedPatchSha2562\xa1\x04\n" +
 	"\x17WorkspaceSandboxService\x12\x85\x01\n" +
 	"\x10ResolveWorkspace\x127.workspace_sandbox.v1.workspace.ResolveWorkspaceRequest\x1a8.workspace_sandbox.v1.workspace.ResolveWorkspaceResponse\x12|\n" +
 	"\rCreateSandbox\x124.workspace_sandbox.v1.workspace.CreateSandboxRequest\x1a5.workspace_sandbox.v1.workspace.CreateSandboxResponse\x12\x7f\n" +
-	"\x0eGetSandboxDiff\x125.workspace_sandbox.v1.workspace.GetSandboxDiffRequest\x1a6.workspace_sandbox.v1.workspace.GetSandboxDiffResponse\x12\x8d\x01\n" +
-	"\x15CaptureReviewSnapshot\x12<.workspace_sandbox.v1.workspace.CaptureReviewSnapshotRequest\x1a6.workspace_sandbox.v1.workspace.ReviewSnapshotResponse\x12\x85\x01\n" +
-	"\x11GetReviewSnapshot\x128.workspace_sandbox.v1.workspace.GetReviewSnapshotRequest\x1a6.workspace_sandbox.v1.workspace.ReviewSnapshotResponse\x12\x8e\x01\n" +
-	"\x19MaterializeReviewSnapshot\x12@.workspace_sandbox.v1.workspace.MaterializeReviewSnapshotRequest\x1a/.workspace_sandbox.v1.workspace.ReviewWorkspace\x12|\n" +
-	"\rGetReviewFile\x124.workspace_sandbox.v1.workspace.GetReviewFileRequest\x1a5.workspace_sandbox.v1.workspace.GetReviewFileResponse\x12\x7f\n" +
+	"\x0eGetSandboxDiff\x125.workspace_sandbox.v1.workspace.GetSandboxDiffRequest\x1a6.workspace_sandbox.v1.workspace.GetSandboxDiffResponse\x12\x7f\n" +
 	"\x0ePromoteSandbox\x125.workspace_sandbox.v1.workspace.PromoteSandboxRequest\x1a6.workspace_sandbox.v1.workspace.PromoteSandboxResponseBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/workspace-sandbox/v1/workspace;workspaceb\x06proto3"
 
 var (
@@ -1671,59 +983,37 @@ func file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP() []byte {
 	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescData
 }
 
-var file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_workspace_sandbox_v1_workspace_workspace_proto_goTypes = []any{
-	(*ResolveWorkspaceRequest)(nil),          // 0: workspace_sandbox.v1.workspace.ResolveWorkspaceRequest
-	(*ResolveWorkspaceResponse)(nil),         // 1: workspace_sandbox.v1.workspace.ResolveWorkspaceResponse
-	(*CreateSandboxRequest)(nil),             // 2: workspace_sandbox.v1.workspace.CreateSandboxRequest
-	(*SandboxSummary)(nil),                   // 3: workspace_sandbox.v1.workspace.SandboxSummary
-	(*CreateSandboxResponse)(nil),            // 4: workspace_sandbox.v1.workspace.CreateSandboxResponse
-	(*GetSandboxDiffRequest)(nil),            // 5: workspace_sandbox.v1.workspace.GetSandboxDiffRequest
-	(*DiffFile)(nil),                         // 6: workspace_sandbox.v1.workspace.DiffFile
-	(*DiffStats)(nil),                        // 7: workspace_sandbox.v1.workspace.DiffStats
-	(*GetSandboxDiffResponse)(nil),           // 8: workspace_sandbox.v1.workspace.GetSandboxDiffResponse
-	(*PromoteSandboxRequest)(nil),            // 9: workspace_sandbox.v1.workspace.PromoteSandboxRequest
-	(*PromoteSandboxResponse)(nil),           // 10: workspace_sandbox.v1.workspace.PromoteSandboxResponse
-	(*CaptureReviewSnapshotRequest)(nil),     // 11: workspace_sandbox.v1.workspace.CaptureReviewSnapshotRequest
-	(*GetReviewSnapshotRequest)(nil),         // 12: workspace_sandbox.v1.workspace.GetReviewSnapshotRequest
-	(*MaterializeReviewSnapshotRequest)(nil), // 13: workspace_sandbox.v1.workspace.MaterializeReviewSnapshotRequest
-	(*ReviewWorkspace)(nil),                  // 14: workspace_sandbox.v1.workspace.ReviewWorkspace
-	(*ReviewFile)(nil),                       // 15: workspace_sandbox.v1.workspace.ReviewFile
-	(*ReviewSnapshot)(nil),                   // 16: workspace_sandbox.v1.workspace.ReviewSnapshot
-	(*ReviewSnapshotResponse)(nil),           // 17: workspace_sandbox.v1.workspace.ReviewSnapshotResponse
-	(*GetReviewFileRequest)(nil),             // 18: workspace_sandbox.v1.workspace.GetReviewFileRequest
-	(*GetReviewFileResponse)(nil),            // 19: workspace_sandbox.v1.workspace.GetReviewFileResponse
+	(*ResolveWorkspaceRequest)(nil),  // 0: workspace_sandbox.v1.workspace.ResolveWorkspaceRequest
+	(*ResolveWorkspaceResponse)(nil), // 1: workspace_sandbox.v1.workspace.ResolveWorkspaceResponse
+	(*CreateSandboxRequest)(nil),     // 2: workspace_sandbox.v1.workspace.CreateSandboxRequest
+	(*SandboxSummary)(nil),           // 3: workspace_sandbox.v1.workspace.SandboxSummary
+	(*CreateSandboxResponse)(nil),    // 4: workspace_sandbox.v1.workspace.CreateSandboxResponse
+	(*GetSandboxDiffRequest)(nil),    // 5: workspace_sandbox.v1.workspace.GetSandboxDiffRequest
+	(*DiffFile)(nil),                 // 6: workspace_sandbox.v1.workspace.DiffFile
+	(*DiffStats)(nil),                // 7: workspace_sandbox.v1.workspace.DiffStats
+	(*GetSandboxDiffResponse)(nil),   // 8: workspace_sandbox.v1.workspace.GetSandboxDiffResponse
+	(*PromoteSandboxRequest)(nil),    // 9: workspace_sandbox.v1.workspace.PromoteSandboxRequest
+	(*PromoteSandboxResponse)(nil),   // 10: workspace_sandbox.v1.workspace.PromoteSandboxResponse
 }
 var file_workspace_sandbox_v1_workspace_workspace_proto_depIdxs = []int32{
 	3,  // 0: workspace_sandbox.v1.workspace.CreateSandboxResponse.sandbox:type_name -> workspace_sandbox.v1.workspace.SandboxSummary
 	6,  // 1: workspace_sandbox.v1.workspace.GetSandboxDiffResponse.files:type_name -> workspace_sandbox.v1.workspace.DiffFile
 	7,  // 2: workspace_sandbox.v1.workspace.GetSandboxDiffResponse.stats:type_name -> workspace_sandbox.v1.workspace.DiffStats
-	15, // 3: workspace_sandbox.v1.workspace.ReviewSnapshot.before:type_name -> workspace_sandbox.v1.workspace.ReviewFile
-	15, // 4: workspace_sandbox.v1.workspace.ReviewSnapshot.after:type_name -> workspace_sandbox.v1.workspace.ReviewFile
-	6,  // 5: workspace_sandbox.v1.workspace.ReviewSnapshot.changes:type_name -> workspace_sandbox.v1.workspace.DiffFile
-	7,  // 6: workspace_sandbox.v1.workspace.ReviewSnapshot.stats:type_name -> workspace_sandbox.v1.workspace.DiffStats
-	16, // 7: workspace_sandbox.v1.workspace.ReviewSnapshotResponse.snapshot:type_name -> workspace_sandbox.v1.workspace.ReviewSnapshot
-	0,  // 8: workspace_sandbox.v1.workspace.WorkspaceSandboxService.ResolveWorkspace:input_type -> workspace_sandbox.v1.workspace.ResolveWorkspaceRequest
-	2,  // 9: workspace_sandbox.v1.workspace.WorkspaceSandboxService.CreateSandbox:input_type -> workspace_sandbox.v1.workspace.CreateSandboxRequest
-	5,  // 10: workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetSandboxDiff:input_type -> workspace_sandbox.v1.workspace.GetSandboxDiffRequest
-	11, // 11: workspace_sandbox.v1.workspace.WorkspaceSandboxService.CaptureReviewSnapshot:input_type -> workspace_sandbox.v1.workspace.CaptureReviewSnapshotRequest
-	12, // 12: workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetReviewSnapshot:input_type -> workspace_sandbox.v1.workspace.GetReviewSnapshotRequest
-	13, // 13: workspace_sandbox.v1.workspace.WorkspaceSandboxService.MaterializeReviewSnapshot:input_type -> workspace_sandbox.v1.workspace.MaterializeReviewSnapshotRequest
-	18, // 14: workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetReviewFile:input_type -> workspace_sandbox.v1.workspace.GetReviewFileRequest
-	9,  // 15: workspace_sandbox.v1.workspace.WorkspaceSandboxService.PromoteSandbox:input_type -> workspace_sandbox.v1.workspace.PromoteSandboxRequest
-	1,  // 16: workspace_sandbox.v1.workspace.WorkspaceSandboxService.ResolveWorkspace:output_type -> workspace_sandbox.v1.workspace.ResolveWorkspaceResponse
-	4,  // 17: workspace_sandbox.v1.workspace.WorkspaceSandboxService.CreateSandbox:output_type -> workspace_sandbox.v1.workspace.CreateSandboxResponse
-	8,  // 18: workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetSandboxDiff:output_type -> workspace_sandbox.v1.workspace.GetSandboxDiffResponse
-	17, // 19: workspace_sandbox.v1.workspace.WorkspaceSandboxService.CaptureReviewSnapshot:output_type -> workspace_sandbox.v1.workspace.ReviewSnapshotResponse
-	17, // 20: workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetReviewSnapshot:output_type -> workspace_sandbox.v1.workspace.ReviewSnapshotResponse
-	14, // 21: workspace_sandbox.v1.workspace.WorkspaceSandboxService.MaterializeReviewSnapshot:output_type -> workspace_sandbox.v1.workspace.ReviewWorkspace
-	19, // 22: workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetReviewFile:output_type -> workspace_sandbox.v1.workspace.GetReviewFileResponse
-	10, // 23: workspace_sandbox.v1.workspace.WorkspaceSandboxService.PromoteSandbox:output_type -> workspace_sandbox.v1.workspace.PromoteSandboxResponse
-	16, // [16:24] is the sub-list for method output_type
-	8,  // [8:16] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	0,  // 3: workspace_sandbox.v1.workspace.WorkspaceSandboxService.ResolveWorkspace:input_type -> workspace_sandbox.v1.workspace.ResolveWorkspaceRequest
+	2,  // 4: workspace_sandbox.v1.workspace.WorkspaceSandboxService.CreateSandbox:input_type -> workspace_sandbox.v1.workspace.CreateSandboxRequest
+	5,  // 5: workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetSandboxDiff:input_type -> workspace_sandbox.v1.workspace.GetSandboxDiffRequest
+	9,  // 6: workspace_sandbox.v1.workspace.WorkspaceSandboxService.PromoteSandbox:input_type -> workspace_sandbox.v1.workspace.PromoteSandboxRequest
+	1,  // 7: workspace_sandbox.v1.workspace.WorkspaceSandboxService.ResolveWorkspace:output_type -> workspace_sandbox.v1.workspace.ResolveWorkspaceResponse
+	4,  // 8: workspace_sandbox.v1.workspace.WorkspaceSandboxService.CreateSandbox:output_type -> workspace_sandbox.v1.workspace.CreateSandboxResponse
+	8,  // 9: workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetSandboxDiff:output_type -> workspace_sandbox.v1.workspace.GetSandboxDiffResponse
+	10, // 10: workspace_sandbox.v1.workspace.WorkspaceSandboxService.PromoteSandbox:output_type -> workspace_sandbox.v1.workspace.PromoteSandboxResponse
+	7,  // [7:11] is the sub-list for method output_type
+	3,  // [3:7] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_workspace_sandbox_v1_workspace_workspace_proto_init() }
@@ -1737,7 +1027,7 @@ func file_workspace_sandbox_v1_workspace_workspace_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_workspace_sandbox_v1_workspace_workspace_proto_rawDesc), len(file_workspace_sandbox_v1_workspace_workspace_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   20,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -28,11 +28,6 @@ type ExecutionResult struct {
 	Error     error
 }
 
-// Bump when the compact supervisor contract changes materially. Persisting it
-// with the wake makes full-method rereads revision-driven instead of cadence-
-// driven.
-const supervisionPromptRevision = "supervision-compact-v1"
-
 // TeamExecStoreRegistrar is the subset of TeamExecutionStore that Executor
 // needs to keep a member's durable execution obligation in step with owner
 // dispatch. Kept as an interface so tests can inject a fake without depending
@@ -60,7 +55,6 @@ type Executor struct {
 	runRegistry       *RunRegistry
 	handoffExtractor  HandoffExtractor
 	teamExecStore     TeamExecStoreRegistrar
-	EffortSupervisor  *StandingSupervisor
 	FiniteLeader      *FiniteLeaderRuntime
 	OnComplete        func(teamID, agentID string)
 	RecoveryRequester func(ctx context.Context, scenario, reason string) (requestID string, err error)
@@ -220,17 +214,6 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 				return nil, fmt.Errorf("finite leader runtime unavailable")
 			}
 			return e.FiniteLeader.Dispatch(ctx, teamID, agentID)
-		}
-		if cfg != nil && cfg.Supervision != nil {
-			if e.EffortSupervisor == nil {
-				return nil, fmt.Errorf("standing supervision unavailable")
-			}
-			// Standing dispatch also needs the ordinary member's corpus
-			// prerequisite; newly authored teams are not boot-seeded scopes.
-			if err := e.teamStore.EnsureTeamScope(ctx, teamID); err != nil {
-				return nil, fmt.Errorf("ensuring team source-ledger scope: %w", err)
-			}
-			return e.EffortSupervisor.Dispatch(ctx, teamID, agentID)
 		}
 	}
 	startedAt := time.Now().UTC()
@@ -514,37 +497,6 @@ func (e *Executor) BuildPrompt(ctx context.Context, teamID, agentID string) (str
 		TeamID:  teamID,
 		AgentID: agentID,
 	})
-}
-
-// BuildSupervisionPrompt is the deliberately small prompt lane for the
-// standing effort supervisor. The runtime appends the bounded owner cut; the
-// supervisor does not need the generic heartbeat corpus, historical context,
-// or source-ledger orientation on every five-minute admission check.
-func (e *Executor) BuildSupervisionPrompt(ctx context.Context, teamID, agentID string) (string, error) {
-	if e.teamStore == nil {
-		return "", fmt.Errorf("team store is not configured")
-	}
-	team, err := e.teamStore.Get(ctx, teamID)
-	if err != nil {
-		return "", err
-	}
-	responsibilities, err := e.teamStore.GetResponsibilities(ctx, teamID, agentID)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf(`# Standing effort supervision
-
-You are the serialized delivery supervisor for team %q (%s). This is one bounded wake, not a general team-orientation session. The runtime will append the compact Agent Manager owner cut and exact wake identity.
-
-Use the qualified large-effort-supervision method. Read the full method only when its revision changed or the compact cut leaves a decision-relevant uncertainty. Do not reread generic team context, transcripts, full boards, or historical ledger entries. Observation-only rows are owner waits, not steering authority and not a reason to spend another model wake.
-
-For actionable rows, reconcile the durable owner state, blockers, repair ownership, recovery condition, and efficiency evidence. Use the Agent Manager typed assessment receipt as the completion gate. Never infer authority from a manifest, prompt, work reference, or team membership; only an owner-qualified mandate permits effects. Record one bounded knowledge link after an accepted receipt, then finish with the next condition and unresolved unknowns.
-
-Supervisor lane:
-%s
-
-Team mission: %s
-`, teamID, team.DisplayName, responsibilities, team.Mission), nil
 }
 
 // BuildPromptStructured returns the prompt as structured sections.

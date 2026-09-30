@@ -23,6 +23,7 @@ import (
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
+	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/capacity"
@@ -31,6 +32,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/hostsession"
+
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/network"
@@ -346,6 +348,12 @@ type StartOptions struct {
 	// scenarios decide which generated credentials, if any, honor it.
 	AcceptCredentialLoss bool
 	Operation            string
+	// VariantDependencies names the dependencies this instance resolves at its
+	// own variant instead of live. It is only meaningful for a non-live
+	// instance: a presentation instance whose recordings must not show the
+	// operator's real data resolves the listed scenarios at its own variant,
+	// and discovery fails closed rather than answering from live.
+	VariantDependencies []string
 	// Variant selects which instance to start ("" / "live" for the canonical
 	// primary, "shadow" etc. for an alternate). It is sugar for a "name@variant"
 	// argument; both are resolved through scenarioruntime.ParseInstanceKey at the
@@ -355,6 +363,16 @@ type StartOptions struct {
 	// the target instance — restart semantics. Set only by Runner.Restart;
 	// unexported so external callers express restart through Restart.
 	stopFirst bool
+	// restartAfterStop keeps the explicit-restart dependency pass bounded to
+	// already healthy owners. The old BAS process had already admitted this
+	// dependency graph; rebuilding shared dependencies during its replacement
+	// would extend terminal recovery without improving the restarted owner.
+	restartAfterStop bool
+	// reuseDependencyStateAfterStop retains the demand leases held by an
+	// explicit restart. The owner was serving immediately before its stop, so
+	// rechecking every shared dependency after teardown only adds latency and
+	// creates a lease gap during the replacement.
+	reuseDependencyStateAfterStop bool
 	// hostRequirementsPreflighted contains every scenario path covered by the
 	// one tree-level host-requirement pass.
 	hostRequirementsPreflighted map[string]struct{}
@@ -374,6 +392,10 @@ type StopOptions struct {
 	// recoveryFirst preserves the explicit recovery-first owner proof through
 	// the internal stop phase when the owner is still reporting startup 503.
 	recoveryFirst bool
+	// immediate is used only by explicit restart: the restart contract has
+	// already crossed its interruption boundary, so waiting through graceful
+	// teardown would keep accepted input live beyond the cancellation band.
+	immediate bool
 }
 
 type PhaseOptions struct {
@@ -605,22 +627,54 @@ func (r *Runner) StartContext(ctx context.Context, name string, opts StartOption
 // startLocked is the lock-free body of Start. Callers must already hold the
 // per-scenario advisory lock for `name` (acquireScenarioLock). Used by Start
 // and Restart to avoid double-acquiring the lock from the same goroutine.
-func (r *Runner) startLocked(name string, opts StartOptions, session *startSession) (Result, error) {
-	// Validate and converge the target's host requirements before restart tears
-	// down a working instance or dependency bootstrap performs unrelated work.
-	// The execute path retains its enforcement as a safety net for recursive and
-	// future start paths, but this preflight is the user-visible transaction
-	// boundary for top-level starts and restarts.
-	item, err := r.loadScenario(name, opts.CustomPath)
+func (r *Runner) startLocked(name string, opts StartOptions, session *startSession) (result Result, returnErr error) {
+	preserveDependencyLeases := false
+	defer func() {
+		if preserveDependencyLeases && returnErr != nil {
+			_ = r.releaseDependencyLeasesForConsumer(opts.Context, name, opts.Variant, "scenario restart failed")
+		}
+	}()
+	var item scenario.Scenario
+	var err error
+	var restartStopStartedAt time.Time
+	if opts.stopFirst && name != "agent-manager" {
+		// Restart is an explicit interruption request. Cross the stop boundary
+		// before loading the manifest, resolving engagement, provider fencing,
+		// host preflight, or dependency preparation. These control-plane reads
+		// can block; none may keep an accepted provider effect live.
+		restartStopStartedAt = r.runtimeDeps().now()
+		if err := r.stopLocked(name, StopOptions{
+			Context: opts.Context, Variant: opts.Variant, CustomPath: opts.CustomPath, immediate: true,
+		}); err != nil {
+			return Result{}, err
+		}
+		opts.stopFirst = false
+		opts.restartAfterStop = true
+		opts.reuseDependencyStateAfterStop = true
+		preserveDependencyLeases = true
+	}
+	// Validate and converge the target descriptor after an explicit restart has
+	// crossed the stop boundary. Ordinary starts retain the old preflight order.
+	item, err = r.loadScenario(name, opts.CustomPath)
 	if err != nil {
 		return Result{}, err
 	}
 	item.Variant = opts.Variant
-	// Create the durable operation before negotiating a provider fence so the
-	// provider and registry describe one operation, not two unrelated UUIDs.
+	// Resolve engagement/source layout only after an explicit restart has
+	// crossed the stop boundary. Engagement is a control-plane read and may
+	// block; it must not keep an accepted provider effect alive during restart.
+	if item, err = r.withSourceLayout(item); err != nil {
+		return Result{}, err
+	}
+	// Create the durable operation after an explicit restart stop. Registry
+	// setup is observability, not part of the interruption boundary; opening it
+	// first can delay accepted work before the stop signal is issued.
 	var recorder *startOperationRecorder
 	if candidate := r.beginStartOperationRecord(name, opts); candidate != nil {
 		recorder = candidate
+		if opts.restartAfterStop {
+			candidate.markCompletedStep(startStepStop, restartStopStartedAt, r.runtimeDeps().now())
+		}
 		opts.lifecycleOperationID = candidate.operationID()
 		detach := r.attachSink(candidate)
 		defer detach()
@@ -668,8 +722,14 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 	if err != nil {
 		return Result{}, err
 	}
-	if err := r.enforceScenarioHostRequirementsTree(item, treePaths); err != nil {
-		return Result{}, fmt.Errorf("preflight host requirements for scenario %q: %w", name, err)
+	// Optional host capabilities are deliberately skipped by runtime.Enforce
+	// unless an operator opts into them. Do not pay the host-catalog/handler
+	// cost after an explicit restart when the entire tree is optional; a
+	// required declaration still takes the normal fail-closed path.
+	if !opts.restartAfterStop || scenarioTreeHasRequiredHostRequirements(item, treePaths) {
+		if err := r.enforceScenarioHostRequirementsTree(item, treePaths); err != nil {
+			return Result{}, fmt.Errorf("preflight host requirements for scenario %q: %w", name, err)
+		}
 	}
 	opts.hostRequirementsPreflighted = make(map[string]struct{}, len(treePaths))
 	for _, path := range treePaths {
@@ -686,7 +746,7 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		"force_lifecycle", opts.ForceLifecycle,
 		"lifecycle_override_reason", opts.LifecycleOverrideReason,
 	)
-	result, err := r.startWithState(name, opts, session)
+	result, err = r.startWithState(name, opts, session)
 	if err != nil {
 		if cleanupErr := r.releaseStartSessionDemand(opts.Context, session); cleanupErr != nil {
 			err = errors.Join(err, fmt.Errorf("release dependency demand after failed start: %w", cleanupErr))
@@ -710,6 +770,9 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 			return Result{}, itemErr
 		}
 		item.Variant = opts.Variant
+		if item, err = r.withSourceLayout(item); err != nil {
+			return Result{}, err
+		}
 		opts.providerFence, err = r.prepareProviderFenceAfterRecovery(opts.Context, item, opts.LifecycleOverrideReason, opts.lifecycleOperationID)
 		if err != nil {
 			return Result{}, fmt.Errorf("reacquire recovery-first provider fence for %q: %w", name, err)
@@ -741,6 +804,9 @@ func (r *Runner) startWithState(name string, opts StartOptions, session *startSe
 	// registry/lock/port/storage derivation addresses this instance. Empty ⇒
 	// live, so the pre-variant path is unchanged.
 	item.Variant = opts.Variant
+	if item, err = r.withSourceLayout(item); err != nil {
+		return Result{}, err
+	}
 	// Port policy is enforced here rather than inside scenario.ReadService so
 	// that Stop, Status, List, and other observation-only paths can still
 	// operate on manifests whose ports pre-date the canonical bands.
@@ -762,15 +828,27 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 			return Result{}, cleanErr
 		}
 	}
-	failedDeps, failedResources, err := r.bootstrapScenarioDependencies(item, opts, branch)
-	if err != nil {
-		return Result{}, err
+	var failedDeps, failedResources []string
+	var err error
+	// An explicit restart promises interruption-first semantics. Defer
+	// dependency preparation until after the old instance has stopped so setup
+	// latency cannot extend the time that accepted work remains live. Ordinary
+	// stale/unhealthy replacement still bootstraps while the healthy instance
+	// serves and retains its failure-safe behavior below.
+	if !opts.stopFirst && !opts.reuseDependencyStateAfterStop {
+		failedDeps, failedResources, err = r.bootstrapScenarioDependencies(item, opts, branch)
+		if err != nil {
+			return Result{}, err
+		}
 	}
 
 	forceSetup := forceSetupFor(opts, item.Slug)
-	observed, err := r.observeRuntime(item, forceSetup, branch)
-	if err != nil {
-		return Result{}, err
+	var observed runtimeObservation
+	if !opts.restartAfterStop {
+		observed, err = r.observeRuntime(item, forceSetup, branch)
+		if err != nil {
+			return Result{}, err
+		}
 	}
 	plan := planStart(observed.planInput())
 	if opts.stopFirst {
@@ -842,15 +920,15 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 		r.logDebug("Stopping existing instance before start",
 			logx.AttrScenario, item.Slug, "reason", plan.RestartReason)
 		// Build the replacement while the current instance still owns the
-		// serving process. A failed setup therefore returns without taking a
-		// healthy instance offline; the later artifact-swap phase will make the
-		// output write itself atomic for concurrently served UI bundles.
-		if observed.View.Authoritative && string(observed.View.Instance.Status) != scenarioruntime.StatusFailed {
+		// serving process for implicit stale/unhealthy replacement. Explicit
+		// restart has already crossed its interruption boundary and prepares
+		// after stop, so setup latency cannot delay input cancellation.
+		if !opts.stopFirst && observed.View.Authoritative && string(observed.View.Instance.Status) != scenarioruntime.StatusFailed {
 			if err := r.prepareReplacementArtifacts(ctxOrBackground(opts.Context), item, observed.View); err != nil {
 				return Result{}, err
 			}
 		}
-		if err := r.stopLocked(item.Slug, StopOptions{Context: opts.Context, Variant: item.Variant, CustomPath: opts.CustomPath, maintenanceRevision: maintenanceRevision, recoveryFirst: opts.recoveryFirstRestart}); err != nil {
+		if err := r.stopLocked(item.Slug, StopOptions{Context: opts.Context, Variant: item.Variant, CustomPath: opts.CustomPath, maintenanceRevision: maintenanceRevision, recoveryFirst: opts.recoveryFirstRestart, immediate: opts.stopFirst}); err != nil {
 			return Result{}, err
 		}
 		if err := r.waitForInstanceReleased(opts.Context, item.Slug, item.Variant); err != nil {
@@ -861,6 +939,12 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 		// graph is bootstrapped.
 		if err := r.releaseDependencyLeasesForConsumer(opts.Context, item.Slug, item.Variant, "scenario restart"); err != nil {
 			return Result{}, fmt.Errorf("release prior dependency demand: %w", err)
+		}
+	}
+	if opts.stopFirst {
+		failedDeps, failedResources, err = r.bootstrapScenarioDependencies(item, opts, branch)
+		if err != nil {
+			return Result{}, err
 		}
 	}
 	return r.executeStart(item, opts, forceSetup, branch, failedDeps, failedResources)
@@ -875,7 +959,7 @@ func ctxOrBackground(ctx context.Context) context.Context {
 
 func (r *Runner) prepareReplacementArtifacts(ctx context.Context, item scenario.Scenario, view registryRuntimeView) error {
 	env := envFromRuntimeView(item.Manifest, view)
-	if _, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, "stage", "setup"), func(logWriter, childWriter io.Writer) error {
+	if _, err := r.runWithLifecycleLog(startLifecycleLogContext(instanceLogName(item), "stage", "setup"), func(logWriter, childWriter io.Writer) error {
 		_, execErr := r.executePhaseDetailed(ctx, item, "setup", env, logWriter, childWriter, false)
 		return execErr
 	}); err != nil {
@@ -913,7 +997,7 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 		// Dependencies and resources that were started earlier in the recursive chain
 		// are shared runtime infrastructure and may already be needed by other live
 		// scenarios, so this rollback must not unwind them opportunistically.
-		if cleanupErr := r.cleanupScenarioRuntimeWithRegistryContext(ctx, item.Slug, item.Variant, opts.CustomPath, false, false); cleanupErr != nil {
+		if cleanupErr := r.cleanupScenarioRuntimeWithRegistryContext(ctx, item.Slug, item.Variant, opts.CustomPath, false, false, false); cleanupErr != nil {
 			r.logError("Failed to roll back failed scenario start", cleanupErr, logx.AttrScenario, recordSlug(item))
 			err = errors.Join(err, fmt.Errorf("rollback failed: %w", cleanupErr))
 		}
@@ -938,6 +1022,9 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 	if opts.AcceptCredentialLoss {
 		env.EnvVars["VROOLI_ACCEPT_CREDENTIAL_LOSS"] = "1"
 	}
+	if err := applyVariantDependencies(item, opts.VariantDependencies, env.EnvVars); err != nil {
+		return Result{}, err
+	}
 	if err := runtimeSession.adoptOrReservePorts(ctx, item, env); err != nil {
 		return Result{}, err
 	}
@@ -949,13 +1036,16 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 	}
 
 	if setupNeeded {
+		if err := r.admitVariantBuild(ctx, item); err != nil {
+			return Result{}, err
+		}
 		r.publish(ProgressEvent{Kind: EventPhaseStarted, Scenario: item.Slug, Phase: "setup"})
 		r.logInfo("Executing setup phase for scenario", logx.AttrScenario, item.Slug, logx.AttrPhase, "setup")
 		if err := runtimeSession.setPhase(ctx, "setup"); err != nil {
 			return Result{}, err
 		}
 		if err := runtimeSession.keepLeaseAlive(ctx, r.leaseRenewalWarning(item, "setup"), func() error {
-			_, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "setup"), func(logWriter, childWriter io.Writer) error {
+			_, err := r.runWithLifecycleLog(startLifecycleLogContext(instanceLogName(item), opts.Operation, "setup"), func(logWriter, childWriter io.Writer) error {
 				_, err := r.executePhaseDetailed(ctx, item, "setup", env.EnvVars, logWriter, childWriter, forceSetup)
 				return err
 			})
@@ -979,7 +1069,7 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 		return Result{}, err
 	}
 	if err := runtimeSession.keepLeaseAlive(ctx, r.leaseRenewalWarning(item, "develop"), func() error {
-		_, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "develop"), func(logWriter, childWriter io.Writer) error {
+		_, err := r.runWithLifecycleLog(startLifecycleLogContext(instanceLogName(item), opts.Operation, "develop"), func(logWriter, childWriter io.Writer) error {
 			_, err := r.executePhaseDetailed(ctx, item, "develop", env.EnvVars, logWriter, childWriter, false)
 			return err
 		})
@@ -1258,7 +1348,7 @@ func (r *Runner) stopLocked(name string, opts StopOptions) error {
 	slug := scenarioruntime.InstanceKey{Scenario: name, Variant: opts.Variant}.Slug()
 	r.publish(ProgressEvent{Kind: EventStopStarted, Scenario: slug, Operation: "stop"})
 	r.logInfo("Scenario stop requested", logx.AttrScenario, slug)
-	if err := r.cleanupScenarioRuntimeWithRegistryContext(opts.Context, name, opts.Variant, opts.CustomPath, true, true); err != nil {
+	if err := r.cleanupScenarioRuntimeWithRegistryContext(opts.Context, name, opts.Variant, opts.CustomPath, true, true, opts.immediate); err != nil {
 		r.logError("Failed to remove scenario locks", err, logx.AttrScenario, slug)
 		return err
 	}
@@ -1271,27 +1361,38 @@ func (r *Runner) stopLocked(name string, opts StopOptions) error {
 // are combined into a record slug for all on-disk record/log/lock operations
 // and into an InstanceFilter for the registry, so stopping one variant never
 // reaps a sibling (the reap-sibling bug fixed here). Empty variant ⇒ live.
-func (r *Runner) cleanupScenarioRuntimeWithRegistryContext(ctx context.Context, name, variant, customPath string, includeManifestFixedPorts bool, writeRegistry bool) error {
+func (r *Runner) cleanupScenarioRuntimeWithRegistryContext(ctx context.Context, name, variant, customPath string, includeManifestFixedPorts bool, writeRegistry bool, immediate bool) error {
 	deps := r.runtimeDeps()
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	key := scenarioruntime.InstanceKey{Scenario: name, Variant: variant}.Normalize()
 	slug := key.Slug()
+	records, err := deps.readScenarioRecords(r.Home, slug)
+	if err != nil {
+		return err
+	}
+	// Explicit restart is interruption-first. Signal the tracked owner before
+	// opening the runtime registry, whose bookkeeping can briefly contend with
+	// heartbeat/lease writers while the owner is still serving an effect.
+	earlyTerminated := false
+	if immediate {
+		liveRecords := process.LiveRecords(records)
+		if len(liveRecords) > 0 {
+			if err := r.terminateAndAwait(ctx, liveRecords, true); err != nil {
+				return err
+			}
+			earlyTerminated = true
+		}
+	}
 	runtimeStop := runtimeRegistryStopSession{}
 	if writeRegistry {
-		var err error
 		runtimeStop, err = r.beginRuntimeRegistryStop(ctx, key.Scenario, key.Variant)
 		if err != nil {
 			return err
 		}
 	}
 	defer runtimeStop.close()
-
-	records, err := deps.readScenarioRecords(r.Home, slug)
-	if err != nil {
-		return err
-	}
 
 	processDir, err := process.ScenarioProcessDir(r.Home, slug)
 	if err != nil {
@@ -1306,8 +1407,12 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistryContext(ctx context.Context, 
 	if len(runtimeStop.processRecords) > 0 {
 		liveRecords = append(liveRecords, runtimeStop.processRecords...)
 	}
-	if len(liveRecords) > 0 {
-		if err := r.terminateAndAwait(ctx, liveRecords); err != nil {
+	if len(liveRecords) > 0 && !earlyTerminated {
+		if err := r.terminateAndAwait(ctx, liveRecords, immediate); err != nil {
+			return err
+		}
+	} else if len(runtimeStop.processRecords) > 0 {
+		if err := r.terminateAndAwait(ctx, runtimeStop.processRecords, immediate); err != nil {
 			return err
 		}
 	}
@@ -1320,11 +1425,7 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistryContext(ctx context.Context, 
 	portsToCheck := make(map[int]struct{})
 	if includeManifestFixedPorts {
 		if item, loadErr := r.loadScenario(name, customPath); loadErr == nil {
-			for _, portSummary := range item.Manifest.SortedPorts() {
-				if portSummary.FixedPort != nil {
-					portsToCheck[*portSummary.FixedPort] = struct{}{}
-				}
-			}
+			portsToCheck = liveFixedPorts(item.Manifest, key)
 		}
 	}
 
@@ -1389,6 +1490,28 @@ func (r *Runner) RestartContext(ctx context.Context, name string, opts StartOpti
 // A scenario with no declared hostTools/hostSafeguards yields a no-op.
 func (r *Runner) enforceScenarioHostRequirements(item scenario.Scenario) error {
 	return r.enforceScenarioHostRequirementsTree(item, []string{item.Path})
+}
+
+func scenarioTreeHasRequiredHostRequirements(root scenario.Scenario, paths []string) bool {
+	for _, path := range paths {
+		manifest := root.Manifest
+		if path != root.Path {
+			loaded, err := scenario.ReadService(filepath.Join(path, repocontractmeta.ProjectConfigDir, "service.json"))
+			if err != nil {
+				// A failed read must not turn a required host check into an
+				// accidental skip. The subsequent canonical resolver reports the
+				// actionable manifest error.
+				return true
+			}
+			manifest = loaded
+		}
+		for _, declaration := range append(append([]hostreqspec.Declaration{}, manifest.HostTools...), manifest.HostSafeguards...) {
+			if declaration.Required {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (r *Runner) startTreeScenarioPaths(root scenario.Scenario) ([]string, error) {
@@ -1601,23 +1724,120 @@ func (r *Runner) killOrphansOnPortsContext(ctx context.Context, portsToCheck map
 
 func (r *Runner) cleanupFixedPortOrphans(item scenario.Scenario) error {
 	key := scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}.Normalize()
-	// Fixed ports are a live-only privilege (§1a / P1): a non-live variant never
-	// claims them and so must never clean up "orphans" on them — that would reach
-	// across the variant boundary and kill the live instance's fixed-port process.
-	if !key.IsLive() {
-		return nil
-	}
-	portsToCheck := make(map[int]struct{})
-	for _, portSummary := range item.Manifest.SortedPorts() {
-		if portSummary.FixedPort == nil {
-			continue
-		}
-		portsToCheck[*portSummary.FixedPort] = struct{}{}
-	}
+	portsToCheck := liveFixedPorts(item.Manifest, key)
 	if len(portsToCheck) == 0 {
 		return nil
 	}
 	return r.killManagedScenarioListenersContext(context.Background(), portsToCheck, key)
+}
+
+// admitVariantBuild refuses to rebuild a non-live instance while another
+// instance of the same scenario is active. Without a Baseline Modes engagement
+// every instance runs from the working tree (locationForVariant), so they share
+// one set of build outputs: a variant's setup replaces the binaries and UI
+// bundle that the live instance is serving. RunSetupIfStopped applies the same
+// rule to a standalone setup. An engaged shadow is admitted because its serving
+// instance is routed to the restore-point copy.
+func (r *Runner) admitVariantBuild(ctx context.Context, item scenario.Scenario) error {
+	key := scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}.Normalize()
+	if key.IsLive() {
+		return nil
+	}
+	if r.Engagements != nil {
+		_, engaged, err := r.Engagements.Engagement(item.Slug)
+		if err != nil {
+			return fmt.Errorf("admit %s build: resolve engagement: %w", key.Slug(), err)
+		}
+		if engaged {
+			return nil
+		}
+	}
+	store, err := r.runtimeDeps().runtimeRegistry(ctx, r.Home)
+	if err != nil {
+		return fmt.Errorf("admit %s build: %w", key.Slug(), err)
+	}
+	defer store.Close()
+	instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{
+		Scenario: item.Slug,
+		Statuses: append(scenarioruntime.ActiveInstanceStatuses(), scenarioruntime.StatusStopping),
+	})
+	if err != nil {
+		return fmt.Errorf("admit %s build: %w", key.Slug(), err)
+	}
+	var sharing []string
+	for _, instance := range instances {
+		other := scenarioruntime.InstanceKey{Scenario: instance.Scenario, Variant: instance.Variant}.Normalize()
+		if other.Variant != key.Variant {
+			sharing = append(sharing, other.Slug())
+		}
+	}
+	if len(sharing) == 0 {
+		return nil
+	}
+	slices.Sort(sharing)
+	sharing = slices.Compact(sharing)
+	return fmt.Errorf("%s needs a rebuild, but it shares build outputs with running instance(s) %s; rebuilding would replace the files they serve. Restart %s first so the build is fresh, then start %s",
+		key.Slug(), strings.Join(sharing, ", "), item.Slug, key.Slug())
+}
+
+// applyVariantDependencies publishes the follow list to the instance. Discovery
+// (api-core) reads it through cli-core's cliutil: a listed dependency resolves
+// at this instance's own variant and never falls back to live. The list is
+// refused for a live instance, where "follow my variant" means live and the
+// flag can only be a mistake.
+func applyVariantDependencies(item scenario.Scenario, dependencies []string, envVars map[string]string) error {
+	names := make([]string, 0, len(dependencies))
+	for _, dependency := range dependencies {
+		for _, field := range strings.FieldsFunc(dependency, func(r rune) bool { return r == ',' || r == ' ' }) {
+			if trimmed := strings.TrimSpace(field); trimmed != "" {
+				names = append(names, trimmed)
+			}
+		}
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	key := scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}.Normalize()
+	if key.IsLive() {
+		return fmt.Errorf("variant dependencies (%s) require a non-live instance: %s is live", strings.Join(names, ", "), item.Slug)
+	}
+	for _, name := range names {
+		if _, declared := item.Manifest.Dependencies.Scenarios[name]; !declared {
+			return fmt.Errorf("variant dependency %q is not declared in %s's dependencies.scenarios", name, item.Slug)
+		}
+	}
+	slices.Sort(names)
+	names = slices.Compact(names)
+	envVars[cliutil.EnvVariantDependencies] = strings.Join(names, ",")
+	return nil
+}
+
+// instanceLogName returns the name this item's lifecycle log is filed under.
+// It is the instance slug ("scenario" for live, "scenario@variant" otherwise),
+// which is what the log reader already resolves. Filing by the bare scenario
+// slug would append a variant's lifecycle output to the live instance's log:
+// the variant's own log would appear to be missing while live's log gained
+// entries for work it never did.
+func instanceLogName(item scenario.Scenario) string {
+	return scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}.Slug()
+}
+
+// liveFixedPorts returns the manifest's fixed ports that the instance key may
+// clean up. Fixed ports are a live-only privilege (§1a / P1): a non-live
+// variant never claims them, so its start and its stop must never touch them.
+// Either would reach across the variant boundary and kill the live instance's
+// fixed-port process.
+func liveFixedPorts(manifest scenario.ServiceManifest, key scenarioruntime.InstanceKey) map[int]struct{} {
+	ports := make(map[int]struct{})
+	if !key.IsLive() {
+		return ports
+	}
+	for _, portSummary := range manifest.SortedPorts() {
+		if portSummary.FixedPort != nil {
+			ports[*portSummary.FixedPort] = struct{}{}
+		}
+	}
+	return ports
 }
 
 // envPortOrphanStrict disables the aggressive start-time fallback. When set

@@ -9,9 +9,9 @@ metadata:
   tags: ["browser-automation-studio", "bas", "improve", "self-improvement", "control-loop", "setpoint", "executions", "selectors", "evidence"]
   icon: "gauge"
   status: "active"
-  revision: 5
+  revision: 7
   createdAt: "2026-09-02T00:00:00Z"
-  updatedAt: "2026-09-22T00:00:00Z"
+  updatedAt: "2026-09-29T20:00:00Z"
   requires:
     scenarios: ["browser-automation-studio", "program-runtime", "prompt-manager", "vrooli-memory", "measures-health", "workflow-health"]
     commands: ["browser-automation-studio executions list", "browser-automation-studio executions screenshots", "browser-automation-studio uxmetrics workflow-aggregate", "browser-automation-studio executions retention-preview", "program-runtime programs submit", "program-runtime bindings condition", "measures-health validate scenario", "workflow-health validate scenario", "prompt-manager skill read", "vrooli-memory journal note"]
@@ -28,50 +28,16 @@ Required reading:
 - `prompt-manager skill read scenario-work-ladder` — where code routes go.
 - `prompt-manager skill read measures-adoption` — how a missing sensor is filed.
 
-### File-based continuous rehabilitation
+### Rehabilitation goal
 
-The operator-selected rehabilitation work is a continuous, file-based goal.
-Read `docs/internal/REFRACTOR_GOAL.md`, `REFRACTOR_CONTRACT.json`, `TESTING.md`,
-`REFRACTOR_PROGRESS.md` and `OPERATOR_FEEDBACK.md` (all under docs/internal).
-**Do not create, use or resume a Plan Manager plan, including child plans.**
-The earlier `bas-browser-rehabilitation` plan is archived and has no execution
-role. This explicit operator instruction overrides plan-backed campaign/goal
-skill templates and the observation-only role defaults below.
-
-Use `program-runtime library run browser-automation-studio.setpoint-read --input
-profile=rehabilitation`. All 17 outcome rows remain required product targets;
-the default operational board is diagnostic. Its mixed-population 90% pass rate
-is not rehabilitation acceptance. Build and exercise missing owner-backed
-producers and sensors wherever authorized and feasible. Unknown is not passing.
-
-Assignment of the goal authorizes the documented engineering work and necessary
-owner repairs with file-recorded scope extensions. No per-repair human approval
-or review is needed. Preserve workflows, profiles, shared-tree changes and all
-24 journeys while reducing domain-wide complexity, duplication and ambiguous
-ownership. Deliver complete replacements and remove dead code, old paths,
-compatibility shims and unnecessary abstractions. The original ratchet is a
-minimum floor; show material cumulative simplification with comparable evidence.
-
-Use BAS-RF as the sole defect register, REFRACTOR_PROGRESS.md for checkpoints
-and experiments, DECISIONS.md for durable choices, and OPERATOR_FEEDBACK.md for
-verbatim steering captured before acting. Re-read feedback each pass. Follow
-the simplicity and adversarial review protocol in TESTING.md and the anti-gaming
-rules in `improvement-do-and-dont`.
-
-Unavailable validation never blocks this goal, including native checks or gaps
-discovered later. Attempt reasonable authorized remedies, record unverified
-limitations and recheck triggers, defer only the affected operation and continue.
-Actual failing assertions remain repair work. Do not bypass missing authority.
-Green tests, an empty issue list and two clean reviews trigger fresh adversarial
-investigation, not completion. Continue meaningful repair, measurement and
-investigation until operator stop/redirection or enforced runtime interruption;
-checkpoint for resumption. Do not invent defects or churn code to stay busy.
+BAS rehabilitation runs as orchestrated epochs (`large-effort-orchestration`). The
+goal home `docs/internal/goal/` holds the goal, queue, epochs, targets and operator
+feedback; `docs/internal/TESTING.md` holds verification. The scoreboard is the
+preservation journey suite (`pnpm test:journeys` in `playwright-driver`, run
+daily by the orchestrator against the `bas-goal` shadow). `docs/PROBLEMS.md` is the BAS-RF defect
+register and `docs/internal/DECISIONS.md` holds durable choices.
 
 ### 1. Focus and scope
-
-Sections 1–9 describe the standing operational role. The continuous rehabilitation
-goal above overrides their filing-only authority, unavailable-row stop rules and
-operator close-out step.
 
 **In scope:** the setpoint rows below; curation of BAS-owned data (retention sweeps, candidate workflows in the `candidates` folder, the `bas-usage` memory scope); filing ladder rungs against BAS; filing against owners of scenarios whose `bas/` assets fail.
 
@@ -79,7 +45,7 @@ operator close-out step.
 
 ### 2. Setpoint
 
-Bands are targets. Readings are dated observations; re-read them every cycle with `run browser-automation-studio.setpoint-read`.
+Bands are targets. Readings are dated observations from `run browser-automation-studio.setpoint-read`.
 
 | Row | Sensor | Band | Today (2026-09-02) |
 |---|---|---|---|

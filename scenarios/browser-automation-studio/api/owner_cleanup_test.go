@@ -105,6 +105,47 @@ func TestCaptureCandidatesBoundsRecursiveSizingToOldestBatch(t *testing.T) {
 	}
 }
 
+func TestCaptureCandidatesKeepsRequestedProtectedItemsVisible(t *testing.T) {
+	root := t.TempDir()
+	old := filepath.Join(root, "old-requested")
+	newer := filepath.Join(root, "new-requested")
+	for _, item := range []struct {
+		path string
+		at   time.Time
+	}{
+		{old, time.Now().Add(-48 * time.Hour)},
+		{newer, time.Now().Add(-time.Hour)},
+	} {
+		if err := os.MkdirAll(item.path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(item.path, "capture.bin"), []byte("capture"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(item.path, item.at, item.at); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	service := &ownerCleanupService{capturesRoot: root, repo: &evidenceRepository{states: map[uuid.UUID]string{}}}
+	items, err := service.captureCandidates(context.Background(), 0, 1, 1, map[string]struct{}{
+		"capture:old-requested": {},
+		"capture:new-requested": {},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("items = %#v, want both explicitly requested captures", items)
+	}
+	if items[0].Protected || items[0].ID != "capture:old-requested" {
+		t.Fatalf("old requested item = %#v, want explicitly requested item preserved without newest protection", items[0])
+	}
+	if !items[1].Protected || items[1].ID != "capture:new-requested" {
+		t.Fatalf("new requested item = %#v, want newest item marked protected", items[1])
+	}
+}
+
 func TestOrphanRecordingCandidatesProtectIndexedAndRecentDirectories(t *testing.T) {
 	root := t.TempDir()
 	orphanID := uuid.New()

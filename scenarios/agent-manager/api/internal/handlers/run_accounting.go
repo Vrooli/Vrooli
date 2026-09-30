@@ -38,13 +38,16 @@ func (h *Handler) GetRunAccounting(w http.ResponseWriter, r *http.Request) {
 
 func runAccountingToProto(a orchestration.RunAccounting) *apipb.RunAccounting {
 	return &apipb.RunAccounting{
-		RunId:          a.RunID.String(),
-		Terminal:       a.Terminal,
-		Tokens:         a.Tokens,
-		Turns:          a.Turns,
-		TokensKnown:    a.TokensKnown,
-		ChargeMicroUsd: a.ChargeMicroUSD,
-		ChargeMeasured: a.ChargeMeasured,
-		WallSeconds:    a.WallSeconds,
+		RunId:           a.RunID.String(),
+		Terminal:        a.Terminal,
+		Tokens:          a.Tokens,
+		Turns:           a.Turns,
+		TokensKnown:     a.TokensKnown,
+		ChargeMicroUsd:  a.ChargeMicroUSD,
+		ChargeMeasured:  a.ChargeMeasured,
+		WallSeconds:     a.WallSeconds,
+		NonCacheTokens:  a.NonCacheTokens,
+		CacheReadTokens: a.CacheReadTokens,
+		Model:           a.Model,
 	}
 }

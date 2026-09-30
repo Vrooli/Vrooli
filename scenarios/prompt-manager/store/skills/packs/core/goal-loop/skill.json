@@ -21,7 +21,7 @@
       "prompt-manager"
     ]
   },
-  "revision": 7,
+  "revision": 9,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -31,5 +31,5 @@
     "setpoint",
     "heartbeat"
   ],
-  "updatedAt": "2026-09-11T12:00:00Z"
+  "updatedAt": "2026-09-29T16:00:00Z"
 }

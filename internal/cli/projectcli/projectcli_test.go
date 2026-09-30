@@ -40,6 +40,19 @@ func TestParseSetupOptionsAcceptsFlags(t *testing.T) {
 	}
 }
 
+func TestParseDevelopOptionsAcceptsAPIOnlyRestart(t *testing.T) {
+	opts, err := ParseDevelopOptions([]string{"--restart-api", "--resources", "none", "--scenarios", "none"})
+	if err != nil {
+		t.Fatalf("ParseDevelopOptions: %v", err)
+	}
+	if !opts.RestartAPI || opts.Resources != "none" || opts.Scenarios != "none" {
+		t.Fatalf("options = %+v, want API-only restart with other services left selected as none", opts)
+	}
+	if _, err := ParseSetupOptions([]string{"--restart-api"}); err == nil {
+		t.Fatal("setup must not accept the develop-only --restart-api flag")
+	}
+}
+
 func TestParseSetupOptionsMaintenanceWindowDefaultsFalse(t *testing.T) {
 	opts, err := ParseSetupOptions(nil)
 	if err != nil {

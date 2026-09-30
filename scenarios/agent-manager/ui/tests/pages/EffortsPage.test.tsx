@@ -1,9 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { fireEvent, screen, within } from "@testing-library/react";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { timestampFromDate } from "@bufbuild/protobuf/wkt";
-import { WatchActionKind } from "@vrooli/proto-types/agent-manager/v1/domain/watch_pb";
-import { EffortBoardSchema, EffortDirectiveAcknowledgment, EffortDirectiveDelivery, EffortFreshness } from "@vrooli/proto-types/agent-manager/v1/domain/effort_pb";
+import { beforeEach, expect, test, vi } from "vitest";
+import { EffortBoardSchema, EffortFreshness } from "@vrooli/proto-types/agent-manager/v1/domain/effort_pb";
 import { EffortsPage } from "../../src/pages/EffortsPage";
 import { renderWithProviders } from "../../src/test-utils";
 
@@ -19,7 +17,6 @@ const board = () => create(EffortBoardSchema, {
   ],
 });
 beforeEach(() => { owner.data = undefined; owner.isPending = false; owner.isFetching = false; owner.error = null; owner.refetch.mockReset(); owner.tokens = []; owner.refs = []; });
-afterEach(() => vi.useRealTimers());
 
 test("an encoded exact link selects the intended row and does not fall back to another effort", () => {
   const exactRef = "effort:alpha/beta?x=1&second=2";
@@ -39,16 +36,16 @@ test("a missing exact effort remains unavailable even when other rows are return
   expect(screen.queryByRole("article")).toBeNull();
 });
 
-test.each(["expired", "unknown", "withdrawn"])("%s authority cannot appear as a current steering grant", state => {
-  vi.setSystemTime(new Date("2026-09-12T15:00:00Z"));
+test.each([
+  ["discovered", {}, /Not established; discovery is observation only/],
+  ["enrolled", { authorizedBy: "operator" }, /Enrolled by operator/],
+  ["withdrawn", { authorizedBy: "operator", withdrawn: true, withdrawalReason: "closed" }, /Withdrawn: closed/],
+])("%s enrollment shows who owns it", (_state, fields, text) => {
   const data = board();
-  Object.assign(data.rows[0].enrollment!, { authorizedBy: "operator", permittedActions: [WatchActionKind.CONTINUE],
-    authorityExpiresAt: state === "unknown" ? undefined : timestampFromDate(new Date("2026-09-12T14:00:00Z")), withdrawn: state === "withdrawn" });
+  Object.assign(data.rows[0].enrollment!, fields);
   owner.data = data;
   renderWithProviders(<EffortsPage />);
-  const detail = within(screen.getByRole("article", { name: "Effort new-effort details" }));
-  expect(detail.queryByText(/Recorded grant by/)).toBeNull();
-  expect(detail.getByText(state === "expired" ? /Expired.*steering unavailable/ : state === "unknown" ? /Grant expiry unknown/ : /Withdrawn:/)).toBeInTheDocument();
+  expect(within(screen.getByRole("article", { name: "Effort new-effort details" })).getByText(text)).toBeInTheDocument();
 });
 
 test("loading and outage never assert that there are zero efforts", () => {
@@ -83,16 +80,6 @@ test("arbitrary mixed efforts keep runtime, acceptance, stale evidence, model an
   expect(screen.getByRole("article", { name: "Effort other details" })).toHaveTextContent("unaccepted · owner");
 });
 
-test("delivery, acknowledgment, action and assessed benefit are not collapsed into success", () => {
-  const data = board();
-  data.rows[0].directives = create(EffortBoardSchema, { rows: [{ directives: [{ directiveId: "directive-one", delivery: EffortDirectiveDelivery.DELIVERED, acknowledgment: EffortDirectiveAcknowledgment.CHALLENGED, acknowledgmentReason: "Producer wait remains legitimate", assessment: "unknown", expectedResult: "Avoid duplicate investigation" }] }] }).rows[0].directives;
-  owner.data = data;
-  renderWithProviders(<EffortsPage />);
-  expect(screen.getByText(/delivery: delivered · acknowledgment: challenged/)).toBeTruthy();
-  expect(screen.getByText("Action reference: not recorded · benefit: unknown")).toBeTruthy();
-  expect(screen.getByText("Producer wait remains legitimate")).toBeTruthy();
-});
-
 test("pagination is owner-cursor based and stale refresh errors retain explicit uncertainty", () => {
   const data = board(); data.nextPageToken = "opaque-owner-cursor"; owner.data = data;
   const view = renderWithProviders(<EffortsPage />);
@@ -111,42 +98,4 @@ test("an empty observation retains coverage and makes no global no-work claim", 
   expect(screen.getByText(/Check discovery coverage before concluding/)).toBeTruthy();
   expect(screen.getByText("Discovery coverage unknown")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
-});
-
-test("supervision cost and an unknown benefit remain visible for a quiet shared assessment", () => {
-  const data = board();
-  data.rows[0].enrollment!.destinationRef = "doc:accepted-target";
-  data.rows[0].lastAssessment = create(EffortBoardSchema, { rows: [{ lastAssessment: {
-    assessmentId: "assessment-one", disposition: "quiet", benefit: "unknown", supervisorRunId: "supervisor-run",
-    rationale: "Useful producer wait; no intervention justified", sharedOperationRef: "wake:one", allowanceRef: "diagnostic:standing", evidenceRefs: ["receipt:owner-wait"],
-    allocationRule: "unallocated shared cost retained once", observedUsage: { partial: true }, limitations: ["No measured causal benefit"],
-  } }] }).rows[0].lastAssessment;
-  owner.data = data;
-  renderWithProviders(<EffortsPage />);
-  expect(screen.getByText(/quiet · benefit: unknown/)).toBeTruthy();
-  expect(screen.getByText("doc:accepted-target")).toBeTruthy();
-  expect(screen.getByText("receipt:owner-wait")).toBeTruthy();
-  expect(screen.getByText("Allocation: unallocated shared cost retained once")).toBeTruthy();
-  expect(screen.getByText("No measured causal benefit")).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Supervisor run supervisor-run" })).toHaveAttribute("href", "/runs/supervisor-run");
-});
-
-test.each(["pending", "progress-observed", "owner-wait", "failed"])("recovery %s retains replacement lineage and separates delivery from acceptance", state => {
-  owner.data = create(EffortBoardSchema, { rows: [{
-    enrollment: { effortRef: "test:portable-effort", displayName: "Qualification" },
-    runtimeState: "active", outcomeStanding: { state: "unverified" },
-    directives: [{ directiveId: "directive-1", delivery: EffortDirectiveDelivery.DELIVERED,
-      targetRunId: "prior-run", recoveredRunId: "new-run", assessment: "unknown",
-      recoveryExpectation: { progressCondition: "assigned regression passes", baselineEvidenceRefs: ["owner:before"] },
-      recoveryVerification: { state, evidenceRefs: state === "pending" ? [] : ["owner:after"],
-        nextOwnerCondition: state === "owner-wait" ? "test-genie:waiting" : "" },
-    }],
-  }] });
-  renderWithProviders(<EffortsPage />);
-  expect(screen.getByText(`Recovery: ${state}`)).toBeInTheDocument();
-  expect(screen.getByText("Replacement: new-run · predecessor: prior-run")).toBeInTheDocument();
-  expect(screen.getByText("Progress condition: assigned regression passes")).toBeInTheDocument();
-  expect(screen.getByText(/Action reference: not recorded · benefit: unknown/)).toBeInTheDocument();
-  expect(screen.getByText(/Attributed verification is separate from product acceptance/)).toBeInTheDocument();
-  if (state === "owner-wait") expect(screen.getByText("Next owner condition: test-genie:waiting")).toBeInTheDocument();
 });

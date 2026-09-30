@@ -226,13 +226,3 @@ CREATE TABLE IF NOT EXISTS sandbox_prepared_approvals (
     sandbox_id TEXT PRIMARY KEY REFERENCES sandboxes(id) ON DELETE RESTRICT,
     intent_json TEXT NOT NULL
 );
-
--- Immutable pre-review evidence, not a terminal state or an apply intent.
--- Bodies live under the derived review UUID in the existing blob store.
-CREATE TABLE IF NOT EXISTS sandbox_review_snapshots (
-    id TEXT PRIMARY KEY,
-    sandbox_id TEXT NOT NULL REFERENCES sandboxes(id) ON DELETE RESTRICT,
-    request_id TEXT NOT NULL,
-    snapshot_json TEXT NOT NULL,
-    UNIQUE(sandbox_id, request_id)
-);

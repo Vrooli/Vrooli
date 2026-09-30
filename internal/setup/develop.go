@@ -100,22 +100,38 @@ func (s *setupService) RunDevelopWithOptions(root, home string, opts Options, st
 	if apiPort <= 0 {
 		apiPort = defaultAPIPort
 	}
+	if opts.RestartAPI && opts.DryRun {
+		_, _ = fmt.Fprintf(stdout, "[dry-run] Would restart only the managed vrooli-api on port %d; scenarios and resources would remain running.\n", apiPort)
+		return nil
+	}
 	// The project manifest supplies the default port, but an explicit
 	// VROOLI_API_PORT override controls both the health probe and the child
 	// process. Keep the launch environment aligned with the resolved port.
 	env = envkit.WithOverlay(env, envkit.SameScenario, envkit.Env{"VROOLI_API_PORT=" + strconv.Itoa(apiPort)})
 
-	healthy, err := apiAlreadyHealthy(apiPort)
+	healthy, err := s.deps.apiAlreadyHealthy(apiPort)
 	if err != nil {
 		return err
+	}
+	if opts.RestartAPI {
+		stopped := s.deps.stopProjectAPI(apiPort)
+		if len(stopped) == 0 && healthy {
+			return fmt.Errorf("restart requested but no managed vrooli-api process owns port %d", apiPort)
+		}
+		if len(stopped) > 0 {
+			_, _ = fmt.Fprintf(stdout, "[INFO]    Stopped managed vrooli-api (pid %d) for requested restart\n", stopped[0])
+		}
+		healthy = false
 	}
 	healthTimeout := tuning.SetupOperationTimeout()
 	if !healthy {
 		// An unhealthy project API that still holds the port would make the
 		// fresh one fail to bind. minimouse kept one for 37 days, running from
 		// a deleted checkout and answering 503 to every CLI call.
-		for _, pid := range replaceUnhealthyProjectAPI(apiPort, defaultAPIProcessOps()) {
-			_, _ = fmt.Fprintf(stdout, "[INFO]    Stopped unhealthy vrooli-api (pid %d) holding port %d\n", pid, apiPort)
+		if !opts.RestartAPI {
+			for _, pid := range s.deps.stopProjectAPI(apiPort) {
+				_, _ = fmt.Fprintf(stdout, "[INFO]    Stopped unhealthy vrooli-api (pid %d) holding port %d\n", pid, apiPort)
+			}
 		}
 		spec, err := buildAPILaunchSpec(root, home, env, apiPort)
 		if err != nil {
@@ -271,7 +287,7 @@ func resolveAPIPort(values map[string]string) int {
 	return defaultAPIPort
 }
 
-// apiProcessOps are the host operations replaceUnhealthyProjectAPI needs.
+// apiProcessOps are the host operations stopManagedProjectAPI needs.
 type apiProcessOps struct {
 	listeners func(port int) []int
 	exePath   func(pid int) (string, error)
@@ -298,10 +314,10 @@ func defaultAPIProcessOps() apiProcessOps {
 	}
 }
 
-// replaceUnhealthyProjectAPI stops every vrooli-api process listening on port
-// and returns their pids. Only the project API's own executable is touched: a
-// port held by any other program is left for the launch to report.
-func replaceUnhealthyProjectAPI(port int, ops apiProcessOps) []int {
+// stopManagedProjectAPI stops every vrooli-api process listening on port and
+// returns their pids. Only the project API's own executable is touched: a port
+// held by any other program is left for the launch to report.
+func stopManagedProjectAPI(port int, ops apiProcessOps) []int {
 	var stopped []int
 	for _, pid := range ops.listeners(port) {
 		exe, err := ops.exePath(pid)

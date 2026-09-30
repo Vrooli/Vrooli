@@ -215,29 +215,52 @@ type FreshnessInputs struct {
 }
 
 func (r *Runner) FreshnessInputsByName(name, customPath string) (FreshnessReport, error) {
+	return r.FreshnessInputsByNameContext(context.Background(), name, customPath)
+}
+
+// FreshnessInputsByNameContext resolves build inputs until the request is
+// canceled. API callers should propagate their request context so abandoned
+// validation reads do not keep enumerating source trees or running go list.
+func (r *Runner) FreshnessInputsByNameContext(ctx context.Context, name, customPath string) (FreshnessReport, error) {
+	if err := ctx.Err(); err != nil {
+		return FreshnessReport{}, err
+	}
 	item, err := r.loadScenario(name, customPath)
 	if err != nil {
 		return FreshnessReport{}, err
 	}
-	return r.freshnessInputs(item, r.hostProbeDeps())
+	return r.freshnessInputsContext(ctx, item, r.hostProbeDeps())
 }
 
 func (r *Runner) freshnessInputs(item scenario.Scenario, deps hostProbeDeps) (FreshnessReport, error) {
+	return r.freshnessInputsContext(context.Background(), item, deps)
+}
+
+func (r *Runner) freshnessInputsContext(ctx context.Context, item scenario.Scenario, deps hostProbeDeps) (FreshnessReport, error) {
 	inputs := &FreshnessInputs{BuildKeys: map[string]string{}}
 	seen := map[string]bool{}
 	for name, component := range item.Manifest.Components {
+		if err := ctx.Err(); err != nil {
+			return FreshnessReport{}, err
+		}
 		// Build freshness may conservatively fall back while deciding whether to
 		// rebuild. Reusable validation evidence requires a proven import closure.
 		if spec, ok := builderRegistry[component.Build.Kind]; ok && spec.ClosureResolver == closureResolverGoList {
-			if _, complete := goListFreshnessInputsContext(context.Background(), resolveCheckPath(item.Path, component.Build.Dir), r.Root, deps); !complete {
+			if _, complete := goListFreshnessInputsContext(ctx, resolveCheckPath(item.SourcePath(), component.Build.Dir), r.Root, deps); !complete {
+				if err := ctx.Err(); err != nil {
+					return FreshnessReport{}, err
+				}
 				return FreshnessReport{}, fmt.Errorf("component %s import closure unavailable; validation inputs are incomplete", name)
 			}
 		}
-		artifacts, err := componentFreshnessArtifactsContextWithName(context.Background(), item.Path, r.Root, item.Slug, name, component, deps)
+		artifacts, err := componentFreshnessArtifactsContextWithName(ctx, item.SourcePath(), r.Root, item.Slug, name, component, deps)
 		if err != nil {
 			return FreshnessReport{}, fmt.Errorf("component %s inputs: %w", name, err)
 		}
 		for _, artifact := range artifacts {
+			if err := ctx.Err(); err != nil {
+				return FreshnessReport{}, err
+			}
 			paths, err := cliutil.ResolveFreshnessInputFiles(artifact.Spec)
 			if err != nil {
 				return FreshnessReport{}, fmt.Errorf("component %s input enumeration: %w", name, err)
@@ -278,14 +301,30 @@ func (r *Runner) freshnessInputs(item scenario.Scenario, deps hostProbeDeps) (Fr
 // and returns its freshness report. It is the entry point used by the
 // `vrooli scenario freshness` CLI command.
 func (r *Runner) FreshnessReportByName(name, customPath string) (FreshnessReport, error) {
+	return r.FreshnessReportByNameContext(context.Background(), name, customPath)
+}
+
+// FreshnessReportByNameContext evaluates a scenario's artifact verdicts while
+// honoring caller cancellation from discovery through manifest evaluation.
+func (r *Runner) FreshnessReportByNameContext(ctx context.Context, name, customPath string) (FreshnessReport, error) {
+	if err := ctx.Err(); err != nil {
+		return FreshnessReport{}, err
+	}
 	item, err := r.loadScenario(name, customPath)
 	if err != nil {
 		return FreshnessReport{}, err
 	}
-	return r.FreshnessReport(item)
+	return r.FreshnessReportContext(ctx, item)
 }
 
 func (r *Runner) FreshnessReport(item scenario.Scenario) (FreshnessReport, error) {
+	return r.FreshnessReportContext(context.Background(), item)
+}
+
+func (r *Runner) FreshnessReportContext(ctx context.Context, item scenario.Scenario) (FreshnessReport, error) {
+	if err := ctx.Err(); err != nil {
+		return FreshnessReport{}, err
+	}
 	report := FreshnessReport{Scenario: item.Slug}
 	deps := r.hostProbeDeps()
 
@@ -295,17 +334,23 @@ func (r *Runner) FreshnessReport(item scenario.Scenario) (FreshnessReport, error
 	}
 	slices.Sort(componentNames)
 	for _, name := range componentNames {
+		if err := ctx.Err(); err != nil {
+			return FreshnessReport{}, err
+		}
 		component := item.Manifest.Components[name]
-		artifacts, err := componentFreshnessArtifactsContextWithName(context.Background(), item.Path, r.Root, item.Slug, name, component, deps)
+		artifacts, err := componentFreshnessArtifactsContextWithName(ctx, item.SourcePath(), r.Root, item.Slug, name, component, deps)
 		if err != nil {
 			return FreshnessReport{}, fmt.Errorf("component %s freshness: %w", name, err)
 		}
 		for _, artifact := range artifacts {
-			verdict, err := r.evaluateArtifactFreshness(artifact, deps)
+			verdict, err := r.evaluateArtifactFreshnessContext(ctx, artifact, deps)
 			if err != nil {
 				return FreshnessReport{}, err
 			}
 			if !verdict.Stale {
+				if err := ctx.Err(); err != nil {
+					return FreshnessReport{}, err
+				}
 				// Upgrade manifests written before directory snapshots existed.
 				// This is a metadata-only migration: the artifact has already
 				// proved fresh, so do not rebuild it, but pay the one-time full
@@ -353,7 +398,7 @@ func (r *Runner) stampComponentFreshness(item scenario.Scenario, name string) er
 }
 
 func (r *Runner) stampComponentFreshnessWithDeps(item scenario.Scenario, name string, component scenario.Component, deps hostProbeDeps) error {
-	artifacts, err := componentFreshnessArtifactsContextWithName(context.Background(), item.Path, r.Root, item.Slug, name, component, deps)
+	artifacts, err := componentFreshnessArtifactsContextWithName(context.Background(), item.SourcePath(), r.Root, item.Slug, name, component, deps)
 	if err != nil {
 		return fmt.Errorf("component %s freshness stamp spec: %w", name, err)
 	}
@@ -427,6 +472,10 @@ func binariesFreshnessInputsContext(ctx context.Context, binaryDir, repoRoot str
 	if inputs, ok := goListFreshnessInputsContext(ctx, binaryDir, repoRoot, deps); ok {
 		return inputs, nil
 	}
+	return binariesFreshnessFallbackInputsContext(ctx, binaryDir, repoRoot)
+}
+
+func binariesFreshnessFallbackInputsContext(ctx context.Context, binaryDir, repoRoot string) ([]string, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -481,13 +530,15 @@ func goListFreshnessInputsContext(ctx context.Context, binaryDir, repoRoot strin
 		return nil, false
 	}
 	toolchain := hostGoToolchain(deps)
-	cacheKey := closureCacheKey(binaryDir, toolchain, deps)
+	cachePath := closureCachePath(binaryDir)
 	readFile := deps.readFile
 	if readFile == nil {
 		readFile = os.ReadFile
 	}
-	if inputs, ok := readClosureCache(closureCachePath(binaryDir), cacheKey, toolchain, readFile); ok {
-		return inputs, true
+	if cached, ok := readClosureCache(cachePath, toolchain, readFile); ok {
+		if cached.Key == closureCacheKey(binaryDir, repoRoot, toolchain, cached.Inputs, deps) {
+			return cached.Inputs, true
+		}
 	}
 	raw, err := cachedGoListJSONContext(ctx, binaryDir, deps)
 	if err != nil || len(bytes.TrimSpace(raw)) == 0 {
@@ -539,8 +590,11 @@ func goListFreshnessInputsContext(ctx context.Context, binaryDir, repoRoot strin
 	// Cache writes are best-effort. A read-only or interrupted build directory
 	// must still fall back to the in-process result without making freshness
 	// itself fail.
-	_ = writeClosureCache(closureCachePath(binaryDir), closureCache{
-		Version: closureCacheVersion, Key: cacheKey, Inputs: inputs, Toolchain: toolchain,
+	_ = writeClosureCache(cachePath, closureCache{
+		Version:   closureCacheVersion,
+		Key:       closureCacheKey(binaryDir, repoRoot, toolchain, inputs, deps),
+		Inputs:    inputs,
+		Toolchain: toolchain,
 	})
 	return inputs, true
 }

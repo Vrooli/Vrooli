@@ -4,9 +4,9 @@
   "teamId": "browser-automation-studio-delivery",
   "roles": [
     {
-      "id": "browser-automation-studio-coordinator",
-      "name": "Browser Automation Studio Coordinator",
-      "description": "Coordinates one owner-admitted BAS boundary through existing Agent Manager operations; does not accept, qualify or broaden worker work."
+      "id": "browser-automation-studio-orchestrator",
+      "name": "Browser Automation Studio Orchestrator",
+      "description": "Long-lived epoch orchestrator for the BAS rehabilitation goal; never implements product work."
     }
   ]
 }

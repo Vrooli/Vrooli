@@ -18,6 +18,7 @@ import (
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/tuning"
 
+	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/cliresolve"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/artifactlease"
@@ -467,6 +468,7 @@ func (m *Manager) RemoveScenarioCLIReport(name string) (ScenarioCLIRemovalReport
 			{"binary", installed},
 			{"build-metadata", installedBuildMetadataPath(installed)},
 			{"manifest", installedManifestPath(installed)},
+			{"freshness-manifest", cliutil.FreshnessManifestPath(installed)},
 		} {
 			kind, path := artifact.kind, artifact.path
 			err := m.ledger.Guard(artifactledger.Removal{
@@ -513,7 +515,8 @@ var rootBinaryNames = map[string]struct{}{
 }
 
 // InstalledScenarioCLINames returns the names of installed scenario/resource
-// CLI binaries in InstallDir(). Sidecar metadata (.build.meta, .manifest.json)
+// CLI binaries in InstallDir(). Sidecar metadata (.build.meta, .manifest.json,
+// .freshness.json)
 // and the vrooli root binaries are filtered out. A missing install directory
 // returns (nil, nil). Result is sorted for deterministic output.
 func (m *Manager) InstalledScenarioCLINames() ([]string, error) {
@@ -530,7 +533,7 @@ func (m *Manager) InstalledScenarioCLINames() ([]string, error) {
 			continue
 		}
 		name := entry.Name()
-		if strings.HasSuffix(name, ".build.meta") || strings.HasSuffix(name, ".manifest.json") {
+		if strings.HasSuffix(name, ".build.meta") || strings.HasSuffix(name, ".manifest.json") || strings.HasSuffix(name, cliutil.FreshnessManifestSuffix) {
 			continue
 		}
 		if _, isRoot := rootBinaryNames[name]; isRoot {
@@ -629,11 +632,46 @@ func (m *Manager) installedBinaryCurrent(item InstallableCLI) (bool, error) {
 	if !ok {
 		return false, nil
 	}
-	fingerprint, err := m.computeInstallFingerprint(item)
+	spec, err := item.FreshnessSpec()
 	if err != nil {
 		return false, err
 	}
-	return strings.TrimSpace(meta.Fingerprint) == fingerprint, nil
+	manifestPath := cliutil.FreshnessManifestPath(m.InstalledBinaryPath(item))
+	manifest, manifestOK, manifestErr := cliutil.ReadFreshnessManifest(manifestPath)
+	if manifestErr != nil {
+		manifestOK = false
+	}
+	if manifestOK && freshnessManifestMatchesSpec(manifest, spec) && strings.TrimSpace(meta.Fingerprint) == manifest.Digest {
+		verdict, evaluateErr := cliutil.EvaluateFreshness(spec, manifest, nil)
+		if evaluateErr == nil {
+			return !verdict.Stale, nil
+		}
+	}
+
+	// Compatibility/bootstrap path for installs produced before the stat-cache
+	// manifest existed (or with a damaged/incompatible sidecar).  Compute once,
+	// then persist the manifest so the next invocation is bounded by stat reads.
+	currentManifest, computeErr := m.computeInstallManifest(item)
+	if computeErr != nil {
+		return false, computeErr
+	}
+	current := strings.TrimSpace(meta.Fingerprint) == currentManifest.Digest
+	if current {
+		if writeErr := cliutil.WriteFreshnessManifest(manifestPath, currentManifest); writeErr != nil {
+			// A current binary remains safe to use if the cache cannot be written;
+			// the next check will repeat this compatibility path.
+			return true, nil
+		}
+	}
+	return current, nil
+}
+
+func freshnessManifestMatchesSpec(manifest cliutil.FreshnessManifest, spec cliutil.FreshnessSpec) bool {
+	inputs := append([]string(nil), spec.Inputs...)
+	recorded := append([]string(nil), manifest.Inputs...)
+	slices.Sort(inputs)
+	slices.Sort(recorded)
+	return slices.Equal(inputs, recorded)
 }
 
 func installedBinaryLooksRunnable(path string, item InstallableCLI) (bool, error) {

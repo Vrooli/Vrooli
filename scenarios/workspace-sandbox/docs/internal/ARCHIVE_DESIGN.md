@@ -182,15 +182,13 @@ unconditional callers retain their behavior; delivery qualification must supply
 the reviewed identity, not rely on that optional default.
 
 This patch-only precondition is not candidate freezing or one-use qualification.
-Use the pre-review snapshot operation below to retain the reviewer's selected
-source input before review and bind approval to it. Write-ahead recovery covers non-committing
-full whole-file approval only; it is not independent acceptance or a one-use
-qualification lease. Do not qualify the delivery campaign from this precondition alone.
+Write-ahead recovery covers non-committing full whole-file approval only; it is
+not independent acceptance or a one-use qualification lease.
 
-## Pre-review source snapshots
+## Process drain on stop
 
 Managed process-drain obligation: process admission MUST share the review-owner
-lock with Stop/Start/capture. Admission releases that lock after registration,
+lock with Stop/Start. Admission releases that lock after registration,
 not after the entire command. Stop MUST drain registered processes before it
 unmounts or reports stopped. Synchronous exec MUST register at start and retain
 actual exit evidence. Provider maintenance MUST cover both exec entry points.
@@ -211,72 +209,6 @@ Real-process regressions reproduced the live-after-stop, stopped-retry and guess
 exit defects before repair. Focused race tests and all six affected API packages
 pass, including portable build checks. These tests use temporary storage; they
 do not qualify AM native-session or cross-restart drain.
-
-Workspace Sandbox owns pre-review evidence separately from terminal archives and
-approval intent. A review snapshot does not approve, apply or delete a sandbox.
-The snapshot retains the exact patch plus baseline and candidate files for an
-explicit set of scope-relative files/directories. Every non-Git changed path must
-be inside that selection; there is no silent partial selection. Unchanged selected
-files are retained too. Binary bytes, empty files, executable modes and symlink
-targets are evidence; link targets are never followed. `.git` is excluded.
-
-The caller supplies a UUID request identity. Publication is immutable in the
-existing WSS database; bytes use the existing blob store under a derived review
-UUID, separate from the originating sandbox's terminal archive. Retrying the same
-request returns the original snapshot, even after source edits or sandbox teardown.
-Changing its selection is an error. The content digest binds origin, selection,
-baseline, candidate and patch; timestamps and request IDs do not change content
-identity. Manifest corruption and missing requested blobs are errors, not empty
-successful evidence. Terminal archive retention cannot remove review blobs.
-
-Capture requires a stopped sandbox and shares the review-owner lock. Capture
-rechecks the selected baseline and changed paths before publication and rejects
-observed drift. This is a stable retained input, not proof of an atomic filesystem
-snapshot or complete worker drain. AM's native-session/descendant/restart drain
-remains a separate integration obligation. Review consumers must not substitute current files for
-retained files. Promotion with `reviewRequestId` and `expectedReviewSha256`
-(Connect: `review_request_id` and `expected_review_sha256`) validates every
-retained body, the selected canonical baseline, and the exact candidate patch.
-These fields must be supplied together. Approval requires the sandbox still be
-stopped, and is full and non-committing;
-`force` cannot bypass the binding. A pending-intent retry validates the complete
-selected before/after tree, including unchanged context, before recovery. Terminal
-replay retains the original review request and digest. This verifies source binding,
-not independent reviewer authorization or a one-use qualification lease.
-
-The existing CLI exposes `change review-capture <sandbox-id> <request-id> --path
-<scope-relative-path>` (repeat `--path`), `change review-show <sandbox-id>
-<request-id>`, and `change review-file <sandbox-id> <request-id> --side
-before|after|patch [--path <file>]`. Use `--json` for manifests and binary-safe
-base64 file bytes. Both `change approve` and `change promote` accept
-`--review-request-id` plus `--expected-review-sha256`; promotion also requires its
-existing `--confirm`. These owner operations never run a reviewer or qualification.
-
-`change review-workspace <sandbox-id> <request-id> --expected-sha256 <digest>`
-uses the same owner operation as REST `POST /sandboxes/{id}/reviews/{requestId}/workspace`
-and Connect `MaterializeReviewSnapshot`. It publishes `review-tree/` inside the
-snapshot's existing archive namespace, with `before/`, `after/`, `changes.patch`
-and `snapshot.json`. It reads no live project files. Binary/empty files, executable
-bits and symlink targets are preserved. Consumers MUST mount this input read-only;
-file permissions alone are not containment.
-
-Replay verifies the complete derived tree and authoritative blobs. Missing, extra,
-changed or wrong-type content fails rather than substituting fresh source or
-overwriting input in use. Publication uses the existing review lock and one reserved
-`review-tree.pending` directory; a retry discards only that unpublished derived
-directory before reconstruction. Materialization expands at most 128 MiB of
-before/after/patch bodies plus a manifest capped at 16 MiB, because unchanged selected
-files appear on both sides. Capture's 32-snapshot cap also bounds published trees.
-No extra database or retention owner is introduced. Referenced snapshot release
-remains unqualified.
-
-Initial limits are explicit refusals, never truncation: 10,000 selected files,
-16 MiB per body, 64 MiB total baseline/changed-body/patch input, and 32 retained
-review snapshots per owner database. File staging and aggregate patch generation
-also enforce limits rather than accumulating an unbounded input before refusal.
-These bounds protect capture and publication;
-automatic release of referenced snapshots and crash-orphan reconciliation remain
-unqualified. A failed capture cleans only its unreferenced derived review tree.
 
 ## Endpoint resolution
 

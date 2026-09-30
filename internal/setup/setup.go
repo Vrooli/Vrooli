@@ -70,6 +70,7 @@ type Options struct {
 	Environment       string
 	Resources         string
 	Scenarios         string
+	RestartAPI        bool
 	Yes               string
 	Verbose           bool
 	IncludeOptional   bool
@@ -128,6 +129,8 @@ type setupDeps struct {
 	ensureBootstrapTools        func(home string, opts vrooliruntime.EnsureOptions) error
 	newPortsManager             func(root, home string) (*ports.Manager, error)
 	startProjectAPI             func(root string, spec apiLaunchSpec, stdout, stderr io.Writer) error
+	stopProjectAPI              func(port int) []int
+	apiAlreadyHealthy           func(port int) (bool, error)
 	startOrchestrator           func(root, home string, stdout, stderr io.Writer) error
 	healthCheck                 func(port int, timeout time.Duration) error
 	loadDotEnv                  func(path string) (map[string]string, error)
@@ -174,6 +177,8 @@ func defaultSetupDeps(repoRoots ...string) setupDeps {
 			return ports.NewManager(root, home)
 		},
 		startProjectAPI:   startProjectAPI,
+		stopProjectAPI:    func(port int) []int { return stopManagedProjectAPI(port, defaultAPIProcessOps()) },
+		apiAlreadyHealthy: apiAlreadyHealthy,
 		startOrchestrator: startOrchestrator,
 		healthCheck:       waitForHTTPHealth,
 		loadDotEnv:        loadDotEnv,

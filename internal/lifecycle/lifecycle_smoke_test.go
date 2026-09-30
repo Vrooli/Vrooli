@@ -104,6 +104,50 @@ func TestRunnerStartStopRestart(t *testing.T) {
 	}
 }
 
+type restartOrderEngagementResolver struct{ events *[]string }
+
+func (r *restartOrderEngagementResolver) Engagement(string) (EngagementInfo, bool, error) {
+	*r.events = append(*r.events, "engagement")
+	return EngagementInfo{}, false, nil
+}
+
+type restartOrderSink struct{ events *[]string }
+
+func (s *restartOrderSink) Publish(event ProgressEvent) {
+	if event.Kind == EventStopStarted {
+		*s.events = append(*s.events, "stop")
+	}
+}
+
+// Explicit restart is interruption-first: engagement/source-layout resolution
+// must not delay the stop boundary for an already-running scenario. This keeps
+// accepted browser effects from surviving a slow control-plane read.
+func TestRestartStopsBeforeResolvingEngagementLayout(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		testkitgo.SkipPlatform(t, "lifecycle process management currently targets linux")
+	}
+	root, home := t.TempDir(), t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+	runner := newLifecycleRunnerForTest(t, root, home, nil)
+	events := []string{}
+	runner.Engagements = &restartOrderEngagementResolver{events: &events}
+	if _, err := runner.Start("alpha", StartOptions{}); err != nil {
+		t.Fatalf("initial start: %v", err)
+	}
+	events = events[:0]
+	runner.WithProgressSink(&restartOrderSink{events: &events})
+
+	if _, err := runner.Restart("alpha", StartOptions{}); err != nil {
+		t.Fatalf("restart: %v", err)
+	}
+	if len(events) < 2 || events[0] != "stop" || events[1] != "engagement" {
+		t.Fatalf("restart ordering = %v, want stop before engagement resolution", events)
+	}
+	if err := runner.Stop("alpha", StopOptions{}); err != nil {
+		t.Fatalf("cleanup stop: %v", err)
+	}
+}
+
 func TestSetupNeededDetectsUpdatedSources(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		testkitgo.SkipPlatform(t, "lifecycle process management currently targets linux")

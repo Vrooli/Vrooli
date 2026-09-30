@@ -26,7 +26,7 @@ func TestCommandGroupsRegistersEveryTopLevelCommand(t *testing.T) {
 }
 
 func TestEffortDispatcherCommandsReachTheirRegisteredHandler(t *testing.T) {
-	for _, operation := range []string{"compact", "issue-dispatch", "revoke-dispatch"} {
+	for _, operation := range []string{"compact", "enroll", "withdraw"} {
 		t.Run(operation, func(t *testing.T) {
 			var received []string
 			group := effortGroup(support.Dependencies{Effort: func(args []string) error { received = args; return nil }})

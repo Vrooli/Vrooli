@@ -19,14 +19,13 @@ const ProfileSchemaVersionV1 = "agent-profile/v1"
 type WorkflowNodeKind string
 
 const (
-	WorkflowNodeRun           WorkflowNodeKind = "run"
-	WorkflowNodeContinue      WorkflowNodeKind = "continue"
-	WorkflowNodeChild         WorkflowNodeKind = "child_workflow"
-	WorkflowNodeWait          WorkflowNodeKind = "wait"
-	WorkflowNodeBranch        WorkflowNodeKind = "branch"
-	WorkflowNodeJoin          WorkflowNodeKind = "join"
-	WorkflowNodeEnd           WorkflowNodeKind = "end"
-	WorkflowNodeQualification WorkflowNodeKind = "qualification"
+	WorkflowNodeRun      WorkflowNodeKind = "run"
+	WorkflowNodeContinue WorkflowNodeKind = "continue"
+	WorkflowNodeChild    WorkflowNodeKind = "child_workflow"
+	WorkflowNodeWait     WorkflowNodeKind = "wait"
+	WorkflowNodeBranch   WorkflowNodeKind = "branch"
+	WorkflowNodeJoin     WorkflowNodeKind = "join"
+	WorkflowNodeEnd      WorkflowNodeKind = "end"
 )
 
 type WorkflowBindingSource string
@@ -42,8 +41,7 @@ const (
 	WorkflowBindingChild      WorkflowBindingSource = "child_workflow_output"
 	// WorkflowBindingExecution exposes the parent workflow execution identity
 	// so child scenario calls can retain lineage.
-	WorkflowBindingExecution     WorkflowBindingSource = "execution_id"
-	WorkflowBindingQualification WorkflowBindingSource = "qualification_result"
+	WorkflowBindingExecution WorkflowBindingSource = "execution_id"
 )
 
 // WorkflowDefinition is scenario-authored desired state. It contains no
@@ -139,26 +137,15 @@ func (p WorkflowTriggerPolicy) SelfTriggerMode() WorkflowSelfTriggerMode {
 }
 
 type WorkflowNode struct {
-	ID            string                     `json:"id"`
-	Kind          WorkflowNodeKind           `json:"kind"`
-	Run           *WorkflowRunNode           `json:"run,omitempty"`
-	Continue      *WorkflowContinueNode      `json:"continue,omitempty"`
-	Child         *WorkflowChildNode         `json:"childWorkflow,omitempty"`
-	Wait          *WorkflowWaitNode          `json:"wait,omitempty"`
-	Branch        *WorkflowBranchNode        `json:"branch,omitempty"`
-	Join          *WorkflowJoinNode          `json:"join,omitempty"`
-	End           *WorkflowEndNode           `json:"end,omitempty"`
-	Qualification *WorkflowQualificationNode `json:"qualification,omitempty"`
-}
-
-// WorkflowQualificationNode authorizes one pinned deterministic program after
-// independent retained-candidate review. It never accepts worker-selected code.
-type WorkflowQualificationNode struct {
-	Grants         []string               `json:"grants,omitempty"`
-	ReviewFromNode string                 `json:"reviewFromNode"`
-	ProgramName    string                 `json:"programName"`
-	ProgramDigest  string                 `json:"programDigest"`
-	Bindings       []WorkflowInputBinding `json:"bindings,omitempty"`
+	ID       string                `json:"id"`
+	Kind     WorkflowNodeKind      `json:"kind"`
+	Run      *WorkflowRunNode      `json:"run,omitempty"`
+	Continue *WorkflowContinueNode `json:"continue,omitempty"`
+	Child    *WorkflowChildNode    `json:"childWorkflow,omitempty"`
+	Wait     *WorkflowWaitNode     `json:"wait,omitempty"`
+	Branch   *WorkflowBranchNode   `json:"branch,omitempty"`
+	Join     *WorkflowJoinNode     `json:"join,omitempty"`
+	End      *WorkflowEndNode      `json:"end,omitempty"`
 }
 
 type WorkflowRunNode struct {
@@ -168,9 +155,6 @@ type WorkflowRunNode struct {
 	// the task workspace for a fresh run. An empty value retains the workflow
 	// default scope (the project root).
 	ScopePathTemplate string `json:"scopePathTemplate,omitempty"`
-	// ReviewInput names an earlier completed worker node and literal review
-	// scope. Its attempt is pinned before dispatch; worker output cannot choose it.
-	ReviewInput *WorkflowReviewInput `json:"reviewInput,omitempty"`
 	// SandboxConfig pins literal run authority in the immutable revision.
 	// It is not rendered from worker-controlled outputs or prompt bindings.
 	SandboxConfig    *SandboxConfig         `json:"sandboxConfig,omitempty"`
@@ -186,11 +170,6 @@ type WorkflowRunNode struct {
 	TimeoutSeconds   int                    `json:"timeoutSeconds,omitempty"`
 	// Until is an engine-owned completion test, separate from standing skill instructions.
 	Until string `json:"until,omitempty"`
-}
-
-type WorkflowReviewInput struct {
-	FromNode string   `json:"fromNode"`
-	Paths    []string `json:"paths"`
 }
 
 type WorkflowContinueNode struct {

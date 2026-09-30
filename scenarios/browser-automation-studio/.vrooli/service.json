@@ -292,26 +292,8 @@
   },
   "build_identity": {
     "exclude_paths": [
-      "docs/PROBLEMS.md",
-      "docs/internal/TESTING.md",
-      "docs/internal/OPERATOR_FEEDBACK.md",
-      "docs/internal/REFRACTOR_PROGRESS.md",
-    "docs/internal/evidence/rehabilitation/refactor-progress-history-2026-09-25.md.gz",
-    "docs/internal/evidence/rehabilitation/refactor-progress-snapshot-2026-09-26.md.gz",
-    "docs/internal/evidence/rehabilitation/operator-feedback-history-2026-09-26.md.gz",
-    "api/cmd/cancellation-qualification/qualification.mjs",
-    "api/cmd/cancellation-restart-cohort/qualification.mjs",
-    "api/cmd/evidence-completeness-cohort/qualification.mjs",
-    "api/cmd/motion-cohort/qualification.mjs",
-    "api/cmd/passive-fidelity-cohort/qualification.mjs",
-    "api/cmd/profile-durability-cohort/qualification.mjs",
-    "api/cmd/resource-budget-cohort/qualification.mjs",
       "api/internal/testutil/testutil.go",
-      "playwright-driver/tests/unit/frame-streaming/cdp-screencast-strategy.test.ts",
-      "api/internal/motionqualification/receipt_test.go",
-      "api/internal/resourcebudgetqualification/receipt_test.go",
-      "api/internal/evidencecompletenessqualification/receipt_test.go",
-      "api/internal/passivefidelityqualification/receipt_test.go"
+      "playwright-driver/tests/unit/frame-streaming/cdp-screencast-strategy.test.ts"
     ],
     "runtime_docs": [
       "docs/nodes/assert.md",
@@ -448,13 +430,7 @@
       "runtime_only_rationale": "Browser automation programs use agent-manager's governed delegated-run boundary for optional supervision and setpoint telemetry.",
       "startup_policy": "try_start",
       "description": "Optional delegated-agent workflow provider for browser automation learning programs.",
-      "degraded_behavior": "Browser navigation, authoring, and replay remain available; delegated supervision and its telemetry are reported unavailable.",
-      "config": {
-        "declarations": {
-          "reconcile": true,
-          "sources": [".vrooli/agent-manager/rehabilitation-pilot.json"]
-        }
-      }
+      "degraded_behavior": "Browser navigation, authoring, and replay remain available; delegated supervision and its telemetry are reported unavailable."
     },
       "workflow-health": {
         "enabled": true,

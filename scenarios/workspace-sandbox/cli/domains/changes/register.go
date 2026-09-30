@@ -112,32 +112,12 @@ func runDiff(deps support.Dependencies, args []string) error {
 }
 
 func runApprove(deps support.Dependencies, args []string) error {
-	var sandboxID, message, expectedPatch, reviewID, expectedReview string
+	var sandboxID, message, expectedPatch string
 	var force, createCommit, overrideAcceptance, jsonOut bool
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch {
-		case arg == "--review-request-id" || arg == "--expected-review-sha256":
-			if i+1 >= len(args) || args[i+1] == "" || strings.HasPrefix(args[i+1], "-") {
-				return fmt.Errorf("%s requires a value", arg)
-			}
-			i++
-			if arg == "--review-request-id" {
-				reviewID = args[i]
-			} else {
-				expectedReview = args[i]
-			}
-		case strings.HasPrefix(arg, "--review-request-id=") || strings.HasPrefix(arg, "--expected-review-sha256="):
-			name, value, _ := strings.Cut(arg, "=")
-			if value == "" {
-				return fmt.Errorf("%s requires a value", name)
-			}
-			if name == "--review-request-id" {
-				reviewID = value
-			} else {
-				expectedReview = value
-			}
 		case arg == "-m" && i+1 < len(args):
 			message = args[i+1]
 			i++
@@ -181,12 +161,6 @@ func runApprove(deps support.Dependencies, args []string) error {
 	}
 
 	reqBody := map[string]any{"mode": "all"}
-	if reviewID != "" {
-		reqBody["reviewRequestId"] = reviewID
-	}
-	if expectedReview != "" {
-		reqBody["expectedReviewSha256"] = expectedReview
-	}
 	if expectedPatch != "" {
 		reqBody["expectedPatchSha256"] = expectedPatch
 	}

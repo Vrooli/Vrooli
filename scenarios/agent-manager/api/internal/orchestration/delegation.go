@@ -182,9 +182,6 @@ func (o *Orchestrator) MintDelegatedIdentity(ctx context.Context, req MintDelega
 	if profile != nil {
 		claims.ProfileKey = profile.ProfileKey
 	}
-	if err := o.checkSupervisorBinding(ctx, child, claims); err != nil {
-		return nil, domain.NewValidationErrorWithCode("delegation", "child supervisor authorization does not permit this identity", domain.ErrCodePolicyScope)
-	}
 	// Workflow role belongs to the child attempt, not to its delegating parent.
 	claims.Meta = workflowIdentityMeta(child.CustomEnv)
 	claims.Meta["credential_generation"] = uuid.NewString()

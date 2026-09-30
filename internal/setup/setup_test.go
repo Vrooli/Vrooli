@@ -1222,8 +1222,8 @@ func TestRunDevelopRunsSetupWhenNeededAndStartsNativeServices(t *testing.T) {
 }
 
 func TestDevelopHealthTimeoutAllowsColdGoRun(t *testing.T) {
-	if got := developHealthTimeout(apiLaunchSpec{Command: "go", Args: []string{"run", "./cmd/vrooli-api"}}); got != 2*time.Minute {
-		t.Fatalf("cold go-run timeout = %s, want 2m", got)
+	if got := developHealthTimeout(apiLaunchSpec{Command: "go", Args: []string{"run", "./cmd/vrooli-api"}}); got != 5*time.Minute {
+		t.Fatalf("cold go-run timeout = %s, want 5m", got)
 	}
 	if got := developHealthTimeout(apiLaunchSpec{Command: "/tmp/vrooli-api"}); got != 30*time.Second {
 		t.Fatalf("prebuilt timeout = %s, want 30s", got)
@@ -1302,6 +1302,88 @@ func TestRunDevelopSkipsOrchestratorWhenScenariosAreNone(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "orchestrator skipped") {
 		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestRunDevelopRestartAPIOnlyRestartsManagedAPIOwner(t *testing.T) {
+	svc := stubSetupDeps(t)
+	root := t.TempDir()
+	home := t.TempDir()
+	projectScenario := writeProjectFixture(t, root)
+	testresource.WritePortRegistry(t, root, nil)
+	testkitgo.WriteExecutable(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), shelltest.BashShebang()+"exit 0\n")
+	if err := writeSetupCompleteMarker(t, home, root); err != nil {
+		t.Fatalf("write setup marker: %v", err)
+	}
+	t.Setenv("VROOLI_API_PORT", "18095")
+	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	svc.deps.loadProject = func(string) (scenario.Scenario, error) { return projectScenario, nil }
+	svc.deps.apiAlreadyHealthy = func(port int) (bool, error) {
+		if port != 18095 {
+			t.Fatalf("health probe port = %d, want 18095", port)
+		}
+		return true, nil
+	}
+	stopCalls := 0
+	svc.deps.stopProjectAPI = func(port int) []int {
+		stopCalls++
+		if port != 18095 {
+			t.Fatalf("stop port = %d, want 18095", port)
+		}
+		return []int{12345}
+	}
+	startCalls := 0
+	svc.deps.startProjectAPI = func(_ string, spec apiLaunchSpec, _, _ io.Writer) error {
+		startCalls++
+		if spec.Port != 18095 || filepath.Base(spec.Command) != "vrooli-api" {
+			t.Fatalf("launch spec = %+v, want managed API on port 18095", spec)
+		}
+		return nil
+	}
+	svc.deps.healthCheck = func(port int, _ time.Duration) error {
+		if port != 18095 {
+			t.Fatalf("health check port = %d, want 18095", port)
+		}
+		return nil
+	}
+	svc.deps.startOrchestrator = func(string, string, io.Writer, io.Writer) error {
+		t.Fatal("--scenarios none must leave the orchestrator and scenarios untouched")
+		return nil
+	}
+	var stdout strings.Builder
+	if err := svc.RunDevelopWithOptions(root, home, Options{RestartAPI: true, Resources: "none", Scenarios: "none"}, &stdout, io.Discard); err != nil {
+		t.Fatalf("RunDevelopWithOptions: %v", err)
+	}
+	if stopCalls != 1 || startCalls != 1 {
+		t.Fatalf("stop calls=%d start calls=%d, want one API-only stop and start", stopCalls, startCalls)
+	}
+	if !strings.Contains(stdout.String(), "Stopped managed vrooli-api") || !strings.Contains(stdout.String(), "orchestrator skipped") {
+		t.Fatalf("stdout = %q, want scoped API restart and skipped orchestrator", stdout.String())
+	}
+}
+
+func TestRunDevelopAPIOnlyRestartFailsClosedForUnownedHealthyListener(t *testing.T) {
+	svc := stubSetupDeps(t)
+	root := t.TempDir()
+	home := t.TempDir()
+	projectScenario := writeProjectFixture(t, root)
+	testresource.WritePortRegistry(t, root, nil)
+	if err := writeSetupCompleteMarker(t, home, root); err != nil {
+		t.Fatalf("write setup marker: %v", err)
+	}
+	t.Setenv("VROOLI_API_PORT", "18095")
+	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	svc.deps.loadProject = func(string) (scenario.Scenario, error) { return projectScenario, nil }
+	svc.deps.apiAlreadyHealthy = func(int) (bool, error) { return true, nil }
+	svc.deps.stopProjectAPI = func(int) []int { return nil }
+	startCalls := 0
+	svc.deps.startProjectAPI = func(string, apiLaunchSpec, io.Writer, io.Writer) error { startCalls++; return nil }
+	err := svc.RunDevelopWithOptions(root, home, Options{RestartAPI: true, Scenarios: "none"}, io.Discard, io.Discard)
+	if err == nil || !strings.Contains(err.Error(), "no managed vrooli-api process owns port 18095") {
+		t.Fatalf("RunDevelopWithOptions error = %v, want fail-closed unowned listener error", err)
+	}
+	if startCalls != 0 {
+		t.Fatalf("API start calls = %d, want 0 when the healthy listener is not owned", startCalls)
 	}
 }
 

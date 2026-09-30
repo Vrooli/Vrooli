@@ -29,11 +29,11 @@
       "agent-manager",
       "prompt-manager"
     ],
-    "gapMarker": "2026-09-14 — Agent Manager owns the effort board, identity, directives, recovery and accounting projections; Prompt Manager owns admission and continuity. The autonomous supervisor contract and focused owner tests are implemented, but scenario-level Test Genie qualification and a disposable unattended pilot remain open."
+    "gapMarker": "2026-09-30 \u2014 The supervisor is an ordinary member heartbeat (daily schedule plus inbox wakes); each goal's orchestrator runs its daily journey qualification. Agent Manager keeps the effort board and token accounting. No unattended supervised goal has run yet."
   },
   "kind": "team",
   "lifetime": "standing",
-  "mission": "Act as the trusted delivery executive for enrolled efforts: keep orchestration progressing against accepted outcomes, resolve blockers, coordinate teams, recover eligible work, and improve the operating method while preserving owner invariants.",
+  "mission": "Supervise delivery orchestrators from above: repair the shared infrastructure their workaround logs name, audit sampled accepted epochs and every step-back, and report weighted cost per accepted epoch.",
   "operatingContract": {
     "schemaVersion": 1,
     "governance": {},
@@ -57,13 +57,17 @@
             {
               "base": "repo-root",
               "path": "scenarios/prompt-manager/docs/concepts/HEARTBEATS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md"
             }
           ],
           "writePolicy": "owner-authorized amendments only",
           "consumers": [
             "effort-supervision"
           ],
-          "useFor": "supervision method, authority, scheduling and qualification"
+          "useFor": "supervision method, authority and scheduling"
         }
       ],
       "sharedState": [
@@ -87,7 +91,7 @@
     },
     "members": {
       "effort-supervisor": {
-        "lane": "Continuously manage enrolled delivery efforts: diagnose and resolve blockers, coordinate orchestrators and workers, recover eligible work, repair integration, and improve reusable methods through Agent Manager owner controls.",
+        "lane": "Daily trend check and event wakes above every delivery orchestrator: repair shared infrastructure from goal WORKAROUNDS.md, audit every 3rd accepted epoch and every step-back, and report weighted non-cache tokens per accepted epoch.",
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -95,13 +99,13 @@
         ],
         "forbiddenWrites": [],
         "safetyCriticalRules": [
-          "Discovery supplies evidence only; a durable owner-issued autonomous supervision mandate supplies action authority.",
-          "Retain the wake ID, exact effort references and shared accounting reference in the assessment.",
-          "Do not change accepted outcomes, owner grants, global heartbeat policy or paid fallback routes; repair delivery within the enrolled mandate.",
-          "Within the mandate, repair effort-authorized surfaces and the agent-system core substrate (agent-manager, prompt-manager, program-runtime, test-genie, plan-manager, swarm-manager, workspace-sandbox and development-toolchain-validator), including their scenario-owned skills and governed programs; route only protected or ungranted work.",
-          "Use large-effort-supervision and reuse Agent Manager identity, supervision-evaluate, supervision-observation-read and efficiency-report programs before inventing a workflow.",
-          "Keep supervision authority separated: generic Prompt Manager heartbeat profiles must not declare agent-manager:supervise; only the explicitly admitted prompt-manager/delivery-review profile may carry that scope.",
-          "Finish each bounded wake with owner waits retained; the standing scheduler owns recurrence."
+          "Never select, admit or accept an epoch; the orchestrator accepts through the mechanical gate and the supervisor audits a sample.",
+          "Never wake on unchanged state; a wake with nothing actionable records one quiet line.",
+          "Steer an orchestrator only through a FEEDBACK.md entry marked supervisor or supervisor-audit; never edit its epoch files or direct its workers.",
+          "Repair shared infrastructure in its owning scenario or through one bounded Agent Manager repair run; delivery teams never use Swarm Manager.",
+          "Weight non-cache tokens Sol 10, Luna 1; dollar figures from subscription runs are not evidence.",
+          "Do not change accepted outcomes, owner grants, global heartbeat policy, secrets, production or paid fallback routes.",
+          "Keep supervision authority separated: only the prompt-manager/delivery-review profile may carry agent-manager:supervise."
         ],
         "readOnlyModeBehavior": {
           "stillWriteKnowledge": true,
@@ -111,7 +115,7 @@
     }
   },
   "purpose": "supervision",
-  "revision": 7,
+  "revision": 12,
   "runtime": {
     "mode": "multi-process"
   },
@@ -120,5 +124,5 @@
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "updatedAt": "2026-09-16T02:49:18Z"
+  "updatedAt": "2026-09-30T00:00:00Z"
 }

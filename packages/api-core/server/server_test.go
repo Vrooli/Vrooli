@@ -122,6 +122,9 @@ func TestWithDefaults_Timeouts(t *testing.T) {
 	if cfg.ShutdownTimeout != 10*time.Second {
 		t.Errorf("ShutdownTimeout: expected 10s, got %v", cfg.ShutdownTimeout)
 	}
+	if cfg.CleanupTimeout != 10*time.Second {
+		t.Errorf("CleanupTimeout: expected 10s to follow shutdown, got %v", cfg.CleanupTimeout)
+	}
 }
 
 func TestWithDefaults_TimeoutsExplicit(t *testing.T) {
@@ -132,6 +135,7 @@ func TestWithDefaults_TimeoutsExplicit(t *testing.T) {
 		WriteTimeout:    10 * time.Second,
 		IdleTimeout:     60 * time.Second,
 		ShutdownTimeout: 20 * time.Second,
+		CleanupTimeout:  30 * time.Second,
 	}
 
 	cfg = withDefaults(cfg)
@@ -147,6 +151,9 @@ func TestWithDefaults_TimeoutsExplicit(t *testing.T) {
 	}
 	if cfg.ShutdownTimeout != 20*time.Second {
 		t.Errorf("ShutdownTimeout: expected explicit 20s, got %v", cfg.ShutdownTimeout)
+	}
+	if cfg.CleanupTimeout != 30*time.Second {
+		t.Errorf("CleanupTimeout: expected explicit 30s, got %v", cfg.CleanupTimeout)
 	}
 }
 
@@ -530,6 +537,39 @@ func TestRun_CleanupErrorIsLogged(t *testing.T) {
 	}
 }
 
+func TestShutdownAndCleanupRunsOwnerCleanupAfterDrainDeadline(t *testing.T) {
+	t.Parallel()
+
+	var forcedClosed, cleaned bool
+	cleanupSawLiveContext := false
+	shutdown := func(ctx context.Context) error {
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	cfg := withDefaults(Config{
+		ShutdownTimeout: 5 * time.Millisecond,
+		CleanupTimeout:  50 * time.Millisecond,
+		Logger:          func(string, ...interface{}) {},
+		Cleanup: func(ctx context.Context) error {
+			cleaned = true
+			_, hasDeadline := ctx.Deadline()
+			cleanupSawLiveContext = hasDeadline && ctx.Err() == nil
+			return nil
+		},
+	})
+
+	err := shutdownAndCleanup(cfg, shutdown, func() { forcedClosed = true })
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("shutdown error = %v, want deadline exceeded", err)
+	}
+	if !forcedClosed {
+		t.Fatal("expected forced close after drain deadline")
+	}
+	if !cleaned || !cleanupSawLiveContext {
+		t.Fatalf("cleanup called=%t with live context=%t; cleanup must run after a timed-out drain", cleaned, cleanupSawLiveContext)
+	}
+}
+
 func TestRun_FailsOnPortInUse(t *testing.T) {
 	t.Parallel()
 
@@ -857,6 +897,106 @@ func TestRun_CustomServer_CallsCleanup(t *testing.T) {
 
 	if !cleanupCalled {
 		t.Error("expected Cleanup to be called for custom server")
+	}
+}
+
+func TestRun_CallsCleanupWhenGracefulShutdownTimesOut(t *testing.T) {
+	port := findFreePort(t)
+	sigCh := make(chan os.Signal, 1)
+	cleanupCalled := make(chan error, 1)
+	var srv *http.Server
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- Run(Config{
+			Port: port,
+			StartServer: func(addr string) error {
+				listener, err := net.Listen("tcp", addr)
+				if err != nil {
+					return err
+				}
+				srv = &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					w.WriteHeader(http.StatusNoContent)
+				})}
+				return srv.Serve(listener)
+			},
+			ShutdownServer: func(ctx context.Context) error {
+				<-ctx.Done()
+				_ = srv.Close()
+				return ctx.Err()
+			},
+			ShutdownTimeout: 10 * time.Millisecond,
+			signalChan:      sigCh,
+			Logger:          func(string, ...interface{}) {},
+			Cleanup: func(ctx context.Context) error {
+				cleanupCalled <- ctx.Err()
+				return nil
+			},
+		})
+	}()
+
+	waitForServer(t, port)
+	sigCh <- syscall.SIGTERM
+
+	select {
+	case err := <-errCh:
+		if err == nil || !strings.Contains(err.Error(), "server shutdown failed") {
+			t.Fatalf("Run error = %v, want graceful-shutdown error", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for server to stop")
+	}
+	select {
+	case err := <-cleanupCalled:
+		if err != nil {
+			t.Fatalf("cleanup context already canceled: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("cleanup was not called after graceful shutdown timeout")
+	}
+}
+
+func TestRun_ForcesActiveRequestsClosedBeforeCleanupAfterShutdownTimeout(t *testing.T) {
+	port := findFreePort(t)
+	sigCh := make(chan os.Signal, 1)
+	requestStarted := make(chan struct{})
+	requestCanceled := make(chan struct{})
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	mux.HandleFunc("/block", func(w http.ResponseWriter, r *http.Request) {
+		close(requestStarted)
+		<-r.Context().Done()
+		close(requestCanceled)
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- Run(Config{
+			Handler:         mux,
+			Port:            port,
+			ShutdownTimeout: 10 * time.Millisecond,
+			signalChan:      sigCh,
+			Logger:          func(string, ...interface{}) {},
+		})
+	}()
+	waitForServerHealth(t, port)
+	go func() { _, _ = http.Get(fmt.Sprintf("http://localhost:%s/block", port)) }()
+	<-requestStarted
+	sigCh <- syscall.SIGTERM
+
+	select {
+	case err := <-errCh:
+		if err == nil || !strings.Contains(err.Error(), "server shutdown failed") {
+			t.Fatalf("Run error = %v, want graceful-shutdown error", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for server to stop")
+	}
+	select {
+	case <-requestCanceled:
+	case <-time.After(time.Second):
+		t.Fatal("active request context was not canceled after forced close")
 	}
 }
 

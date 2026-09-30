@@ -71,31 +71,6 @@ func TestTypedReviewCannotCompleteWithoutValidVerdict(t *testing.T) {
 	}
 }
 
-func TestReviewAttemptPinsSourceAcrossLaterWorkAndRecovery(t *testing.T) {
-	engine, _, _ := testEngine(t, baseDefinition())
-	node := &domain.WorkflowNode{ID: "review", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{ProfileKey: "delivery-review", PromptTemplate: "Review", ReviewInput: &domain.WorkflowReviewInput{FromNode: "worker", Paths: []string{"src"}}}}
-	runID := uuid.New()
-	source := &domain.WorkflowNodeAttempt{ID: uuid.New(), NodeID: "worker", RunID: &runID, Status: domain.WorkflowAttemptCompleted}
-	_, prompt, _, _, strategy, selected, _, err := engine.resolveAgentInput(t.Context(), node, []*domain.WorkflowNodeAttempt{source}, nil, json.RawMessage(`{}`), uuid.NewString(), PromptAssignmentIdentity{})
-	if err != nil || selected == nil || *selected != source.ID || strategy != domain.WorkflowAttemptFreshRun {
-		t.Fatalf("review source not pinned: %v %v", selected, err)
-	}
-	attempt := &domain.WorkflowNodeAttempt{ID: uuid.New(), Strategy: strategy, SourceAttemptID: selected, InputSnapshot: json.RawMessage(`{}`), PromptSnapshot: prompt}
-	laterRunID := uuid.New()
-	later := &domain.WorkflowNodeAttempt{ID: uuid.New(), NodeID: "worker", RunID: &laterRunID, Status: domain.WorkflowAttemptCompleted}
-	execution := &domain.WorkflowExecution{ID: uuid.New(), ExecutionPreferences: &domain.ExecutionPreferences{Model: "worker-luna", Effort: "medium"}}
-	request, err := engine.childRequest(node, execution, attempt, []*domain.WorkflowNodeAttempt{source, later}, nil)
-	if err != nil || request.ReviewSourceRunID == nil || *request.ReviewSourceRunID != runID || strings.Join(request.ReviewPaths, ",") != "src" {
-		t.Fatalf("review rebound to later work: %+v %v", request, err)
-	}
-	if request.Model != "" || request.Effort != "" || request.ProfileKey != "delivery-review" {
-		t.Fatal("worker model preference overrode independent reviewer profile", request)
-	}
-	if _, err := engine.childRequest(node, execution, attempt, []*domain.WorkflowNodeAttempt{later}, nil); err == nil {
-		t.Fatal("missing pinned source silently selected later work")
-	}
-}
-
 func (f fixedPromptResolver) Resolve(_ context.Context, _ *domain.WorkflowPromptRef, _ PromptAssignmentIdentity) (PromptResolution, error) {
 	return f.resolution, nil
 }

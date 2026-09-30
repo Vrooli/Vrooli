@@ -128,11 +128,19 @@ func (w *sharedPackageRuntimeEvidenceWriter) Write(data []byte) (int, error) {
 	return n, nil
 }
 
-// ProvisionGeneratedPackages ensures repository-level generated packages are
-// materialized before a project build imports their outputs. Unlike scenario
-// setup, this path is driven by package manifests rather than a consumer UI
-// package.json because the control plane itself imports packages/proto/gen.
+// ProvisionGeneratedPackages ensures repository-level, context-free generated
+// packages are materialized before a project build imports their outputs.
+// Unlike scenario setup, this path is driven by package manifests rather than
+// a consumer UI package.json because the control plane itself imports
+// packages/proto/gen. Scenario-scoped build artifacts stay in the scenario
+// shared-package path, which has the requesting scenario needed to resolve
+// their lifecycle arguments.
 func ProvisionGeneratedPackages(repoRoot, home string, stdout, logWriter io.Writer) error {
+	if strings.TrimSpace(repoRoot) == "" {
+		// Lightweight lifecycle unit callers may exercise phase execution with
+		// no repository root. There is no owner tree to reconcile in that mode.
+		return nil
+	}
 	packagesRoot := filepath.Join(repoRoot, "packages")
 	entries, err := os.ReadDir(packagesRoot)
 	if err != nil {
@@ -141,6 +149,7 @@ func ProvisionGeneratedPackages(repoRoot, home string, stdout, logWriter io.Writ
 		}
 		return err
 	}
+	dependencies := make([]sharedPackageDependency, 0, len(entries))
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -156,17 +165,34 @@ func ProvisionGeneratedPackages(repoRoot, home string, stdout, logWriter io.Writ
 		if err != nil {
 			return err
 		}
-		if len(pkg.Manifest.Package.Lifecycle.Generate) == 0 {
+		if err := validateGeneratedOwnerContract(pkg); err != nil {
+			return err
+		}
+		// Repository preflight owns context-free generated projections. A
+		// projection may be published by a dedicated generate command (Proto)
+		// or by a build command (the component library); ordinary build-only
+		// packages remain scenario-scoped unless they declare generated_outputs.
+		if len(pkg.Manifest.Package.Lifecycle.Generate) == 0 && len(pkg.Manifest.Package.GeneratedOutputs) == 0 {
 			continue
 		}
-		dependency := sharedPackageDependency{
+		dependencies = append(dependencies, sharedPackageDependency{
 			Name:       pkg.Manifest.Package.Name,
 			Root:       packageRoot,
 			Package:    pkg,
 			Generation: pkg.Manifest.Package.Lifecycle.Generate,
-			Build:      nil,
-		}
-		if err := provisionSharedPackageWithOptions(dependency, stdout, logWriter, sharedPackageProvisionOptions{Home: home}); err != nil {
+			Build:      append([]packagegov.CommandSpec(nil), pkg.Manifest.Package.Lifecycle.Build...),
+		})
+	}
+	ordered, err := withRequiredPackages(repoRoot, dependencies)
+	if err != nil {
+		return fmt.Errorf("order repository-generated packages: %w", err)
+	}
+	for _, dependency := range ordered {
+		if err := provisionSharedPackageWithOptions(dependency, stdout, logWriter, sharedPackageProvisionOptions{
+			Home:  home,
+			Stdin: strings.NewReader(""),
+			Env:   os.Environ(),
+		}); err != nil {
 			return err
 		}
 	}
@@ -190,7 +216,7 @@ func (r *Runner) provisionSharedPackages(ctx context.Context, item scenario.Scen
 		if strings.TrimSpace(dir) == "" {
 			dir = "."
 		}
-		packageJSON := filepath.Join(item.Path, dir, "package.json")
+		packageJSON := filepath.Join(item.SourcePath(), dir, "package.json")
 		resolved, err := sharedPackageDependencies(r.Root, packageJSON)
 		if err != nil {
 			return fmt.Errorf("resolve shared packages for scenario %q component %q: %w", item.Slug, name, err)
@@ -253,7 +279,7 @@ func (r *Runner) acquireProtoSetupLock(ctx context.Context, item scenario.Scenar
 		if strings.TrimSpace(dir) == "" {
 			dir = "."
 		}
-		dependencies, err := sharedPackageDependencies(r.Root, filepath.Join(item.Path, dir, "package.json"))
+		dependencies, err := sharedPackageDependencies(r.Root, filepath.Join(item.SourcePath(), dir, "package.json"))
 		if err != nil {
 			return nil, err
 		}
@@ -430,6 +456,9 @@ func provisionSharedPackage(dependency sharedPackageDependency, stdout, logWrite
 }
 
 func provisionSharedPackageWithOptions(dependency sharedPackageDependency, stdout, logWriter io.Writer, options sharedPackageProvisionOptions) error {
+	if err := validateGeneratedOwnerContract(dependency.Package); err != nil {
+		return err
+	}
 	if dependencyUsesProtoArtifact(dependency) && strings.TrimSpace(options.Scenario) != "" {
 		return provisionSelectedProtoArtifact(dependency, options, logWriter)
 	}
@@ -442,6 +471,9 @@ func provisionSharedPackageWithOptions(dependency sharedPackageDependency, stdou
 		// that case; do not manufacture a build or reject an otherwise valid
 		// dependency.
 		return nil
+	}
+	if options.Context == nil {
+		options.Context = context.Background()
 	}
 	var release func()
 	if strings.TrimSpace(options.Home) != "" {
@@ -456,7 +488,7 @@ func provisionSharedPackageWithOptions(dependency sharedPackageDependency, stdou
 			}
 		}
 		defer release()
-		if dependency.Name == "proto" && strings.TrimSpace(options.Scenario) == "" {
+		if dependencyUsesProtoArtifact(dependency) && strings.TrimSpace(options.Scenario) == "" {
 			baseEnv := options.Env
 			if baseEnv == nil {
 				baseEnv = os.Environ()
@@ -474,7 +506,9 @@ func provisionSharedPackageWithOptions(dependency sharedPackageDependency, stdou
 				Reason:      "declares no build outputs",
 			}
 		}
+		freshnessStartedAt := time.Now()
 		fresh, err := sharedPackageOutputsFresh(options.Home, dependency.Root, command.Name, command.Outputs, command.Inputs, command.Ignore, []string{command.ArtifactSelection})
+		_, _ = fmt.Fprintf(logWriter, "shared-package-freshness event=checked package=%q command=%q fresh=%t elapsed_ms=%d\n", dependency.Name, command.Name, fresh, time.Since(freshnessStartedAt).Milliseconds())
 		if err != nil {
 			return &SharedPackageProvisioningError{PackageName: dependency.Name, Command: commandText, Reason: "could not inspect declared outputs", Err: err}
 		}
@@ -511,13 +545,41 @@ func provisionSharedPackageWithOptions(dependency sharedPackageDependency, stdou
 			_, _ = fmt.Fprintf(logWriter, "shared package %s: could not record %s freshness stamp: %v\n", dependency.Name, command.Name, err)
 		}
 	}
+	// Repository setup owns generation, but standalone Go consumers also need
+	// the selected immutable artifact and its freshness stamp. Materialize it
+	// after generation so a scoped publication cannot leave installed CLIs
+	// apparently current while their shared generated contract changed.
+	if dependencyUsesProtoArtifact(dependency) && strings.TrimSpace(options.Scenario) == "" {
+		if err := provisionSelectedProtoArtifact(dependency, options, logWriter); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-func dependencyUsesProtoArtifact(dependency sharedPackageDependency) bool {
-	if dependency.Name == "proto" {
-		return true
+// validateGeneratedOwnerContract keeps generated output declarations from
+// becoming passive metadata. Once a package advertises a generated projection,
+// its lifecycle must name the command that owns publication. Treating that
+// package as source-only would let a stale or missing tree reach an arbitrary
+// consumer, where the resulting compiler error is both late and misleading.
+// This is deliberately package-agnostic: protobufs, selectors, registries,
+// descriptors, and future generated owners all use the same fail-closed gate.
+func validateGeneratedOwnerContract(pkg packagegov.Package) error {
+	if len(pkg.Manifest.Package.GeneratedOutputs) == 0 {
+		return nil
 	}
+	if len(pkg.Manifest.Package.Lifecycle.Generate) > 0 || len(pkg.Manifest.Package.Lifecycle.Build) > 0 {
+		return nil
+	}
+	return &SharedPackageProvisioningError{
+		PackageName: pkg.Name,
+		Command:     "<declared lifecycle>",
+		Code:        "missing-generator-contract",
+		Reason:      "declares generated outputs but no lifecycle.generate or lifecycle.build command",
+	}
+}
+
+func dependencyUsesProtoArtifact(dependency sharedPackageDependency) bool {
 	for _, command := range append(append([]packagegov.CommandSpec{}, dependency.Generation...), dependency.Build...) {
 		if strings.EqualFold(strings.TrimSpace(command.ArtifactSelection), protoArtifactSelection) {
 			return true
@@ -541,15 +603,19 @@ func provisionSelectedProtoArtifact(dependency sharedPackageDependency, options 
 	if err != nil {
 		return &SharedPackageProvisioningError{PackageName: dependency.Name, Command: "resolve selected Proto artifact", Code: "active-record-corrupt", Reason: "invalid artifact root", Err: err}
 	}
+	resolveStartedAt := time.Now()
 	snapshot, err := store.Resolve(options.Context)
 	if err != nil {
 		return &SharedPackageProvisioningError{PackageName: dependency.Name, Command: "resolve selected Proto artifact", Code: protogen.ArtifactErrorCode(err), Reason: "no valid active or last-known-good snapshot; run an explicit Proto refresh", Err: err}
 	}
 	defer snapshot.Close()
+	resolveDuration := time.Since(resolveStartedAt)
+	materializeStartedAt := time.Now()
 	if err := store.MaterializeCompatibilityView(options.Context, snapshot, filepath.Join(dependency.Root, "gen")); err != nil {
 		return &SharedPackageProvisioningError{PackageName: dependency.Name, Command: "materialize selected Proto artifact", Code: "publication-failed", Reason: "compatibility view could not be installed", Err: err}
 	}
-	_, _ = fmt.Fprintf(logWriter, "proto-artifact event=selected artifact_id=%q source_digest=%q selection=%q degraded=%t root=%q compatibility_root=%q\n", snapshot.ArtifactID, snapshot.Metadata.SourceDigest, snapshot.Selection, snapshot.Degraded, root, filepath.Join(dependency.Root, "gen"))
+	materializeDuration := time.Since(materializeStartedAt)
+	_, _ = fmt.Fprintf(logWriter, "proto-artifact event=selected artifact_id=%q source_digest=%q selection=%q degraded=%t root=%q compatibility_root=%q resolve_ms=%d materialize_ms=%d\n", snapshot.ArtifactID, snapshot.Metadata.SourceDigest, snapshot.Selection, snapshot.Degraded, root, filepath.Join(dependency.Root, "gen"), resolveDuration.Milliseconds(), materializeDuration.Milliseconds())
 	return nil
 }
 
@@ -793,7 +859,7 @@ func sharedPackageArtifactSelectionDigest(home, packageName string) (string, err
 	}
 	artifactRoot := os.Getenv("VROOLI_RCL_ARTIFACT_ROOT")
 	selectionName := "current.json"
-	if packageName == protoArtifactSelection || packageName == "proto" {
+	if packageName == protoArtifactSelection {
 		artifactRoot = os.Getenv(protoArtifactRootEnv)
 		if strings.TrimSpace(artifactRoot) == "" {
 			artifactRoot = protogen.DefaultArtifactRoot(home)

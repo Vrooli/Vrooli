@@ -21,7 +21,11 @@ func executeStorageAction(ctx context.Context, executor Executor, req Request) R
 		name, args = "docker", []string{"image", "prune", "-f"}
 	case ActionDockerPruneUnusedVolumes:
 		name = "docker"
-		args = append([]string{"volume", "rm"}, req.Docker.VolumeNames...)
+		if len(req.Docker.VolumeNames) == 0 {
+			args = []string{"volume", "prune", "-f"}
+		} else {
+			args = append([]string{"volume", "rm"}, req.Docker.VolumeNames...)
+		}
 	default:
 		return NewFailure(req.RequestID, req.Action, "action_not_allowed")
 	}

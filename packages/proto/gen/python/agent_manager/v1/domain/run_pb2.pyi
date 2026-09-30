@@ -715,6 +715,24 @@ class WakeRunRequest(_message.Message):
     timed_out: bool
     def __init__(self, run_id: _Optional[str] = ..., result: _Optional[str] = ..., timed_out: _Optional[bool] = ...) -> None: ...
 
+class WakeParkedRunsRequest(_message.Message):
+    __slots__ = ("producer", "key", "result", "timed_out")
+    PRODUCER_FIELD_NUMBER: _ClassVar[int]
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    TIMED_OUT_FIELD_NUMBER: _ClassVar[int]
+    producer: str
+    key: str
+    result: str
+    timed_out: bool
+    def __init__(self, producer: _Optional[str] = ..., key: _Optional[str] = ..., result: _Optional[str] = ..., timed_out: _Optional[bool] = ...) -> None: ...
+
+class WakeParkedRunsResponse(_message.Message):
+    __slots__ = ("woken_run_ids",)
+    WOKEN_RUN_IDS_FIELD_NUMBER: _ClassVar[int]
+    woken_run_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, woken_run_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class WakeRunResponse(_message.Message):
     __slots__ = ("success", "run")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -28,81 +27,6 @@ func NewConnectHandler(service sandbox.ServiceAPI) *ConnectHandler {
 }
 
 var _ workspaceconnect.WorkspaceSandboxServiceHandler = (*ConnectHandler)(nil)
-
-func (h *ConnectHandler) CaptureReviewSnapshot(ctx context.Context, req *connect.Request[workspacev1.CaptureReviewSnapshotRequest]) (*connect.Response[workspacev1.ReviewSnapshotResponse], error) {
-	id, requestID, err := parseReviewIDs(req.Msg.GetSandboxId(), req.Msg.GetRequestId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	snapshot, err := h.Service.CaptureReviewSnapshot(ctx, &types.ReviewSnapshotRequest{SandboxID: id, RequestID: requestID, Paths: req.Msg.GetPaths()})
-	if err != nil {
-		return nil, domainConnectError(err)
-	}
-	return connect.NewResponse(&workspacev1.ReviewSnapshotResponse{Snapshot: reviewSnapshotProto(snapshot)}), nil
-}
-
-func (h *ConnectHandler) GetReviewSnapshot(ctx context.Context, req *connect.Request[workspacev1.GetReviewSnapshotRequest]) (*connect.Response[workspacev1.ReviewSnapshotResponse], error) {
-	id, requestID, err := parseReviewIDs(req.Msg.GetSandboxId(), req.Msg.GetRequestId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	snapshot, err := h.Service.GetReviewSnapshot(ctx, id, requestID)
-	if err != nil {
-		return nil, domainConnectError(err)
-	}
-	return connect.NewResponse(&workspacev1.ReviewSnapshotResponse{Snapshot: reviewSnapshotProto(snapshot)}), nil
-}
-
-func (h *ConnectHandler) GetReviewFile(ctx context.Context, req *connect.Request[workspacev1.GetReviewFileRequest]) (*connect.Response[workspacev1.GetReviewFileResponse], error) {
-	id, requestID, err := parseReviewIDs(req.Msg.GetSandboxId(), req.Msg.GetRequestId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	body, err := h.Service.FetchReviewFile(ctx, id, requestID, req.Msg.GetSide(), req.Msg.GetPath())
-	if err != nil {
-		return nil, domainConnectError(err)
-	}
-	return connect.NewResponse(&workspacev1.GetReviewFileResponse{Content: body}), nil
-}
-
-func (h *ConnectHandler) MaterializeReviewSnapshot(ctx context.Context, req *connect.Request[workspacev1.MaterializeReviewSnapshotRequest]) (*connect.Response[workspacev1.ReviewWorkspace], error) {
-	id, requestID, err := parseReviewIDs(req.Msg.GetSandboxId(), req.Msg.GetRequestId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	workspace, err := h.Service.MaterializeReviewSnapshot(ctx, id, requestID, req.Msg.GetExpectedSha256())
-	if err != nil {
-		return nil, domainConnectError(err)
-	}
-	return connect.NewResponse(&workspacev1.ReviewWorkspace{Root: workspace.Root, Sha256: workspace.SHA256}), nil
-}
-
-func parseReviewIDs(sandboxID, requestID string) (uuid.UUID, uuid.UUID, error) {
-	id, err := parseSandboxID(sandboxID)
-	if err != nil {
-		return uuid.Nil, uuid.Nil, err
-	}
-	reviewID, err := uuid.Parse(requestID)
-	if err == nil && reviewID == uuid.Nil {
-		err = errors.New("review request ID is required")
-	}
-	return id, reviewID, err
-}
-
-func reviewSnapshotProto(snapshot *types.ReviewSnapshot) *workspacev1.ReviewSnapshot {
-	files := func(entries []types.ReviewFile) []*workspacev1.ReviewFile {
-		result := make([]*workspacev1.ReviewFile, 0, len(entries))
-		for _, entry := range entries {
-			result = append(result, &workspacev1.ReviewFile{Path: entry.Path, Sha256: entry.SHA256, Mode: int32(entry.Mode), Size: entry.Size})
-		}
-		return result
-	}
-	changes := make([]*workspacev1.DiffFile, 0, len(snapshot.Changes))
-	for _, change := range snapshot.Changes {
-		changes = append(changes, &workspacev1.DiffFile{Path: change.Path, ChangeType: string(change.ChangeType), Size: change.Size, ApprovalStatus: string(change.ApprovalStatus)})
-	}
-	return &workspacev1.ReviewSnapshot{Id: snapshot.ID.String(), RequestId: snapshot.RequestID.String(), SandboxId: snapshot.SandboxID.String(), Sha256: snapshot.SHA256, CreatedAt: snapshot.CreatedAt.Format(time.RFC3339Nano), ProjectRoot: snapshot.ProjectRoot, ScopePath: snapshot.ScopePath, Owner: snapshot.Owner, Paths: snapshot.Paths, Before: files(snapshot.Before), After: files(snapshot.After), PatchSha256: snapshot.PatchSHA256, Changes: changes, Stats: diffStats(snapshot.Stats), InputBytes: snapshot.InputBytes}
-}
 
 func (h *ConnectHandler) ResolveWorkspace(ctx context.Context, req *connect.Request[workspacev1.ResolveWorkspaceRequest]) (*connect.Response[workspacev1.ResolveWorkspaceResponse], error) {
 	id, err := parseSandboxID(req.Msg.GetSandboxId())
@@ -194,25 +118,16 @@ func (h *ConnectHandler) PromoteSandbox(ctx context.Context, req *connect.Reques
 	if mode == "" {
 		mode = "all"
 	}
-	var reviewID uuid.UUID
-	if req.Msg.GetReviewRequestId() != "" {
-		reviewID, err = uuid.Parse(req.Msg.GetReviewRequestId())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, err)
-		}
-	}
 	result, err := h.Service.Approve(ctx, &types.ApprovalRequest{
-		SandboxID:            id,
-		Mode:                 mode,
-		Actor:                req.Msg.GetActor(),
-		CommitMsg:            req.Msg.GetCommitMessage(),
-		CreateCommit:         req.Msg.GetCreateCommit(),
-		Force:                req.Msg.GetForce(),
-		OverrideAcceptance:   req.Msg.GetOverrideAcceptance(),
-		ExpectedPatchSHA256:  req.Msg.GetExpectedPatchSha256(),
-		ReviewRequestID:      reviewID,
-		ExpectedReviewSHA256: req.Msg.GetExpectedReviewSha256(),
-		Source:               types.SourceCLI,
+		SandboxID:           id,
+		Mode:                mode,
+		Actor:               req.Msg.GetActor(),
+		CommitMsg:           req.Msg.GetCommitMessage(),
+		CreateCommit:        req.Msg.GetCreateCommit(),
+		Force:               req.Msg.GetForce(),
+		OverrideAcceptance:  req.Msg.GetOverrideAcceptance(),
+		ExpectedPatchSHA256: req.Msg.GetExpectedPatchSha256(),
+		Source:              types.SourceCLI,
 	})
 	if err != nil {
 		return nil, domainConnectError(err)

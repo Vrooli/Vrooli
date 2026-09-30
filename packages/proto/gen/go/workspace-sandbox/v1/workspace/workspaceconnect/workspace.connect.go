@@ -42,18 +42,6 @@ const (
 	// WorkspaceSandboxServiceGetSandboxDiffProcedure is the fully-qualified name of the
 	// WorkspaceSandboxService's GetSandboxDiff RPC.
 	WorkspaceSandboxServiceGetSandboxDiffProcedure = "/workspace_sandbox.v1.workspace.WorkspaceSandboxService/GetSandboxDiff"
-	// WorkspaceSandboxServiceCaptureReviewSnapshotProcedure is the fully-qualified name of the
-	// WorkspaceSandboxService's CaptureReviewSnapshot RPC.
-	WorkspaceSandboxServiceCaptureReviewSnapshotProcedure = "/workspace_sandbox.v1.workspace.WorkspaceSandboxService/CaptureReviewSnapshot"
-	// WorkspaceSandboxServiceGetReviewSnapshotProcedure is the fully-qualified name of the
-	// WorkspaceSandboxService's GetReviewSnapshot RPC.
-	WorkspaceSandboxServiceGetReviewSnapshotProcedure = "/workspace_sandbox.v1.workspace.WorkspaceSandboxService/GetReviewSnapshot"
-	// WorkspaceSandboxServiceMaterializeReviewSnapshotProcedure is the fully-qualified name of the
-	// WorkspaceSandboxService's MaterializeReviewSnapshot RPC.
-	WorkspaceSandboxServiceMaterializeReviewSnapshotProcedure = "/workspace_sandbox.v1.workspace.WorkspaceSandboxService/MaterializeReviewSnapshot"
-	// WorkspaceSandboxServiceGetReviewFileProcedure is the fully-qualified name of the
-	// WorkspaceSandboxService's GetReviewFile RPC.
-	WorkspaceSandboxServiceGetReviewFileProcedure = "/workspace_sandbox.v1.workspace.WorkspaceSandboxService/GetReviewFile"
 	// WorkspaceSandboxServicePromoteSandboxProcedure is the fully-qualified name of the
 	// WorkspaceSandboxService's PromoteSandbox RPC.
 	WorkspaceSandboxServicePromoteSandboxProcedure = "/workspace_sandbox.v1.workspace.WorkspaceSandboxService/PromoteSandbox"
@@ -68,10 +56,6 @@ type WorkspaceSandboxServiceClient interface {
 	CreateSandbox(context.Context, *connect.Request[workspace.CreateSandboxRequest]) (*connect.Response[workspace.CreateSandboxResponse], error)
 	// GetSandboxDiff returns a bounded, reviewable diff for a sandbox.
 	GetSandboxDiff(context.Context, *connect.Request[workspace.GetSandboxDiffRequest]) (*connect.Response[workspace.GetSandboxDiffResponse], error)
-	CaptureReviewSnapshot(context.Context, *connect.Request[workspace.CaptureReviewSnapshotRequest]) (*connect.Response[workspace.ReviewSnapshotResponse], error)
-	GetReviewSnapshot(context.Context, *connect.Request[workspace.GetReviewSnapshotRequest]) (*connect.Response[workspace.ReviewSnapshotResponse], error)
-	MaterializeReviewSnapshot(context.Context, *connect.Request[workspace.MaterializeReviewSnapshotRequest]) (*connect.Response[workspace.ReviewWorkspace], error)
-	GetReviewFile(context.Context, *connect.Request[workspace.GetReviewFileRequest]) (*connect.Response[workspace.GetReviewFileResponse], error)
 	// PromoteSandbox applies an explicitly confirmed approved change set.
 	PromoteSandbox(context.Context, *connect.Request[workspace.PromoteSandboxRequest]) (*connect.Response[workspace.PromoteSandboxResponse], error)
 }
@@ -106,30 +90,6 @@ func NewWorkspaceSandboxServiceClient(httpClient connect.HTTPClient, baseURL str
 			connect.WithSchema(workspaceSandboxServiceMethods.ByName("GetSandboxDiff")),
 			connect.WithClientOptions(opts...),
 		),
-		captureReviewSnapshot: connect.NewClient[workspace.CaptureReviewSnapshotRequest, workspace.ReviewSnapshotResponse](
-			httpClient,
-			baseURL+WorkspaceSandboxServiceCaptureReviewSnapshotProcedure,
-			connect.WithSchema(workspaceSandboxServiceMethods.ByName("CaptureReviewSnapshot")),
-			connect.WithClientOptions(opts...),
-		),
-		getReviewSnapshot: connect.NewClient[workspace.GetReviewSnapshotRequest, workspace.ReviewSnapshotResponse](
-			httpClient,
-			baseURL+WorkspaceSandboxServiceGetReviewSnapshotProcedure,
-			connect.WithSchema(workspaceSandboxServiceMethods.ByName("GetReviewSnapshot")),
-			connect.WithClientOptions(opts...),
-		),
-		materializeReviewSnapshot: connect.NewClient[workspace.MaterializeReviewSnapshotRequest, workspace.ReviewWorkspace](
-			httpClient,
-			baseURL+WorkspaceSandboxServiceMaterializeReviewSnapshotProcedure,
-			connect.WithSchema(workspaceSandboxServiceMethods.ByName("MaterializeReviewSnapshot")),
-			connect.WithClientOptions(opts...),
-		),
-		getReviewFile: connect.NewClient[workspace.GetReviewFileRequest, workspace.GetReviewFileResponse](
-			httpClient,
-			baseURL+WorkspaceSandboxServiceGetReviewFileProcedure,
-			connect.WithSchema(workspaceSandboxServiceMethods.ByName("GetReviewFile")),
-			connect.WithClientOptions(opts...),
-		),
 		promoteSandbox: connect.NewClient[workspace.PromoteSandboxRequest, workspace.PromoteSandboxResponse](
 			httpClient,
 			baseURL+WorkspaceSandboxServicePromoteSandboxProcedure,
@@ -141,14 +101,10 @@ func NewWorkspaceSandboxServiceClient(httpClient connect.HTTPClient, baseURL str
 
 // workspaceSandboxServiceClient implements WorkspaceSandboxServiceClient.
 type workspaceSandboxServiceClient struct {
-	resolveWorkspace          *connect.Client[workspace.ResolveWorkspaceRequest, workspace.ResolveWorkspaceResponse]
-	createSandbox             *connect.Client[workspace.CreateSandboxRequest, workspace.CreateSandboxResponse]
-	getSandboxDiff            *connect.Client[workspace.GetSandboxDiffRequest, workspace.GetSandboxDiffResponse]
-	captureReviewSnapshot     *connect.Client[workspace.CaptureReviewSnapshotRequest, workspace.ReviewSnapshotResponse]
-	getReviewSnapshot         *connect.Client[workspace.GetReviewSnapshotRequest, workspace.ReviewSnapshotResponse]
-	materializeReviewSnapshot *connect.Client[workspace.MaterializeReviewSnapshotRequest, workspace.ReviewWorkspace]
-	getReviewFile             *connect.Client[workspace.GetReviewFileRequest, workspace.GetReviewFileResponse]
-	promoteSandbox            *connect.Client[workspace.PromoteSandboxRequest, workspace.PromoteSandboxResponse]
+	resolveWorkspace *connect.Client[workspace.ResolveWorkspaceRequest, workspace.ResolveWorkspaceResponse]
+	createSandbox    *connect.Client[workspace.CreateSandboxRequest, workspace.CreateSandboxResponse]
+	getSandboxDiff   *connect.Client[workspace.GetSandboxDiffRequest, workspace.GetSandboxDiffResponse]
+	promoteSandbox   *connect.Client[workspace.PromoteSandboxRequest, workspace.PromoteSandboxResponse]
 }
 
 // ResolveWorkspace calls workspace_sandbox.v1.workspace.WorkspaceSandboxService.ResolveWorkspace.
@@ -166,28 +122,6 @@ func (c *workspaceSandboxServiceClient) GetSandboxDiff(ctx context.Context, req 
 	return c.getSandboxDiff.CallUnary(ctx, req)
 }
 
-// CaptureReviewSnapshot calls
-// workspace_sandbox.v1.workspace.WorkspaceSandboxService.CaptureReviewSnapshot.
-func (c *workspaceSandboxServiceClient) CaptureReviewSnapshot(ctx context.Context, req *connect.Request[workspace.CaptureReviewSnapshotRequest]) (*connect.Response[workspace.ReviewSnapshotResponse], error) {
-	return c.captureReviewSnapshot.CallUnary(ctx, req)
-}
-
-// GetReviewSnapshot calls workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetReviewSnapshot.
-func (c *workspaceSandboxServiceClient) GetReviewSnapshot(ctx context.Context, req *connect.Request[workspace.GetReviewSnapshotRequest]) (*connect.Response[workspace.ReviewSnapshotResponse], error) {
-	return c.getReviewSnapshot.CallUnary(ctx, req)
-}
-
-// MaterializeReviewSnapshot calls
-// workspace_sandbox.v1.workspace.WorkspaceSandboxService.MaterializeReviewSnapshot.
-func (c *workspaceSandboxServiceClient) MaterializeReviewSnapshot(ctx context.Context, req *connect.Request[workspace.MaterializeReviewSnapshotRequest]) (*connect.Response[workspace.ReviewWorkspace], error) {
-	return c.materializeReviewSnapshot.CallUnary(ctx, req)
-}
-
-// GetReviewFile calls workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetReviewFile.
-func (c *workspaceSandboxServiceClient) GetReviewFile(ctx context.Context, req *connect.Request[workspace.GetReviewFileRequest]) (*connect.Response[workspace.GetReviewFileResponse], error) {
-	return c.getReviewFile.CallUnary(ctx, req)
-}
-
 // PromoteSandbox calls workspace_sandbox.v1.workspace.WorkspaceSandboxService.PromoteSandbox.
 func (c *workspaceSandboxServiceClient) PromoteSandbox(ctx context.Context, req *connect.Request[workspace.PromoteSandboxRequest]) (*connect.Response[workspace.PromoteSandboxResponse], error) {
 	return c.promoteSandbox.CallUnary(ctx, req)
@@ -202,10 +136,6 @@ type WorkspaceSandboxServiceHandler interface {
 	CreateSandbox(context.Context, *connect.Request[workspace.CreateSandboxRequest]) (*connect.Response[workspace.CreateSandboxResponse], error)
 	// GetSandboxDiff returns a bounded, reviewable diff for a sandbox.
 	GetSandboxDiff(context.Context, *connect.Request[workspace.GetSandboxDiffRequest]) (*connect.Response[workspace.GetSandboxDiffResponse], error)
-	CaptureReviewSnapshot(context.Context, *connect.Request[workspace.CaptureReviewSnapshotRequest]) (*connect.Response[workspace.ReviewSnapshotResponse], error)
-	GetReviewSnapshot(context.Context, *connect.Request[workspace.GetReviewSnapshotRequest]) (*connect.Response[workspace.ReviewSnapshotResponse], error)
-	MaterializeReviewSnapshot(context.Context, *connect.Request[workspace.MaterializeReviewSnapshotRequest]) (*connect.Response[workspace.ReviewWorkspace], error)
-	GetReviewFile(context.Context, *connect.Request[workspace.GetReviewFileRequest]) (*connect.Response[workspace.GetReviewFileResponse], error)
 	// PromoteSandbox applies an explicitly confirmed approved change set.
 	PromoteSandbox(context.Context, *connect.Request[workspace.PromoteSandboxRequest]) (*connect.Response[workspace.PromoteSandboxResponse], error)
 }
@@ -235,30 +165,6 @@ func NewWorkspaceSandboxServiceHandler(svc WorkspaceSandboxServiceHandler, opts 
 		connect.WithSchema(workspaceSandboxServiceMethods.ByName("GetSandboxDiff")),
 		connect.WithHandlerOptions(opts...),
 	)
-	workspaceSandboxServiceCaptureReviewSnapshotHandler := connect.NewUnaryHandler(
-		WorkspaceSandboxServiceCaptureReviewSnapshotProcedure,
-		svc.CaptureReviewSnapshot,
-		connect.WithSchema(workspaceSandboxServiceMethods.ByName("CaptureReviewSnapshot")),
-		connect.WithHandlerOptions(opts...),
-	)
-	workspaceSandboxServiceGetReviewSnapshotHandler := connect.NewUnaryHandler(
-		WorkspaceSandboxServiceGetReviewSnapshotProcedure,
-		svc.GetReviewSnapshot,
-		connect.WithSchema(workspaceSandboxServiceMethods.ByName("GetReviewSnapshot")),
-		connect.WithHandlerOptions(opts...),
-	)
-	workspaceSandboxServiceMaterializeReviewSnapshotHandler := connect.NewUnaryHandler(
-		WorkspaceSandboxServiceMaterializeReviewSnapshotProcedure,
-		svc.MaterializeReviewSnapshot,
-		connect.WithSchema(workspaceSandboxServiceMethods.ByName("MaterializeReviewSnapshot")),
-		connect.WithHandlerOptions(opts...),
-	)
-	workspaceSandboxServiceGetReviewFileHandler := connect.NewUnaryHandler(
-		WorkspaceSandboxServiceGetReviewFileProcedure,
-		svc.GetReviewFile,
-		connect.WithSchema(workspaceSandboxServiceMethods.ByName("GetReviewFile")),
-		connect.WithHandlerOptions(opts...),
-	)
 	workspaceSandboxServicePromoteSandboxHandler := connect.NewUnaryHandler(
 		WorkspaceSandboxServicePromoteSandboxProcedure,
 		svc.PromoteSandbox,
@@ -273,14 +179,6 @@ func NewWorkspaceSandboxServiceHandler(svc WorkspaceSandboxServiceHandler, opts 
 			workspaceSandboxServiceCreateSandboxHandler.ServeHTTP(w, r)
 		case WorkspaceSandboxServiceGetSandboxDiffProcedure:
 			workspaceSandboxServiceGetSandboxDiffHandler.ServeHTTP(w, r)
-		case WorkspaceSandboxServiceCaptureReviewSnapshotProcedure:
-			workspaceSandboxServiceCaptureReviewSnapshotHandler.ServeHTTP(w, r)
-		case WorkspaceSandboxServiceGetReviewSnapshotProcedure:
-			workspaceSandboxServiceGetReviewSnapshotHandler.ServeHTTP(w, r)
-		case WorkspaceSandboxServiceMaterializeReviewSnapshotProcedure:
-			workspaceSandboxServiceMaterializeReviewSnapshotHandler.ServeHTTP(w, r)
-		case WorkspaceSandboxServiceGetReviewFileProcedure:
-			workspaceSandboxServiceGetReviewFileHandler.ServeHTTP(w, r)
 		case WorkspaceSandboxServicePromoteSandboxProcedure:
 			workspaceSandboxServicePromoteSandboxHandler.ServeHTTP(w, r)
 		default:
@@ -302,22 +200,6 @@ func (UnimplementedWorkspaceSandboxServiceHandler) CreateSandbox(context.Context
 
 func (UnimplementedWorkspaceSandboxServiceHandler) GetSandboxDiff(context.Context, *connect.Request[workspace.GetSandboxDiffRequest]) (*connect.Response[workspace.GetSandboxDiffResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetSandboxDiff is not implemented"))
-}
-
-func (UnimplementedWorkspaceSandboxServiceHandler) CaptureReviewSnapshot(context.Context, *connect.Request[workspace.CaptureReviewSnapshotRequest]) (*connect.Response[workspace.ReviewSnapshotResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("workspace_sandbox.v1.workspace.WorkspaceSandboxService.CaptureReviewSnapshot is not implemented"))
-}
-
-func (UnimplementedWorkspaceSandboxServiceHandler) GetReviewSnapshot(context.Context, *connect.Request[workspace.GetReviewSnapshotRequest]) (*connect.Response[workspace.ReviewSnapshotResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetReviewSnapshot is not implemented"))
-}
-
-func (UnimplementedWorkspaceSandboxServiceHandler) MaterializeReviewSnapshot(context.Context, *connect.Request[workspace.MaterializeReviewSnapshotRequest]) (*connect.Response[workspace.ReviewWorkspace], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("workspace_sandbox.v1.workspace.WorkspaceSandboxService.MaterializeReviewSnapshot is not implemented"))
-}
-
-func (UnimplementedWorkspaceSandboxServiceHandler) GetReviewFile(context.Context, *connect.Request[workspace.GetReviewFileRequest]) (*connect.Response[workspace.GetReviewFileResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetReviewFile is not implemented"))
 }
 
 func (UnimplementedWorkspaceSandboxServiceHandler) PromoteSandbox(context.Context, *connect.Request[workspace.PromoteSandboxRequest]) (*connect.Response[workspace.PromoteSandboxResponse], error) {

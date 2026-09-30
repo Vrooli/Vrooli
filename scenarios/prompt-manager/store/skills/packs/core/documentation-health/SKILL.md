@@ -2,7 +2,7 @@
 name: "documentation-health"
 description: "Ensure documentation quality, consistency, and bidirectional traceability between code and docs. Includes audit checklist and reference format standards."
 license: "CC-BY-4.0"
-metadata: {"kind": "skill", "schemaVersion": 1, "modes": ["steer", "documentation", "audits"], "tags": ["skill"], "icon": "filetext", "status": "active", "defaultScope": "architecture-scope", "targetDimensions": ["docs"], "requires": {"scenarios": ["prompt-manager", "test-genie"], "commands": ["prompt-manager skill", "prompt-manager skill read", "test-genie docs"]}, "origin": {"kind": "authored", "sourceUrl": "", "commit": "", "license": "", "checksum": "", "importedBy": "", "importedAt": "", "review": {"verdict": ""}}, "revision": 50, "createdAt": "2026-01-24T00:00:00Z", "updatedAt": "2026-09-26T16:45:00Z"}
+metadata: {"kind": "skill", "schemaVersion": 1, "modes": ["steer", "documentation", "audits"], "tags": ["skill"], "icon": "filetext", "status": "active", "defaultScope": "architecture-scope", "targetDimensions": ["docs"], "requires": {"scenarios": ["prompt-manager", "test-genie"], "commands": ["prompt-manager skill", "prompt-manager skill read", "test-genie docs"]}, "origin": {"kind": "authored", "sourceUrl": "", "commit": "", "license": "", "checksum": "", "importedBy": "", "importedAt": "", "review": {"verdict": ""}}, "revision": 51, "createdAt": "2026-01-24T00:00:00Z", "updatedAt": "2026-09-30T12:00:00Z"}
 ---
 For agent task knowledge and source applicability, load `prompt-manager skill read knowledge-observatory`. For cleanup, consolidation, reorganization, promotion, moves and retirement, load `prompt-manager skill read knowledge-observatory-maintenance`. This skill owns placement and code/document traceability; the maintenance skill owns dispositions and preservation judgment. The KO usage skill owns the single recall/capture loop. Use `knowledge-observatory-improve` for recurring retrieval or maintenance failures.
 
@@ -351,14 +351,9 @@ The `path:docs/internal/` directory serves as **persistent agent memory** - docu
 
 Long-running campaign documents are state, not append-only transcripts. Keep
 one active checkpoint, unresolved directives and only the recent summaries a
-fresh agent needs; preserve superseded chronology in a checksummed compressed
-archive with a retrieval command. When repeated growth has already caused
-context waste, a prose reminder is insufficient: add a focused executable
-budget check for the active packet and run it at resume/checkpoint admission.
-The check must protect unique directives, decisions, defects, limitations and
-proof rather than deleting them to meet the ceiling. High-cardinality runtime
-evidence belongs with its producer under a separate bounded working-set and
-retention contract, not copied into Markdown.
+fresh agent needs; archive superseded chronology (gzip plus a manifest line)
+instead of deleting it. Runtime evidence stays with its producer, not copied
+into Markdown.
 
 Fetch templates and their purposes on demand via the knowledge-observatory CLI:
 

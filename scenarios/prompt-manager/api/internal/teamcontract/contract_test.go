@@ -397,7 +397,7 @@ func boolPtr(v bool) *bool {
 
 func TestBundledBASDeliveryContractKeepsScenarioDocumentsCanonical(t *testing.T) {
 	const teamID = "browser-automation-studio-delivery"
-	const memberID = "browser-automation-studio-coordinator"
+	const memberID = "browser-automation-studio-orchestrator"
 	const scenarioDocs = "scenarios/browser-automation-studio/docs/"
 	storeDir := filepath.Clean("../../../store")
 	repoRoot := filepath.Clean("../../../../..")
@@ -434,10 +434,11 @@ func TestBundledBASDeliveryContractKeepsScenarioDocumentsCanonical(t *testing.T)
 		t.Fatal(err)
 	}
 	wantPaths := map[string]bool{
-		scenarioDocs + "internal/REFRACTOR_PROGRESS.md": false,
-		scenarioDocs + "internal/OPERATOR_FEEDBACK.md":  false,
-		scenarioDocs + "PROBLEMS.md":                    false,
-		scenarioDocs + "internal/DECISIONS.md":          false,
+		scenarioDocs + "internal/goal/QUEUE.md":       false,
+		scenarioDocs + "internal/goal/FEEDBACK.md":    false,
+		scenarioDocs + "internal/goal/WORKAROUNDS.md": false,
+		scenarioDocs + "PROBLEMS.md":                  false,
+		scenarioDocs + "internal/DECISIONS.md":        false,
 	}
 	for _, doc := range team.OperatingContract.Documents.SharedState {
 		if doc.Path.Base != BaseRepoRoot || !strings.HasPrefix(doc.Path.Path, scenarioDocs) {
@@ -452,11 +453,11 @@ func TestBundledBASDeliveryContractKeepsScenarioDocumentsCanonical(t *testing.T)
 			t.Errorf("missing canonical scenario path %s from contract/render", path)
 		}
 	}
-	// The cheap coordinator returns owner handoffs; declarations must not
-	// grant it write access to the controls used to accept its own work.
+	// The orchestrator returns owner handoffs; declarations must not grant it
+	// write access to the controls used to accept its own work.
 	for _, write := range team.OperatingContract.Members[memberID].AllowedWrites {
 		if write.Base != "" || (write.Kind != "knowledge" && write.Kind != "handoff") {
-			t.Fatalf("coordinator declaration widens control writes: %+v", write)
+			t.Fatalf("orchestrator declaration widens control writes: %+v", write)
 		}
 	}
 }

@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	platform "github.com/vrooli/platform-go"
+
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
@@ -23,7 +25,10 @@ type hostFactsReader struct {
 	Probe  hostFactsProbe
 	BootID func() string
 	Now    func() time.Time
-	mu     sync.Mutex
+	// AcquireLock overrides the cross-process advisory lock (for testing).
+	// Nil uses platform.AcquireFileLockContext.
+	AcquireLock func(context.Context, string) (func(), error)
+	mu          sync.Mutex
 }
 
 type hostFactsEntry struct {
@@ -45,8 +50,12 @@ type hostFactsFileEntry struct {
 	Value     json.RawMessage `json:"value"`
 }
 
-// Read returns a fresh or cached fact class. A file lock keeps independent CLI
-// processes from probing the same expensive class simultaneously.
+// Read returns a fresh or cached fact class. An advisory file lock keeps
+// independent CLI processes from probing the same expensive class
+// simultaneously. The lock is a kernel flock, not a lockfile: a holder that
+// dies releases it automatically, so one crashed process can never tax every
+// later probe on the host (an orphaned .lock from 2026-08-27 did exactly
+// that — every cache miss spun 5s and the autoheal GPU checks timed out).
 func (r *hostFactsReader) Read(ctx context.Context, class string) (json.RawMessage, error) {
 	if r == nil || r.Probe == nil {
 		return nil, errors.New("host facts reader has no probe")
@@ -71,25 +80,21 @@ func (r *hostFactsReader) Read(ctx context.Context, class string) (json.RawMessa
 	if entry, ok := r.load(class); ok && entry.Schema == hostFactsSchemaVersion && entry.BootID == boot && now.Sub(entry.FetchedAt) < ttl {
 		return append([]byte(nil), entry.Value...), nil
 	}
-	lock := r.Path + ".lock"
-	for i := 0; i < 500; i++ {
-		f, err := os.OpenFile(lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, tuning.PermSecret)
-		if err == nil {
-			_ = f.Close()
-			defer os.Remove(lock)
-			break
-		}
-		if !errors.Is(err, os.ErrExist) {
-			break
-		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(tuning.HostFactsRetryInterval()):
-		}
-		if entry, ok := r.load(class); ok && entry.Schema == hostFactsSchemaVersion && entry.BootID == boot && now.Sub(entry.FetchedAt) < ttl {
-			return append([]byte(nil), entry.Value...), nil
-		}
+	if err := os.MkdirAll(filepath.Dir(r.Path), tuning.PermPrivateDir); err != nil {
+		return nil, err
+	}
+	acquire := r.AcquireLock
+	if acquire == nil {
+		acquire = platform.AcquireFileLockContext
+	}
+	release, err := acquire(ctx, r.Path+".lock")
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	// Another process may have refreshed the class while this one waited.
+	if entry, ok := r.load(class); ok && entry.Schema == hostFactsSchemaVersion && entry.BootID == boot && now.Sub(entry.FetchedAt) < ttl {
+		return append([]byte(nil), entry.Value...), nil
 	}
 	value, err := r.Probe(ctx, class)
 	if err != nil {

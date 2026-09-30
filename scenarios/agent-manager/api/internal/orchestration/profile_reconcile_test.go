@@ -9,59 +9,46 @@ import (
 	"testing"
 
 	"agent-manager/internal/domain"
-	"agent-manager/internal/identity"
-	"agent-manager/internal/orchestration/phases"
 )
 
-func TestDeliveryProfilesKeepEconomicalWorkSeparateFromReview(t *testing.T) {
+// The orchestrated-epoch model runs the orchestrator and its epoch workers in
+// the shared tree (D5). The worker must narrow the orchestrator so live
+// dependent delegation admits it, and only the orchestrator may manage children.
+func TestDeliveryOrchestratorAdmitsItsEpochWorker(t *testing.T) {
 	o := newDeclarationOrchestrator(t)
 	ctx := context.Background()
 	root := filepath.Clean("../../../../prompt-manager")
-	for _, tc := range []struct {
-		name    string
-		role    string
-		network domain.NetworkAccess
-		scopes  []string
-	}{
-		{"delivery-coordinator", "code.economy.delivery", domain.NetworkAccessNone, nil},
-		{"delivery-worker", "code.economy.delivery", domain.NetworkAccessNone, nil},
-		{"delivery-review", "code.supervision", domain.NetworkAccessNone, []string{"agent-manager:supervise"}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			source := ".vrooli/agent-manager/" + tc.name + ".json"
-			result := o.reconcileProfileSource(ctx, "prompt-manager", root, source, profileReconcileModeUpdateIfUnmodified, false)
-			if result.Status != ProfileReconcileStatusCreated {
-				t.Fatalf("profile did not reconcile: %+v", result)
-			}
-			profile, err := o.profiles.GetByKey(ctx, "prompt-manager/"+tc.name)
-			if err != nil || profile == nil {
-				t.Fatalf("profile missing: %v", err)
-			}
-			if profile.RoleRef != tc.role || profile.Effort != domain.EffortMedium || profile.NetworkAccess != tc.network {
-				t.Fatalf("unexpected delivery selection: role=%s effort=%s network=%s", profile.RoleRef, profile.Effort, profile.NetworkAccess)
-			}
-			sandbox := profile.SandboxConfig
-			if sandbox == nil || sandbox.Mode != domain.SandboxModeProtected || !sandbox.ManualReview || sandbox.GetAutoApply() || sandbox.GetApplyOnFailure() {
-				t.Fatalf("delivery must retain candidate changes for independent acceptance: %+v", sandbox)
-			}
-			if sandbox.WritePolicy == nil || len(sandbox.WritePolicy.Paths) != 0 || sandbox.NetworkMode != domain.NetworkAccessNone {
-				t.Fatalf("delivery defaults must be read-only until an owner supplies node grants: %+v", sandbox.WritePolicy)
-			}
-			// An owner grant is not automatically delegated to a delivery worker,
-			// reviewer or coordinator merely because a profile omitted its scopes.
-			secret := []byte("delivery-profile-identity-fixture")
-			token := phases.GenerateIdentityToken(ctx, phases.GenerateIdentityTokenInput{
-				Run:     &domain.Run{ID: profile.ID, TaskID: profile.ID, OwnerScopes: []string{"agent-manager:supervise"}},
-				Profile: profile, Secret: secret, RequestedScopes: []string{"agent-manager:supervise"},
-			})
-			claims, err := identity.VerifyToken(token, secret)
-			if err != nil || !slices.Equal(claims.Scopes, tc.scopes) {
-				t.Fatalf("delivery profile scopes=%v, want %v; err=%v", claims.Scopes, tc.scopes, err)
-			}
-			if replay := o.reconcileProfileSource(ctx, "prompt-manager", root, source, profileReconcileModeUpdateIfUnmodified, false); replay.Status != ProfileReconcileStatusUnchanged || replay.ProfileID != result.ProfileID {
-				t.Fatalf("reconcile duplicated or changed profile: %+v", replay)
-			}
-		})
+	load := func(name string) *domain.AgentProfile {
+		t.Helper()
+		result := o.reconcileProfileSource(ctx, "prompt-manager", root, ".vrooli/agent-manager/"+name+".json", profileReconcileModeUpdateIfUnmodified, false)
+		if result.Status != ProfileReconcileStatusCreated {
+			t.Fatalf("%s did not reconcile: %+v", name, result)
+		}
+		profile, err := o.profiles.GetByKey(ctx, "prompt-manager/"+name)
+		if err != nil || profile == nil {
+			t.Fatalf("%s missing: %v", name, err)
+		}
+		return profile
+	}
+	orchestrator, worker := load("delivery-orchestrator"), load("delivery-epoch-worker")
+	if orchestrator.Effort != domain.EffortHigh || worker.Effort != domain.EffortMedium {
+		t.Fatalf("efforts orchestrator=%s worker=%s, want high/medium", orchestrator.Effort, worker.Effort)
+	}
+	if orchestrator.MaxTurns != 0 || worker.MaxTurns != 0 {
+		t.Fatalf("epoch roles must not carry per-turn caps: orchestrator=%d worker=%d", orchestrator.MaxTurns, worker.MaxTurns)
+	}
+	// Codec-pipe Codex runs end after one turn; the worker needs the runner's
+	// native /goal loop on the interactive substrate to hold an epoch.
+	if worker.SpawnPolicy == nil || len(worker.SpawnPolicy.ExecutionMode.Prefer) == 0 || worker.SpawnPolicy.ExecutionMode.Prefer[0] != "interactive" {
+		t.Fatalf("epoch worker must prefer the interactive substrate: %+v", worker.SpawnPolicy)
+	}
+	if !slices.Contains(orchestrator.DeclaredScopes, "agent-manager:orchestrate") || slices.Contains(worker.DeclaredScopes, "agent-manager:orchestrate") {
+		t.Fatalf("only the orchestrator declares the orchestrate scope: orchestrator=%v worker=%v", orchestrator.DeclaredScopes, worker.DeclaredScopes)
+	}
+	parent := &domain.RunConfig{NetworkAccess: orchestrator.NetworkAccess, SandboxConfig: orchestrator.SandboxConfig}
+	child := &domain.RunConfig{NetworkAccess: worker.NetworkAccess, SandboxConfig: worker.SandboxConfig}
+	if err := dependentExecutionPermissionsError(parent, child); err != nil {
+		t.Fatalf("epoch worker must narrow the orchestrator: %v", err)
 	}
 }
 

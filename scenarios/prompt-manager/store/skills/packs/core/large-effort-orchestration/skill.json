@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-09-10T00:00:00Z",
-  "description": "Preserve a large cross-scenario request, then coordinate owner-admitted boundaries with economical workers, durable handoffs, quota recovery and evidence review. Use for finite multi-shape efforts that must survive interruptions; use the ordinary plan skills for one bounded change.",
+  "description": "Run a long delivery goal as an orchestrator that admits epochs, spawns one goal worker per epoch, parks between check-ins, steers through the epoch file, applies the step-back rule and accepts epochs through a mechanical gate. Use for orchestrated long-running efforts only; phased plans, bounded tasks and direct requests do not use epochs.",
   "entry": "SKILL.md",
   "icon": "network",
   "id": "large-effort-orchestration",
@@ -16,27 +16,23 @@
   "requires": {
     "commands": [
       "prompt-manager skill read",
-      "plan-manager",
-      "agent-manager",
-      "program-runtime"
+      "agent-manager"
     ],
     "scenarios": [
       "prompt-manager",
-      "plan-manager",
-      "agent-manager",
-      "program-runtime"
+      "agent-manager"
     ]
   },
-  "revision": 14,
+  "revision": 18,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
     "orchestration",
     "multi-agent",
     "effort",
+    "epochs",
     "continuity",
-    "recovery",
-    "planning"
+    "recovery"
   ],
-  "updatedAt": "2026-09-28T12:00:00Z"
+  "updatedAt": "2026-09-30T18:00:00Z"
 }

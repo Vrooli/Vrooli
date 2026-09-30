@@ -39,9 +39,41 @@ func (m *Manager) install(ctx context.Context, item InstallableCLI) error {
 	if err := installer.Install(ctx, item, m.InstallDir()); err != nil {
 		return err
 	}
-	fingerprint, err := m.computeInstallFingerprint(item)
-	if err != nil {
-		return err
+	// The canonical installer writes the digest and freshness manifest.  Reuse
+	// that digest instead of immediately hashing the same source tree again.
+	// Test/custom installers from older callers may not write metadata, so keep
+	// the full-hash fallback for compatibility.
+	installedMeta, metaOK, metaErr := m.readInstallMetadata(item)
+	if metaErr != nil {
+		return metaErr
+	}
+	manifestPath := cliutil.FreshnessManifestPath(m.InstalledBinaryPath(item))
+	freshnessManifest, manifestOK, manifestErr := cliutil.ReadFreshnessManifest(manifestPath)
+	if manifestErr != nil {
+		manifestOK = false
+	}
+	if !manifestOK || freshnessManifest.Digest == "" {
+		// Older/custom installers do not emit the manifest.  Bootstrap it once;
+		// future checks use the stat-cache path and avoid repeated full hashing.
+		freshnessManifest, manifestErr = m.computeInstallManifest(item)
+		if manifestErr != nil {
+			return manifestErr
+		}
+		manifestOK = false
+	}
+	// Prefer the manifest digest because it was computed from the same source
+	// snapshot as the newly installed binary.  The metadata fallback keeps
+	// compatibility with a legacy installer that emitted only .build.meta.
+	fingerprint := freshnessManifest.Digest
+	if fingerprint == "" && metaOK {
+		fingerprint = strings.TrimSpace(installedMeta.Fingerprint)
+	}
+	if fingerprint == "" {
+		computed, fingerprintErr := m.computeInstallFingerprint(item)
+		if fingerprintErr != nil {
+			return fingerprintErr
+		}
+		fingerprint = computed
 	}
 	meta := InstallMetadata{
 		Kind:        item.Kind,
@@ -52,6 +84,11 @@ func (m *Manager) install(ctx context.Context, item InstallableCLI) error {
 	}
 	if err := m.writeInstallMetadata(item, meta); err != nil {
 		return err
+	}
+	if !manifestOK {
+		if err := cliutil.WriteFreshnessManifest(manifestPath, freshnessManifest); err != nil {
+			return err
+		}
 	}
 	return m.recordInstalledCLI(item)
 }
@@ -131,6 +168,14 @@ func (m *Manager) computeInstallFingerprint(item InstallableCLI) (string, error)
 		return "", err
 	}
 	return cliutil.ComputeFreshnessFingerprint(spec)
+}
+
+func (m *Manager) computeInstallManifest(item InstallableCLI) (cliutil.FreshnessManifest, error) {
+	spec, err := item.FreshnessSpec()
+	if err != nil {
+		return cliutil.FreshnessManifest{}, err
+	}
+	return cliutil.ComputeFreshnessManifest(spec, string(item.Kind)+"-cli", nil, time.Now().UnixNano())
 }
 
 // FreshnessSpec returns the canonical freshness contract for this installable.

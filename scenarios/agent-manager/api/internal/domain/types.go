@@ -838,12 +838,6 @@ const (
 	RunLabelSourceManual RunLabelSource = "manual"
 )
 
-// Run represents a single execution attempt of a task using a specific agent profile.
-type DispatchBinding struct {
-	EffortRef       string `json:"effortRef"`
-	AuthorizationID string `json:"authorizationId"`
-}
-
 // RunCreationReceipt records persistence of the original creation, not runner
 // completion. It survives run/task deletion and ordinary replay-cache expiry.
 // It is read-only evidence and never authorizes another executor.
@@ -879,7 +873,6 @@ type Run struct {
 	OwnerScopes     []string                     `json:"ownerScopes" db:"owner_scopes"`
 	RequestedScopes []string                     `json:"requestedScopes" db:"requested_scopes"`
 	OwnerExpiresAt  *time.Time                   `json:"ownerExpiresAt,omitempty" db:"owner_expires_at"`
-	DispatchBinding *DispatchBinding             `json:"dispatchBinding,omitempty" db:"dispatch_binding"`
 	WorkReferences  []*eventdomain.WorkReference `json:"workReferences,omitempty" db:"work_references"`
 	Workload        WorkloadRef                  `json:"workload,omitempty" db:"workload"`
 	Billing         BillingSnapshot              `json:"billing,omitempty" db:"billing"`

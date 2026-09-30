@@ -64,37 +64,6 @@ Pause is separate from member heartbeat `enabled`. A paused team can still have 
 
 ## Heartbeat Configuration
 
-### Refresh standing-supervision owner evidence without dispatch
-
-Readiness is a cached projection of the last bounded Agent Manager owner cut.
-Refresh it after an owner repair or configuration change without enabling the
-team, queuing a task, or starting a model:
-
-```bash
-prompt-manager team heartbeat-supervision-observe <team-id> <agent-id> [--json]
-```
-
-The command uses `POST /teams/{teamId}/heartbeats/{agentId}/observe` and is
-safe while the heartbeat or team is disabled. Read the result with
-`heartbeat-supervision-readiness` afterward.
-
-### Reconcile an uncertain standing-supervision wake
-
-Use the existing owner route when a disabled standing supervisor retains a
-`recovery-required` wake and Agent Manager's exact task/tag inspection proves
-that no run was accepted. This command cancels a queued orphan task, refuses a
-matching run, never retries the dispatch, and preserves the bounded receipt:
-
-```bash
-prompt-manager team heartbeat-supervision-reconcile <team-id> <agent-id> \
-  --wake-id=<exact-wake-id> \
-  --evidence-refs=<owner-ref-1,owner-ref-2> \
-  --reason="<bounded owner comparison>" [--json]
-```
-
-It requires operator-direct attribution and is separate from
-`heartbeat-trigger` and the read-only `heartbeat-supervision-readiness` command.
-
 ### Finite effort leader provisioning
 
 The operator order is: create or resume a finite delivery team; register and
@@ -160,6 +129,9 @@ prompt-manager team heartbeat-reopen-effort <team-id> <leader-id> --request-file
 prompt-manager team heartbeat-restart-effort <team-id> <leader-id> --request-file transition.json
 ```
 
+For a `keepAlive` orchestrator, restart is also the way out of the liveness
+relaunch cap (`relaunch-capped`); it resets the consecutive-relaunch count.
+
 `transition.json` is a single JSON object of at most 16 KiB with no unknown
 fields:
 
@@ -185,13 +157,13 @@ after Agent Manager returns an authoritative zero-run result for that exact
 task; truncated, conflicting, unavailable, or nonzero results remain fenced.
 
 Focused CLI verification (2026-09-12): `go test -race ./teams -run
-'^TestFiniteLeaderCLI|^TestHeartbeatEnableStanding' -count=1 -timeout=60s`
+'^TestFiniteLeaderCLI' -count=1 -timeout=60s`
 passes. The finite CLI tests cover disabled create/update, malformed and
 activation-bearing input rejection, mismatched owner responses, retirement with
 retained identity, explicit completion/reopen transition payloads that carry no
 configuration change, refusal of ambiguous transition input or an unbound member,
-and the real human/JSON read commands. Two standing-supervision CLI regressions
-also pass. No live configuration was provisioned by these tests.
+and the real human/JSON read commands. No live configuration was provisioned by
+these tests.
 
 The CLI tests prove request validation and lifecycle payload shape only. Live
 qualification must additionally show the team, Source Ledger scope, PM
@@ -200,91 +172,12 @@ receipt. A terminal owner run is not accepted effort; use the revision-checked
 completion transition only after the owner evidence is retained. Leave
 recurrence and fresh-run recovery disabled until their separate gates pass.
 
-### Standing effort supervisor
+### Effort supervisor heartbeat
 
-The bundled identity is team `effort-supervision`, member `effort-supervisor`.
-Its authored contract, charter, responsibilities, heartbeat and topics are under
-`store/teams/effort-supervision/`; global identity is under
-`store/agents/effort-supervisor/`. The team is disabled, and its disabled
-heartbeat configuration is retained for owner review. Other teams are not
-changed.
-
-After the implementation owner qualifies the AM board and PM runtime, configure
-the bounded observation pilot while the team remains disabled:
-
-```bash
-prompt-manager team heartbeat-enable effort-supervision effort-supervisor \
-  --supervision --schedule='0 */6 * * *' \
-  --wake-admission=on-change --wake-sources=team,member,inbox,corpus \
-  --profile='prompt-manager/delivery-review' \
-  --discovery-limit=100 --max-efforts-per-wake=5 \
-  --min-wake-interval-seconds=300 \
-  --diagnostic-wakes-per-window=4 --diagnostic-window-seconds=3600 \
-  --accounting-ref=service:standing-supervision
-prompt-manager team heartbeat effort-supervision effort-supervisor --json
-```
-
-The allowance counts attempted inference wakes, including sampling and uncertain
-dispatch. Idle discovery and owner reads use the shared accounting reference.
-This count is not a spend limit: a standing supervisor must also use an Agent
-Manager dispatch authorization with finite `maxTokens` and
-`maxChargeMicroUsd`; AM settles those bounds from canonical run accounting and
-blocks admission when usage is unknown or exhausted.
-Omitting `--profile` retains PM's qualified declared profile. An explicit profile
-override must name an existing qualified route; no provider or paid fallback is
-introduced by supervision.
-
-Observation needs no PM owner-token file or manual steering delegation. Each
-wake supplies its selected public effort references to AM CreateRun as observed
-supervisor membership, then uses AM's ordinary signed run token for
-`agent-manager effort assess --request-file <request.json> --json`. This requires
-the adopted AM CreateRun wire to accept and persist `work_references`; RunReport
-fields alone are insufficient. Qualify the signed assessment response before
-treating recurring observation as operational. Stable scoped credentials for
-steering remain an owner-provisioned, separately qualified route; PM does not
-auto-grant actions or obtain broad local human credentials.
-
-Standing dispatch must register or verify the selected team's Source Ledger
-scope through PM's existing `EnsureTeamScope` before building its prompt or
-launching a run. This uses `TeamScopeFacets` and the existing team budgets for
-any team ID; startup's historical team list is not the admission contract.
-Registration failure must remain a typed dependency error. It must not produce
-a local corpus or launch a supervisor with an unregistered scope.
-
-An implementation owner can provision a missing scope with the canonical
-`source-ledger scopes create team:<team-id> --facets-json '<TeamScopeFacets JSON>'`
-operation, using the same frontier (16), wake lines (128), and per-entry lines
-(2) as PM. Verify with `source-ledger policy show --scope team:<team-id>` and
-`source-ledger recall wake --scope team:<team-id>` before the bounded pilot.
-Assessment links use the typed `team knowledge-add` operation required by the
-supervisor prompt; a plain journal note does not establish a PM topic receipt.
-
-The following command activates this team's service. The pilot owner runs it
-after qualification; staging alone does not prove operational success:
-
-```bash
-prompt-manager team update effort-supervision --enabled=true
-```
-
-`team heartbeat-trigger effort-supervision effort-supervisor` invokes the same
-admission policy, including empty/unchanged/occupied suppression. It can buy a
-bounded live wake when eligible. Read-only `team heartbeat ... --json` reports
-`supervisionState` with coverage, pending wake/task/run identities, owner waits,
-served revisions, sample selections, allowance counters and recovery time.
-Reads never perform discovery or inference.
-Assessment receipts are distinct from terminal run status: `lastWake` retains
-terminal errors and any `unassessed-reopen` disposition; per-effort `retryAfter`
-names the earliest bounded retry. Only an exact `sample` receipt advances
-`lastSampleAt`. Charges remain spent even when a run fails before assessment.
-
-To stop future wakes, use `team heartbeat-disable effort-supervision
-effort-supervisor`. This preserves uncertain/active owner evidence. Per-effort
-withdrawal belongs to AM and leaves other efforts and discovery eligible. Global
-engagement policy still applies; these operations never resume global policy.
-
-`--supervision` requires an explicit `--accounting-ref`. Sampling is disabled
-unless both its interval and positive per-wake cap are supplied. Configuration
-is independent of effort name, work shape, workspace location and provider.
+The bundled team `effort-supervision` is disabled. Its `effort-supervisor`
+member is an ordinary heartbeat (daily schedule, `--wake-admission=on-change
+--wake-sources=team,member,inbox`) on `prompt-manager/delivery-review`;
+orchestrators wake it with `team message-send` plus `team heartbeat-trigger`.
 
 ### prompt-manager team heartbeat-list
 

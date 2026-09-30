@@ -27,7 +27,7 @@
     },
     "declaredScopes": {
       "type": "array",
-      "description": "Explicit ceiling for delegated identity scopes. Supervisor dispatch requires agent-manager:supervise.",
+      "description": "Explicit ceiling for delegated identity scopes. agent-manager:orchestrate lets a run manage its own direct children.",
       "items": { "type": "string", "minLength": 1 },
       "uniqueItems": true
     },

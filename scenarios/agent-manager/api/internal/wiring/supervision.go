@@ -10,6 +10,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/supervision"
+
 	repocontract "github.com/vrooli/repo-contract-go"
 
 	"github.com/google/uuid"
@@ -41,29 +42,9 @@ func (c supervisionRunController) GetRun(ctx context.Context, id uuid.UUID) (*do
 	return c.orchestrator.GetRun(ctx, id)
 }
 
-func (c supervisionRunController) RunAccounting(ctx context.Context, id uuid.UUID) (supervision.DispatchRunAccounting, error) {
-	usage, err := c.orchestrator.RunAccounting(ctx, id)
-	if err != nil {
-		return supervision.DispatchRunAccounting{}, err
-	}
-	return supervision.DispatchRunAccounting{Terminal: usage.Terminal, Tokens: usage.Tokens, TokensKnown: usage.TokensKnown, ChargeMicroUSD: usage.ChargeMicroUSD, ChargeMeasured: usage.ChargeMeasured}, nil
-}
-
 func (c supervisionRunController) ContinueRun(ctx context.Context, id uuid.UUID, message, idempotencyKey string) error {
 	_, err := c.orchestrator.ContinueRun(ctx, orchestration.ContinueRunRequest{RunID: id, Message: message, IdempotencyKey: idempotencyKey})
 	return err
-}
-
-func (c supervisionRunController) ContinuationAccepted(ctx context.Context, id uuid.UUID, message, key string) (bool, error) {
-	return c.orchestrator.ContinuationAccepted(ctx, id, message, key)
-}
-
-func (c supervisionRunController) RecoverMissingSession(ctx context.Context, id uuid.UUID, message string) (*domain.Run, error) {
-	return c.orchestrator.RecoverMissingSessionRun(ctx, orchestration.ResumeFromFailedRunRequest{RunID: id, CustomContext: message})
-}
-
-func (c supervisionRunController) FreshRecoveryAccepted(ctx context.Context, id uuid.UUID, message string) (*domain.Run, error) {
-	return c.orchestrator.FreshRecoveryAccepted(ctx, id, message)
 }
 
 func (c supervisionRunController) StopRun(ctx context.Context, id uuid.UUID) error {

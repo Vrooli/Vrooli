@@ -674,37 +674,6 @@ type FileFingerprint struct {
 	Mode   int    `json:"mode"`
 }
 
-// ReviewSnapshot retains the source input for an independent review. This is
-// evidence, not an approval or a claim that every worker process was drained.
-type ReviewSnapshot struct {
-	ID          uuid.UUID           `json:"id"`
-	RequestID   uuid.UUID           `json:"requestId"`
-	SandboxID   uuid.UUID           `json:"sandboxId"`
-	SHA256      string              `json:"sha256"`
-	CreatedAt   time.Time           `json:"createdAt"`
-	ProjectRoot string              `json:"projectRoot"`
-	ScopePath   string              `json:"scopePath"`
-	Owner       string              `json:"owner"`
-	Paths       []string            `json:"paths"`
-	Before      []ReviewFile        `json:"before"`
-	After       []ReviewFile        `json:"after"`
-	PatchSHA256 string              `json:"patchSha256"`
-	Changes     []ArchivedFileEntry `json:"changes"`
-	Stats       DiffStats           `json:"stats"`
-	InputBytes  int64               `json:"inputBytes"`
-}
-
-type ReviewFile struct {
-	FileFingerprint
-	Size int64 `json:"size"`
-}
-
-type ReviewSnapshotRequest struct {
-	SandboxID uuid.UUID `json:"-"`
-	RequestID uuid.UUID `json:"requestId"`
-	Paths     []string  `json:"paths"`
-}
-
 // ArchivedFileEntry describes one file in a DiffArchive index. The
 // per-file content is stored as a separate blob keyed by BlobSHA256;
 // callers fetch the blob through the blobstore.
@@ -863,9 +832,7 @@ type ApprovalRequest struct {
 	CommitMsg  string      `json:"commitMessage,omitempty"`
 	// ExpectedPatchSHA256 conditionally approves the complete reviewed patch.
 	// When set, partial selection/filtering is refused; Force cannot bypass it.
-	ExpectedPatchSHA256  string    `json:"expectedPatchSha256,omitempty"`
-	ReviewRequestID      uuid.UUID `json:"reviewRequestId,omitempty"`
-	ExpectedReviewSHA256 string    `json:"expectedReviewSha256,omitempty"`
+	ExpectedPatchSHA256 string `json:"expectedPatchSha256,omitempty"`
 
 	// Source identifies the originating approval surface for audit. See
 	// ApprovalSource. Zero-value is permitted on legacy callers during the

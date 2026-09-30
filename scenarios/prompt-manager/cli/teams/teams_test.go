@@ -467,3 +467,18 @@ func TestTeamMetadataCLIListFiltersAndRetainsObjectiveRecords(t *testing.T) {
 		t.Fatalf("unspecified filter: %s", output)
 	}
 }
+
+func TestHeartbeatEnableCanReapplyDefaultScheduleOnExistingConfig(t *testing.T) {
+	ctx := &fakeContext{getResponse: HeartbeatConfig{TeamID: "arbitrary-team", AgentID: "leader", Schedule: "*/5 * * * *"}}
+	err := cmdHeartbeatEnable(ctx, []string{"arbitrary-team", "leader", "--schedule=0 */6 * * *"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var req UpdateHeartbeatRequest
+	if err := json.Unmarshal(ctx.gotPayload, &req); err != nil {
+		t.Fatal(err)
+	}
+	if req.Schedule == nil || *req.Schedule != "0 */6 * * *" {
+		t.Fatalf("explicit default schedule was not persisted: %+v", req.Schedule)
+	}
+}

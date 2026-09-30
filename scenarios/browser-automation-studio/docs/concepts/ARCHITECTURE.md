@@ -64,11 +64,11 @@ This document and [Domains](DOMAINS.md) are canonical. Operational procedures li
 
 Status: engineering target for the operator-requested rehabilitation preparation
 (2026-09-22 UTC), linked by PRD OT-P0-005. This does not claim the design is
-implemented. Qualification bands and decisions are in docs/internal/TESTING.md
-and docs/internal/REFRACTOR_CONTRACT.json. Evidence, alternatives,
-preservation matrix, proposed performance bands, and qualification methods are in
-[the refactor assessment](../internal/REFRACTOR_ASSESSMENT.md). Issue state is in
-[PROBLEMS.md](../PROBLEMS.md#refactor-investigation-register--2026-09-21).
+implemented. Quality bands are in docs/internal/goal/TARGETS.md and verification
+in docs/internal/TESTING.md. The 2026-09-21 refactor assessment cited below as
+"the assessment" is archived in
+`~/.vrooli/plan-artifacts/epoch-based-delivery-orchestration-and-bas-rehabilitation/evidence/archive/bas-rehabilitation/retired-docs-2026-09-29.tar.gz`.
+Open issues are in [PROBLEMS.md](../PROBLEMS.md).
 
 The target product is a persistent browser workspace that observes ordinary
 human activity and can turn selected history into validated automation. It also
@@ -131,8 +131,8 @@ pointer event through the applied receipt to the actual canvas pixels: p50
 36.70ms, p95 39.30ms, p99 40.00ms, with all samples correlated. This establishes
 the local numerical band only. The independent remote cohort and governed
 sensor binding remain open; earlier driver-only and command-start measurements
-are diagnostic. See
-`../internal/evidence/rehabilitation/interactive-feedback-browser-clock-2026-09-24.json`.
+are diagnostic (receipt archived in
+`~/.vrooli/plan-artifacts/epoch-based-delivery-orchestration-and-bas-rehabilitation/evidence/archive/bas-rehabilitation/loose-evidence-2026-09-29.tar.gz`).
 
 ### Delivery paths
 
@@ -271,7 +271,7 @@ shipped runtime and retain recovery data until conversion is verified.
 
 ### Lifecycle and evidence invariants from the follow-up investigation
 
-The 2026-09-22 UTC [isolated probes](../internal/REFRACTOR_ASSESSMENT.md#follow-up-isolated-reproductions--2026-09-22-utc)
+The 2026-09-22 UTC isolated probes (archived assessment)
 strengthen these proposed boundaries. They are targets, not claims about shipped
 behavior:
 
@@ -309,7 +309,7 @@ identity as well as source digest so implementation comparisons are meaningful.
 
 ### Profile commits and semantic preservation
 
-The [profile/replay investigation](../internal/REFRACTOR_ASSESSMENT.md#profile-and-replay-investigation--2026-09-22-utc)
+The profile/replay investigation (archived assessment)
 adds these proposed requirements to the same owners:
 
 - The profile owner commits metadata and encrypted browser state as one coherent
@@ -339,7 +339,7 @@ adds these proposed requirements to the same owners:
 
 ### Session isolation, frame lifetime and retention progress
 
-The [session/frame/retention investigation](../internal/REFRACTOR_ASSESSMENT.md#session-frame-and-retention-investigation--2026-09-22-utc)
+The session/frame/retention investigation (archived assessment)
 adds these proposed invariants:
 
 - A retried start preserves an active operation. Execution ID equality does not
@@ -366,7 +366,7 @@ adds these proposed invariants:
 
 ### Instruction identity and failure finalization
 
-The [execution investigation](../internal/REFRACTOR_ASSESSMENT.md#execution-retry-and-cancellation-investigation--2026-09-22-utc)
+The execution investigation (archived assessment)
 adds these proposed requirements:
 
 - Instruction admission atomically validates lease ownership and allowed phase
@@ -457,7 +457,7 @@ useful controls but do not prove that the real driver will perform a new attempt
 
 ### Reuse compatibility and capture ownership
 
-The [reuse investigation](../internal/REFRACTOR_ASSESSMENT.md#reuse-profile-and-evidence-investigation--2026-09-22-utc)
+The reuse investigation (archived assessment)
 shows why a released lease and matching labels are necessary but insufficient
 conditions for transferring a context:
 
@@ -490,7 +490,7 @@ probes; their reproduced ownership failures define the next fixture boundary.
 
 ### Producer lifecycle, effective controls and evidence projection
 
-The [stream/live-fixture investigation](../internal/REFRACTOR_ASSESSMENT.md#stream-lifecycle-and-live-fixture-investigation--2026-09-22-utc)
+The stream/live-fixture investigation (archived assessment)
 extends the generation boundary from the viewer to the capture producer:
 
 - A stream generation owns its pending start, capture handle and transport.
@@ -1435,32 +1435,6 @@ and replaces its pending frame with the newest one. The managed motion owner
 measures the full driver/API/UI canvas path and deliberately slows a viewer to
 verify these bounds; it does not claim remote-network qualification.
 
-### Managed motion qualification owner
-
-Run from the repository root against a healthy managed BAS build:
-
-```bash
-node scenarios/browser-automation-studio/api/cmd/motion-cohort/qualification.mjs
-```
-
-The owner runs the focused UI one-active/newest-pending decoder regression, a
-focused Go relay-byte-budget regression, and a real managed API-to-viewer cohort.
-The live fixture changes a 16-bit visual marker at 30 FPS. Its five-minute
-baseline requires at least 9,000 rendered and unique fixture frames, p95 frame
-age at most 100 ms, p95 decode at most 100 ms, maximum decode at most 250 ms,
-and frame payloads no larger than 12 MiB plus 4 KiB. A separate 18-second slow
-viewer cohort adds 250 ms main-thread stalls every five seconds and an 80 ms
-decode delay; it requires one active decode, fewer decoded/rendered frames than
-frames received, frame age at most one second, and both viewer and Go relay byte
-queues within the same frame-size ceiling. The receipt binds all relevant
-sources, the live build, and hashes of the frame samples and combined test logs.
-
-Run only the exact `rehabilitation-evidence` phase after the owner and all other
-current-build receipts pass. The setpoint reader consumes its `motion` standing.
-The artificial reader delay measures BAS browser decode/backlog behavior; it
-does not qualify a remote network or native device.
-
-
 ### Session preview scale authority — target076, RF047
 
 The admitted driver SessionSpec retains the requested CSS/device preview scale
@@ -1744,30 +1718,6 @@ qualification remains required.
 must recognize Extract.store_as and Evaluate.store_result. Apply that named store
 mutation before committing the same outcome's recovery state; do not flatten raw
 extracted keys into the store. Fresh execution and resume use the same semantics.
-
-### Capture qualification through its measurement owner — target090
-
-The rehabilitation capture outcome needs a maintained producer and an authoritative
-read, not a hand-entered board value. Promote the independent 100-capture fixture
-from dated experiments into BAS-owned source. Retain its first-attempt denominator,
-one declared warmup, screenshot+computed snapshot fidelity, exact viewport/DPR,
-independent observations, all failures and artifacts, candidate identity and raw
-samples. The <=2s p95 band stays unchanged.
-
-Performance Health owns running and evaluating declared performance workloads;
-Test Genie remains the admission/evidence owner for the performance phase. Prefer
-a small declared-workload adapter to a BAS-specific exception or a second BAS job
-system. A maintained scenario-owned producer command may implement the fixture;
-its executable/configuration digest and actual invocation belong to the owner
-receipt. No API accepts a caller's pass flag or an arbitrary uploaded historical
-receipt as qualification. Missing, stale, malformed, incomplete or mismatched
-producer evidence must remain unknown or fail, never default to zero/success.
-
-The governed setpoint read may consume a current, owner-produced workload receipt
-only after candidate applicability and contract identity are established. Existing
-mixed execution statistics and unrelated build/Lighthouse success cannot satisfy
-capture. Other sixteen outcomes remain unknown until their own evidence exists.
-Retain raw receipts with the producer and bounded source references in BAS progress.
 
 ### Requested capture frames — target091, RF016
 

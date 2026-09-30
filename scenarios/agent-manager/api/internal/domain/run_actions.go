@@ -188,7 +188,7 @@ func CanContinueRun(run *Run) (bool, string) {
 	}
 	switch run.Status {
 	case RunStatusRunning, RunStatusStarting, RunStatusPending:
-		return false, "cannot continue a run that is still in progress"
+		return false, "cannot continue a run that is still in progress; only a running interactive session accepts text mid-turn"
 	case RunStatusParked:
 		// A parked run is owned by its waiter and resumes via wake (with the
 		// awaited result injected). An operator-driven continue would race the

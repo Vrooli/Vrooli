@@ -118,7 +118,7 @@ func (r *Runner) evaluateSetupVerdictsContext(ctx context.Context, item scenario
 			return setupVerdicts{}, err
 		}
 		component := item.Manifest.Components[name]
-		artifacts, err := componentFreshnessArtifactsContextWithName(ctx, item.Path, r.Root, item.Slug, name, component, deps)
+		artifacts, err := componentFreshnessArtifactsContextWithName(ctx, item.SourcePath(), r.Root, item.Slug, name, component, deps)
 		if err != nil {
 			return setupVerdicts{}, fmt.Errorf("component %s freshness: %w", name, err)
 		}

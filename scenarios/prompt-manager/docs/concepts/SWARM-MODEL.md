@@ -86,8 +86,8 @@ Keep these states separate: team registration, disabled heartbeat provisioning,
 owner-run admission, continuation authority, and accepted completion. The team
 and protected effort workspace are the recovery handoff; PM projections do not
 replace Agent Manager run identity, Swarm grants, Plan Manager plans, or an
-explicit completion receipt. A standing supervisor observes the owner board; it
-does not coordinate the finite team or act as a private scheduler. Bespoke
+explicit completion receipt. The effort supervisor audits from above; it does
+not coordinate the finite team or act as a private scheduler. Bespoke
 scripts, tmux loops, and transitional drivers are historical migration evidence,
 not a supported alternative start path.
 
@@ -202,8 +202,8 @@ workspace or tmux session exists. Transitional efforts can still use temporary
 drivers outside team execution. Discovery makes them visible; it does not
 migrate their scheduler, register a controllable leader, or delegate authority.
 The standing `effort-supervision` team is distinct from a finite implementation
-workspace with the same short name. For current operation and recovery limits,
-read [standing supervision](HEARTBEATS.md#standing-effort-supervision).
+workspace with the same short name. For its cadence, read
+[effort supervisor](HEARTBEATS.md#effort-supervisor).
 
 ## The Three Current Domains
 

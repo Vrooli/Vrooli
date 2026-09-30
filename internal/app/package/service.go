@@ -32,9 +32,13 @@ type ScenarioPhaseRunner interface {
 }
 
 type Service struct {
-	Root            string
-	Stdout          io.Writer
-	Stderr          io.Writer
+	Root   string
+	Stdout io.Writer
+	Stderr io.Writer
+	// HomeDir enables the lifecycle-owned generated package preflight. Tests
+	// that construct Service directly may leave it nil and use the package's
+	// local generation fallback instead.
+	HomeDir         func() (string, error)
 	ScenarioService func() (ScenarioRuntime, error)
 	ScenarioRunner  func() (ScenarioPhaseRunner, error)
 	// TestGenieRunner owns package-target test execution when the control-plane
@@ -107,16 +111,73 @@ func (s Service) Generate(name string) (RunResponse, error) {
 }
 
 func (s Service) Test(name string) (RunResponse, error) {
-	if s.TestGenieRunner != nil {
-		if strings.TrimSpace(name) == "" {
-			return RunResponse{}, fmt.Errorf("package name is required for test")
-		}
-		if err := s.TestGenieRunner("package:"+strings.TrimSpace(name), s.Stdout, s.Stderr); err != nil {
+	trimmedName := strings.TrimSpace(name)
+	if trimmedName == "" && s.TestGenieRunner != nil {
+		return RunResponse{}, fmt.Errorf("package name is required for test")
+	}
+	if trimmedName != "" {
+		item, err := s.Info(trimmedName)
+		if err != nil {
 			return RunResponse{}, err
 		}
-		return RunResponse{PackageName: name, Action: "test-genie"}, nil
+		if err := s.preflightGeneratedOwners(item); err != nil {
+			return RunResponse{}, err
+		}
+		if s.TestGenieRunner == nil {
+			if err := runPackageLifecycle(item, "test", s.Stdout, s.Stderr); err != nil {
+				return RunResponse{}, err
+			}
+			return RunResponse{PackageName: item.Name, Action: "test"}, nil
+		}
+		if err := s.TestGenieRunner("package:"+trimmedName, s.Stdout, s.Stderr); err != nil {
+			return RunResponse{}, err
+		}
+		return RunResponse{PackageName: item.Name, Action: "test-genie"}, nil
 	}
 	return s.runLifecycle(name, "test")
+}
+
+// ensureGeneratedPackageCurrent is the package-level freshness boundary for
+// consumers that delegate their tests to Test Genie. A package test must not
+// compile against a mutable, stale generated tree merely because a focused
+// caller skipped scenario setup. Generated packages own either a generation
+// or build command in their manifest; this hook reuses that contract and
+// removes an entire class of misleading missing-type failures without
+// teaching Test Genie about each generator.
+func (s Service) ensureGeneratedPackageCurrent(item packagegov.Package) error {
+	if len(item.Manifest.Package.GeneratedOutputs) == 0 {
+		return nil
+	}
+	commands := item.Manifest.Package.Lifecycle.Generate
+	if len(commands) == 0 {
+		commands = item.Manifest.Package.Lifecycle.Build
+	}
+	if len(commands) == 0 {
+		return fmt.Errorf("generated package %q declares no lifecycle.generate or lifecycle.build command", item.Name)
+	}
+	return packagegov.RunCommandsWithOptions(
+		item.RootPath,
+		commands,
+		s.Stdout,
+		s.Stderr,
+		packagegov.CommandOptions{Scenario: ""},
+	)
+}
+
+// preflightGeneratedOwners keeps package-target tests on the same owner
+// boundary as scenario-target tests. The lifecycle path is freshness-gated and
+// covers generated owners needed by the consumer (for example, proto outputs
+// imported by test-genie); the local fallback preserves isolated Service tests
+// and callers that do not have a configured Vrooli home.
+func (s Service) preflightGeneratedOwners(item packagegov.Package) error {
+	if s.HomeDir == nil {
+		return s.ensureGeneratedPackageCurrent(item)
+	}
+	home, err := s.HomeDir()
+	if err != nil {
+		return err
+	}
+	return lifecycle.ProvisionGeneratedPackages(s.Root, home, s.Stderr, s.Stderr)
 }
 
 func (s Service) Refresh(req RefreshRequest) (RefreshResponse, error) {
@@ -325,6 +386,11 @@ func (s Service) runLifecycle(name, action string) (RunResponse, error) {
 	if action != "test" {
 		return RunResponse{}, fmt.Errorf("package name is required for %s", action)
 	}
+	if s.HomeDir != nil {
+		if err := s.preflightGeneratedOwners(packagegov.Package{}); err != nil {
+			return RunResponse{}, err
+		}
+	}
 	items, _, err := packagegov.LoadAll(s.Root)
 	if err != nil {
 		return RunResponse{}, err
@@ -332,6 +398,11 @@ func (s Service) runLifecycle(name, action string) (RunResponse, error) {
 	for _, item := range items {
 		if len(item.Manifest.Package.Lifecycle.Test) == 0 {
 			continue
+		}
+		if s.HomeDir == nil {
+			if err := s.preflightGeneratedOwners(item); err != nil {
+				return RunResponse{}, err
+			}
 		}
 		if err := runPackageLifecycle(item, action, s.Stdout, s.Stderr); err != nil {
 			return RunResponse{}, err

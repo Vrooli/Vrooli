@@ -553,24 +553,18 @@ func (s *ownerCleanupService) captureCandidates(ctx context.Context, minAgeSecon
 		protected := s.captureProtected(ctx, candidate.entry.Name(), candidate.path)
 		all = append(all, captureCleanupItem{ID: candidate.id, Path: candidate.path, Bytes: bytes, AgeSeconds: ageSeconds(now, candidate.info.ModTime()), Protected: protected, ModifiedAt: candidate.info.ModTime()})
 	}
-	sort.SliceStable(all, func(i, j int) bool { return all[i].ModifiedAt.After(all[j].ModifiedAt) })
-	for i := 0; i < len(all) && i < keepCount; i++ {
-		all[i].Protected = true
-	}
-	sort.SliceStable(all, func(i, j int) bool { return all[i].ModifiedAt.Before(all[j].ModifiedAt) })
-	selected := make([]captureCleanupItem, 0, len(all))
-	var total int64
-	for _, item := range all {
-		if item.Protected && wanted == nil {
-			continue
+	if wanted != nil {
+		// Preview-directed selections include explicitly requested protected
+		// captures, but retain the same newest-first protection markers as the
+		// ordinary retention path.
+		sort.SliceStable(all, func(i, j int) bool { return all[i].ModifiedAt.After(all[j].ModifiedAt) })
+		for i := 0; i < len(all) && i < keepCount; i++ {
+			all[i].Protected = true
 		}
-		if maxBytes > 0 && wanted == nil && total+item.Bytes > maxBytes {
-			break
-		}
-		total += item.Bytes
-		selected = append(selected, item)
+		sort.SliceStable(all, func(i, j int) bool { return all[i].ModifiedAt.Before(all[j].ModifiedAt) })
+		return all, nil
 	}
-	return selected, nil
+	return selectUnprotectedCleanupItems(all, keepCount, maxBytes), nil
 }
 
 // orphanRecordingCandidates selects bounded, expired recording directories
@@ -606,11 +600,6 @@ func orphanRecordingCandidates(ctx context.Context, root string, protected map[s
 			continue
 		}
 		itemID := "recording:" + id.String()
-		if wanted != nil {
-			if _, exists := wanted[itemID]; !exists {
-				continue
-			}
-		}
 		path := filepath.Join(root, entry.Name())
 		info, statErr := entry.Info()
 		if statErr != nil {
@@ -683,11 +672,10 @@ func orphanRecordingWantedCandidates(root string, protected map[string]struct{},
 	return selectUnprotectedCleanupItems(all, keepCount, maxBytes), nil
 }
 
-// selectUnprotectedCleanupItems is the shared retention policy for orphaned
-// recordings. Both broad recovery scans and preview-directed selection must
-// keep the newest entries protected, then remove oldest eligible entries within
-// the byte cap; keeping that policy in one owner prevents the two paths from
-// drifting.
+// selectUnprotectedCleanupItems is the shared retention policy for ordinary
+// cleanup candidates. Broad capture and orphan-recording scans keep the newest
+// entries protected, then remove oldest eligible entries within the byte cap;
+// keeping that policy in one owner prevents the paths from drifting.
 func selectUnprotectedCleanupItems(all []captureCleanupItem, keepCount int, maxBytes int64) []captureCleanupItem {
 	sort.SliceStable(all, func(i, j int) bool { return all[i].ModifiedAt.After(all[j].ModifiedAt) })
 	for i := 0; i < len(all) && i < keepCount; i++ {

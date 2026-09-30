@@ -115,3 +115,18 @@ func TestEffectiveSourceDirKeysByScenario(t *testing.T) {
 		t.Errorf("resolver asked %v, want [demo]", f.asked)
 	}
 }
+
+// TestLayoutVariantTreatsNormalizedLiveAsLive covers the start path, which
+// stamps the NORMALIZED variant ("live") onto the descriptor. Reading the raw
+// string classified that instance as a shadow, so an engaged live instance kept
+// building and running from the working tree the candidate owns.
+func TestLayoutVariantTreatsNormalizedLiveAsLive(t *testing.T) {
+	for _, variant := range []string{"", "live", "LIVE"} {
+		if got := layoutVariant(scenario.Scenario{Slug: "demo", Variant: variant}); got != liveVariant {
+			t.Errorf("layoutVariant(%q) = %q, want live", variant, got)
+		}
+	}
+	if got := layoutVariant(scenario.Scenario{Slug: "demo", Variant: "shadow"}); got != shadowVariant {
+		t.Errorf("layoutVariant(shadow) = %q, want shadow", got)
+	}
+}

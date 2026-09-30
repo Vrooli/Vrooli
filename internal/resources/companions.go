@@ -210,6 +210,9 @@ func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts i
 		return err
 	}
 	pid := cmd.Process.Pid
+	if placeErr := placeResourceProcess(resourceName, "companion-"+c.Name, pid); placeErr != nil {
+		fmt.Fprintf(logf, "warning: companion not placed in its own scope, staying in the caller's: %v\n", placeErr)
+	}
 	// Detach: the companion outlives this short-lived control process.
 	_ = cmd.Process.Release()
 	clearCompanionFailure(dir, c.Name)

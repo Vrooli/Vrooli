@@ -1093,7 +1093,6 @@ func main() {
 		teamExecStore,
 	)
 	heartbeatScheduler.SetControlStore(heartbeatControlStore)
-	heartbeat.WireStandingSupervisor(agentManagerClient, heartbeatExecutor, teamExecStore, heartbeatScheduler, heartbeatControlStore, roots.RuntimeData)
 	// World feed: the run registry and scheduler are the only signal sources
 	// the 3D world projects; nothing here invents agent behaviour.
 	worldStore := world.NewStore(roots.Config)
@@ -1120,15 +1119,12 @@ func main() {
 	heartbeatConnectPath, heartbeatConnectHandler := heartbeat.NewConnectMount(heartbeatHandlers)
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: heartbeatConnectPath, Handler: heartbeatConnectHandler})
 	teamHandlers.SetHeartbeatScheduler(heartbeatScheduler)
-	teamHandlers.SetEffortSupervisorStarter(heartbeatScheduler)
 
 	// Recover any active runs from a previous process
 	runRegistry.Recover(context.Background(), agentManagerClient)
 	teamExecStore.Recover(context.Background())
 
-	// Start scheduler. Ordinary heartbeats remain explicitly enabled; the
-	// standing supervisor is armed automatically when an eligible finite effort
-	// team is enabled.
+	// Start scheduler. Heartbeats run only when explicitly enabled.
 	go func() {
 		if err := heartbeatScheduler.Start(context.Background()); err != nil {
 			log.Printf("Warning: Failed to start heartbeat scheduler: %v", err)
@@ -1136,13 +1132,9 @@ func main() {
 
 		// Load enabled heartbeats from all teams
 		teams, _ := fileStore.Teams().List(context.Background())
-		hasEligibleEffort := false
 		for _, team := range teams {
 			if !team.Enabled {
 				continue
-			}
-			if team.Purpose == "delivery" && team.Lifetime == "finite" && len(team.EffortRefs) > 0 {
-				hasEligibleEffort = true
 			}
 			teamStore := fileStore.Teams().(*store.FileTeamStore)
 			if err := teamStore.ValidateHeartbeatRoster(context.Background(), team.ID); err != nil {
@@ -1156,11 +1148,6 @@ func main() {
 						log.Printf("Warning: Failed to schedule heartbeat for %s/%s: %v", config.TeamID, config.AgentID, err)
 					}
 				}
-			}
-		}
-		if hasEligibleEffort {
-			if err := heartbeatScheduler.EnsureStandingSupervisorStarted(context.Background()); err != nil {
-				log.Printf("Warning: Failed to auto-arm standing supervisor on startup: %v", err)
 			}
 		}
 	}()

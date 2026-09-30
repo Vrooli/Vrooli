@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
-	"agent-manager/internal/identity"
 	"agent-manager/internal/maintenance"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/spawn"
@@ -27,92 +25,6 @@ import (
 
 	"github.com/google/uuid"
 )
-
-func TestFreshRecoveryRefusesDispatcherBoundSourceIncludingRevokedAndWithdrawn(t *testing.T) {
-	for _, state := range []string{"active", "revoked", "withdrawn"} {
-		t.Run(state, func(t *testing.T) {
-			svc, repos := newResumeTestOrchestrator(t)
-			_, _, source := seedFailedRun(t, svc, repos, "original", nil)
-			source.DispatchBinding = &domain.DispatchBinding{EffortRef: "test-effort", AuthorizationID: "original-authorization"}
-			source.OwnerSubject = "original-owner"
-			expires := time.Now().Add(time.Hour)
-			source.OwnerExpiresAt = &expires
-			source.OwnerScopes = []string{"agent-manager:supervise"}
-			source.RequestedScopes = []string{"agent-manager:supervise"}
-			if err := repos.Runs.Update(t.Context(), source); err != nil {
-				t.Fatal(err)
-			}
-			authority := &recoveryDispatchAuthority{}
-			if state != "active" {
-				authority.refusal = errors.New("dispatch authorization " + state)
-			}
-			svc.SetSupervisorDispatch(authority)
-			req := orchestration.ResumeFromFailedRunRequest{RunID: source.ID}
-			got, err := svc.ResumeFromFailedRun(t.Context(), req)
-			if got != nil || !domain.IsPreEffectRefusal(err) || !strings.Contains(err.Error(), "dispatcher-bound") {
-				t.Fatalf("%s dispatch binding escaped into a replacement identity: run=%v err=%v", state, got, err)
-			}
-			// The automatic owner route must apply the same conservative gate,
-			// before requiring physical scope or reading a native session store.
-			source.SessionID = "ses_retained"
-			source.ResolvedConfig.RunnerType = domain.RunnerTypeOpenCode
-			if err := repos.Runs.Update(t.Context(), source); err != nil {
-				t.Fatal(err)
-			}
-			got, err = svc.RecoverMissingSessionRun(t.Context(), req)
-			if got != nil || !domain.IsPreEffectRefusal(err) || !strings.Contains(err.Error(), "dispatcher-bound") {
-				t.Fatalf("automatic recovery dropped %s dispatch binding: run=%v err=%v", state, got, err)
-			}
-			hash, err := repos.Runs.(repository.RunFreshRecoveryClaimer).GetFreshRecoveryClaim(t.Context(), source.ID)
-			if err != nil || hash != "" {
-				t.Fatalf("unsupported binding claimed source: %q %v", hash, err)
-			}
-			if accepted, err := svc.FreshRecoveryAccepted(t.Context(), source.ID, ""); err != nil || accepted != nil {
-				t.Fatalf("unsupported binding created replacement: %v %v", accepted, err)
-			}
-		})
-	}
-}
-
-type recoveryDispatchAuthority struct {
-	orchestration.SupervisorDispatchAuthority
-	refusal error
-}
-
-func (a *recoveryDispatchAuthority) CheckDispatchIdentity(context.Context, *identity.Claims) error {
-	return a.refusal
-}
-
-func TestFreshRecoveryReceiptRejectsLostDispatchBinding(t *testing.T) {
-	svc, repos := newResumeTestOrchestrator(t)
-	_, _, source := seedFailedRun(t, svc, repos, "original", nil)
-	source.DispatchBinding = &domain.DispatchBinding{EffortRef: "test-effort", AuthorizationID: "original-authorization"}
-	if err := repos.Runs.Update(t.Context(), source); err != nil {
-		t.Fatal(err)
-	}
-	// Reconstruct the durable bad receipt left by the old owner path: the
-	// source was claimed, but the replacement omitted its dispatch binding.
-	req := orchestration.ResumeFromFailedRunRequest{RunID: source.ID}
-	data, err := json.Marshal(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	hash := sha256.Sum256(data)
-	claims := repos.Runs.(repository.RunFreshRecoveryClaimer)
-	if won, err := claims.ClaimFreshRecovery(t.Context(), source.ID, source.LifecycleVersion, hex.EncodeToString(hash[:]), true); err != nil || !won {
-		t.Fatalf("source fixture claim: %v %v", won, err)
-	}
-	replacement := &domain.Run{ID: uuid.New(), TaskID: source.TaskID, SourceRunIDs: []uuid.UUID{source.ID}, IdempotencyKey: "resume-from-failed:" + source.ID.String(), Status: domain.RunStatusPending}
-	if err := repos.Runs.Create(t.Context(), replacement); err != nil {
-		t.Fatal(err)
-	}
-	if got, err := svc.FreshRecoveryAccepted(t.Context(), source.ID, ""); got != nil || err == nil || domain.IsPreEffectRefusal(err) {
-		t.Fatalf("dropped binding was accepted or prior effects called refused: %v %v", got, err)
-	}
-	if got, err := svc.ResumeFromFailedRun(t.Context(), req); got != nil || err == nil || domain.IsPreEffectRefusal(err) {
-		t.Fatalf("lost-binding replay was exposed as qualified identity: %v %v", got, err)
-	}
-}
 
 func TestResumeFromFailedRunPreservesTaskPinsEnvironmentAndReplay(t *testing.T) {
 	svc, repos := newResumeTestOrchestrator(t)
@@ -342,60 +254,6 @@ func TestFreshRecoveryIndependentOwnersReuseOneReplacement(t *testing.T) {
 	}
 }
 
-func TestFreshRecoveryAutomaticReceiptReplayAndNoContinuationAfterClaim(t *testing.T) {
-	svc, repos := newResumeTestOrchestrator(t)
-	_, _, source := seedFailedRun(t, svc, repos, "original", nil)
-	registry := runner.NewRegistry()
-	opencode := runner.NewMockRunner(domain.RunnerTypeOpenCode)
-	if err := registry.Register(opencode); err != nil {
-		t.Fatal(err)
-	}
-	if err := registry.Register(runner.NewMockRunner(domain.RunnerTypeClaudeCode)); err != nil {
-		t.Fatal(err)
-	}
-	orchestration.WithRunners(registry)(svc)
-	source.SessionID = "session-whose-native-store-is-missing"
-	source.ResolvedConfig.RunnerType = domain.RunnerTypeOpenCode
-	source.ResolvedConfig.Model = "mock-model"
-	if err := repos.Runs.Update(t.Context(), source); err != nil {
-		t.Fatal(err)
-	}
-	req := orchestration.ResumeFromFailedRunRequest{RunID: source.ID, CustomContext: "keep working"}
-	// Seed a real owner acceptance through explicit fresh recovery. Automatic
-	// replay must consult that exact receipt before native/physical preflight;
-	// it must not require a new proof or dispatch another executor.
-	recovered, err := svc.ResumeFromFailedRun(t.Context(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	restarted := resumeTestOrchestrator(t, repos, nil, orchestration.WithIdempotency(nil))
-	if replayed, err := restarted.RecoverMissingSessionRun(t.Context(), req); err != nil || replayed.ID != recovered.ID {
-		t.Fatalf("accepted auto recovery was redispatched or lost: %v %v", replayed, err)
-	}
-	// A fresh reader must remain fenced even if the provider later reports
-	// that continuation is supported/ready. The repository, not wakeMu, owns it.
-	var continued atomic.Int32
-	ready := runner.NewMockRunner(domain.RunnerTypeOpenCode)
-	caps := ready.Capabilities()
-	caps.SupportsContinuation = true
-	ready.SetCapabilities(caps)
-	ready.ContinueFunc = func(context.Context, runner.ContinueRequest) (*runner.ExecuteResult, error) {
-		continued.Add(1)
-		return &runner.ExecuteResult{Success: true}, nil
-	}
-	readyRegistry := runner.NewRegistry()
-	if err := readyRegistry.Register(ready); err != nil {
-		t.Fatal(err)
-	}
-	orchestration.WithRunners(readyRegistry)(restarted)
-	if _, err := restarted.ContinueRun(t.Context(), orchestration.ContinueRunRequest{RunID: source.ID, Message: "must not reactivate"}); err == nil {
-		t.Fatal("continuation reactivated an already replaced source")
-	}
-	if continued.Load() != 0 {
-		t.Fatal("claimed source started a continuation executor")
-	}
-}
-
 func TestFreshRecoveryKeepsAdmissionThroughSourceClaimAndCreation(t *testing.T) {
 	db, cleanup := testutil.SetupTestDB(t)
 	t.Cleanup(cleanup)
@@ -549,56 +407,6 @@ func TestCanResumeFromFailureRun_AllowsTerminalFailures(t *testing.T) {
 				t.Fatalf("status=%s: rejection must include a non-empty reason", tc.status)
 			}
 		})
-	}
-}
-
-func TestAutomaticMissingSessionRecoveryRejectsCancelledImportedAndLive(t *testing.T) {
-	for _, status := range []domain.RunStatus{domain.RunStatusCancelled, domain.RunStatusRunning, domain.RunStatusFailed} {
-		t.Run(string(status), func(t *testing.T) {
-			svc, repos := newResumeTestOrchestrator(t)
-			_, _, prior := seedFailedRun(t, svc, repos, "original", nil)
-			prior.Status = status
-			prior.SessionID = "ses_retained"
-			prior.ResolvedConfig.RunnerType = domain.RunnerTypeOpenCode
-			if status == domain.RunStatusFailed {
-				prior.ExecutionMode = domain.ExecutionModeImported
-			}
-			if err := repos.Runs.Update(t.Context(), prior); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := svc.RecoverMissingSessionRun(t.Context(), orchestration.ResumeFromFailedRunRequest{RunID: prior.ID}); err == nil {
-				t.Fatal("automatic recovery accepted forbidden source")
-			}
-			runs, err := svc.ListRuns(t.Context(), orchestration.RunListOptions{TagPrefix: prior.Tag})
-			if err != nil || len(runs) != 1 {
-				t.Fatalf("refusal created a run: %d %v", len(runs), err)
-			}
-		})
-	}
-}
-
-func TestFreshRecoveryRequiresCanonicalExecutorExclusionBeforeClaim(t *testing.T) {
-	svc, repos := newResumeTestOrchestrator(t)
-	_, _, source := seedFailedRun(t, svc, repos, "original", nil)
-	source.SessionID = "ses_retained"
-	source.ResolvedConfig.RunnerType = domain.RunnerTypeOpenCode
-	if err := repos.Runs.Update(t.Context(), source); err != nil {
-		t.Fatal(err)
-	}
-	// A missing control-plane client is unknown physical scope, never absence.
-	// No native session store is fabricated and no executor can be launched.
-	t.Setenv("PATH", t.TempDir())
-	_, err := svc.RecoverMissingSessionRun(t.Context(), orchestration.ResumeFromFailedRunRequest{RunID: source.ID})
-	if err == nil || !strings.Contains(err.Error(), "control-plane") || !domain.IsPreEffectRefusal(err) {
-		t.Fatalf("missing canonical exclusion did not refuse before effects: %v", err)
-	}
-	hash, err := repos.Runs.(repository.RunFreshRecoveryClaimer).GetFreshRecoveryClaim(t.Context(), source.ID)
-	if err != nil || hash != "" {
-		t.Fatalf("unknown physical scope claimed the source: %q %v", hash, err)
-	}
-	accepted, err := svc.FreshRecoveryAccepted(t.Context(), source.ID, "")
-	if err != nil || accepted != nil {
-		t.Fatalf("unknown physical scope created a replacement: %v %v", accepted, err)
 	}
 }
 

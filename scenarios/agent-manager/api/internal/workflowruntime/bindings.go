@@ -188,7 +188,7 @@ func selectBinding(binding domain.WorkflowInputBinding, ctx BindingContext) ([]s
 		}
 		return []selectedBindingValue{{Value: selected}}, nil
 	}
-	kind := map[domain.WorkflowBindingSource]domain.WorkflowJournalKind{domain.WorkflowBindingAttempts: domain.WorkflowJournalAttempt, domain.WorkflowBindingRunResult: domain.WorkflowJournalRunResult, domain.WorkflowBindingStructured: domain.WorkflowJournalStructured, domain.WorkflowBindingHandoff: domain.WorkflowJournalHandoff, domain.WorkflowBindingSignal: domain.WorkflowJournalSignal, domain.WorkflowBindingCounter: domain.WorkflowJournalCounter, domain.WorkflowBindingChild: domain.WorkflowJournalChild, domain.WorkflowBindingQualification: domain.WorkflowJournalQualification}[binding.Source]
+	kind := map[domain.WorkflowBindingSource]domain.WorkflowJournalKind{domain.WorkflowBindingAttempts: domain.WorkflowJournalAttempt, domain.WorkflowBindingRunResult: domain.WorkflowJournalRunResult, domain.WorkflowBindingStructured: domain.WorkflowJournalStructured, domain.WorkflowBindingHandoff: domain.WorkflowJournalHandoff, domain.WorkflowBindingSignal: domain.WorkflowJournalSignal, domain.WorkflowBindingCounter: domain.WorkflowJournalCounter, domain.WorkflowBindingChild: domain.WorkflowJournalChild}[binding.Source]
 	node, path := parseSelector(binding.Selector)
 	entries := append([]*domain.WorkflowJournalEntry(nil), ctx.Journal...)
 	if binding.Order == "desc" {

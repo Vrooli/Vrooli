@@ -123,29 +123,6 @@ func (e *Engine) rebuildOrdinaryUsage(ctx context.Context, x *domain.WorkflowExe
 		}
 		var child domain.WorkflowBudgetUsage
 		switch {
-		case attempt.Strategy == domain.WorkflowAttemptQualification:
-			if e.Qualifications == nil {
-				return nil, nil, fmt.Errorf("qualification accounting owner is unavailable")
-			}
-			var req QualificationRequest
-			if err := json.Unmarshal(attempt.InputSnapshot, &req); err != nil || req.ExecutionID != x.ID || req.IdempotencyKey != attempt.IdempotencyKey {
-				return nil, nil, fmt.Errorf("qualification cleanup intent is invalid")
-			}
-			inspect := e.Qualifications.Observe
-			if requireComplete && x.Status != domain.WorkflowExecutionSucceeded {
-				inspect = e.Qualifications.CloseAdmission
-			}
-			state, err := inspect(ctx, req)
-			if err != nil {
-				return nil, nil, err
-			}
-			known := state.Terminal && state.BudgetUsage.AccountingComplete && state.BudgetUsage.ChargeMeasured
-			if state.ProgramID == "" || (requireComplete && !known && !(allowUnknown && state.Terminal)) {
-				return nil, nil, fmt.Errorf("qualification %s requires original terminal accounting before cleanup", attempt.ID)
-			}
-			child = state.BudgetUsage
-			usage.AccountingComplete = usage.AccountingComplete && known
-			usage.ChargeMeasured = usage.ChargeMeasured && state.BudgetUsage.ChargeMeasured
 		case attempt.ChildExecutionID != nil:
 			if seenWorkflows[*attempt.ChildExecutionID] {
 				break

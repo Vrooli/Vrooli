@@ -55,13 +55,6 @@ service AgentManagerService {
   rpc ReconcileEffortMetadata(ReconcileEffortMetadataRequest) returns (EffortEnrollment);
   rpc WithdrawEffort(WithdrawEffortRequest) returns (EffortEnrollment);
   rpc ReconcileEffortDiscovery(ReconcileEffortDiscoveryRequest) returns (EffortDiscovery);
-  rpc RequestEffortDirective(RequestEffortDirectiveRequest) returns (EffortDirective);
-  rpc ListEffortDirectives(ListEffortDirectivesRequest) returns (ListEffortDirectivesResponse);
-  rpc UpdateEffortDirective(UpdateEffortDirectiveRequest) returns (EffortDirective);
-  rpc RecordEffortAssessment(RecordEffortAssessmentRequest) returns (EffortAssessment);
-  rpc IssueSupervisorDispatch(IssueSupervisorDispatchRequest) returns (EffortEnrollment);
-  rpc RevokeSupervisorDispatch(RevokeSupervisorDispatchRequest) returns (EffortEnrollment);
-  rpc CreateSupervisorRun(CreateSupervisorRunRequest) returns (CreateRunResponse);
   // ==========================================================================
   // HEALTH
   // ==========================================================================
@@ -1227,40 +1220,6 @@ message ProfileRef {
 }
 
 // CreateRunRequest starts a new run.
-// Issuance provisions directly through the canonical credential authority.
-message IssueSupervisorDispatchRequest {
-  string effort_ref = 1;
-  uint64 expected_revision = 2;
-  string team_id = 3;
-  string member_id = 4;
-  string profile_key = 5;
-  google.protobuf.Timestamp expires_at = 6;
-  uint32 maximum_runs = 7;
-  string idempotency_key = 8;
-  uint32 minimum_interval_seconds = 9;
-  // Finite owner-issued supervision allowance. Zero is invalid for dispatch
-  // issuance; unknown provider usage never counts as zero.
-  int64 max_tokens = 10;
-  int64 max_charge_micro_usd = 11;
-}
-message RevokeSupervisorDispatchRequest {
-  string effort_ref = 1;
-  string authorization_id = 2;
-  uint64 expected_revision = 3;
-  string reason = 4;
-  string idempotency_key = 5;
-}
-// No config, scope or authority overrides: the owner grant supplies these.
-message CreateSupervisorRunRequest {
-  string effort_ref = 1;
-  string authorization_id = 2;
-  string team_id = 3;
-  string member_id = 4;
-  string task_id = 5;
-  string idempotency_key = 6;
-  repeated vrooli.vrooli_events.v1.domain.WorkReference work_references = 7;
-}
-
 message CreateRunRequest {
   // Task ID to execute.
   // @format uuid
@@ -1471,6 +1430,13 @@ message RunAccounting {
   bool charge_measured = 7;
   // Conservative elapsed time from the run's durable start and end.
   int64 wall_seconds = 8;
+  // Tokens other than cache reads (input, output and cache writes). The
+  // spend unit for orchestrated epochs is these tokens weighted by model tier.
+  int64 non_cache_tokens = 9;
+  // Cache-read tokens, reported separately because they dominate totals.
+  int64 cache_read_tokens = 10;
+  // The model that produced the usage, for tier weighting.
+  string model = 11;
 }
 
 // RunReport is the shared, cheap-to-read diagnosis surface for one run.

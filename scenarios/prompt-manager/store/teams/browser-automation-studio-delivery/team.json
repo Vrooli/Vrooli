@@ -1,24 +1,24 @@
 {
   "coordination": {
     "pattern": "leader-led",
-    "leadAgentId": "browser-automation-studio-coordinator",
+    "leadAgentId": "browser-automation-studio-orchestrator",
     "reportingMode": "leader",
     "messagingMode": "async-inbox",
     "capabilities": {
       "showOrgContext": true,
       "injectInbox": true,
       "allowPeerTriggers": false,
-      "showTaskBoardGuidance": true,
+      "showTaskBoardGuidance": false,
       "showKnowledgeLogGuidance": true,
-      "requireHandoff": true
+      "requireHandoff": false
     }
   },
   "createdAt": "2026-09-27T00:00:00Z",
   "displayName": "Browser Automation Studio Delivery",
-  "enabled": false,
   "effortRefs": [
     "effort:browser-automation-studio-rehabilitation"
   ],
+  "enabled": false,
   "execution": {
     "queuePolicy": "serialized",
     "maxConcurrentRuns": 1
@@ -33,49 +33,79 @@
       "prompt-manager",
       "browser-automation-studio"
     ],
-  "gapMarker": "2026-09-28 — finite delivery team is registered and disabled against Agent Manager effort:browser-automation-studio-rehabilitation revision 1; workflow 1.1.0 now short-circuits rejected reviews before qualification, but protected worker admission, accepted-review qualification and settlement remain unverified."
+    "gapMarker": "2026-09-29 \u2014 reconfigured for orchestrated epochs (large-effort-orchestration): leader browser-automation-studio-orchestrator on prompt-manager/delivery-orchestrator with a liveness heartbeat; team stays disabled until the operator starts the goal."
   },
   "kind": "team",
   "lifetime": "finite",
-  "mission": "Deliver the Browser Automation Studio owner-backed rehabilitation effort through independently accepted ownership boundaries. Keep each worker assignment bounded and continue the finite effort until the operator stops, redirects, or accepts its completion; preserve capabilities while reducing technical debt.",
+  "mission": "Deliver the Browser Automation Studio rehabilitation goal through orchestrated epochs: a long-lived Luna-high orchestrator admits, steers and accepts epochs while one Luna-medium goal worker implements each; the goal home in the scenario is the only ledger.",
   "operatingContract": {
     "schemaVersion": 1,
     "governance": {},
     "documents": {
       "planOfRecord": [
         {
-          "id": "bas-rehabilitation",
+          "id": "bas-goal",
           "hub": {
             "base": "repo-root",
-            "path": "scenarios/browser-automation-studio/docs/internal/TESTING.md"
+            "path": "scenarios/browser-automation-studio/docs/internal/goal/GOAL.md"
           },
           "paths": [
+            {
+              "base": "repo-root",
+              "path": "scenarios/browser-automation-studio/docs/internal/goal/GOAL.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/browser-automation-studio/docs/internal/goal/TARGETS.md"
+            }
+          ],
+          "writePolicy": "The orchestrator maintains the goal home; operator amendments change the destination.",
+          "consumers": [
+            "browser-automation-studio-delivery",
+            "effort-supervision"
+          ],
+          "useFor": "Destination, constraints, validation targets and the outcome contract."
+        },
+        {
+          "id": "delivery-worker-card",
+          "hub": {
+            "base": "repo-root",
+            "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/references/worker.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/references/worker.md"
+            }
+          ],
+          "writePolicy": "Owner-authorized amendments only.",
+          "consumers": [
+            "browser-automation-studio-delivery"
+          ],
+          "useFor": "The epoch worker's rules; workers read this card, not the full skill."
+        },
+        {
+          "id": "delivery-reference",
+          "hub": {
+            "base": "repo-root",
+            "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/agent-system/EFFORT_SUPERVISION.md"
+            },
             {
               "base": "repo-root",
               "path": "scenarios/browser-automation-studio/docs/internal/TESTING.md"
             },
             {
               "base": "repo-root",
-              "path": "scenarios/browser-automation-studio/docs/internal/REFRACTOR_CONTRACT.json"
-            },
-            {
-              "base": "repo-root",
               "path": "scenarios/browser-automation-studio/docs/concepts/ARCHITECTURE.md"
-            }
-          ],
-          "writePolicy": "Owner-authorized amendments only; workers cannot change their acceptance criteria.",
-          "consumers": [
-            "browser-automation-studio-delivery",
-            "effort-supervision"
-          ],
-          "useFor": "Continuous product target, preservation obligations, active packet and evidence contract; this document group does not create a Plan Manager plan."
-        },
-        {
-          "id": "delivery-runtime",
-          "paths": [
-            {
-              "base": "repo-root",
-              "path": "docs/agent-system/EFFORT_SUPERVISION.md"
             }
           ],
           "writePolicy": "Owner-authorized amendments only.",
@@ -83,17 +113,46 @@
             "browser-automation-studio-delivery",
             "effort-supervision"
           ],
-          "useFor": "Existing owner responsibilities, economical execution, independent acceptance and activation gates."
+          "useFor": "Epoch standard, supervisor contract, BAS testing and architecture.",
+          "required": false,
+          "optionalReason": "Read on demand: the orchestrator heartbeat names the skill sections it follows, and ARCHITECTURE.md is too large for every wake."
         }
       ],
       "sharedState": [
         {
-          "id": "bas-progress",
+          "id": "bas-queue",
           "path": {
             "base": "repo-root",
-            "path": "scenarios/browser-automation-studio/docs/internal/REFRACTOR_PROGRESS.md"
+            "path": "scenarios/browser-automation-studio/docs/internal/goal/QUEUE.md"
           },
-          "kind": "rolling-snapshot",
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "bas-feedback",
+          "path": {
+            "base": "repo-root",
+            "path": "scenarios/browser-automation-studio/docs/internal/goal/FEEDBACK.md"
+          },
+          "kind": "operator-input",
+          "required": true
+        },
+        {
+          "id": "bas-workarounds",
+          "path": {
+            "base": "repo-root",
+            "path": "scenarios/browser-automation-studio/docs/internal/goal/WORKAROUNDS.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "bas-installs",
+          "path": {
+            "base": "repo-root",
+            "path": "scenarios/browser-automation-studio/docs/internal/goal/INSTALLS.md"
+          },
+          "kind": "working-register",
           "required": true
         },
         {
@@ -103,16 +162,8 @@
             "path": "scenarios/browser-automation-studio/docs/PROBLEMS.md"
           },
           "kind": "working-register",
-          "required": true
-        },
-        {
-          "id": "bas-feedback",
-          "path": {
-            "base": "repo-root",
-            "path": "scenarios/browser-automation-studio/docs/internal/OPERATOR_FEEDBACK.md"
-          },
-          "kind": "operator-input",
-          "required": true
+          "required": false,
+          "optionalReason": "Outside the goal home; read when an epoch touches an open problem or a recorded decision."
         },
         {
           "id": "bas-decisions",
@@ -121,28 +172,28 @@
             "path": "scenarios/browser-automation-studio/docs/internal/DECISIONS.md"
           },
           "kind": "working-register",
-          "required": true
+          "required": false,
+          "optionalReason": "Outside the goal home; read when an epoch touches an open problem or a recorded decision."
         }
       ]
     },
     "knowledgeTopics": {},
     "members": {
-      "browser-automation-studio-coordinator": {
-        "lane": "Coordinate the externally accepted ownership boundary through existing Agent Manager owner operations. Retain exact work identities and return handoffs; independent supervision owns boundary selection and acceptance.",
+      "browser-automation-studio-orchestrator": {
+        "lane": "Orchestrate the BAS goal in epochs per large-effort-orchestration: admit briefs, spawn and steer one Luna-medium epoch worker per epoch, park between check-ins, run the step-back check, accept through the mechanical gate and keep the goal home current.",
         "allowedWrites": [
           {
             "kind": "handoff"
           }
         ],
         "safetyCriticalRules": [
-          "This disabled registration is not runtime qualification or execution authority. Do not launch until the delivery integration gates pass.",
-          "Use Luna at medium effort for coordination and implementation; use Sol only for independently admitted, infrequent review. Do not select a paid fallback.",
-          "When an owner binding is admitted, use prompt-manager/delivery-coordinator for this multi-process team; do not route BAS through the generic heartbeat-judgment or single-process interop profile.",
-          "The workflow's implementation worker uses prompt-manager/delivery-worker and code.economy.delivery; independent acceptance uses prompt-manager/delivery-review and code.supervision. Profile declarations do not replace owner admission or receipts.",
-          "The campaign is continuous; each worker assignment is bounded. A compaction, defect, test, receipt or session end does not replace the accepted ownership boundary.",
-          "Do not create Plan Manager plans or commit changes. Preserve user data and unrelated work.",
-          "Do not self-approve work, widen its boundary, edit control or acceptance records, or admit qualification from worker self-report.",
-          "Declared paths and prose are not enforcement. Retain unverified restrictions and owner operations explicitly; do not bypass them with the old unrestricted goal."
+          "Never implement product work; spawn an epoch worker on prompt-manager/delivery-epoch-worker (Luna medium) with run create --until.",
+          "Accept an epoch only through the mechanical gate (large-effort-orchestration \u00a74.4); never silently lower a gate so a worker can pass.",
+          "Park with --producer children between check-ins; never poll children in a loop or claim to be parked from prompt text.",
+          "Infrastructure never blocks: record a WORKAROUNDS.md entry, use the fallback and stop retrying the broken tool.",
+          "Only the orchestrator authorizes external installs and records them in INSTALLS.md; dependency installs go through Scenario Dependency Analyzer.",
+          "Do not use Swarm Manager or Plan Manager, do not run git, and preserve user data and other agents' changes.",
+          "Do not restart the live BAS mid-run without the fallback check in TARGETS.md."
         ],
         "readOnlyModeBehavior": {
           "stillWriteKnowledge": false,
@@ -152,10 +203,10 @@
     }
   },
   "purpose": "delivery",
-  "revision": 5,
+  "revision": 9,
   "runtime": {
     "mode": "multi-process"
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-09-28T23:59:00Z"
+  "updatedAt": "2026-09-30T00:00:00Z"
 }

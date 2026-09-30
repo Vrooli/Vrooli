@@ -115,18 +115,19 @@ func effortGroup(deps support.Dependencies) cliapp.SubcommandGroup {
 		[2]string{"board", "Read the shared effort board"}, [2]string{"compact", "Read a compact joined owner observation"}, [2]string{"list", "List durable effort enrollments"},
 		[2]string{"discover", "Reconcile bounded discovery (operator authentication)"},
 		[2]string{"enroll", "Enroll or amend with operator authority"}, [2]string{"reconcile-metadata", "Reconcile owner-facing metadata with scoped authority"}, [2]string{"withdraw", "Withdraw with revision fencing"},
-		[2]string{"direct", "Request an authorized directive"}, [2]string{"directives", "Read delivery and assessment"},
-		[2]string{"update-directive", "Acknowledge, assess or supersede"}, [2]string{"assess", "Record a quiet, sampled or intervention assessment"},
-		[2]string{"issue-dispatch", "Issue bounded recurring supervisor authority"},
-		[2]string{"revoke-dispatch", "Revoke dispatcher authority and its child identities"})
+		[2]string{"epoch-check", "Report an epoch file's step-back triggers (exit 3 on STEP_BACK)"})
 	group.DefaultSubcommand = "board"
-	types := map[string]string{"enroll": "EnrollEffortRequest", "reconcile-metadata": "ReconcileEffortMetadataRequest", "withdraw": "WithdrawEffortRequest", "direct": "RequestEffortDirectiveRequest", "update-directive": "UpdateEffortDirectiveRequest", "assess": "RecordEffortAssessmentRequest", "issue-dispatch": "IssueSupervisorDispatchRequest", "revoke-dispatch": "RevokeSupervisorDispatchRequest"}
+	types := map[string]string{"enroll": "EnrollEffortRequest", "reconcile-metadata": "ReconcileEffortMetadataRequest", "withdraw": "WithdrawEffortRequest"}
 	for i := range group.Subcommands {
 		command := &group.Subcommands[i]
 		command.Args.Flags = []cliapp.Flag{{Name: "json", Bool: true, LocalOnly: true, Description: "Print the typed RPC response as JSON"}}
 		command.Usage = "agent-manager effort " + command.Name + " [--json]"
 		if command.Name == "compact" {
 			command.HelpText = "Text output renders the compact joined owner observation; --json returns the full typed EffortBoard response for machine consumers."
+		}
+		if command.Name == "epoch-check" {
+			command.Usage = "agent-manager effort epoch-check <epoch-file> [--wake-key <run-id>] [--runs ids] [--spend-threshold n] [--json]"
+			continue
 		}
 		if types[command.Name] != "" || command.Name == "discover" {
 			command.Args.Flags = append(command.Args.Flags, cliapp.Flag{Name: "local-owner", Bool: true, LocalOnly: true, Description: "Explicit local operator exchange; unavailable in identified agent runs"})
@@ -135,9 +136,6 @@ func effortGroup(deps support.Dependencies) cliapp.SubcommandGroup {
 			command.Usage = "agent-manager effort " + command.Name + " --request-file request.json [--json] [--local-owner]"
 			command.Args.Flags = append(command.Args.Flags, cliapp.Flag{Name: "request-file", Required: true, LocalOnly: true, Description: "Proto JSON agent_manager.v1." + message})
 			command.HelpText = "Request schema: packages/proto/schemas/agent-manager/v1/domain/effort.proto (" + message + "). Examples and authority: scenarios/agent-manager/docs/reference/effort-supervision.md. Authentication uses the configured owner token or an explicitly scoped orchestrator run; request text cannot grant permission."
-			if command.Name == "issue-dispatch" || command.Name == "revoke-dispatch" {
-				command.HelpText = "Request schema: packages/proto/schemas/agent-manager/v1/api/service.proto (" + message + "). See scenarios/agent-manager/docs/reference/effort-supervision.md. Requires current owner authority; returns metadata only."
-			}
 		} else if command.Name != "discover" {
 			command.Args.Flags = append(command.Args.Flags, cliapp.Flag{Name: "page-size", Default: "50", Description: "Maximum rows, 1-100"}, cliapp.Flag{Name: "page-token", Description: "Next page token from prior response"})
 			if command.Name != "list" {

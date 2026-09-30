@@ -64,6 +64,7 @@ type RunListOptions struct {
 	ScopePrefix               string // Filter runs by the joined task's scope_path prefix (e.g., "scenarios/agent-manager")
 	InvestigatesRunID         *uuid.UUID
 	AppliesInvestigationRunID *uuid.UUID
+	ParentRunID               *uuid.UUID // Direct child runs of one parent run
 }
 
 // IdentityVerifyResult is the result of verifying an agent identity token.
@@ -118,10 +119,9 @@ type CreateRunRequest struct {
 	OwnerScopes  []string `json:"-"`
 	// RequestedScopes is an optional caller narrowing. It is never a source of
 	// authority: minting intersects it with the verified owner ceiling.
-	RequestedScopes      []string                `json:"scopes,omitempty"`
-	ExpectedOwnerSubject string                  `json:"-"`
-	OwnerExpiresAt       *time.Time              `json:"-"`
-	DispatchBinding      *domain.DispatchBinding `json:"-"`
+	RequestedScopes      []string   `json:"scopes,omitempty"`
+	ExpectedOwnerSubject string     `json:"-"`
+	OwnerExpiresAt       *time.Time `json:"-"`
 
 	// Profile-based config (optional - can be nil if inline config provided)
 	AgentProfileID *uuid.UUID `json:"agentProfileId,omitempty"`
@@ -765,8 +765,7 @@ type Orchestrator struct {
 	// are admitted into a run. A missing provider is permitted for internal
 	// callers that do not present an owner token; a presented token never
 	// falls back to an unverified identity.
-	ownerIdentity      authn.TokenVerifier
-	supervisorDispatch SupervisorDispatchAuthority
+	ownerIdentity authn.TokenVerifier
 
 	// dispatcher serializes runner startups and exposes queue depth.
 	// All run-spawn paths (CreateRun, ResumeRun) MUST go through it —
@@ -1335,9 +1334,7 @@ func New(
 	}
 	if o.workflowExecutions != nil && o.workflows != nil {
 		expressions, _ := workflowruntime.NewExpressionEvaluator()
-		o.workflowEngine = &workflowruntime.Engine{Store: o.workflowExecutions, Catalog: o.workflows, Children: workflowChildLauncher{o: o}, Subworkflows: workflowSubworkflowLauncher{o: o}, Qualifications: workflowQualificationOwner{o: o}, Expressions: expressions, Now: o.now}
-		// The owner still requires a retained accepted candidate, qualification
-		// attempt and compatible PRT admission contract before starting effects.
+		o.workflowEngine = &workflowruntime.Engine{Store: o.workflowExecutions, Catalog: o.workflows, Children: workflowChildLauncher{o: o}, Subworkflows: workflowSubworkflowLauncher{o: o}, Expressions: expressions, Now: o.now}
 		if source, ok := o.promptClient.(promptmanager.AssignmentClient); ok && source != nil {
 			o.workflowEngine.PromptResolver = workflowPromptResolver{source: source}
 		}

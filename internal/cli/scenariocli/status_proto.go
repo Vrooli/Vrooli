@@ -163,6 +163,16 @@ func scenarioGenerationMetadata(g *scenariomodel.GenerationMetadata) *cliv1.Scen
 	}
 }
 
+// scenarioBranding maps the scenario's brand declaration onto its proto
+// message. A scenario that declares no branding stays nil, so a reader can tell
+// "unbranded" apart from "brand not set".
+func scenarioBranding(b *scenariomodel.Branding) *cliv1.ScenarioBranding {
+	if b == nil {
+		return nil
+	}
+	return &cliv1.ScenarioBranding{Brand: b.Brand, Targets: append([]string(nil), b.Targets...)}
+}
+
 // scenarioInfoData maps an InfoScenarioData onto its proto message.
 func scenarioInfoData(info InfoScenarioData) *cliv1.ScenarioInfoData {
 	msg := &cliv1.ScenarioInfoData{
@@ -179,6 +189,7 @@ func scenarioInfoData(info InfoScenarioData) *cliv1.ScenarioInfoData {
 		ConfigVersion:     info.ConfigVersion,
 		LifecycleVersion:  info.LifecycleVersion,
 		Generation:        scenarioGenerationMetadata(info.Generation),
+		Branding:          scenarioBranding(info.Branding),
 	}
 	for _, p := range info.Ports {
 		msg.Ports = append(msg.Ports, scenarioPortSummary(p))

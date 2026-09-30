@@ -4,16 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
-	"github.com/vrooli/vrooli/internal/lifecycle"
-	"github.com/vrooli/vrooli/internal/orchestrator"
-	"github.com/vrooli/vrooli/internal/process"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
+	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/orchestrator"
+	"github.com/vrooli/vrooli/internal/process"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
@@ -37,6 +38,20 @@ func TestScenarioStatusMapsNewerRegistryToActionablePrecondition(t *testing.T) {
 	}
 }
 
+func TestScenarioStatusPreservesManagedBuildIdentityAcrossTypedProjection(t *testing.T) {
+	const identity = "sha256:managed-build"
+	got := statusSingleMessage(scenarioapp.StatusSingleOutput{
+		Scenario: scenarioapp.StatusItemOutput{BuildIdentity: identity},
+		Runtime:  scenarioapp.InfoRuntimeData{BuildIdentity: identity},
+	})
+	if got.GetScenario().GetBuildIdentity() != identity {
+		t.Fatalf("scenario build_identity = %q, want %q", got.GetScenario().GetBuildIdentity(), identity)
+	}
+	if got.GetRuntime().GetBuildIdentity() != identity {
+		t.Fatalf("runtime build_identity = %q, want %q", got.GetRuntime().GetBuildIdentity(), identity)
+	}
+}
+
 func TestScenarioControlPlaneServiceIsMounted(t *testing.T) {
 	app := New(ResolveRepoRoot(), t.TempDir())
 	server := httptest.NewServer(app.Router())
@@ -56,6 +71,10 @@ func TestScenarioControlPlaneServiceIsMounted(t *testing.T) {
 	}{
 		{name: "GetScenarioStatus", call: func() error {
 			_, err := client.GetScenarioStatus(context.Background(), connect.NewRequest(&cliv1.GetScenarioStatusRequest{}))
+			return err
+		}},
+		{name: "GetScenarioFreshness", call: func() error {
+			_, err := client.GetScenarioFreshness(context.Background(), connect.NewRequest(&cliv1.GetScenarioFreshnessRequest{}))
 			return err
 		}},
 		{name: "GetScenarioLogs", call: func() error {
@@ -110,9 +129,11 @@ func (f *ceilingScenarioOps) StartDetailed(_ string, opts lifecycle.StartOptions
 	}
 	return orchestrator.StartResult{}, errors.New("test operation ended")
 }
+
 func (f *ceilingScenarioOps) RestartDetailed(name string, opts lifecycle.StartOptions) (orchestrator.StartResult, error) {
 	return f.StartDetailed(name, opts)
 }
+
 func TestScenarioLifecycleRPCCeiling(t *testing.T) {
 	for _, action := range []string{"start", "restart"} {
 		for _, seconds := range []int32{-1, 0, 30} {
@@ -214,7 +235,7 @@ func TestLogSnapshotBounds(t *testing.T) {
 		{name: "invalid", lines: "many", failure: errLogSnapshotLines},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if err := os.WriteFile(path, []byte(tc.content), 0600); err != nil {
+			if err := os.WriteFile(path, []byte(tc.content), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			got, err := app.readTail(path, tc.lines)
@@ -269,9 +290,9 @@ func TestLifecycleRPCForwardsCLIOptions(t *testing.T) {
 				client := cliv1connect.NewScenarioControlPlaneServiceClient(server.Client(), server.URL)
 				var err error
 				if action == "start" {
-					_, err = client.StartScenario(context.Background(), connect.NewRequest(&cliv1.StartScenarioRequest{Name: "fixture", Path: "/tmp/fixture", BestEffort: enabled, CleanStale: enabled, Force: enabled, AcceptCredentialLoss: enabled, DemandManaged: enabled}))
+					_, err = client.StartScenario(context.Background(), connect.NewRequest(&cliv1.StartScenarioRequest{Name: "fixture", Path: "/tmp/fixture", BestEffort: enabled, CleanStale: enabled, Force: enabled, AcceptCredentialLoss: enabled, DemandManaged: enabled, VariantDependencies: "audio-tools,vrooli-bridge"}))
 				} else {
-					_, err = client.RestartScenario(context.Background(), connect.NewRequest(&cliv1.RestartScenarioRequest{Name: "fixture", Path: "/tmp/fixture", BestEffort: enabled, CleanStale: enabled, Force: enabled, AcceptCredentialLoss: enabled, DemandManaged: enabled}))
+					_, err = client.RestartScenario(context.Background(), connect.NewRequest(&cliv1.RestartScenarioRequest{Name: "fixture", Path: "/tmp/fixture", BestEffort: enabled, CleanStale: enabled, Force: enabled, AcceptCredentialLoss: enabled, DemandManaged: enabled, VariantDependencies: "audio-tools,vrooli-bridge"}))
 				}
 				if err == nil {
 					t.Fatal("expected injected operation error")
@@ -280,6 +301,13 @@ func TestLifecycleRPCForwardsCLIOptions(t *testing.T) {
 				case opts := <-ops.options:
 					if opts.CustomPath != "/tmp/fixture" || opts.BestEffort != enabled || opts.CleanStale != enabled || opts.ForceSetup != enabled || opts.AcceptCredentialLoss != enabled || opts.DemandManaged != enabled {
 						t.Fatalf("options not preserved: %+v", opts)
+					}
+					// The follow list must survive the RPC hop. A remote start
+					// that dropped it would resolve the listed dependencies at
+					// live and put the operator's real data on screen, which is
+					// the one outcome the list exists to prevent.
+					if len(opts.VariantDependencies) != 1 || opts.VariantDependencies[0] != "audio-tools,vrooli-bridge" {
+						t.Fatalf("variant dependencies not forwarded: %+v", opts.VariantDependencies)
 					}
 				default:
 					t.Fatal("operation not called")
@@ -294,6 +322,102 @@ type setupPathRunner struct {
 	path string
 }
 
+type freshnessRunner struct {
+	scenarioapp.PhaseRunner
+	name string
+}
+
+func (r *freshnessRunner) FreshnessReportByName(name, customPath string) (lifecycle.FreshnessReport, error) {
+	r.name = name
+	if customPath != "" {
+		return lifecycle.FreshnessReport{}, fmt.Errorf("unexpected custom path %q", customPath)
+	}
+	return lifecycle.FreshnessReport{
+		Scenario: "fixture",
+		Stale:    true,
+		Checks: []lifecycle.FreshnessCheckResult{{
+			CheckType: "go_module", Target: "api/fixture-api", Stale: true,
+			Cause: "content changed", File: "api/handler.go",
+		}},
+		Dependencies: []lifecycle.FreshnessDependencyPolicy{{Name: "shared", Policy: "rebuild_only"}},
+	}, nil
+}
+
+func TestScenarioFreshnessRPCUsesLifecycleReport(t *testing.T) {
+	runner := &freshnessRunner{}
+	_, handler := cliv1connect.NewScenarioControlPlaneServiceHandler(&scenarioControlPlaneHandler{phaseRunner: runner})
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	client := cliv1connect.NewScenarioControlPlaneServiceClient(server.Client(), server.URL)
+	response, err := client.GetScenarioFreshness(context.Background(), connect.NewRequest(&cliv1.GetScenarioFreshnessRequest{Name: "fixture"}))
+	if err != nil {
+		t.Fatalf("GetScenarioFreshness: %v", err)
+	}
+	if runner.name != "fixture" {
+		t.Fatalf("lifecycle freshness requested for %q, want fixture", runner.name)
+	}
+	if !response.Msg.GetSuccess() || response.Msg.GetScenario() != "fixture" || !response.Msg.GetStale() {
+		t.Fatalf("freshness response = %+v", response.Msg)
+	}
+	if len(response.Msg.GetChecks()) != 1 || response.Msg.GetChecks()[0].GetFile() != "api/handler.go" {
+		t.Fatalf("freshness checks = %+v", response.Msg.GetChecks())
+	}
+	if len(response.Msg.GetDependencies()) != 1 || response.Msg.GetDependencies()[0].GetPolicy() != "rebuild_only" {
+		t.Fatalf("freshness dependencies = %+v", response.Msg.GetDependencies())
+	}
+}
+
+type blockingContextFreshnessRunner struct {
+	*freshnessRunner
+	contexts chan context.Context
+}
+
+func (r *blockingContextFreshnessRunner) FreshnessReportByNameContext(ctx context.Context, name, customPath string) (lifecycle.FreshnessReport, error) {
+	r.contexts <- ctx
+	<-ctx.Done()
+	return lifecycle.FreshnessReport{}, ctx.Err()
+}
+
+func (r *blockingContextFreshnessRunner) FreshnessInputsByNameContext(ctx context.Context, name, customPath string) (lifecycle.FreshnessReport, error) {
+	r.contexts <- ctx
+	<-ctx.Done()
+	return lifecycle.FreshnessReport{}, ctx.Err()
+}
+
+func TestScenarioFreshnessRPCCancelsLifecycleWorkWithRequest(t *testing.T) {
+	runner := &blockingContextFreshnessRunner{
+		freshnessRunner: &freshnessRunner{},
+		contexts:        make(chan context.Context, 1),
+	}
+	handler := &scenarioControlPlaneHandler{phaseRunner: runner}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		_, err := handler.GetScenarioFreshness(ctx, connect.NewRequest(&cliv1.GetScenarioFreshnessRequest{Name: "fixture"}))
+		done <- err
+	}()
+	select {
+	case got := <-runner.contexts:
+		cancel()
+		select {
+		case <-got.Done():
+		case <-time.After(time.Second):
+			t.Fatal("lifecycle freshness context did not cancel")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("lifecycle freshness did not start")
+	}
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("expected canceled freshness request to return an error")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("freshness request kept running after caller cancellation")
+	}
+}
+
 func (r *setupPathRunner) RunPhaseDetailed(name, phase string, opts lifecycle.PhaseOptions) (lifecycle.PhaseResult, error) {
 	if name != "fixture" || phase != "setup" {
 		return lifecycle.PhaseResult{}, fmt.Errorf("unexpected target %s/%s", name, phase)
@@ -301,6 +425,7 @@ func (r *setupPathRunner) RunPhaseDetailed(name, phase string, opts lifecycle.Ph
 	r.path = opts.CustomPath
 	return lifecycle.PhaseResult{}, errors.New("test setup ended")
 }
+
 func TestSetupRPCForwardsPath(t *testing.T) {
 	runner := &setupPathRunner{}
 	h := &scenarioControlPlaneHandler{phaseRunner: runner}
@@ -316,11 +441,11 @@ func TestScenarioLogSourceSelectionAndAggregateBound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = os.MkdirAll(dir, 0700); err != nil {
+	if err = os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"vrooli.develop.fixture.api.log", "vrooli.develop.fixture.ui.log", "vrooli.develop.fixture.api.log.bak"} {
-		if err = os.WriteFile(filepath.Join(dir, name), []byte(name+"\n"), 0600); err != nil {
+		if err = os.WriteFile(filepath.Join(dir, name), []byte(name+"\n"), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -337,7 +462,7 @@ func TestScenarioLogSourceSelectionAndAggregateBound(t *testing.T) {
 		t.Fatalf("snapshot=%q err=%v", out, err)
 	}
 	for _, p := range paths {
-		if err = os.WriteFile(p, []byte(strings.Repeat("x", maxLogSnapshotBytes/2)), 0600); err != nil {
+		if err = os.WriteFile(p, []byte(strings.Repeat("x", maxLogSnapshotBytes/2)), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -348,7 +473,7 @@ func TestScenarioLogSourceSelectionAndAggregateBound(t *testing.T) {
 		t.Fatalf("unsafe step error=%v", err)
 	}
 	for i := 0; i < 129; i++ {
-		if err = os.WriteFile(filepath.Join(dir, fmt.Sprintf("extra-%d.log", i)), nil, 0600); err != nil {
+		if err = os.WriteFile(filepath.Join(dir, fmt.Sprintf("extra-%d.log", i)), nil, 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}

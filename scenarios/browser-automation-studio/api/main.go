@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -37,7 +36,6 @@ import (
 	exportsserviceconnect "github.com/vrooli/browser-automation-studio/handlers/exports_service"
 	basmeasuresconnect "github.com/vrooli/browser-automation-studio/handlers/measures"
 	observabilityconnect "github.com/vrooli/browser-automation-studio/handlers/observability"
-	profilevalidation "github.com/vrooli/browser-automation-studio/handlers/profilevalidation"
 	projectfilesconnect "github.com/vrooli/browser-automation-studio/handlers/project_files"
 	projectsconnect "github.com/vrooli/browser-automation-studio/handlers/projects"
 	recordingsconnect "github.com/vrooli/browser-automation-studio/handlers/recordings"
@@ -74,7 +72,6 @@ import (
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	monetization "github.com/vrooli/vrooli/packages/monetization-go"
-	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 
 	// Unified recording service for timeline persistence
 	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
@@ -527,12 +524,6 @@ func main() {
 			Tracker:             vision.MultiTracker{playwrightNav, claudeCodeNav},
 			CredentialAuthority: credentialAuthority,
 		}),
-	}
-	if validationHandler, validationErr := profilevalidation.Module(filepath.Join(projectRoot, "scenarios", "browser-automation-studio")); validationErr != nil {
-		log.WithError(validationErr).Warn("profile durability validation provider is unavailable")
-	} else {
-		validationPath, validationRPC := scenariovalidationconnect.NewScenarioValidationServiceHandler(validationHandler)
-		connectMounts = append(connectMounts, connectx.ServiceMount{Path: validationPath, Handler: validationRPC})
 	}
 	schemaMount, err := schemaconnect.Module(schemaconnect.Deps{Logger: log})
 	if err != nil {

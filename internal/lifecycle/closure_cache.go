@@ -48,7 +48,7 @@ func closureCachePath(dir string) string {
 	return filepath.Join(dir, ".vrooli-closure-go_module.json")
 }
 
-func closureCacheKey(dir, toolchain string, deps hostProbeDeps) string {
+func closureCacheKey(dir, repoRoot, toolchain string, inputs []string, deps hostProbeDeps) string {
 	h := sha256.New()
 	addFile := func(label, path string) {
 		read := deps.readFile
@@ -64,16 +64,77 @@ func closureCacheKey(dir, toolchain string, deps hostProbeDeps) string {
 	}
 	addFile("go.mod", filepath.Join(dir, "go.mod"))
 	addFile("go.sum", filepath.Join(dir, "go.sum"))
-	if replaces, err := localReplaceDirs(filepath.Join(dir, "go.mod")); err == nil {
-		for _, replace := range replaces {
-			root := filepath.Clean(filepath.Join(dir, replace))
-			addFile("replace:go.mod:"+root, filepath.Join(root, "go.mod"))
-			addFile("replace:go.sum:"+root, filepath.Join(root, "go.sum"))
-			fmt.Fprintf(h, "replace:source:%s:%s\n", root, closureSourceDigest(root, deps))
+	root := filepath.Clean(repoRoot)
+	paths := append([]string(nil), inputs...)
+	sort.Strings(paths)
+	for _, input := range paths {
+		clean := filepath.Clean(filepath.FromSlash(input))
+		if filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+			continue
 		}
+		path := filepath.Join(root, clean)
+		if !pathUnderRoot(root, path) {
+			continue
+		}
+		info, err := os.Stat(path)
+		if err != nil {
+			fmt.Fprintf(h, "input:%s:error:%v\n", clean, err)
+			continue
+		}
+		if info.IsDir() {
+			fmt.Fprintf(h, "package:%s:%s\n", clean, goPackageSourceDigest(path, deps))
+			continue
+		}
+		addFile("input:"+clean, path)
 	}
-	fmt.Fprintf(h, "source:%s:%s\n", dir, closureSourceDigest(dir, deps))
 	fmt.Fprintf(h, "toolchain:%s\n", strings.TrimSpace(toolchain))
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+// goPackageSourceDigest fingerprints only Go files in the resolved package
+// directory. Walking descendants of a local replace (especially the repo
+// root) makes an unrelated scenario edit invalidate every consumer's closure.
+func goPackageSourceDigest(root string, deps hostProbeDeps) string {
+	readFile := deps.readFile
+	if readFile == nil {
+		readFile = os.ReadFile
+	}
+	walkDir := deps.walkDir
+	if walkDir == nil {
+		walkDir = filepath.WalkDir
+	}
+	records := []string{}
+	err := walkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			records = append(records, fmt.Sprintf("walk-error:%s:%v", filepath.ToSlash(path), walkErr))
+			return nil
+		}
+		if entry.IsDir() {
+			if path != root {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		name := entry.Name()
+		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			return nil
+		}
+		data, err := readFile(path)
+		if err != nil {
+			records = append(records, fmt.Sprintf("read-error:%s:%v", filepath.ToSlash(path), err))
+			return nil
+		}
+		records = append(records, fmt.Sprintf("%s:%x", name, sha256.Sum256(data)))
+		return nil
+	})
+	if err != nil {
+		records = append(records, fmt.Sprintf("walk-error:%s:%v", filepath.ToSlash(root), err))
+	}
+	sort.Strings(records)
+	h := sha256.New()
+	for _, record := range records {
+		fmt.Fprintln(h, record)
+	}
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
@@ -132,19 +193,20 @@ func closureSourceDigest(root string, deps hostProbeDeps) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-func readClosureCache(path, key, toolchain string, read func(string) ([]byte, error)) ([]string, bool) {
+func readClosureCache(path, toolchain string, read func(string) ([]byte, error)) (closureCache, bool) {
 	if read == nil {
 		read = os.ReadFile
 	}
 	data, err := read(path)
 	if err != nil {
-		return nil, false
+		return closureCache{}, false
 	}
 	var cached closureCache
-	if json.Unmarshal(data, &cached) != nil || cached.Version != closureCacheVersion || cached.Key != key || cached.Toolchain != toolchain || len(cached.Inputs) == 0 {
-		return nil, false
+	if json.Unmarshal(data, &cached) != nil || cached.Version != closureCacheVersion || cached.Toolchain != toolchain || len(cached.Inputs) == 0 {
+		return closureCache{}, false
 	}
-	return append([]string(nil), cached.Inputs...), true
+	cached.Inputs = append([]string(nil), cached.Inputs...)
+	return cached, true
 }
 
 func writeClosureCache(path string, cached closureCache) error {

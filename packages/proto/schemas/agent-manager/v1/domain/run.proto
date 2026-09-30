@@ -982,6 +982,30 @@ message WakeRunRequest {
   bool timed_out = 3;
 }
 
+// WakeParkedRunsRequest wakes every run parked on one await handle. The server
+// matches producer and key against persisted handles, so a caller that knows
+// only the key (a step-back check naming its orchestrator) needs no run ID.
+//
+// @usage POST /api/v1/runs/wake-by-key
+message WakeParkedRunsRequest {
+  // Producer of the await handle (e.g. "children").
+  string producer = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Producer-scoped await key.
+  string key = 2 [(buf.validate.field).string.min_len = 1];
+
+  // The result injected as each woken run's next user turn.
+  string result = 3;
+
+  // Frame the result as a park-deadline timeout.
+  bool timed_out = 4;
+}
+
+// WakeParkedRunsResponse lists the runs this call moved from parked to running.
+message WakeParkedRunsResponse {
+  repeated string woken_run_ids = 1;
+}
+
 // WakeRunResponse confirms a wake.
 //
 // @usage POST /api/v1/runs/{id}/wake response

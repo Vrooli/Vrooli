@@ -18,9 +18,6 @@ func ValidateWorkflowBudgetPolicy(d WorkflowDefinition) error {
 	for _, n := range d.Nodes {
 		switch n.Kind {
 		case WorkflowNodeRun, WorkflowNodeWait, WorkflowNodeEnd:
-		case WorkflowNodeQualification:
-			// Qualification is a deterministic owner-program receipt after the
-			// metered child runs; it does not create another agent child.
 		case WorkflowNodeBranch:
 			if n.Branch == nil || n.Branch.Parallel {
 				return fmt.Errorf("metered cancellation does not support parallel branches")

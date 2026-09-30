@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-09-12T00:00:00Z",
-  "description": "Autonomously supervise accepted efforts against agreed outcomes, resolve consequential friction with freedom of means, and improve supervision itself using attributable cost and outcome evidence.",
+  "description": "Supervise delivery orchestrators from above - repair the shared infrastructure their workaround logs name, audit a sample of accepted epochs and every step-back, and report weighted cost per accepted epoch on a daily trend check and event wakes.",
   "entry": "SKILL.md",
   "icon": "eye",
   "id": "large-effort-supervision",
@@ -16,16 +16,14 @@
   "requires": {
     "commands": [
       "agent-manager",
-      "prompt-manager skill read",
-      "program-runtime"
+      "prompt-manager skill read"
     ],
     "scenarios": [
       "agent-manager",
-      "prompt-manager",
-      "program-runtime"
+      "prompt-manager"
     ]
   },
-  "revision": 12,
+  "revision": 15,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -35,5 +33,5 @@
     "orchestration",
     "evidence"
   ],
-  "updatedAt": "2026-09-28T12:30:00Z"
+  "updatedAt": "2026-09-30T18:00:00Z"
 }

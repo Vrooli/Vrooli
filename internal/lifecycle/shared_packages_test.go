@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,9 +13,187 @@ import (
 	"testing"
 	"time"
 
+	repocontracttest "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/packagegov"
+	packagefixture "github.com/vrooli/vrooli/internal/packagegov/packagegovtest"
+	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/packages/proto/protogen"
 )
+
+func TestScenarioSetupPreflightsRepositoryGeneratedOwners(t *testing.T) {
+	fixture := repocontracttest.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	packagefixture.WritePackageManifest(t, fixture.Root, "generated-fixture", packagefixture.PackageManifest(
+		"generated-fixture",
+		packagefixture.WithPackageKind(packagegov.KindSchemaOrContract),
+		packagefixture.WithPackageGeneratedOutputs(packagegov.GeneratedOutput{Name: "fixture"}),
+		packagefixture.WithPackageGenerateCommands(packagegov.CommandSpec{
+			Name:    "generate",
+			Run:     []string{"sh", "-c", "mkdir -p gen && printf generated > gen/value.txt"},
+			Inputs:  []string{"source.txt"},
+			Outputs: []string{"gen/**"},
+		}),
+	))
+	if err := os.WriteFile(filepath.Join(fixture.Root, "packages", "generated-fixture", "source.txt"), []byte("source"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	runner := &Runner{
+		Root:      fixture.Root,
+		Home:      fixture.Home,
+		Out:       io.Discard,
+		Err:       io.Discard,
+		Verbosity: VerbosityQuiet,
+	}
+	item := scenario.Scenario{
+		Slug: "fixture",
+		Path: fixture.Root,
+		Manifest: scenario.ServiceManifest{
+			Service: scenario.ServiceMetadata{Name: "fixture"},
+			Lifecycle: scenario.Lifecycle{Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
+				Name: "noop",
+				Exec: []string{"sh", "-c", "true"},
+			}}}},
+		},
+	}
+	if _, err := runner.ExecutePhaseDetailed(item, phasesSetup, nil, io.Discard, io.Discard); err != nil {
+		t.Fatalf("ExecutePhaseDetailed: %v", err)
+	}
+	output := filepath.Join(fixture.Root, "packages", "generated-fixture", "gen", "value.txt")
+	contents, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatalf("generated output missing: %v", err)
+	}
+	if string(contents) != "generated" {
+		t.Fatalf("generated output = %q, want generated", contents)
+	}
+}
+
+func TestScenarioSetupRejectsGeneratedOwnerWithoutLifecycle(t *testing.T) {
+	fixture := repocontracttest.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	packagefixture.WritePackageManifest(t, fixture.Root, "unowned-generated-fixture", packagefixture.PackageManifest(
+		"unowned-generated-fixture",
+		packagefixture.WithPackageKind(packagegov.KindSchemaOrContract),
+		packagefixture.WithPackageGeneratedOutputs(packagegov.GeneratedOutput{Name: "fixture"}),
+	))
+
+	runner := &Runner{
+		Root:      fixture.Root,
+		Home:      fixture.Home,
+		Out:       io.Discard,
+		Err:       io.Discard,
+		Verbosity: VerbosityQuiet,
+	}
+	item := scenario.Scenario{
+		Slug: "fixture",
+		Path: fixture.Root,
+		Manifest: scenario.ServiceManifest{
+			Service: scenario.ServiceMetadata{Name: "fixture"},
+			Lifecycle: scenario.Lifecycle{Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
+				Name: "noop",
+				Exec: []string{"sh", "-c", "true"},
+			}}}},
+		},
+	}
+
+	_, err := runner.ExecutePhaseDetailed(item, phasesSetup, nil, io.Discard, io.Discard)
+	if err == nil {
+		t.Fatal("expected generated owner without lifecycle to fail closed")
+	}
+	var provisioningErr *SharedPackageProvisioningError
+	if !errors.As(err, &provisioningErr) {
+		t.Fatalf("error = %v, want SharedPackageProvisioningError", err)
+	}
+	if provisioningErr.Code != "missing-generator-contract" {
+		t.Fatalf("error code = %q, want missing-generator-contract", provisioningErr.Code)
+	}
+}
+
+func TestProvisionGeneratedPackagesHonorsRequiredOwnerOrder(t *testing.T) {
+	fixture := repocontracttest.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	packagefixture.WritePackageManifest(t, fixture.Root, "owner-b", packagefixture.PackageManifest(
+		"owner-b",
+		packagefixture.WithPackageKind(packagegov.KindSchemaOrContract),
+		packagefixture.WithPackageGeneratedOutputs(packagegov.GeneratedOutput{Name: "b-output"}),
+		packagefixture.WithPackageGenerateCommands(packagegov.CommandSpec{
+			Name:    "generate",
+			Run:     []string{"sh", "-c", "printf b > b.marker"},
+			Outputs: []string{"b.marker"},
+		}),
+	))
+	packagefixture.WritePackageManifest(t, fixture.Root, "owner-a", packagefixture.PackageManifest(
+		"owner-a",
+		packagefixture.WithPackageKind(packagegov.KindSchemaOrContract),
+		packagefixture.WithPackageGeneratedOutputs(packagegov.GeneratedOutput{Name: "a-output"}),
+		packagefixture.WithPackageLifecycle(packagegov.LifecyclePolicy{
+			Requires: []string{"owner-b"},
+			Generate: []packagegov.CommandSpec{{
+				Name:    "generate",
+				Run:     []string{"sh", "-c", "test -f ../owner-b/b.marker && printf a > a.marker"},
+				Outputs: []string{"a.marker"},
+			}},
+		}),
+	))
+
+	if err := ProvisionGeneratedPackages(fixture.Root, fixture.Home, io.Discard, io.Discard); err != nil {
+		t.Fatalf("ProvisionGeneratedPackages: %v", err)
+	}
+	for _, path := range []string{
+		filepath.Join(fixture.Root, "packages", "owner-b", "b.marker"),
+		filepath.Join(fixture.Root, "packages", "owner-a", "a.marker"),
+	} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("generated output %s missing: %v", path, err)
+		}
+	}
+}
+
+func TestProvisionGeneratedPackagesIncludesBuildOwnedGeneratedOutputs(t *testing.T) {
+	fixture := repocontracttest.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	packagefixture.WritePackageManifest(t, fixture.Root, "build-owner", packagefixture.PackageManifest(
+		"build-owner",
+		packagefixture.WithPackageKind(packagegov.KindJSRuntime),
+		packagefixture.WithPackageGeneratedOutputs(packagegov.GeneratedOutput{Name: "runtime"}),
+		packagefixture.WithPackageBuildCommands(packagegov.CommandSpec{
+			Name:    "build",
+			Run:     []string{"sh", "-c", "mkdir -p dist && printf built > dist/runtime.js"},
+			Outputs: []string{"dist/**"},
+		}),
+	))
+
+	if err := ProvisionGeneratedPackages(fixture.Root, fixture.Home, io.Discard, io.Discard); err != nil {
+		t.Fatalf("ProvisionGeneratedPackages: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(fixture.Root, "packages", "build-owner", "dist", "runtime.js")); err != nil {
+		t.Fatalf("build-owned generated output missing: %v", err)
+	}
+}
+
+func TestProtoArtifactSelectionUsesDeclaredOwnerContract(t *testing.T) {
+	withoutSelection := sharedPackageDependency{
+		Name: "proto",
+		Generation: []packagegov.CommandSpec{{
+			Name: "generate",
+			Run:  []string{"true"},
+		}},
+	}
+	if dependencyUsesProtoArtifact(withoutSelection) {
+		t.Fatal("a package named proto without the canonical artifact selection must not require a runtime snapshot")
+	}
+
+	withSelection := withoutSelection
+	withSelection.Generation = []packagegov.CommandSpec{{
+		Name:              "generate",
+		Run:               []string{"true"},
+		ArtifactSelection: protoArtifactSelection,
+	}}
+	if !dependencyUsesProtoArtifact(withSelection) {
+		t.Fatal("the canonical artifact selection must identify the Proto owner")
+	}
+}
 
 func TestSharedPackageDependenciesDeriveGovernedFileDependencies(t *testing.T) {
 	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
@@ -29,7 +208,7 @@ func TestSharedPackageDependenciesDeriveGovernedFileDependencies(t *testing.T) {
 	for _, dependency := range dependencies {
 		names = append(names, dependency.Name)
 	}
-	if got := strings.Join(names, ","); got != "@vrooli/api-base,@vrooli/iframe-bridge" {
+	if got := strings.Join(names, ","); got != "@vrooli/api-base,@vrooli/iframe-bridge,@vrooli/ui-selectors" {
 		t.Fatalf("governed file dependencies = %q", got)
 	}
 }
@@ -138,6 +317,41 @@ func TestSharedPackageOutputsFreshTracksSourceContent(t *testing.T) {
 	}
 	if fresh {
 		t.Fatal("changed source content must invalidate freshness")
+	}
+}
+
+func TestProvisionSharedPackageLogsFreshnessCheckDuration(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	patterns := []string{"dist/**"}
+	writeSharedPackageFixture(t, root, "export const value = 1;\n", "export const value = 1;\n")
+	digest, err := sharedPackageSourceDigest(root, patterns)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stampPath, err := sharedPackageStampPath(home, root, "build")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeSharedPackageStamp(stampPath, "@vrooli/example", "build", digest, outputsDigestFor(t, root, patterns)); err != nil {
+		t.Fatal(err)
+	}
+
+	dependency := sharedPackageDependency{
+		Name: "@vrooli/example",
+		Root: root,
+		Build: []packagegov.CommandSpec{{
+			Name:    "build",
+			Run:     []string{"this-command-must-not-run"},
+			Outputs: patterns,
+		}},
+	}
+	var log bytes.Buffer
+	if err := provisionSharedPackageWithOptions(dependency, &log, &log, sharedPackageProvisionOptions{Context: context.Background(), Home: home}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(log.String(), `shared-package-freshness event=checked package="@vrooli/example" command="build" fresh=true elapsed_ms=`) {
+		t.Fatalf("freshness timing missing from lifecycle log: %s", log.String())
 	}
 }
 
@@ -439,6 +653,9 @@ func TestProvisionSelectedProtoArtifactDoesNotRunMutableSourceGeneration(t *test
 	}
 	if !strings.Contains(log.String(), `proto-artifact event=selected`) {
 		t.Fatalf("selection event missing from lifecycle log: %s", log.String())
+	}
+	if !strings.Contains(log.String(), "resolve_ms=") || !strings.Contains(log.String(), "materialize_ms=") {
+		t.Fatalf("Proto timings missing from lifecycle log: %s", log.String())
 	}
 }
 

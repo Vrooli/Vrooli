@@ -78,7 +78,9 @@ const (
 	defaultHostGPUInventoryTTL               = 2 * time.Minute
 	defaultDockerRuntimeOperationTimeout     = 2 * time.Minute
 	defaultResourceControlExtendedTimeout    = 2 * time.Minute
-	defaultSetupExtendedOperationTimeout     = 2 * time.Minute
+	// Cold release installs may compile the pinned Go toolchain and module
+	// graph before the project API can answer its readiness probe.
+	defaultSetupExtendedOperationTimeout = 5 * time.Minute
 	// SharedPackageLockWaitTimeout bounds how long a scenario lifecycle waits for
 	// the cross-process shared-package lock (for example the Proto generation
 	// lock) held by a concurrent agent. It is deliberately generous: a peer's

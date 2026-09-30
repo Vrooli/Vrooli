@@ -108,3 +108,40 @@ func readFile(t *testing.T, path string) string {
 	}
 	return string(data)
 }
+
+// TestEngagedLiveBuildsAndRunsFromFrozenCopy proves the layout decision reaches
+// the build and the process, not only the registry's WorkingDir. While a shadow
+// engagement is open, live's setup must write its artifact into the frozen copy
+// and leave the working tree (which holds the candidate) untouched.
+func TestEngagedLiveBuildsAndRunsFromFrozenCopy(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+	workingTree := filepath.Join(root, "scenarios", "alpha")
+
+	store := baselinefloor.NewStore(t.TempDir())
+	restorePoint := store.RestorePointPath("alpha", "spike")
+	if _, err := baselinefloor.Capture(workingTree, restorePoint, nil); err != nil {
+		t.Fatalf("capture restore point: %v", err)
+	}
+
+	runner := newLifecycleRunnerForTest(t, root, home, nil)
+	runner.Engagements = &fakeEngagementResolver{
+		engaged: true,
+		info:    EngagementInfo{RestorePointDir: restorePoint, Slug: "spike", Mode: "shadow"},
+	}
+
+	if _, err := runner.Start("alpha", StartOptions{}); err != nil {
+		t.Fatalf("Start(alpha live) while engaged: %v", err)
+	}
+	cleanupRunner(t, runner, "alpha", StopOptions{})
+
+	frozenArtifact := filepath.Join(restorePoint, "api", "mock-api")
+	if _, err := os.Stat(frozenArtifact); err != nil {
+		t.Fatalf("engaged live did not build into the frozen copy: %v", err)
+	}
+	workingArtifact := filepath.Join(workingTree, "api", "mock-api")
+	if _, err := os.Stat(workingArtifact); err == nil {
+		t.Fatal("engaged live wrote its build artifact into the working tree the candidate owns")
+	}
+}

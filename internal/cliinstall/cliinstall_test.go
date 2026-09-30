@@ -450,6 +450,59 @@ func TestEnsureResourceCLISkipsWhenInstalled(t *testing.T) {
 	}
 }
 
+func TestEnsureResourceCLIUsesFreshnessManifestAndDetectsChangedInput(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	writeGoResourceCLIManifest(t, fixture.Root, "postgres")
+	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
+
+	installer := &stubInstaller{}
+	manager := mustManager(t, fixture.Root, fixture.Home)
+	manager.Installer = installer
+
+	binaryPath := filepath.Join(fixture.Home, ".vrooli", "bin", "resource-postgres")
+	if err := os.MkdirAll(filepath.Dir(binaryPath), 0o755); err != nil {
+		t.Fatalf("mkdir install dir: %v", err)
+	}
+	if err := os.WriteFile(binaryPath, validNativeExecutableHeader(), 0o755); err != nil {
+		t.Fatalf("write installed binary: %v", err)
+	}
+	item, err := manager.DiscoverResourceCLI("postgres")
+	if err != nil {
+		t.Fatalf("DiscoverResourceCLI: %v", err)
+	}
+	manifest, err := manager.computeInstallManifest(item)
+	if err != nil {
+		t.Fatalf("compute install manifest: %v", err)
+	}
+	writeInstallMetadataFixture(t, binaryPath+".build.meta", InstallMetadata{Fingerprint: manifest.Digest})
+	if err := cliutil.WriteFreshnessManifest(cliutil.FreshnessManifestPath(binaryPath), manifest); err != nil {
+		t.Fatalf("write freshness manifest: %v", err)
+	}
+
+	if err := manager.EnsureResourceCLI("postgres"); err != nil {
+		t.Fatalf("EnsureResourceCLI with warm manifest: %v", err)
+	}
+	if len(installer.calls) != 0 {
+		t.Fatalf("warm manifest install calls = %d, want 0", len(installer.calls))
+	}
+
+	servicePath := filepath.Join(fixture.Root, "resources", "postgres", "resource.json")
+	data, err := os.ReadFile(servicePath)
+	if err != nil {
+		t.Fatalf("read resource manifest: %v", err)
+	}
+	if err := os.WriteFile(servicePath, append(data, '\n'), 0o644); err != nil {
+		t.Fatalf("mutate freshness input: %v", err)
+	}
+	if err := manager.EnsureResourceCLI("postgres"); err != nil {
+		t.Fatalf("EnsureResourceCLI after input change: %v", err)
+	}
+	if len(installer.calls) != 1 {
+		t.Fatalf("changed-input install calls = %d, want 1", len(installer.calls))
+	}
+}
+
 func TestEnsureResourceCLIReinstallsCorruptCurrentBinary(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)

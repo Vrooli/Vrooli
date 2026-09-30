@@ -10,6 +10,9 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 const goExecutablePath = "/usr/bin/go"
@@ -51,6 +54,62 @@ func TestGoListFreshnessInputs_PreciseClosure(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("inputs mismatch:\n got=%v\nwant=%v", got, want)
+	}
+}
+
+func TestGoListFreshnessInputsContextCancelsResolver(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "scenarios", "x", "api")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, content := range map[string]string{
+		"go.mod":  "module example.test/x\n",
+		"go.sum":  "",
+		"main.go": "package main\nfunc main() {}\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	started := make(chan struct{})
+	deps := cannedGoList([]byte(goListFixture), nil, true)
+	deps.cache = &hostProbeCache{goToolchain: "go version test", goToolchainOK: true}
+	deps.readFile = os.ReadFile
+	deps.goListJSONContext = func(ctx context.Context, _ string) ([]byte, error) {
+		close(started)
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	result := make(chan bool, 1)
+	go func() {
+		_, ok := goListFreshnessInputsContext(ctx, dir, root, deps)
+		result <- ok
+	}()
+	select {
+	case <-started:
+		cancel()
+	case <-time.After(time.Second):
+		cancel()
+		t.Fatal("go list resolver did not start")
+	}
+	select {
+	case ok := <-result:
+		if ok || !errors.Is(ctx.Err(), context.Canceled) {
+			t.Fatalf("closure ok=%v context error=%v, want canceled/unavailable", ok, ctx.Err())
+		}
+	case <-time.After(time.Second):
+		t.Fatal("go list resolver kept running after caller cancellation")
+	}
+}
+
+func TestFreshnessReportByNameContextReturnsWhenAlreadyCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := (&Runner{}).FreshnessReportByNameContext(ctx, "browser-automation-studio", "")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("freshness error = %v, want context.Canceled", err)
 	}
 }
 
@@ -200,6 +259,60 @@ func TestClosureCache_MissOnSourceImportChange(t *testing.T) {
 	}
 }
 
+func TestClosureCache_IgnoresUnrelatedRepositorySource(t *testing.T) {
+	repoRoot := t.TempDir()
+	moduleDir := filepath.Join(repoRoot, "scenarios", "demo", "api")
+	localPackageDir := filepath.Join(repoRoot, "packages", "shared")
+	unrelatedDir := filepath.Join(repoRoot, "scenarios", "other", "api")
+	for _, dir := range []string{moduleDir, localPackageDir, unrelatedDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(repoRoot, "go.mod"), []byte("module github.com/vrooli/vrooli\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	module := "module example\n\nrequire github.com/vrooli/vrooli v0.0.0\n\nreplace github.com/vrooli/vrooli => ../../..\n"
+	if err := os.WriteFile(filepath.Join(moduleDir, "go.mod"), []byte(module), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range []string{
+		filepath.Join(moduleDir, "main.go"),
+		filepath.Join(localPackageDir, "shared.go"),
+		filepath.Join(unrelatedDir, "other.go"),
+	} {
+		if err := os.WriteFile(file, []byte("package example\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	payload := []byte(fmt.Sprintf(
+		"{\"Dir\":%q,\"Module\":{\"Dir\":%q,\"GoMod\":%q}}\n{\"Dir\":%q,\"Module\":{\"Dir\":%q,\"GoMod\":%q}}\n",
+		moduleDir, moduleDir, filepath.Join(moduleDir, "go.mod"),
+		localPackageDir, repoRoot, filepath.Join(repoRoot, "go.mod"),
+	))
+	calls := 0
+	deps := hostProbeDeps{
+		readFile: os.ReadFile,
+		lookPath: func(string) (string, error) { return goExecutablePath, nil },
+		goListJSON: func(string) ([]byte, error) {
+			calls++
+			return payload, nil
+		},
+	}
+	if _, ok := goListFreshnessInputs(moduleDir, repoRoot, deps); !ok {
+		t.Fatal("initial closure lookup did not succeed")
+	}
+	if err := os.WriteFile(filepath.Join(unrelatedDir, "other.go"), []byte("package example\n\nfunc changed() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := goListFreshnessInputs(moduleDir, repoRoot, deps); !ok {
+		t.Fatal("closure lookup after unrelated source change did not succeed")
+	}
+	if calls != 1 {
+		t.Fatalf("go list calls after unrelated source change = %d, want cached closure hit", calls)
+	}
+}
+
 func TestGoListFreshnessInputs_Fallbacks(t *testing.T) {
 	tests := []struct {
 		name string
@@ -223,6 +336,45 @@ func TestGoListFreshnessInputs_Fallbacks(t *testing.T) {
 				t.Fatalf("expected fallback (ok=false), got inputs=%v", inputs)
 			}
 		})
+	}
+}
+
+func TestBuilderFreshnessInputsDoesNotRepeatFailedGoListBeforeFallback(t *testing.T) {
+	root := t.TempDir()
+	moduleDir := filepath.Join(root, "scenarios", "demo", "api")
+	if err := os.MkdirAll(moduleDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(moduleDir, "go.mod"), []byte("module example.test/demo\n\ngo 1.24\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(moduleDir, "main.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	cache := &hostProbeCache{goToolchain: "go version go1.24 linux/amd64", goToolchainOK: true}
+	deps := hostProbeDeps{
+		cache:    cache,
+		readFile: os.ReadFile,
+		walkDir:  filepath.WalkDir,
+		lookPath: func(string) (string, error) { return goExecutablePath, nil },
+		goListJSON: func(string) ([]byte, error) {
+			calls++
+			return nil, errors.New("controlled go list failure")
+		},
+	}
+
+	inputs, err := builderFreshnessInputs(context.Background(), root, moduleDir,
+		BuilderSpec{ClosureResolver: closureResolverGoList}, scenario.Component{}, deps)
+	if err != nil {
+		t.Fatalf("builderFreshnessInputs returned error: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("go list calls = %d, want one failed attempt before static fallback", calls)
+	}
+	want := []string{"scenarios/demo/api"}
+	if !reflect.DeepEqual(inputs, want) {
+		t.Fatalf("fallback inputs = %v, want %v", inputs, want)
 	}
 }
 

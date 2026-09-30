@@ -28,9 +28,6 @@ import (
 // Insert and prepared-intent consumption can share the terminal transaction.
 // Reads use the shared *sql.DB; do not issue them inside that transaction.
 type ArchiveRepository interface {
-	PutReviewSnapshot(ctx context.Context, snapshot *types.ReviewSnapshot) error
-	GetReviewSnapshot(ctx context.Context, sandboxID, requestID uuid.UUID) (*types.ReviewSnapshot, error)
-	CheckReviewCapacity(ctx context.Context) error
 	PutPreparedApproval(ctx context.Context, approval *types.PreparedApproval) error
 	GetPreparedApproval(ctx context.Context, sandboxID uuid.UUID) (*types.PreparedApproval, error)
 	DeletePreparedApproval(ctx context.Context, tx *sql.Tx, sandboxID uuid.UUID) error

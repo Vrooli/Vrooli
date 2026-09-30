@@ -123,3 +123,49 @@ func TestScenarioTestDoesNotUseLifecycleRunner(t *testing.T) {
 		t.Fatalf("TestHandler returned error: %v", err)
 	}
 }
+
+func TestScenarioTestPreflightsGeneratedOwnersBeforeDelegation(t *testing.T) {
+	previous := provisionGeneratedPackagesForTest
+	t.Cleanup(func() { provisionGeneratedPackagesForTest = previous })
+	called := false
+	provisionGeneratedPackagesForTest = func(root, home string, stdout, logWriter io.Writer) error {
+		called = true
+		if root != "/repo" || home != "/home/operator" {
+			t.Fatalf("preflight roots = %q, %q", root, home)
+		}
+		if stdout == nil || logWriter == nil {
+			t.Fatal("preflight must receive diagnostic writers")
+		}
+		return nil
+	}
+
+	capture := &capturedSubprocess{}
+	deps := newScenarioTestDeps("/repo", rootcli.GlobalOptions{}, io.Discard, io.Discard, capture)
+	deps.HomeDir = func(struct{}) (string, error) { return "/home/operator", nil }
+
+	if err := TestHandler(deps)(struct{}{}, []string{"test-genie"}); err != nil {
+		t.Fatalf("TestHandler returned error: %v", err)
+	}
+	if !called {
+		t.Fatal("expected generated-owner preflight before delegation")
+	}
+}
+
+func TestScenarioTestStopsBeforeDelegationWhenGeneratedOwnerIsStale(t *testing.T) {
+	previous := provisionGeneratedPackagesForTest
+	t.Cleanup(func() { provisionGeneratedPackagesForTest = previous })
+	provisionGeneratedPackagesForTest = func(string, string, io.Writer, io.Writer) error {
+		return errors.New("proto.gen_out_of_sync")
+	}
+
+	capture := &capturedSubprocess{}
+	deps := newScenarioTestDeps("/repo", rootcli.GlobalOptions{}, io.Discard, io.Discard, capture)
+	deps.HomeDir = func(struct{}) (string, error) { return "/home/operator", nil }
+
+	if err := TestHandler(deps)(struct{}{}, []string{"test-genie"}); err == nil {
+		t.Fatal("expected generated-owner preflight failure")
+	}
+	if len(capture.calls) != 0 {
+		t.Fatal("test-genie must not be launched after a stale generated-owner failure")
+	}
+}

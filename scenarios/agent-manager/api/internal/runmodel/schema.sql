@@ -36,7 +36,6 @@ CREATE TABLE IF NOT EXISTS runs (
     subject TEXT NOT NULL DEFAULT '[]',
     owner_subject TEXT NOT NULL DEFAULT '',
     owner_expires_at TEXT,
-    dispatch_binding TEXT,
     owner_scopes TEXT NOT NULL DEFAULT '[]',
     requested_scopes TEXT NOT NULL DEFAULT '[]',
     work_references TEXT NOT NULL DEFAULT '[]',

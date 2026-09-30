@@ -7,11 +7,152 @@
       "name": "investigation",
       "description": "Run bounded caller-neutral investigations",
       "commands": [
-        {"name": "start", "description": "Start or reattach a typed investigation", "flags": [{"name": "file", "required": true, "description": "InvestigationRequest JSON file", "bind": {"field": "request", "kind": "json_file"}}], "binding": {"kind": "connect-rpc", "service": "AgentManagerService", "method": "StartInvestigation"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_mutation"}},
-        {"name": "get", "description": "Get a typed investigation", "positionals": [{"name": "investigation-id", "required": true, "description": "Investigation identifier"}], "binding": {"kind": "connect-rpc", "service": "AgentManagerService", "method": "GetInvestigation"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_list"}},
-        {"name": "list", "description": "List typed investigations", "flags": [{"name": "operation-status", "aliases": ["status"], "description": "Operation status filter"}, {"name": "limit", "description": "Maximum investigations"}], "binding": {"kind": "connect-rpc", "service": "AgentManagerService", "method": "ListInvestigations"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_list"}},
-        {"name": "wait", "description": "Wait for a typed investigation", "positionals": [{"name": "investigation-id", "required": true, "description": "Investigation identifier"}], "flags": [{"name": "timeout-seconds", "description": "One bounded wait duration"}], "binding": {"kind": "connect-rpc", "service": "AgentManagerService", "method": "WaitInvestigation"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_list"}},
-        {"name": "cancel", "description": "Cancel a typed investigation", "positionals": [{"name": "investigation-id", "required": true, "description": "Investigation identifier"}], "binding": {"kind": "connect-rpc", "service": "AgentManagerService", "method": "CancelInvestigation"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_mutation"}}
+        {
+          "name": "start",
+          "description": "Start or reattach a typed investigation",
+          "flags": [
+            {
+              "name": "file",
+              "required": true,
+              "description": "InvestigationRequest JSON file",
+              "bind": {
+                "field": "request",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "StartInvestigation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a typed investigation",
+          "positionals": [
+            {
+              "name": "investigation-id",
+              "required": true,
+              "description": "Investigation identifier"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "GetInvestigation"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List typed investigations",
+          "flags": [
+            {
+              "name": "operation-status",
+              "aliases": [
+                "status"
+              ],
+              "description": "Operation status filter"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum investigations"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "ListInvestigations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "wait",
+          "description": "Wait for a typed investigation",
+          "positionals": [
+            {
+              "name": "investigation-id",
+              "required": true,
+              "description": "Investigation identifier"
+            }
+          ],
+          "flags": [
+            {
+              "name": "timeout-seconds",
+              "description": "One bounded wait duration"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "WaitInvestigation"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "cancel",
+          "description": "Cancel a typed investigation",
+          "positionals": [
+            {
+              "name": "investigation-id",
+              "required": true,
+              "description": "Investigation identifier"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "CancelInvestigation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
       ]
     },
     {
@@ -3716,14 +3857,28 @@
         },
         {
           "name": "continue",
-          "description": "Continue a run",
+          "description": "Continue a run, or type into its running interactive session",
           "positionals": [
-            { "name": "id", "required": true, "description": "Existing run ID" }
+            {
+              "name": "id",
+              "required": true,
+              "description": "Existing run ID"
+            }
           ],
           "flags": [
-            { "name": "message", "required": true, "description": "Follow-up message" },
-            { "name": "idempotency-key", "description": "Replay-safe continuation key; retain for retries of the same request" },
-            { "name": "reinstall-goal", "description": "Reinstall the retained harness-native goal before the follow-up message" }
+            {
+              "name": "message",
+              "required": true,
+              "description": "Follow-up message"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Replay-safe continuation key; retain for retries of the same request"
+            },
+            {
+              "name": "reinstall-goal",
+              "description": "Reinstall the retained harness-native goal before the follow-up message"
+            }
           ],
           "binding": {
             "kind": "local"
@@ -3883,6 +4038,20 @@
           }
         },
         {
+          "name": "tokens",
+          "description": "Show weighted non-cache token spend for a run and its children",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "quiesce",
           "description": "Drain scenario runs",
           "binding": {
@@ -3956,21 +4125,48 @@
           "name": "efficiency",
           "description": "Bounded invocation efficiency evidence",
           "flags": [
-            {"name": "preset", "description": "Time window preset"},
-            {"name": "start", "description": "RFC3339 lower time bound"},
-            {"name": "end", "description": "RFC3339 upper time bound"},
-            {"name": "tag-prefix", "description": "Run tag prefix"},
-            {"name": "group-by", "description": "Breakdown dimension"},
-            {"name": "limit", "description": "Maximum rows per breakdown"},
-            {"name": "compare", "description": "Optional comparison window: previous"}
+            {
+              "name": "preset",
+              "description": "Time window preset"
+            },
+            {
+              "name": "start",
+              "description": "RFC3339 lower time bound"
+            },
+            {
+              "name": "end",
+              "description": "RFC3339 upper time bound"
+            },
+            {
+              "name": "tag-prefix",
+              "description": "Run tag prefix"
+            },
+            {
+              "name": "group-by",
+              "description": "Breakdown dimension"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum rows per breakdown"
+            },
+            {
+              "name": "compare",
+              "description": "Optional comparison window: previous"
+            }
           ],
-          "binding": {"kind": "local"},
+          "binding": {
+            "kind": "local"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
-          "architecture": {"primitive": "operational"}
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "stop",
@@ -4034,7 +4230,7 @@
         },
         {
           "name": "wake",
-          "description": "Wake a parked run",
+          "description": "Wake a parked run, or every run parked on a producer/key handle",
           "binding": {
             "kind": "local"
           },

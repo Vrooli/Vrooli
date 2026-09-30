@@ -15,6 +15,7 @@ import (
 	agentsessioncontainment "github.com/vrooli/vrooli/internal/safeguards/agent-session-containment"
 	autohealrecoveryprivileges "github.com/vrooli/vrooli/internal/safeguards/autoheal-recovery-privileges"
 	autohealwatchdog "github.com/vrooli/vrooli/internal/safeguards/autoheal-watchdog"
+	bubblewrapuserns "github.com/vrooli/vrooli/internal/safeguards/bubblewrap-userns"
 	"github.com/vrooli/vrooli/internal/safeguards/clock"
 	codingagentshims "github.com/vrooli/vrooli/internal/safeguards/coding-agent-shims"
 	crashkernelreserve "github.com/vrooli/vrooli/internal/safeguards/crashkernel-reserve"
@@ -22,6 +23,7 @@ import (
 	dockerhostfirewall "github.com/vrooli/vrooli/internal/safeguards/docker-host-firewall"
 	edacmodules "github.com/vrooli/vrooli/internal/safeguards/edac-modules"
 	emergencywatchdog "github.com/vrooli/vrooli/internal/safeguards/emergency-watchdog"
+	graphicalsession "github.com/vrooli/vrooli/internal/safeguards/graphical-session"
 	hosthardening "github.com/vrooli/vrooli/internal/safeguards/host-hardening"
 	kdumpobservability "github.com/vrooli/vrooli/internal/safeguards/kdump-observability"
 	kernelconfig "github.com/vrooli/vrooli/internal/safeguards/kernel-config"
@@ -91,6 +93,7 @@ var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) host
 	"autoheal_recovery_privileges": autohealrecoveryprivileges.NewHandler,
 	"agent_session_containment":    agentsessioncontainment.NewHandler,
 	"autoheal_watchdog":            autohealwatchdog.NewHandler,
+	"bubblewrap_userns":            bubblewrapuserns.NewHandler,
 	"onboarding_apply_privileges":  onboardingapplyprivileges.NewHandler,
 	"model_policy_drift":           modelpolicydrift.NewHandler,
 	"path_hygiene":                 pathhygiene.NewHandler,
@@ -111,6 +114,7 @@ var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) host
 	"netconsole":                   netconsole.NewHandler,
 	"nvidia_driver":                nvidiadriver.NewHandler,
 	"remote_desktop_access":        remotedesktopaccess.NewHandler,
+	"graphical_session":            graphicalsession.NewHandler,
 	"ollama_resource_controls":     ollamaresourcecontrols.NewHandler,
 	"pstore_observability":         pstoreobservability.NewHandler,
 	"pstore_native":                pstorenative.NewHandler,

@@ -9,11 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/promptmanager"
@@ -57,20 +55,6 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 	if err := l.o.admitPlanFamilyChild(ctx, req); err != nil {
 		return workflowruntime.ChildState{}, err
 	}
-	var review *sandbox.ReviewInput
-	if req.ReviewSourceRunID != nil {
-		if _, err := structuredresult.NormalizeReviewSpec(req.ResultSpec); err != nil {
-			return workflowruntime.ChildState{}, err
-		}
-		review, err = l.prepareReview(ctx, req)
-		if err != nil {
-			return workflowruntime.ChildState{}, err
-		}
-		req.ResultSpec, err = structuredresult.BindReviewCandidate(req.ResultSpec, review.SHA256)
-		if err != nil {
-			return workflowruntime.ChildState{}, err
-		}
-	}
 	taskID := uuid.NewSHA1(req.AttemptID, []byte("workflow-node-task"))
 	task, err := l.o.tasks.Get(ctx, taskID)
 	if err != nil {
@@ -82,9 +66,6 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 			scopePath = "."
 		}
 		projectRoot := l.o.config.DefaultProjectRoot
-		if review != nil {
-			projectRoot, scopePath = review.Root, "."
-		}
 		task = &domain.Task{ID: taskID, Title: fmt.Sprintf("Workflow %s node %s", req.ExecutionID, req.NodeID), Description: "Agent Manager workflow node attempt", ScopePath: scopePath, ProjectRoot: projectRoot, Status: domain.TaskStatusQueued, CreatedBy: "workflow-runtime"}
 		if _, err := l.o.CreateTask(ctx, task); err != nil {
 			if existing, getErr := l.o.tasks.Get(ctx, taskID); getErr != nil || existing == nil {
@@ -93,9 +74,6 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 				task = existing
 			}
 		}
-	}
-	if review != nil && (task.ProjectRoot != review.Root || task.ScopePath != ".") {
-		return workflowruntime.ChildState{}, fmt.Errorf("persisted reviewer task does not match retained input")
 	}
 	tag := req.Tag
 	if tag == "" {
@@ -115,12 +93,6 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 			workflowVariantEnv:    req.VariantID,
 			workflowPromptHashEnv: req.PromptHash,
 		},
-	}
-	if review != nil {
-		create.Environment["VROOLI_REVIEW_SOURCE_RUN_ID"] = req.ReviewSourceRunID.String()
-		create.Environment["VROOLI_REVIEW_REQUEST_ID"] = review.RequestID.String()
-		create.Environment["VROOLI_REVIEW_SHA256"] = review.SHA256
-		create.Prompt += "\n\nReview only the retained input in this workspace: before/, after/, changes.patch, and snapshot.json. Source SHA-256: " + review.SHA256 + ". Do not substitute the live project tree. Return this exact digest in candidateSha256, with your boolean accepted verdict and the other required result fields."
 	}
 	// Keep the runner's native command-network policy owned by the selected
 	// profile. SandboxConfig.NetworkMode is the outer workspace-sandbox
@@ -167,53 +139,6 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 		return workflowruntime.ChildState{}, err
 	}
 	return childStateFromRun(run), nil
-}
-
-func (l workflowChildLauncher) prepareReview(ctx context.Context, req workflowruntime.ChildRequest) (*sandbox.ReviewInput, error) {
-	cfg := req.SandboxConfig
-	if cfg == nil || cfg.Mode != domain.SandboxModeProtected || cfg.WritePolicy == nil || len(cfg.WritePolicy.Paths) != 0 || cfg.GetAutoApply() || (cfg.NetworkMode != domain.NetworkAccessNone && cfg.NetworkMode != domain.NetworkAccessLocalhost) || len(req.ReviewPaths) == 0 {
-		return nil, fmt.Errorf("review dispatch requires protected read-only non-applying authority with none or localhost outer network and explicit paths")
-	}
-	source, err := l.o.GetRun(ctx, *req.ReviewSourceRunID)
-	if err != nil {
-		return nil, err
-	}
-	if source.CustomEnv[workflowExecutionEnv] != req.ExecutionID.String() || !childStateFromRun(source).Terminal || source.SandboxID == nil || source.ExecutionMode.Normalized() != domain.ExecutionModeCodecPipe || source.RunMode != domain.RunModeSandboxed {
-		return nil, fmt.Errorf("review source must be a completed sandboxed codec-pipe child of this workflow")
-	}
-	if source.ResolvedConfig == nil || source.ResolvedConfig.SandboxConfig == nil || source.ResolvedConfig.SandboxConfig.Mode != domain.SandboxModeProtected || source.ResolvedConfig.SandboxConfig.GetAutoApply() {
-		return nil, fmt.Errorf("review source must retain protected unapplied work")
-	}
-	if task, err := l.o.GetTask(ctx, source.TaskID); err != nil {
-		return nil, err
-	} else if err := validateReviewPathsForSandboxScope(req.ReviewPaths, task.ScopePath); err != nil {
-		return nil, err
-	}
-	provider, ok := l.o.sandbox.(sandbox.ReviewProvider)
-	if !ok {
-		return nil, fmt.Errorf("sandbox provider cannot prepare immutable review input")
-	}
-	return provider.PrepareReview(ctx, *source.SandboxID, req.AttemptID, req.ReviewPaths)
-}
-
-// validateReviewPathsForSandboxScope catches a common authoring error before
-// dispatch: workflow review paths are relative to the retained sandbox scope,
-// while workflow authors often paste project-relative paths. Workspace
-// Sandbox correctly rejects that mismatch at capture time, but doing it here
-// avoids spending a reviewer admission on a deterministic contract error.
-func validateReviewPathsForSandboxScope(paths []string, scope string) error {
-	scope = filepath.ToSlash(filepath.Clean(strings.TrimSpace(scope)))
-	if scope == "" || scope == "." || filepath.IsAbs(scope) {
-		return nil
-	}
-	prefix := strings.TrimSuffix(scope, "/") + "/"
-	for _, selected := range paths {
-		selected = filepath.ToSlash(filepath.Clean(strings.TrimSpace(selected)))
-		if selected == scope || strings.HasPrefix(selected, prefix) {
-			return fmt.Errorf("review path %q is project-relative; review paths must be relative to sandbox scope %q (for example, remove the %q prefix)", selected, scope, prefix)
-		}
-	}
-	return nil
 }
 
 func (l workflowChildLauncher) Continue(ctx context.Context, req workflowruntime.ChildRequest) (workflowruntime.ChildState, error) {
@@ -821,12 +746,6 @@ func (o *Orchestrator) cleanupWorkflowChildren(ctx context.Context, executionID 
 	stoppedRuns, stoppedWorkflows := 0, 0
 	var failures []string
 	for _, attempt := range attempts {
-		if attempt.Strategy == domain.WorkflowAttemptQualification {
-			// The engine closes the retained PRT admission and reconciles its
-			// original receipt at the same accounting barrier below. A program
-			// handle is not an agent Run or child-workflow UUID.
-			continue
-		}
 		if attempt.RunID == nil && attempt.ChildExecutionID == nil {
 			stopped, recoverErr := o.recoverWorkflowCleanupAttempt(ctx, execution, attempt, attempts)
 			if stopped {

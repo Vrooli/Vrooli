@@ -1,9 +1,0 @@
-{
-  "archive": "refactor-progress-active-2026-09-29-r6.md.gz",
-  "created_at": "2026-09-29T00:30:24Z",
-  "source": "docs/internal/REFRACTOR_PROGRESS.md",
-  "source_bytes": 12851,
-  "source_lines": 198,
-  "archive_sha256": "b47636f05ca8cf476f5da7683d02ab76e9a8f7bb85e199dd6bc0507855b20725",
-  "retrieval": "gzip -cd scenarios/browser-automation-studio/docs/internal/evidence/rehabilitation/refactor-progress-active-2026-09-29-r6.md.gz"
-}

@@ -94,3 +94,16 @@ func TestRunAccountingRejectsEndBeforeStart(t *testing.T) {
 		t.Fatal("negative elapsed time accepted")
 	}
 }
+
+func TestRunAccountingSeparatesCacheReadsFromNonCacheTokens(t *testing.T) {
+	started := time.Date(2026, 9, 29, 10, 0, 0, 0, time.UTC)
+	ended := started.Add(time.Minute)
+	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusComplete, StartedAt: &started, EndedAt: &ended}
+	events := []*domain.RunEvent{{EventType: domain.EventTypeMetric, Timestamp: started.Add(30 * time.Second), Data: &domain.UsageEventData{
+		InputTokens: 1000, OutputTokens: 200, CacheCreationTokens: 50, CacheReadTokens: 9000, Model: "gpt-6-luna", ReconciliationAuthority: true}}}
+
+	got := withTokenComponents(accountingFor(t, run, events), run, events, time.Now())
+	if got.Tokens != 10250 || got.CacheReadTokens != 9000 || got.NonCacheTokens != 1250 {
+		t.Fatalf("token components = total %d, cache-read %d, non-cache %d; want 10250/9000/1250", got.Tokens, got.CacheReadTokens, got.NonCacheTokens)
+	}
+}

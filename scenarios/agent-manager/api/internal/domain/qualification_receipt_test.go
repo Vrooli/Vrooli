@@ -108,6 +108,38 @@ func TestAdmitDependentDelegation_ClosesOnIdentityMismatch(t *testing.T) {
 	}
 }
 
+// A live parent may delegate to a strictly cheaper model tier at any effort
+// (a Sol supervisor starting a Luna repair run), never to a pricier or
+// unknown model.
+func TestAdmitLiveDependentDelegation_ModelTiers(t *testing.T) {
+	parent := &RunAdmission{EffectiveRunner: "codex", EffectiveModel: "gpt-6-sol", EffectiveEffort: "medium", RuntimeVersion: "codex/1", PassedControlArgs: []string{"--model", "gpt-6-sol"}}
+	cases := []struct {
+		name  string
+		model string
+		// effort is the child's requested effort.
+		effort string
+		admit  bool
+	}{
+		{"same model narrower effort", "gpt-6-sol", "low", true},
+		{"same model wider effort", "gpt-6-sol", "high", false},
+		{"cheaper tier any effort", "gpt-6-luna", "high", true},
+		{"unknown model", "gpt-6-terra", "low", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := AdmitLiveDependentDelegation(parent, DependentDelegationRequest{Runner: "codex", Model: tc.model, Effort: tc.effort})
+			if (err == nil) != tc.admit {
+				t.Fatalf("admit=%t, err=%v", tc.admit, err)
+			}
+		})
+	}
+	cheaperParent := *parent
+	cheaperParent.EffectiveModel = "gpt-6-luna"
+	if err := AdmitLiveDependentDelegation(&cheaperParent, DependentDelegationRequest{Runner: "codex", Model: "gpt-6-sol", Effort: "low"}); err == nil {
+		t.Fatal("a Luna parent delegated to the pricier Sol tier")
+	}
+}
+
 func TestNewQualificationReceipt_CopiesAdmissionLayersAndLeavesLiveFieldsEmpty(t *testing.T) {
 	admission := &RunAdmission{
 		RequestedRunner:        "opencode",

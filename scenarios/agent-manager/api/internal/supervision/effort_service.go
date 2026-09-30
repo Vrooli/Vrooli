@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
-	"agent-manager/internal/identity"
 	"agent-manager/internal/pricing"
+
 	"github.com/google/uuid"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/proto"
@@ -24,7 +24,6 @@ type EffortActor struct {
 	ID                 string
 	Operator           bool
 	MetadataReconciler bool
-	OwnerSubject       string
 	Scopes             []string
 }
 
@@ -50,45 +49,18 @@ func (a EffortActor) canReconcileMetadata(e *pb.EffortEnrollment) bool {
 	return false
 }
 
-func (a EffortActor) supervises(e *pb.EffortEnrollment) bool {
-	if a.Operator {
-		return true
-	}
-	if a.ID == "" {
-		return false
-	}
-	if e.SupervisorRunId != "" && a.ID == e.SupervisorRunId {
-		return true
-	}
-	if e.AuthorizedBy == "" || e.SupervisorOwnerSubject == "" || e.SupervisorScope == "" || a.OwnerSubject != e.SupervisorOwnerSubject {
-		return false
-	}
-	for _, scope := range a.Scopes {
-		if scope == e.SupervisorScope {
-			return true
-		}
-	}
-	return false
-}
-
 type EffortService struct {
-	repo               EffortRepository
-	controller         ActionController
-	policies           *PolicyStore
-	config             EffortDiscoveryConfig
-	now                func() time.Time
-	mu                 sync.Mutex
-	nextScan           time.Time
-	directiveCursor    string
-	runRegistry        EffortRunRegistry
-	quotaStore         pricing.QuotaObservationRepository
-	dispatchSecret     []byte
-	dispatchProvision  func(string) error
-	dispatchProfile    func(context.Context, string) error
-	dispatchAccounting DispatchAccountingReader
+	repo        EffortRepository
+	controller  ActionController
+	config      EffortDiscoveryConfig
+	now         func() time.Time
+	mu          sync.Mutex
+	nextScan    time.Time
+	runRegistry EffortRunRegistry
+	quotaStore  pricing.QuotaObservationRepository
 }
 
-func NewEffortService(repo EffortRepository, controller ActionController, policies *PolicyStore, config EffortDiscoveryConfig) *EffortService {
+func NewEffortService(repo EffortRepository, controller ActionController, config EffortDiscoveryConfig) *EffortService {
 	if config.ScanLimit <= 0 || config.ScanLimit > 1000 {
 		config.ScanLimit = 100
 	}
@@ -101,7 +73,7 @@ func NewEffortService(repo EffortRepository, controller ActionController, polici
 	if config.StaleAfter <= 0 {
 		config.StaleAfter = 5 * time.Minute
 	}
-	return &EffortService{repo: repo, controller: controller, policies: policies, config: config, now: time.Now}
+	return &EffortService{repo: repo, controller: controller, config: config, now: time.Now}
 }
 
 // SetQuotaObservationStore installs the pricing-owned provider observation
@@ -149,58 +121,36 @@ func quotaObservationsForRow(row *pb.EffortBoardRow, observations map[string][]*
 	}
 }
 
-func validateEffortEnrollment(e *pb.EffortEnrollment, grant bool, now time.Time) error {
+func validateEffortEnrollment(e *pb.EffortEnrollment) error {
 	if e == nil || strings.TrimSpace(e.EffortRef) == "" || len(e.EffortRef) > 512 || len(e.Subjects) > 100 {
 		return errors.New("bounded effort reference and at most 100 subjects required")
 	}
 	if e.Workspace != "" && (!filepath.IsLocal(e.Workspace) || filepath.Base(e.Workspace) != e.Workspace || strings.ContainsAny(e.Workspace, "/\\")) {
 		return errors.New("workspace must be an immediate relative directory")
 	}
-	if (e.SupervisorOwnerSubject == "") != (e.SupervisorScope == "") || e.SupervisorScope == "*" || len(e.SupervisorOwnerSubject) > 512 || len(e.SupervisorScope) > 512 {
-		return errors.New("stable supervisor delegation requires exact owner subject and non-wildcard scope together")
+	if e.SupervisorRunId != "" {
+		if _, err := uuid.Parse(e.SupervisorRunId); err != nil {
+			return errors.New("invalid supervisor run UUID")
+		}
 	}
 	seen := map[string]bool{}
-	parents := 0
 	for _, sub := range e.Subjects {
 		if sub == nil || sub.Owner == "" || sub.Kind == "" || sub.Reference == "" {
 			return errors.New("subjects require owner, kind and exact reference")
 		}
-		if sub.RunId != "" {
-			if sub.Owner != "agent-manager" || sub.Kind != "run" {
-				return errors.New("run identity must belong to Agent Manager")
-			}
-			if _, err := uuid.Parse(sub.RunId); err != nil {
-				return errors.New("invalid subject run UUID")
-			}
-			if seen[sub.RunId] {
-				return errors.New("duplicate run subject")
-			}
-			seen[sub.RunId] = true
+		if sub.RunId == "" {
+			continue
 		}
-		if sub.Role == "orchestrator" && sub.RunId != "" {
-			parents++
+		if sub.Owner != "agent-manager" || sub.Kind != "run" {
+			return errors.New("run identity must belong to Agent Manager")
 		}
-	}
-	if e.AutonomousSupervision || len(e.PermittedActions) > 0 {
-		if !grant || e.AuthorityRef == "" || e.TargetRevision == "" || e.AuthorizedBy == "" {
-			return errors.New("autonomous supervision requires an actual owner grant, exact revision and authenticated owner")
+		if _, err := uuid.Parse(sub.RunId); err != nil {
+			return errors.New("invalid subject run UUID")
 		}
-		if e.AuthorityExpiresAt == nil || !e.AuthorityExpiresAt.IsValid() || !e.AuthorityExpiresAt.AsTime().After(now) {
-			return errors.New("steering grant requires a future expiry")
+		if seen[sub.RunId] {
+			return errors.New("duplicate run subject")
 		}
-		if e.SupervisorRunId != "" {
-			if _, err := uuid.Parse(e.SupervisorRunId); err != nil {
-				return errors.New("invalid supervisor run UUID")
-			}
-		}
-		if !e.AutonomousSupervision && (parents != 1 || e.MaximumDirectives < 1 || e.MaximumDirectives > 100) {
-			return errors.New("bounded steering requires one orchestrator and bounded directive allowance")
-		}
-		for _, kind := range e.PermittedActions {
-			if kind != pb.WatchActionKind_WATCH_ACTION_KIND_NUDGE && kind != pb.WatchActionKind_WATCH_ACTION_KIND_CONTINUE && kind != pb.WatchActionKind_WATCH_ACTION_KIND_RECOVER_FRESH {
-				return errors.New("effort steering permits nudge, continue or separately granted missing-session recovery through the orchestrator owner")
-			}
-		}
+		seen[sub.RunId] = true
 	}
 	return nil
 }
@@ -221,13 +171,10 @@ func (s *EffortService) Enroll(ctx context.Context, req *pb.EnrollEffortRequest,
 		return replay, err
 	}
 	e := proto.Clone(req.Enrollment).(*pb.EffortEnrollment)
-	// This server-owned binding is issued only by the dedicated owner operation.
-	// Any explicit enrollment amendment invalidates previously issued children.
-	e.DispatchAuthorization = nil
 	e.AuthorizedBy = actor.ID
 	e.Withdrawn = false
 	e.WithdrawalReason = ""
-	if err := validateEffortEnrollment(e, true, s.now()); err != nil {
+	if err := validateEffortEnrollment(e); err != nil {
 		return nil, err
 	}
 	old, o, err := s.repo.GetEffort(ctx, e.EffortRef)
@@ -276,9 +223,6 @@ func (s *EffortService) ReconcileMetadata(ctx context.Context, req *pb.Reconcile
 	if req.Enrollment.EffortRef != old.EffortRef {
 		return nil, errors.New("metadata reconciliation cannot change effort reference")
 	}
-	if req.Enrollment.DispatchAuthorization != nil {
-		return nil, errors.New("metadata reconciliation cannot change authority, subjects, actions or withdrawal state")
-	}
 	requestedImmutable := proto.Clone(req.Enrollment).(*pb.EffortEnrollment)
 	storedImmutable := proto.Clone(old).(*pb.EffortEnrollment)
 	for _, enrollment := range []*pb.EffortEnrollment{requestedImmutable, storedImmutable} {
@@ -288,16 +232,11 @@ func (s *EffortService) ReconcileMetadata(ctx context.Context, req *pb.Reconcile
 		enrollment.SourceRevision = ""
 		enrollment.Workspace = ""
 		enrollment.WorkShape = ""
-		enrollment.DispatchAuthorization = nil
 		enrollment.Revision = 0
 		enrollment.UpdatedAt = nil
 	}
 	if !proto.Equal(requestedImmutable, storedImmutable) {
 		return nil, errors.New("metadata reconciliation cannot change authority, subjects, actions or withdrawal state")
-	}
-	if (req.Enrollment.TargetRevision != old.TargetRevision || req.Enrollment.DestinationRef != old.DestinationRef) &&
-		(old.DispatchAuthorization != nil || old.AutonomousSupervision || len(old.PermittedActions) > 0) {
-		return nil, errors.New("target or destination changes require an operator enrollment amendment while supervision is granted")
 	}
 	next := proto.Clone(old).(*pb.EffortEnrollment)
 	next.DisplayName = req.Enrollment.DisplayName
@@ -309,7 +248,7 @@ func (s *EffortService) ReconcileMetadata(ctx context.Context, req *pb.Reconcile
 	// Validation sees the retained grant as an existing owner grant. This does
 	// not grant the caller any authority; it only prevents a valid enrollment
 	// from becoming invalid while metadata is reconciled.
-	if err := validateEffortEnrollment(next, true, s.now()); err != nil {
+	if err := validateEffortEnrollment(next); err != nil {
 		return nil, err
 	}
 	next.Revision++
@@ -382,7 +321,7 @@ func (s *EffortService) List(ctx context.Context, req *pb.ListEffortsRequest) (*
 		return nil, err
 	}
 	for _, e := range all {
-		if !e.Withdrawn && !authorizationAnchorEnrollment(e) {
+		if !e.Withdrawn {
 			response.ActiveCount++
 		}
 	}
@@ -448,32 +387,6 @@ func (s *EffortService) Board(ctx context.Context, req *pb.GetEffortBoardRequest
 		}
 		row := s.projectEffort(ctx, e, ob, d)
 		quotaObservationsForRow(row, quotaByRun)
-		assessment, assessmentErr := s.repo.LatestEffortAssessment(ctx, e.EffortRef)
-		if assessmentErr != nil && !errors.Is(assessmentErr, ErrNotFound) {
-			return nil, assessmentErr
-		}
-		row.LastAssessment = assessment
-		directives, listErr := s.repo.ListEffortDirectives(ctx, e.EffortRef, "", 101)
-		if listErr != nil {
-			return nil, listErr
-		}
-		if len(directives) > 100 {
-			row.Limitations = append(row.Limitations, "directives capped at 100; use ListEffortDirectives pagination")
-			directives = directives[:100]
-		}
-		for _, directive := range directives {
-			copy := proto.Clone(directive).(*pb.EffortDirective)
-			copy.SourceSnapshot = nil
-			row.Directives = append(row.Directives, copy)
-			if !e.Withdrawn && directive.SupersededBy == "" && directive.RecoveryExpectation != nil && directive.Delivery == pb.EffortDirectiveDelivery_EFFORT_DIRECTIVE_DELIVERY_DELIVERED {
-				verification := directive.GetRecoveryVerification()
-				if verification.GetState() == "pending" || verification.GetState() == "" {
-					row.PendingOperations = append(row.PendingOperations, "agent-manager:effort-directive:"+directive.DirectiveId+":verify-progress")
-				} else if verification.GetState() == "failed" || verification.GetState() == "owner-wait" {
-					row.PendingOperations = append(row.PendingOperations, verification.GetNextOwnerCondition())
-				}
-			}
-		}
 		cut := proto.Clone(row).(*pb.EffortBoardRow)
 		cut.ObservedAt = nil
 		cut.ChangeIdentity = ""
@@ -497,7 +410,6 @@ func (s *EffortService) projectEffort(ctx context.Context, e *pb.EffortEnrollmen
 	row := proto.Clone(ob).(*pb.EffortBoardRow)
 	row.Enrollment = e
 	row.Assignments = nil
-	row.Directives = nil
 	row.Usage = &pb.EffortUsage{Source: "Agent Manager current run summaries", Partial: true, Limitations: []string{"billing and unregistered agent work remain unknown; summary cost estimates are not reported charges"}}
 	if row.OutcomeStanding == nil {
 		row.OutcomeStanding = &pb.EffortOutcomeStanding{State: "unknown"}
@@ -710,23 +622,12 @@ func (s *EffortService) projectEffort(ctx context.Context, e *pb.EffortEnrollmen
 	if unavailable > 0 {
 		row.Limitations = append(row.Limitations, fmt.Sprintf("%d subject owner observations unavailable", unavailable))
 	}
-	if authorizationAnchorEnrollment(e) && !e.Withdrawn {
-		row.RuntimeState = "authorization"
-		row.NextAction = "authorization-only"
-		row.Rationale = "recurring dispatch authorization anchor, not an accepted effort or a supervision target"
-		row.OutcomeStanding = &pb.EffortOutcomeStanding{State: "not-applicable", Attribution: "owner authorization"}
-	} else if e.Withdrawn {
+	if e.Withdrawn {
 		row.NextAction = "retired"
 		row.Rationale = e.WithdrawalReason
-	} else if row.NextAction == "authorization-only" {
-		row.NextAction = "observe"
-		row.Limitations = append(row.Limitations, "source cannot declare itself an authorization-only record")
 	} else if row.NextAction == "" {
 		row.NextAction = "observe"
 		row.Rationale = "no independently evidenced outcome deviation has been classified"
-	}
-	if e.AuthorizedBy == "" {
-		row.Limitations = append(row.Limitations, "steering unavailable: actual owner grant unknown")
 	}
 	return row
 }
@@ -735,13 +636,13 @@ func (s *EffortService) projectEffort(ctx context.Context, e *pb.EffortEnrollmen
 // accounting stays visible without waking inference because its own run finished.
 func effortSubjectIdentity(row, source *pb.EffortBoardRow) string {
 	cut := proto.Clone(source).(*pb.EffortBoardRow)
-	cut.ObservedAt, cut.LastAssessment, cut.Usage = nil, nil, nil
+	cut.ObservedAt, cut.Usage = nil, nil
 	cut.ChangeIdentity, cut.VisibilityChangeIdentity = "", ""
 	cut.Enrollment = proto.Clone(row.Enrollment).(*pb.EffortEnrollment)
 	e := cut.Enrollment
 	e.Revision, e.UpdatedAt, e.Subjects = 0, nil, nil
 	e.SupervisorRunId = ""
-	cut.Assignments, cut.Directives = nil, nil
+	cut.Assignments = nil
 	cut.Freshness = row.Freshness
 	for _, assignment := range row.Assignments {
 		if assignment.Subject.GetRole() == "supervisor" {
@@ -751,15 +652,6 @@ func effortSubjectIdentity(row, source *pb.EffortBoardRow) string {
 		a.ObservedAt = nil
 		cut.Assignments = append(cut.Assignments, a)
 	}
-	for _, directive := range row.Directives {
-		if directive.Delivery == pb.EffortDirectiveDelivery_EFFORT_DIRECTIVE_DELIVERY_PENDING {
-			continue
-		}
-		cut.Directives = append(cut.Directives, &pb.EffortDirective{
-			DirectiveId: directive.DirectiveId, Delivery: directive.Delivery,
-			Acknowledgment: directive.Acknowledgment, ActionRef: directive.ActionRef,
-		})
-	}
 	return effortDigest(cut)
 }
 
@@ -768,84 +660,11 @@ func effortSubjectIdentity(row, source *pb.EffortBoardRow) string {
 func (s *EffortService) Tick(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	// The standing supervisor is an operator-approved durable lease. Keep its
-	// authorization ID stable while rotating the signed bearer before either
-	// the time or dispatch allowance can strand an enabled supervisor.
-	var leaseErr error
-	if s.dispatchSecret != nil && s.dispatchProvision != nil && s.dispatchProfile != nil {
-		leaseErr = s.renewStandingDispatchLocked(ctx)
-	}
 	now := s.now()
-	var scanErr error
-	if !now.Before(s.nextScan) {
-		_, scanErr = s.reconcileDiscovery(ctx)
-		s.nextScan = now.Add(s.config.Interval)
-	}
-	directives, err := s.repo.ListEffortDirectives(ctx, "", s.directiveCursor, 100)
-	if err != nil {
-		return err
-	}
-	if len(directives) == 0 {
-		s.directiveCursor = ""
-	}
-	for _, d := range directives {
-		s.directiveCursor = d.DirectiveId
-		if d.Delivery == pb.EffortDirectiveDelivery_EFFORT_DIRECTIVE_DELIVERY_PENDING || d.Delivery == pb.EffortDirectiveDelivery_EFFORT_DIRECTIVE_DELIVERY_UNCERTAIN || (d.Kind == pb.WatchActionKind_WATCH_ACTION_KIND_RECOVER_FRESH && d.Delivery == pb.EffortDirectiveDelivery_EFFORT_DIRECTIVE_DELIVERY_DELIVERED) {
-			if _, err = s.deliverDirective(ctx, d); err != nil {
-				scanErr = errors.Join(scanErr, err)
-			}
-		}
-	}
-	return errors.Join(leaseErr, scanErr)
-}
-
-const standingSupervisorEffortRef = "service:standing-supervision"
-
-// renewStandingDispatchLocked renews only the canonical standing supervisor
-// enrollment. It is deliberately not exposed as an API operation: the owner
-// grant is established once, then the Agent Manager control plane maintains
-// the lease while the enrollment remains active. The stable authorization ID
-// keeps Prompt Manager's binding valid across rotations.
-func (s *EffortService) renewStandingDispatchLocked(ctx context.Context) error {
-	e, observation, err := s.repo.GetEffort(ctx, standingSupervisorEffortRef)
-	if errors.Is(err, ErrNotFound) || err != nil || e == nil || e.Withdrawn || e.DispatchAuthorization == nil {
+	if now.Before(s.nextScan) {
 		return nil
 	}
-	a := e.DispatchAuthorization
-	if e.AuthorizedBy == "" || e.SupervisorOwnerSubject != e.AuthorizedBy || e.SupervisorScope != SupervisorDispatchScope || a.OwnerSubject != e.AuthorizedBy || a.TeamId == "" || a.MemberId == "" || a.ProfileKey == "" {
-		return nil
-	}
-	if !validSupervisorBudget(a.MaxTokens, a.MaxChargeMicroUsd) {
-		return dispatchIssuanceRefusal("standing_budget_missing")
-	}
-	if err := s.dispatchProfile(ctx, a.ProfileKey); err != nil {
-		return fmt.Errorf("standing supervisor lease profile unavailable: %w", err)
-	}
-	now := s.now().UTC()
-	needsRenewal := a.ExpiresAt == nil || !a.ExpiresAt.IsValid() || !a.ExpiresAt.AsTime().After(now.Add(7*24*time.Hour)) || (a.MaximumRuns > 0 && a.DispatchedRuns >= a.MaximumRuns)
-	if !needsRenewal {
-		return nil
-	}
-	nextExpiry := now.Add(30 * 24 * time.Hour)
-	next := proto.Clone(e).(*pb.EffortEnrollment)
-	next.DispatchAuthorization = proto.Clone(a).(*pb.SupervisorDispatchAuthorization)
-	next.DispatchAuthorization.ExpiresAt = timestamppb.New(nextExpiry)
-	next.DispatchAuthorization.DispatchedRuns = 0
-	next.DispatchAuthorization.LastDispatchedAt = nil
-	next.Revision = e.Revision + 1
-	next.UpdatedAt = timestamppb.New(now)
-	token, err := s.dispatchToken(next)
-	if err != nil {
-		return dispatchIssuanceRefusal("standing_lease_signing_failed")
-	}
-	// Provision first: if persistence fails, the old database hash remains
-	// authoritative and the newly provisioned bearer is rejected by AM.
-	if err := s.dispatchProvision(token); err != nil {
-		return fmt.Errorf("standing supervisor lease provisioning failed: %w", err)
-	}
-	next.DispatchAuthorization.CredentialHash = identity.HashToken(token)
-	if err := s.repo.SaveEffort(ctx, next, observation, e.Revision, "dispatch-renew:"+a.AuthorizationId+":"+now.Format("20060102T150405Z"), "standing-lease-renew:"+a.AuthorizationId+":"+now.Format(time.RFC3339)); err != nil {
-		return err
-	}
-	return nil
+	_, err := s.reconcileDiscovery(ctx)
+	s.nextScan = now.Add(s.config.Interval)
+	return err
 }

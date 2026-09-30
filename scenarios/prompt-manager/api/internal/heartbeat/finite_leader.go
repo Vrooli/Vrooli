@@ -25,10 +25,10 @@ const finiteLeaderGuidance = "\n\nFinite effort coordinator guidance:\n" +
 	"- If the active team binding does not match the accepted effort revision, distinguish that from an empty backlog: retain the exact missing grant/approval reference, write the reopening condition, and surface it to the supervisor/operator. Do not invent a second approval gate for work already inside the accepted boundary. Never silently convert an incomplete effort into success or retirement.\n" +
 	"- Do not confuse a missing supervisor steering grant with a missing coordinator work route. Steering grants govern supervisor-issued directives and repair actions; they do not block ordinary bounded preparation already covered by the operator-approved effort, declared destination, workspace, and coordinator lane. Proceed with docs, plan shaping, task tracking, and evidence inside that boundary. Stop only the specific operation that truly requires the absent grant.\n" +
 	"- Do independent, verifiable work before waiting; never hold a child wait inside the run.\n" +
-	"- When delegated children are pending, obtain the verified parent ID with `agent-manager run identity --json`, create durable child lineage with `agent-manager run create --parent-run-id`, and create one Agent Manager cohort watch containing the exact child run IDs and this parent run ID.\n" +
-	"- Park or checkpoint the parent on that watch with `agent-manager run park <parent-run-id> --producer supervision --key <watch-id> --deadline-unix <watch-deadline>`; parking must be an actual owner operation, not a statement in the handoff.\n" +
-	"- A supervision wake resumes this same parent run with terminal child evidence. Reconcile the exact child IDs, cancel the completed watch, and select the next bounded action; never create a replacement coordinator run.\n" +
-	"- If the watch deadline wakes the parent, classify the children as active, terminal, missing, or uncertain. Do not retry an uncertain child or invent a fresh grant.\n" +
+	"- Create children with `agent-manager run create --parent-run-id <your-run-id>` (read your ID with `agent-manager run identity --json`) so they carry durable lineage.\n" +
+	"- Park instead of waiting: `agent-manager run park <your-run-id> --producer children --key <your-run-id> --timeout 15m`. You wake when any child ends, when the timer expires, or on `agent-manager run wake --key <your-run-id>`; parking must be an actual owner operation, not a statement in the handoff.\n" +
+	"- A wake resumes this same run with the child status. Reconcile the exact child IDs and select the next action; never create a replacement leader run.\n" +
+	"- On a timer wake, classify the children as active, terminal, missing, or uncertain. Do not retry an uncertain child or invent a fresh grant.\n" +
 	"- Before ending a pass, write the final handoff: changed, verified, remaining, unverified and the exact next action.\n" +
 	"- Accept the effort only through the explicit completion receipt; a terminal run is not effort acceptance. After acceptance, retire the finite binding so future heartbeat ticks are fenced."
 
@@ -139,6 +139,95 @@ func (f *FiniteLeaderRuntime) Tick(ctx context.Context, teamID, agentID string) 
 	if err == nil && observed != nil {
 		err = f.record(ctx, out, observed)
 	}
+	if err == nil && observed != nil && IsTerminalStatus(observed.Status) {
+		return f.relaunch(ctx, teamID, agentID, observed)
+	}
+	return out, err
+}
+
+// Liveness relaunch policy. A leader run that ends before
+// livenessHealthyRunDuration (or fails) is a short run: each consecutive short
+// relaunch waits livenessRelaunchBackoff doubled per prior relaunch, and after
+// livenessMaxRelaunches the heartbeat stops relaunching and reports
+// livenessCappedStatus until an explicit restart or a healthy long run.
+const (
+	livenessHealthyRunDuration = 30 * time.Minute
+	livenessRelaunchBackoff    = 30 * time.Minute
+	livenessMaxRelaunches      = 3
+	livenessCappedStatus       = "relaunch-capped"
+)
+
+// memberOccupied reports whether the member already holds a queue slot.
+func memberOccupied(q TeamExecutionStatus, agentID string) bool {
+	for _, ids := range [][]string{q.RunningAgentIDs, q.Queue, q.UncertainAgentIDs, q.UnreachableAgentIDs, q.PausedAgentIDs} {
+		for _, id := range ids {
+			if id == agentID {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// healthyLeaderRun reports whether a terminal leader run did sustained work.
+func healthyLeaderRun(run *Run) bool {
+	if IsFailedStatus(run.Status) {
+		return false
+	}
+	started, errStart := time.Parse(time.RFC3339Nano, run.StartedAt)
+	ended, errEnd := time.Parse(time.RFC3339Nano, run.EndedAt)
+	return errStart == nil && errEnd == nil && ended.Sub(started) >= livenessHealthyRunDuration
+}
+
+// relaunch applies liveness semantics for a finite leader that declares
+// keepAlive: a terminal leader run while the effort is open is recorded in the
+// restart history and a fresh leader is queued; it resumes from the goal home.
+// Consecutive short runs back off and then stop at the cap. One tick relaunches
+// at most once, and a completed, retired or disabled effort is never relaunched.
+func (f *FiniteLeaderRuntime) relaunch(ctx context.Context, teamID, agentID string, terminal *Run) (*store.FiniteLeaderState, error) {
+	var out *store.FiniteLeaderState
+	now := time.Now().UTC()
+	err := f.Executor.teamStore.WithFiniteLeader(ctx, teamID, agentID, func(cfg *store.HeartbeatConfig, state *store.FiniteLeaderState, save func() error) error {
+		out = state
+		if !cfg.FiniteLeader.KeepAlive || state.Completed != nil || !state.DispatchStarted || state.RunID != terminal.ID {
+			return nil
+		}
+		if err := f.eligible(ctx, teamID, agentID, cfg); err != nil {
+			return err
+		}
+		consecutive := state.ConsecutiveRelaunches
+		if healthyLeaderRun(terminal) {
+			consecutive = 0
+		}
+		if consecutive >= livenessMaxRelaunches {
+			state.Status = livenessCappedStatus
+			state.Error = fmt.Sprintf("liveness relaunch stopped after %d consecutive short leader runs; repair the cause, then use the explicit restart operation", consecutive)
+			return save()
+		}
+		if consecutive > 0 && len(state.RestartHistory) > 0 {
+			last, err := time.Parse(time.RFC3339Nano, state.RestartHistory[len(state.RestartHistory)-1].RestartedAt)
+			if next := last.Add(livenessRelaunchBackoff << (consecutive - 1)); err == nil && now.Before(next) {
+				state.Error = "liveness relaunch backing off until " + next.Format(time.RFC3339)
+				return save()
+			}
+		}
+		state.RecordRestart(store.FiniteLeaderRestart{
+			RunID: state.RunID, TaskID: state.TaskID, Revision: cfg.FiniteLeader.AcceptedRevision,
+			EvidenceRef: "liveness-heartbeat:" + terminal.Status, RestartedAt: now.Format(time.RFC3339Nano),
+		})
+		state.ConsecutiveRelaunches = consecutive + 1
+		state.ID, state.TaskID, state.RunID, state.CreatedAt, state.Error = "", "", "", "", ""
+		state.TaskStarted, state.DispatchStarted = false, false
+		reserveFiniteLeader(state)
+		if err := save(); err != nil {
+			return err
+		}
+		if memberOccupied(f.Queue.Status(teamID), agentID) {
+			return nil
+		}
+		_, err := f.Queue.Enqueue(ctx, teamID, agentID, cfg.ProfileKey)
+		return err
+	})
 	return out, err
 }
 

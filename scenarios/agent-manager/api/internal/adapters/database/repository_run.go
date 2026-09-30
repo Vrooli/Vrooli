@@ -43,7 +43,6 @@ type runRow struct {
 	Subject                        sql.NullString     `db:"subject"`
 	OwnerSubject                   sql.NullString     `db:"owner_subject"`
 	OwnerExpiresAt                 NullableTime       `db:"owner_expires_at"`
-	DispatchBinding                sql.NullString     `db:"dispatch_binding"`
 	OwnerScopes                    sql.NullString     `db:"owner_scopes"`
 	RequestedScopes                sql.NullString     `db:"requested_scopes"`
 	WorkReferences                 sql.NullString     `db:"work_references"`
@@ -141,7 +140,6 @@ func (row *runRow) toDomain() *domain.Run {
 		Subject:                        parseStringSliceJSON(row.Subject),
 		OwnerSubject:                   row.OwnerSubject.String,
 		OwnerExpiresAt:                 row.OwnerExpiresAt.ToPtr(),
-		DispatchBinding:                parseDispatchBinding(row.DispatchBinding),
 		OwnerScopes:                    parseStringSliceJSON(row.OwnerScopes),
 		RequestedScopes:                parseStringSliceJSON(row.RequestedScopes),
 		WorkReferences:                 parseWorkReferencesJSON(row.WorkReferences),
@@ -237,7 +235,6 @@ func runFromDomain(r *domain.Run) *runRow {
 		Subject:                        sql.NullString{String: marshalStringSliceJSON(r.Subject), Valid: true},
 		OwnerSubject:                   sql.NullString{String: r.OwnerSubject, Valid: true},
 		OwnerExpiresAt:                 NewNullableTime(r.OwnerExpiresAt),
-		DispatchBinding:                marshalDispatchBinding(r.DispatchBinding),
 		OwnerScopes:                    sql.NullString{String: marshalStringSliceJSON(r.OwnerScopes), Valid: true},
 		RequestedScopes:                sql.NullString{String: marshalRequestedScopesJSON(r.RequestedScopes), Valid: true},
 		WorkReferences:                 sql.NullString{String: marshalWorkReferencesJSON(r.WorkReferences), Valid: true},
@@ -413,25 +410,6 @@ func marshalRequestedScopesJSON(values []string) string {
 	return marshalStringSliceJSON(values)
 }
 
-func parseDispatchBinding(raw sql.NullString) *domain.DispatchBinding {
-	if !raw.Valid || raw.String == "" || raw.String == "null" {
-		return nil
-	}
-	var binding domain.DispatchBinding
-	if json.Unmarshal([]byte(raw.String), &binding) != nil {
-		return &domain.DispatchBinding{}
-	}
-	return &binding
-}
-
-func marshalDispatchBinding(binding *domain.DispatchBinding) sql.NullString {
-	if binding == nil {
-		return sql.NullString{}
-	}
-	raw, _ := json.Marshal(binding)
-	return sql.NullString{String: string(raw), Valid: true}
-}
-
 func marshalBillingSnapshot(value domain.BillingSnapshot) string {
 	data, err := json.Marshal(value)
 	if err != nil {
@@ -523,7 +501,7 @@ func marshalUUIDSliceJSON(ids []uuid.UUID) string {
 	return string(data)
 }
 
-const runColumns = `id, lifecycle_version, owner_identity, owner_epoch, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_expires_at, dispatch_binding, owner_scopes, requested_scopes, work_references, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
+const runColumns = `id, lifecycle_version, owner_identity, owner_epoch, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_expires_at, owner_scopes, requested_scopes, work_references, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
 	execution_mode, harness_kind, harness_session_id, goal_delivery, terminal_class, stop_reason, last_handoff, web_console_session_id, status,
 	started_at, interactive_invocation_started_at, ended_at, cancel_requested_at, goal_id, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 	idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
@@ -542,7 +520,7 @@ const runColumns = `id, lifecycle_version, owner_identity, owner_epoch, task_id,
 // approved_by, approved_at.
 // NOTE: last_heartbeat MUST be included — the reconciler depends on it
 // to detect stale runs. Without it, every run appears stale after creation.
-const listRunColumns = `id, lifecycle_version, owner_identity, owner_epoch, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_expires_at, dispatch_binding, owner_scopes, requested_scopes, work_references, workload_kind, workload_key, workload_instance, billing_snapshot, run_mode,
+const listRunColumns = `id, lifecycle_version, owner_identity, owner_epoch, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_expires_at, owner_scopes, requested_scopes, work_references, workload_kind, workload_key, workload_instance, billing_snapshot, run_mode,
 	execution_mode, harness_kind, harness_session_id, goal_delivery, terminal_class, stop_reason, last_handoff, web_console_session_id, status,
 	started_at, interactive_invocation_started_at, ended_at, phase, last_heartbeat, progress_percent,
 	error_msg, exit_code, approval_state, finalization_status, finalization_error, finalized_at,
@@ -566,7 +544,6 @@ type listRunLiteRow struct {
 	Subject                        sql.NullString `db:"subject"`
 	OwnerSubject                   sql.NullString `db:"owner_subject"`
 	OwnerExpiresAt                 NullableTime   `db:"owner_expires_at"`
-	DispatchBinding                sql.NullString `db:"dispatch_binding"`
 	OwnerScopes                    sql.NullString `db:"owner_scopes"`
 	RequestedScopes                sql.NullString `db:"requested_scopes"`
 	WorkReferences                 sql.NullString `db:"work_references"`
@@ -640,7 +617,6 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 		OwnerSubject:                   row.OwnerSubject.String,
 		OwnerScopes:                    parseStringSliceJSON(row.OwnerScopes),
 		OwnerExpiresAt:                 row.OwnerExpiresAt.ToPtr(),
-		DispatchBinding:                parseDispatchBinding(row.DispatchBinding),
 		RequestedScopes:                parseStringSliceJSON(row.RequestedScopes),
 		WorkReferences:                 parseWorkReferencesJSON(row.WorkReferences),
 		Workload:                       domain.WorkloadRef{Kind: domain.WorkloadKind(row.WorkloadKind), Key: row.WorkloadKey, Instance: row.WorkloadInstance},
@@ -705,7 +681,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 	run.UpdatedAt = now
 
 	row := runFromDomain(run)
-	query := `INSERT INTO runs (id, lifecycle_version, owner_identity, owner_epoch, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_expires_at, dispatch_binding, owner_scopes, requested_scopes, work_references, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
+	query := `INSERT INTO runs (id, lifecycle_version, owner_identity, owner_epoch, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_expires_at, owner_scopes, requested_scopes, work_references, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
 			execution_mode, harness_kind, harness_session_id, goal_delivery, terminal_class, stop_reason, last_handoff, web_console_session_id, status,
 			started_at, interactive_invocation_started_at, ended_at, cancel_requested_at, goal_id, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 			idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
@@ -717,7 +693,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
 			requested_model, actual_model, canary_arm,
 			created_at, updated_at)
-			VALUES (:id, :lifecycle_version, :owner_identity, :owner_epoch, :task_id, :agent_profile_id, :tag, :label, :label_source, :subject, :owner_subject, :owner_expires_at, :dispatch_binding, :owner_scopes, :requested_scopes, :work_references, :workload_kind, :workload_key, :workload_instance, :billing_snapshot, :sandbox_id, :run_mode,
+			VALUES (:id, :lifecycle_version, :owner_identity, :owner_epoch, :task_id, :agent_profile_id, :tag, :label, :label_source, :subject, :owner_subject, :owner_expires_at, :owner_scopes, :requested_scopes, :work_references, :workload_kind, :workload_key, :workload_instance, :billing_snapshot, :sandbox_id, :run_mode,
 			:execution_mode, :harness_kind, :harness_session_id, :goal_delivery, :terminal_class, :stop_reason, :last_handoff, :web_console_session_id, :status,
 			:started_at, :interactive_invocation_started_at, :ended_at, :cancel_requested_at, :goal_id, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
 			:idempotency_key, :summary, :run_result, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
@@ -806,6 +782,10 @@ func (r *runRepository) List(ctx context.Context, filter repository.RunListFilte
 		conditions = append(conditions, "runs.source_investigation_run_id = ?")
 		args = append(args, *filter.AppliesInvestigationRunID)
 	}
+	if filter.ParentRunID != nil {
+		conditions = append(conditions, "runs.parent_run_id = ?")
+		args = append(args, *filter.ParentRunID)
+	}
 
 	whereClause := ""
 	if len(conditions) > 0 {
@@ -860,7 +840,7 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 			owner_identity = CASE WHEN :owner_identity <> '' THEN :owner_identity ELSE owner_identity END,
 			owner_epoch = CASE WHEN :owner_epoch > 0 THEN :owner_epoch ELSE owner_epoch END,
 			task_id = :task_id, agent_profile_id = :agent_profile_id,
-			tag = :tag, label = :label, label_source = :label_source, subject = :subject, owner_subject = :owner_subject, owner_expires_at = :owner_expires_at, dispatch_binding = :dispatch_binding, owner_scopes = :owner_scopes, requested_scopes = :requested_scopes, work_references = :work_references, sandbox_id = :sandbox_id, run_mode = :run_mode,
+			tag = :tag, label = :label, label_source = :label_source, subject = :subject, owner_subject = :owner_subject, owner_expires_at = :owner_expires_at, owner_scopes = :owner_scopes, requested_scopes = :requested_scopes, work_references = :work_references, sandbox_id = :sandbox_id, run_mode = :run_mode,
 			execution_mode = :execution_mode, harness_kind = :harness_kind, harness_session_id = :harness_session_id, goal_delivery = :goal_delivery, terminal_class = :terminal_class, stop_reason = :stop_reason, last_handoff = :last_handoff, web_console_session_id = :web_console_session_id, status = :status,
 		started_at = :started_at, interactive_invocation_started_at = :interactive_invocation_started_at, ended_at = :ended_at, cancel_requested_at = COALESCE(cancel_requested_at, :cancel_requested_at), phase = :phase,
 		last_checkpoint_id = :last_checkpoint_id, last_heartbeat = CASE WHEN last_heartbeat IS NULL OR last_heartbeat < :last_heartbeat THEN :last_heartbeat ELSE last_heartbeat END,

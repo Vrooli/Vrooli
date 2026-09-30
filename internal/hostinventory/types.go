@@ -58,6 +58,7 @@ type Snapshot struct {
 	DisplayManager          string                  `json:"display_manager,omitempty"`
 	DisplayServer           string                  `json:"display_server,omitempty"`
 	DisplayAttached         bool                    `json:"display_attached"`
+	DesktopSession          DesktopSession          `json:"desktop_session"`
 	AutoLoginUser           string                  `json:"auto_login_user,omitempty"`
 	RemoteDesktop           RemoteDesktopCapability `json:"remote_desktop"`
 	Wayland                 WaylandCapability       `json:"wayland"`
@@ -77,6 +78,17 @@ type Snapshot struct {
 	// populate it; capacity fit uses it to exercise the normal fact projection
 	// against hardware profiles that are not physically present.
 	AcceleratorFactOverrides map[string]string `json:"-"`
+}
+
+// DesktopSession is the grouped graphical-session fact set used by desktop
+// validation. The legacy flat fields remain for older consumers.
+type DesktopSession struct {
+	SessionType       string `json:"session_type,omitempty"`
+	Seat              string `json:"seat,omitempty"`
+	ActiveSessionUser string `json:"active_session_user,omitempty"`
+	DisplayAttached   bool   `json:"display_attached"`
+	DisplayServer     string `json:"display_server,omitempty"`
+	AutoLoginUser     string `json:"auto_login_user,omitempty"`
 }
 
 // WorkloadSnapshot is the opt-in, bounded host workload census. It is kept

@@ -12,9 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/types"
+
+	"github.com/google/uuid"
 )
 
 func (s *Service) lockReview(ctx context.Context) (func(), error) {
@@ -180,11 +181,6 @@ func (s *Service) recoverPreparedApproval(ctx context.Context, sb *types.Sandbox
 		return nil, err
 	}
 	if matchesAfter {
-		if req.ReviewRequestID != uuid.Nil {
-			if err := s.checkReviewSource(ctx, sb, req, true); err != nil {
-				return nil, err
-			}
-		}
 		return &selectedApplyResult{Success: true, Recovered: true, Changes: changes, TotalChanges: len(changes), PatchSHA256: archive.UnifiedDiffSHA256, AppliedAt: archive.SnapshotAt, PreparedArchive: archive, PreparedApproval: intent}, nil
 	}
 	matchesBefore, err := matchFingerprints(sb.ScopePath, intent.Before)
@@ -193,11 +189,6 @@ func (s *Service) recoverPreparedApproval(ctx context.Context, sb *types.Sandbox
 	}
 	if !matchesBefore {
 		return nil, types.NewValidationError("approval", "canonical source is neither the retained before nor after state; recovery did not write source")
-	}
-	if req.ReviewRequestID != uuid.Nil {
-		if err := s.checkReviewSource(ctx, sb, req, false); err != nil {
-			return nil, err
-		}
 	}
 	result, err := s.applyGeneratedChanges(ctx, sb, &intent.Request, string(patch), changes, nil, len(changes), archive)
 	if result != nil {

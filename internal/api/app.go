@@ -25,6 +25,10 @@ import (
 	cliv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1/cliv1connect"
 )
 
+// ProjectAPIWriteTimeout must exceed the 90-second Program Runtime bridge
+// timeout so slow, read-only control-plane calls can return their response.
+const ProjectAPIWriteTimeout = 2 * time.Minute
+
 type RunningScenario struct {
 	Name      string         `json:"name"`
 	Status    string         `json:"status"`

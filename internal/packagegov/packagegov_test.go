@@ -22,6 +22,34 @@ func TestValidationIssueRemainsRegistryDiagnosticShape(t *testing.T) {
 	}
 }
 
+func TestGeneratedOutputsRequireLifecycleOwner(t *testing.T) {
+	item := Package{
+		Name:         "generated-fixture",
+		ManifestPath: "packages/generated-fixture/.vrooli/package.json",
+		Manifest: Manifest{Package: ManifestEntry{
+			Name:              "generated-fixture",
+			DisplayName:       "@vrooli/generated-fixture",
+			Kind:              KindSchemaOrContract,
+			ModuleIdentifiers: []string{"@vrooli/generated-fixture"},
+			GeneratedOutputs:  []GeneratedOutput{{Name: "fixture"}},
+			Adoption: AdoptionPolicy{
+				ScenarioAdoptable: true,
+				AllowedConsumers:  []ConsumerClass{ConsumerScenarioUI},
+				AdoptionModes:     []AdoptionMode{ModeGeneratedArtifact},
+			},
+			Refresh: RefreshPolicy{Strategy: RefreshScenarioSetup},
+		}},
+	}
+
+	issues := validateManifestSemantics(item)
+	for _, issue := range issues {
+		if issue.Code == "generated-output-missing-owner" && issue.Severity == "error" {
+			return
+		}
+	}
+	t.Fatalf("generated output owner diagnostic missing: %#v", issues)
+}
+
 func TestValidateConsumerClassBoundaryRejectsUndeclaredClass(t *testing.T) {
 	pkg := Package{
 		Name: "agentharness",

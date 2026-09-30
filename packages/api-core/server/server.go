@@ -121,8 +121,16 @@ type Config struct {
 	// If zero, defaults to 10 seconds.
 	ShutdownTimeout time.Duration
 
+	// CleanupTimeout is the maximum duration budget exposed to Cleanup after
+	// the server drain. If zero, it follows ShutdownTimeout. Keeping this
+	// separate lets a service use a short request-drain deadline without
+	// truncating browser, sidecar, database, or checkpoint teardown.
+	CleanupTimeout time.Duration
+
 	// Cleanup is called after the HTTP server stops accepting connections.
-	// The context has ShutdownTimeout remaining for cleanup operations.
+	// Cleanup receives a fresh CleanupTimeout budget after the server drain.
+	// It is deliberately independent from the drain context so cleanup still
+	// runs when in-flight requests exhaust the graceful-shutdown deadline.
 	// Cleanup errors are logged but do not affect the return value.
 	// Optional.
 	Cleanup func(ctx context.Context) error
@@ -320,15 +328,14 @@ func runStandardServer(cfg Config) error {
 		return err
 	}
 
-	// Graceful shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
-	defer cancel()
-
-	if err := srv.Shutdown(ctx); err != nil {
-		return fmt.Errorf("server shutdown failed: %w", err)
-	}
-
-	return runCleanup(ctx, cfg)
+	return shutdownAndCleanup(cfg, srv.Shutdown, func() {
+		// Shutdown leaves active connections in place when its context expires.
+		// Close them now so request contexts (including long-polls) are canceled
+		// before owner cleanup tears down their dependencies.
+		if err := srv.Close(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			cfg.log("forced server close failed: %v", err)
+		}
+	})
 }
 
 // runCustomServer runs a custom server using the provided callbacks.
@@ -351,15 +358,33 @@ func runCustomServer(cfg Config) error {
 		return err
 	}
 
-	// Graceful shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
-	defer cancel()
+	return shutdownAndCleanup(cfg, cfg.ShutdownServer, nil)
+}
 
-	if err := cfg.ShutdownServer(ctx); err != nil {
-		return fmt.Errorf("server shutdown failed: %w", err)
+// shutdownAndCleanup keeps the graceful-drain and owner-cleanup budgets
+// independent. net/http (and custom servers) return context.DeadlineExceeded
+// when a long-poll or streaming request outlives the drain budget. Cleanup is
+// still mandatory in that case: it owns databases, browser sessions, sidecars
+// and other resources that must not survive a process shutdown. The shutdown
+// error remains the operation result; cleanup errors are logged by runCleanup.
+func shutdownAndCleanup(cfg Config, shutdown func(context.Context) error, forceClose func()) error {
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+	shutdownErr := shutdown(shutdownCtx)
+	cancelShutdown()
+	if shutdownErr != nil && forceClose != nil {
+		forceClose()
 	}
 
-	return runCleanup(ctx, cfg)
+	cleanupCtx, cancelCleanup := context.WithTimeout(context.Background(), cfg.CleanupTimeout)
+	cleanupErr := runCleanup(cleanupCtx, cfg)
+	cancelCleanup()
+	if cleanupErr != nil {
+		return cleanupErr
+	}
+	if shutdownErr != nil {
+		return fmt.Errorf("server shutdown failed: %w", shutdownErr)
+	}
+	return nil
 }
 
 // waitForShutdown waits for either a shutdown signal or a startup error.
@@ -419,6 +444,9 @@ func withDefaults(cfg Config) Config {
 	}
 	if cfg.ShutdownTimeout == 0 {
 		cfg.ShutdownTimeout = 10 * time.Second
+	}
+	if cfg.CleanupTimeout == 0 {
+		cfg.CleanupTimeout = cfg.ShutdownTimeout
 	}
 
 	// Signals

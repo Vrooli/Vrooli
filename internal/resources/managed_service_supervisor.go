@@ -132,6 +132,9 @@ type ManagedServiceSupervisor struct {
 	terminate func(int) error
 	forceStop func(int) error
 	signal    func(int, os.Signal) error
+	// place adopts the started daemon into its own services-slice scope so
+	// its lifetime is not tied to the caller's session. Nil skips placement.
+	place func(pid int) error
 }
 
 func newManagedServiceSupervisor(statePath, logPath string) *ManagedServiceSupervisor {
@@ -159,7 +162,9 @@ func managedServiceSupervisorFor(resource string) (*ManagedServiceSupervisor, ru
 	if err != nil {
 		return nil, runtimestorage.Paths{}, err
 	}
-	return newManagedServiceSupervisor(filepath.Join(paths.StateDir, managedServiceStateFile), filepath.Join(paths.LogsDir, "service.log")), paths, nil
+	supervisor := newManagedServiceSupervisor(filepath.Join(paths.StateDir, managedServiceStateFile), filepath.Join(paths.LogsDir, "service.log"))
+	supervisor.place = func(pid int) error { return placeResourceProcess(resource, "service", pid) }
+	return supervisor, paths, nil
 }
 
 func (s *ManagedServiceSupervisor) Status() (ManagedServiceState, bool, error) {
@@ -231,6 +236,11 @@ func (s *ManagedServiceSupervisor) Start(artifactPath string, artifact resourced
 	if err := applyManagedServiceProcessLimits(cmd.Process.Pid, limits); err != nil {
 		_ = s.terminate(cmd.Process.Pid)
 		return ManagedServiceState{}, fmt.Errorf("apply managed-service process limits: %w", err)
+	}
+	if s.place != nil {
+		if err := s.place(cmd.Process.Pid); err != nil {
+			fmt.Fprintf(logFile, "%s warning: service not placed in its own scope, staying in the caller's: %v\n", s.now().UTC().Format(time.RFC3339), err)
+		}
 	}
 	instanceID := existing.InstanceID
 	if instanceID == "" {

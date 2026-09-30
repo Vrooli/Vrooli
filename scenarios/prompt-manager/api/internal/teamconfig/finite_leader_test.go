@@ -3,11 +3,10 @@ package teamconfig
 import "testing"
 
 func TestFiniteLeaderRequiresExactBoundedConfiguration(t *testing.T) {
-	for _, field := range []string{"effort", "revision", "prompt", "source", "profile", "source-limit", "whitespace", "supervision"} {
+	for _, field := range []string{"effort", "revision", "prompt", "source", "profile", "source-limit", "whitespace"} {
 		t.Run(field, func(t *testing.T) {
 			b := &FiniteLeader{EffortRef: "any:effort", AcceptedRevision: "r7", CoordinatorPromptRef: "pm:coordinator", SourceRefs: []string{"owner:assignment"}}
 			profile := "qualified"
-			var supervision *Supervision
 			switch field {
 			case "effort":
 				b.EffortRef = ""
@@ -23,10 +22,8 @@ func TestFiniteLeaderRequiresExactBoundedConfiguration(t *testing.T) {
 				b.SourceRefs = make([]string, 9)
 			case "whitespace":
 				b.AcceptedRevision = " r7"
-			case "supervision":
-				supervision = &Supervision{}
 			}
-			if err := b.Validate(profile, supervision); err == nil {
+			if err := b.Validate(profile); err == nil {
 				t.Fatal("incomplete or conflicting binding accepted")
 			}
 		})

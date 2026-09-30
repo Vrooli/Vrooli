@@ -2,8 +2,13 @@ package lifecycle
 
 import (
 	"context"
+	"strings"
 	"testing"
 
+	"github.com/vrooli/cli-core/cliutil"
+
+	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
@@ -123,4 +128,123 @@ func activeClaimCount(t *testing.T, store *scenarioruntime.SQLiteStore, instance
 		t.Fatalf("ListPortClaims(%s): %v", instanceID, err)
 	}
 	return len(claims)
+}
+
+// TestStopVariantLeavesLiveFixedPortListener is the stop-side twin of
+// cleanupFixedPortOrphans' live-only rule. Stopping web-console@presentation
+// killed live web-console's UI because the UI port is fixed in the manifest
+// and the stop path cleaned every listener on it.
+func TestStopVariantLeavesLiveFixedPortListener(t *testing.T) {
+	const fixedUIPort = 36235
+	const livePID = 4242
+
+	for _, tc := range []struct {
+		variant    string
+		wantSignal bool
+	}{
+		{variant: "presentation", wantSignal: false},
+		{variant: "", wantSignal: true},
+	} {
+		t.Run("variant="+tc.variant, func(t *testing.T) {
+			root := t.TempDir()
+			home := t.TempDir()
+			manifest := lifecycleFixtureManifest("alpha")
+			manifest.Ports["ui"] = scenario.Port{EnvVar: "UI_PORT", Port: intPtr(fixedUIPort)}
+			writeLifecycleFixtureManifest(t, root, manifest)
+
+			listening := true
+			var signaled []int
+			runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+				deps.readScenarioRecords = func(string, string) ([]process.Record, error) { return nil, nil }
+				deps.listeningPIDs = func(port int) ([]int, error) {
+					if port == fixedUIPort && listening {
+						return []int{livePID}, nil
+					}
+					return nil, nil
+				}
+				deps.signalPID = func(pid int, _ bool) error {
+					signaled = append(signaled, pid)
+					listening = false
+					return nil
+				}
+				deps.isPIDRunning = func(int) bool { return false }
+			})
+
+			if err := runner.cleanupScenarioRuntimeWithRegistryContext(context.Background(), "alpha", tc.variant, "", true, false, false); err != nil {
+				t.Fatalf("cleanup(alpha@%s): %v", tc.variant, err)
+			}
+			if got := len(signaled) > 0; got != tc.wantSignal {
+				t.Fatalf("alpha@%s stop signaled fixed-port listener = %v (%v), want %v", tc.variant, got, signaled, tc.wantSignal)
+			}
+		})
+	}
+}
+
+// TestVariantBuildRefusedWhileLiveServesSharedOutputs covers the other half of
+// the presentation-instance incident: starting web-console@presentation rebuilt
+// the API binary and UI bundle in the working tree that live web-console serves.
+func TestVariantBuildRefusedWhileLiveServesSharedOutputs(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+	runner := newLifecycleRunnerForTest(t, root, home, nil)
+
+	if _, err := runner.Start("alpha", StartOptions{}); err != nil {
+		t.Fatalf("Start(alpha live): %v", err)
+	}
+	cleanupRunner(t, runner, "alpha", StopOptions{})
+
+	_, err := runner.Start("alpha@presentation", StartOptions{ForceSetup: true})
+	if err == nil {
+		_ = runner.Stop("alpha", StopOptions{Variant: "presentation"})
+		t.Fatal("variant rebuild was admitted while live alpha serves the shared build outputs")
+	}
+	if !strings.Contains(err.Error(), "shares build outputs with running instance(s) alpha") {
+		t.Fatalf("variant rebuild error = %v, want the shared-build-output refusal", err)
+	}
+	_ = runner.Stop("alpha", StopOptions{Variant: "presentation"})
+
+	// With fresh outputs the variant needs no build and starts beside live.
+	if _, err := runner.Start("alpha@presentation", StartOptions{}); err != nil {
+		t.Fatalf("Start(alpha@presentation) with fresh outputs: %v", err)
+	}
+	if err := runner.Stop("alpha", StopOptions{Variant: "presentation"}); err != nil {
+		t.Fatalf("Stop(alpha@presentation): %v", err)
+	}
+}
+
+// TestApplyVariantDependenciesPublishesFollowList covers the #4 routing switch:
+// a non-live instance publishes the list discovery reads, a live instance
+// refuses it, and an undeclared dependency is rejected before start.
+func TestApplyVariantDependenciesPublishesFollowList(t *testing.T) {
+	item := scenario.Scenario{
+		Slug:    "web-console",
+		Variant: "presentation",
+		Manifest: scenario.ServiceManifest{Dependencies: scenario.Dependencies{Scenarios: map[string]scenario.Dependency{
+			"vrooli-bridge": {}, "audio-tools": {},
+		}}},
+	}
+
+	envVars := map[string]string{}
+	if err := applyVariantDependencies(item, []string{"audio-tools", "vrooli-bridge"}, envVars); err != nil {
+		t.Fatalf("applyVariantDependencies: %v", err)
+	}
+	if got := envVars[cliutil.EnvVariantDependencies]; got != "audio-tools,vrooli-bridge" {
+		t.Fatalf("published follow list = %q", got)
+	}
+
+	if err := applyVariantDependencies(item, []string{"integration-hub"}, map[string]string{}); err == nil {
+		t.Error("undeclared dependency was accepted")
+	}
+
+	live := item
+	live.Variant = "live"
+	if err := applyVariantDependencies(live, []string{"audio-tools"}, map[string]string{}); err == nil {
+		t.Error("live instance accepted a variant dependency list")
+	}
+
+	empty := map[string]string{}
+	if err := applyVariantDependencies(item, nil, empty); err != nil || len(empty) != 0 {
+		t.Errorf("no list should publish nothing: err=%v env=%v", err, empty)
+	}
 }

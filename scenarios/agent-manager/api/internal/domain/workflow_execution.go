@@ -137,10 +137,9 @@ type WorkflowExecution struct {
 type WorkflowAttemptStrategy string
 
 const (
-	WorkflowAttemptFreshRun      WorkflowAttemptStrategy = "fresh_run"
-	WorkflowAttemptContinue      WorkflowAttemptStrategy = "continue"
-	WorkflowAttemptChild         WorkflowAttemptStrategy = "child_workflow"
-	WorkflowAttemptQualification WorkflowAttemptStrategy = "qualification"
+	WorkflowAttemptFreshRun WorkflowAttemptStrategy = "fresh_run"
+	WorkflowAttemptContinue WorkflowAttemptStrategy = "continue"
+	WorkflowAttemptChild    WorkflowAttemptStrategy = "child_workflow"
 )
 
 type WorkflowAttemptStatus string
@@ -187,22 +186,21 @@ type WorkflowNodeAttempt struct {
 type WorkflowJournalKind string
 
 const (
-	WorkflowJournalInput         WorkflowJournalKind = "workflow_input"
-	WorkflowJournalAttempt       WorkflowJournalKind = "node_attempt"
-	WorkflowJournalRunResult     WorkflowJournalKind = "run_result"
-	WorkflowJournalStructured    WorkflowJournalKind = "structured_result"
-	WorkflowJournalQualification WorkflowJournalKind = "qualification_result"
-	WorkflowJournalHandoff       WorkflowJournalKind = "final_handoff"
-	WorkflowJournalSignal        WorkflowJournalKind = "signal"
-	WorkflowJournalCounter       WorkflowJournalKind = "counter"
-	WorkflowJournalWait          WorkflowJournalKind = "wait"
-	WorkflowJournalWaitTimeout   WorkflowJournalKind = "wait_timeout"
-	WorkflowJournalCancel        WorkflowJournalKind = "cancel"
-	WorkflowJournalRetry         WorkflowJournalKind = "retry"
-	WorkflowJournalResume        WorkflowJournalKind = "resume"
-	WorkflowJournalChild         WorkflowJournalKind = "child_workflow"
-	WorkflowJournalJoin          WorkflowJournalKind = "join"
-	WorkflowJournalCleanup       WorkflowJournalKind = "cleanup"
+	WorkflowJournalInput       WorkflowJournalKind = "workflow_input"
+	WorkflowJournalAttempt     WorkflowJournalKind = "node_attempt"
+	WorkflowJournalRunResult   WorkflowJournalKind = "run_result"
+	WorkflowJournalStructured  WorkflowJournalKind = "structured_result"
+	WorkflowJournalHandoff     WorkflowJournalKind = "final_handoff"
+	WorkflowJournalSignal      WorkflowJournalKind = "signal"
+	WorkflowJournalCounter     WorkflowJournalKind = "counter"
+	WorkflowJournalWait        WorkflowJournalKind = "wait"
+	WorkflowJournalWaitTimeout WorkflowJournalKind = "wait_timeout"
+	WorkflowJournalCancel      WorkflowJournalKind = "cancel"
+	WorkflowJournalRetry       WorkflowJournalKind = "retry"
+	WorkflowJournalResume      WorkflowJournalKind = "resume"
+	WorkflowJournalChild       WorkflowJournalKind = "child_workflow"
+	WorkflowJournalJoin        WorkflowJournalKind = "join"
+	WorkflowJournalCleanup     WorkflowJournalKind = "cleanup"
 	// WorkflowJournalDiagnostic records deterministic binding clamps and
 	// evictions without placing the diagnostic in prompt content alone.
 	WorkflowJournalDiagnostic WorkflowJournalKind = "binding_diagnostic"

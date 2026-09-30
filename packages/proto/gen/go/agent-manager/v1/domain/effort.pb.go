@@ -76,121 +76,6 @@ func (EffortFreshness) EnumDescriptor() ([]byte, []int) {
 	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{0}
 }
 
-// Delivery describes the external effect, never acknowledgment or benefit.
-type EffortDirectiveDelivery int32
-
-const (
-	EffortDirectiveDelivery_EFFORT_DIRECTIVE_DELIVERY_UNSPECIFIED EffortDirectiveDelivery = 0
-	EffortDirectiveDelivery_EFFORT_DIRECTIVE_DELIVERY_PENDING     EffortDirectiveDelivery = 1
-	EffortDirectiveDelivery_EFFORT_DIRECTIVE_DELIVERY_DELIVERED   EffortDirectiveDelivery = 2
-	EffortDirectiveDelivery_EFFORT_DIRECTIVE_DELIVERY_REFUSED     EffortDirectiveDelivery = 3
-	EffortDirectiveDelivery_EFFORT_DIRECTIVE_DELIVERY_EXPIRED     EffortDirectiveDelivery = 4
-	EffortDirectiveDelivery_EFFORT_DIRECTIVE_DELIVERY_SUPERSEDED  EffortDirectiveDelivery = 5
-	// Dispatch may have occurred; retries retain the same owner idempotency key.
-	EffortDirectiveDelivery_EFFORT_DIRECTIVE_DELIVERY_UNCERTAIN EffortDirectiveDelivery = 6
-)
-
-// Enum value maps for EffortDirectiveDelivery.
-var (
-	EffortDirectiveDelivery_name = map[int32]string{
-		0: "EFFORT_DIRECTIVE_DELIVERY_UNSPECIFIED",
-		1: "EFFORT_DIRECTIVE_DELIVERY_PENDING",
-		2: "EFFORT_DIRECTIVE_DELIVERY_DELIVERED",
-		3: "EFFORT_DIRECTIVE_DELIVERY_REFUSED",
-		4: "EFFORT_DIRECTIVE_DELIVERY_EXPIRED",
-		5: "EFFORT_DIRECTIVE_DELIVERY_SUPERSEDED",
-		6: "EFFORT_DIRECTIVE_DELIVERY_UNCERTAIN",
-	}
-	EffortDirectiveDelivery_value = map[string]int32{
-		"EFFORT_DIRECTIVE_DELIVERY_UNSPECIFIED": 0,
-		"EFFORT_DIRECTIVE_DELIVERY_PENDING":     1,
-		"EFFORT_DIRECTIVE_DELIVERY_DELIVERED":   2,
-		"EFFORT_DIRECTIVE_DELIVERY_REFUSED":     3,
-		"EFFORT_DIRECTIVE_DELIVERY_EXPIRED":     4,
-		"EFFORT_DIRECTIVE_DELIVERY_SUPERSEDED":  5,
-		"EFFORT_DIRECTIVE_DELIVERY_UNCERTAIN":   6,
-	}
-)
-
-func (x EffortDirectiveDelivery) Enum() *EffortDirectiveDelivery {
-	p := new(EffortDirectiveDelivery)
-	*p = x
-	return p
-}
-
-func (x EffortDirectiveDelivery) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (EffortDirectiveDelivery) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_effort_proto_enumTypes[1].Descriptor()
-}
-
-func (EffortDirectiveDelivery) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_effort_proto_enumTypes[1]
-}
-
-func (x EffortDirectiveDelivery) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use EffortDirectiveDelivery.Descriptor instead.
-func (EffortDirectiveDelivery) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{1}
-}
-
-type EffortDirectiveAcknowledgment int32
-
-const (
-	EffortDirectiveAcknowledgment_EFFORT_DIRECTIVE_ACKNOWLEDGMENT_UNSPECIFIED EffortDirectiveAcknowledgment = 0
-	EffortDirectiveAcknowledgment_EFFORT_DIRECTIVE_ACKNOWLEDGMENT_ACCEPTED    EffortDirectiveAcknowledgment = 1
-	EffortDirectiveAcknowledgment_EFFORT_DIRECTIVE_ACKNOWLEDGMENT_DEFERRED    EffortDirectiveAcknowledgment = 2
-	EffortDirectiveAcknowledgment_EFFORT_DIRECTIVE_ACKNOWLEDGMENT_CHALLENGED  EffortDirectiveAcknowledgment = 3
-)
-
-// Enum value maps for EffortDirectiveAcknowledgment.
-var (
-	EffortDirectiveAcknowledgment_name = map[int32]string{
-		0: "EFFORT_DIRECTIVE_ACKNOWLEDGMENT_UNSPECIFIED",
-		1: "EFFORT_DIRECTIVE_ACKNOWLEDGMENT_ACCEPTED",
-		2: "EFFORT_DIRECTIVE_ACKNOWLEDGMENT_DEFERRED",
-		3: "EFFORT_DIRECTIVE_ACKNOWLEDGMENT_CHALLENGED",
-	}
-	EffortDirectiveAcknowledgment_value = map[string]int32{
-		"EFFORT_DIRECTIVE_ACKNOWLEDGMENT_UNSPECIFIED": 0,
-		"EFFORT_DIRECTIVE_ACKNOWLEDGMENT_ACCEPTED":    1,
-		"EFFORT_DIRECTIVE_ACKNOWLEDGMENT_DEFERRED":    2,
-		"EFFORT_DIRECTIVE_ACKNOWLEDGMENT_CHALLENGED":  3,
-	}
-)
-
-func (x EffortDirectiveAcknowledgment) Enum() *EffortDirectiveAcknowledgment {
-	p := new(EffortDirectiveAcknowledgment)
-	*p = x
-	return p
-}
-
-func (x EffortDirectiveAcknowledgment) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (EffortDirectiveAcknowledgment) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_effort_proto_enumTypes[2].Descriptor()
-}
-
-func (EffortDirectiveAcknowledgment) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_effort_proto_enumTypes[2]
-}
-
-func (x EffortDirectiveAcknowledgment) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use EffortDirectiveAcknowledgment.Descriptor instead.
-func (EffortDirectiveAcknowledgment) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{2}
-}
-
 // An exact subject reference. Ordering is the enrollment's declared order.
 type EffortSubject struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
@@ -280,42 +165,26 @@ func (x *EffortSubject) GetAssignment() string {
 
 // Monitoring configuration; authority_ref is evidence, never a bearer credential.
 type EffortEnrollment struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	EffortRef        string                 `protobuf:"bytes,1,opt,name=effort_ref,json=effortRef,proto3" json:"effort_ref,omitempty"`
-	DisplayName      string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	DestinationRef   string                 `protobuf:"bytes,3,opt,name=destination_ref,json=destinationRef,proto3" json:"destination_ref,omitempty"`
-	TargetRevision   string                 `protobuf:"bytes,4,opt,name=target_revision,json=targetRevision,proto3" json:"target_revision,omitempty"`
-	SourceRevision   string                 `protobuf:"bytes,5,opt,name=source_revision,json=sourceRevision,proto3" json:"source_revision,omitempty"`
-	AuthorityRef     string                 `protobuf:"bytes,6,opt,name=authority_ref,json=authorityRef,proto3" json:"authority_ref,omitempty"`
-	SupervisorRunId  string                 `protobuf:"bytes,7,opt,name=supervisor_run_id,json=supervisorRunId,proto3" json:"supervisor_run_id,omitempty"`
-	Subjects         []*EffortSubject       `protobuf:"bytes,8,rep,name=subjects,proto3" json:"subjects,omitempty"`
-	PermittedActions []WatchActionKind      `protobuf:"varint,9,rep,packed,name=permitted_actions,json=permittedActions,proto3,enum=agent_manager.v1.WatchActionKind" json:"permitted_actions,omitempty"`
-	Revision         uint64                 `protobuf:"varint,10,opt,name=revision,proto3" json:"revision,omitempty"`
-	Withdrawn        bool                   `protobuf:"varint,11,opt,name=withdrawn,proto3" json:"withdrawn,omitempty"`
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	EffortRef       string                 `protobuf:"bytes,1,opt,name=effort_ref,json=effortRef,proto3" json:"effort_ref,omitempty"`
+	DisplayName     string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	DestinationRef  string                 `protobuf:"bytes,3,opt,name=destination_ref,json=destinationRef,proto3" json:"destination_ref,omitempty"`
+	TargetRevision  string                 `protobuf:"bytes,4,opt,name=target_revision,json=targetRevision,proto3" json:"target_revision,omitempty"`
+	SourceRevision  string                 `protobuf:"bytes,5,opt,name=source_revision,json=sourceRevision,proto3" json:"source_revision,omitempty"`
+	AuthorityRef    string                 `protobuf:"bytes,6,opt,name=authority_ref,json=authorityRef,proto3" json:"authority_ref,omitempty"`
+	SupervisorRunId string                 `protobuf:"bytes,7,opt,name=supervisor_run_id,json=supervisorRunId,proto3" json:"supervisor_run_id,omitempty"`
+	Subjects        []*EffortSubject       `protobuf:"bytes,8,rep,name=subjects,proto3" json:"subjects,omitempty"`
+	Revision        uint64                 `protobuf:"varint,10,opt,name=revision,proto3" json:"revision,omitempty"`
+	Withdrawn       bool                   `protobuf:"varint,11,opt,name=withdrawn,proto3" json:"withdrawn,omitempty"`
 	// Relative immediate directory under the configured effort root; empty for owner-only enrollment.
 	Workspace string                 `protobuf:"bytes,12,opt,name=workspace,proto3" json:"workspace,omitempty"`
 	WorkShape string                 `protobuf:"bytes,13,opt,name=work_shape,json=workShape,proto3" json:"work_shape,omitempty"`
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// Set only by authenticated owner enrollment; discovery cannot set it.
-	AuthorizedBy       string                 `protobuf:"bytes,15,opt,name=authorized_by,json=authorizedBy,proto3" json:"authorized_by,omitempty"`
-	AuthorityExpiresAt *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=authority_expires_at,json=authorityExpiresAt,proto3" json:"authority_expires_at,omitempty"`
-	MaximumDirectives  uint32                 `protobuf:"varint,17,opt,name=maximum_directives,json=maximumDirectives,proto3" json:"maximum_directives,omitempty"`
-	CooldownSeconds    uint32                 `protobuf:"varint,18,opt,name=cooldown_seconds,json=cooldownSeconds,proto3" json:"cooldown_seconds,omitempty"`
-	WithdrawalReason   string                 `protobuf:"bytes,19,opt,name=withdrawal_reason,json=withdrawalReason,proto3" json:"withdrawal_reason,omitempty"`
-	// Operator-granted stable delegation: BOTH exact verified token claims required.
-	// Team/profile text, lineage and work references are not authority.
-	SupervisorOwnerSubject string `protobuf:"bytes,20,opt,name=supervisor_owner_subject,json=supervisorOwnerSubject,proto3" json:"supervisor_owner_subject,omitempty"`
-	SupervisorScope        string `protobuf:"bytes,21,opt,name=supervisor_scope,json=supervisorScope,proto3" json:"supervisor_scope,omitempty"`
-	// Server-owned authorization. Ordinary enrollment/discovery cannot supply it.
-	DispatchAuthorization *SupervisorDispatchAuthorization `protobuf:"bytes,23,opt,name=dispatch_authorization,json=dispatchAuthorization,proto3" json:"dispatch_authorization,omitempty"`
-	// Trusted supervisors have freedom of operational means within the accepted
-	// effort. Owner boundaries remain enforced at every operation boundary.
-	AutonomousSupervision bool `protobuf:"varint,24,opt,name=autonomous_supervision,json=autonomousSupervision,proto3" json:"autonomous_supervision,omitempty"`
-	// Owner-supplied relative consequence for supervisor admission. Zero means
-	// unspecified; it never overrides fairness or owner eligibility.
-	SupervisionPriority uint32 `protobuf:"varint,25,opt,name=supervision_priority,json=supervisionPriority,proto3" json:"supervision_priority,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	AuthorizedBy     string `protobuf:"bytes,15,opt,name=authorized_by,json=authorizedBy,proto3" json:"authorized_by,omitempty"`
+	WithdrawalReason string `protobuf:"bytes,19,opt,name=withdrawal_reason,json=withdrawalReason,proto3" json:"withdrawal_reason,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *EffortEnrollment) Reset() {
@@ -404,13 +273,6 @@ func (x *EffortEnrollment) GetSubjects() []*EffortSubject {
 	return nil
 }
 
-func (x *EffortEnrollment) GetPermittedActions() []WatchActionKind {
-	if x != nil {
-		return x.PermittedActions
-	}
-	return nil
-}
-
 func (x *EffortEnrollment) GetRevision() uint64 {
 	if x != nil {
 		return x.Revision
@@ -453,258 +315,11 @@ func (x *EffortEnrollment) GetAuthorizedBy() string {
 	return ""
 }
 
-func (x *EffortEnrollment) GetAuthorityExpiresAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.AuthorityExpiresAt
-	}
-	return nil
-}
-
-func (x *EffortEnrollment) GetMaximumDirectives() uint32 {
-	if x != nil {
-		return x.MaximumDirectives
-	}
-	return 0
-}
-
-func (x *EffortEnrollment) GetCooldownSeconds() uint32 {
-	if x != nil {
-		return x.CooldownSeconds
-	}
-	return 0
-}
-
 func (x *EffortEnrollment) GetWithdrawalReason() string {
 	if x != nil {
 		return x.WithdrawalReason
 	}
 	return ""
-}
-
-func (x *EffortEnrollment) GetSupervisorOwnerSubject() string {
-	if x != nil {
-		return x.SupervisorOwnerSubject
-	}
-	return ""
-}
-
-func (x *EffortEnrollment) GetSupervisorScope() string {
-	if x != nil {
-		return x.SupervisorScope
-	}
-	return ""
-}
-
-func (x *EffortEnrollment) GetDispatchAuthorization() *SupervisorDispatchAuthorization {
-	if x != nil {
-		return x.DispatchAuthorization
-	}
-	return nil
-}
-
-func (x *EffortEnrollment) GetAutonomousSupervision() bool {
-	if x != nil {
-		return x.AutonomousSupervision
-	}
-	return false
-}
-
-func (x *EffortEnrollment) GetSupervisionPriority() uint32 {
-	if x != nil {
-		return x.SupervisionPriority
-	}
-	return 0
-}
-
-// Metadata only; the bearer lives solely in the canonical credential authority.
-type SupervisorDispatchAuthorization struct {
-	state                  protoimpl.MessageState `protogen:"open.v1"`
-	AuthorizationId        string                 `protobuf:"bytes,1,opt,name=authorization_id,json=authorizationId,proto3" json:"authorization_id,omitempty"`
-	OwnerSubject           string                 `protobuf:"bytes,2,opt,name=owner_subject,json=ownerSubject,proto3" json:"owner_subject,omitempty"`
-	TeamId                 string                 `protobuf:"bytes,3,opt,name=team_id,json=teamId,proto3" json:"team_id,omitempty"`
-	MemberId               string                 `protobuf:"bytes,4,opt,name=member_id,json=memberId,proto3" json:"member_id,omitempty"`
-	ProfileKey             string                 `protobuf:"bytes,5,opt,name=profile_key,json=profileKey,proto3" json:"profile_key,omitempty"`
-	Scopes                 []string               `protobuf:"bytes,6,rep,name=scopes,proto3" json:"scopes,omitempty"`
-	IssuedAt               *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=issued_at,json=issuedAt,proto3" json:"issued_at,omitempty"`
-	ExpiresAt              *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	RevokedAt              *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"`
-	CredentialHash         string                 `protobuf:"bytes,10,opt,name=credential_hash,json=credentialHash,proto3" json:"credential_hash,omitempty"`
-	TargetRevision         string                 `protobuf:"bytes,11,opt,name=target_revision,json=targetRevision,proto3" json:"target_revision,omitempty"`
-	IssuanceKey            string                 `protobuf:"bytes,12,opt,name=issuance_key,json=issuanceKey,proto3" json:"issuance_key,omitempty"`
-	MaximumRuns            uint32                 `protobuf:"varint,13,opt,name=maximum_runs,json=maximumRuns,proto3" json:"maximum_runs,omitempty"`
-	DispatchedRuns         uint32                 `protobuf:"varint,14,opt,name=dispatched_runs,json=dispatchedRuns,proto3" json:"dispatched_runs,omitempty"`
-	MinimumIntervalSeconds uint32                 `protobuf:"varint,15,opt,name=minimum_interval_seconds,json=minimumIntervalSeconds,proto3" json:"minimum_interval_seconds,omitempty"`
-	LastDispatchedAt       *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=last_dispatched_at,json=lastDispatchedAt,proto3" json:"last_dispatched_at,omitempty"`
-	// Finite owner-issued aggregate allowance for this dispatch lease.
-	MaxTokens         int64 `protobuf:"varint,17,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
-	MaxChargeMicroUsd int64 `protobuf:"varint,18,opt,name=max_charge_micro_usd,json=maxChargeMicroUsd,proto3" json:"max_charge_micro_usd,omitempty"`
-	// Server-owned run identities whose terminal accounting settles this lease.
-	DispatchedRunIds []string `protobuf:"bytes,19,rep,name=dispatched_run_ids,json=dispatchedRunIds,proto3" json:"dispatched_run_ids,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
-}
-
-func (x *SupervisorDispatchAuthorization) Reset() {
-	*x = SupervisorDispatchAuthorization{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SupervisorDispatchAuthorization) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SupervisorDispatchAuthorization) ProtoMessage() {}
-
-func (x *SupervisorDispatchAuthorization) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SupervisorDispatchAuthorization.ProtoReflect.Descriptor instead.
-func (*SupervisorDispatchAuthorization) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *SupervisorDispatchAuthorization) GetAuthorizationId() string {
-	if x != nil {
-		return x.AuthorizationId
-	}
-	return ""
-}
-
-func (x *SupervisorDispatchAuthorization) GetOwnerSubject() string {
-	if x != nil {
-		return x.OwnerSubject
-	}
-	return ""
-}
-
-func (x *SupervisorDispatchAuthorization) GetTeamId() string {
-	if x != nil {
-		return x.TeamId
-	}
-	return ""
-}
-
-func (x *SupervisorDispatchAuthorization) GetMemberId() string {
-	if x != nil {
-		return x.MemberId
-	}
-	return ""
-}
-
-func (x *SupervisorDispatchAuthorization) GetProfileKey() string {
-	if x != nil {
-		return x.ProfileKey
-	}
-	return ""
-}
-
-func (x *SupervisorDispatchAuthorization) GetScopes() []string {
-	if x != nil {
-		return x.Scopes
-	}
-	return nil
-}
-
-func (x *SupervisorDispatchAuthorization) GetIssuedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.IssuedAt
-	}
-	return nil
-}
-
-func (x *SupervisorDispatchAuthorization) GetExpiresAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ExpiresAt
-	}
-	return nil
-}
-
-func (x *SupervisorDispatchAuthorization) GetRevokedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.RevokedAt
-	}
-	return nil
-}
-
-func (x *SupervisorDispatchAuthorization) GetCredentialHash() string {
-	if x != nil {
-		return x.CredentialHash
-	}
-	return ""
-}
-
-func (x *SupervisorDispatchAuthorization) GetTargetRevision() string {
-	if x != nil {
-		return x.TargetRevision
-	}
-	return ""
-}
-
-func (x *SupervisorDispatchAuthorization) GetIssuanceKey() string {
-	if x != nil {
-		return x.IssuanceKey
-	}
-	return ""
-}
-
-func (x *SupervisorDispatchAuthorization) GetMaximumRuns() uint32 {
-	if x != nil {
-		return x.MaximumRuns
-	}
-	return 0
-}
-
-func (x *SupervisorDispatchAuthorization) GetDispatchedRuns() uint32 {
-	if x != nil {
-		return x.DispatchedRuns
-	}
-	return 0
-}
-
-func (x *SupervisorDispatchAuthorization) GetMinimumIntervalSeconds() uint32 {
-	if x != nil {
-		return x.MinimumIntervalSeconds
-	}
-	return 0
-}
-
-func (x *SupervisorDispatchAuthorization) GetLastDispatchedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.LastDispatchedAt
-	}
-	return nil
-}
-
-func (x *SupervisorDispatchAuthorization) GetMaxTokens() int64 {
-	if x != nil {
-		return x.MaxTokens
-	}
-	return 0
-}
-
-func (x *SupervisorDispatchAuthorization) GetMaxChargeMicroUsd() int64 {
-	if x != nil {
-		return x.MaxChargeMicroUsd
-	}
-	return 0
-}
-
-func (x *SupervisorDispatchAuthorization) GetDispatchedRunIds() []string {
-	if x != nil {
-		return x.DispatchedRunIds
-	}
-	return nil
 }
 
 // A provider failure or schema/path/coverage finding; source is an evidence reference.
@@ -719,7 +334,7 @@ type EffortDiscoveryFinding struct {
 
 func (x *EffortDiscoveryFinding) Reset() {
 	*x = EffortDiscoveryFinding{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[3]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -731,7 +346,7 @@ func (x *EffortDiscoveryFinding) String() string {
 func (*EffortDiscoveryFinding) ProtoMessage() {}
 
 func (x *EffortDiscoveryFinding) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[3]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -744,7 +359,7 @@ func (x *EffortDiscoveryFinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortDiscoveryFinding.ProtoReflect.Descriptor instead.
 func (*EffortDiscoveryFinding) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{3}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *EffortDiscoveryFinding) GetSource() string {
@@ -794,7 +409,7 @@ type EffortDiscovery struct {
 
 func (x *EffortDiscovery) Reset() {
 	*x = EffortDiscovery{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[4]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -806,7 +421,7 @@ func (x *EffortDiscovery) String() string {
 func (*EffortDiscovery) ProtoMessage() {}
 
 func (x *EffortDiscovery) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[4]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -819,7 +434,7 @@ func (x *EffortDiscovery) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortDiscovery.ProtoReflect.Descriptor instead.
 func (*EffortDiscovery) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{4}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *EffortDiscovery) GetGeneration() uint64 {
@@ -938,7 +553,7 @@ type EffortUsage struct {
 
 func (x *EffortUsage) Reset() {
 	*x = EffortUsage{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[5]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -950,7 +565,7 @@ func (x *EffortUsage) String() string {
 func (*EffortUsage) ProtoMessage() {}
 
 func (x *EffortUsage) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[5]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -963,7 +578,7 @@ func (x *EffortUsage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortUsage.ProtoReflect.Descriptor instead.
 func (*EffortUsage) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{5}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *EffortUsage) GetTokens() int64 {
@@ -1045,7 +660,7 @@ type EffortQuotaObservation struct {
 
 func (x *EffortQuotaObservation) Reset() {
 	*x = EffortQuotaObservation{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[6]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1057,7 +672,7 @@ func (x *EffortQuotaObservation) String() string {
 func (*EffortQuotaObservation) ProtoMessage() {}
 
 func (x *EffortQuotaObservation) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[6]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1070,7 +685,7 @@ func (x *EffortQuotaObservation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortQuotaObservation.ProtoReflect.Descriptor instead.
 func (*EffortQuotaObservation) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{6}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *EffortQuotaObservation) GetProvider() string {
@@ -1185,7 +800,7 @@ type EffortAssignment struct {
 
 func (x *EffortAssignment) Reset() {
 	*x = EffortAssignment{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[7]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1197,7 +812,7 @@ func (x *EffortAssignment) String() string {
 func (*EffortAssignment) ProtoMessage() {}
 
 func (x *EffortAssignment) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[7]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1210,7 +825,7 @@ func (x *EffortAssignment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortAssignment.ProtoReflect.Descriptor instead.
 func (*EffortAssignment) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{7}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *EffortAssignment) GetSubject() *EffortSubject {
@@ -1312,7 +927,7 @@ type EffortOutcomeStanding struct {
 
 func (x *EffortOutcomeStanding) Reset() {
 	*x = EffortOutcomeStanding{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[8]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1324,7 +939,7 @@ func (x *EffortOutcomeStanding) String() string {
 func (*EffortOutcomeStanding) ProtoMessage() {}
 
 func (x *EffortOutcomeStanding) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[8]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1337,7 +952,7 @@ func (x *EffortOutcomeStanding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortOutcomeStanding.ProtoReflect.Descriptor instead.
 func (*EffortOutcomeStanding) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{8}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *EffortOutcomeStanding) GetState() string {
@@ -1396,13 +1011,10 @@ type EffortBoardRow struct {
 	NextAction        string                 `protobuf:"bytes,9,opt,name=next_action,json=nextAction,proto3" json:"next_action,omitempty"`
 	Rationale         string                 `protobuf:"bytes,10,opt,name=rationale,proto3" json:"rationale,omitempty"`
 	Usage             *EffortUsage           `protobuf:"bytes,11,opt,name=usage,proto3" json:"usage,omitempty"`
-	Directives        []*EffortDirective     `protobuf:"bytes,12,rep,name=directives,proto3" json:"directives,omitempty"`
 	Limitations       []string               `protobuf:"bytes,13,rep,name=limitations,proto3" json:"limitations,omitempty"`
 	EvidenceRefs      []string               `protobuf:"bytes,14,rep,name=evidence_refs,json=evidenceRefs,proto3" json:"evidence_refs,omitempty"`
 	// Subject/evidence trigger: excludes supervisor activity, accounting and assessments.
 	ChangeIdentity string `protobuf:"bytes,15,opt,name=change_identity,json=changeIdentity,proto3" json:"change_identity,omitempty"`
-	// The same shared operation may appear in several rows; never sum it once per row.
-	LastAssessment *EffortAssessment `protobuf:"bytes,16,opt,name=last_assessment,json=lastAssessment,proto3" json:"last_assessment,omitempty"`
 	// Full row visibility identity, including supervisory activity. Not an inference trigger.
 	VisibilityChangeIdentity string `protobuf:"bytes,17,opt,name=visibility_change_identity,json=visibilityChangeIdentity,proto3" json:"visibility_change_identity,omitempty"`
 	// Provider observations are joined by source run when attribution exists.
@@ -1413,7 +1025,7 @@ type EffortBoardRow struct {
 
 func (x *EffortBoardRow) Reset() {
 	*x = EffortBoardRow{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[9]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1425,7 +1037,7 @@ func (x *EffortBoardRow) String() string {
 func (*EffortBoardRow) ProtoMessage() {}
 
 func (x *EffortBoardRow) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[9]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1438,7 +1050,7 @@ func (x *EffortBoardRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortBoardRow.ProtoReflect.Descriptor instead.
 func (*EffortBoardRow) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{9}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *EffortBoardRow) GetEnrollment() *EffortEnrollment {
@@ -1518,13 +1130,6 @@ func (x *EffortBoardRow) GetUsage() *EffortUsage {
 	return nil
 }
 
-func (x *EffortBoardRow) GetDirectives() []*EffortDirective {
-	if x != nil {
-		return x.Directives
-	}
-	return nil
-}
-
 func (x *EffortBoardRow) GetLimitations() []string {
 	if x != nil {
 		return x.Limitations
@@ -1544,13 +1149,6 @@ func (x *EffortBoardRow) GetChangeIdentity() string {
 		return x.ChangeIdentity
 	}
 	return ""
-}
-
-func (x *EffortBoardRow) GetLastAssessment() *EffortAssessment {
-	if x != nil {
-		return x.LastAssessment
-	}
-	return nil
 }
 
 func (x *EffortBoardRow) GetVisibilityChangeIdentity() string {
@@ -1586,7 +1184,7 @@ type EffortBoard struct {
 
 func (x *EffortBoard) Reset() {
 	*x = EffortBoard{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[10]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1598,7 +1196,7 @@ func (x *EffortBoard) String() string {
 func (*EffortBoard) ProtoMessage() {}
 
 func (x *EffortBoard) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[10]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1611,7 +1209,7 @@ func (x *EffortBoard) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffortBoard.ProtoReflect.Descriptor instead.
 func (*EffortBoard) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{10}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *EffortBoard) GetRows() []*EffortBoardRow {
@@ -1688,7 +1286,7 @@ type GetEffortBoardRequest struct {
 
 func (x *GetEffortBoardRequest) Reset() {
 	*x = GetEffortBoardRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[11]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1700,7 +1298,7 @@ func (x *GetEffortBoardRequest) String() string {
 func (*GetEffortBoardRequest) ProtoMessage() {}
 
 func (x *GetEffortBoardRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[11]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1713,7 +1311,7 @@ func (x *GetEffortBoardRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEffortBoardRequest.ProtoReflect.Descriptor instead.
 func (*GetEffortBoardRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{11}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetEffortBoardRequest) GetEffortRef() string {
@@ -1747,7 +1345,7 @@ type ListEffortsRequest struct {
 
 func (x *ListEffortsRequest) Reset() {
 	*x = ListEffortsRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[12]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1759,7 +1357,7 @@ func (x *ListEffortsRequest) String() string {
 func (*ListEffortsRequest) ProtoMessage() {}
 
 func (x *ListEffortsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[12]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1772,7 +1370,7 @@ func (x *ListEffortsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEffortsRequest.ProtoReflect.Descriptor instead.
 func (*ListEffortsRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{12}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListEffortsRequest) GetPageSize() uint32 {
@@ -1800,7 +1398,7 @@ type ListEffortsResponse struct {
 
 func (x *ListEffortsResponse) Reset() {
 	*x = ListEffortsResponse{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[13]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1812,7 +1410,7 @@ func (x *ListEffortsResponse) String() string {
 func (*ListEffortsResponse) ProtoMessage() {}
 
 func (x *ListEffortsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[13]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1825,7 +1423,7 @@ func (x *ListEffortsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEffortsResponse.ProtoReflect.Descriptor instead.
 func (*ListEffortsResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{13}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListEffortsResponse) GetEfforts() []*EffortEnrollment {
@@ -1860,7 +1458,7 @@ type EnrollEffortRequest struct {
 
 func (x *EnrollEffortRequest) Reset() {
 	*x = EnrollEffortRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[14]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1872,7 +1470,7 @@ func (x *EnrollEffortRequest) String() string {
 func (*EnrollEffortRequest) ProtoMessage() {}
 
 func (x *EnrollEffortRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[14]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1885,7 +1483,7 @@ func (x *EnrollEffortRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnrollEffortRequest.ProtoReflect.Descriptor instead.
 func (*EnrollEffortRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{14}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *EnrollEffortRequest) GetEnrollment() *EffortEnrollment {
@@ -1909,7 +1507,7 @@ func (x *EnrollEffortRequest) GetIdempotencyKey() string {
 	return ""
 }
 
-// Metadata reconciliation deliberately excludes authority, dispatch and
+// Metadata reconciliation deliberately excludes authority and
 // withdrawal state. It lets an explicitly scoped effort coordinator keep the
 // owner projection current without renewing or revoking a grant.
 type ReconcileEffortMetadataRequest struct {
@@ -1924,7 +1522,7 @@ type ReconcileEffortMetadataRequest struct {
 
 func (x *ReconcileEffortMetadataRequest) Reset() {
 	*x = ReconcileEffortMetadataRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[15]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1936,7 +1534,7 @@ func (x *ReconcileEffortMetadataRequest) String() string {
 func (*ReconcileEffortMetadataRequest) ProtoMessage() {}
 
 func (x *ReconcileEffortMetadataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[15]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1949,7 +1547,7 @@ func (x *ReconcileEffortMetadataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcileEffortMetadataRequest.ProtoReflect.Descriptor instead.
 func (*ReconcileEffortMetadataRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{15}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ReconcileEffortMetadataRequest) GetEnrollment() *EffortEnrollment {
@@ -1992,7 +1590,7 @@ type WithdrawEffortRequest struct {
 
 func (x *WithdrawEffortRequest) Reset() {
 	*x = WithdrawEffortRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[16]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2004,7 +1602,7 @@ func (x *WithdrawEffortRequest) String() string {
 func (*WithdrawEffortRequest) ProtoMessage() {}
 
 func (x *WithdrawEffortRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[16]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2017,7 +1615,7 @@ func (x *WithdrawEffortRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WithdrawEffortRequest.ProtoReflect.Descriptor instead.
 func (*WithdrawEffortRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{16}
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *WithdrawEffortRequest) GetEffortRef() string {
@@ -2056,7 +1654,7 @@ type ReconcileEffortDiscoveryRequest struct {
 
 func (x *ReconcileEffortDiscoveryRequest) Reset() {
 	*x = ReconcileEffortDiscoveryRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[17]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2068,7 +1666,7 @@ func (x *ReconcileEffortDiscoveryRequest) String() string {
 func (*ReconcileEffortDiscoveryRequest) ProtoMessage() {}
 
 func (x *ReconcileEffortDiscoveryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[17]
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2081,1208 +1679,7 @@ func (x *ReconcileEffortDiscoveryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcileEffortDiscoveryRequest.ProtoReflect.Descriptor instead.
 func (*ReconcileEffortDiscoveryRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{17}
-}
-
-// Immutable request plus independent delivery, acknowledgment, action and assessment.
-type EffortDirective struct {
-	state                  protoimpl.MessageState        `protogen:"open.v1"`
-	DirectiveId            string                        `protobuf:"bytes,1,opt,name=directive_id,json=directiveId,proto3" json:"directive_id,omitempty"`
-	EffortRef              string                        `protobuf:"bytes,2,opt,name=effort_ref,json=effortRef,proto3" json:"effort_ref,omitempty"`
-	TargetRevision         string                        `protobuf:"bytes,3,opt,name=target_revision,json=targetRevision,proto3" json:"target_revision,omitempty"`
-	Issuer                 string                        `protobuf:"bytes,4,opt,name=issuer,proto3" json:"issuer,omitempty"`
-	TargetRunId            string                        `protobuf:"bytes,5,opt,name=target_run_id,json=targetRunId,proto3" json:"target_run_id,omitempty"`
-	Kind                   WatchActionKind               `protobuf:"varint,6,opt,name=kind,proto3,enum=agent_manager.v1.WatchActionKind" json:"kind,omitempty"`
-	Scope                  string                        `protobuf:"bytes,7,opt,name=scope,proto3" json:"scope,omitempty"`
-	EvidenceRefs           []string                      `protobuf:"bytes,8,rep,name=evidence_refs,json=evidenceRefs,proto3" json:"evidence_refs,omitempty"`
-	Adjustment             string                        `protobuf:"bytes,9,opt,name=adjustment,proto3" json:"adjustment,omitempty"`
-	ExpectedResult         string                        `protobuf:"bytes,10,opt,name=expected_result,json=expectedResult,proto3" json:"expected_result,omitempty"`
-	ExpiresAt              *timestamppb.Timestamp        `protobuf:"bytes,11,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	IdempotencyKey         string                        `protobuf:"bytes,12,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
-	Delivery               EffortDirectiveDelivery       `protobuf:"varint,13,opt,name=delivery,proto3,enum=agent_manager.v1.EffortDirectiveDelivery" json:"delivery,omitempty"`
-	Acknowledgment         EffortDirectiveAcknowledgment `protobuf:"varint,14,opt,name=acknowledgment,proto3,enum=agent_manager.v1.EffortDirectiveAcknowledgment" json:"acknowledgment,omitempty"`
-	AcknowledgmentReason   string                        `protobuf:"bytes,15,opt,name=acknowledgment_reason,json=acknowledgmentReason,proto3" json:"acknowledgment_reason,omitempty"`
-	OwnerWaitRef           string                        `protobuf:"bytes,16,opt,name=owner_wait_ref,json=ownerWaitRef,proto3" json:"owner_wait_ref,omitempty"`
-	ActionRef              string                        `protobuf:"bytes,17,opt,name=action_ref,json=actionRef,proto3" json:"action_ref,omitempty"`
-	Assessment             string                        `protobuf:"bytes,18,opt,name=assessment,proto3" json:"assessment,omitempty"`
-	AssessmentEvidenceRefs []string                      `protobuf:"bytes,19,rep,name=assessment_evidence_refs,json=assessmentEvidenceRefs,proto3" json:"assessment_evidence_refs,omitempty"`
-	SupersededBy           string                        `protobuf:"bytes,20,opt,name=superseded_by,json=supersededBy,proto3" json:"superseded_by,omitempty"`
-	Revision               uint64                        `protobuf:"varint,21,opt,name=revision,proto3" json:"revision,omitempty"`
-	CreatedAt              *timestamppb.Timestamp        `protobuf:"bytes,22,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	DeliveredAt            *timestamppb.Timestamp        `protobuf:"bytes,23,opt,name=delivered_at,json=deliveredAt,proto3" json:"delivered_at,omitempty"`
-	DeliveryReason         string                        `protobuf:"bytes,24,opt,name=delivery_reason,json=deliveryReason,proto3" json:"delivery_reason,omitempty"`
-	// Immutable evidence cut at request time; excludes directives to avoid recursion.
-	SourceSnapshot   *EffortBoardRow `protobuf:"bytes,25,opt,name=source_snapshot,json=sourceSnapshot,proto3" json:"source_snapshot,omitempty"`
-	SupervisionUsage *EffortUsage    `protobuf:"bytes,26,opt,name=supervision_usage,json=supervisionUsage,proto3" json:"supervision_usage,omitempty"`
-	Hypothesis       string          `protobuf:"bytes,27,opt,name=hypothesis,proto3" json:"hypothesis,omitempty"`
-	Comparison       string          `protobuf:"bytes,28,opt,name=comparison,proto3" json:"comparison,omitempty"`
-	// Requested progress condition and immutable baseline; absent on legacy directives.
-	RecoveryExpectation *EffortRecoveryExpectation `protobuf:"bytes,29,opt,name=recovery_expectation,json=recoveryExpectation,proto3" json:"recovery_expectation,omitempty"`
-	// Latest attributable verification, independent of delivery and causal benefit.
-	RecoveryVerification *EffortRecoveryVerification `protobuf:"bytes,30,opt,name=recovery_verification,json=recoveryVerification,proto3" json:"recovery_verification,omitempty"`
-	// Server-bound authorization route used at admission; never supplied by prose.
-	AuthorityBinding *EffortDirectiveAuthorityBinding `protobuf:"bytes,31,opt,name=authority_binding,json=authorityBinding,proto3" json:"authority_binding,omitempty"`
-	// Owner proof that this request was refused before execution effects.
-	// False means no such proof, not proof that an effect occurred.
-	RefusalBeforeEffects bool `protobuf:"varint,32,opt,name=refusal_before_effects,json=refusalBeforeEffects,proto3" json:"refusal_before_effects,omitempty"`
-	// Owner-returned replacement with exact predecessor lineage; never caller-set.
-	RecoveredRunId string `protobuf:"bytes,33,opt,name=recovered_run_id,json=recoveredRunId,proto3" json:"recovered_run_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *EffortDirective) Reset() {
-	*x = EffortDirective{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[18]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *EffortDirective) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*EffortDirective) ProtoMessage() {}
-
-func (x *EffortDirective) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[18]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use EffortDirective.ProtoReflect.Descriptor instead.
-func (*EffortDirective) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{18}
-}
-
-func (x *EffortDirective) GetDirectiveId() string {
-	if x != nil {
-		return x.DirectiveId
-	}
-	return ""
-}
-
-func (x *EffortDirective) GetEffortRef() string {
-	if x != nil {
-		return x.EffortRef
-	}
-	return ""
-}
-
-func (x *EffortDirective) GetTargetRevision() string {
-	if x != nil {
-		return x.TargetRevision
-	}
-	return ""
-}
-
-func (x *EffortDirective) GetIssuer() string {
-	if x != nil {
-		return x.Issuer
-	}
-	return ""
-}
-
-func (x *EffortDirective) GetTargetRunId() string {
-	if x != nil {
-		return x.TargetRunId
-	}
-	return ""
-}
-
-func (x *EffortDirective) GetKind() WatchActionKind {
-	if x != nil {
-		return x.Kind
-	}
-	return WatchActionKind_WATCH_ACTION_KIND_UNSPECIFIED
-}
-
-func (x *EffortDirective) GetScope() string {
-	if x != nil {
-		return x.Scope
-	}
-	return ""
-}
-
-func (x *EffortDirective) GetEvidenceRefs() []string {
-	if x != nil {
-		return x.EvidenceRefs
-	}
-	return nil
-}
-
-func (x *EffortDirective) GetAdjustment() string {
-	if x != nil {
-		return x.Adjustment
-	}
-	return ""
-}
-
-func (x *EffortDirective) GetExpectedResult() string {
-	if x != nil {
-		return x.ExpectedResult
-	}
-	return ""
-}
-
-func (x *EffortDirective) GetExpiresAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ExpiresAt
-	}
-	return nil
-}
-
-func (x *EffortDirective) GetIdempotencyKey() string {
-	if x != nil {
-		return x.IdempotencyKey
-	}
-	return ""
-}
-
-func (x *EffortDirective) GetDelivery() EffortDirectiveDelivery {
-	if x != nil {
-		return x.Delivery
-	}
-	return EffortDirectiveDelivery_EFFORT_DIRECTIVE_DELIVERY_UNSPECIFIED
-}
-
-func (x *EffortDirective) GetAcknowledgment() EffortDirectiveAcknowledgment {
-	if x != nil {
-		return x.Acknowledgment
-	}
-	return EffortDirectiveAcknowledgment_EFFORT_DIRECTIVE_ACKNOWLEDGMENT_UNSPECIFIED
-}
-
-func (x *EffortDirective) GetAcknowledgmentReason() string {
-	if x != nil {
-		return x.AcknowledgmentReason
-	}
-	return ""
-}
-
-func (x *EffortDirective) GetOwnerWaitRef() string {
-	if x != nil {
-		return x.OwnerWaitRef
-	}
-	return ""
-}
-
-func (x *EffortDirective) GetActionRef() string {
-	if x != nil {
-		return x.ActionRef
-	}
-	return ""
-}
-
-func (x *EffortDirective) GetAssessment() string {
-	if x != nil {
-		return x.Assessment
-	}
-	return ""
-}
-
-func (x *EffortDirective) GetAssessmentEvidenceRefs() []string {
-	if x != nil {
-		return x.AssessmentEvidenceRefs
-	}
-	return nil
-}
-
-func (x *EffortDirective) GetSupersededBy() string {
-	if x != nil {
-		return x.SupersededBy
-	}
-	return ""
-}
-
-func (x *EffortDirective) GetRevision() uint64 {
-	if x != nil {
-		return x.Revision
-	}
-	return 0
-}
-
-func (x *EffortDirective) GetCreatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.CreatedAt
-	}
-	return nil
-}
-
-func (x *EffortDirective) GetDeliveredAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.DeliveredAt
-	}
-	return nil
-}
-
-func (x *EffortDirective) GetDeliveryReason() string {
-	if x != nil {
-		return x.DeliveryReason
-	}
-	return ""
-}
-
-func (x *EffortDirective) GetSourceSnapshot() *EffortBoardRow {
-	if x != nil {
-		return x.SourceSnapshot
-	}
-	return nil
-}
-
-func (x *EffortDirective) GetSupervisionUsage() *EffortUsage {
-	if x != nil {
-		return x.SupervisionUsage
-	}
-	return nil
-}
-
-func (x *EffortDirective) GetHypothesis() string {
-	if x != nil {
-		return x.Hypothesis
-	}
-	return ""
-}
-
-func (x *EffortDirective) GetComparison() string {
-	if x != nil {
-		return x.Comparison
-	}
-	return ""
-}
-
-func (x *EffortDirective) GetRecoveryExpectation() *EffortRecoveryExpectation {
-	if x != nil {
-		return x.RecoveryExpectation
-	}
-	return nil
-}
-
-func (x *EffortDirective) GetRecoveryVerification() *EffortRecoveryVerification {
-	if x != nil {
-		return x.RecoveryVerification
-	}
-	return nil
-}
-
-func (x *EffortDirective) GetAuthorityBinding() *EffortDirectiveAuthorityBinding {
-	if x != nil {
-		return x.AuthorityBinding
-	}
-	return nil
-}
-
-func (x *EffortDirective) GetRefusalBeforeEffects() bool {
-	if x != nil {
-		return x.RefusalBeforeEffects
-	}
-	return false
-}
-
-func (x *EffortDirective) GetRecoveredRunId() string {
-	if x != nil {
-		return x.RecoveredRunId
-	}
-	return ""
-}
-
-// Bind the authorization route, not every observation-driven enrollment revision.
-type EffortDirectiveAuthorityBinding struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// operator, run, or delegated.
-	Mode string `protobuf:"bytes,1,opt,name=mode,proto3" json:"mode,omitempty"`
-	// Authenticated operator, exact run, or stable owner subject respectively.
-	Subject string `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
-	// Exact attenuated scope for delegated authority; empty for other routes.
-	Scope         string `protobuf:"bytes,3,opt,name=scope,proto3" json:"scope,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *EffortDirectiveAuthorityBinding) Reset() {
-	*x = EffortDirectiveAuthorityBinding{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[19]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *EffortDirectiveAuthorityBinding) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*EffortDirectiveAuthorityBinding) ProtoMessage() {}
-
-func (x *EffortDirectiveAuthorityBinding) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[19]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use EffortDirectiveAuthorityBinding.ProtoReflect.Descriptor instead.
-func (*EffortDirectiveAuthorityBinding) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{19}
-}
-
-func (x *EffortDirectiveAuthorityBinding) GetMode() string {
-	if x != nil {
-		return x.Mode
-	}
-	return ""
-}
-
-func (x *EffortDirectiveAuthorityBinding) GetSubject() string {
-	if x != nil {
-		return x.Subject
-	}
-	return ""
-}
-
-func (x *EffortDirectiveAuthorityBinding) GetScope() string {
-	if x != nil {
-		return x.Scope
-	}
-	return ""
-}
-
-// Assignment-specific proof required after recovery, not an agent activity quota.
-type EffortRecoveryExpectation struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Falsifiable condition the verifier checks against owner artifacts.
-	ProgressCondition string `protobuf:"bytes,1,opt,name=progress_condition,json=progressCondition,proto3" json:"progress_condition,omitempty"`
-	// Baseline references in caller order; never credential or transcript contents.
-	BaselineEvidenceRefs []string `protobuf:"bytes,2,rep,name=baseline_evidence_refs,json=baselineEvidenceRefs,proto3" json:"baseline_evidence_refs,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
-}
-
-func (x *EffortRecoveryExpectation) Reset() {
-	*x = EffortRecoveryExpectation{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[20]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *EffortRecoveryExpectation) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*EffortRecoveryExpectation) ProtoMessage() {}
-
-func (x *EffortRecoveryExpectation) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[20]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use EffortRecoveryExpectation.ProtoReflect.Descriptor instead.
-func (*EffortRecoveryExpectation) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{20}
-}
-
-func (x *EffortRecoveryExpectation) GetProgressCondition() string {
-	if x != nil {
-		return x.ProgressCondition
-	}
-	return ""
-}
-
-func (x *EffortRecoveryExpectation) GetBaselineEvidenceRefs() []string {
-	if x != nil {
-		return x.BaselineEvidenceRefs
-	}
-	return nil
-}
-
-// Supervisor verification is an attributed judgment, not independent product acceptance.
-type EffortRecoveryVerification struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// pending, progress-observed, owner-wait, or failed; delivery alone remains pending.
-	State string `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
-	// Explanation comparing the observed result with the immutable progress condition.
-	Reason string `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
-	// New owner evidence in verifier order. Required for an assessed state.
-	EvidenceRefs []string `protobuf:"bytes,3,rep,name=evidence_refs,json=evidenceRefs,proto3" json:"evidence_refs,omitempty"`
-	// Evidence observation time, bounded by delivery and server observation time.
-	ObservedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
-	// Exact operation/assignment/change condition for an unresolved recovery.
-	NextOwnerCondition string `protobuf:"bytes,5,opt,name=next_owner_condition,json=nextOwnerCondition,proto3" json:"next_owner_condition,omitempty"`
-	// Set by Agent Manager from authenticated identity, not request text.
-	Verifier      string `protobuf:"bytes,6,opt,name=verifier,proto3" json:"verifier,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *EffortRecoveryVerification) Reset() {
-	*x = EffortRecoveryVerification{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[21]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *EffortRecoveryVerification) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*EffortRecoveryVerification) ProtoMessage() {}
-
-func (x *EffortRecoveryVerification) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[21]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use EffortRecoveryVerification.ProtoReflect.Descriptor instead.
-func (*EffortRecoveryVerification) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{21}
-}
-
-func (x *EffortRecoveryVerification) GetState() string {
-	if x != nil {
-		return x.State
-	}
-	return ""
-}
-
-func (x *EffortRecoveryVerification) GetReason() string {
-	if x != nil {
-		return x.Reason
-	}
-	return ""
-}
-
-func (x *EffortRecoveryVerification) GetEvidenceRefs() []string {
-	if x != nil {
-		return x.EvidenceRefs
-	}
-	return nil
-}
-
-func (x *EffortRecoveryVerification) GetObservedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ObservedAt
-	}
-	return nil
-}
-
-func (x *EffortRecoveryVerification) GetNextOwnerCondition() string {
-	if x != nil {
-		return x.NextOwnerCondition
-	}
-	return ""
-}
-
-func (x *EffortRecoveryVerification) GetVerifier() string {
-	if x != nil {
-		return x.Verifier
-	}
-	return ""
-}
-
-// A bounded link to one canonical infrastructure repair assignment. This is
-// evidence metadata only: it does not create a Swarm item, grant authority or
-// dispatch work. The owner operation and proof references remain explicit so a
-// supervisor can reconcile one existing assignment without repeating a bare
-// wait or creating a second ledger.
-type EffortRepairLink struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Canonical Swarm work reference, for example fix/<name>.
-	WorkRef string `protobuf:"bytes,1,opt,name=work_ref,json=workRef,proto3" json:"work_ref,omitempty"`
-	// Named owner responsible for the repair assignment.
-	AssigningOwnerRef string `protobuf:"bytes,2,opt,name=assigning_owner_ref,json=assigningOwnerRef,proto3" json:"assigning_owner_ref,omitempty"`
-	// Next bounded owner operation to reconcile or perform.
-	NextOperation string `protobuf:"bytes,3,opt,name=next_operation,json=nextOperation,proto3" json:"next_operation,omitempty"`
-	// New evidence references that can prove the assignment condition.
-	CompletionEvidenceRefs []string `protobuf:"bytes,4,rep,name=completion_evidence_refs,json=completionEvidenceRefs,proto3" json:"completion_evidence_refs,omitempty"`
-	// Explicit stopping/reopening condition for this repair assignment.
-	StoppingCondition string `protobuf:"bytes,5,opt,name=stopping_condition,json=stoppingCondition,proto3" json:"stopping_condition,omitempty"`
-	// assigned, needs_assignment or resolved.
-	State         string `protobuf:"bytes,6,opt,name=state,proto3" json:"state,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *EffortRepairLink) Reset() {
-	*x = EffortRepairLink{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[22]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *EffortRepairLink) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*EffortRepairLink) ProtoMessage() {}
-
-func (x *EffortRepairLink) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[22]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use EffortRepairLink.ProtoReflect.Descriptor instead.
-func (*EffortRepairLink) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{22}
-}
-
-func (x *EffortRepairLink) GetWorkRef() string {
-	if x != nil {
-		return x.WorkRef
-	}
-	return ""
-}
-
-func (x *EffortRepairLink) GetAssigningOwnerRef() string {
-	if x != nil {
-		return x.AssigningOwnerRef
-	}
-	return ""
-}
-
-func (x *EffortRepairLink) GetNextOperation() string {
-	if x != nil {
-		return x.NextOperation
-	}
-	return ""
-}
-
-func (x *EffortRepairLink) GetCompletionEvidenceRefs() []string {
-	if x != nil {
-		return x.CompletionEvidenceRefs
-	}
-	return nil
-}
-
-func (x *EffortRepairLink) GetStoppingCondition() string {
-	if x != nil {
-		return x.StoppingCondition
-	}
-	return ""
-}
-
-func (x *EffortRepairLink) GetState() string {
-	if x != nil {
-		return x.State
-	}
-	return ""
-}
-
-type RequestEffortDirectiveRequest struct {
-	state                      protoimpl.MessageState `protogen:"open.v1"`
-	Directive                  *EffortDirective       `protobuf:"bytes,1,opt,name=directive,proto3" json:"directive,omitempty"`
-	ExpectedEnrollmentRevision uint64                 `protobuf:"varint,2,opt,name=expected_enrollment_revision,json=expectedEnrollmentRevision,proto3" json:"expected_enrollment_revision,omitempty"`
-	// Operator or a verified run identity; text never authenticates the caller.
-	Authority     WatchAuthority `protobuf:"varint,3,opt,name=authority,proto3,enum=agent_manager.v1.WatchAuthority" json:"authority,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RequestEffortDirectiveRequest) Reset() {
-	*x = RequestEffortDirectiveRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[23]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RequestEffortDirectiveRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RequestEffortDirectiveRequest) ProtoMessage() {}
-
-func (x *RequestEffortDirectiveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[23]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RequestEffortDirectiveRequest.ProtoReflect.Descriptor instead.
-func (*RequestEffortDirectiveRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{23}
-}
-
-func (x *RequestEffortDirectiveRequest) GetDirective() *EffortDirective {
-	if x != nil {
-		return x.Directive
-	}
-	return nil
-}
-
-func (x *RequestEffortDirectiveRequest) GetExpectedEnrollmentRevision() uint64 {
-	if x != nil {
-		return x.ExpectedEnrollmentRevision
-	}
-	return 0
-}
-
-func (x *RequestEffortDirectiveRequest) GetAuthority() WatchAuthority {
-	if x != nil {
-		return x.Authority
-	}
-	return WatchAuthority_WATCH_AUTHORITY_UNSPECIFIED
-}
-
-type ListEffortDirectivesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	EffortRef     string                 `protobuf:"bytes,1,opt,name=effort_ref,json=effortRef,proto3" json:"effort_ref,omitempty"`
-	PageSize      uint32                 `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListEffortDirectivesRequest) Reset() {
-	*x = ListEffortDirectivesRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[24]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListEffortDirectivesRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListEffortDirectivesRequest) ProtoMessage() {}
-
-func (x *ListEffortDirectivesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[24]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListEffortDirectivesRequest.ProtoReflect.Descriptor instead.
-func (*ListEffortDirectivesRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{24}
-}
-
-func (x *ListEffortDirectivesRequest) GetEffortRef() string {
-	if x != nil {
-		return x.EffortRef
-	}
-	return ""
-}
-
-func (x *ListEffortDirectivesRequest) GetPageSize() uint32 {
-	if x != nil {
-		return x.PageSize
-	}
-	return 0
-}
-
-func (x *ListEffortDirectivesRequest) GetPageToken() string {
-	if x != nil {
-		return x.PageToken
-	}
-	return ""
-}
-
-type ListEffortDirectivesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Directives    []*EffortDirective     `protobuf:"bytes,1,rep,name=directives,proto3" json:"directives,omitempty"`
-	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListEffortDirectivesResponse) Reset() {
-	*x = ListEffortDirectivesResponse{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[25]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListEffortDirectivesResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListEffortDirectivesResponse) ProtoMessage() {}
-
-func (x *ListEffortDirectivesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[25]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListEffortDirectivesResponse.ProtoReflect.Descriptor instead.
-func (*ListEffortDirectivesResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{25}
-}
-
-func (x *ListEffortDirectivesResponse) GetDirectives() []*EffortDirective {
-	if x != nil {
-		return x.Directives
-	}
-	return nil
-}
-
-func (x *ListEffortDirectivesResponse) GetNextPageToken() string {
-	if x != nil {
-		return x.NextPageToken
-	}
-	return ""
-}
-
-type UpdateEffortDirectiveRequest struct {
-	state            protoimpl.MessageState        `protogen:"open.v1"`
-	DirectiveId      string                        `protobuf:"bytes,1,opt,name=directive_id,json=directiveId,proto3" json:"directive_id,omitempty"`
-	ExpectedRevision uint64                        `protobuf:"varint,2,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
-	IdempotencyKey   string                        `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
-	Authority        WatchAuthority                `protobuf:"varint,4,opt,name=authority,proto3,enum=agent_manager.v1.WatchAuthority" json:"authority,omitempty"`
-	Acknowledgment   EffortDirectiveAcknowledgment `protobuf:"varint,5,opt,name=acknowledgment,proto3,enum=agent_manager.v1.EffortDirectiveAcknowledgment" json:"acknowledgment,omitempty"`
-	Reason           string                        `protobuf:"bytes,6,opt,name=reason,proto3" json:"reason,omitempty"`
-	OwnerWaitRef     string                        `protobuf:"bytes,7,opt,name=owner_wait_ref,json=ownerWaitRef,proto3" json:"owner_wait_ref,omitempty"`
-	ActionRef        string                        `protobuf:"bytes,8,opt,name=action_ref,json=actionRef,proto3" json:"action_ref,omitempty"`
-	// unknown, supported, contradicted; completion alone does not prove benefit.
-	Assessment       string       `protobuf:"bytes,9,opt,name=assessment,proto3" json:"assessment,omitempty"`
-	EvidenceRefs     []string     `protobuf:"bytes,10,rep,name=evidence_refs,json=evidenceRefs,proto3" json:"evidence_refs,omitempty"`
-	SupersededBy     string       `protobuf:"bytes,11,opt,name=superseded_by,json=supersededBy,proto3" json:"superseded_by,omitempty"`
-	SupervisionUsage *EffortUsage `protobuf:"bytes,12,opt,name=supervision_usage,json=supervisionUsage,proto3" json:"supervision_usage,omitempty"`
-	// Record post-delivery verification without resending or buying another attempt.
-	RecoveryVerification *EffortRecoveryVerification `protobuf:"bytes,13,opt,name=recovery_verification,json=recoveryVerification,proto3" json:"recovery_verification,omitempty"`
-	// Read only the original owner's receipt for a historically uncertain delivery.
-	// Never resends an expired, refused, superseded, or uncertain operation.
-	ReconcileDelivery bool `protobuf:"varint,14,opt,name=reconcile_delivery,json=reconcileDelivery,proto3" json:"reconcile_delivery,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
-}
-
-func (x *UpdateEffortDirectiveRequest) Reset() {
-	*x = UpdateEffortDirectiveRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[26]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UpdateEffortDirectiveRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UpdateEffortDirectiveRequest) ProtoMessage() {}
-
-func (x *UpdateEffortDirectiveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[26]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UpdateEffortDirectiveRequest.ProtoReflect.Descriptor instead.
-func (*UpdateEffortDirectiveRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{26}
-}
-
-func (x *UpdateEffortDirectiveRequest) GetDirectiveId() string {
-	if x != nil {
-		return x.DirectiveId
-	}
-	return ""
-}
-
-func (x *UpdateEffortDirectiveRequest) GetExpectedRevision() uint64 {
-	if x != nil {
-		return x.ExpectedRevision
-	}
-	return 0
-}
-
-func (x *UpdateEffortDirectiveRequest) GetIdempotencyKey() string {
-	if x != nil {
-		return x.IdempotencyKey
-	}
-	return ""
-}
-
-func (x *UpdateEffortDirectiveRequest) GetAuthority() WatchAuthority {
-	if x != nil {
-		return x.Authority
-	}
-	return WatchAuthority_WATCH_AUTHORITY_UNSPECIFIED
-}
-
-func (x *UpdateEffortDirectiveRequest) GetAcknowledgment() EffortDirectiveAcknowledgment {
-	if x != nil {
-		return x.Acknowledgment
-	}
-	return EffortDirectiveAcknowledgment_EFFORT_DIRECTIVE_ACKNOWLEDGMENT_UNSPECIFIED
-}
-
-func (x *UpdateEffortDirectiveRequest) GetReason() string {
-	if x != nil {
-		return x.Reason
-	}
-	return ""
-}
-
-func (x *UpdateEffortDirectiveRequest) GetOwnerWaitRef() string {
-	if x != nil {
-		return x.OwnerWaitRef
-	}
-	return ""
-}
-
-func (x *UpdateEffortDirectiveRequest) GetActionRef() string {
-	if x != nil {
-		return x.ActionRef
-	}
-	return ""
-}
-
-func (x *UpdateEffortDirectiveRequest) GetAssessment() string {
-	if x != nil {
-		return x.Assessment
-	}
-	return ""
-}
-
-func (x *UpdateEffortDirectiveRequest) GetEvidenceRefs() []string {
-	if x != nil {
-		return x.EvidenceRefs
-	}
-	return nil
-}
-
-func (x *UpdateEffortDirectiveRequest) GetSupersededBy() string {
-	if x != nil {
-		return x.SupersededBy
-	}
-	return ""
-}
-
-func (x *UpdateEffortDirectiveRequest) GetSupervisionUsage() *EffortUsage {
-	if x != nil {
-		return x.SupervisionUsage
-	}
-	return nil
-}
-
-func (x *UpdateEffortDirectiveRequest) GetRecoveryVerification() *EffortRecoveryVerification {
-	if x != nil {
-		return x.RecoveryVerification
-	}
-	return nil
-}
-
-func (x *UpdateEffortDirectiveRequest) GetReconcileDelivery() bool {
-	if x != nil {
-		return x.ReconcileDelivery
-	}
-	return false
-}
-
-// One immutable quiet/sample/intervention assessment over a bounded evidence cut.
-// This is a supervision record, not product acceptance or an execution grant.
-type EffortAssessment struct {
-	state        protoimpl.MessageState `protogen:"open.v1"`
-	AssessmentId string                 `protobuf:"bytes,1,opt,name=assessment_id,json=assessmentId,proto3" json:"assessment_id,omitempty"`
-	EffortRefs   []string               `protobuf:"bytes,2,rep,name=effort_refs,json=effortRefs,proto3" json:"effort_refs,omitempty"`
-	// Key is effort_ref; value is the exact target revision observed (blank means unknown).
-	TargetRevisions map[string]string `protobuf:"bytes,3,rep,name=target_revisions,json=targetRevisions,proto3" json:"target_revisions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	SupervisorRunId string            `protobuf:"bytes,4,opt,name=supervisor_run_id,json=supervisorRunId,proto3" json:"supervisor_run_id,omitempty"`
-	// quiet, sample, investigate, steer, or unknown.
-	Disposition        string                 `protobuf:"bytes,5,opt,name=disposition,proto3" json:"disposition,omitempty"`
-	Rationale          string                 `protobuf:"bytes,6,opt,name=rationale,proto3" json:"rationale,omitempty"`
-	EvidenceRefs       []string               `protobuf:"bytes,7,rep,name=evidence_refs,json=evidenceRefs,proto3" json:"evidence_refs,omitempty"`
-	SourceLedgerRef    string                 `protobuf:"bytes,8,opt,name=source_ledger_ref,json=sourceLedgerRef,proto3" json:"source_ledger_ref,omitempty"`
-	SharedOperationRef string                 `protobuf:"bytes,9,opt,name=shared_operation_ref,json=sharedOperationRef,proto3" json:"shared_operation_ref,omitempty"`
-	AllowanceRef       string                 `protobuf:"bytes,10,opt,name=allowance_ref,json=allowanceRef,proto3" json:"allowance_ref,omitempty"`
-	AllocationRule     string                 `protobuf:"bytes,11,opt,name=allocation_rule,json=allocationRule,proto3" json:"allocation_rule,omitempty"`
-	ObservedUsage      *EffortUsage           `protobuf:"bytes,12,opt,name=observed_usage,json=observedUsage,proto3" json:"observed_usage,omitempty"`
-	UnallocatedUsage   *EffortUsage           `protobuf:"bytes,13,opt,name=unallocated_usage,json=unallocatedUsage,proto3" json:"unallocated_usage,omitempty"`
-	ObservedAt         *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
-	IdempotencyKey     string                 `protobuf:"bytes,15,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
-	Hypothesis         string                 `protobuf:"bytes,16,opt,name=hypothesis,proto3" json:"hypothesis,omitempty"`
-	Comparison         string                 `protobuf:"bytes,17,opt,name=comparison,proto3" json:"comparison,omitempty"`
-	// unknown, supported, contradicted; a completion after a nudge is not causal proof.
-	Benefit       string   `protobuf:"bytes,18,opt,name=benefit,proto3" json:"benefit,omitempty"`
-	PolicyVersion string   `protobuf:"bytes,19,opt,name=policy_version,json=policyVersion,proto3" json:"policy_version,omitempty"`
-	Limitations   []string `protobuf:"bytes,20,rep,name=limitations,proto3" json:"limitations,omitempty"`
-	// Existing canonical infrastructure repair linkage, retained as evidence
-	// rather than a second work item or business steering grant.
-	RepairLinks   []*EffortRepairLink `protobuf:"bytes,21,rep,name=repair_links,json=repairLinks,proto3" json:"repair_links,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *EffortAssessment) Reset() {
-	*x = EffortAssessment{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[27]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *EffortAssessment) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*EffortAssessment) ProtoMessage() {}
-
-func (x *EffortAssessment) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[27]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use EffortAssessment.ProtoReflect.Descriptor instead.
-func (*EffortAssessment) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{27}
-}
-
-func (x *EffortAssessment) GetAssessmentId() string {
-	if x != nil {
-		return x.AssessmentId
-	}
-	return ""
-}
-
-func (x *EffortAssessment) GetEffortRefs() []string {
-	if x != nil {
-		return x.EffortRefs
-	}
-	return nil
-}
-
-func (x *EffortAssessment) GetTargetRevisions() map[string]string {
-	if x != nil {
-		return x.TargetRevisions
-	}
-	return nil
-}
-
-func (x *EffortAssessment) GetSupervisorRunId() string {
-	if x != nil {
-		return x.SupervisorRunId
-	}
-	return ""
-}
-
-func (x *EffortAssessment) GetDisposition() string {
-	if x != nil {
-		return x.Disposition
-	}
-	return ""
-}
-
-func (x *EffortAssessment) GetRationale() string {
-	if x != nil {
-		return x.Rationale
-	}
-	return ""
-}
-
-func (x *EffortAssessment) GetEvidenceRefs() []string {
-	if x != nil {
-		return x.EvidenceRefs
-	}
-	return nil
-}
-
-func (x *EffortAssessment) GetSourceLedgerRef() string {
-	if x != nil {
-		return x.SourceLedgerRef
-	}
-	return ""
-}
-
-func (x *EffortAssessment) GetSharedOperationRef() string {
-	if x != nil {
-		return x.SharedOperationRef
-	}
-	return ""
-}
-
-func (x *EffortAssessment) GetAllowanceRef() string {
-	if x != nil {
-		return x.AllowanceRef
-	}
-	return ""
-}
-
-func (x *EffortAssessment) GetAllocationRule() string {
-	if x != nil {
-		return x.AllocationRule
-	}
-	return ""
-}
-
-func (x *EffortAssessment) GetObservedUsage() *EffortUsage {
-	if x != nil {
-		return x.ObservedUsage
-	}
-	return nil
-}
-
-func (x *EffortAssessment) GetUnallocatedUsage() *EffortUsage {
-	if x != nil {
-		return x.UnallocatedUsage
-	}
-	return nil
-}
-
-func (x *EffortAssessment) GetObservedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ObservedAt
-	}
-	return nil
-}
-
-func (x *EffortAssessment) GetIdempotencyKey() string {
-	if x != nil {
-		return x.IdempotencyKey
-	}
-	return ""
-}
-
-func (x *EffortAssessment) GetHypothesis() string {
-	if x != nil {
-		return x.Hypothesis
-	}
-	return ""
-}
-
-func (x *EffortAssessment) GetComparison() string {
-	if x != nil {
-		return x.Comparison
-	}
-	return ""
-}
-
-func (x *EffortAssessment) GetBenefit() string {
-	if x != nil {
-		return x.Benefit
-	}
-	return ""
-}
-
-func (x *EffortAssessment) GetPolicyVersion() string {
-	if x != nil {
-		return x.PolicyVersion
-	}
-	return ""
-}
-
-func (x *EffortAssessment) GetLimitations() []string {
-	if x != nil {
-		return x.Limitations
-	}
-	return nil
-}
-
-func (x *EffortAssessment) GetRepairLinks() []*EffortRepairLink {
-	if x != nil {
-		return x.RepairLinks
-	}
-	return nil
-}
-
-type RecordEffortAssessmentRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Assessment    *EffortAssessment      `protobuf:"bytes,1,opt,name=assessment,proto3" json:"assessment,omitempty"`
-	Authority     WatchAuthority         `protobuf:"varint,2,opt,name=authority,proto3,enum=agent_manager.v1.WatchAuthority" json:"authority,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RecordEffortAssessmentRequest) Reset() {
-	*x = RecordEffortAssessmentRequest{}
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[28]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RecordEffortAssessmentRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RecordEffortAssessmentRequest) ProtoMessage() {}
-
-func (x *RecordEffortAssessmentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[28]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RecordEffortAssessmentRequest.ProtoReflect.Descriptor instead.
-func (*RecordEffortAssessmentRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{28}
-}
-
-func (x *RecordEffortAssessmentRequest) GetAssessment() *EffortAssessment {
-	if x != nil {
-		return x.Assessment
-	}
-	return nil
-}
-
-func (x *RecordEffortAssessmentRequest) GetAuthority() WatchAuthority {
-	if x != nil {
-		return x.Authority
-	}
-	return WatchAuthority_WATCH_AUTHORITY_UNSPECIFIED
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{16}
 }
 
 var File_agent_manager_v1_domain_effort_proto protoreflect.FileDescriptor
@@ -3298,7 +1695,7 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"\x04role\x18\x05 \x01(\tR\x04role\x12\x1e\n" +
 	"\n" +
 	"assignment\x18\x06 \x01(\tR\n" +
-	"assignment\"\x9e\t\n" +
+	"assignment\"\xea\x06\n" +
 	"\x10EffortEnrollment\x12)\n" +
 	"\n" +
 	"effort_ref\x18\x01 \x01(\tB\n" +
@@ -3309,8 +1706,7 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"\x0fsource_revision\x18\x05 \x01(\tR\x0esourceRevision\x12#\n" +
 	"\rauthority_ref\x18\x06 \x01(\tR\fauthorityRef\x12*\n" +
 	"\x11supervisor_run_id\x18\a \x01(\tR\x0fsupervisorRunId\x12;\n" +
-	"\bsubjects\x18\b \x03(\v2\x1f.agent_manager.v1.EffortSubjectR\bsubjects\x12N\n" +
-	"\x11permitted_actions\x18\t \x03(\x0e2!.agent_manager.v1.WatchActionKindR\x10permittedActions\x12\x1a\n" +
+	"\bsubjects\x18\b \x03(\v2\x1f.agent_manager.v1.EffortSubjectR\bsubjects\x12\x1a\n" +
 	"\brevision\x18\n" +
 	" \x01(\x04R\brevision\x12\x1c\n" +
 	"\twithdrawn\x18\v \x01(\bR\twithdrawn\x12\x1c\n" +
@@ -3319,41 +1715,9 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"work_shape\x18\r \x01(\tR\tworkShape\x129\n" +
 	"\n" +
 	"updated_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12#\n" +
-	"\rauthorized_by\x18\x0f \x01(\tR\fauthorizedBy\x12L\n" +
-	"\x14authority_expires_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\x12authorityExpiresAt\x12-\n" +
-	"\x12maximum_directives\x18\x11 \x01(\rR\x11maximumDirectives\x12)\n" +
-	"\x10cooldown_seconds\x18\x12 \x01(\rR\x0fcooldownSeconds\x12+\n" +
-	"\x11withdrawal_reason\x18\x13 \x01(\tR\x10withdrawalReason\x128\n" +
-	"\x18supervisor_owner_subject\x18\x14 \x01(\tR\x16supervisorOwnerSubject\x12)\n" +
-	"\x10supervisor_scope\x18\x15 \x01(\tR\x0fsupervisorScope\x12h\n" +
-	"\x16dispatch_authorization\x18\x17 \x01(\v21.agent_manager.v1.SupervisorDispatchAuthorizationR\x15dispatchAuthorization\x125\n" +
-	"\x16autonomous_supervision\x18\x18 \x01(\bR\x15autonomousSupervision\x121\n" +
-	"\x14supervision_priority\x18\x19 \x01(\rR\x13supervisionPriority\"\xd2\x06\n" +
-	"\x1fSupervisorDispatchAuthorization\x12)\n" +
-	"\x10authorization_id\x18\x01 \x01(\tR\x0fauthorizationId\x12#\n" +
-	"\rowner_subject\x18\x02 \x01(\tR\fownerSubject\x12\x17\n" +
-	"\ateam_id\x18\x03 \x01(\tR\x06teamId\x12\x1b\n" +
-	"\tmember_id\x18\x04 \x01(\tR\bmemberId\x12\x1f\n" +
-	"\vprofile_key\x18\x05 \x01(\tR\n" +
-	"profileKey\x12\x16\n" +
-	"\x06scopes\x18\x06 \x03(\tR\x06scopes\x127\n" +
-	"\tissued_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\bissuedAt\x129\n" +
-	"\n" +
-	"expires_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x129\n" +
-	"\n" +
-	"revoked_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\trevokedAt\x12'\n" +
-	"\x0fcredential_hash\x18\n" +
-	" \x01(\tR\x0ecredentialHash\x12'\n" +
-	"\x0ftarget_revision\x18\v \x01(\tR\x0etargetRevision\x12!\n" +
-	"\fissuance_key\x18\f \x01(\tR\vissuanceKey\x12!\n" +
-	"\fmaximum_runs\x18\r \x01(\rR\vmaximumRuns\x12'\n" +
-	"\x0fdispatched_runs\x18\x0e \x01(\rR\x0edispatchedRuns\x128\n" +
-	"\x18minimum_interval_seconds\x18\x0f \x01(\rR\x16minimumIntervalSeconds\x12H\n" +
-	"\x12last_dispatched_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\x10lastDispatchedAt\x12\x1d\n" +
-	"\n" +
-	"max_tokens\x18\x11 \x01(\x03R\tmaxTokens\x12/\n" +
-	"\x14max_charge_micro_usd\x18\x12 \x01(\x03R\x11maxChargeMicroUsd\x12,\n" +
-	"\x12dispatched_run_ids\x18\x13 \x03(\tR\x10dispatchedRunIds\"\\\n" +
+	"\rauthorized_by\x18\x0f \x01(\tR\fauthorizedBy\x12+\n" +
+	"\x11withdrawal_reason\x18\x13 \x01(\tR\x10withdrawalReasonJ\x04\b\t\x10\n" +
+	"J\x04\b\x10\x10\x11J\x04\b\x11\x10\x12J\x04\b\x12\x10\x13J\x04\b\x14\x10\x15J\x04\b\x15\x10\x16J\x04\b\x16\x10\x17J\x04\b\x17\x10\x18J\x04\b\x18\x10\x19J\x04\b\x19\x10\x1aR\x11permitted_actionsR\x14authority_expires_atR\x12maximum_directivesR\x10cooldown_secondsR\x18supervisor_owner_subjectR\x10supervisor_scopeR\x16dispatch_authorizationR\x16autonomous_supervisionR\x14supervision_priority\"\\\n" +
 	"\x16EffortDiscoveryFinding\x12\x16\n" +
 	"\x06source\x18\x01 \x01(\tR\x06source\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x16\n" +
@@ -3436,7 +1800,7 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"\vlimitations\x18\x06 \x03(\tR\vlimitationsB\f\n" +
 	"\n" +
 	"_met_countB\x11\n" +
-	"\x0f_required_count\"\xe7\a\n" +
+	"\x0f_required_count\"\x80\a\n" +
 	"\x0eEffortBoardRow\x12B\n" +
 	"\n" +
 	"enrollment\x18\x01 \x01(\v2\".agent_manager.v1.EffortEnrollmentR\n" +
@@ -3453,16 +1817,13 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"nextAction\x12\x1c\n" +
 	"\trationale\x18\n" +
 	" \x01(\tR\trationale\x123\n" +
-	"\x05usage\x18\v \x01(\v2\x1d.agent_manager.v1.EffortUsageR\x05usage\x12A\n" +
-	"\n" +
-	"directives\x18\f \x03(\v2!.agent_manager.v1.EffortDirectiveR\n" +
-	"directives\x12 \n" +
+	"\x05usage\x18\v \x01(\v2\x1d.agent_manager.v1.EffortUsageR\x05usage\x12 \n" +
 	"\vlimitations\x18\r \x03(\tR\vlimitations\x12#\n" +
 	"\revidence_refs\x18\x0e \x03(\tR\fevidenceRefs\x12'\n" +
-	"\x0fchange_identity\x18\x0f \x01(\tR\x0echangeIdentity\x12K\n" +
-	"\x0flast_assessment\x18\x10 \x01(\v2\".agent_manager.v1.EffortAssessmentR\x0elastAssessment\x12<\n" +
+	"\x0fchange_identity\x18\x0f \x01(\tR\x0echangeIdentity\x12<\n" +
 	"\x1avisibility_change_identity\x18\x11 \x01(\tR\x18visibilityChangeIdentity\x12W\n" +
-	"\x12quota_observations\x18\x12 \x03(\v2(.agent_manager.v1.EffortQuotaObservationR\x11quotaObservations\"\xca\x03\n" +
+	"\x12quota_observations\x18\x12 \x03(\v2(.agent_manager.v1.EffortQuotaObservationR\x11quotaObservationsJ\x04\b\f\x10\rJ\x04\b\x10\x10\x11R\n" +
+	"directivesR\x0flast_assessment\"\xca\x03\n" +
 	"\vEffortBoard\x124\n" +
 	"\x04rows\x18\x01 \x03(\v2 .agent_manager.v1.EffortBoardRowR\x04rows\x12?\n" +
 	"\tdiscovery\x18\x02 \x01(\v2!.agent_manager.v1.EffortDiscoveryR\tdiscovery\x12;\n" +
@@ -3507,168 +1868,12 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"\x11expected_revision\x18\x02 \x01(\x04R\x10expectedRevision\x12\x16\n" +
 	"\x06reason\x18\x03 \x01(\tR\x06reason\x12'\n" +
 	"\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\"!\n" +
-	"\x1fReconcileEffortDiscoveryRequest\"\x89\r\n" +
-	"\x0fEffortDirective\x12!\n" +
-	"\fdirective_id\x18\x01 \x01(\tR\vdirectiveId\x12\x1d\n" +
-	"\n" +
-	"effort_ref\x18\x02 \x01(\tR\teffortRef\x12'\n" +
-	"\x0ftarget_revision\x18\x03 \x01(\tR\x0etargetRevision\x12\x16\n" +
-	"\x06issuer\x18\x04 \x01(\tR\x06issuer\x12\"\n" +
-	"\rtarget_run_id\x18\x05 \x01(\tR\vtargetRunId\x125\n" +
-	"\x04kind\x18\x06 \x01(\x0e2!.agent_manager.v1.WatchActionKindR\x04kind\x12\x14\n" +
-	"\x05scope\x18\a \x01(\tR\x05scope\x12#\n" +
-	"\revidence_refs\x18\b \x03(\tR\fevidenceRefs\x12\x1e\n" +
-	"\n" +
-	"adjustment\x18\t \x01(\tR\n" +
-	"adjustment\x12'\n" +
-	"\x0fexpected_result\x18\n" +
-	" \x01(\tR\x0eexpectedResult\x129\n" +
-	"\n" +
-	"expires_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12'\n" +
-	"\x0fidempotency_key\x18\f \x01(\tR\x0eidempotencyKey\x12E\n" +
-	"\bdelivery\x18\r \x01(\x0e2).agent_manager.v1.EffortDirectiveDeliveryR\bdelivery\x12W\n" +
-	"\x0eacknowledgment\x18\x0e \x01(\x0e2/.agent_manager.v1.EffortDirectiveAcknowledgmentR\x0eacknowledgment\x123\n" +
-	"\x15acknowledgment_reason\x18\x0f \x01(\tR\x14acknowledgmentReason\x12$\n" +
-	"\x0eowner_wait_ref\x18\x10 \x01(\tR\fownerWaitRef\x12\x1d\n" +
-	"\n" +
-	"action_ref\x18\x11 \x01(\tR\tactionRef\x12\x1e\n" +
-	"\n" +
-	"assessment\x18\x12 \x01(\tR\n" +
-	"assessment\x128\n" +
-	"\x18assessment_evidence_refs\x18\x13 \x03(\tR\x16assessmentEvidenceRefs\x12#\n" +
-	"\rsuperseded_by\x18\x14 \x01(\tR\fsupersededBy\x12\x1a\n" +
-	"\brevision\x18\x15 \x01(\x04R\brevision\x129\n" +
-	"\n" +
-	"created_at\x18\x16 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12=\n" +
-	"\fdelivered_at\x18\x17 \x01(\v2\x1a.google.protobuf.TimestampR\vdeliveredAt\x12'\n" +
-	"\x0fdelivery_reason\x18\x18 \x01(\tR\x0edeliveryReason\x12I\n" +
-	"\x0fsource_snapshot\x18\x19 \x01(\v2 .agent_manager.v1.EffortBoardRowR\x0esourceSnapshot\x12J\n" +
-	"\x11supervision_usage\x18\x1a \x01(\v2\x1d.agent_manager.v1.EffortUsageR\x10supervisionUsage\x12\x1e\n" +
-	"\n" +
-	"hypothesis\x18\x1b \x01(\tR\n" +
-	"hypothesis\x12\x1e\n" +
-	"\n" +
-	"comparison\x18\x1c \x01(\tR\n" +
-	"comparison\x12^\n" +
-	"\x14recovery_expectation\x18\x1d \x01(\v2+.agent_manager.v1.EffortRecoveryExpectationR\x13recoveryExpectation\x12a\n" +
-	"\x15recovery_verification\x18\x1e \x01(\v2,.agent_manager.v1.EffortRecoveryVerificationR\x14recoveryVerification\x12^\n" +
-	"\x11authority_binding\x18\x1f \x01(\v21.agent_manager.v1.EffortDirectiveAuthorityBindingR\x10authorityBinding\x124\n" +
-	"\x16refusal_before_effects\x18  \x01(\bR\x14refusalBeforeEffects\x12(\n" +
-	"\x10recovered_run_id\x18! \x01(\tR\x0erecoveredRunId\"e\n" +
-	"\x1fEffortDirectiveAuthorityBinding\x12\x12\n" +
-	"\x04mode\x18\x01 \x01(\tR\x04mode\x12\x18\n" +
-	"\asubject\x18\x02 \x01(\tR\asubject\x12\x14\n" +
-	"\x05scope\x18\x03 \x01(\tR\x05scope\"\x98\x01\n" +
-	"\x19EffortRecoveryExpectation\x129\n" +
-	"\x12progress_condition\x18\x01 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\xd0\x0fR\x11progressCondition\x12@\n" +
-	"\x16baseline_evidence_refs\x18\x02 \x03(\tB\n" +
-	"\xbaH\a\x92\x01\x04\b\x01\x10\x1eR\x14baselineEvidenceRefs\"\xcf\x02\n" +
-	"\x1aEffortRecoveryVerification\x12K\n" +
-	"\x05state\x18\x01 \x01(\tB5\xbaH2r0R\apendingR\x11progress-observedR\n" +
-	"owner-waitR\x06failedR\x05state\x12 \n" +
-	"\x06reason\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\xd0\x0fR\x06reason\x12-\n" +
-	"\revidence_refs\x18\x03 \x03(\tB\b\xbaH\x05\x92\x01\x02\x10\x1eR\fevidenceRefs\x12;\n" +
-	"\vobserved_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"observedAt\x12:\n" +
-	"\x14next_owner_condition\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\xd0\x0fR\x12nextOwnerCondition\x12\x1a\n" +
-	"\bverifier\x18\x06 \x01(\tR\bverifier\"\x83\x02\n" +
-	"\x10EffortRepairLink\x12\x19\n" +
-	"\bwork_ref\x18\x01 \x01(\tR\aworkRef\x12.\n" +
-	"\x13assigning_owner_ref\x18\x02 \x01(\tR\x11assigningOwnerRef\x12%\n" +
-	"\x0enext_operation\x18\x03 \x01(\tR\rnextOperation\x128\n" +
-	"\x18completion_evidence_refs\x18\x04 \x03(\tR\x16completionEvidenceRefs\x12-\n" +
-	"\x12stopping_condition\x18\x05 \x01(\tR\x11stoppingCondition\x12\x14\n" +
-	"\x05state\x18\x06 \x01(\tR\x05state\"\xe2\x01\n" +
-	"\x1dRequestEffortDirectiveRequest\x12?\n" +
-	"\tdirective\x18\x01 \x01(\v2!.agent_manager.v1.EffortDirectiveR\tdirective\x12@\n" +
-	"\x1cexpected_enrollment_revision\x18\x02 \x01(\x04R\x1aexpectedEnrollmentRevision\x12>\n" +
-	"\tauthority\x18\x03 \x01(\x0e2 .agent_manager.v1.WatchAuthorityR\tauthority\"\x81\x01\n" +
-	"\x1bListEffortDirectivesRequest\x12\x1d\n" +
-	"\n" +
-	"effort_ref\x18\x01 \x01(\tR\teffortRef\x12$\n" +
-	"\tpage_size\x18\x02 \x01(\rB\a\xbaH\x04*\x02\x18dR\bpageSize\x12\x1d\n" +
-	"\n" +
-	"page_token\x18\x03 \x01(\tR\tpageToken\"\x89\x01\n" +
-	"\x1cListEffortDirectivesResponse\x12A\n" +
-	"\n" +
-	"directives\x18\x01 \x03(\v2!.agent_manager.v1.EffortDirectiveR\n" +
-	"directives\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xd5\x05\n" +
-	"\x1cUpdateEffortDirectiveRequest\x12!\n" +
-	"\fdirective_id\x18\x01 \x01(\tR\vdirectiveId\x12+\n" +
-	"\x11expected_revision\x18\x02 \x01(\x04R\x10expectedRevision\x12'\n" +
-	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\x12>\n" +
-	"\tauthority\x18\x04 \x01(\x0e2 .agent_manager.v1.WatchAuthorityR\tauthority\x12W\n" +
-	"\x0eacknowledgment\x18\x05 \x01(\x0e2/.agent_manager.v1.EffortDirectiveAcknowledgmentR\x0eacknowledgment\x12\x16\n" +
-	"\x06reason\x18\x06 \x01(\tR\x06reason\x12$\n" +
-	"\x0eowner_wait_ref\x18\a \x01(\tR\fownerWaitRef\x12\x1d\n" +
-	"\n" +
-	"action_ref\x18\b \x01(\tR\tactionRef\x12\x1e\n" +
-	"\n" +
-	"assessment\x18\t \x01(\tR\n" +
-	"assessment\x12#\n" +
-	"\revidence_refs\x18\n" +
-	" \x03(\tR\fevidenceRefs\x12#\n" +
-	"\rsuperseded_by\x18\v \x01(\tR\fsupersededBy\x12J\n" +
-	"\x11supervision_usage\x18\f \x01(\v2\x1d.agent_manager.v1.EffortUsageR\x10supervisionUsage\x12a\n" +
-	"\x15recovery_verification\x18\r \x01(\v2,.agent_manager.v1.EffortRecoveryVerificationR\x14recoveryVerification\x12-\n" +
-	"\x12reconcile_delivery\x18\x0e \x01(\bR\x11reconcileDelivery\"\x9f\b\n" +
-	"\x10EffortAssessment\x12#\n" +
-	"\rassessment_id\x18\x01 \x01(\tR\fassessmentId\x12\x1f\n" +
-	"\veffort_refs\x18\x02 \x03(\tR\n" +
-	"effortRefs\x12b\n" +
-	"\x10target_revisions\x18\x03 \x03(\v27.agent_manager.v1.EffortAssessment.TargetRevisionsEntryR\x0ftargetRevisions\x12*\n" +
-	"\x11supervisor_run_id\x18\x04 \x01(\tR\x0fsupervisorRunId\x12 \n" +
-	"\vdisposition\x18\x05 \x01(\tR\vdisposition\x12\x1c\n" +
-	"\trationale\x18\x06 \x01(\tR\trationale\x12#\n" +
-	"\revidence_refs\x18\a \x03(\tR\fevidenceRefs\x12*\n" +
-	"\x11source_ledger_ref\x18\b \x01(\tR\x0fsourceLedgerRef\x120\n" +
-	"\x14shared_operation_ref\x18\t \x01(\tR\x12sharedOperationRef\x12#\n" +
-	"\rallowance_ref\x18\n" +
-	" \x01(\tR\fallowanceRef\x12'\n" +
-	"\x0fallocation_rule\x18\v \x01(\tR\x0eallocationRule\x12D\n" +
-	"\x0eobserved_usage\x18\f \x01(\v2\x1d.agent_manager.v1.EffortUsageR\robservedUsage\x12J\n" +
-	"\x11unallocated_usage\x18\r \x01(\v2\x1d.agent_manager.v1.EffortUsageR\x10unallocatedUsage\x12;\n" +
-	"\vobserved_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"observedAt\x12'\n" +
-	"\x0fidempotency_key\x18\x0f \x01(\tR\x0eidempotencyKey\x12\x1e\n" +
-	"\n" +
-	"hypothesis\x18\x10 \x01(\tR\n" +
-	"hypothesis\x12\x1e\n" +
-	"\n" +
-	"comparison\x18\x11 \x01(\tR\n" +
-	"comparison\x12\x18\n" +
-	"\abenefit\x18\x12 \x01(\tR\abenefit\x12%\n" +
-	"\x0epolicy_version\x18\x13 \x01(\tR\rpolicyVersion\x12 \n" +
-	"\vlimitations\x18\x14 \x03(\tR\vlimitations\x12E\n" +
-	"\frepair_links\x18\x15 \x03(\v2\".agent_manager.v1.EffortRepairLinkR\vrepairLinks\x1aB\n" +
-	"\x14TargetRevisionsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa3\x01\n" +
-	"\x1dRecordEffortAssessmentRequest\x12B\n" +
-	"\n" +
-	"assessment\x18\x01 \x01(\v2\".agent_manager.v1.EffortAssessmentR\n" +
-	"assessment\x12>\n" +
-	"\tauthority\x18\x02 \x01(\x0e2 .agent_manager.v1.WatchAuthorityR\tauthority*\x8d\x01\n" +
+	"\x1fReconcileEffortDiscoveryRequest*\x8d\x01\n" +
 	"\x0fEffortFreshness\x12 \n" +
 	"\x1cEFFORT_FRESHNESS_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16EFFORT_FRESHNESS_FRESH\x10\x01\x12\x1a\n" +
 	"\x16EFFORT_FRESHNESS_STALE\x10\x02\x12 \n" +
-	"\x1cEFFORT_FRESHNESS_UNAVAILABLE\x10\x03*\xb5\x02\n" +
-	"\x17EffortDirectiveDelivery\x12)\n" +
-	"%EFFORT_DIRECTIVE_DELIVERY_UNSPECIFIED\x10\x00\x12%\n" +
-	"!EFFORT_DIRECTIVE_DELIVERY_PENDING\x10\x01\x12'\n" +
-	"#EFFORT_DIRECTIVE_DELIVERY_DELIVERED\x10\x02\x12%\n" +
-	"!EFFORT_DIRECTIVE_DELIVERY_REFUSED\x10\x03\x12%\n" +
-	"!EFFORT_DIRECTIVE_DELIVERY_EXPIRED\x10\x04\x12(\n" +
-	"$EFFORT_DIRECTIVE_DELIVERY_SUPERSEDED\x10\x05\x12'\n" +
-	"#EFFORT_DIRECTIVE_DELIVERY_UNCERTAIN\x10\x06*\xdc\x01\n" +
-	"\x1dEffortDirectiveAcknowledgment\x12/\n" +
-	"+EFFORT_DIRECTIVE_ACKNOWLEDGMENT_UNSPECIFIED\x10\x00\x12,\n" +
-	"(EFFORT_DIRECTIVE_ACKNOWLEDGMENT_ACCEPTED\x10\x01\x12,\n" +
-	"(EFFORT_DIRECTIVE_ACKNOWLEDGMENT_DEFERRED\x10\x02\x12.\n" +
-	"*EFFORT_DIRECTIVE_ACKNOWLEDGMENT_CHALLENGED\x10\x03BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domainb\x06proto3"
+	"\x1cEFFORT_FRESHNESS_UNAVAILABLE\x10\x03BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_agent_manager_v1_domain_effort_proto_rawDescOnce sync.Once
@@ -3682,113 +1887,62 @@ func file_agent_manager_v1_domain_effort_proto_rawDescGZIP() []byte {
 	return file_agent_manager_v1_domain_effort_proto_rawDescData
 }
 
-var file_agent_manager_v1_domain_effort_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_agent_manager_v1_domain_effort_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
+var file_agent_manager_v1_domain_effort_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_agent_manager_v1_domain_effort_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_agent_manager_v1_domain_effort_proto_goTypes = []any{
 	(EffortFreshness)(0),                    // 0: agent_manager.v1.EffortFreshness
-	(EffortDirectiveDelivery)(0),            // 1: agent_manager.v1.EffortDirectiveDelivery
-	(EffortDirectiveAcknowledgment)(0),      // 2: agent_manager.v1.EffortDirectiveAcknowledgment
-	(*EffortSubject)(nil),                   // 3: agent_manager.v1.EffortSubject
-	(*EffortEnrollment)(nil),                // 4: agent_manager.v1.EffortEnrollment
-	(*SupervisorDispatchAuthorization)(nil), // 5: agent_manager.v1.SupervisorDispatchAuthorization
-	(*EffortDiscoveryFinding)(nil),          // 6: agent_manager.v1.EffortDiscoveryFinding
-	(*EffortDiscovery)(nil),                 // 7: agent_manager.v1.EffortDiscovery
-	(*EffortUsage)(nil),                     // 8: agent_manager.v1.EffortUsage
-	(*EffortQuotaObservation)(nil),          // 9: agent_manager.v1.EffortQuotaObservation
-	(*EffortAssignment)(nil),                // 10: agent_manager.v1.EffortAssignment
-	(*EffortOutcomeStanding)(nil),           // 11: agent_manager.v1.EffortOutcomeStanding
-	(*EffortBoardRow)(nil),                  // 12: agent_manager.v1.EffortBoardRow
-	(*EffortBoard)(nil),                     // 13: agent_manager.v1.EffortBoard
-	(*GetEffortBoardRequest)(nil),           // 14: agent_manager.v1.GetEffortBoardRequest
-	(*ListEffortsRequest)(nil),              // 15: agent_manager.v1.ListEffortsRequest
-	(*ListEffortsResponse)(nil),             // 16: agent_manager.v1.ListEffortsResponse
-	(*EnrollEffortRequest)(nil),             // 17: agent_manager.v1.EnrollEffortRequest
-	(*ReconcileEffortMetadataRequest)(nil),  // 18: agent_manager.v1.ReconcileEffortMetadataRequest
-	(*WithdrawEffortRequest)(nil),           // 19: agent_manager.v1.WithdrawEffortRequest
-	(*ReconcileEffortDiscoveryRequest)(nil), // 20: agent_manager.v1.ReconcileEffortDiscoveryRequest
-	(*EffortDirective)(nil),                 // 21: agent_manager.v1.EffortDirective
-	(*EffortDirectiveAuthorityBinding)(nil), // 22: agent_manager.v1.EffortDirectiveAuthorityBinding
-	(*EffortRecoveryExpectation)(nil),       // 23: agent_manager.v1.EffortRecoveryExpectation
-	(*EffortRecoveryVerification)(nil),      // 24: agent_manager.v1.EffortRecoveryVerification
-	(*EffortRepairLink)(nil),                // 25: agent_manager.v1.EffortRepairLink
-	(*RequestEffortDirectiveRequest)(nil),   // 26: agent_manager.v1.RequestEffortDirectiveRequest
-	(*ListEffortDirectivesRequest)(nil),     // 27: agent_manager.v1.ListEffortDirectivesRequest
-	(*ListEffortDirectivesResponse)(nil),    // 28: agent_manager.v1.ListEffortDirectivesResponse
-	(*UpdateEffortDirectiveRequest)(nil),    // 29: agent_manager.v1.UpdateEffortDirectiveRequest
-	(*EffortAssessment)(nil),                // 30: agent_manager.v1.EffortAssessment
-	(*RecordEffortAssessmentRequest)(nil),   // 31: agent_manager.v1.RecordEffortAssessmentRequest
-	nil,                                     // 32: agent_manager.v1.EffortAssessment.TargetRevisionsEntry
-	(WatchActionKind)(0),                    // 33: agent_manager.v1.WatchActionKind
-	(*timestamppb.Timestamp)(nil),           // 34: google.protobuf.Timestamp
-	(WatchAuthority)(0),                     // 35: agent_manager.v1.WatchAuthority
+	(*EffortSubject)(nil),                   // 1: agent_manager.v1.EffortSubject
+	(*EffortEnrollment)(nil),                // 2: agent_manager.v1.EffortEnrollment
+	(*EffortDiscoveryFinding)(nil),          // 3: agent_manager.v1.EffortDiscoveryFinding
+	(*EffortDiscovery)(nil),                 // 4: agent_manager.v1.EffortDiscovery
+	(*EffortUsage)(nil),                     // 5: agent_manager.v1.EffortUsage
+	(*EffortQuotaObservation)(nil),          // 6: agent_manager.v1.EffortQuotaObservation
+	(*EffortAssignment)(nil),                // 7: agent_manager.v1.EffortAssignment
+	(*EffortOutcomeStanding)(nil),           // 8: agent_manager.v1.EffortOutcomeStanding
+	(*EffortBoardRow)(nil),                  // 9: agent_manager.v1.EffortBoardRow
+	(*EffortBoard)(nil),                     // 10: agent_manager.v1.EffortBoard
+	(*GetEffortBoardRequest)(nil),           // 11: agent_manager.v1.GetEffortBoardRequest
+	(*ListEffortsRequest)(nil),              // 12: agent_manager.v1.ListEffortsRequest
+	(*ListEffortsResponse)(nil),             // 13: agent_manager.v1.ListEffortsResponse
+	(*EnrollEffortRequest)(nil),             // 14: agent_manager.v1.EnrollEffortRequest
+	(*ReconcileEffortMetadataRequest)(nil),  // 15: agent_manager.v1.ReconcileEffortMetadataRequest
+	(*WithdrawEffortRequest)(nil),           // 16: agent_manager.v1.WithdrawEffortRequest
+	(*ReconcileEffortDiscoveryRequest)(nil), // 17: agent_manager.v1.ReconcileEffortDiscoveryRequest
+	(*timestamppb.Timestamp)(nil),           // 18: google.protobuf.Timestamp
+	(WatchAuthority)(0),                     // 19: agent_manager.v1.WatchAuthority
 }
 var file_agent_manager_v1_domain_effort_proto_depIdxs = []int32{
-	3,  // 0: agent_manager.v1.EffortEnrollment.subjects:type_name -> agent_manager.v1.EffortSubject
-	33, // 1: agent_manager.v1.EffortEnrollment.permitted_actions:type_name -> agent_manager.v1.WatchActionKind
-	34, // 2: agent_manager.v1.EffortEnrollment.updated_at:type_name -> google.protobuf.Timestamp
-	34, // 3: agent_manager.v1.EffortEnrollment.authority_expires_at:type_name -> google.protobuf.Timestamp
-	5,  // 4: agent_manager.v1.EffortEnrollment.dispatch_authorization:type_name -> agent_manager.v1.SupervisorDispatchAuthorization
-	34, // 5: agent_manager.v1.SupervisorDispatchAuthorization.issued_at:type_name -> google.protobuf.Timestamp
-	34, // 6: agent_manager.v1.SupervisorDispatchAuthorization.expires_at:type_name -> google.protobuf.Timestamp
-	34, // 7: agent_manager.v1.SupervisorDispatchAuthorization.revoked_at:type_name -> google.protobuf.Timestamp
-	34, // 8: agent_manager.v1.SupervisorDispatchAuthorization.last_dispatched_at:type_name -> google.protobuf.Timestamp
-	34, // 9: agent_manager.v1.EffortDiscovery.last_scan_at:type_name -> google.protobuf.Timestamp
-	34, // 10: agent_manager.v1.EffortDiscovery.last_successful_scan_at:type_name -> google.protobuf.Timestamp
-	6,  // 11: agent_manager.v1.EffortDiscovery.findings:type_name -> agent_manager.v1.EffortDiscoveryFinding
-	8,  // 12: agent_manager.v1.EffortDiscovery.standing_usage:type_name -> agent_manager.v1.EffortUsage
-	34, // 13: agent_manager.v1.EffortQuotaObservation.observed_at:type_name -> google.protobuf.Timestamp
-	34, // 14: agent_manager.v1.EffortQuotaObservation.reset_at:type_name -> google.protobuf.Timestamp
-	3,  // 15: agent_manager.v1.EffortAssignment.subject:type_name -> agent_manager.v1.EffortSubject
-	8,  // 16: agent_manager.v1.EffortAssignment.usage:type_name -> agent_manager.v1.EffortUsage
-	34, // 17: agent_manager.v1.EffortAssignment.observed_at:type_name -> google.protobuf.Timestamp
-	4,  // 18: agent_manager.v1.EffortBoardRow.enrollment:type_name -> agent_manager.v1.EffortEnrollment
-	34, // 19: agent_manager.v1.EffortBoardRow.observed_at:type_name -> google.protobuf.Timestamp
-	0,  // 20: agent_manager.v1.EffortBoardRow.freshness:type_name -> agent_manager.v1.EffortFreshness
-	11, // 21: agent_manager.v1.EffortBoardRow.outcome_standing:type_name -> agent_manager.v1.EffortOutcomeStanding
-	10, // 22: agent_manager.v1.EffortBoardRow.assignments:type_name -> agent_manager.v1.EffortAssignment
-	8,  // 23: agent_manager.v1.EffortBoardRow.usage:type_name -> agent_manager.v1.EffortUsage
-	21, // 24: agent_manager.v1.EffortBoardRow.directives:type_name -> agent_manager.v1.EffortDirective
-	30, // 25: agent_manager.v1.EffortBoardRow.last_assessment:type_name -> agent_manager.v1.EffortAssessment
-	9,  // 26: agent_manager.v1.EffortBoardRow.quota_observations:type_name -> agent_manager.v1.EffortQuotaObservation
-	12, // 27: agent_manager.v1.EffortBoard.rows:type_name -> agent_manager.v1.EffortBoardRow
-	7,  // 28: agent_manager.v1.EffortBoard.discovery:type_name -> agent_manager.v1.EffortDiscovery
-	34, // 29: agent_manager.v1.EffortBoard.observed_at:type_name -> google.protobuf.Timestamp
-	9,  // 30: agent_manager.v1.EffortBoard.quota_observations:type_name -> agent_manager.v1.EffortQuotaObservation
-	4,  // 31: agent_manager.v1.ListEffortsResponse.efforts:type_name -> agent_manager.v1.EffortEnrollment
-	4,  // 32: agent_manager.v1.EnrollEffortRequest.enrollment:type_name -> agent_manager.v1.EffortEnrollment
-	4,  // 33: agent_manager.v1.ReconcileEffortMetadataRequest.enrollment:type_name -> agent_manager.v1.EffortEnrollment
-	35, // 34: agent_manager.v1.ReconcileEffortMetadataRequest.authority:type_name -> agent_manager.v1.WatchAuthority
-	33, // 35: agent_manager.v1.EffortDirective.kind:type_name -> agent_manager.v1.WatchActionKind
-	34, // 36: agent_manager.v1.EffortDirective.expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 37: agent_manager.v1.EffortDirective.delivery:type_name -> agent_manager.v1.EffortDirectiveDelivery
-	2,  // 38: agent_manager.v1.EffortDirective.acknowledgment:type_name -> agent_manager.v1.EffortDirectiveAcknowledgment
-	34, // 39: agent_manager.v1.EffortDirective.created_at:type_name -> google.protobuf.Timestamp
-	34, // 40: agent_manager.v1.EffortDirective.delivered_at:type_name -> google.protobuf.Timestamp
-	12, // 41: agent_manager.v1.EffortDirective.source_snapshot:type_name -> agent_manager.v1.EffortBoardRow
-	8,  // 42: agent_manager.v1.EffortDirective.supervision_usage:type_name -> agent_manager.v1.EffortUsage
-	23, // 43: agent_manager.v1.EffortDirective.recovery_expectation:type_name -> agent_manager.v1.EffortRecoveryExpectation
-	24, // 44: agent_manager.v1.EffortDirective.recovery_verification:type_name -> agent_manager.v1.EffortRecoveryVerification
-	22, // 45: agent_manager.v1.EffortDirective.authority_binding:type_name -> agent_manager.v1.EffortDirectiveAuthorityBinding
-	34, // 46: agent_manager.v1.EffortRecoveryVerification.observed_at:type_name -> google.protobuf.Timestamp
-	21, // 47: agent_manager.v1.RequestEffortDirectiveRequest.directive:type_name -> agent_manager.v1.EffortDirective
-	35, // 48: agent_manager.v1.RequestEffortDirectiveRequest.authority:type_name -> agent_manager.v1.WatchAuthority
-	21, // 49: agent_manager.v1.ListEffortDirectivesResponse.directives:type_name -> agent_manager.v1.EffortDirective
-	35, // 50: agent_manager.v1.UpdateEffortDirectiveRequest.authority:type_name -> agent_manager.v1.WatchAuthority
-	2,  // 51: agent_manager.v1.UpdateEffortDirectiveRequest.acknowledgment:type_name -> agent_manager.v1.EffortDirectiveAcknowledgment
-	8,  // 52: agent_manager.v1.UpdateEffortDirectiveRequest.supervision_usage:type_name -> agent_manager.v1.EffortUsage
-	24, // 53: agent_manager.v1.UpdateEffortDirectiveRequest.recovery_verification:type_name -> agent_manager.v1.EffortRecoveryVerification
-	32, // 54: agent_manager.v1.EffortAssessment.target_revisions:type_name -> agent_manager.v1.EffortAssessment.TargetRevisionsEntry
-	8,  // 55: agent_manager.v1.EffortAssessment.observed_usage:type_name -> agent_manager.v1.EffortUsage
-	8,  // 56: agent_manager.v1.EffortAssessment.unallocated_usage:type_name -> agent_manager.v1.EffortUsage
-	34, // 57: agent_manager.v1.EffortAssessment.observed_at:type_name -> google.protobuf.Timestamp
-	25, // 58: agent_manager.v1.EffortAssessment.repair_links:type_name -> agent_manager.v1.EffortRepairLink
-	30, // 59: agent_manager.v1.RecordEffortAssessmentRequest.assessment:type_name -> agent_manager.v1.EffortAssessment
-	35, // 60: agent_manager.v1.RecordEffortAssessmentRequest.authority:type_name -> agent_manager.v1.WatchAuthority
-	61, // [61:61] is the sub-list for method output_type
-	61, // [61:61] is the sub-list for method input_type
-	61, // [61:61] is the sub-list for extension type_name
-	61, // [61:61] is the sub-list for extension extendee
-	0,  // [0:61] is the sub-list for field type_name
+	1,  // 0: agent_manager.v1.EffortEnrollment.subjects:type_name -> agent_manager.v1.EffortSubject
+	18, // 1: agent_manager.v1.EffortEnrollment.updated_at:type_name -> google.protobuf.Timestamp
+	18, // 2: agent_manager.v1.EffortDiscovery.last_scan_at:type_name -> google.protobuf.Timestamp
+	18, // 3: agent_manager.v1.EffortDiscovery.last_successful_scan_at:type_name -> google.protobuf.Timestamp
+	3,  // 4: agent_manager.v1.EffortDiscovery.findings:type_name -> agent_manager.v1.EffortDiscoveryFinding
+	5,  // 5: agent_manager.v1.EffortDiscovery.standing_usage:type_name -> agent_manager.v1.EffortUsage
+	18, // 6: agent_manager.v1.EffortQuotaObservation.observed_at:type_name -> google.protobuf.Timestamp
+	18, // 7: agent_manager.v1.EffortQuotaObservation.reset_at:type_name -> google.protobuf.Timestamp
+	1,  // 8: agent_manager.v1.EffortAssignment.subject:type_name -> agent_manager.v1.EffortSubject
+	5,  // 9: agent_manager.v1.EffortAssignment.usage:type_name -> agent_manager.v1.EffortUsage
+	18, // 10: agent_manager.v1.EffortAssignment.observed_at:type_name -> google.protobuf.Timestamp
+	2,  // 11: agent_manager.v1.EffortBoardRow.enrollment:type_name -> agent_manager.v1.EffortEnrollment
+	18, // 12: agent_manager.v1.EffortBoardRow.observed_at:type_name -> google.protobuf.Timestamp
+	0,  // 13: agent_manager.v1.EffortBoardRow.freshness:type_name -> agent_manager.v1.EffortFreshness
+	8,  // 14: agent_manager.v1.EffortBoardRow.outcome_standing:type_name -> agent_manager.v1.EffortOutcomeStanding
+	7,  // 15: agent_manager.v1.EffortBoardRow.assignments:type_name -> agent_manager.v1.EffortAssignment
+	5,  // 16: agent_manager.v1.EffortBoardRow.usage:type_name -> agent_manager.v1.EffortUsage
+	6,  // 17: agent_manager.v1.EffortBoardRow.quota_observations:type_name -> agent_manager.v1.EffortQuotaObservation
+	9,  // 18: agent_manager.v1.EffortBoard.rows:type_name -> agent_manager.v1.EffortBoardRow
+	4,  // 19: agent_manager.v1.EffortBoard.discovery:type_name -> agent_manager.v1.EffortDiscovery
+	18, // 20: agent_manager.v1.EffortBoard.observed_at:type_name -> google.protobuf.Timestamp
+	6,  // 21: agent_manager.v1.EffortBoard.quota_observations:type_name -> agent_manager.v1.EffortQuotaObservation
+	2,  // 22: agent_manager.v1.ListEffortsResponse.efforts:type_name -> agent_manager.v1.EffortEnrollment
+	2,  // 23: agent_manager.v1.EnrollEffortRequest.enrollment:type_name -> agent_manager.v1.EffortEnrollment
+	2,  // 24: agent_manager.v1.ReconcileEffortMetadataRequest.enrollment:type_name -> agent_manager.v1.EffortEnrollment
+	19, // 25: agent_manager.v1.ReconcileEffortMetadataRequest.authority:type_name -> agent_manager.v1.WatchAuthority
+	26, // [26:26] is the sub-list for method output_type
+	26, // [26:26] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_effort_proto_init() }
@@ -3797,16 +1951,16 @@ func file_agent_manager_v1_domain_effort_proto_init() {
 		return
 	}
 	file_agent_manager_v1_domain_watch_proto_init()
+	file_agent_manager_v1_domain_effort_proto_msgTypes[4].OneofWrappers = []any{}
 	file_agent_manager_v1_domain_effort_proto_msgTypes[5].OneofWrappers = []any{}
-	file_agent_manager_v1_domain_effort_proto_msgTypes[6].OneofWrappers = []any{}
-	file_agent_manager_v1_domain_effort_proto_msgTypes[8].OneofWrappers = []any{}
+	file_agent_manager_v1_domain_effort_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_effort_proto_rawDesc), len(file_agent_manager_v1_domain_effort_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   30,
+			NumEnums:      1,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

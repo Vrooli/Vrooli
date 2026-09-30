@@ -3,10 +3,15 @@ package packageapp
 import (
 	"bytes"
 	"io"
+	"os"
+	"path/filepath"
 	"testing"
 
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
+	"github.com/vrooli/vrooli/internal/packagegov"
+	testpackage "github.com/vrooli/vrooli/internal/packagegov/packagegovtest"
 	"github.com/vrooli/vrooli/internal/process"
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
 )
@@ -65,8 +70,12 @@ func TestRefreshUsesInterfaceBasedScenarioDependencies(t *testing.T) {
 }
 
 func TestTestUsesServerOwnedTestGenieTarget(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	testpackage.WritePackageManifest(t, fixture.Root, "envkit-go", testpackage.PackageManifest("envkit-go"))
 	var target string
 	svc := Service{
+		Root:   fixture.Root,
 		Stdout: &bytes.Buffer{},
 		Stderr: &bytes.Buffer{},
 		TestGenieRunner: func(got string, _, _ io.Writer) error {
@@ -84,5 +93,99 @@ func TestTestUsesServerOwnedTestGenieTarget(t *testing.T) {
 	}
 	if resp.Action != "test-genie" {
 		t.Fatalf("action = %q, want test-genie", resp.Action)
+	}
+}
+
+func TestEnsureGeneratedPackageCurrentRunsDeclaredGenerator(t *testing.T) {
+	root := t.TempDir()
+	marker := filepath.Join(root, "generated.marker")
+	svc := Service{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}}
+	item := packagegov.Package{
+		RootPath: root,
+		Manifest: packagegov.Manifest{Package: packagegov.ManifestEntry{
+			Name:             "generated-fixture",
+			GeneratedOutputs: []packagegov.GeneratedOutput{{Name: "fixture"}},
+			Lifecycle: packagegov.LifecyclePolicy{Generate: []packagegov.CommandSpec{{
+				Name: "generate",
+				Run:  []string{"sh", "-c", "printf generated > generated.marker"},
+			}}},
+		}},
+	}
+
+	if err := svc.ensureGeneratedPackageCurrent(item); err != nil {
+		t.Fatalf("ensureGeneratedPackageCurrent: %v", err)
+	}
+	contents, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatalf("read generated marker: %v", err)
+	}
+	if string(contents) != "generated" {
+		t.Fatalf("generated marker = %q, want generated", contents)
+	}
+}
+
+func TestEnsureGeneratedPackageCurrentFallsBackToBuild(t *testing.T) {
+	root := t.TempDir()
+	marker := filepath.Join(root, "built.marker")
+	svc := Service{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}}
+	item := packagegov.Package{
+		Name:     "runtime-artifact-fixture",
+		RootPath: root,
+		Manifest: packagegov.Manifest{Package: packagegov.ManifestEntry{
+			Name:             "runtime-artifact-fixture",
+			GeneratedOutputs: []packagegov.GeneratedOutput{{Name: "runtime"}},
+			Lifecycle: packagegov.LifecyclePolicy{Build: []packagegov.CommandSpec{{
+				Name: "build",
+				Run:  []string{"sh", "-c", "printf built > built.marker"},
+			}}},
+		}},
+	}
+
+	if err := svc.ensureGeneratedPackageCurrent(item); err != nil {
+		t.Fatalf("ensureGeneratedPackageCurrent: %v", err)
+	}
+	contents, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatalf("read built marker: %v", err)
+	}
+	if string(contents) != "built" {
+		t.Fatalf("built marker = %q, want built", contents)
+	}
+}
+
+func TestTestPreflightsGeneratedPackageBeforeTestGenie(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	testpackage.WritePackageManifest(t, fixture.Root, "generated-fixture", testpackage.PackageManifest(
+		"generated-fixture",
+		testpackage.WithPackageGeneratedOutputs(packagegov.GeneratedOutput{Name: "fixture"}),
+		testpackage.WithPackageGenerateCommands(packagegov.CommandSpec{
+			Name: "generate",
+			Run:  []string{"sh", "-c", "printf generated > generated.marker"},
+		}),
+	))
+
+	called := false
+	svc := Service{
+		Root:   fixture.Root,
+		Stdout: &bytes.Buffer{},
+		Stderr: &bytes.Buffer{},
+		TestGenieRunner: func(target string, _, _ io.Writer) error {
+			called = true
+			if target != "package:generated-fixture" {
+				t.Fatalf("target = %q, want package:generated-fixture", target)
+			}
+			return nil
+		},
+	}
+
+	if _, err := svc.Test("generated-fixture"); err != nil {
+		t.Fatalf("Test: %v", err)
+	}
+	if !called {
+		t.Fatal("expected Test Genie runner to be called")
+	}
+	if _, err := os.Stat(filepath.Join(fixture.Root, "packages", "generated-fixture", "generated.marker")); err != nil {
+		t.Fatalf("generated marker missing: %v", err)
 	}
 }

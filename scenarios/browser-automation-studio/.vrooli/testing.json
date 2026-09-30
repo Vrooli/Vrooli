@@ -32,16 +32,16 @@
     "tidiness": {
       "budgets": {
         "ratchet": true,
-        "duplication_line_debt": 35302,
-        "baseline_duplication_line_debt": 35303,
-        "long_files": 80,
-        "baseline_long_files": 81,
-        "complexity_over_threshold": 362,
-        "baseline_complexity_over_threshold": 363,
-        "coupling_over_threshold": 9,
-        "baseline_coupling_over_threshold": 10,
+        "duplication_line_debt": 34512,
+        "baseline_duplication_line_debt": 34513,
+        "long_files": 103,
+        "baseline_long_files": 104,
+        "complexity_over_threshold": 434,
+        "baseline_complexity_over_threshold": 435,
+        "coupling_over_threshold": 22,
+        "baseline_coupling_over_threshold": 23,
         "reserve": 1,
-        "reserve_reason": "Measured fleet seed reserves one observed unit while successor cleanup earns each stricter budget."
+        "reserve_reason": "Re-baselined 2026-09-29 to measured values (decision C3, run 20260929-194449-48ca3b6e); one reserved unit while each stricter budget is earned."
       }
     }
   },
@@ -332,40 +332,6 @@
     },
     "options": {
       "continue_on_failure": true
-    },
-    "workloads": {
-      "capture": {
-        "command": [
-          "go",
-          "run",
-          "./cmd/capture-cohort",
-          "--output",
-          "{output}",
-          "--api-url",
-          "{api_url}",
-          "--driver-url",
-          "{driver_url}"
-        ],
-        "directory": "api",
-        "sources": [
-          "api/cmd/capture-cohort/main.go",
-          "api/internal/capturequalification/fixture.go",
-          "api/internal/capturequalification/oracle.go",
-          "api/internal/capturequalification/run.go"
-        ],
-        "contract": "docs/internal/REFRACTOR_CONTRACT.json",
-        "endpoints": {
-          "api_url": "API_PORT",
-          "driver_url": "PLAYWRIGHT_DRIVER_PORT"
-        },
-        "samples": 100,
-        "warmups": 1,
-        "p95_max_ms": 2000,
-        "timeout_seconds": 480,
-        "max_age_seconds": 86400,
-        "min_cpu_cores": 4,
-        "min_memory_bytes": 17179869184
-      }
     }
   }
 }

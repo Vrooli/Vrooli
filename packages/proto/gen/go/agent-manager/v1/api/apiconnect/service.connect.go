@@ -52,27 +52,6 @@ const (
 	// AgentManagerServiceReconcileEffortDiscoveryProcedure is the fully-qualified name of the
 	// AgentManagerService's ReconcileEffortDiscovery RPC.
 	AgentManagerServiceReconcileEffortDiscoveryProcedure = "/agent_manager.v1.AgentManagerService/ReconcileEffortDiscovery"
-	// AgentManagerServiceRequestEffortDirectiveProcedure is the fully-qualified name of the
-	// AgentManagerService's RequestEffortDirective RPC.
-	AgentManagerServiceRequestEffortDirectiveProcedure = "/agent_manager.v1.AgentManagerService/RequestEffortDirective"
-	// AgentManagerServiceListEffortDirectivesProcedure is the fully-qualified name of the
-	// AgentManagerService's ListEffortDirectives RPC.
-	AgentManagerServiceListEffortDirectivesProcedure = "/agent_manager.v1.AgentManagerService/ListEffortDirectives"
-	// AgentManagerServiceUpdateEffortDirectiveProcedure is the fully-qualified name of the
-	// AgentManagerService's UpdateEffortDirective RPC.
-	AgentManagerServiceUpdateEffortDirectiveProcedure = "/agent_manager.v1.AgentManagerService/UpdateEffortDirective"
-	// AgentManagerServiceRecordEffortAssessmentProcedure is the fully-qualified name of the
-	// AgentManagerService's RecordEffortAssessment RPC.
-	AgentManagerServiceRecordEffortAssessmentProcedure = "/agent_manager.v1.AgentManagerService/RecordEffortAssessment"
-	// AgentManagerServiceIssueSupervisorDispatchProcedure is the fully-qualified name of the
-	// AgentManagerService's IssueSupervisorDispatch RPC.
-	AgentManagerServiceIssueSupervisorDispatchProcedure = "/agent_manager.v1.AgentManagerService/IssueSupervisorDispatch"
-	// AgentManagerServiceRevokeSupervisorDispatchProcedure is the fully-qualified name of the
-	// AgentManagerService's RevokeSupervisorDispatch RPC.
-	AgentManagerServiceRevokeSupervisorDispatchProcedure = "/agent_manager.v1.AgentManagerService/RevokeSupervisorDispatch"
-	// AgentManagerServiceCreateSupervisorRunProcedure is the fully-qualified name of the
-	// AgentManagerService's CreateSupervisorRun RPC.
-	AgentManagerServiceCreateSupervisorRunProcedure = "/agent_manager.v1.AgentManagerService/CreateSupervisorRun"
 	// AgentManagerServiceHealthProcedure is the fully-qualified name of the AgentManagerService's
 	// Health RPC.
 	AgentManagerServiceHealthProcedure = "/agent_manager.v1.AgentManagerService/Health"
@@ -360,13 +339,6 @@ type AgentManagerServiceClient interface {
 	ReconcileEffortMetadata(context.Context, *connect.Request[domain.ReconcileEffortMetadataRequest]) (*connect.Response[domain.EffortEnrollment], error)
 	WithdrawEffort(context.Context, *connect.Request[domain.WithdrawEffortRequest]) (*connect.Response[domain.EffortEnrollment], error)
 	ReconcileEffortDiscovery(context.Context, *connect.Request[domain.ReconcileEffortDiscoveryRequest]) (*connect.Response[domain.EffortDiscovery], error)
-	RequestEffortDirective(context.Context, *connect.Request[domain.RequestEffortDirectiveRequest]) (*connect.Response[domain.EffortDirective], error)
-	ListEffortDirectives(context.Context, *connect.Request[domain.ListEffortDirectivesRequest]) (*connect.Response[domain.ListEffortDirectivesResponse], error)
-	UpdateEffortDirective(context.Context, *connect.Request[domain.UpdateEffortDirectiveRequest]) (*connect.Response[domain.EffortDirective], error)
-	RecordEffortAssessment(context.Context, *connect.Request[domain.RecordEffortAssessmentRequest]) (*connect.Response[domain.EffortAssessment], error)
-	IssueSupervisorDispatch(context.Context, *connect.Request[api.IssueSupervisorDispatchRequest]) (*connect.Response[domain.EffortEnrollment], error)
-	RevokeSupervisorDispatch(context.Context, *connect.Request[api.RevokeSupervisorDispatchRequest]) (*connect.Response[domain.EffortEnrollment], error)
-	CreateSupervisorRun(context.Context, *connect.Request[api.CreateSupervisorRunRequest]) (*connect.Response[api.CreateRunResponse], error)
 	// Health returns the service health status.
 	Health(context.Context, *connect.Request[api.HealthRequest]) (*connect.Response[api.HealthResponse], error)
 	ListExecutionOptions(context.Context, *connect.Request[api.ListExecutionOptionsRequest]) (*connect.Response[api.ListExecutionOptionsResponse], error)
@@ -580,48 +552,6 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+AgentManagerServiceReconcileEffortDiscoveryProcedure,
 			connect.WithSchema(agentManagerServiceMethods.ByName("ReconcileEffortDiscovery")),
-			connect.WithClientOptions(opts...),
-		),
-		requestEffortDirective: connect.NewClient[domain.RequestEffortDirectiveRequest, domain.EffortDirective](
-			httpClient,
-			baseURL+AgentManagerServiceRequestEffortDirectiveProcedure,
-			connect.WithSchema(agentManagerServiceMethods.ByName("RequestEffortDirective")),
-			connect.WithClientOptions(opts...),
-		),
-		listEffortDirectives: connect.NewClient[domain.ListEffortDirectivesRequest, domain.ListEffortDirectivesResponse](
-			httpClient,
-			baseURL+AgentManagerServiceListEffortDirectivesProcedure,
-			connect.WithSchema(agentManagerServiceMethods.ByName("ListEffortDirectives")),
-			connect.WithClientOptions(opts...),
-		),
-		updateEffortDirective: connect.NewClient[domain.UpdateEffortDirectiveRequest, domain.EffortDirective](
-			httpClient,
-			baseURL+AgentManagerServiceUpdateEffortDirectiveProcedure,
-			connect.WithSchema(agentManagerServiceMethods.ByName("UpdateEffortDirective")),
-			connect.WithClientOptions(opts...),
-		),
-		recordEffortAssessment: connect.NewClient[domain.RecordEffortAssessmentRequest, domain.EffortAssessment](
-			httpClient,
-			baseURL+AgentManagerServiceRecordEffortAssessmentProcedure,
-			connect.WithSchema(agentManagerServiceMethods.ByName("RecordEffortAssessment")),
-			connect.WithClientOptions(opts...),
-		),
-		issueSupervisorDispatch: connect.NewClient[api.IssueSupervisorDispatchRequest, domain.EffortEnrollment](
-			httpClient,
-			baseURL+AgentManagerServiceIssueSupervisorDispatchProcedure,
-			connect.WithSchema(agentManagerServiceMethods.ByName("IssueSupervisorDispatch")),
-			connect.WithClientOptions(opts...),
-		),
-		revokeSupervisorDispatch: connect.NewClient[api.RevokeSupervisorDispatchRequest, domain.EffortEnrollment](
-			httpClient,
-			baseURL+AgentManagerServiceRevokeSupervisorDispatchProcedure,
-			connect.WithSchema(agentManagerServiceMethods.ByName("RevokeSupervisorDispatch")),
-			connect.WithClientOptions(opts...),
-		),
-		createSupervisorRun: connect.NewClient[api.CreateSupervisorRunRequest, api.CreateRunResponse](
-			httpClient,
-			baseURL+AgentManagerServiceCreateSupervisorRunProcedure,
-			connect.WithSchema(agentManagerServiceMethods.ByName("CreateSupervisorRun")),
 			connect.WithClientOptions(opts...),
 		),
 		health: connect.NewClient[api.HealthRequest, api.HealthResponse](
@@ -1187,13 +1117,6 @@ type agentManagerServiceClient struct {
 	reconcileEffortMetadata          *connect.Client[domain.ReconcileEffortMetadataRequest, domain.EffortEnrollment]
 	withdrawEffort                   *connect.Client[domain.WithdrawEffortRequest, domain.EffortEnrollment]
 	reconcileEffortDiscovery         *connect.Client[domain.ReconcileEffortDiscoveryRequest, domain.EffortDiscovery]
-	requestEffortDirective           *connect.Client[domain.RequestEffortDirectiveRequest, domain.EffortDirective]
-	listEffortDirectives             *connect.Client[domain.ListEffortDirectivesRequest, domain.ListEffortDirectivesResponse]
-	updateEffortDirective            *connect.Client[domain.UpdateEffortDirectiveRequest, domain.EffortDirective]
-	recordEffortAssessment           *connect.Client[domain.RecordEffortAssessmentRequest, domain.EffortAssessment]
-	issueSupervisorDispatch          *connect.Client[api.IssueSupervisorDispatchRequest, domain.EffortEnrollment]
-	revokeSupervisorDispatch         *connect.Client[api.RevokeSupervisorDispatchRequest, domain.EffortEnrollment]
-	createSupervisorRun              *connect.Client[api.CreateSupervisorRunRequest, api.CreateRunResponse]
 	health                           *connect.Client[api.HealthRequest, api.HealthResponse]
 	listExecutionOptions             *connect.Client[api.ListExecutionOptionsRequest, api.ListExecutionOptionsResponse]
 	startInvestigation               *connect.Client[api.StartInvestigationRequest, api.StartInvestigationResponse]
@@ -1316,41 +1239,6 @@ func (c *agentManagerServiceClient) WithdrawEffort(ctx context.Context, req *con
 // ReconcileEffortDiscovery calls agent_manager.v1.AgentManagerService.ReconcileEffortDiscovery.
 func (c *agentManagerServiceClient) ReconcileEffortDiscovery(ctx context.Context, req *connect.Request[domain.ReconcileEffortDiscoveryRequest]) (*connect.Response[domain.EffortDiscovery], error) {
 	return c.reconcileEffortDiscovery.CallUnary(ctx, req)
-}
-
-// RequestEffortDirective calls agent_manager.v1.AgentManagerService.RequestEffortDirective.
-func (c *agentManagerServiceClient) RequestEffortDirective(ctx context.Context, req *connect.Request[domain.RequestEffortDirectiveRequest]) (*connect.Response[domain.EffortDirective], error) {
-	return c.requestEffortDirective.CallUnary(ctx, req)
-}
-
-// ListEffortDirectives calls agent_manager.v1.AgentManagerService.ListEffortDirectives.
-func (c *agentManagerServiceClient) ListEffortDirectives(ctx context.Context, req *connect.Request[domain.ListEffortDirectivesRequest]) (*connect.Response[domain.ListEffortDirectivesResponse], error) {
-	return c.listEffortDirectives.CallUnary(ctx, req)
-}
-
-// UpdateEffortDirective calls agent_manager.v1.AgentManagerService.UpdateEffortDirective.
-func (c *agentManagerServiceClient) UpdateEffortDirective(ctx context.Context, req *connect.Request[domain.UpdateEffortDirectiveRequest]) (*connect.Response[domain.EffortDirective], error) {
-	return c.updateEffortDirective.CallUnary(ctx, req)
-}
-
-// RecordEffortAssessment calls agent_manager.v1.AgentManagerService.RecordEffortAssessment.
-func (c *agentManagerServiceClient) RecordEffortAssessment(ctx context.Context, req *connect.Request[domain.RecordEffortAssessmentRequest]) (*connect.Response[domain.EffortAssessment], error) {
-	return c.recordEffortAssessment.CallUnary(ctx, req)
-}
-
-// IssueSupervisorDispatch calls agent_manager.v1.AgentManagerService.IssueSupervisorDispatch.
-func (c *agentManagerServiceClient) IssueSupervisorDispatch(ctx context.Context, req *connect.Request[api.IssueSupervisorDispatchRequest]) (*connect.Response[domain.EffortEnrollment], error) {
-	return c.issueSupervisorDispatch.CallUnary(ctx, req)
-}
-
-// RevokeSupervisorDispatch calls agent_manager.v1.AgentManagerService.RevokeSupervisorDispatch.
-func (c *agentManagerServiceClient) RevokeSupervisorDispatch(ctx context.Context, req *connect.Request[api.RevokeSupervisorDispatchRequest]) (*connect.Response[domain.EffortEnrollment], error) {
-	return c.revokeSupervisorDispatch.CallUnary(ctx, req)
-}
-
-// CreateSupervisorRun calls agent_manager.v1.AgentManagerService.CreateSupervisorRun.
-func (c *agentManagerServiceClient) CreateSupervisorRun(ctx context.Context, req *connect.Request[api.CreateSupervisorRunRequest]) (*connect.Response[api.CreateRunResponse], error) {
-	return c.createSupervisorRun.CallUnary(ctx, req)
 }
 
 // Health calls agent_manager.v1.AgentManagerService.Health.
@@ -1828,13 +1716,6 @@ type AgentManagerServiceHandler interface {
 	ReconcileEffortMetadata(context.Context, *connect.Request[domain.ReconcileEffortMetadataRequest]) (*connect.Response[domain.EffortEnrollment], error)
 	WithdrawEffort(context.Context, *connect.Request[domain.WithdrawEffortRequest]) (*connect.Response[domain.EffortEnrollment], error)
 	ReconcileEffortDiscovery(context.Context, *connect.Request[domain.ReconcileEffortDiscoveryRequest]) (*connect.Response[domain.EffortDiscovery], error)
-	RequestEffortDirective(context.Context, *connect.Request[domain.RequestEffortDirectiveRequest]) (*connect.Response[domain.EffortDirective], error)
-	ListEffortDirectives(context.Context, *connect.Request[domain.ListEffortDirectivesRequest]) (*connect.Response[domain.ListEffortDirectivesResponse], error)
-	UpdateEffortDirective(context.Context, *connect.Request[domain.UpdateEffortDirectiveRequest]) (*connect.Response[domain.EffortDirective], error)
-	RecordEffortAssessment(context.Context, *connect.Request[domain.RecordEffortAssessmentRequest]) (*connect.Response[domain.EffortAssessment], error)
-	IssueSupervisorDispatch(context.Context, *connect.Request[api.IssueSupervisorDispatchRequest]) (*connect.Response[domain.EffortEnrollment], error)
-	RevokeSupervisorDispatch(context.Context, *connect.Request[api.RevokeSupervisorDispatchRequest]) (*connect.Response[domain.EffortEnrollment], error)
-	CreateSupervisorRun(context.Context, *connect.Request[api.CreateSupervisorRunRequest]) (*connect.Response[api.CreateRunResponse], error)
 	// Health returns the service health status.
 	Health(context.Context, *connect.Request[api.HealthRequest]) (*connect.Response[api.HealthResponse], error)
 	ListExecutionOptions(context.Context, *connect.Request[api.ListExecutionOptionsRequest]) (*connect.Response[api.ListExecutionOptionsResponse], error)
@@ -2044,48 +1925,6 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		AgentManagerServiceReconcileEffortDiscoveryProcedure,
 		svc.ReconcileEffortDiscovery,
 		connect.WithSchema(agentManagerServiceMethods.ByName("ReconcileEffortDiscovery")),
-		connect.WithHandlerOptions(opts...),
-	)
-	agentManagerServiceRequestEffortDirectiveHandler := connect.NewUnaryHandler(
-		AgentManagerServiceRequestEffortDirectiveProcedure,
-		svc.RequestEffortDirective,
-		connect.WithSchema(agentManagerServiceMethods.ByName("RequestEffortDirective")),
-		connect.WithHandlerOptions(opts...),
-	)
-	agentManagerServiceListEffortDirectivesHandler := connect.NewUnaryHandler(
-		AgentManagerServiceListEffortDirectivesProcedure,
-		svc.ListEffortDirectives,
-		connect.WithSchema(agentManagerServiceMethods.ByName("ListEffortDirectives")),
-		connect.WithHandlerOptions(opts...),
-	)
-	agentManagerServiceUpdateEffortDirectiveHandler := connect.NewUnaryHandler(
-		AgentManagerServiceUpdateEffortDirectiveProcedure,
-		svc.UpdateEffortDirective,
-		connect.WithSchema(agentManagerServiceMethods.ByName("UpdateEffortDirective")),
-		connect.WithHandlerOptions(opts...),
-	)
-	agentManagerServiceRecordEffortAssessmentHandler := connect.NewUnaryHandler(
-		AgentManagerServiceRecordEffortAssessmentProcedure,
-		svc.RecordEffortAssessment,
-		connect.WithSchema(agentManagerServiceMethods.ByName("RecordEffortAssessment")),
-		connect.WithHandlerOptions(opts...),
-	)
-	agentManagerServiceIssueSupervisorDispatchHandler := connect.NewUnaryHandler(
-		AgentManagerServiceIssueSupervisorDispatchProcedure,
-		svc.IssueSupervisorDispatch,
-		connect.WithSchema(agentManagerServiceMethods.ByName("IssueSupervisorDispatch")),
-		connect.WithHandlerOptions(opts...),
-	)
-	agentManagerServiceRevokeSupervisorDispatchHandler := connect.NewUnaryHandler(
-		AgentManagerServiceRevokeSupervisorDispatchProcedure,
-		svc.RevokeSupervisorDispatch,
-		connect.WithSchema(agentManagerServiceMethods.ByName("RevokeSupervisorDispatch")),
-		connect.WithHandlerOptions(opts...),
-	)
-	agentManagerServiceCreateSupervisorRunHandler := connect.NewUnaryHandler(
-		AgentManagerServiceCreateSupervisorRunProcedure,
-		svc.CreateSupervisorRun,
-		connect.WithSchema(agentManagerServiceMethods.ByName("CreateSupervisorRun")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagerServiceHealthHandler := connect.NewUnaryHandler(
@@ -2654,20 +2493,6 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceWithdrawEffortHandler.ServeHTTP(w, r)
 		case AgentManagerServiceReconcileEffortDiscoveryProcedure:
 			agentManagerServiceReconcileEffortDiscoveryHandler.ServeHTTP(w, r)
-		case AgentManagerServiceRequestEffortDirectiveProcedure:
-			agentManagerServiceRequestEffortDirectiveHandler.ServeHTTP(w, r)
-		case AgentManagerServiceListEffortDirectivesProcedure:
-			agentManagerServiceListEffortDirectivesHandler.ServeHTTP(w, r)
-		case AgentManagerServiceUpdateEffortDirectiveProcedure:
-			agentManagerServiceUpdateEffortDirectiveHandler.ServeHTTP(w, r)
-		case AgentManagerServiceRecordEffortAssessmentProcedure:
-			agentManagerServiceRecordEffortAssessmentHandler.ServeHTTP(w, r)
-		case AgentManagerServiceIssueSupervisorDispatchProcedure:
-			agentManagerServiceIssueSupervisorDispatchHandler.ServeHTTP(w, r)
-		case AgentManagerServiceRevokeSupervisorDispatchProcedure:
-			agentManagerServiceRevokeSupervisorDispatchHandler.ServeHTTP(w, r)
-		case AgentManagerServiceCreateSupervisorRunProcedure:
-			agentManagerServiceCreateSupervisorRunHandler.ServeHTTP(w, r)
 		case AgentManagerServiceHealthProcedure:
 			agentManagerServiceHealthHandler.ServeHTTP(w, r)
 		case AgentManagerServiceListExecutionOptionsProcedure:
@@ -2883,34 +2708,6 @@ func (UnimplementedAgentManagerServiceHandler) WithdrawEffort(context.Context, *
 
 func (UnimplementedAgentManagerServiceHandler) ReconcileEffortDiscovery(context.Context, *connect.Request[domain.ReconcileEffortDiscoveryRequest]) (*connect.Response[domain.EffortDiscovery], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ReconcileEffortDiscovery is not implemented"))
-}
-
-func (UnimplementedAgentManagerServiceHandler) RequestEffortDirective(context.Context, *connect.Request[domain.RequestEffortDirectiveRequest]) (*connect.Response[domain.EffortDirective], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.RequestEffortDirective is not implemented"))
-}
-
-func (UnimplementedAgentManagerServiceHandler) ListEffortDirectives(context.Context, *connect.Request[domain.ListEffortDirectivesRequest]) (*connect.Response[domain.ListEffortDirectivesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ListEffortDirectives is not implemented"))
-}
-
-func (UnimplementedAgentManagerServiceHandler) UpdateEffortDirective(context.Context, *connect.Request[domain.UpdateEffortDirectiveRequest]) (*connect.Response[domain.EffortDirective], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.UpdateEffortDirective is not implemented"))
-}
-
-func (UnimplementedAgentManagerServiceHandler) RecordEffortAssessment(context.Context, *connect.Request[domain.RecordEffortAssessmentRequest]) (*connect.Response[domain.EffortAssessment], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.RecordEffortAssessment is not implemented"))
-}
-
-func (UnimplementedAgentManagerServiceHandler) IssueSupervisorDispatch(context.Context, *connect.Request[api.IssueSupervisorDispatchRequest]) (*connect.Response[domain.EffortEnrollment], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.IssueSupervisorDispatch is not implemented"))
-}
-
-func (UnimplementedAgentManagerServiceHandler) RevokeSupervisorDispatch(context.Context, *connect.Request[api.RevokeSupervisorDispatchRequest]) (*connect.Response[domain.EffortEnrollment], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.RevokeSupervisorDispatch is not implemented"))
-}
-
-func (UnimplementedAgentManagerServiceHandler) CreateSupervisorRun(context.Context, *connect.Request[api.CreateSupervisorRunRequest]) (*connect.Response[api.CreateRunResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.CreateSupervisorRun is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) Health(context.Context, *connect.Request[api.HealthRequest]) (*connect.Response[api.HealthResponse], error) {

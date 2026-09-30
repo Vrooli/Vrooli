@@ -15,6 +15,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
+	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 	cliv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1/cliv1connect"
@@ -90,6 +91,58 @@ func (h *scenarioControlPlaneHandler) GetScenarioStatus(_ context.Context, req *
 		return nil, controlPlaneInternalError("get scenario status returned no single scenario")
 	}
 	return connect.NewResponse(statusSingleMessage(*result.Single)), nil
+}
+
+func (h *scenarioControlPlaneHandler) GetScenarioFreshness(ctx context.Context, req *connect.Request[cliv1.GetScenarioFreshnessRequest]) (*connect.Response[cliv1.ScenarioFreshnessResponse], error) {
+	if err := requireScenarioName(req.Msg.GetName()); err != nil {
+		return nil, err
+	}
+	runner := h.phaseRunner
+	if runner == nil {
+		var err error
+		runner, err = h.app.Services.LifecycleRunner()
+		if err != nil {
+			return nil, controlPlaneInternalError("create lifecycle runner", err)
+		}
+	}
+	report, err := (scenarioapp.Service{Runner: runner}).FreshnessContext(ctx, scenarioapp.FreshnessRequest{Name: req.Msg.GetName()})
+	if err != nil {
+		return nil, controlPlaneInternalError("get scenario freshness", err)
+	}
+	checks := make([]*cliv1.ScenarioFreshnessCheck, 0, len(report.Checks))
+	for _, check := range report.Checks {
+		checks = append(checks, &cliv1.ScenarioFreshnessCheck{
+			CheckType: check.CheckType,
+			Target:    check.Target,
+			Stale:     check.Stale,
+			Cause:     check.Cause,
+			File:      check.File,
+		})
+	}
+	dependencies := make([]*cliv1.ScenarioFreshnessDependency, 0, len(report.Dependencies))
+	for _, dependency := range report.Dependencies {
+		dependencies = append(dependencies, &cliv1.ScenarioFreshnessDependency{
+			Name:   dependency.Name,
+			Policy: dependency.Policy,
+		})
+	}
+	return connect.NewResponse(&cliv1.ScenarioFreshnessResponse{
+		Success:      true,
+		Scenario:     report.Scenario,
+		Stale:        report.Stale,
+		Checks:       checks,
+		Dependencies: dependencies,
+	}), nil
+}
+
+// brandingMessage carries the scenario's brand declaration across the RPC. A
+// nil declaration stays nil so a reader can distinguish an unbranded scenario
+// from one whose brand is merely unset.
+func brandingMessage(branding *scenariomodel.Branding) *cliv1.ScenarioBranding {
+	if branding == nil {
+		return nil
+	}
+	return &cliv1.ScenarioBranding{Brand: branding.Brand, Targets: append([]string(nil), branding.Targets...)}
 }
 
 func controlPlaneScenarioStatusError(cause error) error {
@@ -169,7 +222,7 @@ func (h *scenarioControlPlaneHandler) StartScenario(_ context.Context, req *conn
 	if req.Msg.GetTimeoutSeconds() < 0 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("timeout_seconds must be nonnegative"))
 	}
-	items, err := h.lifecycleService().Start(scenarioapp.StartRequest{Names: []string{req.Msg.GetName()}, TimeoutSeconds: int(req.Msg.GetTimeoutSeconds()), Options: lifecycle.StartOptions{CustomPath: req.Msg.GetPath(), BestEffort: req.Msg.GetBestEffort(), CleanStale: req.Msg.GetCleanStale(), ForceSetup: req.Msg.GetForce(), AcceptCredentialLoss: req.Msg.GetAcceptCredentialLoss(), DemandManaged: req.Msg.GetDemandManaged()}})
+	items, err := h.lifecycleService().Start(scenarioapp.StartRequest{Names: []string{req.Msg.GetName()}, TimeoutSeconds: int(req.Msg.GetTimeoutSeconds()), Options: lifecycle.StartOptions{CustomPath: req.Msg.GetPath(), BestEffort: req.Msg.GetBestEffort(), CleanStale: req.Msg.GetCleanStale(), ForceSetup: req.Msg.GetForce(), AcceptCredentialLoss: req.Msg.GetAcceptCredentialLoss(), DemandManaged: req.Msg.GetDemandManaged(), VariantDependencies: []string{req.Msg.GetVariantDependencies()}}})
 	if err != nil {
 		return nil, controlPlaneLifecycleError("start scenario", err)
 	}
@@ -198,7 +251,7 @@ func (h *scenarioControlPlaneHandler) RestartScenario(_ context.Context, req *co
 	if req.Msg.GetTimeoutSeconds() < 0 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("timeout_seconds must be nonnegative"))
 	}
-	items, err := h.lifecycleService().Restart(scenarioapp.RestartRequest{Name: req.Msg.GetName(), TimeoutSeconds: int(req.Msg.GetTimeoutSeconds()), Options: lifecycle.StartOptions{CustomPath: req.Msg.GetPath(), BestEffort: req.Msg.GetBestEffort(), CleanStale: req.Msg.GetCleanStale(), ForceSetup: req.Msg.GetForce(), ForceLifecycle: req.Msg.GetForceLifecycle(), LifecycleOverrideReason: req.Msg.GetLifecycleOverrideReason(), AcceptCredentialLoss: req.Msg.GetAcceptCredentialLoss(), DemandManaged: req.Msg.GetDemandManaged()}})
+	items, err := h.lifecycleService().Restart(scenarioapp.RestartRequest{Name: req.Msg.GetName(), TimeoutSeconds: int(req.Msg.GetTimeoutSeconds()), Options: lifecycle.StartOptions{CustomPath: req.Msg.GetPath(), BestEffort: req.Msg.GetBestEffort(), CleanStale: req.Msg.GetCleanStale(), ForceSetup: req.Msg.GetForce(), ForceLifecycle: req.Msg.GetForceLifecycle(), LifecycleOverrideReason: req.Msg.GetLifecycleOverrideReason(), AcceptCredentialLoss: req.Msg.GetAcceptCredentialLoss(), DemandManaged: req.Msg.GetDemandManaged(), VariantDependencies: []string{req.Msg.GetVariantDependencies()}}})
 	if err != nil {
 		return nil, controlPlaneLifecycleError("restart scenario", err)
 	}
@@ -303,10 +356,10 @@ func statusSingleMessage(output scenarioapp.StatusSingleOutput) *cliv1.ScenarioS
 		Scenario: &cliv1.ScenarioStatusItem{
 			Name: item.Name, DisplayName: item.DisplayName, Description: item.Description, Tags: item.Tags,
 			Status: item.Status, Processes: int32(item.Processes), Runtime: item.Runtime, StartedAt: startedAt,
-			Ports: ports, PortBindings: portBindings, HealthStatus: health,
+			Ports: ports, PortBindings: portBindings, HealthStatus: health, BuildIdentity: item.BuildIdentity,
 		},
-		Info:    &cliv1.ScenarioInfoData{Name: output.Info.Name, DisplayName: output.Info.DisplayName, Description: output.Info.Description, Version: output.Info.Version, Type: output.Info.Type, Category: output.Info.Category, Tags: output.Info.Tags, Path: output.Info.Path, ServicePath: output.Info.ServicePath, SandboxRedirected: output.Info.SandboxRedirect, ConfigVersion: output.Info.ConfigVersion, LifecycleVersion: output.Info.LifecycleVersion},
-		Runtime: &cliv1.ScenarioRuntimeData{Status: output.Runtime.Status, Processes: int32(output.Runtime.Processes), Runtime: output.Runtime.Runtime, StartedAt: renderTimestamp(output.Runtime.StartedAt), Ports: ports, ProcessRecords: processRecords, ListPorts: portBindings},
+		Info:    &cliv1.ScenarioInfoData{Name: output.Info.Name, DisplayName: output.Info.DisplayName, Description: output.Info.Description, Version: output.Info.Version, Type: output.Info.Type, Category: output.Info.Category, Tags: output.Info.Tags, Path: output.Info.Path, ServicePath: output.Info.ServicePath, SandboxRedirected: output.Info.SandboxRedirect, ConfigVersion: output.Info.ConfigVersion, LifecycleVersion: output.Info.LifecycleVersion, Branding: brandingMessage(output.Info.Branding)},
+		Runtime: &cliv1.ScenarioRuntimeData{Status: output.Runtime.Status, Processes: int32(output.Runtime.Processes), Runtime: output.Runtime.Runtime, StartedAt: renderTimestamp(output.Runtime.StartedAt), Ports: ports, ProcessRecords: processRecords, ListPorts: portBindings, BuildIdentity: output.Runtime.BuildIdentity},
 	}
 }
 

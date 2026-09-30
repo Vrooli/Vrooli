@@ -93,9 +93,6 @@ func TestRestartRecoveryDoesNotTimeoutReattachedLegacyExecutor(t *testing.T) {
 	if err := repos.Runs.Create(t.Context(), run); err != nil {
 		t.Fatal(err)
 	}
-	if err := excludeLiveExecutor(t.Context(), run); err == nil {
-		t.Fatal("live recorded executor was not conservatively excluded")
-	}
 	// A liveness-only recovery read has not attached an owner and must not
 	// invent an attachment heartbeat or normalize the row as if it had.
 	if _, err := rec.recoverRun(t.Context(), run, false); err != nil {
@@ -193,16 +190,6 @@ func TestRecoveryArtifactFailurePreservesLiveLegacyExecutor(t *testing.T) {
 			}
 			if extractTagFromEnv(cmd.Process.Pid) != legacyTag || !rec.isProcessAlive(t.Context(), got) {
 				t.Error("exact legacy executor was killed or replaced")
-			}
-			if err := excludeLiveExecutor(t.Context(), got); err == nil {
-				t.Error("artifact failure admitted replacement of the live executor")
-			}
-			owner := New(repos.Profiles, repos.Tasks, repos.Runs, WithRunners(registry), WithRunStateRoot(t.TempDir()))
-			if _, err := owner.RecoverMissingSessionRun(t.Context(), ResumeFromFailedRunRequest{RunID: got.ID}); err == nil || !domain.IsPreEffectRefusal(err) {
-				t.Errorf("fresh recovery was not refused before effects: %v", err)
-			}
-			if replacement, err := repos.Runs.GetByIdempotencyKey(t.Context(), "resume-from-failed:"+got.ID.String()); err != nil || replacement != nil {
-				t.Errorf("artifact failure created a replacement: %v %v", replacement, err)
 			}
 			if got.TranscriptCursor != 0 {
 				t.Error("unverified artifact/terminal was consumed; later owner diagnosis cannot replay it")

@@ -501,6 +501,16 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 		appliesInvestigationRunID = &parsed
 	}
 
+	var parentRunID *uuid.UUID
+	if value := queryFirst(r, "parent_run_id", "parentRunId"); value != "" {
+		parsed, err := uuid.Parse(value)
+		if err != nil {
+			writeSimpleError(w, r, "parent_run_id", "invalid UUID format")
+			return
+		}
+		parentRunID = &parsed
+	}
+
 	// A missing limit used to reach SQLite as an unbounded projection. Keep
 	// the public default bounded so CLI and Connect callers have identical,
 	// predictable behavior.
@@ -532,7 +542,7 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := h.listRunsProto(r.Context(), &req, investigatesRunID, appliesInvestigationRunID)
+	response, err := h.listRunsProto(r.Context(), &req, investigatesRunID, appliesInvestigationRunID, parentRunID)
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -542,7 +552,7 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 
 const defaultRunListLimit = 100
 
-func (h *Handler) listRunsProto(ctx context.Context, req *apipb.ListRunsRequest, investigatesRunID, appliesInvestigationRunID *uuid.UUID) (*apipb.ListRunsResponse, error) {
+func (h *Handler) listRunsProto(ctx context.Context, req *apipb.ListRunsRequest, investigatesRunID, appliesInvestigationRunID, parentRunID *uuid.UUID) (*apipb.ListRunsResponse, error) {
 	opts := orchestration.RunListOptions{}
 	if req.GetStatus() != domainpb.RunStatus_RUN_STATUS_UNSPECIFIED {
 		status := protoconv.RunStatusFromProto(req.GetStatus())
@@ -567,6 +577,7 @@ func (h *Handler) listRunsProto(ctx context.Context, req *apipb.ListRunsRequest,
 	}
 	opts.InvestigatesRunID = investigatesRunID
 	opts.AppliesInvestigationRunID = appliesInvestigationRunID
+	opts.ParentRunID = parentRunID
 	if req.Limit != nil {
 		opts.Limit = int(req.GetLimit())
 	}
@@ -610,9 +621,6 @@ func (h *Handler) DeleteRun(w http.ResponseWriter, r *http.Request) {
 
 // StopRun stops a running run.
 func (h *Handler) StopRun(w http.ResponseWriter, r *http.Request) {
-	if h.denyRunInitiatedLifecycleOperation(w, r, "stop-run") {
-		return
-	}
 	idStr := mux.Vars(r)["id"]
 	req := apipb.StopRunRequest{RunId: idStr}
 	if !h.validateProto(w, r, &req) {
@@ -621,6 +629,9 @@ func (h *Handler) StopRun(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(req.RunId)
 	if err != nil {
 		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
+		return
+	}
+	if !h.lineageLifecycleAllowed(r, id, false) && h.denyRunInitiatedLifecycleOperation(w, r, "stop-run") {
 		return
 	}
 
@@ -645,13 +656,14 @@ func (h *Handler) StopRun(w http.ResponseWriter, r *http.Request) {
 // POST /api/v1/runs/{id}/continue
 // Body: {"message": "Please also update the tests"}
 func (h *Handler) ContinueRun(w http.ResponseWriter, r *http.Request) {
-	if h.denyRunInitiatedLifecycleOperation(w, r, "continue-run") {
-		return
-	}
 	idStr := mux.Vars(r)["id"]
 	id, err := uuid.Parse(idStr)
 	if err != nil {
 		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
+		return
+	}
+	// An orchestrator may continue (or type into) its own direct children.
+	if !h.lineageLifecycleAllowed(r, id, false) && h.denyRunInitiatedLifecycleOperation(w, r, "continue-run") {
 		return
 	}
 
@@ -788,13 +800,13 @@ func (h *Handler) GetAwaitResult(w http.ResponseWriter, r *http.Request) {
 // longer parked is returned unchanged with success=false (not an error).
 // POST /api/v1/runs/{id}/wake
 func (h *Handler) WakeRun(w http.ResponseWriter, r *http.Request) {
-	if h.denyRunInitiatedLifecycleOperation(w, r, "wake-run") {
-		return
-	}
 	idStr := mux.Vars(r)["id"]
 	id, err := uuid.Parse(idStr)
 	if err != nil {
 		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
+		return
+	}
+	if !h.lineageLifecycleAllowed(r, id, true) && h.denyRunInitiatedLifecycleOperation(w, r, "wake-run") {
 		return
 	}
 
@@ -840,6 +852,48 @@ func (h *Handler) WakeRun(w http.ResponseWriter, r *http.Request) {
 	}
 	if run != nil {
 		resp.Run = protoconv.RunToProto(run)
+	}
+	writeProtoJSON(w, http.StatusOK, resp)
+}
+
+// WakeParkedRuns wakes every run parked on one producer/key await handle. A
+// run identity may wake only runs its lineage permits (its parent, or its own
+// children under the orchestrate scope), exactly as the single-run wake.
+// POST /api/v1/runs/wake-by-key
+func (h *Handler) WakeParkedRuns(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+	var req domainpb.WakeParkedRunsRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	parked, err := h.svc.ParkedRunsOnHandle(r.Context(), req.Producer, req.Key)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	for _, run := range parked {
+		if !h.lineageLifecycleAllowed(r, run.ID, true) && h.denyRunInitiatedLifecycleOperation(w, r, "wake-run") {
+			return
+		}
+	}
+	resp := &domainpb.WakeParkedRunsResponse{WokenRunIds: []string{}}
+	for _, run := range parked {
+		woken, err := h.svc.WakeRun(r.Context(), orchestration.WakeRunInput{RunID: run.ID, Result: req.Result, TimedOut: req.TimedOut})
+		if err != nil {
+			writeError(w, r, err)
+			return
+		}
+		if woken != nil && woken.Status != domain.RunStatusParked {
+			resp.WokenRunIds = append(resp.WokenRunIds, run.ID.String())
+		}
 	}
 	writeProtoJSON(w, http.StatusOK, resp)
 }

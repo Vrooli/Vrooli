@@ -49,13 +49,12 @@ For arbitrary large efforts, use `agent-manager effort board` (or `--effort-ref`
 for an exact selected effort) and the existing UI's Efforts view. Read
 `large-effort-supervision` for judgment and
 `path:scenarios/agent-manager/docs/reference/effort-supervision.md` for typed
-enrollment, assessment, directive and withdrawal requests. Automatic discovery
-permits observation only. A quiet assessment is independent of a directive;
-completion is independent of accepted outcomes. Missing metrics remain unknown.
-Use signed run identity for supervisor assessments; never exchange a supervisor
-credential for operator authority. Explicit local operators can use `--local-owner`
-on supported owner mutations without persisting tokens. Pending/uncertain effects
-retain their original owner identity and must not be reissued under a new key.
+enrollment and withdrawal requests and the delivery orchestration commands
+(`run continue`, `run park`, `run wake --key`, `run tokens`, `effort epoch-check`).
+Automatic discovery permits observation only; completion is independent of
+accepted outcomes. Missing metrics remain unknown. Steer a delivery goal through
+its goal home files, not the board. Explicit local operators can use
+`--local-owner` on supported owner mutations without persisting tokens.
 
 For a bounded diagnosis of an existing run set, use the typed investigation
 operation or the `agent-manager.investigate` program. Its operation status is

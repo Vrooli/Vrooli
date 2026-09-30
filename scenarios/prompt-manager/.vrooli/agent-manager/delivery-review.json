@@ -2,22 +2,18 @@
   "schemaVersion": "agent-profile/v1",
   "name": "prompt-manager-delivery-review",
   "profileKey": "prompt-manager/delivery-review",
-  "description": "Infrequent independent review of a frozen delivery candidate using the authorized subscription supervisor role. The dispatch owner must enforce cadence and separation from the author; no heartbeat is bound by this declaration.",
+  "description": "Sol supervisor role for the effort-supervision team's effort-supervisor member (large-effort-supervision): a daily trend check plus orchestrator-triggered wakes that read every goal home, repair shared infrastructure, dispatch bounded repair runs and audit sampled epochs by rerunning their exit gates. Runs unsandboxed with network access like the delivery roles, because audits and repairs need the control plane, the shadow BAS and Test Genie; it never authors the work it audits.",
   "roleRef": "code.supervision",
   "declaredScopes": [
     "agent-manager:supervise"
   ],
   "effort": "medium",
-  "maxTurns": 60,
-  "timeout": "900s",
-  "networkAccess": "NETWORK_ACCESS_NONE",
+  "maxTurns": 0,
+  "timeout": "7200s",
+  "networkAccess": "NETWORK_ACCESS_FULL",
   "sandboxConfig": {
-    "mode": "SANDBOX_MODE_PROTECTED",
-    "networkMode": "NETWORK_ACCESS_NONE",
-    "manualReview": true,
-    "autoApply": false,
-    "applyOnFailure": false,
-    "writePolicy": { "paths": [] }
+    "mode": "SANDBOX_MODE_OFF",
+    "networkMode": "NETWORK_ACCESS_FULL"
   },
   "createdBy": "prompt-manager"
 }

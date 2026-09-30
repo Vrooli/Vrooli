@@ -1,6 +1,7 @@
 package hosthandlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/operatorstate"
 	hostruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/volumeremediation"
 	"github.com/vrooli/vrooli/internal/workloadowner"
@@ -28,7 +30,7 @@ type hostService struct {
 
 const hostMemoryBytesPerMegabyte = 1024
 
-var hostCommandNames = []string{"cron", "inventory", "desktop-session", "install", "safeguard", "volume", "storage"}
+var hostCommandNames = []string{"cron", "inventory", "desktop-session", "install", "safeguard", "reboot", "volume", "storage"}
 
 // RegisteredCommandPaths returns the child paths bound by the host handler.
 func RegisteredCommandPaths() []string {
@@ -127,6 +129,8 @@ func hostBindings(ctx *rootcli.CommandContext, names []string) map[string]func(c
 					return runHostInstall(runCtx, ctx)
 				case "safeguard":
 					return runHostSafeguard(runCtx, ctx)
+				case "reboot":
+					return runHostReboot(runCtx, ctx)
 				case "storage":
 					return runHostStorage(runCtx, ctx)
 				case "volume":
@@ -137,6 +141,17 @@ func hostBindings(ctx *rootcli.CommandContext, names []string) map[string]func(c
 		}(command)
 	}
 	return bindings
+}
+
+func runHostReboot(runCtx cliapp.RunContext, parent *rootcli.CommandContext) error {
+	if !runCtx.BoolFlag("confirm") {
+		return rootcli.UsageErrorf("host reboot", "--confirm is required")
+	}
+	sudoMode := strings.ToLower(strings.TrimSpace(runCtx.Flag("sudo-mode")))
+	if sudoMode != "" && sudoMode != "ask" && sudoMode != "skip" && sudoMode != "error" {
+		return rootcli.UsageErrorf("host reboot", "invalid --sudo-mode %q (want ask, skip, or error)", sudoMode)
+	}
+	return hostreqkit.RunPrivilegedCommand(sudoMode, "shutdown", []string{"-r", "now"}, hostreqkit.EnsureOptions{SudoMode: sudoMode, Stdout: parent.Stdout, Stderr: parent.Stderr})
 }
 
 func runHostInstall(runCtx cliapp.RunContext, parent *rootcli.CommandContext) error {
@@ -176,6 +191,40 @@ func runHostSafeguard(runCtx cliapp.RunContext, parent *rootcli.CommandContext) 
 		return rootcli.UsageErrorf("host safeguard", "invalid --sudo-mode %q (want ask, skip, or error)", sudoMode)
 	}
 	jsonOutput := parent.Globals.JSON || runCtx.JSON()
+	if configKey := strings.TrimSpace(runCtx.Flag("config-key")); configKey != "" {
+		if !runCtx.BoolFlag("opt-in") {
+			return rootcli.UsageErrorf("host safeguard", "--config-key requires --opt-in")
+		}
+		valueJSON := strings.TrimSpace(runCtx.Flag("config-value-json"))
+		if valueJSON == "" {
+			if value := runCtx.Flag("config-value"); value != "" {
+				encoded, err := json.Marshal(value)
+				if err != nil {
+					return fmt.Errorf("encode safeguard config value: %w", err)
+				}
+				valueJSON = string(encoded)
+			}
+		}
+		if valueJSON == "" {
+			return rootcli.UsageErrorf("host safeguard", "--config-value-json or --config-value is required with --config-key")
+		}
+		var value any
+		if err := json.Unmarshal([]byte(valueJSON), &value); err != nil {
+			return rootcli.UsageErrorf("host safeguard", "invalid --config-value-json: %v", err)
+		}
+		patch, err := json.Marshal(map[string]any{"host_safeguards": map[string]any{
+			strings.ReplaceAll(strings.ToLower(name), "-", "_"): map[string]any{
+				"opted_in": true,
+				"config":   map[string]any{configKey: value},
+			},
+		}})
+		if err != nil {
+			return fmt.Errorf("encode safeguard operator-state patch: %w", err)
+		}
+		if _, err := operatorstate.New(operatorstate.Config{RepoRoot: parent.Root}).Apply(parent.OperationContext(), patch); err != nil {
+			return fmt.Errorf("persist safeguard operator state: %w", err)
+		}
+	}
 	value, err := (hostapp.Service{}).Safeguard(parent.OperationContext(), name, hostapp.SafeguardOptions{DryRun: runCtx.BoolFlag("dry-run"), MaintenanceWindow: runCtx.BoolFlag("maintenance-window"), SudoMode: sudoMode})
 	if err != nil {
 		return fmt.Errorf("host safeguard %q: %w", name, err)

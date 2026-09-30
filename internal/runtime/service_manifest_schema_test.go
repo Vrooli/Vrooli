@@ -71,3 +71,62 @@ func TestPlatformCapabilityRequiresMechanismExceptWhenUnsupported(t *testing.T) 
 		})
 	}
 }
+
+func TestBuildIdentityExclusionsAreExactRepositoryPaths(t *testing.T) {
+	schema := compileRepoSchema(t, "service.schema.json#/properties/build_identity")
+	cases := []struct {
+		name     string
+		document string
+		valid    bool
+	}{
+		{"explicit operational document", `{"exclude_paths":["docs/internal/REFRACTOR_PROGRESS.md"]}`, true},
+		{"wildcard is not an exact path", `{"exclude_paths":["docs/**"]}`, false},
+		{"absolute path", `{"exclude_paths":["/outside"]}`, false},
+		{"duplicate path", `{"exclude_paths":["docs/a.md","docs/a.md"]}`, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var document any
+			if err := json.Unmarshal([]byte(tc.document), &document); err != nil {
+				t.Fatalf("decode: %v", err)
+			}
+			err := schema.Validate(document)
+			if tc.valid && err != nil {
+				t.Errorf("expected accepted, got %v", err)
+			}
+			if !tc.valid && err == nil {
+				t.Error("expected rejected, got none")
+			}
+		})
+	}
+}
+
+func TestBuildIdentityRuntimeDocsAreDeclaredDocumentationPaths(t *testing.T) {
+	schema := compileRepoSchema(t, "service.schema.json#/properties/build_identity")
+	cases := []struct {
+		name     string
+		document string
+		valid    bool
+	}{
+		{"runtime-served document", `{"runtime_docs":["docs/guides/setup.md"]}`, true},
+		{"docs root is not a selected path", `{"runtime_docs":["docs"]}`, false},
+		{"path traversal", `{"runtime_docs":["docs/../README.md"]}`, false},
+		{"outside docs tree", `{"runtime_docs":["README.md"]}`, false},
+		{"duplicate path", `{"runtime_docs":["docs/guide.md","docs/guide.md"]}`, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var document any
+			if err := json.Unmarshal([]byte(tc.document), &document); err != nil {
+				t.Fatalf("decode: %v", err)
+			}
+			err := schema.Validate(document)
+			if tc.valid && err != nil {
+				t.Errorf("expected accepted, got %v", err)
+			}
+			if !tc.valid && err == nil {
+				t.Error("expected rejected, got none")
+			}
+		})
+	}
+}

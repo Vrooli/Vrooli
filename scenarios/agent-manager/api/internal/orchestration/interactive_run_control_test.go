@@ -589,6 +589,53 @@ func sawSendPrompt(s *recordingSessions) bool {
 	return false
 }
 
+// Continuing a running interactive run types the message into the live session
+// as its next user message; every other in-progress run is refused.
+func TestContinueRunTypesIntoRunningInteractiveSession(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	sessions := newRecordingSessions()
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithRunStateRoot(t.TempDir()))
+	task := interactiveTestTask(t, svc)
+
+	running := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "agent-sess", "wc-running")
+	got, err := svc.ContinueRun(ctx, ContinueRunRequest{RunID: running.ID, Message: "D3: stop broad validation\nrun J02 only"})
+	if err != nil || got == nil || got.Status != domain.RunStatusRunning {
+		t.Fatalf("running session not typed into: %+v %v", got, err)
+	}
+	if log := sessions.callLog(); len(log) != 1 || log[0] != "sendtext" {
+		t.Fatalf("want exactly one typed message, got %v", log)
+	}
+
+	tests := []struct {
+		name string
+		req  ContinueRunRequest
+		run  *domain.Run
+	}{
+		{"override on a running session", ContinueRunRequest{Message: "x", ResultSpec: &domain.ResultSpec{Kind: domain.ResultSpecKindNone}}, running},
+		{"codec pipe mid-turn", ContinueRunRequest{Message: "x"}, func() *domain.Run {
+			r := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "agent-sess", "")
+			r.ExecutionMode = domain.ExecutionModeCodecPipe
+			if err := repos.Runs.Update(ctx, r); err != nil {
+				t.Fatal(err)
+			}
+			return r
+		}()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.req.RunID = tt.run.ID
+			if _, err := svc.ContinueRun(ctx, tt.req); err == nil {
+				t.Fatal("continuation accepted")
+			}
+		})
+	}
+	if log := sessions.callLog(); len(log) != 1 {
+		t.Fatalf("refused continuation reached the session: %v", log)
+	}
+}
+
 func TestInteractiveInitialPrompt(t *testing.T) {
 	cases := []struct {
 		name   string

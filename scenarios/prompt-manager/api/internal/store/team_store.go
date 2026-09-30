@@ -730,9 +730,6 @@ func (s *FileTeamStore) SetHeartbeatConfig(ctx context.Context, teamID, agentID 
 	if err := validateFiniteLeaderUpdate(previous, config); err != nil {
 		return err
 	}
-	if err := config.Supervision.Validate(); err != nil {
-		return err
-	}
 	// Ensure member directory exists
 	if err := s.EnsureMemberDir(ctx, teamID, agentID); err != nil {
 		return err

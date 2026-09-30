@@ -142,28 +142,6 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 	if req == nil {
 		return nil, types.NewValidationError("request", "request body is required")
 	}
-	// Do not rewrite caller-owned request fields when binding a retained review.
-	request := *req
-	req = &request
-	if (req.ReviewRequestID == uuid.Nil) != (req.ExpectedReviewSHA256 == "") {
-		return nil, types.NewValidationError("review", "review request ID and expected review digest are required together")
-	}
-	if req.ReviewRequestID != uuid.Nil {
-		if req.Mode != "all" || req.CreateCommit || len(req.FileIDs) != 0 || len(req.HunkRanges) != 0 {
-			return nil, types.NewValidationError("review", "retained review approval requires all changes without a commit or partial selection")
-		}
-		snapshot, err := s.GetReviewSnapshot(ctx, req.SandboxID, req.ReviewRequestID)
-		if err != nil {
-			return nil, err
-		}
-		if snapshot.SHA256 != req.ExpectedReviewSHA256 {
-			return nil, types.NewValidationError("review", "review content identity does not match retained input")
-		}
-		if err := checkReviewedPatch(req.ExpectedPatchSHA256, snapshot.PatchSHA256); err != nil {
-			return nil, err
-		}
-		req.ExpectedPatchSHA256 = snapshot.PatchSHA256
-	}
 	if req.ExpectedPatchSHA256 != "" {
 		digest, err := hex.DecodeString(req.ExpectedPatchSHA256)
 		if err != nil || len(digest) != sha256.Size || strings.ToLower(req.ExpectedPatchSHA256) != req.ExpectedPatchSHA256 {
@@ -184,9 +162,6 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 	}
 
 	if sandbox.Status == types.StatusApproved || (sandbox.Status == types.StatusDeleted && sandbox.ApprovedAt != nil) {
-		if req.ReviewRequestID != uuid.Nil && (metadataString(sandbox.Metadata, metadataApprovedReviewSHA256) != req.ExpectedReviewSHA256 || metadataString(sandbox.Metadata, metadataApprovedReviewRequestID) != req.ReviewRequestID.String()) {
-			return nil, types.NewValidationError("review", "terminal approval does not belong to this retained review")
-		}
 		appliedDigest := metadataString(sandbox.Metadata, metadataApprovedPatchSHA256)
 		if err := checkReviewedPatch(req.ExpectedPatchSHA256, appliedDigest); err != nil {
 			return nil, err
@@ -205,20 +180,12 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 	if err := types.CanApprove(sandbox.Status); err != nil {
 		return nil, types.NewStateError(err.(*types.InvalidTransitionError))
 	}
-	if req.ReviewRequestID != uuid.Nil && sandbox.Status != types.StatusStopped {
-		return nil, types.NewValidationError("review", "retained review approval requires a stopped sandbox")
-	}
 	if err := s.requireUnpublishedArchive(ctx, sandbox.ID); err != nil {
 		return nil, err
 	}
 
 	applyResult, err := s.recoverPreparedApproval(ctx, sandbox, req)
 	if err == nil && applyResult == nil {
-		if req.ReviewRequestID != uuid.Nil {
-			if err := s.checkReviewSource(ctx, sandbox, req, false); err != nil {
-				return nil, err
-			}
-		}
 		applyResult, err = s.applyAcceptedChanges(ctx, sandbox, req, true)
 	}
 	if err != nil {
@@ -273,8 +240,6 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 }
 
 const metadataApprovedPatchSHA256 = "approved_patch_sha256"
-const metadataApprovedReviewSHA256 = "approved_review_sha256"
-const metadataApprovedReviewRequestID = "approved_review_request_id"
 
 func checkReviewedPatch(expected, actual string) error {
 	if expected != "" && expected != actual {
@@ -506,10 +471,6 @@ func (s *Service) finalizeApproval(ctx context.Context, sandbox *types.Sandbox, 
 				sb.Metadata = make(map[string]interface{})
 			}
 			sb.Metadata[metadataApprovedPatchSHA256] = applied.PatchSHA256
-			if req.ReviewRequestID != uuid.Nil {
-				sb.Metadata[metadataApprovedReviewSHA256] = req.ExpectedReviewSHA256
-				sb.Metadata[metadataApprovedReviewRequestID] = req.ReviewRequestID.String()
-			}
 		}, applied.PreparedArchive); err != nil {
 			s.logAuditEvent(ctx, sandbox, "snapshot_failed", req.Actor, "", map[string]interface{}{
 				"phase":      "approve",

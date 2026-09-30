@@ -27,7 +27,6 @@ import (
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/automation/executor"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/internal/cancellationqualification"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	uxcollector "github.com/vrooli/browser-automation-studio/services/uxmetrics/collector"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
@@ -595,7 +594,6 @@ func TestStopExecutionRetainsUncertainOutcomeAndJoinsLeasedDriverClose(t *testin
 	if effects.Load() != 1 || liveSessions.Load() != 1 {
 		t.Fatalf("before close acknowledgement: effects=%d live sessions=%d, want1/1", effects.Load(), liveSessions.Load())
 	}
-	resourcesBeforeClose := liveSessions.Load()
 	select {
 	case err := <-stopResult:
 		t.Fatalf("StopExecution returned before driver close acknowledged resource cleanup: %v", err)
@@ -642,15 +640,6 @@ func TestStopExecutionRetainsUncertainOutcomeAndJoinsLeasedDriverClose(t *testin
 	cleanupMS := float64(time.Since(closeReleasedAt).Microseconds()) / 1000
 	if inputStoppedMS > 1000 || cleanupMS > 5000 {
 		t.Fatalf("cancellation timings outside J07 band: inputStopped=%.2fms cleanup=%.2fms", inputStoppedMS, cleanupMS)
-	}
-	if err := cancellationqualification.RecordObservation(t.Name(), "cancellation", cancellationqualification.CaseObservation{
-		Observed: true, Passed: true, ExternalEffects: int(effects.Load()), TerminalStatus: "cancelled",
-		LiveResourcesBeforeClose: int(resourcesBeforeClose), LiveResourcesAfterClose: int(liveSessions.Load()),
-		InputStoppedMS: inputStoppedMS, CleanupMS: cleanupMS, RecoveryMS: 0,
-		UncertainEffect: uncertain.Failure.Code == contracts.FailureCodeInstructionOutcomeUncertain,
-		RetryAdmitted:   uncertain.Failure.Retryable,
-	}); err != nil {
-		t.Fatalf("record J07 cancellation observation: %v", err)
 	}
 }
 

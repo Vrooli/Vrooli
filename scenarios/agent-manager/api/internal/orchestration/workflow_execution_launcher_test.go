@@ -6,19 +6,16 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/spawn"
 	"agent-manager/internal/orchestration/testutil/mocks"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
-	"agent-manager/internal/structuredresult"
 	"agent-manager/internal/workflowruntime"
 
 	"github.com/google/uuid"
@@ -477,130 +474,6 @@ func TestWorkflowChildLauncherKeepsProfileCommandNetworkSeparateFromOuterTranspo
 	}
 	if run.ResolvedConfig.SandboxConfig == nil || run.ResolvedConfig.SandboxConfig.NetworkMode != domain.NetworkAccessLocalhost {
 		t.Fatalf("outer transport boundary was not preserved: %+v", run.ResolvedConfig.SandboxConfig)
-	}
-}
-
-type retainedReviewProvider struct {
-	sandbox.Provider
-	input sandbox.ReviewInput
-	calls int
-}
-
-func TestValidateReviewPathsForSandboxScopeRejectsProjectRelativeSelections(t *testing.T) {
-	tests := []struct {
-		name    string
-		paths   []string
-		scope   string
-		wantErr bool
-	}{
-		{name: "scope relative", paths: []string{"ui/src/App.tsx"}, scope: "scenarios/browser-automation-studio"},
-		{name: "project relative", paths: []string{"scenarios/browser-automation-studio/ui/src/App.tsx"}, scope: "scenarios/browser-automation-studio", wantErr: true},
-		{name: "root scope", paths: []string{"scenarios/browser-automation-studio/ui/src/App.tsx"}, scope: "."},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := validateReviewPathsForSandboxScope(tt.paths, tt.scope)
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("validateReviewPathsForSandboxScope() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func (p *retainedReviewProvider) PrepareReview(_ context.Context, id, request uuid.UUID, paths []string) (*sandbox.ReviewInput, error) {
-	p.calls++
-	if id != p.input.SandboxID || request != p.input.RequestID || strings.Join(paths, ",") != "src" {
-		return nil, errors.New("review source identity changed")
-	}
-	result := p.input
-	return &result, nil
-}
-
-func TestWorkflowReviewerUsesRetainedTreeAndKeepsIdentityAfterLostDispatchResponse(t *testing.T) {
-	o, repos := newWorkflowChildOrchestrator(t)
-	o.dispatcher.Close()
-	off := false
-	config := &domain.SandboxConfig{Mode: domain.SandboxModeProtected, AutoApply: &off, WritePolicy: &domain.WorkspaceWritePolicy{}, NetworkMode: domain.NetworkAccessNone}
-	sourceTask, err := o.CreateTask(t.Context(), &domain.Task{Title: "worker", ScopePath: "."})
-	if err != nil {
-		t.Fatal(err)
-	}
-	sandboxID, executionID := uuid.New(), uuid.New()
-	source := &domain.Run{ID: uuid.New(), TaskID: sourceTask.ID, Status: domain.RunStatusNeedsReview, Phase: domain.RunPhaseCompleted, RunMode: domain.RunModeSandboxed, SandboxID: &sandboxID, ResolvedConfig: &domain.RunConfig{SandboxConfig: config}, CustomEnv: map[string]string{workflowExecutionEnv: executionID.String()}}
-	if err := repos.Runs.Create(t.Context(), source); err != nil {
-		t.Fatal(err)
-	}
-	req := workflowruntime.ChildRequest{ExecutionID: executionID, AttemptID: uuid.New(), NodeID: "review", RoleRef: "code.default", IdempotencyKey: "retained-review", Prompt: "independent review", SandboxConfig: config, ReviewSourceRunID: &source.ID, ReviewPaths: []string{"src"}}
-	req.ResultSpec = &domain.ResultSpec{Kind: domain.ResultSpecKindJSONSchema, Schema: json.RawMessage(`{"type":"object","properties":{"accepted":{"type":"boolean"},"candidateSha256":{"type":"string"}},"required":["accepted","candidateSha256"],"additionalProperties":false}`)}
-	provider := &retainedReviewProvider{input: sandbox.ReviewInput{SandboxID: sandboxID, RequestID: req.AttemptID, SHA256: strings.Repeat("a", 64), Root: t.TempDir()}}
-	o.sandbox = provider
-	launcher := workflowChildLauncher{o: o}
-	if _, err := launcher.StartFresh(t.Context(), req); !errors.Is(err, spawn.ErrDispatcherClosed) {
-		t.Fatalf("durable admission: %v", err)
-	}
-	saved, err := repos.Runs.GetByIdempotencyKey(t.Context(), req.IdempotencyKey)
-	if err != nil || saved == nil {
-		t.Fatalf("admission lost: %+v %v", saved, err)
-	}
-	task, err := repos.Tasks.Get(t.Context(), saved.TaskID)
-	if err != nil || task.ProjectRoot != provider.input.Root || task.ScopePath != "." {
-		t.Fatalf("reviewer received live project instead of retained tree: %+v %v", task, err)
-	}
-	if saved.CustomEnv["VROOLI_REVIEW_SHA256"] != provider.input.SHA256 || saved.CustomEnv["VROOLI_REVIEW_SOURCE_RUN_ID"] != source.ID.String() || saved.ResolvedConfig.SandboxConfig.GetAutoApply() || len(saved.ResolvedConfig.SandboxConfig.WritePolicy.Paths) != 0 {
-		t.Fatalf("reviewer lost binding or restrictions: %+v", saved)
-	}
-	for _, accepted := range []bool{false, true} {
-		value, _ := json.Marshal(map[string]any{"accepted": accepted, "candidateSha256": provider.input.SHA256})
-		if err := structuredresult.ValidateValue(saved.ResolvedConfig.ResultSpec.Schema, value); err != nil {
-			t.Fatalf("bound verdict rejected: %v", err)
-		}
-		value, _ = json.Marshal(map[string]any{"accepted": accepted, "candidateSha256": strings.Repeat("b", 64)})
-		if err := structuredresult.ValidateValue(saved.ResolvedConfig.ResultSpec.Schema, value); err == nil {
-			t.Fatal("review verdict accepted for a different candidate")
-		}
-	}
-	if strings.Contains(string(req.ResultSpec.Schema), `"const"`) {
-		t.Fatal("dispatch mutated the authored revision schema")
-	}
-	for _, requested := range []*domain.ResultSpec{nil, req.ResultSpec, saved.ResolvedConfig.ResultSpec} {
-		continued, err := continuationResultSpec(saved, requested)
-		if err != nil || continued.SchemaDigest != saved.ResolvedConfig.ResultSpec.SchemaDigest {
-			t.Fatalf("continuation lost candidate contract: %+v %v", continued, err)
-		}
-	}
-	other, _ := structuredresult.BindReviewCandidate(req.ResultSpec, strings.Repeat("b", 64))
-	if _, err := continuationResultSpec(saved, other); err == nil {
-		t.Fatal("continuation replaced reviewed candidate")
-	}
-	disabled := &domain.ResultSpec{Kind: domain.ResultSpecKindNone}
-	if _, err := continuationResultSpec(saved, disabled); err == nil {
-		t.Fatal("continuation disabled independent verdict validation")
-	}
-	if _, err := o.ContinueRun(t.Context(), ContinueRunRequest{RunID: saved.ID, Message: "remove verdict checks", ResultSpec: disabled}); err == nil || !strings.Contains(err.Error(), "review requires") {
-		t.Fatalf("continuation API did not enforce retained verdict before effects: %v", err)
-	}
-	provider.input.Root = t.TempDir()
-	provider.input.SHA256 = strings.Repeat("b", 64)
-	replayed, err := launcher.StartFresh(t.Context(), req)
-	if err != nil || replayed.RunID != saved.ID || provider.calls != 1 {
-		t.Fatalf("lost response reselected candidate: %+v, calls=%d, %v", replayed, provider.calls, err)
-	}
-	for _, kind := range []string{"writable", "auto-apply", "unprotected", "foreign-workflow"} {
-		changed := req
-		changed.SandboxConfig = cloneSandboxConfig(config)
-		switch kind {
-		case "writable":
-			changed.SandboxConfig.WritePolicy.Paths = []string{"src"}
-		case "auto-apply":
-			changed.SandboxConfig.AutoApply = nil
-		case "unprotected":
-			changed.SandboxConfig.Mode = domain.SandboxModeTracking
-		case "foreign-workflow":
-			changed.ExecutionID = uuid.New()
-		}
-		if _, err := launcher.prepareReview(t.Context(), changed); err == nil {
-			t.Fatal("unsafe review preparation accepted", kind)
-		}
 	}
 }
 

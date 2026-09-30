@@ -46,6 +46,11 @@ func hostSnapshotResponse(s hostinventory.Snapshot) *cliv1.CliHostSnapshot {
 		Seat:              s.Seat,
 		ActiveSessionUser: s.ActiveSessionUser,
 		AutoLoginUser:     s.AutoLoginUser,
+		DesktopSession: &cliv1.CliHostDesktopSession{
+			SessionType: s.DesktopSession.SessionType, Seat: s.DesktopSession.Seat,
+			ActiveSessionUser: s.DesktopSession.ActiveSessionUser, DisplayAttached: s.DesktopSession.DisplayAttached,
+			DisplayServer: s.DesktopSession.DisplayServer, AutoLoginUser: s.DesktopSession.AutoLoginUser,
+		},
 		RemoteDesktop: &cliv1.CliHostRemoteDesktop{
 			Supported:        s.RemoteDesktop.Supported,
 			Observed:         s.RemoteDesktop.Observed,
@@ -105,7 +110,7 @@ func hostSnapshotResponse(s hostinventory.Snapshot) *cliv1.CliHostSnapshot {
 	if len(s.RuntimeTools) > 0 {
 		out.RuntimeTools = make(map[string]*cliv1.CliHostTool, len(s.RuntimeTools))
 		for name, tool := range s.RuntimeTools {
-			out.RuntimeTools[name] = &cliv1.CliHostTool{Present: tool.Present, Path: tool.Path}
+			out.RuntimeTools[name] = &cliv1.CliHostTool{Present: tool.Present, Path: tool.Path, Version: tool.Version}
 		}
 	}
 

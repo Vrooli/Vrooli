@@ -201,6 +201,20 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 	dependencyForceSetup := forceSetupFor(opts, dependencyItem.Slug)
 	strictHealthy := r.isRegistryRuntimeServingHealthy(dependencyItem, dependencyView)
 	dependencyRunning := dependencyView.Authoritative
+	if opts.restartAfterStop && dependencyRunning && strictHealthy {
+		leaseID, leaseErr := r.acquireDependencyDemandLease(ctx, item, dependencyItem)
+		if leaseErr != nil {
+			if decision.continueOnFailure {
+				return dependencyName, nil
+			}
+			return "", leaseErr
+		}
+		session.recordDependencyLease(leaseID)
+		r.publish(ProgressEvent{Kind: EventDependencyReused, Scenario: item.Slug, Dependency: dependencyName, Index: index + 1, Total: total})
+		r.logDebug("Explicit restart reusing healthy dependency without freshness arbitration", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
+		session.markReady(dependencyName)
+		return "", nil
+	}
 	// Optional capabilities never justify disrupting a healthy shared process.
 	// In particular, do not perform an expensive source-freshness walk merely
 	// to decide whether a healthy try_start dependency can be reused.
@@ -610,7 +624,7 @@ func (r *Runner) rebuildDependencyArtifactsContext(ctx context.Context, item sce
 		return err
 	}
 	env := envFromRuntimeView(item.Manifest, view)
-	if _, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, "rebuild", "setup"), func(logWriter, childWriter io.Writer) error {
+	if _, err := r.runWithLifecycleLog(startLifecycleLogContext(instanceLogName(item), "rebuild", "setup"), func(logWriter, childWriter io.Writer) error {
 		_, execErr := r.executePhaseDetailed(ctx, item, "setup", env, logWriter, childWriter, false)
 		return execErr
 	}); err != nil {
@@ -725,6 +739,9 @@ func (r *Runner) ensureResourceDependencies(item scenario.Scenario, opts StartOp
 		if resourceDependencyReady(status) {
 			r.publish(ProgressEvent{Kind: EventResourceReused, Scenario: item.Slug, Dependency: resourceName})
 			r.logDebug("Resource dependency already running and healthy", logx.AttrScenario, item.Slug, logx.AttrDependency, resourceName)
+			if opts.restartAfterStop {
+				continue
+			}
 			if err := r.ensureResourceConfig(item.Slug, resourceName, dependency, decision); err != nil {
 				if decision.continueOnFailure {
 					failed = append(failed, resourceName)

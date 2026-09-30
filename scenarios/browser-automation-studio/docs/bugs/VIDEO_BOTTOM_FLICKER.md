@@ -116,4 +116,4 @@ video layout stabilization remains separate behavior. Two native recordings at
 640×480 and 900×640, DPR2, decode to 55 painted frames with zero gray bottom bands
 without that override. Receipt: `/tmp/bas-video-geometry-077/receipt.json`.
 Full driver and live-app qualification remain pending at this amendment; refer
-to REFRACTOR_PROGRESS.md for the final candidate's status and limitations.
+to the goal home (`docs/internal/goal/`) for the final candidate's status and limitations.

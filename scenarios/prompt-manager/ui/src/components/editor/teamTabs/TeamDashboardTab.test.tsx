@@ -118,7 +118,7 @@ describe('TeamDashboardTab', () => {
     }])
     const onHealthChange = vi.fn()
     render(<TeamDashboardTab team={baseTeam} onUpdate={vi.fn()} onHealthChange={onHealthChange} />)
-    await waitFor(() => expect(effortPanel.render).toHaveBeenLastCalledWith(expect.objectContaining({ observationAvailable: true })))
+    await waitFor(() => expect(effortPanel.render).toHaveBeenLastCalledWith(expect.objectContaining({ scheduled: { enabled: true, summary: 'lead: schedule enabled' } })))
     expect(screen.getAllByText('Idle').length).toBeGreaterThan(0)
     expect(screen.getByTestId('team-dashboard')).toHaveAttribute('data-dashboard-status', 'idle')
     expect(screen.getAllByText(/no owner execution has started yet/i).length).toBeGreaterThan(0)
@@ -154,14 +154,10 @@ describe('TeamDashboardTab', () => {
     expect(screen.getByText(/Review the next open work item and its evidence/)).toBeInTheDocument()
   })
 
-  it('passes active supervision references and a finite binding separately from scheduling eligibility', async () => {
+  it('passes an active finite binding separately from scheduling eligibility', async () => {
     vi.mocked(heartbeatService.listHeartbeats).mockResolvedValue([{
       teamId: baseTeam.id, agentId: 'lead', enabled: false, schedule: '*/5 * * * *',
       createdAt: baseTeam.createdAt, updatedAt: baseTeam.updatedAt,
-      supervisionState: { efforts: {
-        'effort:observed': { observationOnly: true },
-        'effort:retired': { retired: true },
-      } },
       finiteLeader: { effortRef: 'effort:delivery' },
     }, {
       teamId: baseTeam.id, agentId: 'worker', enabled: false, schedule: '*/5 * * * *',
@@ -171,27 +167,8 @@ describe('TeamDashboardTab', () => {
     renderDashboard(baseTeam, vi.fn())
     await waitFor(() => expect(effortPanel.render).toHaveBeenLastCalledWith(expect.objectContaining({
       team: baseTeam,
-      observationAvailable: true,
-      observedEffortRefs: ['effort:observed'],
       leaderEffortRefs: ['effort:delivery'],
       scheduled: { enabled: false, summary: 'lead: disabled; worker: disabled' },
-    })))
-  })
-
-  it.each([
-    { source: 'owner read failed', extra: { supervision: {}, supervisionError: 'cannot read supervision reservation' } },
-    { source: 'state source missing', extra: { supervision: {} } },
-    { source: 'supervision configuration missing', extra: {} },
-  ])('keeps supervisor coverage unknown when $source despite successful heartbeat configuration reads', async ({ extra }) => {
-    vi.mocked(heartbeatService.listHeartbeats).mockResolvedValue([{
-      teamId: baseTeam.id, agentId: 'lead', enabled: true, schedule: '*/5 * * * *',
-      createdAt: baseTeam.createdAt, updatedAt: baseTeam.updatedAt, ...extra,
-    }])
-    renderDashboard({ ...baseTeam, purpose: 'supervision' }, vi.fn())
-    await waitFor(() => expect(effortPanel.render).toHaveBeenLastCalledWith(expect.objectContaining({
-      observationAvailable: false,
-      observedEffortRefs: [],
-      scheduled: { enabled: true, summary: 'lead: schedule enabled' },
     })))
   })
 

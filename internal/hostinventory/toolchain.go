@@ -46,6 +46,8 @@ const (
 	ToolSDKManager = "sdkmanager"
 	ToolAVDManager = "avdmanager"
 	ToolKVM        = "kvm"
+	ToolNode       = "node"
+	ToolElectron   = "electron"
 )
 
 var xcodeVersionPattern = regexp.MustCompile(`Xcode\s+([0-9]+(?:\.[0-9]+)*)`)
@@ -150,6 +152,35 @@ func (c Collector) collectAndroidToolchain(ctx context.Context, snap *Snapshot, 
 		snap.ProbeStatuses[ProbeAndroidToolchain] = "ok"
 	}
 	_ = ctx
+}
+
+// collectDesktopToolchain records the runtime used to launch packaged desktop
+// applications. The probe is deliberately cross-platform and reports present
+// tools with versions so delivery-ramp classification can make an evidence-
+// based decision instead of inferring capability from the OS name.
+func (c Collector) collectDesktopToolchain(ctx context.Context, snap *Snapshot, observedAt time.Time) {
+	found := 0
+	for _, tool := range []string{ToolNode, ToolElectron} {
+		path, err := c.Commands.LookPath(tool)
+		fact := Tool{Present: err == nil, Path: path}
+		if err == nil {
+			found++
+			if out, versionErr := c.Commands.Run(ctx, tool, "--version"); versionErr == nil {
+				fact.Version = strings.TrimSpace(string(out))
+			}
+		}
+		snap.RuntimeTools[tool] = fact
+		if fact.Version != "" {
+			snap.FieldProvenance["runtime_tools."+tool+".version"] = Provenance{SourceKind: SourceKindCommand, Source: tool, ObservedAt: observedAt, Confidence: "high", Command: tool + " --version"}
+		}
+	}
+	if found == 0 {
+		snap.ProbeStatuses["desktop_toolchain"] = "tool_not_present"
+	} else if found < 2 {
+		snap.ProbeStatuses["desktop_toolchain"] = "partial"
+	} else {
+		snap.ProbeStatuses["desktop_toolchain"] = "ok"
+	}
 }
 
 // collectKVM reports whether this host can hardware-accelerate an Android

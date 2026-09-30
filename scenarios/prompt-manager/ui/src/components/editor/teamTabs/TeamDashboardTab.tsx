@@ -115,19 +115,9 @@ export function TeamDashboardTab({
   const [heartbeatError, setHeartbeatError] = useState<string | null>(null)
   const [heartbeatsLoaded, setHeartbeatsLoaded] = useState(false)
 
-  const observedEffortRefs = useMemo(() => [...new Set(heartbeatConfigs.flatMap(config =>
-    Object.entries(config.supervisionState?.efforts ?? {}).filter(([, effort]) => !effort.retired).map(([ref]) => ref),
-  ))], [heartbeatConfigs])
   const leaderEffortRefs = useMemo(() => [...new Set(heartbeatConfigs.flatMap(config =>
     config.finiteLeader?.effortRef && !config.finiteLeader.retired ? [config.finiteLeader.effortRef] : [],
   ))], [heartbeatConfigs])
-  const supervisionConfigs = heartbeatConfigs.filter(config => config.supervision || config.supervisionState || config.supervisionError)
-  const supervisionObservationAvailable = heartbeatsLoaded && !heartbeatError
-    && supervisionConfigs.every(config => !config.supervisionError && !!config.supervisionState)
-    && (team.purpose !== 'supervision' || supervisionConfigs.length > 0)
-  const supervisionObservationError = supervisionConfigs.flatMap(config => config.supervisionError
-    ? [`${config.agentId}: ${config.supervisionError}`]
-    : !config.supervisionState ? [`${config.agentId}: supervision state unavailable`] : []).join('; ')
 
   // --- Activity feed state ---
   const [teamLogs, setTeamLogs] = useState<TeamLogEntry[]>([])
@@ -431,8 +421,8 @@ export function TeamDashboardTab({
     return heartbeatConfigs.filter((c) => c.enabled).length
   }, [heartbeatConfigs])
 
-  // Local files are not an AM run ledger. In particular, standing supervision
-  // produces owner runs without local logs, and lastExecution is one snapshot.
+  // Local files are not an AM run ledger. Finite leaders and program
+  // heartbeats produce executions without local logs, and lastExecution is one snapshot.
   const summaryStats = useMemo(() => {
     const now = Date.now()
     const oneDayAgo = now - 86_400_000
@@ -723,10 +713,7 @@ export function TeamDashboardTab({
       <TeamPurposePanel key={team.id} team={team} onUpdate={onUpdate} />
       <TeamEffortsPanel
         team={team}
-        observedEffortRefs={observedEffortRefs}
         leaderEffortRefs={leaderEffortRefs}
-        observationAvailable={supervisionObservationAvailable}
-        observationError={supervisionObservationError || undefined}
         scheduled={heartbeatsLoaded && !heartbeatError ? {
           enabled: team.enabled && heartbeatConfigs.some(config => config.enabled),
           summary: !team.enabled ? 'Team scheduling disabled' : heartbeatConfigs.length

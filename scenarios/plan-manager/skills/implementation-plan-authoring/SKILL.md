@@ -9,9 +9,9 @@ metadata:
   tags: ["planning","handoff","implementation","documentation","execution"]
   icon: "file-text"
   status: "active"
-  revision: 13
+  revision: 14
   createdAt: "2026-02-09T00:00:00Z"
-  updatedAt: "2026-09-11T12:00:00Z"
+  updatedAt: "2026-09-30T00:00:00Z"
   requires:
     scenarios: ["plan-manager", "prompt-manager", "vrooli"]
     commands: ["plan-manager", "prompt-manager discover", "prompt-manager skill read", "vrooli scenario"]
@@ -376,6 +376,7 @@ agent. Check the plan against every row before `author finalize`.
 | Bounds the change to one scenario when it alters a shared contract | The executor needs the proto/shared type the API shape depends on, and either writes an adapter to avoid touching it or stops | Trace the change outward and list every reached path — proto, `packages/**`, `docs/**` — in `acceptance_allow` |
 | States importance as a level ("P1", "high priority") instead of a consequence | The executor cannot tell what a detour would protect, so it treats every defect the same way | Write what breaks or stays blocked if the plan fails (§0.1) |
 | Uses `acceptance_deny` to express "probably out of scope" | Deny is a hard prohibition execution must escalate to cross, so a soft guess becomes a stop | Leave it out of both lists; an unlisted path is already outside the estimate and extendable |
+| Accepts a retirement or cleanup phase on "the new path works" | Old code, docs and config survive beside the replacement, because nothing checked they are gone | List the deleted paths and removed symbols in the phase acceptance, each with a search that must return nothing (`improvement-do-and-dont` D7) |
 | Demands the whole baseline collection in every phase without a rationale | Each phase repeats the final gate and validation cost grows with no added coverage | Leave the field undeclared for the affected-area default, or use `full_plan:` with a concrete reason |
 
 ---

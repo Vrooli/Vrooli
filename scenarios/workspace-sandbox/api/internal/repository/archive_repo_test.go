@@ -66,55 +66,6 @@ func makeArchive(sandboxID uuid.UUID) *types.DiffArchive {
 	}
 }
 
-func TestReviewSnapshotRepositoryImmutableBoundedAndVerified(t *testing.T) {
-	ar, sr, db := newTestArchiveRepo(t)
-	sb := seedSandbox(t, sr, types.StatusStopped)
-	snapshot := &types.ReviewSnapshot{SandboxID: sb.ID, RequestID: uuid.New(), Paths: []string{"."}, ProjectRoot: sb.ProjectRoot, ScopePath: sb.ScopePath}
-	snapshot.ID = types.ReviewSnapshotID(sb.ID, snapshot.RequestID)
-	snapshot.SHA256 = snapshot.ContentSHA256()
-	if err := ar.PutReviewSnapshot(t.Context(), snapshot); err != nil {
-		t.Fatal(err)
-	}
-	changed := *snapshot
-	changed.Owner = "replacement"
-	changed.SHA256 = changed.ContentSHA256()
-	if err := ar.PutReviewSnapshot(t.Context(), &changed); err == nil {
-		t.Fatal("published input replaced")
-	}
-	for i := 1; i < types.MaxReviewSnapshots; i++ {
-		next := *snapshot
-		next.RequestID = uuid.New()
-		next.ID = types.ReviewSnapshotID(sb.ID, next.RequestID)
-		next.SHA256 = next.ContentSHA256()
-		if err := ar.PutReviewSnapshot(t.Context(), &next); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := ar.CheckReviewCapacity(t.Context()); err == nil {
-		t.Fatal("full owner admitted more evidence")
-	}
-	if err := ar.PutReviewSnapshot(t.Context(), snapshot); err != nil {
-		t.Fatalf("full capacity broke same-ID replay: %v", err)
-	}
-	extra := *snapshot
-	extra.RequestID = uuid.New()
-	extra.ID = types.ReviewSnapshotID(sb.ID, extra.RequestID)
-	if err := ar.PutReviewSnapshot(t.Context(), &extra); err == nil {
-		t.Fatal("insert bypassed capacity check")
-	}
-	reader := NewArchiveRepository(db, schedule.System())
-	got, err := reader.GetReviewSnapshot(t.Context(), sb.ID, snapshot.RequestID)
-	if err != nil || !reflect.DeepEqual(got, snapshot) {
-		t.Fatalf("fresh owner lost original: %+v, %v", got, err)
-	}
-	if _, err := db.ExecContext(t.Context(), `UPDATE sandbox_review_snapshots SET snapshot_json = REPLACE(snapshot_json, ?, ?) WHERE id = ?`, `"scopePath":"`, `"scopePath":"corrupt`, snapshot.ID.String()); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := reader.GetReviewSnapshot(t.Context(), sb.ID, snapshot.RequestID); err == nil {
-		t.Fatal("corrupt manifest accepted")
-	}
-}
-
 func TestPreparedApprovalImmutableAndTransactionallyConsumed(t *testing.T) {
 	ar, sr, db := newTestArchiveRepo(t)
 	sb := seedSandbox(t, sr, types.StatusActive)

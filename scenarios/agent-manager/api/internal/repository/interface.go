@@ -37,6 +37,7 @@ type RunListFilter struct {
 	ScopePrefix               string // Filter runs by the joined task's scope_path prefix (e.g., "scenarios/agent-manager" to drain runs targeting a scenario)
 	InvestigatesRunID         *uuid.UUID
 	AppliesInvestigationRunID *uuid.UUID
+	ParentRunID               *uuid.UUID // Filter to direct child runs of one parent run
 }
 
 // -----------------------------------------------------------------------------

@@ -103,13 +103,6 @@ func GenerateIdentityToken(ctx context.Context, in GenerateIdentityTokenInput) s
 	// Seconds-granularity issuance can otherwise recreate the exact previous
 	// token and revive it when the revocation marker is cleared below.
 	claims.Meta["credential_generation"] = uuid.NewString()
-	if binding := in.Run.DispatchBinding; binding != nil {
-		if binding.EffortRef == "" || binding.AuthorizationID == "" {
-			return ""
-		}
-		claims.DispatchEffortRef = binding.EffortRef
-		claims.DispatchAuthorizationID = binding.AuthorizationID
-	}
 
 	token, err := identity.GenerateToken(claims, in.Secret)
 	if err != nil {

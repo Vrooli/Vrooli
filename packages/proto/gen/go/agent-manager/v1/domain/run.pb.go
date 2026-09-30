@@ -3745,6 +3745,128 @@ func (x *WakeRunRequest) GetTimedOut() bool {
 	return false
 }
 
+// WakeParkedRunsRequest wakes every run parked on one await handle. The server
+// matches producer and key against persisted handles, so a caller that knows
+// only the key (a step-back check naming its orchestrator) needs no run ID.
+//
+// @usage POST /api/v1/runs/wake-by-key
+type WakeParkedRunsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Producer of the await handle (e.g. "children").
+	Producer string `protobuf:"bytes,1,opt,name=producer,proto3" json:"producer,omitempty"`
+	// Producer-scoped await key.
+	Key string `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	// The result injected as each woken run's next user turn.
+	Result string `protobuf:"bytes,3,opt,name=result,proto3" json:"result,omitempty"`
+	// Frame the result as a park-deadline timeout.
+	TimedOut      bool `protobuf:"varint,4,opt,name=timed_out,json=timedOut,proto3" json:"timed_out,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WakeParkedRunsRequest) Reset() {
+	*x = WakeParkedRunsRequest{}
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WakeParkedRunsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WakeParkedRunsRequest) ProtoMessage() {}
+
+func (x *WakeParkedRunsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WakeParkedRunsRequest.ProtoReflect.Descriptor instead.
+func (*WakeParkedRunsRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *WakeParkedRunsRequest) GetProducer() string {
+	if x != nil {
+		return x.Producer
+	}
+	return ""
+}
+
+func (x *WakeParkedRunsRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *WakeParkedRunsRequest) GetResult() string {
+	if x != nil {
+		return x.Result
+	}
+	return ""
+}
+
+func (x *WakeParkedRunsRequest) GetTimedOut() bool {
+	if x != nil {
+		return x.TimedOut
+	}
+	return false
+}
+
+// WakeParkedRunsResponse lists the runs this call moved from parked to running.
+type WakeParkedRunsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WokenRunIds   []string               `protobuf:"bytes,1,rep,name=woken_run_ids,json=wokenRunIds,proto3" json:"woken_run_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WakeParkedRunsResponse) Reset() {
+	*x = WakeParkedRunsResponse{}
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WakeParkedRunsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WakeParkedRunsResponse) ProtoMessage() {}
+
+func (x *WakeParkedRunsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WakeParkedRunsResponse.ProtoReflect.Descriptor instead.
+func (*WakeParkedRunsResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *WakeParkedRunsResponse) GetWokenRunIds() []string {
+	if x != nil {
+		return x.WokenRunIds
+	}
+	return nil
+}
+
 // WakeRunResponse confirms a wake.
 //
 // @usage POST /api/v1/runs/{id}/wake response
@@ -3761,7 +3883,7 @@ type WakeRunResponse struct {
 
 func (x *WakeRunResponse) Reset() {
 	*x = WakeRunResponse{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[33]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3773,7 +3895,7 @@ func (x *WakeRunResponse) String() string {
 func (*WakeRunResponse) ProtoMessage() {}
 
 func (x *WakeRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[33]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3786,7 +3908,7 @@ func (x *WakeRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WakeRunResponse.ProtoReflect.Descriptor instead.
 func (*WakeRunResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{33}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *WakeRunResponse) GetSuccess() bool {
@@ -4173,7 +4295,14 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x0eWakeRunRequest\x12\x1f\n" +
 	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\x12\x16\n" +
 	"\x06result\x18\x02 \x01(\tR\x06result\x12\x1b\n" +
-	"\ttimed_out\x18\x03 \x01(\bR\btimedOut\"T\n" +
+	"\ttimed_out\x18\x03 \x01(\bR\btimedOut\"\x8c\x01\n" +
+	"\x15WakeParkedRunsRequest\x12#\n" +
+	"\bproducer\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bproducer\x12\x19\n" +
+	"\x03key\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03key\x12\x16\n" +
+	"\x06result\x18\x03 \x01(\tR\x06result\x12\x1b\n" +
+	"\ttimed_out\x18\x04 \x01(\bR\btimedOut\"<\n" +
+	"\x16WakeParkedRunsResponse\x12\"\n" +
+	"\rwoken_run_ids\x18\x01 \x03(\tR\vwokenRunIds\"T\n" +
 	"\x0fWakeRunResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12'\n" +
 	"\x03run\x18\x02 \x01(\v2\x15.agent_manager.v1.RunR\x03run*\xd3\x01\n" +
@@ -4209,7 +4338,7 @@ func file_agent_manager_v1_domain_run_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_manager_v1_domain_run_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_agent_manager_v1_domain_run_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
+var file_agent_manager_v1_domain_run_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
 var file_agent_manager_v1_domain_run_proto_goTypes = []any{
 	(FinalOutputSelectionStatus)(0),        // 0: agent_manager.v1.FinalOutputSelectionStatus
 	(StructuredResultStatus)(0),            // 1: agent_manager.v1.StructuredResultStatus
@@ -4247,52 +4376,54 @@ var file_agent_manager_v1_domain_run_proto_goTypes = []any{
 	(*ParkRunResponse)(nil),                // 33: agent_manager.v1.ParkRunResponse
 	(*GetAwaitResultResponse)(nil),         // 34: agent_manager.v1.GetAwaitResultResponse
 	(*WakeRunRequest)(nil),                 // 35: agent_manager.v1.WakeRunRequest
-	(*WakeRunResponse)(nil),                // 36: agent_manager.v1.WakeRunResponse
-	nil,                                    // 37: agent_manager.v1.RunCheckpoint.MetadataEntry
-	nil,                                    // 38: agent_manager.v1.RunnerCapabilities.ToolRestrictionMappingsEntry
-	nil,                                    // 39: agent_manager.v1.RunnerCapabilities.EffortMappingsEntry
-	nil,                                    // 40: agent_manager.v1.ProbeResult.DetailsEntry
-	(RunMode)(0),                           // 41: agent_manager.v1.RunMode
-	(RunStatus)(0),                         // 42: agent_manager.v1.RunStatus
-	(*timestamppb.Timestamp)(nil),          // 43: google.protobuf.Timestamp
-	(RunPhase)(0),                          // 44: agent_manager.v1.RunPhase
-	(ApprovalState)(0),                     // 45: agent_manager.v1.ApprovalState
-	(*RunConfig)(nil),                      // 46: agent_manager.v1.RunConfig
-	(RunFinalizationStatus)(0),             // 47: agent_manager.v1.RunFinalizationStatus
-	(ExecutionMode)(0),                     // 48: agent_manager.v1.ExecutionMode
-	(*domain.WorkReference)(nil),           // 49: vrooli.vrooli_events.v1.domain.WorkReference
-	(*ExecutionPolicySnapshot)(nil),        // 50: agent_manager.v1.ExecutionPolicySnapshot
-	(ResultSpecKind)(0),                    // 51: agent_manager.v1.ResultSpecKind
-	(*structpb.Struct)(nil),                // 52: google.protobuf.Struct
-	(*durationpb.Duration)(nil),            // 53: google.protobuf.Duration
-	(IdempotencyStatus)(0),                 // 54: agent_manager.v1.IdempotencyStatus
-	(RunnerType)(0),                        // 55: agent_manager.v1.RunnerType
+	(*WakeParkedRunsRequest)(nil),          // 36: agent_manager.v1.WakeParkedRunsRequest
+	(*WakeParkedRunsResponse)(nil),         // 37: agent_manager.v1.WakeParkedRunsResponse
+	(*WakeRunResponse)(nil),                // 38: agent_manager.v1.WakeRunResponse
+	nil,                                    // 39: agent_manager.v1.RunCheckpoint.MetadataEntry
+	nil,                                    // 40: agent_manager.v1.RunnerCapabilities.ToolRestrictionMappingsEntry
+	nil,                                    // 41: agent_manager.v1.RunnerCapabilities.EffortMappingsEntry
+	nil,                                    // 42: agent_manager.v1.ProbeResult.DetailsEntry
+	(RunMode)(0),                           // 43: agent_manager.v1.RunMode
+	(RunStatus)(0),                         // 44: agent_manager.v1.RunStatus
+	(*timestamppb.Timestamp)(nil),          // 45: google.protobuf.Timestamp
+	(RunPhase)(0),                          // 46: agent_manager.v1.RunPhase
+	(ApprovalState)(0),                     // 47: agent_manager.v1.ApprovalState
+	(*RunConfig)(nil),                      // 48: agent_manager.v1.RunConfig
+	(RunFinalizationStatus)(0),             // 49: agent_manager.v1.RunFinalizationStatus
+	(ExecutionMode)(0),                     // 50: agent_manager.v1.ExecutionMode
+	(*domain.WorkReference)(nil),           // 51: vrooli.vrooli_events.v1.domain.WorkReference
+	(*ExecutionPolicySnapshot)(nil),        // 52: agent_manager.v1.ExecutionPolicySnapshot
+	(ResultSpecKind)(0),                    // 53: agent_manager.v1.ResultSpecKind
+	(*structpb.Struct)(nil),                // 54: google.protobuf.Struct
+	(*durationpb.Duration)(nil),            // 55: google.protobuf.Duration
+	(IdempotencyStatus)(0),                 // 56: agent_manager.v1.IdempotencyStatus
+	(RunnerType)(0),                        // 57: agent_manager.v1.RunnerType
 }
 var file_agent_manager_v1_domain_run_proto_depIdxs = []int32{
-	41, // 0: agent_manager.v1.Run.run_mode:type_name -> agent_manager.v1.RunMode
-	42, // 1: agent_manager.v1.Run.status:type_name -> agent_manager.v1.RunStatus
-	43, // 2: agent_manager.v1.Run.started_at:type_name -> google.protobuf.Timestamp
-	43, // 3: agent_manager.v1.Run.ended_at:type_name -> google.protobuf.Timestamp
-	44, // 4: agent_manager.v1.Run.phase:type_name -> agent_manager.v1.RunPhase
-	43, // 5: agent_manager.v1.Run.last_heartbeat:type_name -> google.protobuf.Timestamp
+	43, // 0: agent_manager.v1.Run.run_mode:type_name -> agent_manager.v1.RunMode
+	44, // 1: agent_manager.v1.Run.status:type_name -> agent_manager.v1.RunStatus
+	45, // 2: agent_manager.v1.Run.started_at:type_name -> google.protobuf.Timestamp
+	45, // 3: agent_manager.v1.Run.ended_at:type_name -> google.protobuf.Timestamp
+	46, // 4: agent_manager.v1.Run.phase:type_name -> agent_manager.v1.RunPhase
+	45, // 5: agent_manager.v1.Run.last_heartbeat:type_name -> google.protobuf.Timestamp
 	14, // 6: agent_manager.v1.Run.summary:type_name -> agent_manager.v1.RunSummary
-	45, // 7: agent_manager.v1.Run.approval_state:type_name -> agent_manager.v1.ApprovalState
-	43, // 8: agent_manager.v1.Run.approved_at:type_name -> google.protobuf.Timestamp
-	46, // 9: agent_manager.v1.Run.resolved_config:type_name -> agent_manager.v1.RunConfig
-	43, // 10: agent_manager.v1.Run.created_at:type_name -> google.protobuf.Timestamp
-	43, // 11: agent_manager.v1.Run.updated_at:type_name -> google.protobuf.Timestamp
+	47, // 7: agent_manager.v1.Run.approval_state:type_name -> agent_manager.v1.ApprovalState
+	45, // 8: agent_manager.v1.Run.approved_at:type_name -> google.protobuf.Timestamp
+	48, // 9: agent_manager.v1.Run.resolved_config:type_name -> agent_manager.v1.RunConfig
+	45, // 10: agent_manager.v1.Run.created_at:type_name -> google.protobuf.Timestamp
+	45, // 11: agent_manager.v1.Run.updated_at:type_name -> google.protobuf.Timestamp
 	13, // 12: agent_manager.v1.Run.actions:type_name -> agent_manager.v1.RunActions
-	47, // 13: agent_manager.v1.Run.finalization_status:type_name -> agent_manager.v1.RunFinalizationStatus
-	43, // 14: agent_manager.v1.Run.finalized_at:type_name -> google.protobuf.Timestamp
+	49, // 13: agent_manager.v1.Run.finalization_status:type_name -> agent_manager.v1.RunFinalizationStatus
+	45, // 14: agent_manager.v1.Run.finalized_at:type_name -> google.protobuf.Timestamp
 	12, // 15: agent_manager.v1.Run.await_handle:type_name -> agent_manager.v1.AwaitHandle
-	48, // 16: agent_manager.v1.Run.execution_mode:type_name -> agent_manager.v1.ExecutionMode
+	50, // 16: agent_manager.v1.Run.execution_mode:type_name -> agent_manager.v1.ExecutionMode
 	9,  // 17: agent_manager.v1.Run.result:type_name -> agent_manager.v1.RunResult
-	43, // 18: agent_manager.v1.Run.imported_at:type_name -> google.protobuf.Timestamp
-	49, // 19: agent_manager.v1.Run.work_references:type_name -> vrooli.vrooli_events.v1.domain.WorkReference
+	45, // 18: agent_manager.v1.Run.imported_at:type_name -> google.protobuf.Timestamp
+	51, // 19: agent_manager.v1.Run.work_references:type_name -> vrooli.vrooli_events.v1.domain.WorkReference
 	0,  // 20: agent_manager.v1.FinalOutputSelection.status:type_name -> agent_manager.v1.FinalOutputSelectionStatus
-	50, // 21: agent_manager.v1.StructuredExtractionProvenance.policy_snapshot:type_name -> agent_manager.v1.ExecutionPolicySnapshot
+	52, // 21: agent_manager.v1.StructuredExtractionProvenance.policy_snapshot:type_name -> agent_manager.v1.ExecutionPolicySnapshot
 	1,  // 22: agent_manager.v1.StructuredResult.status:type_name -> agent_manager.v1.StructuredResultStatus
-	51, // 23: agent_manager.v1.StructuredResult.spec_kind:type_name -> agent_manager.v1.ResultSpecKind
+	53, // 23: agent_manager.v1.StructuredResult.spec_kind:type_name -> agent_manager.v1.ResultSpecKind
 	7,  // 24: agent_manager.v1.StructuredResult.extractor:type_name -> agent_manager.v1.StructuredExtractionProvenance
 	6,  // 25: agent_manager.v1.StructuredResult.diagnostics:type_name -> agent_manager.v1.StructuredDiagnostic
 	5,  // 26: agent_manager.v1.RunResult.selection:type_name -> agent_manager.v1.FinalOutputSelection
@@ -4301,29 +4432,29 @@ var file_agent_manager_v1_domain_run_proto_depIdxs = []int32{
 	10, // 29: agent_manager.v1.RunResult.observations:type_name -> agent_manager.v1.ReceiptObservations
 	2,  // 30: agent_manager.v1.ReceiptObservations.state:type_name -> agent_manager.v1.ReceiptObservationState
 	11, // 31: agent_manager.v1.ReceiptObservations.receipts:type_name -> agent_manager.v1.ObservedReceipt
-	52, // 32: agent_manager.v1.ObservedReceipt.projection:type_name -> google.protobuf.Struct
-	43, // 33: agent_manager.v1.AwaitHandle.deadline:type_name -> google.protobuf.Timestamp
-	43, // 34: agent_manager.v1.AwaitHandle.registered_at:type_name -> google.protobuf.Timestamp
-	44, // 35: agent_manager.v1.RunCheckpoint.phase:type_name -> agent_manager.v1.RunPhase
-	43, // 36: agent_manager.v1.RunCheckpoint.last_heartbeat:type_name -> google.protobuf.Timestamp
-	43, // 37: agent_manager.v1.RunCheckpoint.saved_at:type_name -> google.protobuf.Timestamp
-	37, // 38: agent_manager.v1.RunCheckpoint.metadata:type_name -> agent_manager.v1.RunCheckpoint.MetadataEntry
-	44, // 39: agent_manager.v1.RunProgress.phase:type_name -> agent_manager.v1.RunPhase
-	53, // 40: agent_manager.v1.RunProgress.elapsed_time:type_name -> google.protobuf.Duration
-	53, // 41: agent_manager.v1.RunProgress.estimated_remaining:type_name -> google.protobuf.Duration
-	43, // 42: agent_manager.v1.RunProgress.last_update:type_name -> google.protobuf.Timestamp
-	54, // 43: agent_manager.v1.IdempotencyRecord.status:type_name -> agent_manager.v1.IdempotencyStatus
-	43, // 44: agent_manager.v1.IdempotencyRecord.created_at:type_name -> google.protobuf.Timestamp
-	43, // 45: agent_manager.v1.IdempotencyRecord.expires_at:type_name -> google.protobuf.Timestamp
-	55, // 46: agent_manager.v1.RunnerStatus.runner_type:type_name -> agent_manager.v1.RunnerType
+	54, // 32: agent_manager.v1.ObservedReceipt.projection:type_name -> google.protobuf.Struct
+	45, // 33: agent_manager.v1.AwaitHandle.deadline:type_name -> google.protobuf.Timestamp
+	45, // 34: agent_manager.v1.AwaitHandle.registered_at:type_name -> google.protobuf.Timestamp
+	46, // 35: agent_manager.v1.RunCheckpoint.phase:type_name -> agent_manager.v1.RunPhase
+	45, // 36: agent_manager.v1.RunCheckpoint.last_heartbeat:type_name -> google.protobuf.Timestamp
+	45, // 37: agent_manager.v1.RunCheckpoint.saved_at:type_name -> google.protobuf.Timestamp
+	39, // 38: agent_manager.v1.RunCheckpoint.metadata:type_name -> agent_manager.v1.RunCheckpoint.MetadataEntry
+	46, // 39: agent_manager.v1.RunProgress.phase:type_name -> agent_manager.v1.RunPhase
+	55, // 40: agent_manager.v1.RunProgress.elapsed_time:type_name -> google.protobuf.Duration
+	55, // 41: agent_manager.v1.RunProgress.estimated_remaining:type_name -> google.protobuf.Duration
+	45, // 42: agent_manager.v1.RunProgress.last_update:type_name -> google.protobuf.Timestamp
+	56, // 43: agent_manager.v1.IdempotencyRecord.status:type_name -> agent_manager.v1.IdempotencyStatus
+	45, // 44: agent_manager.v1.IdempotencyRecord.created_at:type_name -> google.protobuf.Timestamp
+	45, // 45: agent_manager.v1.IdempotencyRecord.expires_at:type_name -> google.protobuf.Timestamp
+	57, // 46: agent_manager.v1.RunnerStatus.runner_type:type_name -> agent_manager.v1.RunnerType
 	19, // 47: agent_manager.v1.RunnerStatus.capabilities:type_name -> agent_manager.v1.RunnerCapabilities
-	38, // 48: agent_manager.v1.RunnerCapabilities.tool_restriction_mappings:type_name -> agent_manager.v1.RunnerCapabilities.ToolRestrictionMappingsEntry
-	39, // 49: agent_manager.v1.RunnerCapabilities.effort_mappings:type_name -> agent_manager.v1.RunnerCapabilities.EffortMappingsEntry
+	40, // 48: agent_manager.v1.RunnerCapabilities.tool_restriction_mappings:type_name -> agent_manager.v1.RunnerCapabilities.ToolRestrictionMappingsEntry
+	41, // 49: agent_manager.v1.RunnerCapabilities.effort_mappings:type_name -> agent_manager.v1.RunnerCapabilities.EffortMappingsEntry
 	20, // 50: agent_manager.v1.RunnerCapabilities.spawn_capabilities:type_name -> agent_manager.v1.SpawnCapability
-	40, // 51: agent_manager.v1.ProbeResult.details:type_name -> agent_manager.v1.ProbeResult.DetailsEntry
+	42, // 51: agent_manager.v1.ProbeResult.details:type_name -> agent_manager.v1.ProbeResult.DetailsEntry
 	23, // 52: agent_manager.v1.StopAllResult.failures:type_name -> agent_manager.v1.StopFailure
 	26, // 53: agent_manager.v1.RunDiff.files:type_name -> agent_manager.v1.FileDiff
-	43, // 54: agent_manager.v1.RunDiff.generated_at:type_name -> google.protobuf.Timestamp
+	45, // 54: agent_manager.v1.RunDiff.generated_at:type_name -> google.protobuf.Timestamp
 	3,  // 55: agent_manager.v1.ContinueRunResponse.run:type_name -> agent_manager.v1.Run
 	3,  // 56: agent_manager.v1.ParkRunResponse.run:type_name -> agent_manager.v1.Run
 	3,  // 57: agent_manager.v1.WakeRunResponse.run:type_name -> agent_manager.v1.Run
@@ -4352,7 +4483,7 @@ func file_agent_manager_v1_domain_run_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_run_proto_rawDesc), len(file_agent_manager_v1_domain_run_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   38,
+			NumMessages:   40,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

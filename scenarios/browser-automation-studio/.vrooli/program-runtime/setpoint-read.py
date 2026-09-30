@@ -10,48 +10,22 @@ governed binding is reported unavailable with the reason; it is never computed b
 """
 
 import json
-from datetime import datetime
 
 inputs = program.inputs()
-profile = inputs.get("profile", "operations")
 window = int(inputs.get("window", 100))
 evidence_sample = int(inputs.get("evidence_sample", 5))
-validation_receipt_id = inputs.get("validation_receipt_id")
-expected_source_identity = inputs.get("expected_source_identity")
-bound_pair = (validation_receipt_id is not None, expected_source_identity is not None)
-qualification_bound = all(bound_pair)
 
 envelope = {
     "program": "browser-automation-studio.setpoint-read", "version": "1",
     "status": "failed", "phase": "validate",
-    "inputs": ({"profile": profile} if profile == "rehabilitation" else {
-        "window": window, "evidence_sample": evidence_sample, "profile": profile}),
-    "signals": {"rows": [], "readable": 0, "unavailable": 0,
-                "qualification_bound": qualification_bound},
+    "inputs": {"window": window, "evidence_sample": evidence_sample},
+    "signals": {"rows": [], "readable": 0, "unavailable": 0},
     "errors": [], "evidence": [],
 }
-if qualification_bound:
-    # TG's source identity is a separate domain from WSS review digests.
-    envelope["signals"]["qualification_candidate"] = {
-        "validation_receipt_id": validation_receipt_id,
-        "test_genie_source_identity": expected_source_identity,
-        "receipt_state": None,
-    }
 program.attach(envelope)
 handles = {}
 
-# IDs are checked against the canonical qualification contract by refactor_contract.py.
-REHABILITATION_ROWS = ['preservation', 'interactive-feedback', 'motion', 'readiness', 'capture', 'passive-fidelity', 'profile-durability', 'known-flow-reliability', 'cancellation-recovery', 'resource-budget', 'soak-stability', 'evidence-completeness', 'desktop-portability', 'agent-usefulness', 'structural-debt', 'workspace-usability', 'adversarial-review']
-
-
-
 fail = program.fail
-
-
-def is_selector_failure(text):
-    t = (text or "").lower()
-    return any(k in t for k in ("waiting for selector", "waiting for locator", "element to be visible",
-                                "element not found", "no element", "selector", "locator"))
 
 
 def row(name, reading, target, in_band, unavailable=False, reason=None, sensor=None):
@@ -73,163 +47,7 @@ def one(handle, key, default=None):
     return (rows[0] if rows else {}).get(key, default)
 
 
-def latest_rehabilitation_run(runs, captured_at):
-    """Select the exact composite phase's terminal result after this capture."""
-    for run in runs:
-        completed = run.get("completedAt", run.get("completed_at", ""))
-        if (exact_rehabilitation_run(run) and captured_at and completed
-                and completed >= captured_at):
-            return run
-    return None
-
-
-def exact_rehabilitation_run(run):
-    """Share the exact single-phase and matching-terminal predicate."""
-    planned = run.get("plannedPhases", run.get("planned_phases", []))
-    phases = run.get("phases") or []
-    status = run.get("status")
-    return (planned == ["rehabilitation-evidence"] and status in ("passed", "failed")
-            and len(phases) == 1 and phases[0].get("name") == "rehabilitation-evidence"
-            and phases[0].get("status") == status)
-
-
-def applicable_capture(capture, current_build):
-    return (capture.get("outcome") == "WORKLOAD_OUTCOME_MEASURED"
-            and capture.get("sampleCount") == 100 and capture.get("declaredWarmups") == 1
-            and capture.get("budgetMs") == 2000 and bool(capture.get("operationId"))
-            and bool(capture.get("receiptSha256"))
-            and capture.get("buildIdentity", capture.get("build_identity", "")) == current_build
-            and bool(current_build) and bool(capture.get("capturedAt", capture.get("captured_at"))))
-
-
-def select_bound_findings(test_genie, receipt_id, expected_source, captured_at=None):
-    """Resolve one bound receipt through its child, exact run and capped findings."""
-    receipt = (test_genie.validation.get(receipt_id=receipt_id).meta() or {}).get("receipt")
-    if not isinstance(receipt, dict) or receipt.get("receiptId", receipt.get("receipt_id")) != receipt_id:
-        raise ValueError("validation receipt is missing or identifies another receipt")
-    receipt_state = receipt.get("state")
-    terminal_receipts = ("RECEIPT_STATE_SUCCEEDED", "RECEIPT_STATE_FAILED", "RECEIPT_STATE_DEGRADED",
-                         "RECEIPT_STATE_CANCELLED", "RECEIPT_STATE_SUPERSEDED")
-    if receipt_state not in terminal_receipts:
-        raise ValueError("selected validation receipt is not terminal")
-    admitted = receipt.get("admittedIdentity", receipt.get("admitted_identity")) or {}
-    observed = receipt.get("observedIdentity", receipt.get("observed_identity")) or {}
-    if admitted.get("identity") != expected_source or observed.get("identity") != expected_source:
-        raise ValueError("admitted or observed Test Genie source identity does not match expected_source_identity")
-    children = receipt.get("children") or []
-    children = [child for child in children if child.get("kind") == "CHILD_OPERATION_KIND_TEST_RUN"
-                and child.get("owner") == "test-genie"]
-    if len(children) != 1:
-        raise ValueError("validation receipt does not contain exactly one TG-owned test-run child")
-    child = children[0]
-    child_state = child.get("state")
-    run_id = child.get("operationId", child.get("operation_id"))
-    if child_state not in ("CHILD_OPERATION_STATE_SUCCEEDED", "CHILD_OPERATION_STATE_FAILED",
-                           "CHILD_OPERATION_STATE_CANCELLED") or not run_id:
-        raise ValueError("selected TG test-run child is not terminal or has no run identity")
-    expected_receipt_child = {"RECEIPT_STATE_SUCCEEDED": "CHILD_OPERATION_STATE_SUCCEEDED",
-                              "RECEIPT_STATE_FAILED": "CHILD_OPERATION_STATE_FAILED",
-                              "RECEIPT_STATE_CANCELLED": "CHILD_OPERATION_STATE_CANCELLED"}.get(receipt_state)
-    if expected_receipt_child and child_state != expected_receipt_child:
-        raise ValueError("selected receipt and TG test-run child terminal states do not match")
-    run = (test_genie.runs.show(scenario="browser-automation-studio", run_id=run_id).meta() or {}).get("run")
-    if (not isinstance(run, dict) or run.get("runId", run.get("run_id")) != run_id
-            or run.get("target") != "browser-automation-studio" or not exact_rehabilitation_run(run)):
-        raise ValueError("selected Test Genie run is unavailable or is not the exact terminal rehabilitation suite")
-    completed_at = run.get("completedAt", run.get("completed_at"))
-    try:
-        if not completed_at:
-            raise ValueError("missing run completion")
-        completed_time = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
-        if completed_time.utcoffset() is None:
-            raise ValueError("timezone required")
-        if captured_at:
-            captured_time = datetime.fromisoformat(captured_at.replace("Z", "+00:00"))
-            if captured_time.utcoffset() is None or completed_time <= captured_time:
-                raise ValueError("run does not follow capture")
-    except (TypeError, AttributeError, ValueError) as exc:
-        raise ValueError("selected run or applicable capture has an invalid/missing completion timestamp") from exc
-    expected_child_state = {"passed": "CHILD_OPERATION_STATE_SUCCEEDED",
-                            "failed": "CHILD_OPERATION_STATE_FAILED"}[run["status"]]
-    if child_state != expected_child_state:
-        raise ValueError("selected child and exact rehabilitation run terminal states do not match")
-    findings = test_genie.runs.findings(scenario="browser-automation-studio", run_id=run_id)
-    meta = findings.meta() or {}
-    rows = findings.head(10)
-    if (meta.get("target") != "browser-automation-studio"
-            or meta.get("runId", meta.get("run_id")) != run_id or len(rows) != 1
-            or rows[0].get("name") != "rehabilitation-evidence"
-            or rows[0].get("status") != run.get("status")):
-        raise ValueError("selected run findings are unavailable or identify another run")
-    return receipt_state, run, rows
-
-
-def capability_standing(findings, capability_id):
-    """Read one provider-owned capability from the persisted phase presentation."""
-    for phase in findings.get("phases", []):
-        if phase.get("name") != "rehabilitation-evidence":
-            continue
-        presentation = phase.get("phasePresentation", phase.get("phase_presentation", {})) or {}
-        for capability in presentation.get("capabilities", []):
-            if capability.get("id") == capability_id:
-                return {
-                    "level": capability.get("currentLevel", capability.get("current_level")),
-                    "clean": capability.get("clean"),
-                    "label": capability.get("currentLevelLabel", capability.get("current_level_label")),
-                }
-    return None
-
-
-def capability_reading(standing):
-    """Keep missing maturity evidence unknown instead of calling it a product failure."""
-    level = standing.get("level")
-    label = standing.get("label")
-    clean = standing.get("clean")
-    if level == "L1" and clean is True:
-        return True, False, None
-    if level == "L0" or label == "Unavailable":
-        return None, True, "provider maturity is unavailable; no applicable owner receipt"
-    if level:
-        return False, False, f"capability remains at {level}"
-    return None, True, "provider maturity standing is incomplete"
-
-
-def candidate_freshness(response):
-    """Require a complete lifecycle verdict before crediting rehabilitation evidence."""
-    if not isinstance(response, dict) or response.get("success") is not True:
-        return False, "lifecycle freshness response is missing or unsuccessful"
-    checks = response.get("checks")
-    if not isinstance(checks, list) or not checks:
-        return False, "lifecycle freshness response contains no artifact checks"
-    # Proto3 JSON omits false scalar values unless the transport asks it to
-    # emit defaults. A missing stale field therefore means false; true remains
-    # an explicit fail-closed verdict.
-    stale_checks = [check for check in checks if not isinstance(check, dict) or check.get("stale") is True]
-    if response.get("stale") is True or stale_checks:
-        first = stale_checks[0] if stale_checks else {}
-        target = first.get("target") or "managed artifact"
-        cause = first.get("cause") or "stale or incomplete verdict"
-        file = first.get("file")
-        detail = f"lifecycle reports {target} stale: {cause}"
-        if file:
-            detail += f" ({file})"
-        return False, detail
-    return True, None
-
-
 def step_validate():
-    if profile not in ("operations", "rehabilitation"):
-        return fail("failed", "invalid_input", "unknown qualification profile", "validate")
-    if any(bound_pair) and not all(bound_pair):
-        return fail("failed", "invalid_input", "validation_receipt_id and expected_source_identity must be supplied together", "validate")
-    if qualification_bound:
-        if (profile != "rehabilitation" or not isinstance(validation_receipt_id, str)
-                or not validation_receipt_id.strip() or len(validation_receipt_id) > 256
-                or not isinstance(expected_source_identity, str)
-                or not expected_source_identity.strip() or len(expected_source_identity) > 512):
-            return fail("failed", "invalid_input", "bound qualification requires rehabilitation profile and non-empty bounded receipt/source identity strings", "validate")
-    if profile == "rehabilitation":
-        return "collect"
     if not (10 <= window <= 100):
         return fail("failed", "invalid_input", f"window={window} outside 10..100 (executions list caps at 100)", "validate")
     if not (0 <= evidence_sample <= 10):
@@ -239,93 +57,6 @@ def step_validate():
 
 def step_collect():  # COLLECT · one governed read; the evidence sample is read per failed execution
     envelope["phase"] = "collect"
-    if profile == "rehabilitation":
-        try:
-            api_status = vrooli.scenario.status(name="browser-automation-studio").raw() or {}
-            runtime = api_status.get("runtime") or {}
-            scenario = api_status.get("scenario") or {}
-            handles["current_build"] = (
-                runtime.get("buildIdentity", runtime.get("build_identity", ""))
-                or scenario.get("buildIdentity", scenario.get("build_identity", ""))
-            )
-            if not handles["current_build"]:
-                handles["runtime_error"] = "scenario status omitted managed build identity"
-        except Exception as exc:
-            _, klass = program.classify(exc)
-            handles["current_build"] = ""
-            handles["runtime_error"] = klass
-        try:
-            freshness = vrooli.scenario.freshness(name="browser-automation-studio").raw() or {}
-            handles["artifact_freshness"] = freshness
-            fresh, reason = candidate_freshness(freshness)
-            handles["artifact_fresh"] = fresh
-            handles["artifact_freshness_reason"] = reason
-            if not fresh:
-                handles["freshness_error"] = reason
-        except Exception as exc:
-            _, klass = program.classify(exc)
-            handles["artifact_fresh"] = False
-            handles["artifact_freshness"] = {}
-            handles["artifact_freshness_reason"] = f"lifecycle freshness unavailable: {klass}"
-            handles["freshness_error"] = klass
-        if not handles.get("current_build") or not handles.get("artifact_fresh"):
-            return "classify"
-        try:
-            result = performance_health.sweep.workload_get(scenario="browser-automation-studio", workload="capture")
-            readings = result.head(1)
-            handles["capture"] = readings[0] if readings else {}
-        except Exception as exc:
-            _, klass = program.classify(exc)
-            handles["capture"] = {}
-            handles["capture_error"] = klass
-        capture = handles.get("capture", {})
-        current_build = handles.get("current_build", "")
-        handles["capture_applicable"] = applicable_capture(capture, current_build)
-        if qualification_bound:
-            if capture and not handles["capture_applicable"]:
-                # When a capture record exists, a bound owner receipt is usable
-                # only after that record proves the same build and required
-                # workload contract. Do not spend Test Genie reads on a receipt
-                # that cannot be accepted against this candidate. An absent
-                # capture remains an independent unavailable row; other bound
-                # owner capabilities may still be evaluated.
-                handles["bound_error"] = "capture evidence is missing or does not match the current managed build"
-            else:
-                try:
-                    receipt_state, run, finding_rows = select_bound_findings(
-                        test_genie, validation_receipt_id, expected_source_identity,
-                        capture.get("capturedAt", capture.get("captured_at")))
-                    envelope["signals"]["qualification_candidate"]["receipt_state"] = receipt_state
-                    handles["failed_receipt"] = receipt_state != "RECEIPT_STATE_SUCCEEDED"
-                    handles["failed_selected_run"] = run.get("status") == "failed"
-                    handles["owner_run"] = run
-                    handles["owner_findings"] = finding_rows
-                except Exception as exc:
-                    detail = str(exc).encode("ascii", "backslashreplace").decode("ascii")
-                    handles["bound_error"] = detail[:96] + ("…" if len(detail) > 96 else "")
-        else:
-            try:
-                handles["test_genie_runs"] = test_genie.runs.list(scenario="browser-automation-studio", limit=10).head(10)
-            except Exception as exc:
-                _, klass = program.classify(exc)
-                handles["test_genie_runs"] = []
-                handles["test_genie_error"] = klass
-        if (not qualification_bound and capture.get("buildIdentity", capture.get("build_identity", "")) == current_build
-                and current_build):
-            run = latest_rehabilitation_run(handles.get("test_genie_runs", []), capture.get("capturedAt", capture.get("captured_at", "")))
-            if run:
-                try:
-                    findings = test_genie.runs.findings(
-                        scenario="browser-automation-studio",
-                        run_id=run.get("runId", run.get("run_id", "")),
-                    )
-                    handles["owner_run"] = run
-                    handles["owner_findings"] = findings.head(10)
-                except Exception as exc:
-                    _, klass = program.classify(exc)
-                    handles["owner_findings"] = []
-                    handles["findings_error"] = klass
-        return "classify"
     try:
         handles["ex"] = browser_automation_studio.executions.list(limit=window)
         handles["ex"].count()
@@ -368,126 +99,8 @@ def step_collect():  # COLLECT · one governed read; the evidence sample is read
     return "classify"
 
 
-def classify_rehabilitation():
-    if not handles.get("artifact_fresh") or not handles.get("current_build"):
-        reason = (handles.get("artifact_freshness_reason")
-                  or handles.get("runtime_error")
-                  or "lifecycle freshness is unavailable")
-        envelope["signals"]["candidate_freshness"] = {
-            "fresh": False,
-            "reason": reason,
-            "build_identity": handles.get("current_build", ""),
-        }
-        envelope["evidence"].append("vrooli/scenario/freshness")
-        row_reason = ("managed artifacts are stale; see candidate_freshness"
-                      if reason.startswith("lifecycle reports")
-                      else "lifecycle freshness unavailable; see candidate_freshness")
-        for name in REHABILITATION_ROWS:
-            row(name, None, "bas-rehabilitation-v1#" + name, None,
-                unavailable=True, reason=row_reason)
-        envelope["signals"]["required"] = len(REHABILITATION_ROWS)
-        envelope["signals"]["unmet"] = len(REHABILITATION_ROWS)
-        envelope["signals"]["product_qualified"] = False
-        envelope["status"] = "partial"
-        return "report"
-
-    capture = handles.get("capture", {})
-    applicable = handles.get("capture_applicable", False)
-    if qualification_bound and handles.get("bound_error"):
-        reason = handles["bound_error"]
-        envelope["signals"]["bound_owner_error"] = reason
-        for name in REHABILITATION_ROWS:
-            row(name, None, "bas-rehabilitation-v1#" + name, None, unavailable=True,
-                reason="bound owner evidence unavailable; see signals.bound_owner_error")
-        envelope["signals"]["required"] = len(REHABILITATION_ROWS)
-        envelope["signals"]["unmet"] = len(REHABILITATION_ROWS)
-        envelope["signals"]["product_qualified"] = False
-        envelope["status"] = "partial"
-        return "report"
-    owner_run = handles.get("owner_run") if (applicable or qualification_bound) else None
-    owner_findings = {"phases": handles.get("owner_findings", [])}
-    if owner_run and owner_findings["phases"]:
-        # These values are shared by the owner-qualified rows. Store them
-        # once; duplicating the build digest and run receipt in every row pushed
-        # the governed CLI result past its 4 KiB output bound.
-        envelope["signals"]["owner_evidence"] = {
-            "run_id": owner_run.get("runId", owner_run.get("run_id")),
-            "completed_at": owner_run.get("completedAt", owner_run.get("completed_at")),
-            "build_identity": handles.get("current_build"),
-            "test_genie_source_identity": expected_source_identity if qualification_bound else None,
-            "capture_operation_id": capture.get("operationId", capture.get("operation_id")),
-            "capture_captured_at": capture.get("capturedAt", capture.get("captured_at")),
-            "phase_status": next((p.get("status") for p in owner_run.get("phases", [])
-                                   if p.get("name") == "rehabilitation-evidence"), None),
-            "evidence_tier": owner_run.get("evidenceTier", owner_run.get("evidence_tier")),
-            "source": "test-genie/runs/findings",
-        }
-    for name in REHABILITATION_ROWS:
-        if name == "capture" and applicable:
-            reading = {"p95_ms": capture.get("p95Ms"), "wall_p95_ms": capture.get("wallP95Ms"),
-                       "samples": capture.get("sampleCount"), "operation_id": capture.get("operationId"),
-                       "build_identity": capture.get("buildIdentity"), "captured_at": capture.get("capturedAt")}
-            row(name, reading, "bas-rehabilitation-v1#capture", capture.get("withinBudget") is True,
-                sensor="performance-health sweep workload-get browser-automation-studio capture")
-        elif name in ("interactive-feedback", "motion", "passive-fidelity", "profile-durability", "cancellation-recovery", "resource-budget", "evidence-completeness") and (applicable or qualification_bound) and owner_run and owner_findings["phases"]:
-            standing = capability_standing(owner_findings, name)
-            if standing and standing.get("level"):
-                reading = {"current_level": standing.get("level"),
-                           "clean": standing.get("clean")}
-                in_band, unavailable, reason = capability_reading(standing)
-                row(name, reading, "bas-rehabilitation-v1#" + name, in_band,
-                    unavailable=unavailable, reason=reason,
-                    sensor="test-genie/runs/findings")
-            else:
-                row(name, None, "bas-rehabilitation-v1#" + name, None, unavailable=True,
-                    reason="exact phase findings lack the named capability standing",
-                    sensor="test-genie/runs/findings")
-        else:
-            reason = "pending_telemetry"
-            if name == "capture":
-                reason = handles.get("capture_error") or handles.get("runtime_error") or capture.get("reason") or "capture evidence missing or build identity is stale"
-                if capture.get("operationId") or capture.get("operation_id"):
-                    reading = {
-                        "operation_id": capture.get("operationId", capture.get("operation_id")),
-                        "workload_build_identity": capture.get("buildIdentity", capture.get("build_identity", "")),
-                        "live_build_identity": handles.get("current_build", ""),
-                    }
-                    reason = reason or "capture build identity does not match live BAS"
-                else:
-                    reading = None
-            elif name in ("motion", "passive-fidelity", "profile-durability", "cancellation-recovery", "resource-budget"):
-                reason = (handles.get("test_genie_error") or handles.get("findings_error")
-                          or handles.get("runtime_error") or "no_matching_current_candidate_phase_receipt")
-                reading = None
-            else:
-                reading = None
-            row(name, reading, "bas-rehabilitation-v1#" + name, None, unavailable=True, reason=reason)
-    envelope["signals"]["required"] = len(REHABILITATION_ROWS)
-    envelope["signals"]["unmet"] = sum(r["in_band"] is not True for r in envelope["signals"]["rows"])
-    envelope["signals"]["product_qualified"] = envelope["signals"]["unmet"] == 0
-    if qualification_bound and (handles.get("failed_selected_run") or handles.get("failed_receipt")):
-        envelope["signals"]["product_qualified"] = False
-        envelope["status"] = "partial"
-    envelope["signals"]["candidate_freshness"] = {
-        "fresh": True,
-        "check_count": len((handles.get("artifact_freshness") or {}).get("checks") or []),
-        "build_identity": handles.get("current_build"),
-    }
-    envelope["evidence"].append("vrooli/scenario/freshness")
-    envelope["status"] = "partial" if any(handles.get(key) for key in ("capture_error", "test_genie_error", "findings_error", "runtime_error", "freshness_error", "bound_error", "failed_receipt", "failed_selected_run")) else "ok"
-    return "report"
-
-
 def step_classify():  # CLASSIFY · every reading is count or filter in the kernel
     envelope["phase"] = "classify"
-    if profile == "rehabilitation":
-        return classify_rehabilitation()
-    ex = handles["ex"]
-    completed = ex.filter(lambda r: r.get("status") == "EXECUTION_STATUS_COMPLETED").count()
-    failed_h = handles["failed_h"]
-    failed = failed_h.count()
-    terminal = completed + failed
-    rate = (completed / terminal) if terminal else None
     pass_value = one(handles["pass_rate"], "rate") if handles["pass_rate"] is not None else None
     row("pass-rate", {"rate": pass_value, "window": "last_7d", "basis": "executions.pass-rate measure"}, ">= 0.9",
         pass_value is not None and float(pass_value) >= 0.9, unavailable=pass_value is None,

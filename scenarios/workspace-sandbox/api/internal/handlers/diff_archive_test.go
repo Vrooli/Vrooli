@@ -4,7 +4,6 @@ package handlers_test
 // tests own live-versus-archive selection; both REST and Connect use GetDiff.
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -58,102 +57,26 @@ func TestDiffTransportsRetainEvidenceAndRefuseUnavailableArchive(t *testing.T) {
 
 func TestApprovalTransportsPreserveReviewedPatchIdentity(t *testing.T) {
 	id := uuid.New()
-	reviewID := uuid.New()
 	digest := strings.Repeat("a", 64)
 	calls := 0
 	svc := &sandboxiface.FakeService{ApproveFn: func(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error) {
 		calls++
-		if req.SandboxID != id || req.ExpectedPatchSHA256 != digest || req.Mode != "all" || !req.Force || req.ReviewRequestID != reviewID || req.ExpectedReviewSHA256 != digest {
+		if req.SandboxID != id || req.ExpectedPatchSHA256 != digest || req.Mode != "all" || !req.Force {
 			t.Fatalf("transport dropped or changed approval preconditions: %+v", req)
 		}
 		return &types.ApprovalResult{Success: true, AppliedPatchSHA256: digest}, nil
 	}}
 	live := newLive(t, svc)
-	response, body := live.DoJSON(t, "POST", sandboxesPath(id, "/approve"), `{"force":true,"expectedPatchSha256":"`+digest+`","reviewRequestId":"`+reviewID.String()+`","expectedReviewSha256":"`+digest+`"}`)
+	response, body := live.DoJSON(t, "POST", sandboxesPath(id, "/approve"), `{"force":true,"expectedPatchSha256":"`+digest+`"}`)
 	var rest types.ApprovalResult
 	if err := json.Unmarshal(body, &rest); err != nil {
 		t.Fatal(err)
 	}
 	wire, err := handlers.NewConnectHandler(svc).PromoteSandbox(t.Context(), connect.NewRequest(&workspacev1.PromoteSandboxRequest{
-		SandboxId: id.String(), Confirm: true, Force: true, ExpectedPatchSha256: digest, ReviewRequestId: reviewID.String(), ExpectedReviewSha256: digest,
+		SandboxId: id.String(), Confirm: true, Force: true, ExpectedPatchSha256: digest,
 	}))
 	if response.StatusCode != http.StatusOK || rest.AppliedPatchSHA256 != digest || err != nil || wire.Msg.AppliedPatchSha256 != digest || calls != 2 {
 		t.Fatalf("approval receipt lost identity: HTTP %d %+v; Connect %+v, %v; calls %d", response.StatusCode, rest, wire, err, calls)
-	}
-}
-
-func TestReviewTransportsPreserveInputAndBinaryBytes(t *testing.T) {
-	id, requestID := uuid.New(), uuid.New()
-	snapshot := &types.ReviewSnapshot{ID: types.ReviewSnapshotID(id, requestID), SandboxID: id, RequestID: requestID, SHA256: strings.Repeat("a", 64), Paths: []string{"src"}, Before: []types.ReviewFile{{FileFingerprint: types.FileFingerprint{Path: "src/file", Mode: 120000, SHA256: strings.Repeat("b", 64)}, Size: 4}}, CreatedAt: time.Date(2026, 9, 27, 0, 0, 0, 0, time.UTC)}
-	body := []byte{0, 255, 1, 10}
-	svc := &sandboxiface.FakeService{
-		MaterializeReviewSnapshotFn: func(_ context.Context, sb, request uuid.UUID, digest string) (*types.ReviewWorkspace, error) {
-			if sb != id || request != requestID || digest != snapshot.SHA256 {
-				t.Fatal("materialization identity changed")
-			}
-			return &types.ReviewWorkspace{Root: "/retained/review-tree", SHA256: digest}, nil
-		},
-		CaptureReviewSnapshotFn: func(_ context.Context, req *types.ReviewSnapshotRequest) (*types.ReviewSnapshot, error) {
-			if req.SandboxID != id || req.RequestID != requestID || len(req.Paths) != 1 || req.Paths[0] != "src" {
-				t.Fatalf("capture identity changed: %+v", req)
-			}
-			return snapshot, nil
-		},
-		GetReviewSnapshotFn: func(_ context.Context, sb, request uuid.UUID) (*types.ReviewSnapshot, error) {
-			if sb != id || request != requestID {
-				t.Fatal("read identity changed")
-			}
-			return snapshot, nil
-		},
-		FetchReviewFileFn: func(_ context.Context, sb, request uuid.UUID, side, path string) ([]byte, error) {
-			if sb != id || request != requestID || side != "before" || path != "src/file" {
-				t.Fatal("file identity changed")
-			}
-			return body, nil
-		},
-	}
-	live := newLive(t, svc)
-	materialized, materializedBody := live.DoJSON(t, "POST", sandboxesPath(id, "/reviews/"+requestID.String()+"/workspace"), `{"expectedSha256":"`+snapshot.SHA256+`"}`)
-	materializedWire, materializedErr := handlers.NewConnectHandler(svc).MaterializeReviewSnapshot(t.Context(), connect.NewRequest(&workspacev1.MaterializeReviewSnapshotRequest{SandboxId: id.String(), RequestId: requestID.String(), ExpectedSha256: snapshot.SHA256}))
-	if materialized.StatusCode != http.StatusOK || materializedErr != nil || materializedWire.Msg.GetSha256() != snapshot.SHA256 || !bytes.Contains(materializedBody, []byte(materializedWire.Msg.GetRoot())) {
-		t.Fatalf("materialization transport mismatch: %s, %+v, %v", materializedBody, materializedWire, materializedErr)
-	}
-	response, raw := live.DoJSON(t, "POST", sandboxesPath(id, "/reviews"), `{"requestId":"`+requestID.String()+`","paths":["src"]}`)
-	var rest types.ReviewSnapshot
-	if err := json.Unmarshal(raw, &rest); err != nil {
-		t.Fatal(err)
-	}
-	wire, err := handlers.NewConnectHandler(svc).CaptureReviewSnapshot(t.Context(), connect.NewRequest(&workspacev1.CaptureReviewSnapshotRequest{SandboxId: id.String(), RequestId: requestID.String(), Paths: []string{"src"}}))
-	if response.StatusCode != http.StatusOK || err != nil || wire.Msg.GetSnapshot().GetSha256() != rest.SHA256 || wire.Msg.GetSnapshot().GetBefore()[0].GetMode() != 120000 {
-		t.Fatalf("capture transports differ: %s, %+v, %v", raw, wire, err)
-	}
-	response, raw = live.DoJSON(t, "GET", sandboxesPath(id, "/reviews/"+requestID.String()), "")
-	if response.StatusCode != http.StatusOK || !bytes.Contains(raw, []byte(snapshot.SHA256)) {
-		t.Fatalf("retained metadata unavailable: %s", raw)
-	}
-	response, raw = live.DoJSON(t, "GET", sandboxesPath(id, "/reviews/"+requestID.String()+"/file?side=before&path=src/file"), "")
-	file, err := handlers.NewConnectHandler(svc).GetReviewFile(t.Context(), connect.NewRequest(&workspacev1.GetReviewFileRequest{SandboxId: id.String(), RequestId: requestID.String(), Side: "before", Path: "src/file"}))
-	if response.StatusCode != http.StatusOK || err != nil || !bytes.Equal(raw, body) || !bytes.Equal(file.Msg.GetContent(), body) {
-		t.Fatalf("binary bytes changed: %x, %+v, %v", raw, file, err)
-	}
-}
-
-func TestReviewCaptureRefusesMalformedRequests(t *testing.T) {
-	for _, body := range []string{`null`, `{}`, `{"requestId":"invalid","paths":["."]}`, `{"paths":[]} {}`, `{"path":["."]}`} {
-		t.Run(body, func(t *testing.T) {
-			calls := 0
-			svc := &sandboxiface.FakeService{CaptureReviewSnapshotFn: func(_ context.Context, req *types.ReviewSnapshotRequest) (*types.ReviewSnapshot, error) {
-				calls++
-				return nil, types.NewValidationError("request", "missing identity")
-			}}
-			response, _ := newLive(t, svc).DoJSON(t, "POST", sandboxesPath(uuid.New(), "/reviews"), body)
-			if response.StatusCode != http.StatusBadRequest {
-				t.Fatalf("malformed capture accepted: %d", response.StatusCode)
-			}
-			if body != `{}` && calls != 0 {
-				t.Fatal("malformed JSON reached service")
-			}
-		})
 	}
 }
 

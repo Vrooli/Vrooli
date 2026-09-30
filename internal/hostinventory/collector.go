@@ -239,6 +239,7 @@ func (c Collector) Collect(ctx context.Context) (Snapshot, error) {
 	c.collectAppleSiliconGPU(&snap, now)
 	c.collectAppleToolchain(ctx, &snap, now)
 	c.collectAndroidToolchain(ctx, &snap, now)
+	c.collectDesktopToolchain(ctx, &snap, now)
 	return snap, nil
 }
 

@@ -690,7 +690,6 @@ type TeamsIndexEntry struct {
 type HeartbeatConfig struct {
 	BaseEntity
 	FiniteLeader        *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
-	Supervision         *teamconfig.Supervision   `json:"supervision,omitempty"`
 	WakeAdmission       *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
 	TeamID              string                    `json:"teamId"`
 	AgentID             string                    `json:"agentId"`

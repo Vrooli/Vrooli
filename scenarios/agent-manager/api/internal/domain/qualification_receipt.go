@@ -209,13 +209,7 @@ func AdmitDependentDelegation(receipt *QualificationReceipt, req DependentDelega
 	if receipt.EffectiveRunner != strings.TrimSpace(req.Runner) {
 		return NewValidationError("runner", fmt.Sprintf("dependent delegation is closed: receipt runner %q does not match requested %q", receipt.EffectiveRunner, req.Runner))
 	}
-	if receipt.EffectiveModel != strings.TrimSpace(req.Model) {
-		return NewValidationError("model", fmt.Sprintf("dependent delegation is closed: receipt model %q does not match requested %q", receipt.EffectiveModel, req.Model))
-	}
-	if strings.TrimSpace(receipt.EffectiveEffort) != strings.TrimSpace(req.Effort) {
-		return NewValidationError("effort", fmt.Sprintf("dependent delegation is closed: receipt effort %q does not match requested %q", receipt.EffectiveEffort, req.Effort))
-	}
-	return nil
+	return delegatedModelWithin(receipt.EffectiveModel, receipt.EffectiveEffort, req, "receipt")
 }
 
 // AdmitLiveDependentDelegation admits a child from a currently executing
@@ -238,11 +232,53 @@ func AdmitLiveDependentDelegation(admission *RunAdmission, req DependentDelegati
 	if admission.EffectiveRunner != strings.TrimSpace(req.Runner) {
 		return NewValidationError("runner", fmt.Sprintf("dependent delegation is closed: parent runner %q does not match requested %q", admission.EffectiveRunner, req.Runner))
 	}
-	if admission.EffectiveModel != strings.TrimSpace(req.Model) {
-		return NewValidationError("model", fmt.Sprintf("dependent delegation is closed: parent model %q does not match requested %q", admission.EffectiveModel, req.Model))
+	return delegatedModelWithin(admission.EffectiveModel, admission.EffectiveEffort, req, "parent")
+}
+
+// delegatedModelWithin admits the parent's own model at equal or narrower
+// effort, or any effort on a strictly cheaper known model tier (a Sol
+// supervisor delegating a Luna repair). Unknown models must match exactly.
+func delegatedModelWithin(parentModel, parentEffort string, req DependentDelegationRequest, source string) error {
+	parentModel, childModel := strings.TrimSpace(parentModel), strings.TrimSpace(req.Model)
+	if parentModel != childModel {
+		parentTier, parentKnown := modelTier(parentModel)
+		childTier, childKnown := modelTier(childModel)
+		if parentKnown && childKnown && childTier < parentTier {
+			return nil
+		}
+		return NewValidationError("model", fmt.Sprintf("dependent delegation is closed: requested model %q is neither the %s model %q nor a cheaper tier", req.Model, source, parentModel))
 	}
-	if strings.TrimSpace(admission.EffectiveEffort) != strings.TrimSpace(req.Effort) {
-		return NewValidationError("effort", fmt.Sprintf("dependent delegation is closed: parent effort %q does not match requested %q", admission.EffectiveEffort, req.Effort))
+	if !effortWithin(parentEffort, req.Effort) {
+		return NewValidationError("effort", fmt.Sprintf("dependent delegation is closed: requested effort %q exceeds %s effort %q", req.Effort, source, parentEffort))
 	}
 	return nil
+}
+
+// modelTierRank orders known model families by cost, cheapest first.
+var modelTierRank = []string{"luna", "sol"}
+
+func modelTier(model string) (int, bool) {
+	model = strings.ToLower(model)
+	for rank, family := range modelTierRank {
+		if strings.Contains(model, family) {
+			return rank, true
+		}
+	}
+	return 0, false
+}
+
+// effortRank orders reasoning efforts so a child may narrow, never widen, the
+// parent's qualified effort on the same runner and model.
+var effortRank = map[string]int{string(EffortLow): 1, string(EffortMedium): 2, string(EffortHigh): 3, string(EffortXHigh): 4, string(EffortMax): 5}
+
+// effortWithin reports whether a child's effort equals or narrows the parent's.
+// Unknown or empty values must match exactly.
+func effortWithin(parent, child string) bool {
+	parent, child = strings.TrimSpace(parent), strings.TrimSpace(child)
+	if parent == child {
+		return true
+	}
+	parentRank, parentKnown := effortRank[parent]
+	childRank, childKnown := effortRank[child]
+	return parentKnown && childKnown && childRank <= parentRank
 }

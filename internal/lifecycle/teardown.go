@@ -3,6 +3,12 @@ package lifecycle
 import (
 	"context"
 	"fmt"
+	"os"
+	"runtime"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/tuning"
 
@@ -13,7 +19,7 @@ import (
 // record PIDs, and escalates only when the terminate deadline expires. The
 // process PID—not the group leader—is the exit condition so descendants that
 // survive a leader signal cannot make teardown appear complete.
-func (r *Runner) terminateAndAwait(ctx context.Context, records []process.Record) error {
+func (r *Runner) terminateAndAwait(ctx context.Context, records []process.Record, immediate bool) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -35,8 +41,40 @@ func (r *Runner) terminateAndAwait(ctx context.Context, records []process.Record
 			groups[group] = struct{}{}
 		}
 	}
-	for group := range groups {
-		_ = r.runtimeDeps().signalProcessGroup(group, false)
+	// Browser engines deliberately place Chromium in their own process groups.
+	// Include descendants before signalling so an immediate restart cannot leave
+	// an external browser effect alive after its driver is force-killed.
+	if childPIDs, childGroups := descendantProcessTree(pids); len(childPIDs) > 0 {
+		for _, pid := range childPIDs {
+			if _, ok := seenPIDs[pid]; ok {
+				continue
+			}
+			seenPIDs[pid] = struct{}{}
+			pids = append(pids, pid)
+		}
+		for _, group := range childGroups {
+			groups[group] = struct{}{}
+		}
+	}
+	if immediate {
+		// Give cooperative owners one bounded chance to close browser/session
+		// resources. The force escalation keeps explicit restart from waiting
+		// through a long request drain when an owner is stuck.
+		for group := range groups {
+			_ = r.runtimeDeps().signalProcessGroup(group, false)
+		}
+		if err := r.awaitPIDs(ctx, pids, immediateTeardownPolicy); err != nil {
+			for group := range groups {
+				_ = r.runtimeDeps().signalProcessGroup(group, true)
+			}
+			if err := r.awaitPIDs(ctx, pids, immediateForcePolicy); err != nil {
+				return fmt.Errorf("tracked processes did not exit after immediate force-kill: %w", err)
+			}
+		}
+		for _, record := range records {
+			r.releaseContainment(record.PID)
+		}
+		return nil
 	}
 	if awaitErr := r.awaitPIDs(ctx, pids, teardownTerminatePolicy); awaitErr == nil {
 		for _, record := range records {
@@ -54,6 +92,58 @@ func (r *Runner) terminateAndAwait(ctx context.Context, records []process.Record
 		r.releaseContainment(record.PID)
 	}
 	return nil
+}
+
+// descendantProcessTree snapshots descendants and their process groups before
+// teardown. Playwright's browser child is commonly reparented to init after its
+// driver exits, so discovery must happen before signalling the tracked owner.
+// The lifecycle is the host-process owner; BAS only supplies the tracked roots.
+func descendantProcessTree(roots []int) ([]int, []int) {
+	if runtime.GOOS != "linux" || len(roots) == 0 {
+		return nil, nil
+	}
+	seen := make(map[int]struct{}, len(roots))
+	queue := append([]int(nil), roots...)
+	var pids []int
+	groups := make(map[int]struct{})
+	for len(queue) > 0 {
+		parent := queue[0]
+		queue = queue[1:]
+		data, err := os.ReadFile(fmt.Sprintf("/proc/%d/task/%d/children", parent, parent))
+		if err != nil {
+			continue
+		}
+		for _, rawPID := range strings.Fields(string(data)) {
+			child, err := strconv.Atoi(rawPID)
+			if err != nil || child <= 0 {
+				continue
+			}
+			if _, ok := seen[child]; ok {
+				continue
+			}
+			seen[child] = struct{}{}
+			pids = append(pids, child)
+			if stat, statErr := os.ReadFile(fmt.Sprintf("/proc/%d/stat", child)); statErr == nil {
+				closeComm := strings.LastIndexByte(string(stat), ')')
+				if closeComm >= 0 {
+					fields := strings.Fields(string(stat)[closeComm+2:])
+					if len(fields) >= 3 {
+						if pgid, pgidErr := strconv.Atoi(fields[2]); pgidErr == nil && pgid > 0 {
+							groups[pgid] = struct{}{}
+						}
+					}
+				}
+			}
+			queue = append(queue, child)
+		}
+	}
+	sort.Ints(pids)
+	groupIDs := make([]int, 0, len(groups))
+	for group := range groups {
+		groupIDs = append(groupIDs, group)
+	}
+	sort.Ints(groupIDs)
+	return pids, groupIDs
 }
 
 func (r *Runner) registerContainment(pid int, release func()) {
@@ -154,6 +244,11 @@ var (
 	// exits on the first poll makes teardown return on that first observation.
 	teardownTerminatePolicy = AwaitPolicy{Timeout: tuning.LifecycleTransitionTimeout(), Interval: tuning.LifecyclePollInterval()}
 	teardownForcePolicy     = AwaitPolicy{Timeout: tuning.LifecycleTransitionTimeout(), Interval: tuning.LifecyclePollInterval()}
-	restartReleasePolicy    = AwaitPolicy{Timeout: tuning.LifecycleTransitionTimeout(), Interval: tuning.LifecyclePollInterval()}
-	backgroundLaunchPolicy  = AwaitPolicy{Timeout: tuning.LifecycleTransitionTimeout(), Interval: tuning.BackgroundLaunchPollInterval()}
+	immediateTeardownPolicy = AwaitPolicy{Timeout: 50 * time.Millisecond, Interval: tuning.LifecyclePollInterval()}
+	// Explicit restart has crossed its interruption boundary. A force-killed
+	// owner must not consume the full graceful transition budget and make
+	// recovery miss its contract.
+	immediateForcePolicy   = AwaitPolicy{Timeout: time.Second, Interval: tuning.LifecyclePollInterval()}
+	restartReleasePolicy   = AwaitPolicy{Timeout: tuning.LifecycleTransitionTimeout(), Interval: tuning.LifecyclePollInterval()}
+	backgroundLaunchPolicy = AwaitPolicy{Timeout: tuning.LifecycleTransitionTimeout(), Interval: tuning.BackgroundLaunchPollInterval()}
 )

@@ -19,7 +19,7 @@ The prompt-manager is built on three coordination domains and one execution doma
 |---------|----------|-------------|
 | **Swarm Model** | [SWARM-MODEL.md](concepts/SWARM-MODEL.md) | How Skills, Agents, Teams, and Actions work together |
 | **Team purposes** | [Departments, committees, and supervision](concepts/SWARM-MODEL.md#teams-departments-committees-and-supervision) | Standing objectives versus finite delivery; lifetime, authority, and execution are separate |
-| **Heartbeats** | [HEARTBEATS.md](concepts/HEARTBEATS.md) | Scheduled member execution, standing supervision, status interpretation, and recovery limits |
+| **Heartbeats** | [HEARTBEATS.md](concepts/HEARTBEATS.md) | Scheduled member execution, orchestrator liveness, and status interpretation |
 | **Team execution** | [TEAM-EXECUTION.md](concepts/TEAM-EXECUTION.md) | Queue policy and concurrency; not a team's purpose or work grant |
 | **Actions** | [ACTIONS.md](concepts/ACTIONS.md) | Executable wrapper entity for deterministic Vrooli-controlled CLI operations |
 | **Memory Promotion** | [MEMORY-PROMOTION.md](concepts/MEMORY-PROMOTION.md) | How typed observations graduate into Plan of Record, Skills, Actions, CLIs, or backlog |

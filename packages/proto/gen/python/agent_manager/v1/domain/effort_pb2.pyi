@@ -18,38 +18,10 @@ class EffortFreshness(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     EFFORT_FRESHNESS_FRESH: _ClassVar[EffortFreshness]
     EFFORT_FRESHNESS_STALE: _ClassVar[EffortFreshness]
     EFFORT_FRESHNESS_UNAVAILABLE: _ClassVar[EffortFreshness]
-
-class EffortDirectiveDelivery(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    EFFORT_DIRECTIVE_DELIVERY_UNSPECIFIED: _ClassVar[EffortDirectiveDelivery]
-    EFFORT_DIRECTIVE_DELIVERY_PENDING: _ClassVar[EffortDirectiveDelivery]
-    EFFORT_DIRECTIVE_DELIVERY_DELIVERED: _ClassVar[EffortDirectiveDelivery]
-    EFFORT_DIRECTIVE_DELIVERY_REFUSED: _ClassVar[EffortDirectiveDelivery]
-    EFFORT_DIRECTIVE_DELIVERY_EXPIRED: _ClassVar[EffortDirectiveDelivery]
-    EFFORT_DIRECTIVE_DELIVERY_SUPERSEDED: _ClassVar[EffortDirectiveDelivery]
-    EFFORT_DIRECTIVE_DELIVERY_UNCERTAIN: _ClassVar[EffortDirectiveDelivery]
-
-class EffortDirectiveAcknowledgment(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    EFFORT_DIRECTIVE_ACKNOWLEDGMENT_UNSPECIFIED: _ClassVar[EffortDirectiveAcknowledgment]
-    EFFORT_DIRECTIVE_ACKNOWLEDGMENT_ACCEPTED: _ClassVar[EffortDirectiveAcknowledgment]
-    EFFORT_DIRECTIVE_ACKNOWLEDGMENT_DEFERRED: _ClassVar[EffortDirectiveAcknowledgment]
-    EFFORT_DIRECTIVE_ACKNOWLEDGMENT_CHALLENGED: _ClassVar[EffortDirectiveAcknowledgment]
 EFFORT_FRESHNESS_UNSPECIFIED: EffortFreshness
 EFFORT_FRESHNESS_FRESH: EffortFreshness
 EFFORT_FRESHNESS_STALE: EffortFreshness
 EFFORT_FRESHNESS_UNAVAILABLE: EffortFreshness
-EFFORT_DIRECTIVE_DELIVERY_UNSPECIFIED: EffortDirectiveDelivery
-EFFORT_DIRECTIVE_DELIVERY_PENDING: EffortDirectiveDelivery
-EFFORT_DIRECTIVE_DELIVERY_DELIVERED: EffortDirectiveDelivery
-EFFORT_DIRECTIVE_DELIVERY_REFUSED: EffortDirectiveDelivery
-EFFORT_DIRECTIVE_DELIVERY_EXPIRED: EffortDirectiveDelivery
-EFFORT_DIRECTIVE_DELIVERY_SUPERSEDED: EffortDirectiveDelivery
-EFFORT_DIRECTIVE_DELIVERY_UNCERTAIN: EffortDirectiveDelivery
-EFFORT_DIRECTIVE_ACKNOWLEDGMENT_UNSPECIFIED: EffortDirectiveAcknowledgment
-EFFORT_DIRECTIVE_ACKNOWLEDGMENT_ACCEPTED: EffortDirectiveAcknowledgment
-EFFORT_DIRECTIVE_ACKNOWLEDGMENT_DEFERRED: EffortDirectiveAcknowledgment
-EFFORT_DIRECTIVE_ACKNOWLEDGMENT_CHALLENGED: EffortDirectiveAcknowledgment
 
 class EffortSubject(_message.Message):
     __slots__ = ("owner", "kind", "reference", "run_id", "role", "assignment")
@@ -68,7 +40,7 @@ class EffortSubject(_message.Message):
     def __init__(self, owner: _Optional[str] = ..., kind: _Optional[str] = ..., reference: _Optional[str] = ..., run_id: _Optional[str] = ..., role: _Optional[str] = ..., assignment: _Optional[str] = ...) -> None: ...
 
 class EffortEnrollment(_message.Message):
-    __slots__ = ("effort_ref", "display_name", "destination_ref", "target_revision", "source_revision", "authority_ref", "supervisor_run_id", "subjects", "permitted_actions", "revision", "withdrawn", "workspace", "work_shape", "updated_at", "authorized_by", "authority_expires_at", "maximum_directives", "cooldown_seconds", "withdrawal_reason", "supervisor_owner_subject", "supervisor_scope", "dispatch_authorization", "autonomous_supervision", "supervision_priority")
+    __slots__ = ("effort_ref", "display_name", "destination_ref", "target_revision", "source_revision", "authority_ref", "supervisor_run_id", "subjects", "revision", "withdrawn", "workspace", "work_shape", "updated_at", "authorized_by", "withdrawal_reason")
     EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
     DESTINATION_REF_FIELD_NUMBER: _ClassVar[int]
@@ -77,22 +49,13 @@ class EffortEnrollment(_message.Message):
     AUTHORITY_REF_FIELD_NUMBER: _ClassVar[int]
     SUPERVISOR_RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SUBJECTS_FIELD_NUMBER: _ClassVar[int]
-    PERMITTED_ACTIONS_FIELD_NUMBER: _ClassVar[int]
     REVISION_FIELD_NUMBER: _ClassVar[int]
     WITHDRAWN_FIELD_NUMBER: _ClassVar[int]
     WORKSPACE_FIELD_NUMBER: _ClassVar[int]
     WORK_SHAPE_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     AUTHORIZED_BY_FIELD_NUMBER: _ClassVar[int]
-    AUTHORITY_EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
-    MAXIMUM_DIRECTIVES_FIELD_NUMBER: _ClassVar[int]
-    COOLDOWN_SECONDS_FIELD_NUMBER: _ClassVar[int]
     WITHDRAWAL_REASON_FIELD_NUMBER: _ClassVar[int]
-    SUPERVISOR_OWNER_SUBJECT_FIELD_NUMBER: _ClassVar[int]
-    SUPERVISOR_SCOPE_FIELD_NUMBER: _ClassVar[int]
-    DISPATCH_AUTHORIZATION_FIELD_NUMBER: _ClassVar[int]
-    AUTONOMOUS_SUPERVISION_FIELD_NUMBER: _ClassVar[int]
-    SUPERVISION_PRIORITY_FIELD_NUMBER: _ClassVar[int]
     effort_ref: str
     display_name: str
     destination_ref: str
@@ -101,65 +64,14 @@ class EffortEnrollment(_message.Message):
     authority_ref: str
     supervisor_run_id: str
     subjects: _containers.RepeatedCompositeFieldContainer[EffortSubject]
-    permitted_actions: _containers.RepeatedScalarFieldContainer[_watch_pb2.WatchActionKind]
     revision: int
     withdrawn: bool
     workspace: str
     work_shape: str
     updated_at: _timestamp_pb2.Timestamp
     authorized_by: str
-    authority_expires_at: _timestamp_pb2.Timestamp
-    maximum_directives: int
-    cooldown_seconds: int
     withdrawal_reason: str
-    supervisor_owner_subject: str
-    supervisor_scope: str
-    dispatch_authorization: SupervisorDispatchAuthorization
-    autonomous_supervision: bool
-    supervision_priority: int
-    def __init__(self, effort_ref: _Optional[str] = ..., display_name: _Optional[str] = ..., destination_ref: _Optional[str] = ..., target_revision: _Optional[str] = ..., source_revision: _Optional[str] = ..., authority_ref: _Optional[str] = ..., supervisor_run_id: _Optional[str] = ..., subjects: _Optional[_Iterable[_Union[EffortSubject, _Mapping]]] = ..., permitted_actions: _Optional[_Iterable[_Union[_watch_pb2.WatchActionKind, str]]] = ..., revision: _Optional[int] = ..., withdrawn: _Optional[bool] = ..., workspace: _Optional[str] = ..., work_shape: _Optional[str] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., authorized_by: _Optional[str] = ..., authority_expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., maximum_directives: _Optional[int] = ..., cooldown_seconds: _Optional[int] = ..., withdrawal_reason: _Optional[str] = ..., supervisor_owner_subject: _Optional[str] = ..., supervisor_scope: _Optional[str] = ..., dispatch_authorization: _Optional[_Union[SupervisorDispatchAuthorization, _Mapping]] = ..., autonomous_supervision: _Optional[bool] = ..., supervision_priority: _Optional[int] = ...) -> None: ...
-
-class SupervisorDispatchAuthorization(_message.Message):
-    __slots__ = ("authorization_id", "owner_subject", "team_id", "member_id", "profile_key", "scopes", "issued_at", "expires_at", "revoked_at", "credential_hash", "target_revision", "issuance_key", "maximum_runs", "dispatched_runs", "minimum_interval_seconds", "last_dispatched_at", "max_tokens", "max_charge_micro_usd", "dispatched_run_ids")
-    AUTHORIZATION_ID_FIELD_NUMBER: _ClassVar[int]
-    OWNER_SUBJECT_FIELD_NUMBER: _ClassVar[int]
-    TEAM_ID_FIELD_NUMBER: _ClassVar[int]
-    MEMBER_ID_FIELD_NUMBER: _ClassVar[int]
-    PROFILE_KEY_FIELD_NUMBER: _ClassVar[int]
-    SCOPES_FIELD_NUMBER: _ClassVar[int]
-    ISSUED_AT_FIELD_NUMBER: _ClassVar[int]
-    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
-    REVOKED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREDENTIAL_HASH_FIELD_NUMBER: _ClassVar[int]
-    TARGET_REVISION_FIELD_NUMBER: _ClassVar[int]
-    ISSUANCE_KEY_FIELD_NUMBER: _ClassVar[int]
-    MAXIMUM_RUNS_FIELD_NUMBER: _ClassVar[int]
-    DISPATCHED_RUNS_FIELD_NUMBER: _ClassVar[int]
-    MINIMUM_INTERVAL_SECONDS_FIELD_NUMBER: _ClassVar[int]
-    LAST_DISPATCHED_AT_FIELD_NUMBER: _ClassVar[int]
-    MAX_TOKENS_FIELD_NUMBER: _ClassVar[int]
-    MAX_CHARGE_MICRO_USD_FIELD_NUMBER: _ClassVar[int]
-    DISPATCHED_RUN_IDS_FIELD_NUMBER: _ClassVar[int]
-    authorization_id: str
-    owner_subject: str
-    team_id: str
-    member_id: str
-    profile_key: str
-    scopes: _containers.RepeatedScalarFieldContainer[str]
-    issued_at: _timestamp_pb2.Timestamp
-    expires_at: _timestamp_pb2.Timestamp
-    revoked_at: _timestamp_pb2.Timestamp
-    credential_hash: str
-    target_revision: str
-    issuance_key: str
-    maximum_runs: int
-    dispatched_runs: int
-    minimum_interval_seconds: int
-    last_dispatched_at: _timestamp_pb2.Timestamp
-    max_tokens: int
-    max_charge_micro_usd: int
-    dispatched_run_ids: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, authorization_id: _Optional[str] = ..., owner_subject: _Optional[str] = ..., team_id: _Optional[str] = ..., member_id: _Optional[str] = ..., profile_key: _Optional[str] = ..., scopes: _Optional[_Iterable[str]] = ..., issued_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., revoked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., credential_hash: _Optional[str] = ..., target_revision: _Optional[str] = ..., issuance_key: _Optional[str] = ..., maximum_runs: _Optional[int] = ..., dispatched_runs: _Optional[int] = ..., minimum_interval_seconds: _Optional[int] = ..., last_dispatched_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., max_tokens: _Optional[int] = ..., max_charge_micro_usd: _Optional[int] = ..., dispatched_run_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, effort_ref: _Optional[str] = ..., display_name: _Optional[str] = ..., destination_ref: _Optional[str] = ..., target_revision: _Optional[str] = ..., source_revision: _Optional[str] = ..., authority_ref: _Optional[str] = ..., supervisor_run_id: _Optional[str] = ..., subjects: _Optional[_Iterable[_Union[EffortSubject, _Mapping]]] = ..., revision: _Optional[int] = ..., withdrawn: _Optional[bool] = ..., workspace: _Optional[str] = ..., work_shape: _Optional[str] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., authorized_by: _Optional[str] = ..., withdrawal_reason: _Optional[str] = ...) -> None: ...
 
 class EffortDiscoveryFinding(_message.Message):
     __slots__ = ("source", "code", "reason")
@@ -298,7 +210,7 @@ class EffortOutcomeStanding(_message.Message):
     def __init__(self, state: _Optional[str] = ..., attribution: _Optional[str] = ..., evidence_refs: _Optional[_Iterable[str]] = ..., met_count: _Optional[int] = ..., required_count: _Optional[int] = ..., limitations: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class EffortBoardRow(_message.Message):
-    __slots__ = ("enrollment", "observed_at", "freshness", "runtime_state", "outcome_standing", "assignments", "pending_operations", "blockers", "next_action", "rationale", "usage", "directives", "limitations", "evidence_refs", "change_identity", "last_assessment", "visibility_change_identity", "quota_observations")
+    __slots__ = ("enrollment", "observed_at", "freshness", "runtime_state", "outcome_standing", "assignments", "pending_operations", "blockers", "next_action", "rationale", "usage", "limitations", "evidence_refs", "change_identity", "visibility_change_identity", "quota_observations")
     ENROLLMENT_FIELD_NUMBER: _ClassVar[int]
     OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
     FRESHNESS_FIELD_NUMBER: _ClassVar[int]
@@ -310,11 +222,9 @@ class EffortBoardRow(_message.Message):
     NEXT_ACTION_FIELD_NUMBER: _ClassVar[int]
     RATIONALE_FIELD_NUMBER: _ClassVar[int]
     USAGE_FIELD_NUMBER: _ClassVar[int]
-    DIRECTIVES_FIELD_NUMBER: _ClassVar[int]
     LIMITATIONS_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_REFS_FIELD_NUMBER: _ClassVar[int]
     CHANGE_IDENTITY_FIELD_NUMBER: _ClassVar[int]
-    LAST_ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
     VISIBILITY_CHANGE_IDENTITY_FIELD_NUMBER: _ClassVar[int]
     QUOTA_OBSERVATIONS_FIELD_NUMBER: _ClassVar[int]
     enrollment: EffortEnrollment
@@ -328,14 +238,12 @@ class EffortBoardRow(_message.Message):
     next_action: str
     rationale: str
     usage: EffortUsage
-    directives: _containers.RepeatedCompositeFieldContainer[EffortDirective]
     limitations: _containers.RepeatedScalarFieldContainer[str]
     evidence_refs: _containers.RepeatedScalarFieldContainer[str]
     change_identity: str
-    last_assessment: EffortAssessment
     visibility_change_identity: str
     quota_observations: _containers.RepeatedCompositeFieldContainer[EffortQuotaObservation]
-    def __init__(self, enrollment: _Optional[_Union[EffortEnrollment, _Mapping]] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., freshness: _Optional[_Union[EffortFreshness, str]] = ..., runtime_state: _Optional[str] = ..., outcome_standing: _Optional[_Union[EffortOutcomeStanding, _Mapping]] = ..., assignments: _Optional[_Iterable[_Union[EffortAssignment, _Mapping]]] = ..., pending_operations: _Optional[_Iterable[str]] = ..., blockers: _Optional[_Iterable[str]] = ..., next_action: _Optional[str] = ..., rationale: _Optional[str] = ..., usage: _Optional[_Union[EffortUsage, _Mapping]] = ..., directives: _Optional[_Iterable[_Union[EffortDirective, _Mapping]]] = ..., limitations: _Optional[_Iterable[str]] = ..., evidence_refs: _Optional[_Iterable[str]] = ..., change_identity: _Optional[str] = ..., last_assessment: _Optional[_Union[EffortAssessment, _Mapping]] = ..., visibility_change_identity: _Optional[str] = ..., quota_observations: _Optional[_Iterable[_Union[EffortQuotaObservation, _Mapping]]] = ...) -> None: ...
+    def __init__(self, enrollment: _Optional[_Union[EffortEnrollment, _Mapping]] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., freshness: _Optional[_Union[EffortFreshness, str]] = ..., runtime_state: _Optional[str] = ..., outcome_standing: _Optional[_Union[EffortOutcomeStanding, _Mapping]] = ..., assignments: _Optional[_Iterable[_Union[EffortAssignment, _Mapping]]] = ..., pending_operations: _Optional[_Iterable[str]] = ..., blockers: _Optional[_Iterable[str]] = ..., next_action: _Optional[str] = ..., rationale: _Optional[str] = ..., usage: _Optional[_Union[EffortUsage, _Mapping]] = ..., limitations: _Optional[_Iterable[str]] = ..., evidence_refs: _Optional[_Iterable[str]] = ..., change_identity: _Optional[str] = ..., visibility_change_identity: _Optional[str] = ..., quota_observations: _Optional[_Iterable[_Union[EffortQuotaObservation, _Mapping]]] = ...) -> None: ...
 
 class EffortBoard(_message.Message):
     __slots__ = ("rows", "discovery", "observed_at", "active_count", "partial", "limitations", "next_page_token", "change_identity", "quota_observations")
@@ -424,244 +332,3 @@ class WithdrawEffortRequest(_message.Message):
 class ReconcileEffortDiscoveryRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
-
-class EffortDirective(_message.Message):
-    __slots__ = ("directive_id", "effort_ref", "target_revision", "issuer", "target_run_id", "kind", "scope", "evidence_refs", "adjustment", "expected_result", "expires_at", "idempotency_key", "delivery", "acknowledgment", "acknowledgment_reason", "owner_wait_ref", "action_ref", "assessment", "assessment_evidence_refs", "superseded_by", "revision", "created_at", "delivered_at", "delivery_reason", "source_snapshot", "supervision_usage", "hypothesis", "comparison", "recovery_expectation", "recovery_verification", "authority_binding", "refusal_before_effects", "recovered_run_id")
-    DIRECTIVE_ID_FIELD_NUMBER: _ClassVar[int]
-    EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
-    TARGET_REVISION_FIELD_NUMBER: _ClassVar[int]
-    ISSUER_FIELD_NUMBER: _ClassVar[int]
-    TARGET_RUN_ID_FIELD_NUMBER: _ClassVar[int]
-    KIND_FIELD_NUMBER: _ClassVar[int]
-    SCOPE_FIELD_NUMBER: _ClassVar[int]
-    EVIDENCE_REFS_FIELD_NUMBER: _ClassVar[int]
-    ADJUSTMENT_FIELD_NUMBER: _ClassVar[int]
-    EXPECTED_RESULT_FIELD_NUMBER: _ClassVar[int]
-    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
-    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
-    DELIVERY_FIELD_NUMBER: _ClassVar[int]
-    ACKNOWLEDGMENT_FIELD_NUMBER: _ClassVar[int]
-    ACKNOWLEDGMENT_REASON_FIELD_NUMBER: _ClassVar[int]
-    OWNER_WAIT_REF_FIELD_NUMBER: _ClassVar[int]
-    ACTION_REF_FIELD_NUMBER: _ClassVar[int]
-    ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
-    ASSESSMENT_EVIDENCE_REFS_FIELD_NUMBER: _ClassVar[int]
-    SUPERSEDED_BY_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
-    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
-    DELIVERED_AT_FIELD_NUMBER: _ClassVar[int]
-    DELIVERY_REASON_FIELD_NUMBER: _ClassVar[int]
-    SOURCE_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
-    SUPERVISION_USAGE_FIELD_NUMBER: _ClassVar[int]
-    HYPOTHESIS_FIELD_NUMBER: _ClassVar[int]
-    COMPARISON_FIELD_NUMBER: _ClassVar[int]
-    RECOVERY_EXPECTATION_FIELD_NUMBER: _ClassVar[int]
-    RECOVERY_VERIFICATION_FIELD_NUMBER: _ClassVar[int]
-    AUTHORITY_BINDING_FIELD_NUMBER: _ClassVar[int]
-    REFUSAL_BEFORE_EFFECTS_FIELD_NUMBER: _ClassVar[int]
-    RECOVERED_RUN_ID_FIELD_NUMBER: _ClassVar[int]
-    directive_id: str
-    effort_ref: str
-    target_revision: str
-    issuer: str
-    target_run_id: str
-    kind: _watch_pb2.WatchActionKind
-    scope: str
-    evidence_refs: _containers.RepeatedScalarFieldContainer[str]
-    adjustment: str
-    expected_result: str
-    expires_at: _timestamp_pb2.Timestamp
-    idempotency_key: str
-    delivery: EffortDirectiveDelivery
-    acknowledgment: EffortDirectiveAcknowledgment
-    acknowledgment_reason: str
-    owner_wait_ref: str
-    action_ref: str
-    assessment: str
-    assessment_evidence_refs: _containers.RepeatedScalarFieldContainer[str]
-    superseded_by: str
-    revision: int
-    created_at: _timestamp_pb2.Timestamp
-    delivered_at: _timestamp_pb2.Timestamp
-    delivery_reason: str
-    source_snapshot: EffortBoardRow
-    supervision_usage: EffortUsage
-    hypothesis: str
-    comparison: str
-    recovery_expectation: EffortRecoveryExpectation
-    recovery_verification: EffortRecoveryVerification
-    authority_binding: EffortDirectiveAuthorityBinding
-    refusal_before_effects: bool
-    recovered_run_id: str
-    def __init__(self, directive_id: _Optional[str] = ..., effort_ref: _Optional[str] = ..., target_revision: _Optional[str] = ..., issuer: _Optional[str] = ..., target_run_id: _Optional[str] = ..., kind: _Optional[_Union[_watch_pb2.WatchActionKind, str]] = ..., scope: _Optional[str] = ..., evidence_refs: _Optional[_Iterable[str]] = ..., adjustment: _Optional[str] = ..., expected_result: _Optional[str] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., idempotency_key: _Optional[str] = ..., delivery: _Optional[_Union[EffortDirectiveDelivery, str]] = ..., acknowledgment: _Optional[_Union[EffortDirectiveAcknowledgment, str]] = ..., acknowledgment_reason: _Optional[str] = ..., owner_wait_ref: _Optional[str] = ..., action_ref: _Optional[str] = ..., assessment: _Optional[str] = ..., assessment_evidence_refs: _Optional[_Iterable[str]] = ..., superseded_by: _Optional[str] = ..., revision: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., delivered_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., delivery_reason: _Optional[str] = ..., source_snapshot: _Optional[_Union[EffortBoardRow, _Mapping]] = ..., supervision_usage: _Optional[_Union[EffortUsage, _Mapping]] = ..., hypothesis: _Optional[str] = ..., comparison: _Optional[str] = ..., recovery_expectation: _Optional[_Union[EffortRecoveryExpectation, _Mapping]] = ..., recovery_verification: _Optional[_Union[EffortRecoveryVerification, _Mapping]] = ..., authority_binding: _Optional[_Union[EffortDirectiveAuthorityBinding, _Mapping]] = ..., refusal_before_effects: _Optional[bool] = ..., recovered_run_id: _Optional[str] = ...) -> None: ...
-
-class EffortDirectiveAuthorityBinding(_message.Message):
-    __slots__ = ("mode", "subject", "scope")
-    MODE_FIELD_NUMBER: _ClassVar[int]
-    SUBJECT_FIELD_NUMBER: _ClassVar[int]
-    SCOPE_FIELD_NUMBER: _ClassVar[int]
-    mode: str
-    subject: str
-    scope: str
-    def __init__(self, mode: _Optional[str] = ..., subject: _Optional[str] = ..., scope: _Optional[str] = ...) -> None: ...
-
-class EffortRecoveryExpectation(_message.Message):
-    __slots__ = ("progress_condition", "baseline_evidence_refs")
-    PROGRESS_CONDITION_FIELD_NUMBER: _ClassVar[int]
-    BASELINE_EVIDENCE_REFS_FIELD_NUMBER: _ClassVar[int]
-    progress_condition: str
-    baseline_evidence_refs: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, progress_condition: _Optional[str] = ..., baseline_evidence_refs: _Optional[_Iterable[str]] = ...) -> None: ...
-
-class EffortRecoveryVerification(_message.Message):
-    __slots__ = ("state", "reason", "evidence_refs", "observed_at", "next_owner_condition", "verifier")
-    STATE_FIELD_NUMBER: _ClassVar[int]
-    REASON_FIELD_NUMBER: _ClassVar[int]
-    EVIDENCE_REFS_FIELD_NUMBER: _ClassVar[int]
-    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
-    NEXT_OWNER_CONDITION_FIELD_NUMBER: _ClassVar[int]
-    VERIFIER_FIELD_NUMBER: _ClassVar[int]
-    state: str
-    reason: str
-    evidence_refs: _containers.RepeatedScalarFieldContainer[str]
-    observed_at: _timestamp_pb2.Timestamp
-    next_owner_condition: str
-    verifier: str
-    def __init__(self, state: _Optional[str] = ..., reason: _Optional[str] = ..., evidence_refs: _Optional[_Iterable[str]] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., next_owner_condition: _Optional[str] = ..., verifier: _Optional[str] = ...) -> None: ...
-
-class EffortRepairLink(_message.Message):
-    __slots__ = ("work_ref", "assigning_owner_ref", "next_operation", "completion_evidence_refs", "stopping_condition", "state")
-    WORK_REF_FIELD_NUMBER: _ClassVar[int]
-    ASSIGNING_OWNER_REF_FIELD_NUMBER: _ClassVar[int]
-    NEXT_OPERATION_FIELD_NUMBER: _ClassVar[int]
-    COMPLETION_EVIDENCE_REFS_FIELD_NUMBER: _ClassVar[int]
-    STOPPING_CONDITION_FIELD_NUMBER: _ClassVar[int]
-    STATE_FIELD_NUMBER: _ClassVar[int]
-    work_ref: str
-    assigning_owner_ref: str
-    next_operation: str
-    completion_evidence_refs: _containers.RepeatedScalarFieldContainer[str]
-    stopping_condition: str
-    state: str
-    def __init__(self, work_ref: _Optional[str] = ..., assigning_owner_ref: _Optional[str] = ..., next_operation: _Optional[str] = ..., completion_evidence_refs: _Optional[_Iterable[str]] = ..., stopping_condition: _Optional[str] = ..., state: _Optional[str] = ...) -> None: ...
-
-class RequestEffortDirectiveRequest(_message.Message):
-    __slots__ = ("directive", "expected_enrollment_revision", "authority")
-    DIRECTIVE_FIELD_NUMBER: _ClassVar[int]
-    EXPECTED_ENROLLMENT_REVISION_FIELD_NUMBER: _ClassVar[int]
-    AUTHORITY_FIELD_NUMBER: _ClassVar[int]
-    directive: EffortDirective
-    expected_enrollment_revision: int
-    authority: _watch_pb2.WatchAuthority
-    def __init__(self, directive: _Optional[_Union[EffortDirective, _Mapping]] = ..., expected_enrollment_revision: _Optional[int] = ..., authority: _Optional[_Union[_watch_pb2.WatchAuthority, str]] = ...) -> None: ...
-
-class ListEffortDirectivesRequest(_message.Message):
-    __slots__ = ("effort_ref", "page_size", "page_token")
-    EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
-    PAGE_SIZE_FIELD_NUMBER: _ClassVar[int]
-    PAGE_TOKEN_FIELD_NUMBER: _ClassVar[int]
-    effort_ref: str
-    page_size: int
-    page_token: str
-    def __init__(self, effort_ref: _Optional[str] = ..., page_size: _Optional[int] = ..., page_token: _Optional[str] = ...) -> None: ...
-
-class ListEffortDirectivesResponse(_message.Message):
-    __slots__ = ("directives", "next_page_token")
-    DIRECTIVES_FIELD_NUMBER: _ClassVar[int]
-    NEXT_PAGE_TOKEN_FIELD_NUMBER: _ClassVar[int]
-    directives: _containers.RepeatedCompositeFieldContainer[EffortDirective]
-    next_page_token: str
-    def __init__(self, directives: _Optional[_Iterable[_Union[EffortDirective, _Mapping]]] = ..., next_page_token: _Optional[str] = ...) -> None: ...
-
-class UpdateEffortDirectiveRequest(_message.Message):
-    __slots__ = ("directive_id", "expected_revision", "idempotency_key", "authority", "acknowledgment", "reason", "owner_wait_ref", "action_ref", "assessment", "evidence_refs", "superseded_by", "supervision_usage", "recovery_verification", "reconcile_delivery")
-    DIRECTIVE_ID_FIELD_NUMBER: _ClassVar[int]
-    EXPECTED_REVISION_FIELD_NUMBER: _ClassVar[int]
-    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
-    AUTHORITY_FIELD_NUMBER: _ClassVar[int]
-    ACKNOWLEDGMENT_FIELD_NUMBER: _ClassVar[int]
-    REASON_FIELD_NUMBER: _ClassVar[int]
-    OWNER_WAIT_REF_FIELD_NUMBER: _ClassVar[int]
-    ACTION_REF_FIELD_NUMBER: _ClassVar[int]
-    ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
-    EVIDENCE_REFS_FIELD_NUMBER: _ClassVar[int]
-    SUPERSEDED_BY_FIELD_NUMBER: _ClassVar[int]
-    SUPERVISION_USAGE_FIELD_NUMBER: _ClassVar[int]
-    RECOVERY_VERIFICATION_FIELD_NUMBER: _ClassVar[int]
-    RECONCILE_DELIVERY_FIELD_NUMBER: _ClassVar[int]
-    directive_id: str
-    expected_revision: int
-    idempotency_key: str
-    authority: _watch_pb2.WatchAuthority
-    acknowledgment: EffortDirectiveAcknowledgment
-    reason: str
-    owner_wait_ref: str
-    action_ref: str
-    assessment: str
-    evidence_refs: _containers.RepeatedScalarFieldContainer[str]
-    superseded_by: str
-    supervision_usage: EffortUsage
-    recovery_verification: EffortRecoveryVerification
-    reconcile_delivery: bool
-    def __init__(self, directive_id: _Optional[str] = ..., expected_revision: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., authority: _Optional[_Union[_watch_pb2.WatchAuthority, str]] = ..., acknowledgment: _Optional[_Union[EffortDirectiveAcknowledgment, str]] = ..., reason: _Optional[str] = ..., owner_wait_ref: _Optional[str] = ..., action_ref: _Optional[str] = ..., assessment: _Optional[str] = ..., evidence_refs: _Optional[_Iterable[str]] = ..., superseded_by: _Optional[str] = ..., supervision_usage: _Optional[_Union[EffortUsage, _Mapping]] = ..., recovery_verification: _Optional[_Union[EffortRecoveryVerification, _Mapping]] = ..., reconcile_delivery: _Optional[bool] = ...) -> None: ...
-
-class EffortAssessment(_message.Message):
-    __slots__ = ("assessment_id", "effort_refs", "target_revisions", "supervisor_run_id", "disposition", "rationale", "evidence_refs", "source_ledger_ref", "shared_operation_ref", "allowance_ref", "allocation_rule", "observed_usage", "unallocated_usage", "observed_at", "idempotency_key", "hypothesis", "comparison", "benefit", "policy_version", "limitations", "repair_links")
-    class TargetRevisionsEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: str
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
-    ASSESSMENT_ID_FIELD_NUMBER: _ClassVar[int]
-    EFFORT_REFS_FIELD_NUMBER: _ClassVar[int]
-    TARGET_REVISIONS_FIELD_NUMBER: _ClassVar[int]
-    SUPERVISOR_RUN_ID_FIELD_NUMBER: _ClassVar[int]
-    DISPOSITION_FIELD_NUMBER: _ClassVar[int]
-    RATIONALE_FIELD_NUMBER: _ClassVar[int]
-    EVIDENCE_REFS_FIELD_NUMBER: _ClassVar[int]
-    SOURCE_LEDGER_REF_FIELD_NUMBER: _ClassVar[int]
-    SHARED_OPERATION_REF_FIELD_NUMBER: _ClassVar[int]
-    ALLOWANCE_REF_FIELD_NUMBER: _ClassVar[int]
-    ALLOCATION_RULE_FIELD_NUMBER: _ClassVar[int]
-    OBSERVED_USAGE_FIELD_NUMBER: _ClassVar[int]
-    UNALLOCATED_USAGE_FIELD_NUMBER: _ClassVar[int]
-    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
-    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
-    HYPOTHESIS_FIELD_NUMBER: _ClassVar[int]
-    COMPARISON_FIELD_NUMBER: _ClassVar[int]
-    BENEFIT_FIELD_NUMBER: _ClassVar[int]
-    POLICY_VERSION_FIELD_NUMBER: _ClassVar[int]
-    LIMITATIONS_FIELD_NUMBER: _ClassVar[int]
-    REPAIR_LINKS_FIELD_NUMBER: _ClassVar[int]
-    assessment_id: str
-    effort_refs: _containers.RepeatedScalarFieldContainer[str]
-    target_revisions: _containers.ScalarMap[str, str]
-    supervisor_run_id: str
-    disposition: str
-    rationale: str
-    evidence_refs: _containers.RepeatedScalarFieldContainer[str]
-    source_ledger_ref: str
-    shared_operation_ref: str
-    allowance_ref: str
-    allocation_rule: str
-    observed_usage: EffortUsage
-    unallocated_usage: EffortUsage
-    observed_at: _timestamp_pb2.Timestamp
-    idempotency_key: str
-    hypothesis: str
-    comparison: str
-    benefit: str
-    policy_version: str
-    limitations: _containers.RepeatedScalarFieldContainer[str]
-    repair_links: _containers.RepeatedCompositeFieldContainer[EffortRepairLink]
-    def __init__(self, assessment_id: _Optional[str] = ..., effort_refs: _Optional[_Iterable[str]] = ..., target_revisions: _Optional[_Mapping[str, str]] = ..., supervisor_run_id: _Optional[str] = ..., disposition: _Optional[str] = ..., rationale: _Optional[str] = ..., evidence_refs: _Optional[_Iterable[str]] = ..., source_ledger_ref: _Optional[str] = ..., shared_operation_ref: _Optional[str] = ..., allowance_ref: _Optional[str] = ..., allocation_rule: _Optional[str] = ..., observed_usage: _Optional[_Union[EffortUsage, _Mapping]] = ..., unallocated_usage: _Optional[_Union[EffortUsage, _Mapping]] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., idempotency_key: _Optional[str] = ..., hypothesis: _Optional[str] = ..., comparison: _Optional[str] = ..., benefit: _Optional[str] = ..., policy_version: _Optional[str] = ..., limitations: _Optional[_Iterable[str]] = ..., repair_links: _Optional[_Iterable[_Union[EffortRepairLink, _Mapping]]] = ...) -> None: ...
-
-class RecordEffortAssessmentRequest(_message.Message):
-    __slots__ = ("assessment", "authority")
-    ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
-    AUTHORITY_FIELD_NUMBER: _ClassVar[int]
-    assessment: EffortAssessment
-    authority: _watch_pb2.WatchAuthority
-    def __init__(self, assessment: _Optional[_Union[EffortAssessment, _Mapping]] = ..., authority: _Optional[_Union[_watch_pb2.WatchAuthority, str]] = ...) -> None: ...

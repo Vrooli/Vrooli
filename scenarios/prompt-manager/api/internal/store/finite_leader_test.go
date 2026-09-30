@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 
@@ -16,7 +17,7 @@ func finiteConfig() *HeartbeatConfig {
 }
 
 func TestFiniteLeaderConfigPreservesIdentityAndRetirement(t *testing.T) {
-	for _, mutation := range []string{"effort", "revision", "prompt", "sources", "profile", "remove", "supervision", "unretire"} {
+	for _, mutation := range []string{"effort", "revision", "prompt", "sources", "profile", "remove", "unretire"} {
 		t.Run(mutation, func(t *testing.T) {
 			s := setupStateTestStore(t)
 			ctx := context.Background()
@@ -39,8 +40,6 @@ func TestFiniteLeaderConfigPreservesIdentityAndRetirement(t *testing.T) {
 				updated.ProfileKey = "different-profile"
 			case "remove":
 				updated.FiniteLeader = nil
-			case "supervision":
-				updated.Supervision = &teamconfig.Supervision{}
 			case "unretire":
 				updated.FiniteLeader.Retired = false
 			}
@@ -55,6 +54,38 @@ func TestFiniteLeaderConfigPreservesIdentityAndRetirement(t *testing.T) {
 				t.Fatalf("disable/retire refused: %v", err)
 			}
 		})
+	}
+}
+
+func TestFiniteLeaderKeepAliveIsPolicyNotIdentity(t *testing.T) {
+	s := setupStateTestStore(t)
+	ctx := context.Background()
+	if err := s.SetHeartbeatConfig(ctx, "team-1", "agent-1", finiteConfig()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ReadFiniteLeader(ctx, "team-1", "agent-1"); err != nil {
+		t.Fatal(err)
+	}
+	updated, _ := s.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+	updated.FiniteLeader.KeepAlive = true
+	if err := s.SetHeartbeatConfig(ctx, "team-1", "agent-1", updated); err != nil {
+		t.Fatalf("declaring liveness on a bound leader refused: %v", err)
+	}
+	if _, err := s.ReadFiniteLeader(ctx, "team-1", "agent-1"); err != nil {
+		t.Fatalf("existing reservation conflicts after declaring liveness: %v", err)
+	}
+}
+
+func TestFiniteLeaderRestartHistoryKeepsNewestRecords(t *testing.T) {
+	state := &FiniteLeaderState{}
+	for i := 0; i < MaxFiniteLeaderRestartHistory+5; i++ {
+		state.RecordRestart(FiniteLeaderRestart{RunID: fmt.Sprintf("run-%d", i)})
+	}
+	if len(state.RestartHistory) != MaxFiniteLeaderRestartHistory {
+		t.Fatalf("restart history = %d records, want %d", len(state.RestartHistory), MaxFiniteLeaderRestartHistory)
+	}
+	if last := state.RestartHistory[len(state.RestartHistory)-1].RunID; last != fmt.Sprintf("run-%d", MaxFiniteLeaderRestartHistory+4) {
+		t.Fatalf("newest restart dropped; last = %s", last)
 	}
 }
 

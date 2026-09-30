@@ -131,7 +131,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandStart), Group: "Lifecycle and Utility Commands", Summary: "Start a scenario", Handler: CommandStart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true, Repeatable: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--demand-managed", Description: "Tie this instance to renewable demand leases"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--force-lifecycle", Description: "Emergency restart: override drain-only lifecycle blockers"}, {Name: "--lifecycle-override-reason", ValueName: "reason", Description: "Audit reason required with --force-lifecycle"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole start (not the expected duration); on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--demand-managed", Description: "Tie this instance to renewable demand leases"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--variant-dependencies", ValueName: "scenarios", Description: "Comma-separated dependencies this non-live instance resolves at its own variant instead of live (no live fallback)"}, {Name: "--force-lifecycle", Description: "Emergency restart: override drain-only lifecycle blockers"}, {Name: "--lifecycle-override-reason", ValueName: "reason", Description: "Audit reason required with --force-lifecycle"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole start (not the expected duration); on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
 			},
 		},
 		{
@@ -146,7 +146,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandRestart), Group: "Lifecycle and Utility Commands", Summary: "Restart a scenario", Handler: CommandRestart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--demand-managed", Description: "Tie this instance to renewable demand leases"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--force-lifecycle", Description: "Emergency restart: override drain-only lifecycle blockers"}, {Name: "--lifecycle-override-reason", ValueName: "reason", Description: "Audit reason required with --force-lifecycle"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--demand-managed", Description: "Tie this instance to renewable demand leases"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--variant-dependencies", ValueName: "scenarios", Description: "Comma-separated dependencies this non-live instance resolves at its own variant instead of live (no live fallback)"}, {Name: "--force-lifecycle", Description: "Emergency restart: override drain-only lifecycle blockers"}, {Name: "--lifecycle-override-reason", ValueName: "reason", Description: "Audit reason required with --force-lifecycle"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
 			},
 		},
 		{
@@ -326,6 +326,21 @@ type ScenarioStartArgs struct {
 	TimeoutSeconds int
 }
 
+// splitListFlag splits a comma- or space-separated flag value into its
+// non-empty entries. The lifecycle validates the names.
+func splitListFlag(value string) []string {
+	out := []string{}
+	for _, field := range strings.FieldsFunc(value, func(r rune) bool { return r == ',' || r == ' ' }) {
+		if trimmed := strings.TrimSpace(field); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 func ParseScenarioStartArgs(defaultJSON bool, args []string) (ScenarioStartArgs, error) {
 	spec := commandSpec(CommandStart)
 	parsed, err := commandtree.ParseArgs("scenario start", commandHelpText(CommandStart), spec.Args, args)
@@ -340,6 +355,7 @@ func ParseScenarioStartArgs(defaultJSON bool, args []string) (ScenarioStartArgs,
 			ForceLifecycle:          parsed.HasFlag("--force-lifecycle"),
 			LifecycleOverrideReason: parsed.FlagValue("--lifecycle-override-reason"),
 			AcceptCredentialLoss:    parsed.HasFlag("--accept-credential-loss"),
+			VariantDependencies:     splitListFlag(parsed.FlagValue("--variant-dependencies")),
 			DemandManaged:           parsed.HasFlag("--demand-managed"),
 			CustomPath:              parsed.FlagValue("--path"),
 		},

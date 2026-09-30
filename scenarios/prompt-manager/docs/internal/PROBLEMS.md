@@ -83,8 +83,6 @@ Agent-maintained document tracking issues, debt, and cleanup history.
   broader UI assertions and the API-unit no-output deadline. Existing world
   observation: `knw-1789196870044782367`; timeout observation:
   `knw-1789240789686855923`. No baseline comparison or whole-suite pass is claimed.
-  Current runtime recovery receipts and remaining acceptance are recorded in
-  `path:docs/agent-system/effort-supervision-validation.md` at repository root.
 
 ## 2026-09-12 — Bounded Test Genie unit-gate consolidation
 
@@ -236,8 +234,7 @@ Agent-maintained document tracking issues, debt, and cleanup history.
   filter exception with populated and empty rosters; afterward 32 focused tests
   pass across four files and `pnpm exec tsc --noEmit` passes. Cases cover REST
   and Connect, null/omitted/empty lists, populated lists and an offset beyond
-  the last page. Live rebuilt-asset validation and Test Genie receipt are
-  recorded in `docs/agent-system/effort-supervision-validation.md` at repo root.
+  the last page.
 - Prior-art recall found `rec-b6af210dbf97d24e`, related request/protobuf
   normalization work; it did not cover this response-side empty collection.
 
@@ -337,68 +334,6 @@ No release hold remains for this defect. Qualification is local test evidence,
 not a live pilot receipt or a new scenario-wide Test Genie qualification. No
 lifecycle, live-team configuration, AM or `effort_supervision*.go` edits were
 made in this focused repair.
-
-## Work ladder — standing effort supervision (2026-09-12)
-
-- Rung: W3, scoped implementation under the supplied ES-09/10/13 contract.
-- Evidence: existing scheduler enqueues every enabled tick without evidence
-  admission; team recovery drops uncertain run reads. The standing supervisor
-  needs durable admission fencing independent of transient queue visibility.
-- Scope: PM heartbeat/team/context seam; AM discovery and directive authority
-  remain behind a consumer-owned port. No full W0–W2 readiness claim.
-- Target: `docs/concepts/HEARTBEATS.md`, Standing effort supervision.
-
-Qualification handoff (2026-09-12, PM implementation only):
-
-- Passed full `go test ./internal/heartbeat ./internal/teamconfig
-  ./internal/teamcontract ./internal/store -count=1` and main-package compile.
-- Passed race-enabled `TestStandingSupervisor*`, including AM adapter receipts,
-  self-assessment/no-wake versus concurrent subject-change preservation, failed
-  and cancelled unassessed recovery, quota charges, bounded healthy samples,
-  restart/uncertainty and delete/recreate fencing. Passed live-tree member
-  declaration/member-document gates and CLI `go test ./teams -count=1`.
-- Test Genie unit run `20260912-065400-fefe5bd5` failed. Its new-team headings and
-  role/member drift were repaired and their focused gates passed afterward.
-  Adding this peer team also requires main-owned generated operating-graph
-  updates in the meta-optimization and scenario-qa owner docs. The run's separate
-  UI world/synthetic-roster failures are retained in Scenario QA record
-  `knw-1789196870044782367`. Broader architecture/coverage findings remain; this
-  handoff does not claim a green scenario-wide unit receipt.
-- AM must provide a subject-evidence row identity that excludes the supervisor's
-  own assessment/accounting. PM tests explicitly require this contract and never
-  mark an unrelated latest subject cut served from an older wake's receipt.
-- No service restart, live supervisor launch, global policy change or pilot
-  activation was performed by this worker. See `reference/heartbeat-cli.md` for
-  staged configuration, activation, status and stop operations. Main owns live
-  role-token/assessment qualification, bounded pilot and steering-grant checks.
-
-Focused integration follow-up (2026-09-12):
-
-- Removed enrollment CAS revision from AM-client wake identity. Fixtures change
-  CAS on dispatch revalidation and repeated joins without waking, while target
-  or subject-evidence changes remain eligible.
-- Wake prompts name `agent-manager effort assess --request-file <request.json>
-  --json` and include a generated typed receipt skeleton. They require the actual
-  AM-signed caller and observed-supervisor membership, not a team knowledge-only
-  receipt. Owner credentials and optional steering grants do not gate observation.
-- PM CreateRun carries public/active/verified effort WorkReferences for exactly
-  the selected efforts, with relationship `supervisor`. No private token store,
-  local human exchange, signing key or auto-grant path was added.
-- The initial frozen AM generated CreateRun contract rejects `work_references`.
-  `TestStandingSupervisorCreateRunGeneratedWorkReferenceContract` catches this
-  explicitly; main owns exposing and persisting the field before live adoption.
-  The race-enabled supervisor run reported this sole failure (2.821s); other
-  cases passed. This receipt does not qualify end-to-end live observation.
-- Retained valid target/evidence identity now permits stale/unavailable uncertainty
-  assessment, explicitly observation-only. Invalid identity rows are excluded
-  without losing valid siblings. Healthy sampling excludes observation-only cuts;
-  stale-transition and unchanged-suppression fixtures cover this boundary.
-- Empty accepted target revision is valid for uncertainty assessment. PM requires
-  effort/evidence/board identity, keeps the exact empty value in the typed receipt
-  map and requires that map key to be present when checking coverage. Missing
-  accepted target forces observation-only standing, not exclusion or steering.
-  Final race-enabled supervisor test run (2.301s) still reports only the generated
-  AM CreateRun `work_references` wire failure; all PM behavior cases pass.
 
 ## 2026-09-04 — Workflow runner loses leading navigation context
 

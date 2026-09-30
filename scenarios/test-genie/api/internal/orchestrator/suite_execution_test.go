@@ -15,7 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"test-genie/internal/orchestrator/applicability"
 	"test-genie/internal/orchestrator/phasecache"
 	"test-genie/internal/orchestrator/phasecacheidentity"
 	phasespkg "test-genie/internal/orchestrator/phases"
@@ -800,32 +799,6 @@ func TestSuiteOrchestratorPhasePlanRequiresDescriptorMetadata(t *testing.T) {
 	}
 }
 
-func TestCheckedInBASRetainedEvidencePhasePlansWithoutMutableEvidenceFiles(t *testing.T) {
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source path")
-	}
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../../"))
-	orchestrator, err := NewSuiteOrchestrator(filepath.Join(repoRoot, "scenarios"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	scenarioDir := t.TempDir()
-	plan, err := orchestrator.buildPhasePlan(workspacepkg.Environment{
-		ScenarioName: "browser-automation-studio", TargetKind: "scenario", TargetID: "browser-automation-studio",
-		TargetRoot: scenarioDir, ScenarioDir: scenarioDir,
-	}, &workspacepkg.Config{}, SuiteExecutionRequest{Phases: []string{"rehabilitation-evidence"}})
-	if err != nil {
-		t.Fatalf("BAS evidence phase was skipped without source-tree evidence: %v", err)
-	}
-	if got := plan.Applicability["rehabilitation-evidence"].Result.Status; got != applicability.StatusApplies {
-		t.Fatalf("BAS retained-evidence phase status=%s", got)
-	}
-	if len(plan.Selected) != 1 || plan.Selected[0].Name.Key() != "rehabilitation-evidence" {
-		t.Fatalf("selected phases=%v", definitionNames(plan.Selected))
-	}
-}
-
 func TestSuiteOrchestratorExecuteCapturesSelectionMetadata(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-META-P0] execution results retain requested and planned phase metadata", func(t *testing.T) {
 		root := t.TempDir()
@@ -1160,8 +1133,8 @@ func TestSuiteOrchestratorFailFastStopsExecution(t *testing.T) {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
 		stubRuntimePhaseRunners(orchestrator)
-		// Force structure to fail so fail-fast halts the rest. Portability is a
-		// descriptor-discovered prerequisite and therefore runs before structure;
+		// Force structure to fail so fail-fast halts the rest. Descriptor-
+		// discovered prerequisites (including portability) run before structure;
 		// the failure is injected via the runner rather than by corrupting the
 		// fake layout.
 		orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Name("structure"), Runner: func(ctx context.Context, env workspacepkg.Environment, logWriter io.Writer) phasespkg.RunReport {
@@ -1180,14 +1153,20 @@ func TestSuiteOrchestratorFailFastStopsExecution(t *testing.T) {
 		if result.Success {
 			t.Fatalf("expected failure when first phase exits non-zero")
 		}
-		if len(result.Phases) != 2 {
-			t.Fatalf("expected portability plus the failing structure phase, got %d", len(result.Phases))
+		if len(result.Phases) < 2 {
+			t.Fatalf("expected at least one prerequisite plus the failing structure phase, got %d", len(result.Phases))
 		}
 		if result.Phases[0].Name != "portability" || result.Phases[0].Status != "passed" {
 			t.Fatalf("unexpected portability phase result: %#v", result.Phases[0])
 		}
-		if result.Phases[1].Name != "structure" || result.Phases[1].Status != "failed" {
-			t.Fatalf("unexpected structure phase result: %#v", result.Phases[1])
+		for _, prerequisite := range result.Phases[:len(result.Phases)-1] {
+			if prerequisite.Status != "passed" {
+				t.Fatalf("fail-fast ran a prerequisite that did not pass: %#v", prerequisite)
+			}
+		}
+		last := result.Phases[len(result.Phases)-1]
+		if last.Name != "structure" || last.Status != "failed" {
+			t.Fatalf("unexpected terminal structure phase result: %#v", last)
 		}
 	})
 }

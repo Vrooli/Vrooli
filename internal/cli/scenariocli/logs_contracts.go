@@ -8,8 +8,10 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
@@ -40,7 +42,21 @@ func ParseLogsArgs(args []string) (string, LogOptions, error) {
 	if err != nil {
 		return "", LogOptions{}, fmt.Errorf("parse scenario logs tail: %w", err)
 	}
-	return parsed.Positionals[0], LogOptions{
+	// A variant files its logs under its instance slug ("scenario@variant"),
+	// so --instance resolves to the same address the reader looks up. Without
+	// this the flag was rejected as an unknown option while its sibling
+	// commands accepted it.
+	name, err := resolveAddressArg("logs", parsed.Positionals[0], parsed.FlagValue("--instance"), "")
+	if err != nil {
+		return "", LogOptions{}, err
+	}
+	// Logs are read from this host's log directory, so a node address has no
+	// reader. Refuse it by name instead of letting "node/scenario" reach the
+	// path builder, which would reject it as an invalid selector.
+	if strings.Contains(name, "/") {
+		return "", LogOptions{}, clipolicy.UsageErrorf("scenario logs", "remote logs are not supported; run `vrooli scenario logs` on that node")
+	}
+	return name, LogOptions{
 		Follow:      parsed.HasFlag("--follow"),
 		ForceFollow: parsed.HasFlag("--force-follow"),
 		StepName:    parsed.FlagValue("--step"),
@@ -115,6 +131,7 @@ func scenarioLogsArgSchema() commandtree.ArgSchema {
 			{Name: "--previous", Description: "View the previous step log backup (.log.bak)"},
 			{Name: "--tail", ValueName: "lines", Description: "Show the last N lines"},
 			{Name: "--clean", Description: "Remove orphaned background logs"},
+			instanceOption(),
 		},
 	}
 }

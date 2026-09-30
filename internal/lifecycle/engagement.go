@@ -5,6 +5,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 // sourceLocation is a physical place a scenario's source code can live.
@@ -97,10 +98,15 @@ func SetDefaultEngagementResolver(r EngagementResolver) {
 }
 
 // layoutVariant maps a scenario descriptor's variant onto the lifecycle-owned
-// variant: the canonical empty-variant instance is live; any non-empty variant
-// (conventionally "@shadow") is a shadow instance.
+// variant: the canonical live instance is live; any other variant
+// (conventionally "@shadow") is a shadow instance. The variant is normalized
+// through InstanceKey first, because the start path stamps the normalized
+// "live" onto the descriptor while other callers leave it empty — reading the
+// raw string treated an engaged LIVE instance as a shadow and left it running
+// from the working tree the candidate owns.
 func layoutVariant(item scenario.Scenario) sourceVariant {
-	if item.Variant == "" {
+	key := scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}.Normalize()
+	if key.IsLive() {
 		return liveVariant
 	}
 	return shadowVariant
@@ -146,4 +152,20 @@ func (r *Runner) effectiveSourceDir(item scenario.Scenario) (string, error) {
 	default:
 		return item.Path, nil
 	}
+}
+
+// withSourceLayout stamps the directory this instance builds and runs from onto
+// the descriptor. Path stays the manifest origin: data directories, locks, and
+// records are keyed to it. Only build inputs, build outputs, and process
+// working directories follow the layout, which is what makes an engaged live
+// instance serve the frozen copy while the working tree holds the candidate.
+func (r *Runner) withSourceLayout(item scenario.Scenario) (scenario.Scenario, error) {
+	dir, err := r.effectiveSourceDir(item)
+	if err != nil {
+		return item, err
+	}
+	if dir != "" && dir != item.Path {
+		item.SourceDir = dir
+	}
+	return item, nil
 }

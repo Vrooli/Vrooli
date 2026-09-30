@@ -363,16 +363,10 @@ func readWorkspace(root *os.Root, name string, limit int64, now time.Time) (*dis
 	e.Workspace = name
 	e.SourceRevision = bytesDigest(raw)
 	// A file's claim of permission is not an authenticated owner grant.
-	e.PermittedActions = nil
-	e.SupervisorOwnerSubject = ""
-	e.SupervisorScope = ""
-	e.DispatchAuthorization = nil
 	e.AuthorizedBy = ""
-	e.AuthorityExpiresAt = nil
-	e.MaximumDirectives = 0
 	e.Withdrawn = false
 	e.Revision = 0
-	if err = validateEffortEnrollment(e, false, now); err != nil {
+	if err = validateEffortEnrollment(e); err != nil {
 		return nil, err
 	}
 	o := &pb.EffortBoardRow{ObservedAt: timestamppb.New(now), Freshness: pb.EffortFreshness_EFFORT_FRESHNESS_FRESH, RuntimeState: "unknown", OutcomeStanding: &pb.EffortOutcomeStanding{State: "unknown", Attribution: "workspace self-report"}, EvidenceRefs: []string{"workspace:" + name + "/effort.json@" + e.SourceRevision}, Limitations: []string{"workspace declarations are attributed self-report; authority is unverified"}}
@@ -668,17 +662,10 @@ func (s *EffortService) reconcileDiscovery(ctx context.Context) (*pb.EffortDisco
 			expected = old.Revision
 			e.Withdrawn = old.Withdrawn
 			e.WithdrawalReason = old.WithdrawalReason
-			// Retain a verified grant only across an unchanged target and exact subject binding.
+			// Retain the verified owner only across an unchanged target and exact subject binding.
 			if old.TargetRevision == e.TargetRevision && sameEffortSubjects(old, e) {
 				e.AuthorizedBy = old.AuthorizedBy
-				e.PermittedActions = old.PermittedActions
-				e.AuthorityExpiresAt = old.AuthorityExpiresAt
-				e.MaximumDirectives = old.MaximumDirectives
-				e.CooldownSeconds = old.CooldownSeconds
 				e.SupervisorRunId = old.SupervisorRunId
-				e.SupervisorOwnerSubject = old.SupervisorOwnerSubject
-				e.SupervisorScope = old.SupervisorScope
-				e.DispatchAuthorization = old.DispatchAuthorization
 			}
 			if oldO.GetChangeIdentity() == identity && old.Workspace == e.Workspace {
 				oldO.ObservedAt = timestamppb.New(now)

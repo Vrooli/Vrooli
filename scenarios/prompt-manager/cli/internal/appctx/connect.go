@@ -431,10 +431,6 @@ func callTeamHeartbeat(ctx context.Context, client heartbeatconnect.HeartbeatSer
 		} else {
 			return nil, false, nil
 		}
-	case len(s) == 5 && s[2] == "heartbeats" && s[4] == "observe" && method == "POST":
-		resp, err = client.RefreshSupervision(ctx, connect.NewRequest(&heartbeatv1.MemberRequest{TeamId: team, AgentId: s[3]}))
-	case len(s) == 5 && s[2] == "heartbeats" && s[4] == "reconcile" && method == "POST":
-		resp, err = client.ReconcileSupervision(ctx, connect.NewRequest(&heartbeatv1.MemberMutationRequest{TeamId: team, AgentId: s[3], Body: body, Query: q}))
 	case len(s) == 5 && s[2] == "heartbeats" && s[4] == "trigger" && method == "POST":
 		resp, err = client.TriggerHeartbeat(ctx, connect.NewRequest(&heartbeatv1.MemberMutationRequest{TeamId: team, AgentId: s[3], Body: body, Query: q}))
 	case len(s) == 5 && s[2] == "heartbeats" && s[4] == "logs" && method == "GET":

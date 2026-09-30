@@ -379,7 +379,7 @@ edge authentication.
 - [Control Surface](docs/CONTROL_SURFACE.md)
 - [Environment & Setup](docs/ENVIRONMENT.md)
 - [Workflow Node Index](docs/NODE_INDEX.md)
-- [Progress Log](docs/PROGRESS.md)
+- [Rehabilitation goal home](docs/internal/goal/GOAL.md)
 
 ## 🤝 Contributing
 

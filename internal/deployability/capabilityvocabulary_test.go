@@ -12,7 +12,7 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v5"
 )
 
-//go:generate go run ./internal/deployability/cmd/capability-vocabulary --root ../..
+//go:generate go run ./cmd/capability-vocabulary --root ../..
 
 // TestCapabilitySchemaEnumsFollowTheSingleVocabulary is the repository
 // contract for capability names. Schemas are consumer artifacts; the JSON

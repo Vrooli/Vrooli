@@ -621,12 +621,6 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdHeartbeatDisable(ctx, subArgs)
 	case "heartbeat-trigger":
 		return cmdHeartbeatTrigger(ctx, subArgs)
-	case "heartbeat-supervision-readiness":
-		return cmdHeartbeatSupervisionReadiness(ctx, subArgs)
-	case "heartbeat-supervision-observe":
-		return cmdHeartbeatSupervisionObserve(ctx, subArgs)
-	case "heartbeat-supervision-reconcile":
-		return cmdHeartbeatSupervisionReconcile(ctx, subArgs)
 	case "heartbeat-logs":
 		return cmdHeartbeatLogs(ctx, subArgs)
 	case "heartbeat-control":
@@ -732,12 +726,6 @@ Heartbeat Commands:
   heartbeat-restart-effort <team-id> <agent-id> Recover a terminal dispatched run from --request-file
   heartbeat-disable <team-id> <agent-id>      Disable heartbeat
   heartbeat-trigger <team-id> <agent-id>      Manually trigger heartbeat
-  heartbeat-supervision-readiness <team-id> <agent-id>
-                                             Show read-only supervisor preflight
-  heartbeat-supervision-observe <team-id> <agent-id>
-                                             Refresh owner evidence without dispatch
-  heartbeat-supervision-reconcile <team-id> <agent-id>
-                                             Reconcile one owner-verified uncertain wake
   heartbeat-logs <team-id> <agent-id>         List execution logs
   heartbeat-control <team-id> <action>        Status, pause, resume, or set team auto-pause policy
   queue-clear <team-id> <agent-id>            Clear a stuck running entry from the team queue
@@ -1565,10 +1553,7 @@ type HeartbeatConfig struct {
 	FiniteLeader            *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
 	FiniteLeaderState       json.RawMessage           `json:"finiteLeaderState,omitempty"`
 	FiniteLeaderError       string                    `json:"finiteLeaderError,omitempty"`
-	Supervision             *teamconfig.Supervision   `json:"supervision,omitempty"`
 	WakeAdmission           *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
-	SupervisionState        json.RawMessage           `json:"supervisionState,omitempty"`
-	SupervisionError        string                    `json:"supervisionError,omitempty"`
 	TeamID                  string                    `json:"teamId"`
 	AgentID                 string                    `json:"agentId"`
 	Enabled                 bool                      `json:"enabled"`
@@ -1603,155 +1588,6 @@ type HeartbeatFleetHealth struct {
 	MeetsThreshold         bool    `json:"meetsThreshold"`
 }
 
-type supervisionPreflight struct {
-	TeamID      string `json:"teamId"`
-	AgentID     string `json:"agentId"`
-	Enabled     bool   `json:"enabled"`
-	Effective   string `json:"effectiveState"`
-	Schedule    string `json:"schedule"`
-	PromptBytes uint64 `json:"promptBytesLast"`
-	PromptRev   string `json:"promptRevision"`
-	Wakes       uint64 `json:"wakeAttempts"`
-	Avoided     uint64 `json:"llmWakesAvoided"`
-	Observation uint64 `json:"observationOnlyAcknowledged"`
-	Transitions uint64 `json:"actionableTransitions"`
-	Coverage    string `json:"coverage,omitempty"`
-	State       string `json:"state"`
-	Error       string `json:"error,omitempty"`
-	// State timestamps make the read-only preflight honest about cached owner
-	// evidence. A disabled team may retain a perfectly valid historical cut,
-	// but that cut must not be mistaken for a current Agent Manager read.
-	LastScanAt    string   `json:"lastScanAt,omitempty"`
-	LastSuccessAt string   `json:"lastSuccessAt,omitempty"`
-	Readiness     string   `json:"readiness"`
-	OwnerAction   string   `json:"ownerAction,omitempty"`
-	Limitations   []string `json:"limitations,omitempty"`
-}
-
-func cmdHeartbeatSupervisionReadiness(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("heartbeat-supervision-readiness", flag.ContinueOnError)
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: team heartbeat-supervision-readiness <team-id> <agent-id> [--json]")
-	}
-	teamID, agentID := fs.Arg(0), fs.Arg(1)
-	var config HeartbeatConfig
-	if err := ctx.Get(fmt.Sprintf("/teams/%s/heartbeats/%s", teamID, agentID), &config); err != nil {
-		return fmt.Errorf("failed to get heartbeat configuration: %w", err)
-	}
-	result := supervisionPreflight{TeamID: teamID, AgentID: agentID, Enabled: config.Enabled, Effective: config.EffectiveState, Schedule: config.Schedule, Readiness: "not-configured"}
-	if config.SupervisionError != "" {
-		result.Error = config.SupervisionError
-	}
-	if config.Supervision == nil {
-		result.Limitations = []string{"standing supervision is not configured; this command is read-only"}
-	} else if len(config.SupervisionState) == 0 {
-		result.Readiness, result.OwnerAction = "not-scanned", "run one bounded supervisor trigger or wait for the scheduled scan"
-	} else {
-		var state struct {
-			Status                      string `json:"status"`
-			Coverage                    string `json:"coverage"`
-			Error                       string `json:"error"`
-			LastScanAt                  string `json:"lastScanAt"`
-			LastSuccessAt               string `json:"lastSuccessAt"`
-			WakeAttempts                uint64 `json:"wakeAttempts"`
-			LLMWakesAvoided             uint64 `json:"llmWakesAvoided"`
-			ObservationOnlyAcknowledged uint64 `json:"observationOnlyAcknowledged"`
-			ActionableTransitions       uint64 `json:"actionableTransitions"`
-			PromptBytesLast             uint64 `json:"promptBytesLast"`
-			PromptRevision              string `json:"promptRevision"`
-			Efforts                     map[string]struct {
-				Eligible        bool   `json:"eligible"`
-				ObservationOnly bool   `json:"observationOnly"`
-				Readiness       string `json:"readiness"`
-				Disposition     string `json:"disposition"`
-			} `json:"efforts"`
-		}
-		if err := json.Unmarshal(config.SupervisionState, &state); err != nil {
-			return fmt.Errorf("decode supervision state: %w", err)
-		}
-		result.State, result.Coverage, result.Error = state.Status, state.Coverage, state.Error
-		result.LastScanAt, result.LastSuccessAt = state.LastScanAt, state.LastSuccessAt
-		result.Wakes, result.Avoided, result.Observation, result.Transitions = state.WakeAttempts, state.LLMWakesAvoided, state.ObservationOnlyAcknowledged, state.ActionableTransitions
-		result.PromptBytes, result.PromptRev = state.PromptBytesLast, state.PromptRevision
-		ready, actionable, waits := 0, 0, 0
-		for _, effort := range state.Efforts {
-			if effort.Readiness == "ready" && !effort.ObservationOnly {
-				ready++
-			}
-			if effort.Eligible && effort.Readiness == "ready" && !effort.ObservationOnly {
-				actionable++
-			}
-			if effort.ObservationOnly || effort.Disposition == "owner-wait" {
-				waits++
-			}
-		}
-		result.Readiness = "ready"
-		if !config.Enabled || config.EffectiveState == "disabled" {
-			result.Readiness, result.OwnerAction = "disabled", "enable only after owner mandate and team preflight are green"
-		} else if actionable == 0 && waits > 0 {
-			result.Readiness, result.OwnerAction = "observation-only", "qualify an explicit Agent Manager mandate or repair owner evidence"
-		} else if ready == 0 {
-			result.Readiness, result.OwnerAction = "unavailable", "inspect supervision error and owner discovery coverage"
-		}
-		result.Limitations = append(result.Limitations, fmt.Sprintf("cached owner cut: %d ready, %d actionable, %d owner-wait", ready, actionable, waits))
-	}
-	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(result)
-	}
-	fmt.Printf("Supervisor readiness: %s\n", result.Readiness)
-	fmt.Printf("State: %s; coverage: %s; wakes: %d; avoided: %d\n", result.State, result.Coverage, result.Wakes, result.Avoided)
-	if result.LastScanAt != "" {
-		fmt.Printf("Owner cut last scanned: %s", result.LastScanAt)
-		if result.LastSuccessAt != "" {
-			fmt.Printf("; last successful scan: %s", result.LastSuccessAt)
-		}
-		fmt.Println()
-	}
-	if result.OwnerAction != "" {
-		fmt.Printf("Next owner action: %s\n", result.OwnerAction)
-	}
-	for _, limitation := range result.Limitations {
-		fmt.Printf("- %s\n", limitation)
-	}
-	return nil
-}
-
-// cmdHeartbeatSupervisionObserve refreshes the bounded Agent Manager owner
-// cut through the existing read-only heartbeat route. Readiness is otherwise
-// a cached projection, which can mislead operators after an owner repair or
-// configuration change. This operation never queues a task or starts a model.
-func cmdHeartbeatSupervisionObserve(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("heartbeat-supervision-observe", flag.ContinueOnError)
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: team heartbeat-supervision-observe <team-id> <agent-id> [--json]")
-	}
-	teamID, agentID := fs.Arg(0), fs.Arg(1)
-	var config HeartbeatConfig
-	if err := ctx.Post(fmt.Sprintf("/teams/%s/heartbeats/%s/observe", teamID, agentID), nil, &config); err != nil {
-		return fmt.Errorf("failed to refresh supervision owner evidence: %w", err)
-	}
-	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(config)
-	}
-	fmt.Printf("Refreshed supervision owner evidence for %s/%s\n", teamID, agentID)
-	if config.SupervisionError != "" {
-		fmt.Printf("Owner read error: %s\n", config.SupervisionError)
-	}
-	return nil
-}
-
 // HeartbeatExecResult represents execution result
 type HeartbeatExecResult struct {
 	StartedAt string `json:"startedAt"`
@@ -1765,7 +1601,6 @@ type HeartbeatExecResult struct {
 // CreateHeartbeatRequest is the request for creating a heartbeat
 type CreateHeartbeatRequest struct {
 	FiniteLeader   *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
-	Supervision    *teamconfig.Supervision   `json:"supervision,omitempty"`
 	WakeAdmission  *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
 	Schedule       string                    `json:"schedule"`
 	ProfileKey     string                    `json:"profileKey,omitempty"`
@@ -1776,7 +1611,6 @@ type CreateHeartbeatRequest struct {
 // UpdateHeartbeatRequest is the request for updating a heartbeat
 type UpdateHeartbeatRequest struct {
 	FiniteLeader   *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
-	Supervision    *teamconfig.Supervision   `json:"supervision,omitempty"`
 	WakeAdmission  *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
 	Schedule       *string                   `json:"schedule,omitempty"`
 	ProfileKey     *string                   `json:"profileKey,omitempty"`
@@ -2346,18 +2180,6 @@ func cmdHeartbeat(ctx appctx.Context, args []string) error {
 			return err
 		}
 	}
-	if config.Supervision != nil {
-		fmt.Printf("Standing supervision: up to %d efforts per wake; discovery limit %d; minimum wake interval %ds\n", config.Supervision.MaxEffortsPerWake, config.Supervision.DiscoveryLimit, config.Supervision.MinWakeIntervalSeconds)
-		if config.Supervision.HealthySampleIntervalSeconds > 0 {
-			fmt.Printf("Healthy sampling: up to %d per wake, every %ds per effort\n", config.Supervision.MaxHealthySamplesPerWake, config.Supervision.HealthySampleIntervalSeconds)
-		}
-		if len(config.SupervisionState) > 0 {
-			fmt.Printf("Supervision state: %s\n", config.SupervisionState)
-		}
-		if config.SupervisionError != "" {
-			fmt.Printf("Supervision unavailable: %s\n", config.SupervisionError)
-		}
-	}
 	if config.WakeAdmission != nil {
 		fmt.Printf("Wake admission: %s", config.WakeAdmission.Mode)
 		if len(config.WakeAdmission.ChangeSources) > 0 {
@@ -2395,19 +2217,8 @@ func cmdHeartbeat(ctx appctx.Context, args []string) error {
 
 func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("heartbeat-enable", flag.ContinueOnError)
-	supervision := fs.Bool("supervision", false, "Use standing effort-supervisor admission")
-	dispatchEffort := fs.String("dispatch-effort-ref", "", "AM owner-granted standing service enrollment reference (not a credential)")
-	dispatchAuthorization := fs.String("dispatch-authorization-id", "", "AM owner-granted dispatcher authorization ID (not a credential)")
-	discoveryLimit := fs.Int("discovery-limit", 100, "Maximum efforts per owner discovery page")
-	maxEfforts := fs.Int("max-efforts-per-wake", 5, "Maximum efforts assessed in one supervisor wake")
-	minWake := fs.Int("min-wake-interval-seconds", 300, "Minimum interval between supervisor inference wakes")
-	sampleInterval := fs.Int("healthy-sample-interval-seconds", 0, "Per-effort healthy sampling interval; zero disables")
-	maxSamples := fs.Int("max-healthy-samples-per-wake", 0, "Maximum independent healthy samples in a wake")
 	wakeMode := fs.String("wake-admission", "always", "Ordinary heartbeat admission: always or on-change")
 	wakeSources := fs.String("wake-sources", "", "Comma-separated on-change sources: team,member,inbox,corpus")
-	diagnosticWakes := fs.Int("diagnostic-wakes-per-window", 4, "Maximum supervisor inference attempts per allowance window")
-	diagnosticWindow := fs.Int("diagnostic-window-seconds", 3600, "Diagnostic allowance window in seconds")
-	accountingRef := fs.String("accounting-ref", "", "Standing service allowance reference for shared/idle attribution")
 	// An omitted schedule preserves an existing heartbeat during an update. A
 	// newly created heartbeat receives the economical default below. Keeping
 	// omission distinct from the default lets an owner explicitly reapply the
@@ -2447,23 +2258,6 @@ func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
 			return err
 		}
 	}
-	var supervisionConfig *teamconfig.Supervision
-	if !*supervision && (*dispatchEffort != "" || *dispatchAuthorization != "") {
-		return fmt.Errorf("dispatcher binding requires --supervision")
-	}
-	if *supervision {
-		supervisionConfig = &teamconfig.Supervision{
-			DiscoveryLimit: *discoveryLimit, MaxEffortsPerWake: *maxEfforts,
-			MinWakeIntervalSeconds: *minWake, HealthySampleIntervalSeconds: *sampleInterval, MaxHealthySamplesPerWake: *maxSamples,
-		}
-		supervisionConfig.DiagnosticAllowance = teamconfig.DiagnosticAllowance{MaxWakesPerWindow: *diagnosticWakes, WindowSeconds: *diagnosticWindow, AccountingRef: *accountingRef}
-		if *dispatchEffort != "" || *dispatchAuthorization != "" {
-			supervisionConfig.DispatchAuthorization = &teamconfig.SupervisorDispatchBinding{EffortRef: *dispatchEffort, AuthorizationID: *dispatchAuthorization}
-		}
-		if err := supervisionConfig.Validate(); err != nil {
-			return err
-		}
-	}
 
 	// Check if config exists
 	var existing HeartbeatConfig
@@ -2477,7 +2271,6 @@ func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
 			createSchedule = "0 */6 * * *"
 		}
 		req := CreateHeartbeatRequest{
-			Supervision:    supervisionConfig,
 			WakeAdmission:  wakeAdmission,
 			Schedule:       createSchedule,
 			ProfileKey:     *profileKey,
@@ -2497,7 +2290,6 @@ func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
 	} else {
 		// Update existing config
 		req := UpdateHeartbeatRequest{
-			Supervision:   supervisionConfig,
 			WakeAdmission: wakeAdmission,
 			Enabled:       &enabled,
 		}
@@ -2584,42 +2376,6 @@ func cmdHeartbeatTrigger(ctx appctx.Context, args []string) error {
 	fmt.Printf("Triggered heartbeat for %s/%s\n", teamID, agentID)
 	fmt.Printf("Run ID: %s\n", resp.RunID)
 	fmt.Printf("Status: %s\n", resp.Status)
-	return nil
-}
-
-func cmdHeartbeatSupervisionReconcile(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("heartbeat-supervision-reconcile", flag.ContinueOnError)
-	wakeID := fs.String("wake-id", "", "Exact unresolved wake identity")
-	evidence := fs.String("evidence-refs", "", "Comma-separated owner evidence references")
-	reason := fs.String("reason", "", "Bounded owner reconciliation reason")
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	if fs.NArg() < 2 || strings.TrimSpace(*wakeID) == "" || strings.TrimSpace(*evidence) == "" || strings.TrimSpace(*reason) == "" {
-		return fmt.Errorf("usage: team heartbeat-supervision-reconcile <team-id> <agent-id> --wake-id=<id> --evidence-refs=<ref[,ref...]> --reason=<text> [--json]")
-	}
-	refs := make([]string, 0, 8)
-	for _, ref := range strings.Split(*evidence, ",") {
-		if ref = strings.TrimSpace(ref); ref != "" {
-			refs = append(refs, ref)
-		}
-	}
-	if len(refs) == 0 {
-		return fmt.Errorf("at least one evidence reference is required")
-	}
-	teamID, agentID := fs.Arg(0), fs.Arg(1)
-	body := map[string]any{"wakeId": strings.TrimSpace(*wakeID), "evidenceRefs": refs, "reason": strings.TrimSpace(*reason)}
-	var config HeartbeatConfig
-	if err := ctx.Post(fmt.Sprintf("/teams/%s/heartbeats/%s/reconcile", teamID, agentID), body, &config); err != nil {
-		return fmt.Errorf("failed to reconcile supervision wake: %w", err)
-	}
-	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(config)
-	}
-	fmt.Printf("Reconciled supervision wake %s for %s/%s\n", strings.TrimSpace(*wakeID), teamID, agentID)
 	return nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+
 	"github.com/google/uuid"
 )
 
@@ -158,25 +159,6 @@ func TestMeteredAdmissionRejectsUnqualifiedPaths(t *testing.T) {
 		if err := domain.ValidateWorkflowBudgetPolicy(d); err == nil {
 			t.Fatalf("unqualified %s admitted", kind)
 		}
-	}
-}
-
-func TestMeteredAdmissionAllowsDeterministicQualification(t *testing.T) {
-	d := budgetAdmissionDefinition()
-	d.Budgets.Enforcement = domain.WorkflowBudgetMeteredCancellation
-	d.Nodes[1] = domain.WorkflowNode{
-		ID:   "qualify",
-		Kind: domain.WorkflowNodeQualification,
-		Qualification: &domain.WorkflowQualificationNode{
-			ReviewFromNode: "run",
-			ProgramName:    "example.qualify",
-			ProgramDigest:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		},
-	}
-	d.Nodes = append(d.Nodes, domain.WorkflowNode{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}})
-	d.Edges = []domain.WorkflowEdge{{From: "run", To: "qualify"}, {From: "qualify", To: "done"}}
-	if err := domain.ValidateWorkflowBudgetPolicy(d); err != nil {
-		t.Fatalf("deterministic qualification should be compatible with metered cancellation: %v", err)
 	}
 }
 

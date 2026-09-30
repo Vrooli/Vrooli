@@ -103,9 +103,9 @@ server is disabled and command-line feature enables cannot override the policy.
 It also checks that the local execution host remains enabled.
 This does not prove a real agent's complete tool inventory or attempted service
 calls. The outer `vrooli-aware` launcher still has network access for the model
-transport. See the integration checkpoint in
-[`effort-supervision-validation.md`](../../../docs/agent-system/effort-supervision-validation.md)
-for runtime adoption and the remaining direct-service/pilot obligations. Do not
+transport. See
+[`EFFORT_SUPERVISION.md`](../../../docs/agent-system/EFFORT_SUPERVISION.md)
+for the supervision contract. Do not
 infer qualification of arbitrary runner versions from configuration alone.
 
 `effort` is a canonical run control with the values `low`, `medium`, `high`,

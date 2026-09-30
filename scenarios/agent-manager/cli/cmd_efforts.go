@@ -10,7 +10,6 @@ import (
 
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/cli-core/cliutil"
-	api "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -23,6 +22,9 @@ func (a *App) cmdEffort(args []string) error {
 		args = []string{"board"}
 	}
 	command := args[0]
+	if command == "epoch-check" {
+		return a.effortEpochCheck(args[1:])
+	}
 	fs := flag.NewFlagSet("effort "+command, flag.ContinueOnError)
 	file := fs.String("request-file", "", "Typed RPC request JSON for mutation")
 	localOwner := fs.Bool("local-owner", false, "Explicit local operator exchange; no persisted token or agent fallback")
@@ -43,12 +45,6 @@ func (a *App) cmdEffort(args []string) error {
 	var request, response proto.Message
 	mutation := false
 	switch command {
-	case "issue-dispatch":
-		path = apiconnect.AgentManagerServiceIssueSupervisorDispatchProcedure
-		request, response, mutation = &api.IssueSupervisorDispatchRequest{}, &pb.EffortEnrollment{}, true
-	case "revoke-dispatch":
-		path = apiconnect.AgentManagerServiceRevokeSupervisorDispatchProcedure
-		request, response, mutation = &api.RevokeSupervisorDispatchRequest{}, &pb.EffortEnrollment{}, true
 	case "board":
 		path = apiconnect.AgentManagerServiceGetEffortBoardProcedure
 		request = &pb.GetEffortBoardRequest{EffortRef: *ref, PageSize: uint32(*limit), PageToken: *cursor}
@@ -64,10 +60,6 @@ func (a *App) cmdEffort(args []string) error {
 		path = apiconnect.AgentManagerServiceListEffortsProcedure
 		request = &pb.ListEffortsRequest{PageSize: uint32(*limit), PageToken: *cursor}
 		response = &pb.ListEffortsResponse{}
-	case "directives":
-		path = apiconnect.AgentManagerServiceListEffortDirectivesProcedure
-		request = &pb.ListEffortDirectivesRequest{EffortRef: *ref, PageSize: uint32(*limit), PageToken: *cursor}
-		response = &pb.ListEffortDirectivesResponse{}
 	case "discover":
 		path = apiconnect.AgentManagerServiceReconcileEffortDiscoveryProcedure
 		request = &pb.ReconcileEffortDiscoveryRequest{}
@@ -86,21 +78,6 @@ func (a *App) cmdEffort(args []string) error {
 		path = apiconnect.AgentManagerServiceWithdrawEffortProcedure
 		request = &pb.WithdrawEffortRequest{}
 		response = &pb.EffortEnrollment{}
-		mutation = true
-	case "direct":
-		path = apiconnect.AgentManagerServiceRequestEffortDirectiveProcedure
-		request = &pb.RequestEffortDirectiveRequest{}
-		response = &pb.EffortDirective{}
-		mutation = true
-	case "update-directive":
-		path = apiconnect.AgentManagerServiceUpdateEffortDirectiveProcedure
-		request = &pb.UpdateEffortDirectiveRequest{}
-		response = &pb.EffortDirective{}
-		mutation = true
-	case "assess":
-		path = apiconnect.AgentManagerServiceRecordEffortAssessmentProcedure
-		request = &pb.RecordEffortAssessmentRequest{}
-		response = &pb.EffortAssessment{}
 		mutation = true
 	default:
 		return fmt.Errorf("unknown effort operation %q", command)
@@ -156,23 +133,11 @@ func (a *App) cmdEffort(args []string) error {
 		printEffortPage(out.NextPageToken)
 	case *pb.EffortEnrollment:
 		fmt.Printf("%s revision=%d withdrawn=%t\n", out.EffortRef, out.Revision, out.Withdrawn)
-		if grant := out.GetDispatchAuthorization(); grant != nil {
-			fmt.Printf("Dispatcher %s team=%s member=%s profile=%s expires=%s runs=%d/%d minimum-interval=%ds budget=%dt/$%.2f revoked=%t\n", grant.AuthorizationId, grant.TeamId, grant.MemberId, grant.ProfileKey, grant.ExpiresAt.AsTime().Format(time.RFC3339), grant.DispatchedRuns, grant.MaximumRuns, grant.MinimumIntervalSeconds, grant.MaxTokens, float64(grant.MaxChargeMicroUsd)/1_000_000, grant.RevokedAt != nil)
-		}
 	case *pb.EffortDiscovery:
 		fmt.Printf("Discovery generation=%d scanned=%d limit=%d partial=%t cursor=%s\n", out.Generation, out.ScannedCount, out.ScanLimit, out.Partial, out.ScanCursor)
 		for _, f := range out.Findings {
 			fmt.Printf("%s: %s — %s\n", f.Source, f.Code, f.Reason)
 		}
-	case *pb.EffortDirective:
-		printEffortDirective(out)
-	case *pb.EffortAssessment:
-		fmt.Printf("Assessment %s disposition=%s benefit=%s shared-operation=%s\n", out.AssessmentId, out.Disposition, out.Benefit, out.SharedOperationRef)
-	case *pb.ListEffortDirectivesResponse:
-		for _, d := range out.Directives {
-			printEffortDirective(d)
-		}
-		printEffortPage(out.NextPageToken)
 	}
 	return nil
 }
@@ -195,16 +160,6 @@ func printCompactEffortBoard(b *pb.EffortBoard) {
 	for _, r := range b.GetRows() {
 		e := r.GetEnrollment()
 		fmt.Printf("\n%s (%s)\n  Standing: runtime=%s outcome=%s freshness=%s target=%s @ %s\n", e.GetDisplayName(), e.GetEffortRef(), r.GetRuntimeState(), r.GetOutcomeStanding().GetState(), strings.TrimPrefix(r.GetFreshness().String(), "EFFORT_FRESHNESS_"), e.GetDestinationRef(), e.GetTargetRevision())
-		if a := r.GetLastAssessment(); a != nil {
-			fmt.Printf("  Prior assessment: %s disposition=%s benefit=%s evidence=%s allowance=%s\n", a.GetAssessmentId(), a.GetDisposition(), a.GetBenefit(), strings.Join(a.GetEvidenceRefs(), ","), effortKnown(a.GetAllowanceRef()))
-			if links := a.GetRepairLinks(); len(links) > 0 {
-				for _, link := range links {
-					fmt.Printf("  Repair link: state=%s work=%s owner=%s next=%s proof=%s stop=%s\n", link.GetState(), effortKnown(link.GetWorkRef()), effortKnown(link.GetAssigningOwnerRef()), effortKnown(link.GetNextOperation()), strings.Join(link.GetCompletionEvidenceRefs(), ","), effortKnown(link.GetStoppingCondition()))
-				}
-			}
-		} else {
-			fmt.Println("  Prior assessment: unknown")
-		}
 		fmt.Printf("  Changed evidence: %s\n", strings.Join(r.GetEvidenceRefs(), ","))
 		if usage := r.GetUsage(); usage != nil {
 			tokens, cost := "unknown", "unknown"
@@ -224,17 +179,6 @@ func printCompactEffortBoard(b *pb.EffortBoard) {
 			fmt.Println("  Named waits: none")
 		}
 		refs := append([]string{}, r.GetEvidenceRefs()...)
-		if a := r.GetLastAssessment(); a != nil {
-			refs = append(refs, a.GetEvidenceRefs()...)
-			refs = append(refs, a.GetSourceLedgerRef(), a.GetAllowanceRef())
-			for _, link := range a.GetRepairLinks() {
-				if link == nil {
-					continue
-				}
-				refs = append(refs, link.GetWorkRef(), link.GetAssigningOwnerRef())
-				refs = append(refs, link.GetCompletionEvidenceRefs()...)
-			}
-		}
 		refs = append(refs, r.GetPendingOperations()...)
 		refs = append(refs, "agent-manager:GetEffortBoard:"+e.GetEffortRef())
 		fmt.Printf("  Detail refs: %s\n", strings.Join(boundedEffortRefs(refs, 32), ", "))
@@ -284,22 +228,6 @@ func printEffortPage(token string) {
 	}
 }
 
-func printEffortDirective(d *pb.EffortDirective) {
-	fmt.Printf("%s effort=%s revision=%d delivery=%s acknowledgment=%s assessment=%s\n", d.DirectiveId, d.EffortRef, d.Revision, strings.TrimPrefix(d.Delivery.String(), "EFFORT_DIRECTIVE_DELIVERY_"), strings.TrimPrefix(d.Acknowledgment.String(), "EFFORT_DIRECTIVE_ACKNOWLEDGMENT_"), d.Assessment)
-	if d.DeliveryReason != "" {
-		fmt.Println("  " + d.DeliveryReason)
-	}
-	if expectation := d.GetRecoveryExpectation(); expectation != nil {
-		if d.RecoveredRunId != "" {
-			fmt.Printf("  Replacement run: %s; predecessor: %s\n", d.RecoveredRunId, d.TargetRunId)
-		}
-		fmt.Printf("  Recovery: %s; progress condition: %s\n", d.GetRecoveryVerification().GetState(), expectation.ProgressCondition)
-		if v := d.GetRecoveryVerification(); v != nil && v.Reason != "" {
-			fmt.Printf("  Verification: %s; verifier=%s; next=%s\n", v.Reason, v.Verifier, v.NextOwnerCondition)
-		}
-	}
-}
-
 func printEffortBoard(b *pb.EffortBoard) {
 	fmt.Printf("Efforts: %d active; discovery generation=%d; partial=%t\n", b.ActiveCount, b.GetDiscovery().GetGeneration(), b.Partial)
 	if b.ObservedAt != nil {
@@ -322,9 +250,6 @@ func printEffortBoard(b *pb.EffortBoard) {
 			fmt.Printf("  %s: %s/%s run=%s state=%s %s\n", a.GetSubject().GetRole(), a.GetSubject().GetOwner(), a.GetSubject().GetReference(), a.GetSubject().GetRunId(), a.RuntimeState, a.UnavailableReason)
 			fmt.Printf("    Requested: runner=%s model=%s reasoning=%s; effective: runner=%s model=%s reasoning=%s\n", effortKnown(a.RequestedRunner), effortKnown(a.RequestedModel), effortKnown(a.RequestedReasoning), effortKnown(a.EffectiveRunner), effortKnown(a.EffectiveModel), effortKnown(a.EffectiveReasoning))
 		}
-		if a := r.LastAssessment; a != nil {
-			fmt.Printf("  Assessment: %s %s benefit=%s evidence=%s shared-operation=%s allowance=%s (cost unknown/unallocated unless reported)\n", a.AssessmentId, a.Disposition, a.Benefit, a.SourceLedgerRef, a.SharedOperationRef, effortKnown(a.AllowanceRef))
-		}
 		for _, v := range r.Blockers {
 			fmt.Println("  Blocker: " + v)
 		}
@@ -333,9 +258,6 @@ func printEffortBoard(b *pb.EffortBoard) {
 		}
 		for _, v := range r.Limitations {
 			fmt.Println("  Limitation: " + v)
-		}
-		for _, d := range r.Directives {
-			printEffortDirective(d)
 		}
 	}
 	for _, f := range b.GetDiscovery().GetFindings() {

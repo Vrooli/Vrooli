@@ -59,7 +59,7 @@ func cmdHeartbeatBindEffort(ctx appctx.Context, args []string) error {
 	if input.FiniteLeader == nil || strings.TrimSpace(input.Schedule) == "" {
 		return fmt.Errorf("finiteLeader and schedule are required")
 	}
-	if err := input.FiniteLeader.Validate(input.ProfileKey, nil); err != nil {
+	if err := input.FiniteLeader.Validate(input.ProfileKey); err != nil {
 		return err
 	}
 	team, agent := fs.Arg(0), fs.Arg(1)
@@ -193,8 +193,8 @@ func printFiniteLeaderBinding(config HeartbeatConfig, jsonOut bool) error {
 		encoder.SetIndent("", "  ")
 		return encoder.Encode(config)
 	}
-	fmt.Printf("Finite effort: %s\nAccepted revision: %s\nCoordinator: %s/%s\nProfile: %s\nEnabled: %t\nRetired: %t\n",
-		config.FiniteLeader.EffortRef, config.FiniteLeader.AcceptedRevision, config.TeamID, config.AgentID, config.ProfileKey, config.Enabled, config.FiniteLeader.Retired)
+	fmt.Printf("Finite effort: %s\nAccepted revision: %s\nCoordinator: %s/%s\nProfile: %s\nEnabled: %t\nRetired: %t\nKeep alive: %t\n",
+		config.FiniteLeader.EffortRef, config.FiniteLeader.AcceptedRevision, config.TeamID, config.AgentID, config.ProfileKey, config.Enabled, config.FiniteLeader.Retired, config.FiniteLeader.KeepAlive)
 	if len(config.FiniteLeaderState) != 0 {
 		fmt.Printf("Leader state: %s\n", config.FiniteLeaderState)
 	}

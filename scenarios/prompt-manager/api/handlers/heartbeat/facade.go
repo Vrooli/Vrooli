@@ -23,5 +23,4 @@ var (
 	NewRunRegistry           = domain.NewRunRegistry
 	NewScheduler             = domain.NewScheduler
 	NewTeamExecutionStore    = domain.NewTeamExecutionStore
-	WireStandingSupervisor   = domain.WireStandingSupervisor
 )
